@@ -7,7 +7,6 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 
-
 VALID_USER_DATA = """\
 #cloud-config
 runcmd:

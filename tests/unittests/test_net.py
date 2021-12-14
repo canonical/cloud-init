@@ -1,32 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import net
-from cloudinit import distros
-from cloudinit.net import cmdline
-from cloudinit.net import (
-    eni,
-    interface_has_own_mac,
-    natural_sort_key,
-    netplan,
-    network_state,
-    renderers,
-    sysconfig,
-    networkd,
-)
-from cloudinit.sources.helpers import openstack
-from cloudinit import temp_utils
-from cloudinit import subp
-from cloudinit import util
-from cloudinit import safeyaml as yaml
-
-from tests.unittests.helpers import (
-    CiTestCase,
-    FilesystemMockingTestCase,
-    dir2dict,
-    mock,
-    populate_dir,
-)
-
 import base64
 import copy
 import gzip
@@ -35,9 +8,32 @@ import json
 import os
 import re
 import textwrap
-from yaml.serializer import Serializer
 
 import pytest
+from yaml.serializer import Serializer
+
+from cloudinit import distros, net
+from cloudinit import safeyaml as yaml
+from cloudinit import subp, temp_utils, util
+from cloudinit.net import (
+    cmdline,
+    eni,
+    interface_has_own_mac,
+    natural_sort_key,
+    netplan,
+    network_state,
+    networkd,
+    renderers,
+    sysconfig,
+)
+from cloudinit.sources.helpers import openstack
+from tests.unittests.helpers import (
+    CiTestCase,
+    FilesystemMockingTestCase,
+    dir2dict,
+    mock,
+    populate_dir,
+)
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'

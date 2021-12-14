@@ -6,8 +6,7 @@
 
 import re
 
-from cloudinit import importer
-from cloudinit import type_utils
+from cloudinit import importer, type_utils
 
 NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
 

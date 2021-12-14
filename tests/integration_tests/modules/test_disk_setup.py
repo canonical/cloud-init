@@ -1,7 +1,8 @@
 import json
 import os
-import pytest
 from uuid import uuid4
+
+import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp

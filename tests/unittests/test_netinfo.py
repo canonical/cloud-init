@@ -7,7 +7,6 @@ from copy import copy
 from cloudinit.netinfo import netdev_info, netdev_pformat, route_pformat
 from tests.unittests.helpers import CiTestCase, mock, readResource
 
-
 # Example ifconfig and route output
 SAMPLE_OLD_IFCONFIG_OUT = readResource("netinfo/old-ifconfig-output")
 SAMPLE_NEW_IFCONFIG_OUT = readResource("netinfo/new-ifconfig-output")

@@ -19,7 +19,6 @@ will match.
 """
 import pytest
 
-
 USER_DATA_TMPL = """\
 #cloud-config
 ssh_authorized_keys:

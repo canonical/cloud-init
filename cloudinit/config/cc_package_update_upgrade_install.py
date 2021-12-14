@@ -43,8 +43,7 @@ import os
 import time
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 REBOOT_FILE = "/var/run/reboot-required"
 REBOOT_CMD = ["/sbin/reboot"]

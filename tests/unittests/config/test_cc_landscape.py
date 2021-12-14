@@ -1,15 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+
 from configobj import ConfigObj
 
-from cloudinit.config import cc_landscape
 from cloudinit import util
+from cloudinit.config import cc_landscape
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     mock,
     wrap_and_call,
 )
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

@@ -1,7 +1,8 @@
-import pytest
 from collections import namedtuple
 from unittest import mock
 from unittest.mock import call
+
+import pytest
 
 from cloudinit.cmd.devel.hotplug_hook import handle_hotplug
 from cloudinit.distros import Distro
@@ -10,7 +11,6 @@ from cloudinit.net.activators import NetworkActivator
 from cloudinit.net.network_state import NetworkState
 from cloudinit.sources import DataSource
 from cloudinit.stages import Init
-
 
 hotplug_args = namedtuple("hotplug_args", "udevaction, subsystem, devpath")
 FAKE_MAC = "11:22:33:44:55:66"

@@ -5,11 +5,9 @@
 
 from cloudinit import dmi
 from cloudinit import ec2_utils as ec2
-from cloudinit import log as logging
-from cloudinit import sources
 from cloudinit import helpers
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import log as logging
+from cloudinit import sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
 

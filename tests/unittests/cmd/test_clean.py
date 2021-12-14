@@ -1,11 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
+from collections import namedtuple
+from io import StringIO
+
 from cloudinit.cmd import clean
 from cloudinit.util import ensure_dir, sym_link, write_file
-from tests.unittests.helpers import CiTestCase, wrap_and_call, mock
-from collections import namedtuple
-import os
-from io import StringIO
+from tests.unittests.helpers import CiTestCase, mock, wrap_and_call
 
 mypaths = namedtuple("MyPaths", "cloud_dir")
 

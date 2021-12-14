@@ -1,18 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import dmi
-from cloudinit import helpers
+import os
+import textwrap
+
+import yaml
+
+from cloudinit import dmi, helpers, util
+from cloudinit.sources.DataSourceNoCloud import DataSourceNoCloud as dsNoCloud
 from cloudinit.sources.DataSourceNoCloud import (
-    DataSourceNoCloud as dsNoCloud,
     _maybe_remove_top_network,
     parse_cmdline_data,
 )
-from cloudinit import util
-from tests.unittests.helpers import CiTestCase, populate_dir, mock, ExitStack
-
-import os
-import textwrap
-import yaml
+from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 
 @mock.patch("cloudinit.sources.DataSourceNoCloud.util.is_lxd")

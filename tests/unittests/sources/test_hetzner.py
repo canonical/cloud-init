@@ -4,14 +4,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.sources import DataSourceHetzner
-import cloudinit.sources.helpers.hetzner as hc_helper
-from cloudinit import util, settings, helpers
-
-from tests.unittests.helpers import mock, CiTestCase
-
 import base64
+
 import pytest
+
+import cloudinit.sources.helpers.hetzner as hc_helper
+from cloudinit import helpers, settings, util
+from cloudinit.sources import DataSourceHetzner
+from tests.unittests.helpers import CiTestCase, mock
 
 METADATA = util.load_yaml(
     """

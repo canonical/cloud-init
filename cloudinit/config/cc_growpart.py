@@ -70,10 +70,8 @@ import re
 import stat
 
 from cloudinit import log as logging
+from cloudinit import subp, temp_utils, util
 from cloudinit.settings import PER_ALWAYS
-from cloudinit import subp
-from cloudinit import temp_utils
-from cloudinit import util
 
 frequency = PER_ALWAYS
 

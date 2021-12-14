@@ -2,11 +2,8 @@
 
 import sys
 
+from cloudinit import distros, helpers
 from cloudinit.config import cc_power_state_change as psc
-
-from cloudinit import distros
-from cloudinit import helpers
-
 from tests.unittests import helpers as t_help
 from tests.unittests.helpers import mock
 

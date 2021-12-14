@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.registry import DictRegistry
-
-from tests.unittests.helpers import mock, TestCase
+from tests.unittests.helpers import TestCase, mock
 
 
 class TestDictRegistry(TestCase):

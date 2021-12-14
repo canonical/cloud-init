@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
+import time
+
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
-
-import os
-import time
 
 LOG = logging.getLogger()
 

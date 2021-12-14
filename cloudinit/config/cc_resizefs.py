@@ -13,10 +13,9 @@ import os
 import stat
 from textwrap import dedent
 
+from cloudinit import subp, util
 from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_ALWAYS
-from cloudinit import subp
-from cloudinit import util
 
 NOBLOCK = "noblock"
 

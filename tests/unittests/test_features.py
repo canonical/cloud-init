@@ -4,9 +4,10 @@
 This file is for testing the feature flag functionality itself,
 NOT for testing any individual feature flag
 """
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 import cloudinit
 

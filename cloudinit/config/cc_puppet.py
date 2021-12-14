@@ -108,14 +108,11 @@ key (by default the agent will execute with the ``--test`` flag).
 
 import os
 import socket
-import yaml
 from io import StringIO
 
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import temp_utils
-from cloudinit import util
-from cloudinit import url_helper
+import yaml
+
+from cloudinit import helpers, subp, temp_utils, url_helper, util
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]

@@ -1,16 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import helpers
-from cloudinit import util
+import os
+import time
+
+from cloudinit import helpers, util
 from cloudinit.sources.DataSourceCloudStack import (
     DataSourceCloudStack,
     get_latest_lease,
 )
-
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
-
-import os
-import time
 
 MOD_PATH = "cloudinit.sources.DataSourceCloudStack"
 DS_PATH = MOD_PATH + ".DataSourceCloudStack"

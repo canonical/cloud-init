@@ -1,19 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests import helpers
-
-from cloudinit.handlers import cloud_config
-from cloudinit.handlers import CONTENT_START, CONTENT_END
-
-from cloudinit import helpers as c_helpers
-from cloudinit import util
-
 import collections
 import glob
 import os
 import random
 import re
 import string
+
+from cloudinit import helpers as c_helpers
+from cloudinit import util
+from cloudinit.handlers import CONTENT_END, CONTENT_START, cloud_config
+from tests.unittests import helpers
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"

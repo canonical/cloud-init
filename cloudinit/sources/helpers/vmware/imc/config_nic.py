@@ -9,9 +9,8 @@ import logging
 import os
 import re
 
+from cloudinit import subp, util
 from cloudinit.net.network_state import mask_to_net_prefix
-from cloudinit import subp
-from cloudinit import util
 
 logger = logging.getLogger(__name__)
 

@@ -15,13 +15,11 @@ import time
 from cloudinit import dmi
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit import sources
+from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
-from cloudinit import util
-from cloudinit import warnings
+from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 LOG = logging.getLogger(__name__)
 

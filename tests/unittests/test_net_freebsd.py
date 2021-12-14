@@ -3,8 +3,7 @@ import os
 import cloudinit.net
 import cloudinit.net.network_state
 from cloudinit import safeyaml
-from tests.unittests.helpers import CiTestCase, mock, readResource, dir2dict
-
+from tests.unittests.helpers import CiTestCase, dir2dict, mock, readResource
 
 SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 V1 = """

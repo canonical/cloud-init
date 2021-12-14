@@ -9,9 +9,7 @@
 from textwrap import dedent
 
 from cloudinit import log as logging
-from cloudinit import temp_utils
-from cloudinit import templater
-from cloudinit import util
+from cloudinit import temp_utils, templater, util
 from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 

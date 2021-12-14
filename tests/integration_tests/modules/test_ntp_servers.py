@@ -9,8 +9,8 @@ and ``tests/cloud_tests/testcases/modules/ntp_chrony.yaml``)
 """
 import re
 
-import yaml
 import pytest
+import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
 

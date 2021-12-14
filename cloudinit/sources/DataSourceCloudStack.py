@@ -13,17 +13,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-from socket import inet_ntoa, getaddrinfo, gaierror
-from struct import pack
 import time
+from socket import gaierror, getaddrinfo, inet_ntoa
+from struct import pack
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
-from cloudinit.net import dhcp
-from cloudinit import sources
+from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
-from cloudinit import subp
 from cloudinit import util
+from cloudinit.net import dhcp
 
 LOG = logging.getLogger(__name__)
 

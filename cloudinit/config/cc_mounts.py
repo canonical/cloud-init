@@ -62,15 +62,12 @@ swap file is created.
         maxsize: <size in bytes>
 """
 
-from string import whitespace
-
 import logging
 import os
 import re
+from string import whitespace
 
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, type_utils, util
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"

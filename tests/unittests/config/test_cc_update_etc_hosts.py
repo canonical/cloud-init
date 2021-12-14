@@ -1,17 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_update_etc_hosts
-
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import util
-
-from tests.unittests import helpers as t_help
-
 import logging
 import os
 import shutil
+
+from cloudinit import cloud, distros, helpers, util
+from cloudinit.config import cc_update_etc_hosts
+from tests.unittests import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 

@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import os
+from collections import namedtuple
+
 from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit.util import is_container, is_FreeBSD
-
-from collections import namedtuple
-import os
 
 LOG = logging.getLogger(__name__)
 

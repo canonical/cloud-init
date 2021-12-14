@@ -10,16 +10,14 @@ import os
 
 import pytest
 
-from cloudinit import dmi, helpers, safeyaml
-from cloudinit import settings
+from cloudinit import dmi, helpers, safeyaml, settings
 from cloudinit.sources import DataSourceVMware
 from tests.unittests.helpers import (
-    mock,
     CiTestCase,
     FilesystemMockingTestCase,
+    mock,
     populate_dir,
 )
-
 
 PRODUCT_NAME_FILE_PATH = "/sys/class/dmi/id/product_name"
 PRODUCT_NAME = "VMware7,1"

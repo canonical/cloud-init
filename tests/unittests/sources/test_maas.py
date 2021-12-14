@@ -1,14 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from copy import copy
 import os
 import shutil
 import tempfile
-import yaml
+from copy import copy
 from unittest import mock
 
-from cloudinit.sources import DataSourceMAAS
+import yaml
+
 from cloudinit import url_helper
+from cloudinit.sources import DataSourceMAAS
 from tests.unittests.helpers import CiTestCase, populate_dir
 
 

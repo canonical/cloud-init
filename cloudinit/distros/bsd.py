@@ -1,12 +1,10 @@
 import platform
 
-from cloudinit import distros
-from cloudinit.distros import bsd_utils
-from cloudinit import helpers
+from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import net, subp, util
+from cloudinit.distros import bsd_utils
+
 from .networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)

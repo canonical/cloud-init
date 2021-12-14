@@ -5,12 +5,9 @@
 # Vultr Metadata API:
 # https://www.vultr.com/metadata/
 
-from cloudinit import log as log
-from cloudinit import sources
-from cloudinit import util
-from cloudinit import version
-
 import cloudinit.sources.helpers.vultr as vultr
+from cloudinit import log as log
+from cloudinit import sources, util, version
 
 LOG = log.getLogger(__name__)
 BUILTIN_DS_CONFIG = {

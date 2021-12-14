@@ -1,11 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from logging import Logger
+from unittest import mock
+
 import pytest
 
-from unittest import mock
-from logging import Logger
-from cloudinit.subp import ProcessExecutionError
 from cloudinit.config.cc_grub_dpkg import fetch_idevs, handle
+from cloudinit.subp import ProcessExecutionError
 
 
 class TestFetchIdevs:

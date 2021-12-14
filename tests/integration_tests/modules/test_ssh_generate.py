@@ -10,7 +10,6 @@ keys were created.
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 ssh_genkeytypes:

@@ -1,14 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-
 from collections import namedtuple
 from functools import partial
 from unittest.mock import patch
 
-from cloudinit import ssh_util
+from cloudinit import ssh_util, util
 from tests.unittests import helpers as test_helpers
-from cloudinit import util
 
 # https://stackoverflow.com/questions/11351032/
 FakePwEnt = namedtuple(

@@ -14,11 +14,7 @@ import os
 
 from cloudinit import ec2_utils
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
 
 # See https://docs.openstack.org/user-guide/cli-config-drive.html

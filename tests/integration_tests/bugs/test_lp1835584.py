@@ -31,10 +31,9 @@ import re
 
 import pytest
 
-from tests.integration_tests.instances import IntegrationAzureInstance
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
-
+from tests.integration_tests.instances import IntegrationAzureInstance
 
 IMG_AZURE_UBUNTU_PRO_FIPS_BIONIC = (
     "Canonical:0001-com-ubuntu-pro-bionic-fips:pro-fips-18_04:18.04.202010201"

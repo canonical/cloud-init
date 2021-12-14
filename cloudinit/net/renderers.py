@@ -2,15 +2,17 @@
 
 from typing import List, Tuple, Type
 
-from . import eni
-from . import freebsd
-from . import netbsd
-from . import netplan
-from . import networkd
-from . import renderer
-from . import RendererNotFoundError
-from . import openbsd
-from . import sysconfig
+from . import (
+    RendererNotFoundError,
+    eni,
+    freebsd,
+    netbsd,
+    netplan,
+    networkd,
+    openbsd,
+    renderer,
+    sysconfig,
+)
 
 NAME_TO_RENDERER = {
     "eni": eni,

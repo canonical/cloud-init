@@ -7,9 +7,7 @@
 import errno
 import json
 
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import sources, url_helper, util
 
 
 class DataSourceBigstep(sources.DataSource):

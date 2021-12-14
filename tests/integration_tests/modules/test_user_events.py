@@ -3,8 +3,9 @@
 This is currently limited to applying network config on BOOT events.
 """
 
-import pytest
 import re
+
+import pytest
 import yaml
 
 from tests.integration_tests.instances import IntegrationInstance

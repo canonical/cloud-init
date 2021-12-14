@@ -29,8 +29,8 @@ not recommended.
     apt_pipelining: <false/none/unchanged/os/number>
 """
 
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
+from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 

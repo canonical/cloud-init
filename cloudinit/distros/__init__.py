@@ -20,23 +20,13 @@ from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit.net import activators
-from cloudinit.net import eni
-from cloudinit.net import network_state
-from cloudinit.net import renderers
-from cloudinit.net.network_state import parse_net_config_data
-from cloudinit import persistence
-from cloudinit import ssh_util
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
-
-from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-
+from cloudinit import net, persistence, ssh_util, subp, type_utils, util
 from cloudinit.distros.parsers import hosts
-from .networking import LinuxNetworking
+from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net.network_state import parse_net_config_data
 
+from .networking import LinuxNetworking
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.

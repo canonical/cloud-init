@@ -6,18 +6,15 @@ This calls all things with v1 format to stress the conversion code on top of
 the actually tested code.
 """
 import os
+import pathlib
 import re
 import shutil
 import tempfile
-import pathlib
 from unittest import mock
 from unittest.mock import call
 
+from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
-from cloudinit import gpg
-from cloudinit import subp
-from cloudinit import util
-
 from tests.unittests.helpers import TestCase
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----

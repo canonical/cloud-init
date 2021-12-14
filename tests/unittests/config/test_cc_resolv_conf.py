@@ -4,19 +4,16 @@ import logging
 import os
 import shutil
 import tempfile
-import pytest
 from copy import deepcopy
 from unittest import mock
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import util
+import pytest
 
-from tests.unittests import helpers as t_help
-from tests.unittests.util import MockDistro
+from cloudinit import cloud, distros, helpers, util
 from cloudinit.config import cc_resolv_conf
 from cloudinit.config.cc_resolv_conf import generate_resolv_conf
+from tests.unittests import helpers as t_help
+from tests.unittests.util import MockDistro
 
 LOG = logging.getLogger(__name__)
 EXPECTED_HEADER = """\

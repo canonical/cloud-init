@@ -97,10 +97,8 @@ import json
 import os
 
 from cloudinit import log as logging
-from cloudinit import sources
+from cloudinit import sources, subp, util
 from cloudinit.sources.helpers import openstack
-from cloudinit import subp
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

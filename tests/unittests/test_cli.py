@@ -1,14 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import os
 import contextlib
 import io
+import os
 from collections import namedtuple
 
 from cloudinit.cmd import main as cli
-from tests.unittests import helpers as test_helpers
 from cloudinit.util import load_file, load_json
-
+from tests.unittests import helpers as test_helpers
 
 mock = test_helpers.mock
 

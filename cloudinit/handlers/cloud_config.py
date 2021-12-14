@@ -12,10 +12,7 @@ import jsonpatch
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import mergers
-from cloudinit import util
-from cloudinit import safeyaml
-
+from cloudinit import mergers, safeyaml, util
 from cloudinit.settings import PER_ALWAYS
 
 LOG = logging.getLogger(__name__)

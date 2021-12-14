@@ -32,10 +32,7 @@ import socket
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import serial
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import serial, sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)

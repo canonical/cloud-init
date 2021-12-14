@@ -11,11 +11,7 @@ import os
 from textwrap import dedent
 
 from cloudinit import log as logging
-from cloudinit import temp_utils
-from cloudinit import templater
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, temp_utils, templater, type_utils, util
 from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 

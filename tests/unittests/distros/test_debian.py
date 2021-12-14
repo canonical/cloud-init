@@ -4,13 +4,9 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import distros, util
-from cloudinit.distros.debian import (
-    APT_GET_COMMAND,
-    APT_GET_WRAPPER,
-)
+from cloudinit import distros, subp, util
+from cloudinit.distros.debian import APT_GET_COMMAND, APT_GET_WRAPPER
 from tests.unittests.helpers import FilesystemMockingTestCase
-from cloudinit import subp
 
 
 @mock.patch("cloudinit.distros.debian.subp.subp")

@@ -6,12 +6,12 @@ import argparse
 import json
 import sys
 
-from cloudinit.util import error
 from cloudinit.sources import (
     INSTANCE_JSON_FILE,
     METADATA_UNKNOWN,
     canonical_cloud_id,
 )
+from cloudinit.util import error
 
 DEFAULT_INSTANCE_JSON = "/run/cloud-init/%s" % INSTANCE_JSON_FILE
 

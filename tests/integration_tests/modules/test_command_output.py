@@ -8,7 +8,6 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 
-
 USER_DATA = """\
 #cloud-config
 output: { all: "| tee -a /var/log/cloud-init-test-output" }

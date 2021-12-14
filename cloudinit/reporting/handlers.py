@@ -12,8 +12,8 @@ import uuid
 from datetime import datetime
 
 from cloudinit import log as logging
-from cloudinit.registry import DictRegistry
 from cloudinit import url_helper, util
+from cloudinit.registry import DictRegistry
 
 LOG = logging.getLogger(__name__)
 

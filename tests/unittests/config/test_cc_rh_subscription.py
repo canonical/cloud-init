@@ -5,9 +5,8 @@
 import copy
 import logging
 
-from cloudinit.config import cc_rh_subscription
 from cloudinit import subp
-
+from cloudinit.config import cc_rh_subscription
 from tests.unittests.helpers import CiTestCase, mock
 
 SUBMGR = cc_rh_subscription.SubscriptionManager

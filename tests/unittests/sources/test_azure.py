@@ -1,43 +1,40 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import url_helper
-from cloudinit.sources import (
-    UNSET,
-    DataSourceAzure as dsaz,
-    InvalidMetaDataException,
-)
+import copy
+import crypt
+import json
+import os
+import stat
+import xml.etree.ElementTree as ET
+
+import httpretty
+import requests
+import yaml
+
+from cloudinit import distros, helpers, url_helper
+from cloudinit.sources import UNSET
+from cloudinit.sources import DataSourceAzure as dsaz
+from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
+    MountFailedError,
     b64e,
     decode_binary,
-    load_file,
-    write_file,
-    MountFailedError,
     json_dumps,
+    load_file,
     load_json,
+    write_file,
 )
 from cloudinit.version import version_string as vs
 from tests.unittests.helpers import (
-    HttprettyTestCase,
     CiTestCase,
-    populate_dir,
-    mock,
-    wrap_and_call,
     ExitStack,
+    HttprettyTestCase,
+    mock,
+    populate_dir,
     resourceLocation,
+    wrap_and_call,
 )
-from cloudinit.sources.helpers import netlink
-
-import copy
-import crypt
-import httpretty
-import json
-import os
-import requests
-import stat
-import xml.etree.ElementTree as ET
-import yaml
 
 
 def construct_valid_ovf_env(

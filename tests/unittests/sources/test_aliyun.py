@@ -1,9 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import functools
-import httpretty
 import os
 from unittest import mock
+
+import httpretty
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay

@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.distros.arch import _render_network
 from cloudinit import util
-
+from cloudinit.distros.arch import _render_network
 from tests.unittests.helpers import CiTestCase, dir2dict
 
 from . import _get_distro

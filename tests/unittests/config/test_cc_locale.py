@@ -8,15 +8,14 @@ import os
 import shutil
 import tempfile
 from io import BytesIO
-from configobj import ConfigObj
 from unittest import mock
+
+from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_locale
 from tests.unittests import helpers as t_help
-
 from tests.unittests.util import get_cloud
-
 
 LOG = logging.getLogger(__name__)
 

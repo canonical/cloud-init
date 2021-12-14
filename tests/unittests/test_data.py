@@ -5,28 +5,22 @@
 import gzip
 import logging
 import os
-from io import BytesIO, StringIO
-from unittest import mock
-
 from email import encoders
 from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
+from io import BytesIO, StringIO
+from unittest import mock
 
 import httpretty
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
-from cloudinit import log
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import sources
-from cloudinit import stages
+from cloudinit import log, safeyaml, sources, stages
 from cloudinit import user_data as ud
-from cloudinit import safeyaml
 from cloudinit import util
-
+from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
-
 
 INSTANCE_ID = "i-testing"
 

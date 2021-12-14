@@ -10,7 +10,6 @@
 
 import types
 
-
 _NAME_TYPES = (
     types.ModuleType,
     types.FunctionType,

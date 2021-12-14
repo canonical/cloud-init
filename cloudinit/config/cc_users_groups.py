@@ -127,12 +127,12 @@ config keys for an entry in ``users`` are as follows:
           uid: <user id>
 """
 
+from cloudinit import log as logging
+
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
 # is a list of distros that are supported, not a sub-module
 from cloudinit.distros import ug_util
-from cloudinit import log as logging
-
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)

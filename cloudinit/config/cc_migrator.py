@@ -29,9 +29,7 @@ false`` in config.
 import os
 import shutil
 
-from cloudinit import helpers
-from cloudinit import util
-
+from cloudinit import helpers, util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS

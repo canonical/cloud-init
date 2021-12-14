@@ -11,15 +11,10 @@ import sys
 from collections import namedtuple
 from typing import Dict, Set  # noqa: F401
 
-from cloudinit.settings import (
-    FREQUENCIES,
-    CLOUD_CONFIG,
-    PER_INSTANCE,
-    PER_ONCE,
-    RUN_CLOUD_CONFIG,
-)
-
-from cloudinit import handlers
+from cloudinit import cloud, config, distros, handlers, helpers, importer
+from cloudinit import log as logging
+from cloudinit import net, sources, type_utils, util
+from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
 from cloudinit.handlers.boot_hook import BootHookPartHandler
@@ -27,26 +22,16 @@ from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-
-from cloudinit.event import (
-    EventScope,
-    EventType,
-    userdata_to_events,
-)
-from cloudinit.sources import NetworkConfigSource
-
-from cloudinit import cloud
-from cloudinit import config
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import importer
-from cloudinit import log as logging
-from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
-from cloudinit import sources
-from cloudinit import type_utils
-from cloudinit import util
+from cloudinit.settings import (
+    CLOUD_CONFIG,
+    FREQUENCIES,
+    PER_INSTANCE,
+    PER_ONCE,
+    RUN_CLOUD_CONFIG,
+)
+from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
 

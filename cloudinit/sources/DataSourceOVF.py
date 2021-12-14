@@ -16,14 +16,11 @@ from xml.dom import minidom
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import safeyaml
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import safeyaml, sources, subp, util
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
-    PreCustomScript,
     PostCustomScript,
+    PreCustomScript,
 )
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
@@ -42,8 +39,8 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_state import (
 from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     enable_nics,
     get_nics_to_enable,
-    set_customization_status,
     get_tools_config,
+    set_customization_status,
     set_gc_status,
 )
 

@@ -3,9 +3,7 @@
 import re
 
 from cloudinit.distros.parsers.sys_conf import SysConf
-
 from tests.unittests.helpers import TestCase
-
 
 # Lots of good examples @
 # http://content.hccfl.edu/pollock/AUnix1/SysconfigFilesDesc.txt

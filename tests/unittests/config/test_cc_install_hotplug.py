@@ -5,9 +5,9 @@ from unittest import mock
 import pytest
 
 from cloudinit.config.cc_install_hotplug import (
-    handle,
     HOTPLUG_UDEV_PATH,
     HOTPLUG_UDEV_RULES_TEMPLATE,
+    handle,
 )
 from cloudinit.event import EventScope, EventType
 

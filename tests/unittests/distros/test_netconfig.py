@@ -7,14 +7,9 @@ from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
-from cloudinit import distros
+from cloudinit import distros, helpers, safeyaml, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
-from cloudinit import helpers
-from cloudinit import settings
 from tests.unittests.helpers import FilesystemMockingTestCase, dir2dict
-from cloudinit import subp
-from cloudinit import util
-from cloudinit import safeyaml
 
 BASE_NET_CFG = """
 auto lo

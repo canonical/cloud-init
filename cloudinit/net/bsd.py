@@ -3,11 +3,9 @@
 import re
 
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import util
-from cloudinit import subp
-from cloudinit.distros.parsers.resolv_conf import ResolvConf
+from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
+from cloudinit.distros.parsers.resolv_conf import ResolvConf
 
 from . import renderer
 

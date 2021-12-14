@@ -39,9 +39,8 @@ Prerequisite of using this module is to install RSCT packages.
 import os
 
 from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
-from cloudinit import subp
 
 frequency = PER_INSTANCE
 

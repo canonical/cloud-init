@@ -6,21 +6,17 @@ This tries to call all in the new v3 format and cares about new features
 """
 import glob
 import os
+import pathlib
 import re
 import shutil
 import socket
 import tempfile
-import pathlib
-
 from unittest import TestCase, mock
 from unittest.mock import call
 
-from cloudinit import gpg
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
 from tests.unittests import helpers as t_help
-
 from tests.unittests.util import get_cloud
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----

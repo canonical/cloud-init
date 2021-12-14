@@ -5,9 +5,7 @@
 from unittest import mock
 
 from cloudinit import reporting
-from cloudinit.reporting import events
-from cloudinit.reporting import handlers
-
+from cloudinit.reporting import events, handlers
 from tests.unittests.helpers import TestCase
 
 

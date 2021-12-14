@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua,
     handle,
@@ -7,14 +8,12 @@ from cloudinit.config.cc_ubuntu_advantage import (
     schema,
 )
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import subp
 from tests.unittests.helpers import (
     CiTestCase,
-    mock,
     SchemaTestCaseMixin,
+    mock,
     skipUnlessJsonSchema,
 )
-
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"

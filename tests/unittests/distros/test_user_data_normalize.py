@@ -2,13 +2,9 @@
 
 from unittest import mock
 
-from cloudinit import distros
+from cloudinit import distros, helpers, settings
 from cloudinit.distros import ug_util
-from cloudinit import helpers
-from cloudinit import settings
-
 from tests.unittests.helpers import TestCase
-
 
 bcfg = {
     "name": "bob",

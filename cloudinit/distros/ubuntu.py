@@ -9,11 +9,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.distros import debian
-from cloudinit.distros import PREFERRED_NTP_CLIENTS
-from cloudinit import util
-
 import copy
+
+from cloudinit import util
+from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
 
 
 class Distro(debian.Distro):

@@ -28,9 +28,7 @@ entry under the ``vendor_data`` config key.
 
 import os
 
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

@@ -6,27 +6,28 @@ import os
 import re
 import socket
 import struct
-import time
 import textwrap
+import time
 import zlib
-from errno import ENOENT
-
-from cloudinit.settings import CFG_BUILTIN
-from cloudinit.net import dhcp
-from cloudinit import stages
-from cloudinit import temp_utils
 from contextlib import contextmanager
+from datetime import datetime
+from errno import ENOENT
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import subp
-from cloudinit import url_helper
-from cloudinit import util
-from cloudinit import version
-from cloudinit import distros
-from cloudinit.reporting import events
+from cloudinit import (
+    distros,
+    stages,
+    subp,
+    temp_utils,
+    url_helper,
+    util,
+    version,
+)
+from cloudinit.net import dhcp
 from cloudinit.net.dhcp import EphemeralDHCPv4
-from datetime import datetime
+from cloudinit.reporting import events
+from cloudinit.settings import CFG_BUILTIN
 
 LOG = logging.getLogger(__name__)
 

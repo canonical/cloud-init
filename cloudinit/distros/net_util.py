@@ -68,8 +68,8 @@
 # }
 
 from cloudinit.net.network_state import (
-    net_prefix_to_ipv4_mask,
     mask_and_ipv4_to_bcast_addr,
+    net_prefix_to_ipv4_mask,
 )
 
 

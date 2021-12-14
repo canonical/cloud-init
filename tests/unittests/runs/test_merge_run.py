@@ -4,12 +4,9 @@ import os
 import shutil
 import tempfile
 
-from tests.unittests import helpers
-
+from cloudinit import safeyaml, stages, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import safeyaml
-from cloudinit import stages
-from cloudinit import util
+from tests.unittests import helpers
 
 
 class TestMergeRun(helpers.FilesystemMockingTestCase):

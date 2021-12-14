@@ -4,14 +4,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from base64 import b64decode
 import re
-
-from cloudinit.cs_utils import Cepko, SERIAL_PORT
+from base64 import b64decode
 
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit.cs_utils import SERIAL_PORT, Cepko
 
 LOG = logging.getLogger(__name__)
 

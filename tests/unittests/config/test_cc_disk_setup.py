@@ -3,7 +3,7 @@
 import random
 
 from cloudinit.config import cc_disk_setup
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, TestCase
+from tests.unittests.helpers import CiTestCase, ExitStack, TestCase, mock
 
 
 class TestIsDiskUsed(TestCase):

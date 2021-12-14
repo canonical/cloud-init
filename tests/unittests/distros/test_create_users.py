@@ -2,8 +2,7 @@
 
 import re
 
-from cloudinit import distros
-from cloudinit import ssh_util
+from cloudinit import distros, ssh_util
 from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.util import abstract_to_concrete
 

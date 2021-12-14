@@ -1,11 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import calendar
-from datetime import datetime
 import sys
+from datetime import datetime
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 stage_to_description = {
     "finished": "finished running cloud-init",

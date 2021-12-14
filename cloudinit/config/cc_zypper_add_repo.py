@@ -5,14 +5,15 @@
 
 """zypper_add_repo: Add zyper repositories to the system"""
 
-import configobj
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import get_meta_doc
+import configobj
+
 from cloudinit import log as logging
-from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
+from cloudinit.config.schema import get_meta_doc
+from cloudinit.settings import PER_ALWAYS
 
 distros = ["opensuse", "sles"]
 

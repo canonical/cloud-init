@@ -5,16 +5,15 @@
 """Define 'collect-logs' utility and handler to include in cloud-init cmd."""
 
 import argparse
-from datetime import datetime
 import os
 import shutil
 import sys
+from datetime import datetime
 
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
-from cloudinit.temp_utils import tempdir
 from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.temp_utils import tempdir
 from cloudinit.util import chdir, copy, ensure_dir, write_file
-
 
 CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"

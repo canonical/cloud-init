@@ -1,19 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+from collections import namedtuple
+
 from cloudinit.config.cc_resizefs import (
+    _resize_btrfs,
+    _resize_ext,
+    _resize_ufs,
+    _resize_xfs,
+    _resize_zfs,
     can_skip_resize,
     handle,
     maybe_get_writable_device_path,
-    _resize_btrfs,
-    _resize_zfs,
-    _resize_xfs,
-    _resize_ext,
-    _resize_ufs,
 )
-
-from collections import namedtuple
-import logging
-
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
     CiTestCase,
@@ -22,7 +21,6 @@ from tests.unittests.helpers import (
     util,
     wrap_and_call,
 )
-
 
 LOG = logging.getLogger(__name__)
 

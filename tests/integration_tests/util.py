@@ -3,10 +3,9 @@ import logging
 import multiprocessing
 import os
 import time
-from contextlib import contextmanager
 from collections import namedtuple
+from contextlib import contextmanager
 from pathlib import Path
-
 
 log = logging.getLogger("integration_testing")
 key_pair = namedtuple("key_pair", "public_key private_key")

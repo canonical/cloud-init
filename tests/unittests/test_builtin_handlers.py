@@ -5,24 +5,13 @@
 import copy
 import errno
 import os
-import pytest
 import shutil
 import tempfile
 from textwrap import dedent
 
+import pytest
 
-from tests.unittests.helpers import (
-    FilesystemMockingTestCase,
-    CiTestCase,
-    mock,
-    skipUnlessJinja,
-)
-
-from cloudinit import handlers
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import handlers, helpers, subp, util
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
     JinjaTemplatePartHandler,
@@ -31,8 +20,13 @@ from cloudinit.handlers.jinja_template import (
 )
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from tests.unittests.helpers import (
+    CiTestCase,
+    FilesystemMockingTestCase,
+    mock,
+    skipUnlessJinja,
+)
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
 

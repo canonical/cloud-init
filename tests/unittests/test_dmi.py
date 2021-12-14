@@ -1,12 +1,10 @@
-from tests.unittests import helpers
-from cloudinit import dmi
-from cloudinit import util
-from cloudinit import subp
-
 import os
-import tempfile
 import shutil
+import tempfile
 from unittest import mock
+
+from cloudinit import dmi, subp, util
+from tests.unittests import helpers
 
 
 class TestReadDMIData(helpers.FilesystemMockingTestCase):

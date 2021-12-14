@@ -47,9 +47,8 @@ are configured correctly.
 """
 
 from cloudinit import log as logging
-from cloudinit import templater
+from cloudinit import templater, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

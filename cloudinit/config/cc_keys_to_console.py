@@ -38,9 +38,8 @@ host keys are not written to console.
 
 import os
 
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import subp
-from cloudinit import util
 
 frequency = PER_INSTANCE
 

@@ -11,14 +11,10 @@ import fcntl
 import os
 import time
 
-from cloudinit import distros
-from cloudinit import helpers
+from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
-
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)

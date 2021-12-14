@@ -1,19 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from copy import copy, deepcopy
 import json
 import os
+from copy import copy, deepcopy
 
-from cloudinit import helpers
-from cloudinit.net import eni
-from cloudinit.net import network_state
-from cloudinit import settings
+from cloudinit import helpers, settings, util
+from cloudinit.net import eni, network_state
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
-from cloudinit import util
-
 from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
-
 
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
 EC2_META = {

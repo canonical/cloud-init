@@ -27,7 +27,6 @@ the timezone from cloud config.
 """
 
 from cloudinit import util
-
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

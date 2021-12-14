@@ -1,11 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import util
-
-from tests.unittests.helpers import TestCase, populate_dir
-
 import shutil
 import tempfile
+
+from cloudinit import util
+from tests.unittests.helpers import TestCase, populate_dir
 
 
 class TestPathPrefix2Dict(TestCase):

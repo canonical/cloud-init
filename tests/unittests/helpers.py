@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import functools
-import httpretty
 import io
 import logging
 import os
@@ -12,23 +11,23 @@ import sys
 import tempfile
 import time
 import unittest
-from pathlib import Path
 from contextlib import ExitStack, contextmanager
+from pathlib import Path
 from unittest import mock
 from unittest.util import strclass
 
+import httpretty
+
 import cloudinit
+from cloudinit import cloud, distros
+from cloudinit import helpers as ch
+from cloudinit import subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers as ch
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
-from cloudinit import subp
-from cloudinit import util
 
 _real_subp = subp.subp
 

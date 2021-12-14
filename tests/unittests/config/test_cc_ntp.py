@@ -13,9 +13,7 @@ from tests.unittests.helpers import (
     mock,
     skipUnlessJsonSchema,
 )
-
 from tests.unittests.util import get_cloud
-
 
 NTP_TEMPLATE = """\
 ## template: jinja

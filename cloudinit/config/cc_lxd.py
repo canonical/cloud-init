@@ -47,10 +47,10 @@ lxd-bridge will be configured accordingly.
             domain: <domain>
 """
 
-from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
 import os
+
+from cloudinit import log as logging
+from cloudinit import subp, util
 
 distros = ["ubuntu"]
 

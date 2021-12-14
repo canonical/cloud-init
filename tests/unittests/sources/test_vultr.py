@@ -7,12 +7,10 @@
 
 import json
 
-from cloudinit import helpers
-from cloudinit import settings
+from cloudinit import helpers, settings
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
-
-from tests.unittests.helpers import mock, CiTestCase
+from tests.unittests.helpers import CiTestCase, mock
 
 # Vultr metadata test data
 VULTR_V1_1 = {

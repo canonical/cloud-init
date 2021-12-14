@@ -4,15 +4,12 @@
 
 import json
 
-from cloudinit import helpers
-from cloudinit import settings
-from cloudinit import sources
+from cloudinit import helpers, settings, sources
 from cloudinit.sources.DataSourceUpCloud import (
     DataSourceUpCloud,
     DataSourceUpCloudLocal,
 )
-
-from tests.unittests.helpers import mock, CiTestCase
+from tests.unittests.helpers import CiTestCase, mock
 
 UC_METADATA = json.loads(
     """

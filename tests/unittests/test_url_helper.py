@@ -1,21 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
+import httpretty
+import requests
+
+from cloudinit import util, version
 from cloudinit.url_helper import (
     NOT_FOUND,
-    UrlError,
     REDACTED,
+    UrlError,
     oauth_headers,
     read_file_or_url,
     retry_on_url_exc,
 )
 from tests.unittests.helpers import CiTestCase, mock, skipIf
-from cloudinit import util
-from cloudinit import version
-
-import httpretty
-import logging
-import requests
-
 
 try:
     import oauthlib

@@ -1,9 +1,8 @@
-import pytest
 from unittest import mock
 
-from cloudinit import gpg
-from cloudinit import subp
+import pytest
 
+from cloudinit import gpg, subp
 from tests.unittests.helpers import CiTestCase
 
 TEST_KEY_HUMAN = """

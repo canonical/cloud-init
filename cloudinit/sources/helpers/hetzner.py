@@ -3,11 +3,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import url_helper
-from cloudinit import util
-
 import base64
 import binascii
+
+from cloudinit import url_helper, util
 
 
 def read_metadata(url, timeout=2, sec_between=2, retries=30):

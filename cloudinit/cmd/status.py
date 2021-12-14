@@ -7,7 +7,7 @@
 import argparse
 import os
 import sys
-from time import gmtime, strftime, sleep
+from time import gmtime, sleep, strftime
 
 from cloudinit.distros import uses_systemd
 from cloudinit.stages import Init

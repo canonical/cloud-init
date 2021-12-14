@@ -8,13 +8,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+from collections import OrderedDict
 
+from cloudinit import log as logging
+from cloudinit import subp, util
 
 from . import renderer
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import log as logging
-from collections import OrderedDict
 
 LOG = logging.getLogger(__name__)
 

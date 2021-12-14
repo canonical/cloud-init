@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.distros import _get_package_mirror_info, LDH_ASCII_CHARS
+from cloudinit.distros import LDH_ASCII_CHARS, _get_package_mirror_info
 
 # In newer versions of Python, these characters will be omitted instead
 # of substituted because of security concerns.

@@ -26,9 +26,7 @@ by default.
     disable_ec2_metadata: <true/false>
 """
 
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS

@@ -5,48 +5,43 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
-from collections import namedtuple
 import crypt
-from functools import partial
 import os
 import os.path
 import re
-from time import time
-from time import sleep
-from xml.dom import minidom
 import xml.etree.ElementTree as ET
+from collections import namedtuple
 from enum import Enum
+from functools import partial
+from time import sleep, time
+from xml.dom import minidom
+
 import requests
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import net
+from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
-from cloudinit import sources
-from cloudinit.sources.helpers import netlink
-from cloudinit import ssh_util
-from cloudinit import subp
-from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
-from cloudinit import util
 from cloudinit.reporting import events
-
+from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
+    EphemeralDHCPv4WithReporting,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
-    get_metadata_from_fabric,
-    get_boot_telemetry,
-    get_system_info,
-    report_diagnostic_event,
-    EphemeralDHCPv4WithReporting,
-    is_byte_swapped,
-    dhcp_log_cb,
-    push_log_to_kvp,
-    report_failure_to_fabric,
     build_minimal_ovf,
+    dhcp_log_cb,
+    get_boot_telemetry,
+    get_metadata_from_fabric,
+    get_system_info,
+    is_byte_swapped,
+    push_log_to_kvp,
+    report_diagnostic_event,
+    report_failure_to_fabric,
 )
+from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 
 LOG = logging.getLogger(__name__)
 

@@ -1,9 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import copy
 
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import settings
+from cloudinit import distros, helpers, settings
 
 
 def _get_distro(dtype, system_info=None):

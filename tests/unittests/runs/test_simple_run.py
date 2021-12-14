@@ -3,12 +3,9 @@
 import copy
 import os
 
-
+from cloudinit import safeyaml, stages, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import safeyaml
-from cloudinit import stages
 from tests.unittests import helpers
-from cloudinit import util
 
 
 class TestSimpleRun(helpers.FilesystemMockingTestCase):

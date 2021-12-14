@@ -182,8 +182,7 @@ import os
 import re
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"

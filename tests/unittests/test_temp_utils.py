@@ -2,9 +2,10 @@
 
 """Tests for cloudinit.temp_utils"""
 
+import os
+
 from cloudinit.temp_utils import mkdtemp, mkstemp, tempdir
 from tests.unittests.helpers import CiTestCase, wrap_and_call
-import os
 
 
 class TestTempUtils(CiTestCase):

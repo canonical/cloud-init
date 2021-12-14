@@ -2,15 +2,14 @@
 import logging
 import tempfile
 
-from cloudinit.config.cc_bootcmd import handle, schema
 from cloudinit import subp, util
+from cloudinit.config.cc_bootcmd import handle, schema
 from tests.unittests.helpers import (
     CiTestCase,
-    mock,
     SchemaTestCaseMixin,
+    mock,
     skipUnlessJsonSchema,
 )
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

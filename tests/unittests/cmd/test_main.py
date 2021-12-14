@@ -1,15 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 import copy
 import os
+from collections import namedtuple
 from io import StringIO
 from unittest import mock
 
 import pytest
 
-from cloudinit.cmd import main
 from cloudinit import safeyaml
+from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 

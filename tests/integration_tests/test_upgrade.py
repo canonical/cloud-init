@@ -1,12 +1,12 @@
 import json
 import logging
 import os
+
 import pytest
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.util import verify_clean_log
-
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
 

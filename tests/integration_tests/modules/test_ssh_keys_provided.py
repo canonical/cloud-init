@@ -9,7 +9,6 @@ system.
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 disable_root: false

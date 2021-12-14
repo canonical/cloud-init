@@ -3,19 +3,17 @@
 import copy
 import os
 
+from cloudinit import log as logging
+from cloudinit import safeyaml, subp, util
+from cloudinit.net import SYS_CLASS_NET, get_devicelist
+
 from . import renderer
 from .network_state import (
+    IPV6_DYNAMIC_TYPES,
+    NET_CONFIG_TO_V2,
     NetworkState,
     subnet_is_ipv6,
-    NET_CONFIG_TO_V2,
-    IPV6_DYNAMIC_TYPES,
 )
-
-from cloudinit import log as logging
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import safeyaml
-from cloudinit.net import SYS_CLASS_NET, get_devicelist
 
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.

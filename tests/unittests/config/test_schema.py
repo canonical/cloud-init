@@ -2,35 +2,36 @@
 
 
 import importlib
-import sys
 import inspect
-import logging
-from copy import copy
 import itertools
-import pytest
+import logging
+import sys
+from copy import copy
 from pathlib import Path
 from textwrap import dedent
+
+import pytest
 from yaml import safe_load
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
+    MetaSchema,
     SchemaValidationError,
     annotated_cloudconfig_file,
+    get_jsonschema_validator,
     get_meta_doc,
     get_schema,
-    get_jsonschema_validator,
+    main,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
-    main,
-    MetaSchema,
 )
 from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
+    cloud_init_project_dir,
     mock,
     skipUnlessJsonSchema,
-    cloud_init_project_dir,
 )
 
 

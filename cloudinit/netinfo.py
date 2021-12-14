@@ -8,14 +8,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from copy import copy, deepcopy
 import re
+from copy import copy, deepcopy
 
 from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
-from cloudinit import subp
-from cloudinit import util
-
 from cloudinit.simpletable import SimpleTable
 
 LOG = logging.getLogger()

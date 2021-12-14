@@ -13,14 +13,9 @@ import json
 import os
 from textwrap import dedent
 
-from cloudinit import subp
+from cloudinit import subp, temp_utils, templater, url_helper, util
 from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
-from cloudinit import templater
-from cloudinit import temp_utils
-from cloudinit import url_helper
-from cloudinit import util
 from cloudinit.settings import PER_ALWAYS
-
 
 RUBY_VERSION_DEFAULT = "1.8"
 

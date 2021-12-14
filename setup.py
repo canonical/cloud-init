@@ -8,22 +8,19 @@
 
 # Distutils magic for ec2-init
 
-from glob import glob
-
 import atexit
 import os
+import platform
 import shutil
+import subprocess
 import sys
 import tempfile
-import platform
+from distutils.errors import DistutilsArgError
+from glob import glob
 
 import setuptools
-from setuptools.command.install import install
 from setuptools.command.egg_info import egg_info
-
-from distutils.errors import DistutilsArgError
-
-import subprocess
+from setuptools.command.install import install
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None

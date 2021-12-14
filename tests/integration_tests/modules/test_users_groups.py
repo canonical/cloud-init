@@ -11,7 +11,6 @@ import pytest
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
-
 USER_DATA = """\
 #cloud-config
 # Add groups to the system

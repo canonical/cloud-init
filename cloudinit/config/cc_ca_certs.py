@@ -41,8 +41,7 @@ can be removed from the system with the configuration option
 
 import os
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 DEFAULT_CONFIG = {
     "ca_cert_path": "/usr/share/ca-certificates/",

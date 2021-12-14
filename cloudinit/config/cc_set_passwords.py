@@ -78,14 +78,12 @@ password.
 """
 
 import re
-
-from cloudinit.distros import ug_util
-from cloudinit import log as logging
-from cloudinit.ssh_util import update_ssh_config
-from cloudinit import subp
-from cloudinit import util
-
 from string import ascii_letters, digits
+
+from cloudinit import log as logging
+from cloudinit import subp, util
+from cloudinit.distros import ug_util
+from cloudinit.ssh_util import update_ssh_config
 
 LOG = logging.getLogger(__name__)
 

@@ -2,10 +2,9 @@
 import logging
 import textwrap
 
-from cloudinit.config import cc_puppet
 from cloudinit import util
+from cloudinit.config import cc_puppet
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

@@ -6,8 +6,9 @@ the same instance launch. Most independent module coherence tests can go
 here.
 """
 import json
-import pytest
 import re
+
+import pytest
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance

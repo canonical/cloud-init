@@ -4,7 +4,6 @@ import unittest
 
 from cloudinit.distros.parsers import hosts
 
-
 BASE_ETC = """
 # Example
 127.0.0.1	localhost

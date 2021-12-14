@@ -1,16 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import helpers
-from cloudinit.sources import DataSourceOpenNebula as ds
-from cloudinit import util
-from tests.unittests.helpers import mock, populate_dir, CiTestCase
-
 import os
 import pwd
 import unittest
 
 import pytest
 
+from cloudinit import helpers, util
+from cloudinit.sources import DataSourceOpenNebula as ds
+from tests.unittests.helpers import CiTestCase, mock, populate_dir
 
 TEST_VARS = {
     "VAR1": "single",

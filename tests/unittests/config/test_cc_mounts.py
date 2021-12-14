@@ -1,13 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import pytest
 import os.path
 from unittest import mock
 
-from tests.unittests import helpers as test_helpers
+import pytest
+
 from cloudinit.config import cc_mounts
 from cloudinit.config.cc_mounts import create_swapfile
 from cloudinit.subp import ProcessExecutionError
+from tests.unittests import helpers as test_helpers
 
 M_PATH = "cloudinit.config.cc_mounts."
 

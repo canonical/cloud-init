@@ -4,8 +4,9 @@ Test that we can add optional vendor-data to the seedfrom file in a
 NoCloud environment
 """
 
-from tests.integration_tests.instances import IntegrationInstance
 import pytest
+
+from tests.integration_tests.instances import IntegrationInstance
 
 VENDOR_DATA = """\
 #cloud-config

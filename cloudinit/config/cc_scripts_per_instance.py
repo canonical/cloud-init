@@ -28,7 +28,6 @@ the system. As a result per-instance scripts will run again.
 import os
 
 from cloudinit import subp
-
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

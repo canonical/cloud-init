@@ -9,8 +9,7 @@
 import logging
 import os
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
 

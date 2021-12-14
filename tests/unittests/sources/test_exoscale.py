@@ -2,22 +2,21 @@
 # Author: Christopher Glass <christopher.glass@exoscale.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-from cloudinit import helpers
+import os
+
+import httpretty
+import requests
+
+from cloudinit import helpers, util
 from cloudinit.sources.DataSourceExoscale import (
     API_VERSION,
-    DataSourceExoscale,
     METADATA_URL,
-    get_password,
     PASSWORD_SERVER_PORT,
+    DataSourceExoscale,
+    get_password,
     read_metadata,
 )
 from tests.unittests.helpers import HttprettyTestCase, mock
-from cloudinit import util
-
-import httpretty
-import os
-import requests
-
 
 TEST_PASSWORD_URL = "{}:{}/{}/".format(
     METADATA_URL, PASSWORD_SERVER_PORT, API_VERSION

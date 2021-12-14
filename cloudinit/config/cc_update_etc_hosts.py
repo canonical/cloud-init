@@ -50,9 +50,7 @@ ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
     hostname: <fqdn/hostname>
 """
 
-from cloudinit import templater
-from cloudinit import util
-
+from cloudinit import templater, util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS

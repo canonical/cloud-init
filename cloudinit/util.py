@@ -34,15 +34,15 @@ import time
 from base64 import b64decode, b64encode
 from errno import ENOENT
 from functools import lru_cache
-from urllib import parse
 from typing import List
+from urllib import parse
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import subp
 from cloudinit import (
     mergers,
     safeyaml,
+    subp,
     temp_utils,
     type_utils,
     url_helper,

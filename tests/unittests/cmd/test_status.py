@@ -1,14 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 import os
+from collections import namedtuple
 from io import StringIO
 from textwrap import dedent
 
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
 from cloudinit.util import ensure_file
-from tests.unittests.helpers import CiTestCase, wrap_and_call, mock
+from tests.unittests.helpers import CiTestCase, mock, wrap_and_call
 
 mypaths = namedtuple("MyPaths", "run_dir")
 myargs = namedtuple("MyArgs", "long wait")

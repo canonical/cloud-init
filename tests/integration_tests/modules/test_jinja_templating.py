@@ -4,7 +4,6 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
-
 USER_DATA = """\
 ## template: jinja
 #cloud-config

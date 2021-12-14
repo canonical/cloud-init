@@ -1,23 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 import copy
 import os
+from collections import namedtuple
 from uuid import uuid4
 
-from cloudinit import safeyaml
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import safeyaml, subp, util
+from cloudinit.sources import DataSourceIBMCloud as ds_ibm
+from cloudinit.sources import DataSourceOracle as ds_oracle
+from cloudinit.sources import DataSourceSmartOS as ds_smartos
 from tests.unittests.helpers import (
     CiTestCase,
+    cloud_init_project_dir,
     dir2dict,
     populate_dir,
     populate_dir_with_ts,
-    cloud_init_project_dir,
 )
-from cloudinit.sources import DataSourceIBMCloud as ds_ibm
-from cloudinit.sources import DataSourceSmartOS as ds_smartos
-from cloudinit.sources import DataSourceOracle as ds_oracle
 
 UNAME_MYSYS = (
     "Linux bart 4.4.0-62-generic #83-Ubuntu "

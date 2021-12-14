@@ -1,10 +1,8 @@
 import json
 
-from cloudinit import helpers
-from cloudinit import distros
+from cloudinit import distros, helpers, subp
 from cloudinit.sources import DataSourceRbxCloud as ds
-from tests.unittests.helpers import mock, CiTestCase, populate_dir
-from cloudinit import subp
+from tests.unittests.helpers import CiTestCase, mock, populate_dir
 
 DS_PATH = "cloudinit.sources.DataSourceRbxCloud"
 

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Tests related to cloudinit.event module."""
-from cloudinit.event import EventType, EventScope, userdata_to_events
+from cloudinit.event import EventScope, EventType, userdata_to_events
 
 
 class TestEvent:

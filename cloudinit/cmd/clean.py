@@ -14,9 +14,9 @@ from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.util import (
     del_dir,
     del_file,
+    error,
     get_config_logfiles,
     is_link,
-    error,
 )
 
 

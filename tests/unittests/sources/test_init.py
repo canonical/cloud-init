@@ -5,9 +5,9 @@ import inspect
 import os
 import stat
 
+from cloudinit import importer, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
-from cloudinit import importer
 from cloudinit.sources import (
     EXPERIMENTAL_TEXT,
     INSTANCE_JSON_FILE,
@@ -19,9 +19,8 @@ from cloudinit.sources import (
     canonical_cloud_id,
     redact_sensitive_keys,
 )
-from tests.unittests.helpers import CiTestCase, mock
 from cloudinit.user_data import UserDataProcessor
-from cloudinit import util
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class DataSourceTestSubclassNet(DataSource):

@@ -30,9 +30,7 @@ location that this cloud-init has been configured with when running.
 import copy
 from io import StringIO
 
-from cloudinit import type_utils
-from cloudinit import util
-from cloudinit import safeyaml
+from cloudinit import safeyaml, type_utils, util
 
 SKIP_KEYS = frozenset(["log_cfgs"])
 

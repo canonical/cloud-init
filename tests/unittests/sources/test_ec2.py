@@ -1,15 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import httpretty
 import json
-import requests
 from unittest import mock
+
+import httpretty
+import requests
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
 from tests.unittests import helpers as test_helpers
-
 
 DYNAMIC_METADATA = {
     "instance-identity": {

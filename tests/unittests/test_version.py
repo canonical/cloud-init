@@ -2,8 +2,8 @@
 
 from unittest import mock
 
-from tests.unittests.helpers import CiTestCase
 from cloudinit import version
+from tests.unittests.helpers import CiTestCase
 
 
 class TestExportsFeatures(CiTestCase):

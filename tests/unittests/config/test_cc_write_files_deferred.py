@@ -1,19 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import tempfile
 import shutil
+import tempfile
 
-from cloudinit.config.cc_write_files_deferred import handle
-from .test_cc_write_files import VALID_SCHEMA
 from cloudinit import log as logging
 from cloudinit import util
-
+from cloudinit.config.cc_write_files_deferred import handle
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     mock,
     skipUnlessJsonSchema,
 )
+
+from .test_cc_write_files import VALID_SCHEMA
 
 LOG = logging.getLogger(__name__)
 

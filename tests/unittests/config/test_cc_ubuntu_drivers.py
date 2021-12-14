@@ -3,13 +3,13 @@
 import copy
 import os
 
-from tests.unittests.helpers import CiTestCase, skipUnlessJsonSchema, mock
+from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.subp import ProcessExecutionError
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 MPATH = "cloudinit.config.cc_ubuntu_drivers."
 M_TMP_PATH = MPATH + "temp_utils.mkdtemp"

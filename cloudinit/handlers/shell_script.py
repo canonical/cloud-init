@@ -10,9 +10,7 @@
 
 import os
 
-from cloudinit import handlers
-from cloudinit import util
-
+from cloudinit import handlers, util
 from cloudinit.settings import PER_ALWAYS
 
 

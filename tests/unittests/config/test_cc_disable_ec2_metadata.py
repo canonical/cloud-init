@@ -2,11 +2,10 @@
 
 """Tests cc_disable_ec2_metadata handler"""
 
-import cloudinit.config.cc_disable_ec2_metadata as ec2_meta
-
-from tests.unittests.helpers import CiTestCase, mock
-
 import logging
+
+import cloudinit.config.cc_disable_ec2_metadata as ec2_meta
+from tests.unittests.helpers import CiTestCase, mock
 
 LOG = logging.getLogger(__name__)
 

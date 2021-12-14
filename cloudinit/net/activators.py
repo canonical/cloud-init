@@ -4,14 +4,12 @@ import os
 from abc import ABC, abstractmethod
 from typing import Iterable, List, Type
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.net.eni import available as eni_available
 from cloudinit.net.netplan import available as netplan_available
-from cloudinit.net.networkd import available as networkd_available
 from cloudinit.net.network_state import NetworkState
+from cloudinit.net.networkd import available as networkd_available
 from cloudinit.net.sysconfig import NM_CFG_FILE
-
 
 LOG = logging.getLogger(__name__)
 

@@ -3,20 +3,18 @@
 """ test_apt_custom_sources_list
 Test templating of custom sources list
 """
-from contextlib import ExitStack
 import logging
 import os
 import shutil
 import tempfile
+from contextlib import ExitStack
 from unittest import mock
 from unittest.mock import call
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
 from cloudinit.distros.debian import Distro
 from tests.unittests import helpers as t_help
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

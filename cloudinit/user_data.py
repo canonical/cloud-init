@@ -14,11 +14,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
-from cloudinit import handlers
+from cloudinit import features, handlers
 from cloudinit import log as logging
-from cloudinit import features
-from cloudinit.url_helper import read_file_or_url, UrlError
 from cloudinit import util
+from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
 

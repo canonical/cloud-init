@@ -12,9 +12,7 @@ import os
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.settings import PER_ALWAYS
 
 LOG = logging.getLogger(__name__)

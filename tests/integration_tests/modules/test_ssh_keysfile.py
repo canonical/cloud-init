@@ -1,6 +1,7 @@
+from io import StringIO
+
 import paramiko
 import pytest
-from io import StringIO
 from paramiko.ssh_exception import SSHException
 
 from tests.integration_tests.clouds import ImageSpecification

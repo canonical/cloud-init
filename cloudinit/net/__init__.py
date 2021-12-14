@@ -13,8 +13,7 @@ import os
 import re
 from typing import Any, Dict
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
 

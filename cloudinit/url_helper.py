@@ -17,7 +17,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from urllib.parse import urlparse, urlunparse, quote
+from urllib.parse import quote, urlparse, urlunparse
 
 import requests
 from requests import exceptions
@@ -35,6 +35,7 @@ _REQ_VER = None
 REDACTED = "REDACTED"
 try:
     from distutils.version import LooseVersion
+
     import pkg_resources
 
     _REQ = pkg_resources.get_distribution("requests")

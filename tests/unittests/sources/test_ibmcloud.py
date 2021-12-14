@@ -1,14 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.helpers import Paths
-from cloudinit.sources import DataSourceIBMCloud as ibm
-from tests.unittests import helpers as test_helpers
-from cloudinit import util
-
 import base64
 import copy
 import json
 from textwrap import dedent
+
+from cloudinit import util
+from cloudinit.helpers import Paths
+from cloudinit.sources import DataSourceIBMCloud as ibm
+from tests.unittests import helpers as test_helpers
 
 mock = test_helpers.mock
 

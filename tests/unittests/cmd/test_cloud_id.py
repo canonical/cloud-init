@@ -2,12 +2,11 @@
 
 """Tests for cloud-id command line utility."""
 
-from cloudinit import util
 from collections import namedtuple
 from io import StringIO
 
+from cloudinit import util
 from cloudinit.cmd import cloud_id
-
 from tests.unittests.helpers import CiTestCase, mock
 
 

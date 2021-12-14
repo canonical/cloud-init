@@ -13,7 +13,6 @@
 import collections
 import re
 
-
 try:
     from Cheetah.Template import Template as CTemplate
 
@@ -22,8 +21,8 @@ except (ImportError, AttributeError):
     CHEETAH_AVAILABLE = False
 
 try:
-    from jinja2 import Template as JTemplate
     from jinja2 import DebugUndefined as JUndefined
+    from jinja2 import Template as JTemplate
 
     JINJA_AVAILABLE = True
 except (ImportError, AttributeError):
@@ -33,7 +32,6 @@ except (ImportError, AttributeError):
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
-
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)

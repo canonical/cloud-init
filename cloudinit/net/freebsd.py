@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import log as logging
 import cloudinit.net.bsd
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import log as logging
+from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
 

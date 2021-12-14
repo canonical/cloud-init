@@ -28,11 +28,9 @@ the keys can be specified, but defaults to ``sha256``.
 import base64
 import hashlib
 
-from cloudinit.simpletable import SimpleTable
-
+from cloudinit import ssh_util, util
 from cloudinit.distros import ug_util
-from cloudinit import ssh_util
-from cloudinit import util
+from cloudinit.simpletable import SimpleTable
 
 
 def _split_hash(bin_hash):

@@ -4,16 +4,13 @@
 
 import datetime
 import json
+from base64 import b64decode
 from contextlib import suppress as noop
 
-from base64 import b64decode
-
 from cloudinit import dmi
-from cloudinit.distros import ug_util
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import sources, url_helper, util
+from cloudinit.distros import ug_util
 from cloudinit.net.dhcp import EphemeralDHCPv4
 
 LOG = logging.getLogger(__name__)
@@ -318,7 +315,6 @@ def get_datasource_list(depends):
 if __name__ == "__main__":
     import argparse
     import sys
-
     from base64 import b64encode
 
     parser = argparse.ArgumentParser(description="Query GCE Metadata Service")

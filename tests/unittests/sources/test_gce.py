@@ -5,21 +5,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import datetime
-import httpretty
 import json
 import re
+from base64 import b64decode, b64encode
 from unittest import mock
 from urllib.parse import urlparse
 
-from base64 import b64encode, b64decode
+import httpretty
 
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import settings
+from cloudinit import distros, helpers, settings
 from cloudinit.sources import DataSourceGCE
-
 from tests.unittests import helpers as test_helpers
-
 
 GCE_META = {
     "instance/id": "123",

@@ -15,7 +15,6 @@ import yaml
 
 from tests.integration_tests.util import retry
 
-
 COMMON_USER_DATA = """\
 #cloud-config
 ssh_pwauth: yes

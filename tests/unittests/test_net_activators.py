@@ -5,19 +5,16 @@ import pytest
 
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
+    IfUpDownActivator,
+    NetplanActivator,
+    NetworkdActivator,
+    NetworkManagerActivator,
+    NoActivatorException,
     search_activator,
     select_activator,
 )
-from cloudinit.net.activators import (
-    IfUpDownActivator,
-    NetplanActivator,
-    NetworkManagerActivator,
-    NetworkdActivator,
-    NoActivatorException,
-)
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.safeyaml import load
-
 
 V1_CONFIG = """\
 version: 1

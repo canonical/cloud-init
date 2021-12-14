@@ -9,7 +9,6 @@ import os
 import textwrap
 
 from cloudinit import cloud, helpers, util
-
 from cloudinit.config import cc_apk_configure
 from tests.unittests.helpers import FilesystemMockingTestCase, mock
 

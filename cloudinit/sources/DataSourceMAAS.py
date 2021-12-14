@@ -11,9 +11,7 @@ import os
 import time
 
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
 MD_VERSION = "2012-03-01"

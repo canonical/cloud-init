@@ -31,10 +31,7 @@ specified as a jinja template with the following variables set:
 
 """
 
-from cloudinit import templater
-from cloudinit import util
-from cloudinit import version
-
+from cloudinit import templater, util, version
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS

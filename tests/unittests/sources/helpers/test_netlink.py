@@ -2,11 +2,24 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests.helpers import CiTestCase, mock
+import codecs
 import socket
 import struct
-import codecs
+
 from cloudinit.sources.helpers.netlink import (
+    MAX_SIZE,
+    OPER_DORMANT,
+    OPER_DOWN,
+    OPER_LOWERLAYERDOWN,
+    OPER_NOTPRESENT,
+    OPER_TESTING,
+    OPER_UNKNOWN,
+    OPER_UP,
+    RTATTR_START_OFFSET,
+    RTM_DELLINK,
+    RTM_GETLINK,
+    RTM_NEWLINK,
+    RTM_SETLINK,
     NetlinkCreateSocketError,
     create_bound_netlink_socket,
     read_netlink_socket,
@@ -15,20 +28,8 @@ from cloudinit.sources.helpers.netlink import (
     wait_for_media_disconnect_connect,
     wait_for_nic_attach_event,
     wait_for_nic_detach_event,
-    OPER_DOWN,
-    OPER_UP,
-    OPER_DORMANT,
-    OPER_LOWERLAYERDOWN,
-    OPER_NOTPRESENT,
-    OPER_TESTING,
-    OPER_UNKNOWN,
-    RTATTR_START_OFFSET,
-    RTM_NEWLINK,
-    RTM_DELLINK,
-    RTM_SETLINK,
-    RTM_GETLINK,
-    MAX_SIZE,
 )
+from tests.unittests.helpers import CiTestCase, mock
 
 
 def int_to_bytes(i):

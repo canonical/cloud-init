@@ -4,7 +4,6 @@ import unittest
 
 from cloudinit.distros.parsers import hostname
 
-
 BASE_HOSTNAME = """
 # My super-duper-hostname
 

@@ -30,10 +30,10 @@ either ``lp:`` for launchpad or ``gh:`` for github to the username.
         - lp:user
 """
 
-from cloudinit.distros import ug_util
-from cloudinit import subp
-from cloudinit import util
 import pwd
+
+from cloudinit import subp, util
+from cloudinit.distros import ug_util
 
 # https://launchpad.net/ssh-import-id
 distros = ["ubuntu", "debian"]

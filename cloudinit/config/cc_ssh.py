@@ -162,11 +162,8 @@ import glob
 import os
 import sys
 
+from cloudinit import ssh_util, subp, util
 from cloudinit.distros import ug_util
-from cloudinit import ssh_util
-from cloudinit import subp
-from cloudinit import util
-
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
 KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"

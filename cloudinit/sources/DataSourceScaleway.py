@@ -27,10 +27,7 @@ from requests.packages.urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
-from cloudinit import net
+from cloudinit import net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 

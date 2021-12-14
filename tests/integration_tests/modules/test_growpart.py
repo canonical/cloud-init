@@ -1,8 +1,9 @@
-import os
-import pytest
-import pathlib
 import json
+import os
+import pathlib
 from uuid import uuid4
+
+import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp

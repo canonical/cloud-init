@@ -3,14 +3,11 @@
 import os
 from textwrap import dedent
 
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import stages
+from cloudinit import stages, subp, util
 from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.event import EventType, EventScope
+from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
-
 
 frequency = PER_INSTANCE
 distros = [ALL_DISTROS]

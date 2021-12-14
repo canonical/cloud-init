@@ -3,27 +3,24 @@
 """Tests for cloudinit.util"""
 
 import base64
-import logging
-import json
-import platform
-import pytest
-
 import io
+import json
+import logging
 import os
+import platform
 import re
 import shutil
 import stat
 import tempfile
-import yaml
+from textwrap import dedent
 from unittest import mock
 
-from cloudinit import subp
-from cloudinit import importer, util
+import pytest
+import yaml
+
+from cloudinit import importer, subp, util
 from tests.unittests import helpers
-
-
 from tests.unittests.helpers import CiTestCase
-from textwrap import dedent
 
 LOG = logging.getLogger(__name__)
 

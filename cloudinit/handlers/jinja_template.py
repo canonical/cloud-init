@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-from errno import EACCES
 import os
 import re
+from errno import EACCES
 from typing import Optional
 
 try:
@@ -16,11 +16,10 @@ except ImportError:
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
-from cloudinit.templater import render_string, MISSING_JINJA_PREFIX
-from cloudinit.util import b64d, load_file, load_json, json_dumps
-
 from cloudinit.settings import PER_ALWAYS
+from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.templater import MISSING_JINJA_PREFIX, render_string
+from cloudinit.util import b64d, json_dumps, load_file, load_json
 
 LOG = logging.getLogger(__name__)
 

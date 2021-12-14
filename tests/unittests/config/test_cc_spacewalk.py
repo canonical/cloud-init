@@ -1,12 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_spacewalk
-from cloudinit import subp
-
-from tests.unittests import helpers
-
 import logging
 from unittest import mock
+
+from cloudinit import subp
+from cloudinit.config import cc_spacewalk
+from tests.unittests import helpers
 
 LOG = logging.getLogger(__name__)
 

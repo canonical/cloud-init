@@ -7,7 +7,6 @@ https://bugs.launchpad.net/cloud-init/+bug/1897099
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 bootcmd:

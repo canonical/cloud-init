@@ -100,12 +100,12 @@ A label can be specified for the filesystem using
           replace_fs: <filesystem type>
 """
 
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
-from cloudinit import subp
 import logging
 import os
 import shlex
+
+from cloudinit import subp, util
+from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 

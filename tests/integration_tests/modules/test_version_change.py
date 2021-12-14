@@ -5,7 +5,6 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import ASSETS_DIR, verify_clean_log
 
-
 PICKLE_PATH = Path("/var/lib/cloud/instance/obj.pkl")
 TEST_PICKLE = ASSETS_DIR / "test_version_change.pkl"
 

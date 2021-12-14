@@ -24,7 +24,6 @@ import platform
 
 from cloudinit import serial
 
-
 # these high timeouts are necessary as read may read a lot of data.
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 10

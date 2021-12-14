@@ -48,7 +48,6 @@ import os
 from cloudinit import safeyaml, subp, util
 from cloudinit.distros import rhel_util
 
-
 # Note: see https://docs.saltstack.com/en/latest/topics/installation/
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
 

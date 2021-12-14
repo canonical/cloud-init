@@ -15,11 +15,9 @@ import os
 from collections import namedtuple
 from typing import Dict, List  # noqa: F401
 
-from cloudinit import dmi
-from cloudinit import importer
+from cloudinit import dmi, importer
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import type_utils
+from cloudinit import net, type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json

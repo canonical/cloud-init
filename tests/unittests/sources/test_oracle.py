@@ -11,8 +11,8 @@ import pytest
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
 from cloudinit.sources.DataSourceOracle import OpcMetadata
-from tests.unittests import helpers as test_helpers
 from cloudinit.url_helper import UrlError
+from tests.unittests import helpers as test_helpers
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 

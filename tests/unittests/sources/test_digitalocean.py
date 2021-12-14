@@ -8,12 +8,10 @@
 
 import json
 
-from cloudinit import helpers
-from cloudinit import settings
+from cloudinit import helpers, settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
-
-from tests.unittests.helpers import mock, CiTestCase
+from tests.unittests.helpers import CiTestCase, mock
 
 DO_MULTIPLE_KEYS = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",

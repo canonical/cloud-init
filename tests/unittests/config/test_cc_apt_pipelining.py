@@ -3,7 +3,6 @@
 """Tests cc_apt_pipelining handler"""
 
 import cloudinit.config.cc_apt_pipelining as cc_apt_pipelining
-
 from tests.unittests.helpers import CiTestCase, mock
 
 

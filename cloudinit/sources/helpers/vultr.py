@@ -3,16 +3,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
-
-from cloudinit import log as log
-from cloudinit import url_helper
-from cloudinit import dmi
-from cloudinit import util
-from cloudinit import net
-from cloudinit import netinfo
-from cloudinit import subp
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from functools import lru_cache
+
+from cloudinit import dmi
+from cloudinit import log as log
+from cloudinit import net, netinfo, subp, url_helper, util
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 # Get LOG
 LOG = log.getLogger(__name__)

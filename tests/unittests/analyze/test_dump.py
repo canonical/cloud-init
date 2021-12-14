@@ -8,8 +8,8 @@ from cloudinit.analyze.dump import (
     parse_ci_logline,
     parse_timestamp,
 )
-from cloudinit.util import write_file
 from cloudinit.subp import which
+from cloudinit.util import write_file
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 

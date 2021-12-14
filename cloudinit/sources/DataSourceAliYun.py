@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import dmi
-from cloudinit import sources
+from cloudinit import dmi, sources
 from cloudinit.sources import DataSourceEc2 as EC2
 
 ALIYUN_PRODUCT = "Alibaba Cloud ECS"

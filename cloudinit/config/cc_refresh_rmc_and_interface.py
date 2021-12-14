@@ -34,13 +34,11 @@ This module handles
 
 """
 
-from cloudinit import log as logging
-from cloudinit.settings import PER_ALWAYS
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import netinfo
-
 import errno
+
+from cloudinit import log as logging
+from cloudinit import netinfo, subp, util
+from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 

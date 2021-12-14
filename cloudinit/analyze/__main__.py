@@ -5,11 +5,11 @@
 import argparse
 import re
 import sys
+from datetime import datetime
 
 from cloudinit.util import json_dumps
-from datetime import datetime
-from . import dump
-from . import show
+
+from . import dump, show
 
 
 def get_parser(parser=None):

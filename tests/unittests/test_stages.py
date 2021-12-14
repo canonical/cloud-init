@@ -6,13 +6,10 @@ import stat
 
 import pytest
 
-from cloudinit import stages
-from cloudinit import sources
-from cloudinit.sources import NetworkConfigSource
-
+from cloudinit import sources, stages
 from cloudinit.event import EventScope, EventType
+from cloudinit.sources import NetworkConfigSource
 from cloudinit.util import write_file
-
 from tests.unittests.helpers import CiTestCase, mock
 
 TEST_INSTANCE_ID = "i-testing"

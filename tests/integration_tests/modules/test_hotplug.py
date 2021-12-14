@@ -1,7 +1,8 @@
-import pytest
 import time
-import yaml
 from collections import namedtuple
+
+import pytest
+import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
 

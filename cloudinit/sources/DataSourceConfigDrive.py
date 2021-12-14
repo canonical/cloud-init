@@ -9,9 +9,7 @@
 import os
 
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform

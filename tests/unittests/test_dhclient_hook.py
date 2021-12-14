@@ -2,13 +2,13 @@
 
 """Tests for cloudinit.dhclient_hook."""
 
-from cloudinit import dhclient_hook as dhc
-from tests.unittests.helpers import CiTestCase, dir2dict, populate_dir
-
 import argparse
 import json
 import os
 from unittest import mock
+
+from cloudinit import dhclient_hook as dhc
+from tests.unittests.helpers import CiTestCase, dir2dict, populate_dir
 
 
 class TestDhclientHook(CiTestCase):

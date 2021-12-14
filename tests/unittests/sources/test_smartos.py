@@ -12,7 +12,6 @@ order to validate return responses.
 
 """
 
-from binascii import crc32
 import json
 import multiprocessing
 import os
@@ -22,29 +21,28 @@ import signal
 import stat
 import unittest
 import uuid
+from binascii import crc32
 
+from cloudinit import helpers as c_helpers
 from cloudinit import serial
+from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
+from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
 from cloudinit.sources.DataSourceSmartOS import (
     convert_smartos_network_data as convert_net,
-    SMARTOS_ENV_KVM,
-    SERIAL_DEVICE,
+)
+from cloudinit.sources.DataSourceSmartOS import (
     get_smartos_environ,
     identify_file,
 )
-from cloudinit.event import EventScope, EventType
-
-from cloudinit import helpers as c_helpers
+from cloudinit.subp import ProcessExecutionError, subp, which
 from cloudinit.util import b64e, write_file
-from cloudinit.subp import subp, ProcessExecutionError, which
-
 from tests.unittests.helpers import (
     CiTestCase,
-    mock,
     FilesystemMockingTestCase,
+    mock,
     skipIf,
 )
-
 
 try:
     import serial as _pyserial

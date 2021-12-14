@@ -6,9 +6,10 @@ import argparse
 import os
 import sys
 
-from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
 from cloudinit import log
+from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
 from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
+
 from . import addLogHandlerCLI, read_cfg_paths
 
 NAME = "render"

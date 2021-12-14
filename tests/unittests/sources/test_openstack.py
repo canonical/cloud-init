@@ -5,20 +5,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import httpretty as hp
 import json
 import re
 from io import StringIO
 from urllib.parse import urlparse
 
-from tests.unittests import helpers as test_helpers
+import httpretty as hp
 
-from cloudinit import helpers
-from cloudinit import settings
-from cloudinit.sources import BrokenMetadata, convert_vendordata, UNSET
+from cloudinit import helpers, settings, util
+from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
+from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
-from cloudinit import util
+from tests.unittests import helpers as test_helpers
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"

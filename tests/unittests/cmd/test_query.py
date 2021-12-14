@@ -4,22 +4,21 @@ import errno
 import gzip
 import json
 import os
+from collections import namedtuple
 from io import BytesIO
 from textwrap import dedent
 
 import pytest
 
-from collections import namedtuple
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
-    REDACT_SENSITIVE_VALUE,
     INSTANCE_JSON_FILE,
     INSTANCE_JSON_SENSITIVE_FILE,
+    REDACT_SENSITIVE_VALUE,
 )
-from tests.unittests.helpers import mock
-
 from cloudinit.util import b64e, write_file
+from tests.unittests.helpers import mock
 
 
 def _gzip_data(data):

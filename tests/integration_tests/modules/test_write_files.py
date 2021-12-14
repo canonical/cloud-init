@@ -7,8 +7,8 @@ and then checks if those files were created during boot.
 ``tests/cloud_tests/testcases/modules/write_files.yaml``.)"""
 
 import base64
-import pytest
 
+import pytest
 
 ASCII_TEXT = "ASCII text"
 B64_CONTENT = base64.b64encode(ASCII_TEXT.encode("utf-8"))

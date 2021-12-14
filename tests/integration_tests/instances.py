@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from enum import Enum
 import logging
 import os
 import uuid
+from enum import Enum
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance

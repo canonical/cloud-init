@@ -6,13 +6,11 @@
 """Hetzner Cloud API Documentation
    https://docs.hetzner.cloud/"""
 
+import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
-from cloudinit import sources
-from cloudinit import util
-
-import cloudinit.sources.helpers.hetzner as hc_helper
+from cloudinit import sources, util
 
 LOG = logging.getLogger(__name__)
 

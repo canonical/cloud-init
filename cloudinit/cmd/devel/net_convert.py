@@ -6,13 +6,11 @@ import json
 import os
 import sys
 
-from cloudinit.sources.helpers import openstack
+from cloudinit import distros, log, safeyaml
+from cloudinit.net import eni, netplan, network_state, networkd, sysconfig
 from cloudinit.sources import DataSourceAzure as azure
 from cloudinit.sources import DataSourceOVF as ovf
-
-from cloudinit import distros, safeyaml
-from cloudinit.net import eni, netplan, networkd, network_state, sysconfig
-from cloudinit import log
+from cloudinit.sources.helpers import openstack
 
 NAME = "net-convert"
 

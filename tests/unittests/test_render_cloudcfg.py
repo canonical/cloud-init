@@ -4,8 +4,7 @@ import sys
 
 import pytest
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from tests.unittests.helpers import cloud_init_project_dir
 
 # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)

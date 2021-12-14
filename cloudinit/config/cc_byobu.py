@@ -38,9 +38,8 @@ Valid configuration options for this module are:
     byobu_by_default: <user/system>
 """
 
+from cloudinit import subp, util
 from cloudinit.distros import ug_util
-from cloudinit import subp
-from cloudinit import util
 
 distros = ["ubuntu", "debian"]
 

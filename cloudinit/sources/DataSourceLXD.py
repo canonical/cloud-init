@@ -9,8 +9,10 @@ Notes:
  * TODO( Hotplug support using websockets API 1.0/events )
 """
 
-from json.decoder import JSONDecodeError
 import os
+import socket
+import stat
+from json.decoder import JSONDecodeError
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -27,9 +29,6 @@ from requests.adapters import HTTPAdapter
 # pylint: disable=E0401
 from requests.packages.urllib3.connection import HTTPConnection
 from requests.packages.urllib3.connectionpool import HTTPConnectionPool
-
-import socket
-import stat
 
 from cloudinit import log as logging
 from cloudinit import sources, subp, util

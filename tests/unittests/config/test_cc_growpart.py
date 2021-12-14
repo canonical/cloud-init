@@ -1,21 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import cloud
-from cloudinit.config import cc_growpart
-from cloudinit import subp
-from cloudinit import temp_utils
-
-from tests.unittests.helpers import TestCase
-
 import errno
 import logging
 import os
-import shutil
 import re
+import shutil
+import stat
 import unittest
 from contextlib import ExitStack
 from unittest import mock
-import stat
+
+from cloudinit import cloud, subp, temp_utils
+from cloudinit.config import cc_growpart
+from tests.unittests.helpers import TestCase
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'

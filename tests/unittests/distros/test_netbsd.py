@@ -1,7 +1,8 @@
-import cloudinit.distros.netbsd
+import unittest.mock as mock
 
 import pytest
-import unittest.mock as mock
+
+import cloudinit.distros.netbsd
 
 
 @pytest.mark.parametrize("with_pkgin", (True, False))

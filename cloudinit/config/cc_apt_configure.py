@@ -10,16 +10,14 @@
 
 import glob
 import os
-import re
 import pathlib
+import re
 from textwrap import dedent
 
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit import gpg
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import templater
-from cloudinit import util
+from cloudinit import subp, templater, util
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)

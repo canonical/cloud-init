@@ -3,7 +3,6 @@ from unittest import mock
 
 from cloudinit.config import cc_lxd
 from tests.unittests import helpers as t_help
-
 from tests.unittests.util import get_cloud
 
 

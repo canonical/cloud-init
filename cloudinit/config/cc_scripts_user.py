@@ -28,7 +28,6 @@ This module does not accept any config keys.
 import os
 
 from cloudinit import subp
-
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

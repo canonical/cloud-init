@@ -4,17 +4,16 @@ import os
 import shutil
 import tempfile
 
+from cloudinit import util
 from cloudinit.config.cc_rsyslog import (
-    apply_rsyslog_changes,
     DEF_DIR,
     DEF_FILENAME,
     DEF_RELOAD,
+    apply_rsyslog_changes,
     load_config,
     parse_remotes_line,
     remotes_to_rsyslog_cfg,
 )
-from cloudinit import util
-
 from tests.unittests import helpers as t_help
 
 

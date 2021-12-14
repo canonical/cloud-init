@@ -13,8 +13,8 @@ NOTE: the testcase for this looks for the command in history.log as
 """
 
 import re
-import pytest
 
+import pytest
 
 USER_DATA = """\
 #cloud-config

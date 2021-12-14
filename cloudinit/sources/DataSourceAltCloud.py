@@ -18,10 +18,7 @@ import os.path
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import sources, subp, util
 
 LOG = logging.getLogger(__name__)
 

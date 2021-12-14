@@ -43,8 +43,7 @@ seeded with empty values, and install_devices_empty is set to true.
 
 import os
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.subp import ProcessExecutionError
 
 distros = ["ubuntu", "debian"]

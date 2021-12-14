@@ -1,15 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros
-from cloudinit import util
-
-from tests.unittests import helpers
-
 import os
-import pytest
 import shutil
 import tempfile
 from unittest import mock
+
+import pytest
+
+from cloudinit import distros, util
+from tests.unittests import helpers
 
 unknown_arch_info = {
     "arches": ["default"],

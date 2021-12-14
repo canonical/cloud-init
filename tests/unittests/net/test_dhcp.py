@@ -1,17 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import httpretty
 import os
 import signal
 from textwrap import dedent
 
+import httpretty
+
 import cloudinit.net as net
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError,
-    maybe_perform_dhcp_discovery,
-    parse_dhcp_lease_file,
     dhcp_discovery,
+    maybe_perform_dhcp_discovery,
     networkd_load_leases,
+    parse_dhcp_lease_file,
     parse_static_routes,
 )
 from cloudinit.util import ensure_file, write_file

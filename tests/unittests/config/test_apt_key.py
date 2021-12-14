@@ -1,9 +1,8 @@
 import os
 from unittest import mock
 
+from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
-from cloudinit import subp
-from cloudinit import util
 
 TEST_KEY_HUMAN = """
 /etc/apt/cloud-init.gpg.d/my_key.gpg

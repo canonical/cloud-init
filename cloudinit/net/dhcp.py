@@ -4,15 +4,17 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from typing import Dict, Any
-import configobj
 import logging
 import os
 import re
 import signal
 import time
 from io import StringIO
+from typing import Any, Dict
 
+import configobj
+
+from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
     EphemeralIPv4Network,
     find_fallback_nic,
@@ -20,9 +22,6 @@ from cloudinit.net import (
     has_url_connectivity,
 )
 from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
-from cloudinit import temp_utils
-from cloudinit import subp
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

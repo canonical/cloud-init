@@ -6,9 +6,9 @@
 
 from io import StringIO
 
-from cloudinit.distros.parsers import chop_comment
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.distros.parsers import chop_comment
 
 LOG = logging.getLogger(__name__)
 

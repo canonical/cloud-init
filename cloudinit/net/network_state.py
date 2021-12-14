@@ -10,8 +10,7 @@ import logging
 import socket
 import struct
 
-from cloudinit import safeyaml
-from cloudinit import util
+from cloudinit import safeyaml, util
 
 LOG = logging.getLogger(__name__)
 

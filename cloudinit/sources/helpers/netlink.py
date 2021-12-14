@@ -2,14 +2,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import log as logging
-from cloudinit import util
-from collections import namedtuple
-
 import os
 import select
 import socket
 import struct
+from collections import namedtuple
+
+from cloudinit import log as logging
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

@@ -5,12 +5,9 @@ import json
 import httpretty
 import requests
 
-from cloudinit import helpers
-from cloudinit import settings
-from cloudinit import sources
+from cloudinit import helpers, settings, sources
 from cloudinit.sources import DataSourceScaleway
-
-from tests.unittests.helpers import mock, HttprettyTestCase, CiTestCase
+from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
 
 
 class DataResponses(object):

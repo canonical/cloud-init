@@ -9,10 +9,9 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
 from cloudinit.sources.helpers import azure as azure_helper
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
-
-from cloudinit.util import load_file
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
+from cloudinit.util import load_file
+from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>

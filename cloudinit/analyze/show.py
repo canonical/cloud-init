@@ -8,11 +8,10 @@ import base64
 import datetime
 import json
 import os
-import time
 import sys
+import time
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
 
 # Example events:

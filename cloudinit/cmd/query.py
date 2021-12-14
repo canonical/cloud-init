@@ -14,23 +14,22 @@ output; if this fails, they are treated as binary.
 """
 
 import argparse
-from errno import EACCES
 import os
 import sys
+from errno import EACCES
 
+from cloudinit import log, util
+from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     convert_jinja_instance_data,
     get_jinja_variable_alias,
     render_jinja_payload,
 )
-from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
-from cloudinit import log
 from cloudinit.sources import (
     INSTANCE_JSON_FILE,
     INSTANCE_JSON_SENSITIVE_FILE,
     REDACT_SENSITIVE_VALUE,
 )
-from cloudinit import util
 
 NAME = "query"
 LOG = log.getLogger(NAME)

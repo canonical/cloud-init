@@ -4,11 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests import helpers as test_helpers
 import textwrap
 
 from cloudinit import templater
 from cloudinit.util import load_file, write_file
+from tests.unittests import helpers as test_helpers
 
 try:
     import Cheetah

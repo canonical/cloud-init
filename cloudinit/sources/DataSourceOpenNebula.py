@@ -20,11 +20,7 @@ import re
 import string
 
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import net, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 

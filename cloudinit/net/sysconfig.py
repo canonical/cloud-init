@@ -8,17 +8,15 @@ import re
 from configobj import ConfigObj
 
 from cloudinit import log as logging
-from cloudinit import util
-from cloudinit import subp
-from cloudinit.distros.parsers import networkmanager_conf
-from cloudinit.distros.parsers import resolv_conf
+from cloudinit import subp, util
+from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 
 from . import renderer
 from .network_state import (
+    IPV6_DYNAMIC_TYPES,
     is_ipv6_addr,
     net_prefix_to_ipv4_mask,
     subnet_is_ipv6,
-    IPV6_DYNAMIC_TYPES,
 )
 
 LOG = logging.getLogger(__name__)

@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import cloudinit.distros.bsd_utils as bsd_utils
-
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 RC_FILE = """

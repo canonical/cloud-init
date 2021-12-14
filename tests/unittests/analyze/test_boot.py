@@ -1,12 +1,13 @@
 import os
+
 from cloudinit.analyze.__main__ import analyze_boot, get_parser
-from tests.unittests.helpers import CiTestCase, mock
 from cloudinit.analyze.show import (
-    dist_check_timestamp,
-    SystemctlReader,
-    FAIL_CODE,
     CONTAINER_CODE,
+    FAIL_CODE,
+    SystemctlReader,
+    dist_check_timestamp,
 )
+from tests.unittests.helpers import CiTestCase, mock
 
 err_code = (FAIL_CODE, -1, -1, -1)
 

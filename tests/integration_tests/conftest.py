@@ -2,12 +2,13 @@
 import datetime
 import functools
 import logging
-import pytest
 import os
 import sys
-from tarfile import TarFile
 from contextlib import contextmanager
 from pathlib import Path
+from tarfile import TarFile
+
+import pytest
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
@@ -19,14 +20,13 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
-    _LxdIntegrationCloud,
     OpenstackCloud,
+    _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
     IntegrationInstance,
 )
-
 
 log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))

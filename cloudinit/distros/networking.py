@@ -2,9 +2,7 @@ import abc
 import logging
 import os
 
-from cloudinit import subp
-from cloudinit import net, util
-
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 

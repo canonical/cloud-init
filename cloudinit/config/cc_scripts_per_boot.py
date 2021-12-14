@@ -25,7 +25,6 @@ module does not accept any config keys.
 import os
 
 from cloudinit import subp
-
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS

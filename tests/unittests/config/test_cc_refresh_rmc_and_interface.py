@@ -1,12 +1,10 @@
-from cloudinit.config import cc_refresh_rmc_and_interface as ccrmci
+import logging
+from textwrap import dedent
 
 from cloudinit import util
-
+from cloudinit.config import cc_refresh_rmc_and_interface as ccrmci
 from tests.unittests import helpers as t_help
 from tests.unittests.helpers import mock
-
-from textwrap import dedent
-import logging
 
 LOG = logging.getLogger(__name__)
 MPATH = "cloudinit.config.cc_refresh_rmc_and_interface"

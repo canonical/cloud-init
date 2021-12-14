@@ -13,9 +13,8 @@ import os
 
 from cloudinit import dmi
 from cloudinit import log as logging
+from cloudinit import sources, util
 from cloudinit.net import eni
-from cloudinit import sources
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

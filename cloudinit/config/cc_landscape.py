@@ -60,10 +60,7 @@ from io import BytesIO
 
 from configobj import ConfigObj
 
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, type_utils, util
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

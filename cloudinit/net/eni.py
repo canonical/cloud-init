@@ -5,15 +5,11 @@ import glob
 import os
 import re
 
-from . import ParserError
-
-from . import renderer
-from .network_state import subnet_is_ipv6
-
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
+from . import ParserError, renderer
+from .network_state import subnet_is_ipv6
 
 LOG = logging.getLogger(__name__)
 

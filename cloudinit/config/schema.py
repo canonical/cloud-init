@@ -1,20 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 
-from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit import importer
-from cloudinit.importer import MetaSchema
-from cloudinit.util import find_modules, load_file, error
-
 import argparse
-from collections import defaultdict
-from copy import deepcopy
-from functools import partial
 import logging
 import os
 import re
 import sys
+from collections import defaultdict
+from copy import deepcopy
+from functools import partial
+
 import yaml
+
+from cloudinit import importer
+from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.importer import MetaSchema
+from cloudinit.util import error, find_modules, load_file
 
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)

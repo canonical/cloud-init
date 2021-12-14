@@ -10,8 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import log as logging
-from cloudinit import type_utils
-from cloudinit import util
+from cloudinit import type_utils, util
 
 LOG = logging.getLogger(__name__)
 

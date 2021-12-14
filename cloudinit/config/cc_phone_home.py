@@ -41,10 +41,7 @@ keys to post. Available keys are:
         tries: 10
 """
 
-from cloudinit import templater
-from cloudinit import url_helper
-from cloudinit import util
-
+from cloudinit import templater, url_helper, util
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE

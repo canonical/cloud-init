@@ -14,14 +14,9 @@ import os
 import shutil
 import tempfile
 
-from cloudinit import dmi
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import util
-
-from tests.unittests.helpers import CiTestCase, mock
-
 import cloudinit.sources.DataSourceAltCloud as dsac
+from cloudinit import dmi, helpers, subp, util
+from tests.unittests.helpers import CiTestCase, mock
 
 OS_UNAME_ORIG = getattr(os, "uname")
 

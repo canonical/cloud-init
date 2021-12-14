@@ -1,9 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests import helpers as test_helpers
-
 from cloudinit.cs_utils import Cepko
-
+from tests.unittests import helpers as test_helpers
 
 SERVER_CONTEXT = {
     "cpu": 1000,

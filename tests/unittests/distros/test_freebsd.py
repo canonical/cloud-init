@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
+
 from cloudinit.util import find_freebsd_part, get_path_dev_freebsd
 from tests.unittests.helpers import CiTestCase, mock
-
-import os
 
 
 class TestDeviceLookUp(CiTestCase):

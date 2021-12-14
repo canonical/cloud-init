@@ -1,17 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from abc import ABC, abstractmethod
 import datetime
 import logging
 import os.path
 import random
 import string
+from abc import ABC, abstractmethod
 from uuid import UUID
 
 from pycloudlib import (
     EC2,
     GCE,
-    Azure,
     OCI,
+    Azure,
     LXDContainer,
     LXDVirtualMachine,
     Openstack,
@@ -19,15 +19,15 @@ from pycloudlib import (
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
-from cloudinit.subp import subp, ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import (
+    IntegrationAzureInstance,
     IntegrationEc2Instance,
     IntegrationGceInstance,
-    IntegrationAzureInstance,
     IntegrationInstance,
-    IntegrationOciInstance,
     IntegrationLxdInstance,
+    IntegrationOciInstance,
 )
 from tests.integration_tests.util import emit_dots_on_travis
 

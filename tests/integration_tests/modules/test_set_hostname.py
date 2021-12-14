@@ -11,7 +11,6 @@ after the system is boot.
 
 import pytest
 
-
 USER_DATA_HOSTNAME = """\
 #cloud-config
 hostname: cloudinit2

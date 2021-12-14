@@ -1,20 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
-from copy import deepcopy
 import json
 import re
 import stat
+from collections import namedtuple
+from copy import deepcopy
 from unittest import mock
-import yaml
 
 import pytest
+import yaml
 
-from cloudinit.sources import (
-    DataSourceLXD as lxd,
-    InvalidMetaDataException,
-    UNSET,
-)
+from cloudinit.sources import UNSET
+from cloudinit.sources import DataSourceLXD as lxd
+from cloudinit.sources import InvalidMetaDataException
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 

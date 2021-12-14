@@ -12,7 +12,7 @@ import base64
 import os.path
 import time
 
-from . import instantiated_handler_registry, available_handlers
+from . import available_handlers, instantiated_handler_registry
 
 FINISH_EVENT_TYPE = "finish"
 START_EVENT_TYPE = "start"

@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 
 from cloudinit import log
 from cloudinit.handlers import INCLUSION_TYPES_MAP
+
 from . import addLogHandlerCLI
 
 NAME = "make-mime"

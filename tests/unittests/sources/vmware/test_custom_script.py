@@ -7,12 +7,13 @@
 
 import os
 import stat
+
 from cloudinit import util
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptConstant,
     CustomScriptNotFound,
-    PreCustomScript,
     PostCustomScript,
+    PreCustomScript,
 )
 from tests.unittests.helpers import CiTestCase, mock
 

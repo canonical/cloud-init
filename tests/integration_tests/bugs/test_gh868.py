@@ -4,7 +4,6 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
-
 USERDATA = """\
 #cloud-config
 chef:

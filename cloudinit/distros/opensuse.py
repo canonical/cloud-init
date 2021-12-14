@@ -8,15 +8,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros
-
-from cloudinit.distros.parsers.hostname import HostnameConf
-
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import rhel_util as rhutil
+from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
 

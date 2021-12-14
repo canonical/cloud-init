@@ -1,14 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+from collections import namedtuple
 from io import StringIO
 
-from collections import namedtuple
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
 from cloudinit.util import ensure_dir, write_file
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
 
 
 class TestRender(CiTestCase):

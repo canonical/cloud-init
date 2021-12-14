@@ -10,8 +10,7 @@ from io import StringIO
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)

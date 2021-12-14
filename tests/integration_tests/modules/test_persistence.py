@@ -10,7 +10,6 @@ from tests.integration_tests.util import (
     verify_ordered_items_in_text,
 )
 
-
 PICKLE_PATH = Path("/var/lib/cloud/instance/obj.pkl")
 TEST_PICKLE = ASSETS_DIR / "trusty_with_mime.pkl"
 

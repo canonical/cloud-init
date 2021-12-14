@@ -29,7 +29,6 @@ For more information about spacewalk see: https://fedorahosted.org/spacewalk/
 
 from cloudinit import subp
 
-
 distros = ["redhat", "fedora"]
 required_packages = ["rhn-setup"]
 def_ca_cert_path = "/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT"

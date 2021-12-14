@@ -1,3 +1,6 @@
+# See https://docs.pytest.org/en/stable/example
+# /parametrize.html#parametrizing-conditional-raising
+from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import pytest
@@ -8,10 +11,6 @@ from cloudinit.distros.networking import (
     LinuxNetworking,
     Networking,
 )
-
-# See https://docs.pytest.org/en/stable/example
-# /parametrize.html#parametrizing-conditional-raising
-from contextlib import ExitStack as does_not_raise
 
 
 @pytest.yield_fixture

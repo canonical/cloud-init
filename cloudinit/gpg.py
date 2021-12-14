@@ -7,10 +7,10 @@
 
 """gpg.py - Collection of gpg key related functions"""
 
+import time
+
 from cloudinit import log as logging
 from cloudinit import subp
-
-import time
 
 LOG = logging.getLogger(__name__)
 

@@ -3,6 +3,7 @@
 import re
 from io import StringIO
 
+from cloudinit import util
 from cloudinit.config.cc_snap import (
     ASSERTIONS_FILE,
     add_assertions,
@@ -12,15 +13,13 @@ from cloudinit.config.cc_snap import (
     schema,
 )
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import util
 from tests.unittests.helpers import (
     CiTestCase,
     SchemaTestCaseMixin,
     mock,
-    wrap_and_call,
     skipUnlessJsonSchema,
+    wrap_and_call,
 )
-
 
 SYSTEM_USER_ASSERTION = """\
 type: system-user

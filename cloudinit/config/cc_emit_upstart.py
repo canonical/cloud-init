@@ -24,8 +24,8 @@ user configuration should be required.
 import os
 
 from cloudinit import log as logging
-from cloudinit.settings import PER_ALWAYS
 from cloudinit import subp
+from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 

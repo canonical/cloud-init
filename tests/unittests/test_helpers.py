@@ -5,9 +5,8 @@
 import os
 from pathlib import Path
 
-from tests.unittests import helpers as test_helpers
-
 from cloudinit import sources
+from tests.unittests import helpers as test_helpers
 
 
 class MyDataSource(sources.DataSource):

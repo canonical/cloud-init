@@ -5,12 +5,10 @@
 """Define 'devel' subcommand argument parsers to include in cloud-init cmd."""
 
 import argparse
+
 from cloudinit.config import schema
 
-from . import hotplug_hook
-from . import net_convert
-from . import render
-from . import make_mime
+from . import hotplug_hook, make_mime, net_convert, render
 
 
 def get_parser(parser=None):

@@ -48,9 +48,8 @@ based on initial hostname.
 
 import os
 
-
-from cloudinit.atomic_helper import write_json
 from cloudinit import util
+from cloudinit.atomic_helper import write_json
 
 
 class SetHostnameError(Exception):

@@ -34,8 +34,8 @@ is set, then the hostname will not be altered.
 
 import os
 
-from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
+from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 

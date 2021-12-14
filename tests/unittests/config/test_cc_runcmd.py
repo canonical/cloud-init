@@ -4,15 +4,14 @@ import os
 import stat
 from unittest.mock import patch
 
-from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit import helpers, subp, util
+from cloudinit.config.cc_runcmd import handle, schema
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     SchemaTestCaseMixin,
     skipUnlessJsonSchema,
 )
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

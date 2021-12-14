@@ -8,14 +8,13 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
-from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
-
 import os
 from textwrap import dedent
 
+from cloudinit import util
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.

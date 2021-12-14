@@ -10,8 +10,7 @@ import functools
 import json
 
 from cloudinit import log as logging
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import url_helper, util
 
 LOG = logging.getLogger(__name__)
 SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])

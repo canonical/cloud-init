@@ -7,10 +7,9 @@ import io
 import shutil
 import tempfile
 
-from cloudinit.config.cc_write_files import handle, decode_perms, write_files
 from cloudinit import log as logging
 from cloudinit import util
-
+from cloudinit.config.cc_write_files import decode_perms, handle, write_files
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,

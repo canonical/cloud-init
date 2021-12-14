@@ -4,7 +4,6 @@
 import logging
 import os
 import subprocess
-
 from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)

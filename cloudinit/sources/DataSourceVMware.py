@@ -63,20 +63,19 @@ Netifaces (https://github.com/al45tair/netifaces)
 
 import collections
 import copy
-from distutils.spawn import find_executable
 import ipaddress
 import json
 import os
 import socket
 import time
-
-from cloudinit import dmi, log as logging
-from cloudinit import sources
-from cloudinit import util
-from cloudinit.subp import subp, ProcessExecutionError
+from distutils.spawn import find_executable
 
 import netifaces
 
+from cloudinit import dmi
+from cloudinit import log as logging
+from cloudinit import sources, util
+from cloudinit.subp import ProcessExecutionError, subp
 
 PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
 

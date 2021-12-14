@@ -1,21 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import httpretty
 import json
 import logging
 import os
 
-from cloudinit.config import cc_chef
-from cloudinit import util
+import httpretty
 
+from cloudinit import util
+from cloudinit.config import cc_chef
 from tests.unittests.helpers import (
-    HttprettyTestCase,
     FilesystemMockingTestCase,
+    HttprettyTestCase,
+    cloud_init_project_dir,
     mock,
     skipIf,
-    cloud_init_project_dir,
 )
-
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

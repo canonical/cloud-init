@@ -4,13 +4,11 @@
 
 """Defer writing certain files"""
 
-from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
-from cloudinit.config.cc_write_files import (
-    schema as write_files_schema,
-    write_files,
-    DEFAULT_DEFER,
-)
+from cloudinit.config.cc_write_files import DEFAULT_DEFER
+from cloudinit.config.cc_write_files import schema as write_files_schema
+from cloudinit.config.cc_write_files import write_files
+from cloudinit.config.schema import validate_cloudconfig_schema
 
 # meta is not used in this module, but it remains as code documentation
 #

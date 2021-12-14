@@ -1,20 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import base64
-import zlib
-
-from cloudinit.reporting import events, instantiated_handler_registry
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler, LogHandler
-
 import json
 import os
+import re
 import struct
 import time
-import re
+import zlib
 from unittest import mock
 
 from cloudinit import util
-from tests.unittests.helpers import CiTestCase
+from cloudinit.reporting import events, instantiated_handler_registry
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler, LogHandler
 from cloudinit.sources.helpers import azure
+from tests.unittests.helpers import CiTestCase
 
 
 class TestKvpEncoding(CiTestCase):

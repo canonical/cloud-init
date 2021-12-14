@@ -56,8 +56,7 @@ import io
 from configobj import ConfigObj
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"

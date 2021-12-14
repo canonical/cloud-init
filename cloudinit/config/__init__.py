@@ -6,9 +6,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.settings import PER_INSTANCE, FREQUENCIES
-
 from cloudinit import log as logging
+from cloudinit.settings import FREQUENCIES, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 

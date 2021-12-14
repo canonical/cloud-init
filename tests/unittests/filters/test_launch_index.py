@@ -3,11 +3,10 @@
 import copy
 from itertools import filterfalse
 
-from tests.unittests import helpers
-
-from cloudinit.filters import launch_index
 from cloudinit import user_data as ud
 from cloudinit import util
+from cloudinit.filters import launch_index
+from tests.unittests import helpers
 
 
 def count_messages(root):

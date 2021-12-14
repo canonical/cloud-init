@@ -5,14 +5,9 @@ import os
 import shutil
 import tempfile
 
+from cloudinit import handlers, helpers, settings, url_helper, util
 from cloudinit.cmd import main
-from cloudinit import handlers
-from cloudinit import helpers
-from cloudinit import settings
-from cloudinit import url_helper
-from cloudinit import util
-
-from tests.unittests.helpers import TestCase, CiTestCase, ExitStack, mock
+from tests.unittests.helpers import CiTestCase, ExitStack, TestCase, mock
 
 
 class FakeModule(handlers.Handler):

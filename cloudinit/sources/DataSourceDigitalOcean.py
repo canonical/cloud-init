@@ -6,11 +6,9 @@
 # DigitalOcean Droplet API:
 # https://developers.digitalocean.com/documentation/metadata/
 
-from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import util
-
 import cloudinit.sources.helpers.digitalocean as do_helper
+from cloudinit import log as logging
+from cloudinit import sources, util
 
 LOG = logging.getLogger(__name__)
 

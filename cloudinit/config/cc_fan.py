@@ -38,9 +38,8 @@ If cloud-init sees a ``fan`` entry in cloud-config it will:
 """
 
 from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import subp
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

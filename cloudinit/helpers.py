@@ -8,19 +8,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from time import time
-
 import contextlib
 import os
-from configparser import NoSectionError, NoOptionError, RawConfigParser
+from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
-
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CFG_ENV_NAME
+from time import time
 
 from cloudinit import log as logging
-from cloudinit import type_utils
-from cloudinit import persistence
-from cloudinit import util
+from cloudinit import persistence, type_utils, util
+from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
 
 LOG = logging.getLogger(__name__)
 

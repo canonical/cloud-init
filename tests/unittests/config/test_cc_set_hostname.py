@@ -1,21 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_set_hostname
-
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import util
-
-from tests.unittests import helpers as t_help
-
-from configobj import ConfigObj
 import logging
 import os
 import shutil
 import tempfile
 from io import BytesIO
 from unittest import mock
+
+from configobj import ConfigObj
+
+from cloudinit import cloud, distros, helpers, util
+from cloudinit.config import cc_set_hostname
+from tests.unittests import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 

@@ -8,13 +8,11 @@ import time
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit.sources.helpers import openstack
 from cloudinit.sources import DataSourceOracle as oracle
+from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
 

@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os.path
 
-from cloudinit.config import cc_ssh
 from cloudinit import ssh_util
+from cloudinit.config import cc_ssh
 from tests.unittests.helpers import CiTestCase, mock
-import logging
 
 LOG = logging.getLogger(__name__)
 

@@ -8,9 +8,7 @@ import random
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
-from cloudinit import url_helper
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, url_helper, util
 
 NIC_MAP = {"public": "eth0", "private": "eth1"}
 

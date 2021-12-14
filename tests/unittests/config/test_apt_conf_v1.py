@@ -1,15 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_apt_configure
-from cloudinit import util
-
-from tests.unittests.helpers import TestCase
-
 import copy
 import os
 import re
 import shutil
 import tempfile
+
+from cloudinit import util
+from cloudinit.config import cc_apt_configure
+from tests.unittests.helpers import TestCase
 
 
 class TestAptProxyConfig(TestCase):
