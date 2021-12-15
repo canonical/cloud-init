@@ -8,13 +8,12 @@ import requests
 import pytest
 from functools import partial
 from time import sleep, process_time
-from typing import Tuple
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
     NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
     retry_on_url_exc, dual_stack, HTTPConnectionPoolEarlyConnect,
-    HTTPAdapterEarlyConnect, mount)
+    HTTPAdapterEarlyConnect, mount, get_session_to_first_response)
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 try:
@@ -272,6 +271,10 @@ def assert_time(func, max_time=1):
 
 
 class TestDualStack:
+    """Async testing suggestions welcome - these basically all rely on
+    sleep and time-bounded assertions for proving ordering. I assume there are
+    better ways of doing this.
+    """
 
     @pytest.mark.parametrize(
         "func,"
@@ -338,6 +341,17 @@ class TestHTTPAdapterEarlyConnect:
     staggered, and returning a connection to the first address to respond, and
     then making a request on that connection.
     """
+
+    def test_instantiate_dualstack_helper(self):
+        """Test helper "get_session_to_first_response"
+        """
+        first = "http://www.google.com/"
+        not_first = "http://www.yahoo.com/"
+        u = assert_time(
+            partial(get_session_to_first_response, first, not_first))
+        out = assert_time(partial(u.session.get, u.url))
+        assert 200 == out.status_code
+        assert first == out.url
 
     def test_instantiate_dualstack(self):
         s = requests.Session()
