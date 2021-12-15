@@ -63,7 +63,9 @@ class TestConfigureUA(CiTestCase):
         """all services should be enabled and then any failures raised"""
 
         def fake_subp(cmd, capture=None):
-            fail_cmds = [["ua", "enable", svc] for svc in ["esm", "cc"]]
+            fail_cmds = [
+                ["ua", "enable", "--assume-yes", svc] for svc in ["esm", "cc"]
+            ]
             if cmd in fail_cmds and capture:
                 svc = cmd[-1]
                 raise subp.ProcessExecutionError(
@@ -78,9 +80,15 @@ class TestConfigureUA(CiTestCase):
             m_subp.call_args_list,
             [
                 mock.call(["ua", "attach", "SomeToken"]),
-                mock.call(["ua", "enable", "esm"], capture=True),
-                mock.call(["ua", "enable", "cc"], capture=True),
-                mock.call(["ua", "enable", "fips"], capture=True),
+                mock.call(
+                    ["ua", "enable", "--assume-yes", "esm"], capture=True
+                ),
+                mock.call(
+                    ["ua", "enable", "--assume-yes", "cc"], capture=True
+                ),
+                mock.call(
+                    ["ua", "enable", "--assume-yes", "fips"], capture=True
+                ),
             ],
         )
         self.assertIn(
@@ -118,7 +126,9 @@ class TestConfigureUA(CiTestCase):
             m_subp.call_args_list,
             [
                 mock.call(["ua", "attach", "SomeToken"]),
-                mock.call(["ua", "enable", "fips"], capture=True),
+                mock.call(
+                    ["ua", "enable", "--assume-yes", "fips"], capture=True
+                ),
             ],
         )
         self.assertEqual(
@@ -135,7 +145,9 @@ class TestConfigureUA(CiTestCase):
             m_subp.call_args_list,
             [
                 mock.call(["ua", "attach", "SomeToken"]),
-                mock.call(["ua", "enable", "fips"], capture=True),
+                mock.call(
+                    ["ua", "enable", "--assume-yes", "fips"], capture=True
+                ),
             ],
         )
         self.assertEqual(
