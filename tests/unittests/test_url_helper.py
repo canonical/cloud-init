@@ -339,20 +339,22 @@ def mount(session, adapter, delay_prefix=None, delay=1):
         print("do_mount(): session.mount(prefix, adapter): {}.mount({}, {})".format(session, prefix, adapter))
         if delay_prefix == prefix:
             sleep(delay)
+        print("mount: {}:{}".format(session, prefix))
         session.mount(prefix, adapter)
-        return session.get(prefix)
+        return (session, prefix)
     return do_mount
 
 
 class TestHTTPAdapterEarlyConnect:
-    """ TODO
+    """ These two tests demonstrate asynchronously requesting two connections,
+    staggered, and returning a connection to the first address to respond, and
+    then making a request on that connection.
     """
 
     def test_instantiate_dualstack(self):
         s = requests.Session()
         a = HTTPAdapterEarlyConnect()
 
-        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
         first = "http://www.google.com/"
         not_first = "http://www.yahoo.com/"
         gen = partial(
@@ -362,7 +364,8 @@ class TestHTTPAdapterEarlyConnect:
             not_first,
             stagger_delay=1,
             max_timeout=1)
-        out = assert_time(gen)
+        (session, prefix) = assert_time(gen)
+        out = assert_time(partial(session.get, prefix))
         assert 200 == out.status_code
         assert first == out.url
 
@@ -380,7 +383,8 @@ class TestHTTPAdapterEarlyConnect:
             not_first,
             stagger_delay=0,
             max_timeout=1)
-        out = assert_time(gen)
+        (session, prefix) = assert_time(gen)
+        out = assert_time(partial(session.get, prefix))
         assert 200 == out.status_code
         assert not_first == out.url
 
