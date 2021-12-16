@@ -26,23 +26,27 @@ be run in alphabetical order. This module does not accept any config keys.
 import os
 
 from cloudinit import subp
-
 from cloudinit.settings import PER_ONCE
 
 frequency = PER_ONCE
 
-SCRIPT_SUBDIR = 'per-once'
+SCRIPT_SUBDIR = "per-once"
 
 
 def handle(name, _cfg, cloud, log, _args):
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
-    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
+    runparts_path = os.path.join(cloud.get_cpath(), "scripts", SCRIPT_SUBDIR)
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning("Failed to run module %s (%s in %s)",
-                    name, SCRIPT_SUBDIR, runparts_path)
+        log.warning(
+            "Failed to run module %s (%s in %s)",
+            name,
+            SCRIPT_SUBDIR,
+            runparts_path,
+        )
         raise
+
 
 # vi: ts=4 expandtab

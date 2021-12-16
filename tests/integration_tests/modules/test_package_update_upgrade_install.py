@@ -13,8 +13,8 @@ NOTE: the testcase for this looks for the command in history.log as
 """
 
 import re
-import pytest
 
+import pytest
 
 USER_DATA = """\
 #cloud-config
@@ -29,7 +29,6 @@ package_upgrade: true
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestPackageUpdateUpgradeInstall:
-
     def assert_package_installed(self, pkg_out, name, version=None):
         """Check dpkg-query --show output for matching package name.
 
@@ -38,7 +37,8 @@ class TestPackageUpdateUpgradeInstall:
             version.
         """
         pkg_match = re.search(
-            "^%s\t(?P<version>.*)$" % name, pkg_out, re.MULTILINE)
+            "^%s\t(?P<version>.*)$" % name, pkg_out, re.MULTILINE
+        )
         if pkg_match:
             installed_version = pkg_match.group("version")
             if not version:
@@ -46,8 +46,10 @@ class TestPackageUpdateUpgradeInstall:
             if installed_version.startswith(version):
                 return  # Success
             raise AssertionError(
-                "Expected package version %s-%s not found. Found %s" %
-                name, version, installed_version)
+                "Expected package version %s-%s not found. Found %s" % name,
+                version,
+                installed_version,
+            )
         raise AssertionError("Package not installed: %s" % name)
 
     def test_new_packages_are_installed(self, class_client):
@@ -58,11 +60,13 @@ class TestPackageUpdateUpgradeInstall:
 
     def test_packages_were_updated(self, class_client):
         out = class_client.execute(
-            "grep ^Commandline: /var/log/apt/history.log")
+            "grep ^Commandline: /var/log/apt/history.log"
+        )
         assert (
             "Commandline: /usr/bin/apt-get --option=Dpkg::Options"
             "::=--force-confold --option=Dpkg::options::=--force-unsafe-io "
-            "--assume-yes --quiet install sl tree") in out
+            "--assume-yes --quiet install sl tree" in out
+        )
 
     def test_packages_were_upgraded(self, class_client):
         """Test cloud-init-output for install & upgrade stuff."""

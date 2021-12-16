@@ -8,12 +8,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros
-from cloudinit import helpers
+from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.distros import rhel_util
 from cloudinit.settings import PER_INSTANCE
 
@@ -22,30 +19,30 @@ LOG = logging.getLogger(__name__)
 
 def _make_sysconfig_bool(val):
     if val:
-        return 'yes'
+        return "yes"
     else:
-        return 'no'
+        return "no"
 
 
 class Distro(distros.Distro):
     # See: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Network_Configuration_Using_sysconfig_Files.html # noqa
     clock_conf_fn = "/etc/sysconfig/clock"
-    locale_conf_fn = '/etc/sysconfig/i18n'
-    systemd_locale_conf_fn = '/etc/locale.conf'
+    locale_conf_fn = "/etc/sysconfig/i18n"
+    systemd_locale_conf_fn = "/etc/locale.conf"
     network_conf_fn = "/etc/sysconfig/network"
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
-    network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
+    network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
     renderer_configs = {
-        'sysconfig': {
-            'control': 'etc/sysconfig/network',
-            'iface_templates': '%(base)s/network-scripts/ifcfg-%(name)s',
-            'route_templates': {
-                'ipv4': '%(base)s/network-scripts/route-%(name)s',
-                'ipv6': '%(base)s/network-scripts/route6-%(name)s'
-            }
+        "sysconfig": {
+            "control": "etc/sysconfig/network",
+            "iface_templates": "%(base)s/network-scripts/ifcfg-%(name)s",
+            "route_templates": {
+                "ipv4": "%(base)s/network-scripts/route-%(name)s",
+                "ipv6": "%(base)s/network-scripts/route6-%(name)s",
+            },
         }
     }
 
@@ -59,11 +56,11 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-        self.osfamily = 'redhat'
-        cfg['ssh_svcname'] = 'sshd'
+        self.osfamily = "redhat"
+        cfg["ssh_svcname"] = "sshd"
 
     def install_packages(self, pkglist):
-        self.package_command('install', pkgs=pkglist)
+        self.package_command("install", pkgs=pkglist)
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
@@ -74,20 +71,20 @@ class Distro(distros.Distro):
             if not out_fn:
                 out_fn = self.locale_conf_fn
         locale_cfg = {
-            'LANG': locale,
+            "LANG": locale,
         }
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, filename):
         # systemd will never update previous-hostname for us, so
         # we need to do it ourselves
-        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+        if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            subp.subp(['hostnamectl', 'set-hostname', str(hostname)])
+            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
         else:
             host_cfg = {
-                'HOSTNAME': hostname,
+                "HOSTNAME": hostname,
             }
             rhel_util.update_sysconfig_file(filename, host_cfg)
 
@@ -99,18 +96,18 @@ class Distro(distros.Distro):
         return (host_fn, self._read_hostname(host_fn))
 
     def _read_hostname(self, filename, default=None):
-        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+        if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = subp.subp(['hostname'])
+            (out, _err) = subp.subp(["hostname"])
             if len(out):
                 return out
             else:
                 return default
         else:
             (_exists, contents) = rhel_util.read_sysconfig_file(filename)
-            if 'HOSTNAME' in contents:
-                return contents['HOSTNAME']
+            if "HOSTNAME" in contents:
+                return contents["HOSTNAME"]
             else:
                 return default
 
@@ -124,7 +121,7 @@ class Distro(distros.Distro):
         else:
             # Adjust the sysconfig clock zone setting
             clock_cfg = {
-                'ZONE': str(tz),
+                "ZONE": str(tz),
             }
             rhel_util.update_sysconfig_file(self.clock_conf_fn, clock_cfg)
             # This ensures that the correct tz will be used for the system
@@ -134,18 +131,18 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        if subp.which('dnf'):
-            LOG.debug('Using DNF for package management')
-            cmd = ['dnf']
+        if subp.which("dnf"):
+            LOG.debug("Using DNF for package management")
+            cmd = ["dnf"]
         else:
-            LOG.debug('Using YUM for package management')
+            LOG.debug("Using YUM for package management")
             # the '-t' argument makes yum tolerant of errors on the command
             # line with regard to packages.
             #
             # For example: if you request to install foo, bar and baz and baz
             # is installed; yum won't error out complaining that baz is already
             # installed.
-            cmd = ['yum', '-t']
+            cmd = ["yum", "-t"]
         # Determines whether or not yum prompts for confirmation
         # of critical actions. We don't want to prompt...
         cmd.append("-y")
@@ -157,14 +154,19 @@ class Distro(distros.Distro):
 
         cmd.append(command)
 
-        pkglist = util.expand_package_list('%s-%s', pkgs)
+        pkglist = util.expand_package_list("%s-%s", pkgs)
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ["makecache"], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["makecache"],
+            freq=PER_INSTANCE,
+        )
+
 
 # vi: ts=4 expandtab

@@ -4,7 +4,6 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
-
 USER_DATA = """\
 ## template: jinja
 #cloud-config
@@ -23,12 +22,12 @@ def test_runcmd_with_variable_substitution(client: IntegrationInstance):
     we can also substitute variables from instance-data-sensitive
     LP: #1931392.
     """
-    hostname = client.execute('hostname').stdout.strip()
+    hostname = client.execute("hostname").stdout.strip()
     expected = [
         hostname,
-        ('Merged cloud-init system config from /etc/cloud/cloud.cfg and '
-            '/etc/cloud/cloud.cfg.d/'),
-        hostname
+        "Merged cloud-init system config from /etc/cloud/cloud.cfg and "
+        "/etc/cloud/cloud.cfg.d/",
+        hostname,
     ]
-    output = client.read_from_file('/var/tmp/runcmd_output')
+    output = client.read_from_file("/var/tmp/runcmd_output")
     verify_ordered_items_in_text(expected, output)

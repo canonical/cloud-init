@@ -38,11 +38,10 @@ Valid configuration options for this module are:
     byobu_by_default: <user/system>
 """
 
+from cloudinit import subp, util
 from cloudinit.distros import ug_util
-from cloudinit import subp
-from cloudinit import util
 
-distros = ['ubuntu', 'debian']
+distros = ["ubuntu", "debian"]
 
 
 def handle(name, cfg, cloud, log, args):
@@ -58,8 +57,14 @@ def handle(name, cfg, cloud, log, args):
     if value == "user" or value == "system":
         value = "enable-%s" % value
 
-    valid = ("enable-user", "enable-system", "enable",
-             "disable-user", "disable-system", "disable")
+    valid = (
+        "enable-user",
+        "enable-system",
+        "enable",
+        "disable-user",
+        "disable-system",
+        "disable",
+    )
     if value not in valid:
         log.warning("Unknown value %s for byobu_by_default", value)
 
@@ -81,13 +86,16 @@ def handle(name, cfg, cloud, log, args):
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if not user:
-            log.warning(("No default byobu user provided, "
-                         "can not launch %s for the default user"), bl_inst)
+            log.warning(
+                "No default byobu user provided, "
+                "can not launch %s for the default user",
+                bl_inst,
+            )
         else:
-            shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
+            shcmd += ' sudo -Hu "%s" byobu-launcher-%s' % (user, bl_inst)
             shcmd += " || X=$(($X+1)); "
     if mod_sys:
-        shcmd += "echo \"%s\" | debconf-set-selections" % dc_val
+        shcmd += 'echo "%s" | debconf-set-selections' % dc_val
         shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
         shcmd += " || X=$(($X+1)); "
 
@@ -95,5 +103,6 @@ def handle(name, cfg, cloud, log, args):
         cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
         log.debug("Setting byobu to %s", value)
         subp.subp(cmd, capture=False)
+
 
 # vi: ts=4 expandtab

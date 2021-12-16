@@ -30,18 +30,16 @@ location that this cloud-init has been configured with when running.
 import copy
 from io import StringIO
 
-from cloudinit import type_utils
-from cloudinit import util
-from cloudinit import safeyaml
+from cloudinit import safeyaml, type_utils, util
 
-SKIP_KEYS = frozenset(['log_cfgs'])
+SKIP_KEYS = frozenset(["log_cfgs"])
 
 
 def _make_header(text):
     header = StringIO()
     header.write("-" * 80)
     header.write("\n")
-    header.write(text.center(80, ' '))
+    header.write(text.center(80, " "))
     header.write("\n")
     header.write("-" * 80)
     header.write("\n")
@@ -56,17 +54,16 @@ def _dumps(obj):
 def handle(name, cfg, cloud, log, args):
     """Handler method activated by cloud-init."""
 
-    verbose = util.get_cfg_by_path(cfg, ('debug', 'verbose'), default=True)
+    verbose = util.get_cfg_by_path(cfg, ("debug", "verbose"), default=True)
     if args:
         # if args are provided (from cmdline) then explicitly set verbose
         out_file = args[0]
         verbose = True
     else:
-        out_file = util.get_cfg_by_path(cfg, ('debug', 'output'))
+        out_file = util.get_cfg_by_path(cfg, ("debug", "output"))
 
     if not verbose:
-        log.debug(("Skipping module named %s,"
-                   " verbose printing disabled"), name)
+        log.debug("Skipping module named %s, verbose printing disabled", name)
         return
     # Clean out some keys that we just don't care about showing...
     dump_cfg = copy.deepcopy(cfg)
@@ -85,8 +82,9 @@ def handle(name, cfg, cloud, log, args):
     to_print.write(_dumps(cloud.datasource.metadata))
     to_print.write("\n")
     to_print.write(_make_header("Misc"))
-    to_print.write("Datasource: %s\n" %
-                   (type_utils.obj_name(cloud.datasource)))
+    to_print.write(
+        "Datasource: %s\n" % (type_utils.obj_name(cloud.datasource))
+    )
     to_print.write("Distro: %s\n" % (type_utils.obj_name(cloud.distro)))
     to_print.write("Hostname: %s\n" % (cloud.get_hostname(True)))
     to_print.write("Instance ID: %s\n" % (cloud.get_instance_id()))
@@ -101,5 +99,6 @@ def handle(name, cfg, cloud, log, args):
         util.write_file(out_file, "".join(content_to_file), 0o644, "w")
     else:
         util.multi_log("".join(content_to_file), console=True, stderr=False)
+
 
 # vi: ts=4 expandtab

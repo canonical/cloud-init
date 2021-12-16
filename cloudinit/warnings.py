@@ -1,16 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
+import time
+
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
-import os
-import time
-
 LOG = logging.getLogger()
 
 WARNINGS = {
-    'non_ec2_md': """
+    "non_ec2_md": """
 This system is using the EC2 Metadata Service, but does not appear to
 be running on Amazon EC2 or one of cloud-init's known platforms that
 provide a EC2 Metadata service. In the future, cloud-init may stop
@@ -35,7 +35,7 @@ putting that content into
 datasource:
  Ec2:
   strict_id: false""",
-    'dsid_missing_source': """
+    "dsid_missing_source": """
 A new feature in cloud-init identified possible datasources for
 this system as:
   {dslist}
@@ -64,8 +64,9 @@ warnings:
 
 def _get_warn_dir(cfg):
     paths = helpers.Paths(
-        path_cfgs=cfg.get('system_info', {}).get('paths', {}))
-    return paths.get_ipath_cur('warnings')
+        path_cfgs=cfg.get("system_info", {}).get("paths", {})
+    )
+    return paths.get_ipath_cur("warnings")
 
 
 def _load_warn_cfg(cfg, name, mode=True, sleep=None):
@@ -77,7 +78,7 @@ def _load_warn_cfg(cfg, name, mode=True, sleep=None):
     if not cfg or not isinstance(cfg, dict):
         return default
 
-    ncfg = util.get_cfg_by_path(cfg, ('warnings', name))
+    ncfg = util.get_cfg_by_path(cfg, ("warnings", name))
     if ncfg is None:
         return default
 
@@ -128,12 +129,14 @@ def show_warning(name, cfg=None, sleep=None, mode=True, **kwargs):
 
     util.write_file(
         os.path.join(_get_warn_dir(cfg), name),
-        topline + "\n".join(fmtlines) + "\n" + topline)
+        topline + "\n".join(fmtlines) + "\n" + topline,
+    )
 
     LOG.warning("%s%s\n%s", topline, "\n".join(fmtlines), closeline)
 
     if sleep:
         LOG.debug("sleeping %d seconds for warning '%s'", sleep, name)
         time.sleep(sleep)
+
 
 # vi: ts=4 expandtab

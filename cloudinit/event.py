@@ -13,7 +13,7 @@ class EventScope(Enum):
     # NETWORK is currently the only scope, but we want to leave room to
     # grow other scopes (e.g., STORAGE) without having to make breaking
     # changes to the user config
-    NETWORK = 'network'
+    NETWORK = "network"
 
     def __str__(self):  # pylint: disable=invalid-str-returned
         return self.value
@@ -21,6 +21,7 @@ class EventScope(Enum):
 
 class EventType(Enum):
     """Event types which can generate maintenance requests for cloud-init."""
+
     # Cloud-init should grow support for the follow event types:
     # HOTPLUG
     # METADATA_CHANGE
@@ -29,7 +30,7 @@ class EventType(Enum):
     BOOT = "boot"
     BOOT_NEW_INSTANCE = "boot-new-instance"
     BOOT_LEGACY = "boot-legacy"
-    HOTPLUG = 'hotplug'
+    HOTPLUG = "hotplug"
 
     def __str__(self):  # pylint: disable=invalid-str-returned
         return self.value
@@ -58,7 +59,7 @@ def userdata_to_events(user_config: dict) -> Dict[EventScope, Set[EventType]]:
             )
             continue
         try:
-            new_values = [EventType(x) for x in scope_list['when']]
+            new_values = [EventType(x) for x in scope_list["when"]]
         except ValueError as e:
             LOG.warning(
                 "%s! Update data will be ignored for '%s' scope",
@@ -69,5 +70,6 @@ def userdata_to_events(user_config: dict) -> Dict[EventScope, Set[EventType]]:
         update_config[new_scope] = set(new_values)
 
     return update_config
+
 
 # vi: ts=4 expandtab

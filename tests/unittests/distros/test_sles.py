@@ -6,7 +6,6 @@ from . import _get_distro
 
 
 class TestSLES(CiTestCase):
-
     def test_get_distro(self):
         distro = _get_distro("sles")
-        self.assertEqual(distro.osfamily, 'suse')
+        self.assertEqual(distro.osfamily, "suse")
