@@ -466,7 +466,7 @@ class DataSourceAzure(sources.DataSource):
             )
             crawled_data["metadata"][
                 "disable_password"
-            ] = imds_disable_password  # noqa: E501
+            ] = imds_disable_password
 
         if metadata_source == "IMDS" and not crawled_data["files"]:
             try:
@@ -1620,7 +1620,7 @@ def _disable_password_from_imds(imds_data):
         return (
             imds_data["compute"]["osProfile"]["disablePasswordAuthentication"]
             == "true"
-        )  # noqa: E501
+        )
     except KeyError:
         return None
 

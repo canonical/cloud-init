@@ -16,8 +16,8 @@ LOG = logging.getLogger(__name__)
 
 
 def assign_ipv4_link_local(distro, nic=None):
-    """Bring up NIC using an address using link-local (ip4LL) IPs. On
-    DigitalOcean, the link-local domain is per-droplet routed, so there
+    """Bring up NIC using an address using link-local (ip4LL) IPs.
+    On DigitalOcean, the link-local domain is per-droplet routed, so there
     is no risk of collisions. However, to be more safe, the ip4LL
     address is random.
     """

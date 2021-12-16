@@ -745,7 +745,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             for (
                 update_scope,
                 update_events,
-            ) in self.supported_update_events.items():  # noqa: E501
+            ) in self.supported_update_events.items():
                 if event in update_events:
                     if not supported_events.get(update_scope):
                         supported_events[update_scope] = set()

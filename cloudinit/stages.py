@@ -59,10 +59,10 @@ def update_event_enabled(
     """
     default_events = (
         datasource.default_update_events
-    )  # type: Dict[EventScope, Set[EventType]]    # noqa: E501
+    )  # type: Dict[EventScope, Set[EventType]]
     user_events = userdata_to_events(
         cfg.get("updates", {})
-    )  # type: Dict[EventScope, Set[EventType]]  # noqa: E501
+    )  # type: Dict[EventScope, Set[EventType]]
     # A value in the first will override a value in the second
     allowed = util.mergemanydict(
         [

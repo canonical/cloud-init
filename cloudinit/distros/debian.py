@@ -50,10 +50,10 @@ LOCALE_CONF_FN = "/etc/default/locale"
 # More context:
 #   https://github.com/canonical/cloud-init/pull/1034#issuecomment-986971376
 APT_LOCK_FILES = [
-    '/var/lib/dpkg/lock-frontend',
-    '/var/lib/dpkg/lock',
-    '/var/cache/apt/archives/lock',
-    '/var/lib/apt/lists/lock',
+    "/var/lib/dpkg/lock-frontend",
+    "/var/lib/dpkg/lock",
+    "/var/cache/apt/archives/lock",
+    "/var/lib/apt/lists/lock",
 ]
 
 
