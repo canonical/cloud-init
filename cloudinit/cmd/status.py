@@ -104,11 +104,13 @@ def _is_cloudinit_disabled(disable_file, paths):
     elif "cloud-init=disabled" in cmdline_parts:
         is_disabled = True
         reason = "Cloud-init disabled by kernel parameter cloud-init=disabled"
-    elif not os.path.exists(os.path.join(paths.run_dir, "enabled")):
+    elif os.path.exists(os.path.join(paths.run_dir, "disabled")):
         is_disabled = True
         reason = "Cloud-init disabled by cloud-init-generator"
-    else:
+    elif os.path.exists(os.path.join(paths.run_dir, "enabled")):
         reason = "Cloud-init enabled by systemd cloud-init-generator"
+    else:
+        reason = "Systemd generator may not have run yet."
     return (is_disabled, reason)
 
 
