@@ -9,6 +9,8 @@ from cloudinit import util
 from cloudinit.cmd import cloud_id
 from tests.unittests.helpers import CiTestCase, mock
 
+M_PATH = "cloudinit.cmd.cloud_id."
+
 
 class TestCloudId(CiTestCase):
 
@@ -46,8 +48,10 @@ class TestCloudId(CiTestCase):
         self.assertEqual(True, args.long)
         self.assertEqual(True, args.json)
 
-    def test_cloud_id_missing_instance_data_json(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_missing_instance_data_json(self, get_status_details):
         """Exit error when the provided instance-data.json does not exist."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         cmd = ["cloud-id", "--instance-data", self.instance_data]
         with mock.patch("sys.argv", cmd):
             with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
@@ -59,8 +63,10 @@ class TestCloudId(CiTestCase):
             m_stderr.getvalue(),
         )
 
-    def test_cloud_id_non_json_instance_data(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_non_json_instance_data(self, get_status_details):
         """Exit error when the provided instance-data.json is not json."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         cmd = ["cloud-id", "--instance-data", self.instance_data]
         util.write_file(self.instance_data, "{")
         with mock.patch("sys.argv", cmd):
@@ -73,8 +79,12 @@ class TestCloudId(CiTestCase):
             m_stderr.getvalue(),
         )
 
-    def test_cloud_id_from_cloud_name_in_instance_data(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_from_cloud_name_in_instance_data(
+        self, get_status_details
+    ):
         """Report canonical cloud-id from cloud_name in instance-data."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         util.write_file(
             self.instance_data,
             '{"v1": {"cloud_name": "mycloud", "region": "somereg"}}',
@@ -87,8 +97,10 @@ class TestCloudId(CiTestCase):
         self.assertEqual(0, context_manager.exception.code)
         self.assertEqual("mycloud\n", m_stdout.getvalue())
 
-    def test_cloud_id_long_name_from_instance_data(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_long_name_from_instance_data(self, get_status_details):
         """Report long cloud-id format from cloud_name and region."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         util.write_file(
             self.instance_data,
             '{"v1": {"cloud_name": "mycloud", "region": "somereg"}}',
@@ -101,8 +113,12 @@ class TestCloudId(CiTestCase):
         self.assertEqual(0, context_manager.exception.code)
         self.assertEqual("mycloud\tsomereg\n", m_stdout.getvalue())
 
-    def test_cloud_id_lookup_from_instance_data_region(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_lookup_from_instance_data_region(
+        self, get_status_details
+    ):
         """Report discovered canonical cloud_id when region lookup matches."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         util.write_file(
             self.instance_data,
             '{"v1": {"cloud_name": "aws", "region": "cn-north-1",'
@@ -116,8 +132,12 @@ class TestCloudId(CiTestCase):
         self.assertEqual(0, context_manager.exception.code)
         self.assertEqual("aws-china\tcn-north-1\n", m_stdout.getvalue())
 
-    def test_cloud_id_lookup_json_instance_data_adds_cloud_id_to_json(self):
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_lookup_json_instance_data_adds_cloud_id_to_json(
+        self, get_status_details
+    ):
         """Report v1 instance-data content with cloud_id when --json set."""
+        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
         util.write_file(
             self.instance_data,
             '{"v1": {"cloud_name": "unknown", "region": "dfw",'
