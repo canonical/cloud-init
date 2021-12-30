@@ -875,6 +875,14 @@ class Renderer(renderer.Renderer):
             content_str = header + "\n" + content_str
         return content_str
 
+    @classmethod
+    def _render_dns_interfaces(self, network_state, iface_contents):
+        for iface_name, iface_cfg in iface_contents.items():
+            all_dns = network_state.dns_nameservers
+            for dns in all_dns:
+                dns_name = "DNS" + str(all_dns.index(dns) + 1)
+                iface_cfg.update({dns_name: dns})
+
     @staticmethod
     def _render_networkmanager_conf(network_state, templates=None):
         content = networkmanager_conf.NetworkManagerConf("")
@@ -994,6 +1002,7 @@ class Renderer(renderer.Renderer):
         cls._render_vlan_interfaces(network_state, iface_contents, flavor)
         cls._render_bridge_interfaces(network_state, iface_contents, flavor)
         cls._render_ib_interfaces(network_state, iface_contents, flavor)
+        cls._render_dns_interfaces(network_state, iface_contents)
         contents = {}
         for iface_name, iface_cfg in iface_contents.items():
             if iface_cfg or iface_cfg.children:
