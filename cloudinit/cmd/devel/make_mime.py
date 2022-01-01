@@ -43,7 +43,7 @@ def create_mime_message(args):
         for msg in sub_messages:
             combined_message.attach(msg)
         rc = 0
-    return (combined_message, 1)
+    return (combined_message, rc)
 
 
 def file_content_type(text):

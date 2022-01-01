@@ -5,8 +5,8 @@ from cloudinit.handlers import Handler
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 LOG = log.getLogger(__name__)
 
-# cloutinit/settings.py defines PER_*** frequency constants. It makes sense to
-# use them here, instead hardcodes, and map them to the 'per-***' frequency-
+# cloudinit/settings.py defines PER_*** frequency constants. It makes sense to
+# use them here, instead of hardcodes, and map them to the 'per-***' frequency-
 # specific folders in /v/l/c/scripts. It might make sense to expose this at a
 # higher level or in a more general module -- eg maybe in cloudinit/settings.py
 # itself -- but for now it's here.
