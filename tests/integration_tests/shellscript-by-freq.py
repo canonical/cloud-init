@@ -35,10 +35,10 @@ def test_per_freq(client: IntegrationInstance):
     print('checking /v/l/c/scripts exists ...')
     rc = client.execute('test -d /var/lib/cloud/scripts').ok
     assert rc is True
-    print('checking /v/tmp/c/test_per_freq_boot exists ...')
-    rc = client.execute('test -f /var/tmp/test_per_freq_boot').ok
-    assert rc is True
     print('checking /v/l/c/s/per-boot/boot.sh exists ...')
     rc = client.execute('test -f /var/lib/cloud/scripts/per-boot/boot.sh').ok
+    assert rc is True
+    print('checking /v/tmp/c/test_per_freq_boot exists ...')
+    rc = client.execute('test -f /var/tmp/test_per_freq_boot').ok
     assert rc is True
     pass
