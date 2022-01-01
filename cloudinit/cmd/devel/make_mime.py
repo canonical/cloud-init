@@ -31,19 +31,17 @@ def create_mime_message(args):
             level = "WARNING" if args.force else "ERROR"
             msg = (level + ": content type %r for attachment %s "
                    "may be incorrect!") % (content_type, i + 1)
-            sys.stderr.write(msg + '\n')
+            # sys.stderr.write(msg + '\n')
             errors.append(msg)
         sub_messages.append(sub_message)
     if len(errors) and not args.force:
-        sys.stderr.write("Invalid content-types, override with --force\n")
+        # sys.stderr.write("Invalid content-types, override with --force\n")
         combined_message = None
-        rc = 1
     else:
         combined_message = MIMEMultipart()
         for msg in sub_messages:
             combined_message.attach(msg)
-        rc = 0
-    return (combined_message, rc)
+    return (combined_message, errors)
 
 
 def file_content_type(text):
@@ -105,9 +103,16 @@ def handle_args(name, args):
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0
 
-    (combined_message, rc) = create_mime_message(args)
+    combined_message, errors = create_mime_message(args)
+    if errors:
+        level = 'WARNING' if args.force else 'ERROR'
+        for error in errors:
+            sys.stderr.write(f'{level}: {error}\n')
+        sys.stderr.write("Invalid content-types, override with --force\n")
+        if not args.force:
+            return 1
     print(combined_message)
-    return rc
+    return 0
 
 
 def main():
