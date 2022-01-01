@@ -53,8 +53,8 @@ class ShellScriptByFreqPartHandler(Handler):
 
     def handle_part(self, data, ctype, script_path, payload, frequency):
         print("ShellScriptByFreqPartHandler.handle_part()")
+        LOG.debug("script_path=%s", script_path)
         if script_path is not None:
-            LOG.debug("script_path=%s", script_path)
             filename = os.path.basename(script_path)
             filename = util.clean_filename(filename)
             write_script_by_frequency(script_path, payload, self.frequency,
