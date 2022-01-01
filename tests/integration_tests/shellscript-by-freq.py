@@ -28,9 +28,13 @@ args = SimpleNamespace(
     ]
 )
 
-USER_DATA = create_mime_message(args)
+(USER_DATA, rc) = create_mime_message(args)
 
 @pytest.mark.user_data(USER_DATA)
 def test_per_freq(client: IntegrationInstance):
-    scripts = client.execute('find /var/lib/cloud/scripts')
-    print(scripts)
+    rc = client.execute('test -d /var/lib/cloud/scripts').ok
+    assert rc is True
+    rc = client.execute('test -f /var/tmp/test_per_freq_boot').ok
+    assert rc is True
+    rc = client.execute('test -f /var/lib/cloud/scripts/per-boot/boot.sh').ok
+    assert rc is True
