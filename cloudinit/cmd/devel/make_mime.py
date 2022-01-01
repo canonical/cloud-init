@@ -18,9 +18,12 @@ EPILOG = ("Example: make-mime -a config.yaml:cloud-config "
 
 
 def create_mime_message(files):
+    print(f'files={files}')
+    print(f'len(files)={len(files)}')
     sub_messages = []
     errors = []
     for i, (fh, filename, format_type) in enumerate(files):
+        print(f'files[{i}]={filename}')
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
         sub_message.add_header('Content-Disposition',
@@ -33,6 +36,7 @@ def create_mime_message(files):
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()
     for msg in sub_messages:
+        print('attaching message')
         combined_message.attach(msg)
     return (combined_message, errors)
 

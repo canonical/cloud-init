@@ -35,7 +35,8 @@ FILES=[
 ]
 
 USER_DATA, errors = create_mime_message(FILES)
-
+print(f'errors={errors}')
+print(f'USER_DATA=${USER_DATA}')
 @pytest.mark.user_data(USER_DATA)
 def test_per_freq(client: IntegrationInstance):
     print('checking /v/l/c/scripts exists ...')
