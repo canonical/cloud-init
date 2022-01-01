@@ -42,10 +42,25 @@ def test_per_freq(client: IntegrationInstance):
     print('checking /v/l/c/scripts exists ...')
     rc_ok = client.execute('test -d /var/lib/cloud/scripts').ok
     assert rc_ok is True
+    # Test per-boot
     print('checking /v/l/c/s/per-boot/boot.sh exists ...')
     rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/boot.sh').ok
     assert rc_ok is True
-    print('checking /v/tmp/c/test_per_freq_boot exists ...')
-    rc_ok = client.execute('test -f /var/tmp/test_per_freq_boot').ok
+    print('checking /tmp/c/test_per_freq_boot exists ...')
+    rc_ok = client.execute('test -f /tmp/test_per_freq_boot').ok
+    assert rc_ok is True
+    # Test per-instance
+    print('checking /v/l/c/s/per-boot/instance.sh exists ...')
+    rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/instance.sh').ok
+    assert rc_ok is True
+    print('checking /tmp/c/test_per_freq_instance exists ...')
+    rc_ok = client.execute('test -f /tmp/test_per_freq_instance').ok
+    assert rc_ok is True
+    # Test per-once
+    print('checking /v/l/c/s/per-boot/once.sh exists ...')
+    rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/once.sh').ok
+    assert rc_ok is True
+    print('checking /tmp/c/test_per_freq_once exists ...')
+    rc_ok = client.execute('test -f /tmp/test_per_freq_once').ok
     assert rc_ok is True
     pass
