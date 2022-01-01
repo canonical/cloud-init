@@ -65,7 +65,7 @@ class _FixtureUtils:
         return result[0]
 
 
-@pytest.yield_fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def disable_subp_usage(request, fixture_utils):
     """
     Across all (pytest) tests, ensure that subp.subp is not invoked.
@@ -165,7 +165,7 @@ def fixture_utils():
     return _FixtureUtils
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def httpretty():
     """
     Enable HTTPretty for duration of the testcase, resetting before and after.

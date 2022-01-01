@@ -90,7 +90,7 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def session_cloud():
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
@@ -231,21 +231,21 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
         _collect_logs(instance, request.node.nodeid, test_failed)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope='module')
+@pytest.fixture(scope='module')
 def module_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope='class')
+@pytest.fixture(scope='class')
 def class_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
