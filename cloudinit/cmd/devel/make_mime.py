@@ -17,30 +17,27 @@ EPILOG = ("Example: make-mime -a config.yaml:cloud-config "
           "-a script.sh:x-shellscript > user-data")
 
 
-def create_mime_message(args):
+def create_mime_message(files):
+    print(f'files={files}')
+    print(f'len(files)={len(files)}')
     sub_messages = []
     errors = []
-    rc = 0
-    for i, (fh, filename, format_type) in enumerate(args.files):
+    for i, (fh, filename, format_type) in enumerate(files):
+        print(f'files[{i}]={filename}')
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
         sub_message.add_header('Content-Disposition',
                                'attachment; filename="%s"' % (filename))
         content_type = sub_message.get_content_type().lower()
-        if content_type not in get_content_types():
-            level = "WARNING" if args.force else "ERROR"
-            msg = (level + ": content type %r for attachment %s "
-                   "may be incorrect!") % (content_type, i + 1)
-            # sys.stderr.write(msg + '\n')
+        if content_type not in get_content_types(): 
+            msg = ("content type %r for attachment %s "
+                   "may be incorrect!") % (content_type, i+1)
             errors.append(msg)
         sub_messages.append(sub_message)
-    if len(errors) and not args.force:
-        # sys.stderr.write("Invalid content-types, override with --force\n")
-        combined_message = None
-    else:
-        combined_message = MIMEMultipart()
-        for msg in sub_messages:
-            combined_message.attach(msg)
+    combined_message = MIMEMultipart()
+    for msg in sub_messages:
+        print('attaching message')
+        combined_message.attach(msg)
     return (combined_message, errors)
 
 
@@ -103,7 +100,7 @@ def handle_args(name, args):
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0
 
-    combined_message, errors = create_mime_message(args)
+    combined_message, errors = create_mime_message(args.files)
     if errors:
         level = 'WARNING' if args.force else 'ERROR'
         for error in errors:
