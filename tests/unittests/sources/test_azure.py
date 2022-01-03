@@ -2149,7 +2149,24 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertIsNotNone(dsrc.metadata)
-        self.assertTrue(dsrc.failed_desired_api_version)
+
+        assert m_get_metadata_from_imds.mock_calls == [
+            mock.call(
+                fallback_nic="eth9",
+                retries=0,
+                md_type=dsaz.metadata_type.all,
+                api_version="2021-08-01",
+                exc_cb=mock.ANY,
+            ),
+            mock.call(
+                fallback_nic="eth9",
+                retries=10,
+                md_type=dsaz.metadata_type.all,
+                api_version="2019-06-01",
+                exc_cb=mock.ANY,
+                infinite=False,
+            ),
+        ]
 
     @mock.patch(
         MOCKPATH + "get_metadata_from_imds", return_value=NETWORK_METADATA
@@ -2164,7 +2181,16 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertIsNotNone(dsrc.metadata)
-        self.assertFalse(dsrc.failed_desired_api_version)
+
+        assert m_get_metadata_from_imds.mock_calls == [
+            mock.call(
+                fallback_nic="eth9",
+                retries=0,
+                md_type=dsaz.metadata_type.all,
+                api_version="2021-08-01",
+                exc_cb=mock.ANY,
+            )
+        ]
 
     @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_hostname_from_imds(self, m_get_metadata_from_imds):

@@ -297,13 +297,10 @@ class DataSourceAzure(sources.DataSource):
         self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
-        self.failed_desired_api_version = False
         self.iso_dev = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
-        if not hasattr(self, "failed_desired_api_version"):
-            self.failed_desired_api_version = False
         if not hasattr(self, "iso_dev"):
             self.iso_dev = None
 
@@ -647,29 +644,24 @@ class DataSourceAzure(sources.DataSource):
         this fault tolerant and fall back to a good known minimum api
         version.
         """
-
-        if not self.failed_desired_api_version:
-            for _ in range(retries):
-                try:
-                    LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
-                    return get_metadata_from_imds(
-                        fallback_nic=fallback_nic,
-                        retries=0,
-                        md_type=md_type,
-                        api_version=IMDS_VER_WANT,
-                        exc_cb=exc_cb,
+        for _ in range(retries):
+            try:
+                LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
+                return get_metadata_from_imds(
+                    fallback_nic=fallback_nic,
+                    retries=0,
+                    md_type=md_type,
+                    api_version=IMDS_VER_WANT,
+                    exc_cb=exc_cb,
+                )
+            except UrlError as err:
+                LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
+                if err.code == 400:
+                    log_msg = "Fall back to IMDS api-version: {}".format(
+                        IMDS_VER_MIN
                     )
-                except UrlError as err:
-                    LOG.info(
-                        "UrlError with IMDS api-version: %s", IMDS_VER_WANT
-                    )
-                    if err.code == 400:
-                        log_msg = "Fall back to IMDS api-version: {}".format(
-                            IMDS_VER_MIN
-                        )
-                        report_diagnostic_event(log_msg, logger_func=LOG.info)
-                        self.failed_desired_api_version = True
-                        break
+                    report_diagnostic_event(log_msg, logger_func=LOG.info)
+                    break
 
         LOG.info("Using IMDS api-version: %s", IMDS_VER_MIN)
         return get_metadata_from_imds(
