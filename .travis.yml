@@ -119,17 +119,11 @@ matrix:
                     sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
                 fi
             # Use sudo to get a new shell where we're in the sbuild group
-            - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
-            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci' &
+            # Don't run integration tests when build fails
             - |
-              SECONDS=0
-              while [ -e /proc/$! ]; do
-                if [ "$SECONDS" -gt "570" ]; then
-                  echo -n '.'
-                  SECONDS=0
-                fi
-                sleep 10
-              done
+                sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc' &&
+                  ssh-keygen -P "" -q -f ~/.ssh/id_rsa                                                         &&
+                  sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci'
         - python: 3.5
           env:
               TOXENV=xenial
@@ -140,6 +134,10 @@ matrix:
         - python: 3.6
           env: TOXENV=pylint
         - python: 3.6
+          env: TOXENV=black
+        - python: 3.6
+          env: TOXENV=isort
+        - python: 3.7
           env: TOXENV=doc
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)

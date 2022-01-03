@@ -30,7 +30,7 @@ are configured correctly.
 
 **Module frequency:** per instance
 
-**Supported distros:** alpine, fedora, rhel, sles
+**Supported distros:** alpine, fedora, photon, rhel, sles
 
 **Config keys**::
 
@@ -47,23 +47,27 @@ are configured correctly.
 """
 
 from cloudinit import log as logging
+from cloudinit import templater, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import templater
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 
-distros = ['alpine', 'fedora', 'opensuse', 'rhel', 'sles']
+distros = ["alpine", "fedora", "opensuse", "photon", "rhel", "sles"]
+
+RESOLVE_CONFIG_TEMPLATE_MAP = {
+    "/etc/resolv.conf": "resolv.conf",
+    "/etc/systemd/resolved.conf": "systemd.resolved.conf",
+}
 
 
-def generate_resolv_conf(template_fn, params, target_fname="/etc/resolv.conf"):
+def generate_resolv_conf(template_fn, params, target_fname):
     flags = []
     false_flags = []
 
-    if 'options' in params:
-        for key, val in params['options'].items():
+    if "options" in params:
+        for key, val in params["options"].items():
             if isinstance(val, bool):
                 if val:
                     flags.append(key)
@@ -71,12 +75,12 @@ def generate_resolv_conf(template_fn, params, target_fname="/etc/resolv.conf"):
                     false_flags.append(key)
 
     for flag in flags + false_flags:
-        del params['options'][flag]
+        del params["options"][flag]
 
-    if not params.get('options'):
-        params['options'] = {}
+    if not params.get("options"):
+        params["options"] = {}
 
-    params['flags'] = flags
+    params["flags"] = flags
     LOG.debug("Writing resolv.conf from template %s", template_fn)
     templater.render_to_file(template_fn, target_fname, params)
 
@@ -92,24 +96,39 @@ def handle(name, cfg, cloud, log, _args):
     @param args: Any module arguments from cloud.cfg
     """
     if "manage_resolv_conf" not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'manage_resolv_conf' key in configuration"), name)
+        log.debug(
+            "Skipping module named %s,"
+            " no 'manage_resolv_conf' key in configuration",
+            name,
+        )
         return
 
     if not util.get_cfg_option_bool(cfg, "manage_resolv_conf", False):
-        log.debug(("Skipping module named %s,"
-                   " 'manage_resolv_conf' present but set to False"), name)
+        log.debug(
+            "Skipping module named %s,"
+            " 'manage_resolv_conf' present but set to False",
+            name,
+        )
         return
 
     if "resolv_conf" not in cfg:
         log.warning("manage_resolv_conf True but no parameters provided!")
-
-    template_fn = cloud.get_template_filename('resolv.conf')
-    if not template_fn:
-        log.warning("No template found, not rendering /etc/resolv.conf")
         return
 
-    generate_resolv_conf(template_fn=template_fn, params=cfg["resolv_conf"])
+    try:
+        template_fn = cloud.get_template_filename(
+            RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolve_conf_fn]
+        )
+    except KeyError:
+        log.warning("No template found, not rendering resolve configs")
+        return
+
+    generate_resolv_conf(
+        template_fn=template_fn,
+        params=cfg["resolv_conf"],
+        target_fname=cloud.distro.resolve_conf_fn,
+    )
     return
+
 
 # vi: ts=4 expandtab

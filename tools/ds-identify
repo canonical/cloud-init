@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=2015,2039,2162,2166
+# shellcheck disable=2015,2039,2162,2166,3043
 #
 # ds-identify is configured via /etc/cloud/ds-identify.cfg
 # or on the kernel command line. It takes the following inputs:
@@ -123,9 +123,9 @@ DS_MAYBE=2
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
-DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
-CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud"
+DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud LXD AltCloud Azure Bigstep \
+CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -141,6 +141,7 @@ error() {
     debug 0 "$@"
     stderr "$@"
 }
+
 warn() {
     set -- "WARN:" "$@"
     debug 0 "$@"
@@ -344,7 +345,6 @@ geom_label_status_as() {
     return $ret
 }
 
-
 read_fs_info_freebsd() {
     local oifs="$IFS" line="" delim=","
     local ret=0 labels="" dev="" label="" ftype="" isodevs=""
@@ -404,7 +404,6 @@ cached() {
     [ -n "$1" ] && _RET="$1" && return || return 1
 }
 
-
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
@@ -450,7 +449,7 @@ detect_virt() {
 read_virt() {
     cached "$DI_VIRT" && return 0
     detect_virt
-    DI_VIRT=${_RET}
+    DI_VIRT="${_RET}"
 }
 
 is_container() {
@@ -616,6 +615,7 @@ read_pid1_product_name() {
 
 dmi_chassis_asset_tag_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_CHASSIS_ASSET_TAG}" in
         $1) return 0;;
     esac
@@ -624,6 +624,7 @@ dmi_chassis_asset_tag_matches() {
 
 dmi_product_name_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_NAME}" in
         $1) return 0;;
     esac
@@ -632,6 +633,7 @@ dmi_product_name_matches() {
 
 dmi_product_serial_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_SERIAL}" in
         $1) return 0;;
     esac
@@ -765,7 +767,7 @@ check_config() {
         while read line; do
             line=${line%%#*}
             case "$line" in
-                $key:\ *|$key:)
+                $key:\ *|"${key}":)
                     ret=${line#*:};
                     ret=${ret# };
                     found=$((found+1))
@@ -800,6 +802,12 @@ dscheck_MAAS() {
     return ${DS_NOT_FOUND}
 }
 
+# LXD datasource requires active /dev/lxd/sock
+# https://linuxcontainers.org/lxd/docs/master/dev-lxd
+dscheck_LXD() {
+    [ -S /dev/lxd/sock ] && return ${DS_FOUND} || return ${DS_NOT_FOUND}
+}
+
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
     case " ${DI_KERNEL_CMDLINE} " in
@@ -813,6 +821,7 @@ dscheck_NoCloud() {
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
         check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
+    # shellcheck disable=2086
     if has_fs_with_label $fslabel; then
         return ${DS_FOUND}
     fi
@@ -896,9 +905,14 @@ ovf_vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
+    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu"
     local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
+            found="$pkg"; break;
+        fi
+        # search in multiarch dir
+        if [ -f "$pre/$x86/$pkg/$ppath" -o -f "$pre/$aarch/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
@@ -1240,11 +1254,11 @@ dscheck_AltCloud() {
         ctype="${DI_DMI_PRODUCT_NAME}"
     fi
     case "$ctype" in
-        ${match_rhev})
+        "${match_rhev}")
             probe_floppy || return ${DS_NOT_FOUND}
             dev="/dev/floppy"
             ;;
-        ${match_vsphere})
+        "${match_vsphere}")
             block_dev_with_label CDROM || return ${DS_NOT_FOUND}
             dev="$_RET"
             ;;
@@ -1310,6 +1324,7 @@ is_ibm_provisioning() {
         msg="config '$pcfg' exists."
         is_prov=true
         if [ -f "$logf" ]; then
+            # shellcheck disable=3013
             if [ "$logf" -nt "$PATH_PROC_1_ENVIRON" ]; then
                 msg="$msg log '$logf' from current boot."
             else
@@ -1325,7 +1340,7 @@ is_ibm_provisioning() {
 }
 
 is_ibm_cloud() {
-    cached "${_IS_IBM_CLOUD}" && return ${_IS_IBM_CLOUD}
+    cached "${_IS_IBM_CLOUD}" && return "${_IS_IBM_CLOUD}"
     local ret=1
     if [ "$DI_VIRT" = "xen" ]; then
         if is_ibm_provisioning; then
@@ -1348,6 +1363,98 @@ dscheck_IBMCloud() {
     fi
     is_ibm_cloud && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
+}
+
+dscheck_Vultr() {
+    dmi_sys_vendor_is Vultr && return $DS_FOUND
+
+    case " $DI_KERNEL_CMDLINE " in
+    *\ vultr\ *) return $DS_FOUND ;;
+    esac
+
+    if [ -f "${PATH_ROOT}/etc/vultr" ]; then
+        return $DS_FOUND
+    fi
+
+    return $DS_NOT_FOUND
+}
+
+vmware_has_envvar_vmx_guestinfo() {
+    [ -n "${VMX_GUESTINFO:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_metadata() {
+    [ -n "${VMX_GUESTINFO_METADATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_userdata() {
+    [ -n "${VMX_GUESTINFO_USERDATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_vendordata() {
+    [ -n "${VMX_GUESTINFO_VENDORDATA:-}" ]
+}
+
+vmware_has_rpctool() {
+    command -v vmware-rpctool >/dev/null 2>&1
+}
+
+vmware_rpctool_guestinfo() {
+    vmware-rpctool "info-get guestinfo.${1}" 2>/dev/null | grep "[[:alnum:]]"
+}
+
+vmware_rpctool_guestinfo_metadata() {
+    vmware_rpctool_guestinfo "metadata"
+}
+
+vmware_rpctool_guestinfo_userdata() {
+    vmware_rpctool_guestinfo "userdata"
+}
+
+vmware_rpctool_guestinfo_vendordata() {
+    vmware_rpctool_guestinfo "vendordata"
+}
+
+dscheck_VMware() {
+    # Checks to see if there is valid data for the VMware datasource.
+    # The data transports are checked in the following order:
+    #
+    #   * envvars
+    #   * guestinfo
+    #
+    # Please note when updating this function with support for new data
+    # transports, the order should match the order in the _get_data
+    # function from the file DataSourceVMware.py.
+
+    # Check to see if running in a container and the VMware
+    # datasource is configured via environment variables.
+    if vmware_has_envvar_vmx_guestinfo; then
+        if vmware_has_envvar_vmx_guestinfo_metadata || \
+            vmware_has_envvar_vmx_guestinfo_userdata || \
+            vmware_has_envvar_vmx_guestinfo_vendordata; then
+            return "${DS_FOUND}"
+        fi
+    fi
+
+    # Do not proceed unless the detected platform is VMware.
+    if [ ! "${DI_VIRT}" = "vmware" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Do not proceed if the vmware-rpctool command is not present.
+    if ! vmware_has_rpctool; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Activate the VMware datasource only if any of the fields used
+    # by the datasource are present in the guestinfo table.
+    if { vmware_rpctool_guestinfo_metadata || \
+         vmware_rpctool_guestinfo_userdata || \
+         vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
+        return "${DS_FOUND}"
+    fi
+
+    return "${DS_NOT_FOUND}"
 }
 
 collect_info() {
@@ -1549,10 +1656,10 @@ parse_policy() {
     for tok in "$@"; do
         val=${tok#*=}
         case "$tok" in
-            $DI_ENABLED|$DI_DISABLED|search|report) mode=$tok;;
+            "${DI_ENABLED}"|"${DI_DISABLED}"|search|report) mode=$tok;;
             found=all|found=first) found=$val;;
             maybe=all|maybe=none) maybe=$val;;
-            notfound=$DI_ENABLED|notfound=$DI_DISABLED) notfound=$val;;
+            notfound="${DI_ENABLED}"|notfound="${DI_DISABLED}") notfound=$val;;
             found=*)
                parse_warn found "$val" "${_def_found}"
                found=${_def_found};;
@@ -1633,11 +1740,11 @@ _main() {
     fi
 
     case "$DI_MODE" in
-        $DI_DISABLED)
+        "${DI_DISABLED}")
             debug 1 "mode=$DI_DISABLED. returning $ret_dis"
             return $ret_dis
             ;;
-        $DI_ENABLED)
+        "${DI_ENABLED}")
             debug 1 "mode=$DI_ENABLED. returning $ret_en"
             return $ret_en;;
         search|report) :;;
@@ -1677,11 +1784,11 @@ _main() {
         $dscheck_fn
         ret="$?"
         case "$ret" in
-            $DS_FOUND)
+            "${DS_FOUND}")
                 debug 1 "check for '$ds' returned found";
                 exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
                 found="${found} $ds";;
-            $DS_MAYBE)
+            "${DS_MAYBE}")
                 debug 1 "check for '$ds' returned maybe";
                 exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
                 maybe="${maybe} $ds";;
@@ -1720,16 +1827,16 @@ _main() {
     local basemsg="No ds found [mode=$DI_MODE, notfound=$DI_ON_NOTFOUND]."
     local msg="" ret=3
     case "$DI_MODE:$DI_ON_NOTFOUND" in
-        report:$DI_DISABLED)
+        report:"${DI_DISABLED}")
             msg="$basemsg Would disable cloud-init [$ret_dis]"
             ret=$ret_en;;
-        report:$DI_ENABLED)
+        report:"${DI_ENABLED}")
             msg="$basemsg Would enable cloud-init [$ret_en]"
             ret=$ret_en;;
-        search:$DI_DISABLED)
+        search:"${DI_DISABLED}")
             msg="$basemsg Disabled cloud-init [$ret_dis]"
             ret=$ret_dis;;
-        search:$DI_ENABLED)
+        search:"${DI_ENABLED}")
             msg="$basemsg Enabled cloud-init [$ret_en]"
             ret=$ret_en;;
         *) error "Unexpected result";;

@@ -13,17 +13,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-from socket import inet_ntoa, getaddrinfo, gaierror
-from struct import pack
 import time
+from socket import gaierror, getaddrinfo, inet_ntoa
+from struct import pack
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
-from cloudinit.net import dhcp
-from cloudinit import sources
+from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
-from cloudinit import subp
 from cloudinit import util
+from cloudinit.net import dhcp
 
 LOG = logging.getLogger(__name__)
 
@@ -47,27 +46,36 @@ class CloudStackPasswordServerClient(object):
         # The password server was in the past, a broken HTTP server, but is now
         # fixed.  wget handles this seamlessly, so it's easier to shell out to
         # that rather than write our own handling code.
-        output, _ = subp.subp([
-            'wget', '--quiet', '--tries', '3', '--timeout', '20',
-            '--output-document', '-', '--header',
-            'DomU_Request: {0}'.format(domu_request),
-            '{0}:8080'.format(self.virtual_router_address)
-        ])
+        output, _ = subp.subp(
+            [
+                "wget",
+                "--quiet",
+                "--tries",
+                "3",
+                "--timeout",
+                "20",
+                "--output-document",
+                "-",
+                "--header",
+                "DomU_Request: {0}".format(domu_request),
+                "{0}:8080".format(self.virtual_router_address),
+            ]
+        )
         return output.strip()
 
     def get_password(self):
-        password = self._do_request('send_my_password')
-        if password in ['', 'saved_password']:
+        password = self._do_request("send_my_password")
+        if password in ["", "saved_password"]:
             return None
-        if password == 'bad_request':
-            raise RuntimeError('Error when attempting to fetch root password.')
-        self._do_request('saved_password')
+        if password == "bad_request":
+            raise RuntimeError("Error when attempting to fetch root password.")
+        self._do_request("saved_password")
         return password
 
 
 class DataSourceCloudStack(sources.DataSource):
 
-    dsname = 'CloudStack'
+    dsname = "CloudStack"
 
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
@@ -75,10 +83,10 @@ class DataSourceCloudStack(sources.DataSource):
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.seed_dir = os.path.join(paths.seed_dir, 'cs')
+        self.seed_dir = os.path.join(paths.seed_dir, "cs")
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
-        self.api_ver = 'latest'
+        self.api_ver = "latest"
         self.vr_addr = get_vr_address()
         if not self.vr_addr:
             raise RuntimeError("No virtual router found!")
@@ -91,19 +99,28 @@ class DataSourceCloudStack(sources.DataSource):
         if url_params.max_wait_seconds <= 0:
             return False
 
-        urls = [uhelp.combine_url(self.metadata_address,
-                                  'latest/meta-data/instance-id')]
+        urls = [
+            uhelp.combine_url(
+                self.metadata_address, "latest/meta-data/instance-id"
+            )
+        ]
         start_time = time.time()
         url, _response = uhelp.wait_for_url(
-            urls=urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds, status_cb=LOG.warning)
+            urls=urls,
+            max_wait=url_params.max_wait_seconds,
+            timeout=url_params.timeout_seconds,
+            status_cb=LOG.warning,
+        )
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
         else:
-            LOG.critical(("Giving up on waiting for the metadata from %s"
-                          " after %s seconds"),
-                         urls, int(time.time() - start_time))
+            LOG.critical(
+                "Giving up on waiting for the metadata from %s"
+                " after %s seconds",
+                urls,
+                int(time.time() - start_time),
+            )
 
         return bool(url)
 
@@ -113,8 +130,8 @@ class DataSourceCloudStack(sources.DataSource):
     def _get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
-            self.userdata_raw = seed_ret['user-data']
-            self.metadata = seed_ret['meta-data']
+            self.userdata_raw = seed_ret["user-data"]
+            self.metadata = seed_ret["meta-data"]
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
         try:
@@ -122,45 +139,54 @@ class DataSourceCloudStack(sources.DataSource):
                 return False
             start_time = time.time()
             self.userdata_raw = ec2.get_instance_userdata(
-                self.api_ver, self.metadata_address)
-            self.metadata = ec2.get_instance_metadata(self.api_ver,
-                                                      self.metadata_address)
-            LOG.debug("Crawl of metadata service took %s seconds",
-                      int(time.time() - start_time))
+                self.api_ver, self.metadata_address
+            )
+            self.metadata = ec2.get_instance_metadata(
+                self.api_ver, self.metadata_address
+            )
+            LOG.debug(
+                "Crawl of metadata service took %s seconds",
+                int(time.time() - start_time),
+            )
             password_client = CloudStackPasswordServerClient(self.vr_addr)
             try:
                 set_password = password_client.get_password()
             except Exception:
-                util.logexc(LOG,
-                            'Failed to fetch password from virtual router %s',
-                            self.vr_addr)
+                util.logexc(
+                    LOG,
+                    "Failed to fetch password from virtual router %s",
+                    self.vr_addr,
+                )
             else:
                 if set_password:
                     self.cfg = {
-                        'ssh_pwauth': True,
-                        'password': set_password,
-                        'chpasswd': {
-                            'expire': False,
+                        "ssh_pwauth": True,
+                        "password": set_password,
+                        "chpasswd": {
+                            "expire": False,
                         },
                     }
             return True
         except Exception:
-            util.logexc(LOG, 'Failed fetching from metadata service %s',
-                        self.metadata_address)
+            util.logexc(
+                LOG,
+                "Failed fetching from metadata service %s",
+                self.metadata_address,
+            )
             return False
 
     def get_instance_id(self):
-        return self.metadata['instance-id']
+        return self.metadata["instance-id"]
 
     @property
     def availability_zone(self):
-        return self.metadata['availability-zone']
+        return self.metadata["availability-zone"]
 
 
 def get_data_server():
     # Returns the metadataserver from dns
     try:
-        addrinfo = getaddrinfo("data-server.", 80)
+        addrinfo = getaddrinfo("data-server", 80)
     except gaierror:
         LOG.debug("DNS Entry data-server not found")
         return None
@@ -183,8 +209,11 @@ def get_default_gateway():
 
 def get_dhclient_d():
     # find lease files directory
-    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp",
-                      "/var/lib/NetworkManager"]
+    supported_dirs = [
+        "/var/lib/dhclient",
+        "/var/lib/dhcp",
+        "/var/lib/NetworkManager",
+    ]
     for d in supported_dirs:
         if os.path.exists(d) and len(os.listdir(d)) > 0:
             LOG.debug("Using %s lease directory", d)
@@ -233,15 +262,18 @@ def get_vr_address():
     # Try data-server DNS entry first
     latest_address = get_data_server()
     if latest_address:
-        LOG.debug("Found metadata server '%s' via data-server DNS entry",
-                  latest_address)
+        LOG.debug(
+            "Found metadata server '%s' via data-server DNS entry",
+            latest_address,
+        )
         return latest_address
 
     # Try networkd second...
-    latest_address = dhcp.networkd_get_option_from_leases('SERVER_ADDRESS')
+    latest_address = dhcp.networkd_get_option_from_leases("SERVER_ADDRESS")
     if latest_address:
-        LOG.debug("Found SERVER_ADDRESS '%s' via networkd_leases",
-                  latest_address)
+        LOG.debug(
+            "Found SERVER_ADDRESS '%s' via networkd_leases", latest_address
+        )
         return latest_address
 
     # Try dhcp lease files next...
@@ -274,5 +306,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

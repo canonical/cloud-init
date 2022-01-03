@@ -16,48 +16,53 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
+from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit.net import eni
-from cloudinit.net import network_state
-from cloudinit.net import renderers
-from cloudinit import persistence
-from cloudinit import ssh_util
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
-
-from cloudinit.features import \
-    ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-
+from cloudinit import net, persistence, ssh_util, subp, type_utils, util
 from cloudinit.distros.parsers import hosts
-from .networking import LinuxNetworking
+from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net.network_state import parse_net_config_data
 
+from .networking import LinuxNetworking
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.
-ALL_DISTROS = 'all'
+ALL_DISTROS = "all"
 
 OSFAMILIES = {
-    'alpine': ['alpine'],
-    'arch': ['arch'],
-    'debian': ['debian', 'ubuntu'],
-    'freebsd': ['freebsd'],
-    'gentoo': ['gentoo'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
-    'suse': ['opensuse', 'sles'],
+    "alpine": ["alpine"],
+    "arch": ["arch"],
+    "debian": ["debian", "ubuntu"],
+    "freebsd": ["freebsd"],
+    "gentoo": ["gentoo"],
+    "redhat": [
+        "almalinux",
+        "amazon",
+        "centos",
+        "cloudlinux",
+        "eurolinux",
+        "fedora",
+        "miraclelinux",
+        "openEuler",
+        "photon",
+        "rhel",
+        "rocky",
+        "virtuozzo",
+    ],
+    "suse": ["opensuse", "sles"],
 }
 
 LOG = logging.getLogger(__name__)
 
 # This is a best guess regex, based on current EC2 AZs on 2017-12-11.
 # It could break when Amazon adds new regions and new AZs.
-_EC2_AZ_RE = re.compile('^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$')
+_EC2_AZ_RE = re.compile("^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$")
 
 # Default NTP Client Configurations
-PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
+PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 
 # Letters/Digits/Hyphen characters, for use in domain name validation
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
@@ -70,15 +75,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
-    init_cmd = ['service']  # systemctl, service etc
-    renderer_configs = {}
+    init_cmd = ["service"]  # systemctl, service etc
+    renderer_configs = {}  # type: Mapping[str, Mapping[str, Any]]
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
-    shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+    shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
 
     _ci_pkl_version = 1
+    prefer_fqdn = False
+    resolve_conf_fn = "/etc/resolv.conf"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -103,33 +110,37 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def _write_network(self, settings):
-        raise RuntimeError(
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError(
             "Legacy function '_write_network' was called in distro '%s'.\n"
-            "_write_network_config needs implementation.\n" % self.name)
+            "_write_network_config needs implementation.\n" % self.name
+        )
 
-    def _write_network_config(self, settings):
-        raise NotImplementedError()
-
-    def _supported_write_network_config(self, network_config):
+    def _write_network_state(self, network_state):
         priority = util.get_cfg_by_path(
-            self._cfg, ('network', 'renderers'), None)
+            self._cfg, ("network", "renderers"), None
+        )
 
         name, render_cls = renderers.select(priority=priority)
-        LOG.debug("Selected renderer '%s' from priority list: %s",
-                  name, priority)
+        LOG.debug(
+            "Selected renderer '%s' from priority list: %s", name, priority
+        )
         renderer = render_cls(config=self.renderer_configs.get(name))
-        renderer.render_network_config(network_config)
-        return []
+        renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
-            raise IOError(("Invalid timezone %s,"
-                           " no file found at %s") % (tz, tz_file))
+            raise IOError(
+                "Invalid timezone %s, no file found at %s" % (tz, tz_file)
+            )
         return tz_file
 
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
+
+    def set_option(self, opt_name, value=None):
+        self._cfg[opt_name] = value
 
     def set_hostname(self, hostname, fqdn=None):
         writeable_hostname = self._select_hostname(hostname, fqdn)
@@ -141,7 +152,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -164,10 +175,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
-        return _get_package_mirror_info(data_source=data_source,
-                                        mirror_info=arch_info)
+        return _get_package_mirror_info(
+            data_source=data_source, mirror_info=arch_info
+        )
 
     def apply_network(self, settings, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         # this applies network where 'settings' is interfaces(5) style
         # it is obsolete compared to apply_network_config
         # Write it out
@@ -182,36 +195,62 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     def _apply_network_from_network_config(self, netconfig, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         distro = self.__class__
-        LOG.warning("apply_network_config is not currently implemented "
-                    "for distribution '%s'.  Attempting to use apply_network",
-                    distro)
-        header = '\n'.join([
-            "# Converted from network_config for distro %s" % distro,
-            "# Implementation of _write_network_config is needed."
-        ])
+        LOG.warning(
+            "apply_network_config is not currently implemented "
+            "for distribution '%s'.  Attempting to use apply_network",
+            distro,
+        )
+        header = "\n".join(
+            [
+                "# Converted from network_config for distro %s" % distro,
+                "# Implementation of _write_network_config is needed.",
+            ]
+        )
         ns = network_state.parse_net_config_data(netconfig)
         contents = eni.network_state_to_eni(
-            ns, header=header, render_hwaddress=True)
+            ns, header=header, render_hwaddress=True
+        )
         return self.apply_network(contents, bring_up=bring_up)
 
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
-    def apply_network_config(self, netconfig, bring_up=False):
-        # apply network config netconfig
+    def apply_network_config(self, netconfig, bring_up=False) -> bool:
+        """Apply the network config.
+
+        If bring_up is True, attempt to bring up the passed in devices. If
+        devices is None, attempt to bring up devices returned by
+        _write_network_config.
+
+        Returns True if any devices failed to come up, otherwise False.
+        """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
+        network_state = parse_net_config_data(netconfig)
         try:
-            dev_names = self._write_network_config(netconfig)
+            self._write_network_state(network_state)
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(
-                netconfig, bring_up=bring_up)
+                netconfig, bring_up=bring_up
+            )
 
         # Now try to bring them up
         if bring_up:
-            return self._bring_up_interfaces(dev_names)
+            LOG.debug("Bringing up newly configured network interfaces")
+            try:
+                network_activator = activators.select_activator()
+            except activators.NoActivatorException:
+                LOG.warning(
+                    "No network activator found, not bringing up "
+                    "network interfaces"
+                )
+                return True
+            network_activator.bring_up_all_interfaces(network_state)
+        else:
+            LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
     def apply_network_config_names(self, netconfig):
@@ -248,17 +287,28 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # temporarily (until reboot so it should
         # not be depended on). Use the write
         # hostname functions for 'permanent' adjustments.
-        LOG.debug("Non-persistently setting the system hostname to %s",
-                  hostname)
+        LOG.debug(
+            "Non-persistently setting the system hostname to %s", hostname
+        )
         try:
-            subp.subp(['hostname', hostname])
+            subp.subp(["hostname", hostname])
         except subp.ProcessExecutionError:
-            util.logexc(LOG, "Failed to non-persistently adjust the system "
-                        "hostname to %s", hostname)
+            util.logexc(
+                LOG,
+                "Failed to non-persistently adjust the system hostname to %s",
+                hostname,
+            )
 
     def _select_hostname(self, hostname, fqdn):
         # Prefer the short hostname over the long
         # fully qualified domain name
+        if (
+            util.get_cfg_option_bool(
+                self._cfg, "prefer_fqdn_over_hostname", self.prefer_fqdn
+            )
+            and fqdn
+        ):
+            return fqdn
         if not hostname:
             return fqdn
         return hostname
@@ -300,32 +350,39 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # If the system hostname is different than the previous
         # one or the desired one lets update it as well
-        if ((not sys_hostname) or (sys_hostname == prev_hostname and
-           sys_hostname != hostname)):
+        if (not sys_hostname) or (
+            sys_hostname == prev_hostname and sys_hostname != hostname
+        ):
             update_files.append(sys_fn)
 
         # If something else has changed the hostname after we set it
         # initially, we should not overwrite those changes (we should
         # only be setting the hostname once per instance)
-        if (sys_hostname and prev_hostname and
-                sys_hostname != prev_hostname):
-            LOG.info("%s differs from %s, assuming user maintained hostname.",
-                     prev_hostname_fn, sys_fn)
+        if sys_hostname and prev_hostname and sys_hostname != prev_hostname:
+            LOG.info(
+                "%s differs from %s, assuming user maintained hostname.",
+                prev_hostname_fn,
+                sys_fn,
+            )
             return
 
         # Remove duplicates (incase the previous config filename)
         # is the same as the system config filename, don't bother
         # doing it twice
         update_files = set([f for f in update_files if f])
-        LOG.debug("Attempting to update hostname to %s in %s files",
-                  hostname, len(update_files))
+        LOG.debug(
+            "Attempting to update hostname to %s in %s files",
+            hostname,
+            len(update_files),
+        )
 
         for fn in update_files:
             try:
                 self._write_hostname(hostname, fn)
             except IOError:
-                util.logexc(LOG, "Failed to write hostname %s to %s", hostname,
-                            fn)
+                util.logexc(
+                    LOG, "Failed to write hostname %s to %s", hostname, fn
+                )
 
         # If the system hostname file name was provided set the
         # non-fqdn as the transient hostname.
@@ -333,11 +390,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._apply_hostname(applying_hostname)
 
     def update_etc_hosts(self, hostname, fqdn):
-        header = ''
+        header = ""
         if os.path.exists(self.hosts_fn):
             eh = hosts.HostsConf(util.load_file(self.hosts_fn))
         else:
-            eh = hosts.HostsConf('')
+            eh = hosts.HostsConf("")
             header = util.make_header(base="added")
         local_ip = self._get_localhost_ip()
         prev_info = eh.get_entry(local_ip)
@@ -384,20 +441,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self._preferred_ntp_clients
 
     def _bring_up_interface(self, device_name):
-        cmd = ['ifup', device_name]
-        LOG.debug("Attempting to run bring up interface %s using command %s",
-                  device_name, cmd)
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning("Running %s resulted in stderr output: %s",
-                            cmd, err)
-            return True
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-            return False
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError
 
     def _bring_up_interfaces(self, device_names):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         am_failed = 0
         for d in device_names:
             if not self._bring_up_interface(d):
@@ -407,7 +455,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     def get_default_user(self):
-        return self.get_option('default_user')
+        return self.get_option("default_user")
 
     def add_user(self, name, **kwargs):
         """
@@ -423,43 +471,43 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.info("User %s already exists, skipping.", name)
             return
 
-        if 'create_groups' in kwargs:
-            create_groups = kwargs.pop('create_groups')
+        if "create_groups" in kwargs:
+            create_groups = kwargs.pop("create_groups")
         else:
             create_groups = True
 
-        useradd_cmd = ['useradd', name]
-        log_useradd_cmd = ['useradd', name]
+        useradd_cmd = ["useradd", name]
+        log_useradd_cmd = ["useradd", name]
         if util.system_is_snappy():
-            useradd_cmd.append('--extrausers')
-            log_useradd_cmd.append('--extrausers')
+            useradd_cmd.append("--extrausers")
+            log_useradd_cmd.append("--extrausers")
 
         # Since we are creating users, we want to carefully validate the
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
         useradd_opts = {
-            "gecos": '--comment',
-            "homedir": '--home',
-            "primary_group": '--gid',
-            "uid": '--uid',
-            "groups": '--groups',
-            "passwd": '--password',
-            "shell": '--shell',
-            "expiredate": '--expiredate',
-            "inactive": '--inactive',
-            "selinux_user": '--selinux-user',
+            "gecos": "--comment",
+            "homedir": "--home",
+            "primary_group": "--gid",
+            "uid": "--uid",
+            "groups": "--groups",
+            "passwd": "--password",
+            "shell": "--shell",
+            "expiredate": "--expiredate",
+            "inactive": "--inactive",
+            "selinux_user": "--selinux-user",
         }
 
         useradd_flags = {
-            "no_user_group": '--no-user-group',
-            "system": '--system',
-            "no_log_init": '--no-log-init',
+            "no_user_group": "--no-user-group",
+            "system": "--system",
+            "no_log_init": "--no-log-init",
         }
 
-        redact_opts = ['passwd']
+        redact_opts = ["passwd"]
 
         # support kwargs having groups=[list] or groups="g1,g2"
-        groups = kwargs.get('groups')
+        groups = kwargs.get("groups")
         if groups:
             if isinstance(groups, str):
                 groups = groups.split(",")
@@ -470,9 +518,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
             # kwargs.items loop below wants a comma delimeted string
             # that can go right through to the command.
-            kwargs['groups'] = ",".join(groups)
+            kwargs["groups"] = ",".join(groups)
 
-            primary_group = kwargs.get('primary_group')
+            primary_group = kwargs.get("primary_group")
             if primary_group:
                 groups.append(primary_group)
 
@@ -490,7 +538,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
                 # Redact certain fields from the logs
                 if key in redact_opts:
-                    log_useradd_cmd.extend([useradd_opts[key], 'REDACTED'])
+                    log_useradd_cmd.extend([useradd_opts[key], "REDACTED"])
                 else:
                     log_useradd_cmd.extend([useradd_opts[key], val])
 
@@ -500,12 +548,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Don't create the home directory if directed so or if the user is a
         # system user
-        if kwargs.get('no_create_home') or kwargs.get('system'):
-            useradd_cmd.append('-M')
-            log_useradd_cmd.append('-M')
+        if kwargs.get("no_create_home") or kwargs.get("system"):
+            useradd_cmd.append("-M")
+            log_useradd_cmd.append("-M")
         else:
-            useradd_cmd.append('-m')
-            log_useradd_cmd.append('-m')
+            useradd_cmd.append("-m")
+            log_useradd_cmd.append("-m")
 
         # Run the command
         LOG.debug("Adding user %s", name)
@@ -520,8 +568,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Add a snappy user to the system using snappy tools
         """
 
-        snapuser = kwargs.get('snapuser')
-        known = kwargs.get('known', False)
+        snapuser = kwargs.get("snapuser")
+        known = kwargs.get("known", False)
         create_user_cmd = ["snap", "create-user", "--sudoer", "--json"]
         if known:
             create_user_cmd.append("--known")
@@ -530,11 +578,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding snap user %s", name)
         try:
-            (out, err) = subp.subp(create_user_cmd, logstring=create_user_cmd,
-                                   capture=True)
+            (out, err) = subp.subp(
+                create_user_cmd, logstring=create_user_cmd, capture=True
+            )
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
-            username = jobj.get('username', None)
+            username = jobj.get("username", None)
         except Exception as e:
             util.logexc(LOG, "Failed to create snap user %s", name)
             raise e
@@ -562,60 +611,66 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
 
         # Add a snap user, if requested
-        if 'snapuser' in kwargs:
+        if "snapuser" in kwargs:
             return self.add_snap_user(name, **kwargs)
 
         # Add the user
         self.add_user(name, **kwargs)
 
         # Set password if plain-text password provided and non-empty
-        if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
-            self.set_passwd(name, kwargs['plain_text_passwd'])
+        if "plain_text_passwd" in kwargs and kwargs["plain_text_passwd"]:
+            self.set_passwd(name, kwargs["plain_text_passwd"])
 
         # Set password if hashed password is provided and non-empty
-        if 'hashed_passwd' in kwargs and kwargs['hashed_passwd']:
-            self.set_passwd(name, kwargs['hashed_passwd'], hashed=True)
+        if "hashed_passwd" in kwargs and kwargs["hashed_passwd"]:
+            self.set_passwd(name, kwargs["hashed_passwd"], hashed=True)
 
         # Default locking down the account.  'lock_passwd' defaults to True.
         # lock account unless lock_password is False.
-        if kwargs.get('lock_passwd', True):
+        if kwargs.get("lock_passwd", True):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if 'sudo' in kwargs and kwargs['sudo'] is not False:
-            self.write_sudo_rules(name, kwargs['sudo'])
+        if "sudo" in kwargs and kwargs["sudo"] is not False:
+            self.write_sudo_rules(name, kwargs["sudo"])
 
         # Import SSH keys
-        if 'ssh_authorized_keys' in kwargs:
+        if "ssh_authorized_keys" in kwargs:
             # Try to handle this in a smart manner.
-            keys = kwargs['ssh_authorized_keys']
+            keys = kwargs["ssh_authorized_keys"]
             if isinstance(keys, str):
                 keys = [keys]
             elif isinstance(keys, dict):
                 keys = list(keys.values())
             if keys is not None:
                 if not isinstance(keys, (tuple, list, set)):
-                    LOG.warning("Invalid type '%s' detected for"
-                                " 'ssh_authorized_keys', expected list,"
-                                " string, dict, or set.", type(keys))
+                    LOG.warning(
+                        "Invalid type '%s' detected for"
+                        " 'ssh_authorized_keys', expected list,"
+                        " string, dict, or set.",
+                        type(keys),
+                    )
                     keys = []
                 else:
                     keys = set(keys) or []
             ssh_util.setup_user_keys(set(keys), name)
-        if 'ssh_redirect_user' in kwargs:
-            cloud_keys = kwargs.get('cloud_public_ssh_keys', [])
+        if "ssh_redirect_user" in kwargs:
+            cloud_keys = kwargs.get("cloud_public_ssh_keys", [])
             if not cloud_keys:
                 LOG.warning(
-                    'Unable to disable SSH logins for %s given'
-                    ' ssh_redirect_user: %s. No cloud public-keys present.',
-                    name, kwargs['ssh_redirect_user'])
+                    "Unable to disable SSH logins for %s given"
+                    " ssh_redirect_user: %s. No cloud public-keys present.",
+                    name,
+                    kwargs["ssh_redirect_user"],
+                )
             else:
-                redirect_user = kwargs['ssh_redirect_user']
+                redirect_user = kwargs["ssh_redirect_user"]
                 disable_option = ssh_util.DISABLE_USER_OPTS
-                disable_option = disable_option.replace('$USER', redirect_user)
-                disable_option = disable_option.replace('$DISABLE_USER', name)
+                disable_option = disable_option.replace("$USER", redirect_user)
+                disable_option = disable_option.replace("$DISABLE_USER", name)
                 ssh_util.setup_user_keys(
-                    set(cloud_keys), name, options=disable_option)
+                    set(cloud_keys), name, options=disable_option
+                )
         return True
 
     def lock_passwd(self, name):
@@ -623,36 +678,36 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Lock the password of a user, i.e., disable password logins
         """
         # passwd must use short '-l' due to SLES11 lacking long form '--lock'
-        lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
+        lock_tools = (["passwd", "-l", name], ["usermod", "--lock", name])
         try:
             cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
         except StopIteration as e:
-            raise RuntimeError((
+            raise RuntimeError(
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+                "  Tried: %s." % (name, [c[0] for c in lock_tools])
             ) from e
         try:
             subp.subp(cmd)
         except Exception as e:
-            util.logexc(LOG, 'Failed to disable password for user %s', name)
+            util.logexc(LOG, "Failed to disable password for user %s", name)
             raise e
 
     def expire_passwd(self, user):
         try:
-            subp.subp(['passwd', '--expire', user])
+            subp.subp(["passwd", "--expire", user])
         except Exception as e:
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
     def set_passwd(self, user, passwd, hashed=False):
-        pass_string = '%s:%s' % (user, passwd)
-        cmd = ['chpasswd']
+        pass_string = "%s:%s" % (user, passwd)
+        cmd = ["chpasswd"]
 
         if hashed:
             # Need to use the short option name '-e' instead of '--encrypted'
             # (which would be more descriptive) since SLES 11 doesn't know
             # about long names.
-            cmd.append('-e')
+            cmd.append("-e")
 
         try:
             subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
@@ -662,10 +717,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
-    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+    def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
         # it actually exists as a directory
-        sudoers_contents = ''
+        sudoers_contents = ""
         base_exists = False
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_file(sudo_base)
@@ -686,15 +741,23 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not found_include:
             try:
                 if not base_exists:
-                    lines = [('# See sudoers(5) for more information'
-                              ' on "#include" directives:'), '',
-                             util.make_header(base="added"),
-                             "#includedir %s" % (path), '']
+                    lines = [
+                        "# See sudoers(5) for more information"
+                        ' on "#include" directives:',
+                        "",
+                        util.make_header(base="added"),
+                        "#includedir %s" % (path),
+                        "",
+                    ]
                     sudoers_contents = "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0o440)
                 else:
-                    lines = ['', util.make_header(base="added"),
-                             "#includedir %s" % (path), '']
+                    lines = [
+                        "",
+                        util.make_header(base="added"),
+                        "#includedir %s" % (path),
+                        "",
+                    ]
                     sudoers_contents = "\n".join(lines)
                     util.append_file(sudo_base, sudoers_contents)
                 LOG.debug("Added '#includedir %s' to %s", path, sudo_base)
@@ -708,7 +771,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             sudo_file = self.ci_sudoers_fn
 
         lines = [
-            '',
+            "",
             "# User rules for %s" % user,
         ]
         if isinstance(rules, (list, tuple)):
@@ -741,9 +804,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 raise e
 
     def create_group(self, name, members=None):
-        group_add_cmd = ['groupadd', name]
+        group_add_cmd = ["groupadd", name]
         if util.system_is_snappy():
-            group_add_cmd.append('--extrausers')
+            group_add_cmd.append("--extrausers")
         if not members:
             members = []
 
@@ -761,11 +824,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if len(members) > 0:
             for member in members:
                 if not util.is_user(member):
-                    LOG.warning("Unable to add group member '%s' to group '%s'"
-                                "; user does not exist.", member, name)
+                    LOG.warning(
+                        "Unable to add group member '%s' to group '%s'"
+                        "; user does not exist.",
+                        member,
+                        name,
+                    )
                     continue
 
-                subp.subp(['usermod', '-a', '-G', name, member])
+                subp.subp(["usermod", "-a", "-G", name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     def shutdown_command(self, *, mode, delay, message):
@@ -783,6 +850,36 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if message:
             args.append(message)
         return args
+
+    def manage_service(self, action, service):
+        """
+        Perform the requested action on a service. This handles the common
+        'systemctl' and 'service' cases and may be overridden in subclasses
+        as necessary.
+        May raise ProcessExecutionError
+        """
+        init_cmd = self.init_cmd
+        if self.uses_systemd() or "systemctl" in init_cmd:
+            init_cmd = ["systemctl"]
+            cmds = {
+                "stop": ["stop", service],
+                "start": ["start", service],
+                "enable": ["enable", service],
+                "restart": ["restart", service],
+                "reload": ["reload-or-restart", service],
+                "try-reload": ["reload-or-try-restart", service],
+            }
+        else:
+            cmds = {
+                "stop": [service, "stop"],
+                "start": [service, "start"],
+                "enable": [service, "start"],
+                "restart": [service, "restart"],
+                "reload": [service, "restart"],
+                "try-reload": [service, "restart"],
+            }
+        cmd = list(init_cmd) + list(cmds[action])
+        return subp.subp(cmd, capture=True)
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -837,7 +934,7 @@ def _sanitize_mirror_url(url: str):
       * Converts it to its IDN form (see below for details)
       * Replaces any non-Letters/Digits/Hyphen (LDH) characters in it with
         hyphens
-      * TODO: Remove any leading/trailing hyphens from each domain name label
+      * Removes any leading/trailing hyphens from each domain name label
 
     Before we replace any invalid domain name characters, we first need to
     ensure that any valid non-ASCII characters in the hostname will not be
@@ -871,27 +968,25 @@ def _sanitize_mirror_url(url: str):
         # This is an IP address, not a hostname, so no need to apply the
         # transformations
         lambda hostname: None if net.is_ip_address(hostname) else hostname,
-
         # Encode with IDNA to get the correct characters (as `bytes`), then
         # decode with ASCII so we return a `str`
-        lambda hostname: hostname.encode('idna').decode('ascii'),
-
+        lambda hostname: hostname.encode("idna").decode("ascii"),
         # Replace any unacceptable characters with "-"
-        lambda hostname: ''.join(
+        lambda hostname: "".join(
             c if c in acceptable_chars else "-" for c in hostname
         ),
-
         # Drop leading/trailing hyphens from each part of the hostname
-        lambda hostname: '.'.join(
-            part.strip('-') for part in hostname.split('.')
+        lambda hostname: ".".join(
+            part.strip("-") for part in hostname.split(".")
         ),
     ]
 
     return _apply_hostname_transformations_to_url(url, transformations)
 
 
-def _get_package_mirror_info(mirror_info, data_source=None,
-                             mirror_filter=util.search_for_mirror):
+def _get_package_mirror_info(
+    mirror_info, data_source=None, mirror_filter=util.search_for_mirror
+):
     # given a arch specific 'mirror_info' entry (from package_mirrors)
     # search through the 'search' entries, and fallback appropriately
     # return a dict with only {name: mirror} entries.
@@ -900,7 +995,7 @@ def _get_package_mirror_info(mirror_info, data_source=None,
 
     subst = {}
     if data_source and data_source.availability_zone:
-        subst['availability_zone'] = data_source.availability_zone
+        subst["availability_zone"] = data_source.availability_zone
 
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
@@ -908,18 +1003,18 @@ def _get_package_mirror_info(mirror_info, data_source=None,
             ec2_region = data_source.availability_zone[0:-1]
 
             if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
-                subst['ec2_region'] = "%s" % ec2_region
+                subst["ec2_region"] = "%s" % ec2_region
             elif data_source.platform_type == "ec2":
-                subst['ec2_region'] = "%s" % ec2_region
+                subst["ec2_region"] = "%s" % ec2_region
 
     if data_source and data_source.region:
-        subst['region'] = data_source.region
+        subst["region"] = data_source.region
 
     results = {}
-    for (name, mirror) in mirror_info.get('failsafe', {}).items():
+    for (name, mirror) in mirror_info.get("failsafe", {}).items():
         results[name] = mirror
 
-    for (name, searchlist) in mirror_info.get('search', {}).items():
+    for (name, searchlist) in mirror_info.get("search", {}).items():
         mirrors = []
         for tmpl in searchlist:
             try:
@@ -953,17 +1048,20 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 
 
 def fetch(name):
-    locs, looked_locs = importer.find_module(name, ['', __name__], ['Distro'])
+    locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
-        raise ImportError("No distribution found for distro %s (searched %s)"
-                          % (name, looked_locs))
+        raise ImportError(
+            "No distribution found for distro %s (searched %s)"
+            % (name, looked_locs)
+        )
     mod = importer.import_module(locs[0])
-    cls = getattr(mod, 'Distro')
+    cls = getattr(mod, "Distro")
     return cls
 
 
-def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
-                     tz_local="/etc/localtime"):
+def set_etc_timezone(
+    tz, tz_file=None, tz_conf="/etc/timezone", tz_local="/etc/localtime"
+):
     util.write_file(tz_conf, str(tz).rstrip() + "\n")
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
@@ -980,7 +1078,7 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
 
 def uses_systemd():
     try:
-        res = os.lstat('/run/systemd/system')
+        res = os.lstat("/run/systemd/system")
         return stat.S_ISDIR(res.st_mode)
     except Exception:
         return False

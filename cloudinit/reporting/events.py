@@ -12,12 +12,12 @@ import base64
 import os.path
 import time
 
-from . import instantiated_handler_registry, available_handlers
+from . import available_handlers, instantiated_handler_registry
 
-FINISH_EVENT_TYPE = 'finish'
-START_EVENT_TYPE = 'start'
+FINISH_EVENT_TYPE = "finish"
+START_EVENT_TYPE = "start"
 
-DEFAULT_EVENT_ORIGIN = 'cloudinit'
+DEFAULT_EVENT_ORIGIN = "cloudinit"
 
 
 class _nameset(set):
@@ -33,8 +33,14 @@ status = _nameset(("SUCCESS", "WARN", "FAIL"))
 class ReportingEvent(object):
     """Encapsulation of event formatting."""
 
-    def __init__(self, event_type, name, description,
-                 origin=DEFAULT_EVENT_ORIGIN, timestamp=None):
+    def __init__(
+        self,
+        event_type,
+        name,
+        description,
+        origin=DEFAULT_EVENT_ORIGIN,
+        timestamp=None,
+    ):
         self.event_type = event_type
         self.name = name
         self.description = description
@@ -45,22 +51,28 @@ class ReportingEvent(object):
 
     def as_string(self):
         """The event represented as a string."""
-        return '{0}: {1}: {2}'.format(
-            self.event_type, self.name, self.description)
+        return "{0}: {1}: {2}".format(
+            self.event_type, self.name, self.description
+        )
 
     def as_dict(self):
         """The event represented as a dictionary."""
-        return {'name': self.name, 'description': self.description,
-                'event_type': self.event_type, 'origin': self.origin,
-                'timestamp': self.timestamp}
+        return {
+            "name": self.name,
+            "description": self.description,
+            "event_type": self.event_type,
+            "origin": self.origin,
+            "timestamp": self.timestamp,
+        }
 
 
 class FinishReportingEvent(ReportingEvent):
-
-    def __init__(self, name, description, result=status.SUCCESS,
-                 post_files=None):
+    def __init__(
+        self, name, description, result=status.SUCCESS, post_files=None
+    ):
         super(FinishReportingEvent, self).__init__(
-            FINISH_EVENT_TYPE, name, description)
+            FINISH_EVENT_TYPE, name, description
+        )
         self.result = result
         if post_files is None:
             post_files = []
@@ -69,15 +81,16 @@ class FinishReportingEvent(ReportingEvent):
             raise ValueError("Invalid result: %s" % result)
 
     def as_string(self):
-        return '{0}: {1}: {2}: {3}'.format(
-            self.event_type, self.name, self.result, self.description)
+        return "{0}: {1}: {2}: {3}".format(
+            self.event_type, self.name, self.result, self.description
+        )
 
     def as_dict(self):
         """The event represented as json friendly."""
         data = super(FinishReportingEvent, self).as_dict()
-        data['result'] = self.result
+        data["result"] = self.result
         if self.post_files:
-            data['files'] = _collect_file_info(self.post_files)
+            data["files"] = _collect_file_info(self.post_files)
         return data
 
 
@@ -110,14 +123,16 @@ def report_event(event, excluded_handler_types=None):
         handler.publish_event(event)
 
 
-def report_finish_event(event_name, event_description,
-                        result=status.SUCCESS, post_files=None):
+def report_finish_event(
+    event_name, event_description, result=status.SUCCESS, post_files=None
+):
     """Report a "finish" event.
 
     See :py:func:`.report_event` for parameter details.
     """
-    event = FinishReportingEvent(event_name, event_description, result,
-                                 post_files=post_files)
+    event = FinishReportingEvent(
+        event_name, event_description, result, post_files=post_files
+    )
     return report_event(event)
 
 
@@ -165,10 +180,25 @@ class ReportEventStack(object):
     :param result_on_exception:
         The result value to set if an exception is caught. default
         value is FAIL.
+
+    :param post_files:
+        Can hold filepaths of files that are to get posted/created
+        regarding a given event. Something like success or failure information
+        in a given log file. For each filepath, if it's a valid regular file
+        it will get: read & encoded as base64 at the close of the event.
+        Default value, if None, is an empty list.
     """
-    def __init__(self, name, description, message=None, parent=None,
-                 reporting_enabled=None, result_on_exception=status.FAIL,
-                 post_files=None):
+
+    def __init__(
+        self,
+        name,
+        description,
+        message=None,
+        parent=None,
+        reporting_enabled=None,
+        result_on_exception=status.FAIL,
+        post_files=None,
+    ):
         self.parent = parent
         self.name = name
         self.description = description
@@ -188,14 +218,22 @@ class ReportEventStack(object):
         self.reporting_enabled = reporting_enabled
 
         if parent:
-            self.fullname = '/'.join((parent.fullname, name,))
+            self.fullname = "/".join(
+                (
+                    parent.fullname,
+                    name,
+                )
+            )
         else:
             self.fullname = self.name
         self.children = {}
 
     def __repr__(self):
-        return ("ReportEventStack(%s, %s, reporting_enabled=%s)" %
-                (self.name, self.description, self.reporting_enabled))
+        return "ReportEventStack(%s, %s, reporting_enabled=%s)" % (
+            self.name,
+            self.description,
+            self.reporting_enabled,
+        )
 
     def __enter__(self):
         self.result = status.SUCCESS
@@ -243,8 +281,9 @@ class ReportEventStack(object):
         if self.parent:
             self.parent.children[self.name] = (result, msg)
         if self.reporting_enabled:
-            report_finish_event(self.fullname, msg, result,
-                                post_files=self.post_files)
+            report_finish_event(
+                self.fullname, msg, result, post_files=self.post_files
+            )
 
 
 def _collect_file_info(files):
@@ -257,8 +296,8 @@ def _collect_file_info(files):
         else:
             with open(fname, "rb") as fp:
                 content = base64.b64encode(fp.read()).decode()
-        ret.append({'path': fname, 'content': content,
-                    'encoding': 'base64'})
+        ret.append({"path": fname, "content": content, "encoding": "base64"})
     return ret
+
 
 # vi: ts=4 expandtab

@@ -175,6 +175,7 @@ fi
 
 %if "%{init_system}" == "systemd"
 /usr/lib/systemd/system-generators/cloud-init-generator
+%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 %{_unitdir}/cloud-*
 %else
 %attr(0755, root, root) %{_initddir}/cloud-config

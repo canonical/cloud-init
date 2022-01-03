@@ -6,6 +6,7 @@
 import pytest
 import yaml
 
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -27,7 +28,6 @@ lxd:
 @pytest.mark.no_container
 @pytest.mark.user_data(USER_DATA)
 class TestLxdBridge:
-
     @pytest.mark.parametrize("binary_name", ["lxc", "lxd"])
     def test_binaries_installed(self, class_client, binary_name):
         """Check that the expected LXD binaries are installed"""
@@ -38,7 +38,7 @@ class TestLxdBridge:
     def test_bridge(self, class_client):
         """Check that the given bridge is configured"""
         cloud_init_log = class_client.read_from_file("/var/log/cloud-init.log")
-        assert "WARN" not in cloud_init_log
+        verify_clean_log(cloud_init_log)
 
         # The bridge should exist
         assert class_client.execute("ip addr show lxdbr0")

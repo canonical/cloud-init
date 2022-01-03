@@ -31,12 +31,9 @@ import re
 
 import pytest
 
-from tests.integration_tests.instances import IntegrationAzureInstance
-from tests.integration_tests.clouds import (
-    ImageSpecification, IntegrationCloud
-)
+from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
-
+from tests.integration_tests.instances import IntegrationAzureInstance
 
 IMG_AZURE_UBUNTU_PRO_FIPS_BIONIC = (
     "Canonical:0001-com-ubuntu-pro-bionic-fips:pro-fips-18_04:18.04.202010201"
@@ -44,14 +41,12 @@ IMG_AZURE_UBUNTU_PRO_FIPS_BIONIC = (
 
 
 def _check_iid_insensitive_across_kernel_upgrade(
-    instance: IntegrationAzureInstance
+    instance: IntegrationAzureInstance,
 ):
     uuid = instance.read_from_file("/sys/class/dmi/id/product_uuid")
-    assert uuid.isupper(), (
-        "Expected uppercase UUID on Ubuntu FIPS image {}".format(
-            uuid
-        )
-    )
+    assert (
+        uuid.isupper()
+    ), "Expected uppercase UUID on Ubuntu FIPS image {}".format(uuid)
     orig_kernel = instance.execute("uname -r").strip()
     assert "azure-fips" in orig_kernel
     result = instance.execute("apt-get update")
@@ -59,6 +54,9 @@ def _check_iid_insensitive_across_kernel_upgrade(
     result = instance.execute("apt-get install linux-azure --assume-yes")
     if not result.ok:
         pytest.fail("Unable to install linux-azure kernel: {}".format(result))
+    # Remove ubuntu-azure-fips metapkg which mandates FIPS-flavour kernel
+    result = instance.execute("ua disable fips --assume-yes")
+    assert result.ok, "Unable to disable fips: {}".format(result)
     instance.restart()
     new_kernel = instance.execute("uname -r").strip()
     assert orig_kernel != new_kernel
@@ -77,7 +75,7 @@ def _check_iid_insensitive_across_kernel_upgrade(
 @pytest.mark.azure
 @pytest.mark.sru_next
 def test_azure_kernel_upgrade_case_insensitive_uuid(
-    session_cloud: IntegrationCloud
+    session_cloud: IntegrationCloud,
 ):
     cfg_image_spec = ImageSpecification.from_os_image()
     if (cfg_image_spec.os, cfg_image_spec.release) != ("ubuntu", "bionic"):

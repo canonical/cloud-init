@@ -44,7 +44,7 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
 # - read the blob of data from raw user data, and parse it as key/value
 # - for each key that is found, download the content to
 #   the local instance/scripts directory and set them executable.
-# - the files in that directory will be run by the user-scripts module
+# - the files in that directory will be run by the scripts-user module
 #   Therefore, this must run before that.
 #
 #
@@ -52,14 +52,14 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
 import os
 from urllib.parse import parse_qs
 
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
 MY_NAME = "cc_rightscale_userdata"
-MY_HOOKNAME = 'CLOUD_INIT_REMOTE_HOOK'
+MY_HOOKNAME = "CLOUD_INIT_REMOTE_HOOK"
 
 
 def handle(name, _cfg, cloud, log, _args):
@@ -72,13 +72,16 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         mdict = parse_qs(ud)
         if not mdict or MY_HOOKNAME not in mdict:
-            log.debug(("Skipping module %s, "
-                       "did not find %s in parsed"
-                       " raw userdata"), name, MY_HOOKNAME)
+            log.debug(
+                "Skipping module %s, did not find %s in parsed raw userdata",
+                name,
+                MY_HOOKNAME,
+            )
             return
     except Exception:
-        util.logexc(log, "Failed to parse query string %s into a dictionary",
-                    ud)
+        util.logexc(
+            log, "Failed to parse query string %s into a dictionary", ud
+        )
         raise
 
     wrote_fns = []
@@ -87,7 +90,7 @@ def handle(name, _cfg, cloud, log, _args):
     # These will eventually be then ran by the cc_scripts_user
     # TODO(harlowja): maybe this should just be a new user data handler??
     # Instead of a late module that acts like a user data handler?
-    scripts_d = cloud.get_ipath_cur('scripts')
+    scripts_d = cloud.get_ipath_cur("scripts")
     urls = mdict[MY_HOOKNAME]
     for (i, url) in enumerate(urls):
         fname = os.path.join(scripts_d, "rightscale-%02i" % (i))
@@ -99,8 +102,9 @@ def handle(name, _cfg, cloud, log, _args):
                 wrote_fns.append(fname)
         except Exception as e:
             captured_excps.append(e)
-            util.logexc(log, "%s failed to read %s and write %s", MY_NAME, url,
-                        fname)
+            util.logexc(
+                log, "%s failed to read %s and write %s", MY_NAME, url, fname
+            )
 
     if wrote_fns:
         log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
@@ -110,8 +114,11 @@ def handle(name, _cfg, cloud, log, _args):
         log.debug("%s urls were skipped or failed", skipped)
 
     if captured_excps:
-        log.warning("%s failed with exceptions, re-raising the last one",
-                    len(captured_excps))
+        log.warning(
+            "%s failed with exceptions, re-raising the last one",
+            len(captured_excps),
+        )
         raise captured_excps[-1]
+
 
 # vi: ts=4 expandtab

@@ -6,13 +6,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
-
 from cloudinit.settings import PER_INSTANCE
 
 NETWORK_FILE_HEADER = """\
@@ -26,12 +21,11 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(distros.Distro):
-    init_cmd = ['rc-service']  # init scripts
+    init_cmd = ["rc-service"]  # init scripts
     locale_conf_fn = "/etc/profile.d/locale.sh"
     network_conf_fn = "/etc/network/interfaces"
     renderer_configs = {
-        "eni": {"eni_path": network_conf_fn,
-                "eni_header": NETWORK_FILE_HEADER}
+        "eni": {"eni_path": network_conf_fn, "eni_header": NETWORK_FILE_HEADER}
     }
 
     def __init__(self, name, cfg, paths):
@@ -40,13 +34,13 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-        self.default_locale = 'C.UTF-8'
-        self.osfamily = 'alpine'
-        cfg['ssh_svcname'] = 'sshd'
+        self.default_locale = "C.UTF-8"
+        self.osfamily = "alpine"
+        cfg["ssh_svcname"] = "sshd"
 
     def get_locale(self):
         """The default locale for Alpine Linux is different than
-           cloud-init's DataSource default.
+        cloud-init's DataSource default.
         """
         return self.default_locale
 
@@ -71,33 +65,20 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.update_package_sources()
-        self.package_command('add', pkgs=pkglist)
+        self.package_command("add", pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
-    def _bring_up_interfaces(self, device_names):
-        use_all = False
-        for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            return distros.Distro._bring_up_interface(self, '-a')
-        else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
-
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # so lets see if we can read it first.
-            conf = self._read_hostname_conf(out_fn)
+            conf = self._read_hostname_conf(filename)
         except IOError:
             pass
         if not conf:
-            conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0o644)
+            conf = HostnameConf("")
+        conf.set_hostname(hostname)
+        util.write_file(filename, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
@@ -129,7 +110,7 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        cmd = ['apk']
+        cmd = ["apk"]
         # Redirect output
         cmd.append("--quiet")
 
@@ -141,25 +122,32 @@ class Distro(distros.Distro):
         if command:
             cmd.append(command)
 
-        pkglist = util.expand_package_list('%s-%s', pkgs)
+        if command == "upgrade":
+            cmd.extend(["--update-cache", "--available"])
+
+        pkglist = util.expand_package_list("%s-%s", pkgs)
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ["update"], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["update"],
+            freq=PER_INSTANCE,
+        )
 
     @property
     def preferred_ntp_clients(self):
         """Allow distro to determine the preferred ntp client list"""
         if not self._preferred_ntp_clients:
-            self._preferred_ntp_clients = ['chrony', 'ntp']
+            self._preferred_ntp_clients = ["chrony", "ntp"]
 
         return self._preferred_ntp_clients
 
-    def shutdown_command(self, mode='poweroff', delay='now', message=None):
+    def shutdown_command(self, mode="poweroff", delay="now", message=None):
         # called from cc_power_state_change.load_power_state
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
@@ -173,7 +161,7 @@ class Distro(distros.Distro):
         # halt/poweroff/reboot commands take seconds rather than minutes.
         if delay == "now":
             # Alpine's commands do not understand "now".
-            command += ['0']
+            command += ["0"]
         else:
             try:
                 command.append(str(int(delay) * 60))
@@ -184,5 +172,6 @@ class Distro(distros.Distro):
                 ) from e
 
         return command
+
 
 # vi: ts=4 expandtab

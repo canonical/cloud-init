@@ -1,13 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from abc import ABC, abstractmethod
+import datetime
 import logging
+import os.path
+import random
+import string
+from abc import ABC, abstractmethod
 from uuid import UUID
 
 from pycloudlib import (
     EC2,
     GCE,
-    Azure,
     OCI,
+    Azure,
     LXDContainer,
     LXDVirtualMachine,
     Openstack,
@@ -15,23 +19,25 @@ from pycloudlib import (
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
-from cloudinit.subp import subp, ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import (
+    IntegrationAzureInstance,
     IntegrationEc2Instance,
     IntegrationGceInstance,
-    IntegrationAzureInstance, IntegrationInstance,
-    IntegrationOciInstance,
+    IntegrationInstance,
     IntegrationLxdInstance,
+    IntegrationOciInstance,
 )
+from tests.integration_tests.util import emit_dots_on_travis
 
 try:
-    from typing import Optional
+    from typing import Optional  # noqa: F401
 except ImportError:
     pass
 
 
-log = logging.getLogger('integration_testing')
+log = logging.getLogger("integration_testing")
 
 
 def _get_ubuntu_series() -> list:
@@ -109,14 +115,14 @@ class IntegrationCloud(ABC):
             # Even if we're using the default key, it may still have a
             # different name in the clouds, so we need to set it separately.
             self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
-        self._released_image_id = self._get_initial_image()
+        self.released_image_id = self._get_initial_image()
         self.snapshot_id = None
 
     @property
     def image_id(self):
         if self.snapshot_id:
             return self.snapshot_id
-        return self._released_image_id
+        return self.released_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -140,44 +146,52 @@ class IntegrationCloud(ABC):
         except (ValueError, IndexError):
             return image.image_id
 
-    def _perform_launch(self, launch_kwargs):
+    def _perform_launch(self, launch_kwargs, **kwargs):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 
-    def launch(self, user_data=None, launch_kwargs=None,
-               settings=integration_settings):
+    def launch(
+        self,
+        user_data=None,
+        launch_kwargs=None,
+        settings=integration_settings,
+        **kwargs
+    ):
         if launch_kwargs is None:
             launch_kwargs = {}
         if self.settings.EXISTING_INSTANCE_ID:
             log.info(
-                'Not launching instance due to EXISTING_INSTANCE_ID. '
-                'Instance id: %s', self.settings.EXISTING_INSTANCE_ID)
+                "Not launching instance due to EXISTING_INSTANCE_ID. "
+                "Instance id: %s",
+                self.settings.EXISTING_INSTANCE_ID,
+            )
             self.instance = self.cloud_instance.get_instance(
                 self.settings.EXISTING_INSTANCE_ID
             )
-            return
-        kwargs = {
-            'image_id': self.image_id,
-            'user_data': user_data,
+            return self.instance
+        default_launch_kwargs = {
+            "image_id": self.image_id,
+            "user_data": user_data,
         }
-        kwargs.update(launch_kwargs)
+        launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         log.info(
             "Launching instance with launch_kwargs:\n%s",
-            "\n".join("{}={}".format(*item) for item in kwargs.items())
+            "\n".join("{}={}".format(*item) for item in launch_kwargs.items()),
         )
 
-        pycloudlib_instance = self._perform_launch(kwargs)
-        log.info('Launched instance: %s', pycloudlib_instance)
+        with emit_dots_on_travis():
+            pycloudlib_instance = self._perform_launch(launch_kwargs, **kwargs)
+        log.info("Launched instance: %s", pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
-        if kwargs.get('wait', True):
+        if launch_kwargs.get("wait", True):
             # If we aren't waiting, we can't rely on command execution here
             log.info(
-                'cloud-init version: %s',
-                instance.execute("cloud-init --version")
+                "cloud-init version: %s",
+                instance.execute("cloud-init --version"),
             )
             serial = instance.execute("grep serial /etc/cloud/build.info")
             if serial:
-                log.info('image serial: %s', serial.split()[1])
+                log.info("image serial: %s", serial.split()[1])
         return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):
@@ -193,59 +207,70 @@ class IntegrationCloud(ABC):
         if self.snapshot_id:
             if self.settings.KEEP_IMAGE:
                 log.info(
-                    'NOT deleting snapshot image created for this testrun '
-                    'because KEEP_IMAGE is True: %s', self.snapshot_id)
+                    "NOT deleting snapshot image created for this testrun "
+                    "because KEEP_IMAGE is True: %s",
+                    self.snapshot_id,
+                )
             else:
                 log.info(
-                    'Deleting snapshot image created for this testrun: %s',
-                    self.snapshot_id
+                    "Deleting snapshot image created for this testrun: %s",
+                    self.snapshot_id,
                 )
                 self.cloud_instance.delete_image(self.snapshot_id)
 
 
 class Ec2Cloud(IntegrationCloud):
-    datasource = 'ec2'
+    datasource = "ec2"
     integration_instance_cls = IntegrationEc2Instance
 
     def _get_cloud_instance(self):
-        return EC2(tag='ec2-integration-test')
+        return EC2(tag="ec2-integration-test")
 
 
 class GceCloud(IntegrationCloud):
-    datasource = 'gce'
+    datasource = "gce"
     integration_instance_cls = IntegrationGceInstance
 
     def _get_cloud_instance(self):
         return GCE(
-            tag='gce-integration-test',
+            tag="gce-integration-test",
         )
 
 
 class AzureCloud(IntegrationCloud):
-    datasource = 'azure'
+    datasource = "azure"
     integration_instance_cls = IntegrationAzureInstance
 
     def _get_cloud_instance(self):
-        return Azure(tag='azure-integration-test')
+        return Azure(tag="azure-integration-test")
 
     def destroy(self):
         if self.settings.KEEP_INSTANCE:
             log.info(
-                'NOT deleting resource group because KEEP_INSTANCE is true '
-                'and deleting resource group would also delete instance. '
-                'Instance and resource group must both be manually deleted.'
+                "NOT deleting resource group because KEEP_INSTANCE is true "
+                "and deleting resource group would also delete instance. "
+                "Instance and resource group must both be manually deleted."
             )
         else:
             self.cloud_instance.delete_resource_group()
 
 
 class OciCloud(IntegrationCloud):
-    datasource = 'oci'
+    datasource = "oci"
     integration_instance_cls = IntegrationOciInstance
 
     def _get_cloud_instance(self):
+        if not integration_settings.ORACLE_AVAILABILITY_DOMAIN:
+            raise Exception(
+                "ORACLE_AVAILABILITY_DOMAIN must be set to a valid "
+                "availability domain. If using the oracle CLI, "
+                "try `oci iam availability-domain list`"
+            )
         return OCI(
-            tag='oci-integration-test'
+            tag="oci-integration-test",
+            availability_domain=(
+                integration_settings.ORACLE_AVAILABILITY_DOMAIN,
+            ),
         )
 
 
@@ -262,78 +287,99 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     @staticmethod
     def _mount_source(instance: LXDInstance):
-        target_path = '/usr/lib/python3/dist-packages/cloudinit'
-        format_variables = {
-            'name': instance.name,
-            'source_path': cloudinit.__path__[0],
-            'container_path': target_path,
-        }
-        log.info(
-            'Mounting source %(source_path)s directly onto LXD container/vm '
-            'named %(name)s at %(container_path)s',
-            format_variables
-        )
-        command = (
-            'lxc config device add {name} host-cloud-init disk '
-            'source={source_path} '
-            'path={container_path}'
-        ).format(**format_variables)
-        subp(command.split())
+        cloudinit_path = cloudinit.__path__[0]
+        mounts = [
+            (cloudinit_path, "/usr/lib/python3/dist-packages/cloudinit"),
+            (
+                os.path.join(cloudinit_path, "..", "config", "cloud.cfg.d"),
+                "/etc/cloud/cloud.cfg.d",
+            ),
+            (
+                os.path.join(cloudinit_path, "..", "templates"),
+                "/etc/cloud/templates",
+            ),
+        ]
+        for (n, (source_path, target_path)) in enumerate(mounts):
+            format_variables = {
+                "name": instance.name,
+                "source_path": os.path.realpath(source_path),
+                "container_path": target_path,
+                "idx": n,
+            }
+            log.info(
+                "Mounting source %(source_path)s directly onto LXD"
+                " container/VM named %(name)s at %(container_path)s",
+                format_variables,
+            )
+            command = (
+                "lxc config device add {name} host-cloud-init-{idx} disk "
+                "source={source_path} "
+                "path={container_path}"
+            ).format(**format_variables)
+            subp(command.split())
 
-    def _perform_launch(self, launch_kwargs):
-        launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
-        wait = launch_kwargs.pop('wait', True)
-        release = launch_kwargs.pop('image_id')
+    def _perform_launch(self, launch_kwargs, **kwargs):
+        launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
+        wait = launch_kwargs.pop("wait", True)
+        release = launch_kwargs.pop("image_id")
 
         try:
-            profile_list = launch_kwargs['profile_list']
+            profile_list = launch_kwargs["profile_list"]
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
+        prefix = datetime.datetime.utcnow().strftime("cloudinit-%m%d-%H%M%S")
+        default_name = prefix + "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=8)
+        )
         pycloudlib_instance = self.cloud_instance.init(
-            launch_kwargs.pop('name', None),
+            launch_kwargs.pop("name", default_name),
             release,
             profile_list=profile_list,
             **launch_kwargs
         )
-        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
+        if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)
+        if "lxd_setup" in kwargs:
+            log.info("Running callback specified by 'lxd_setup' mark")
+            kwargs["lxd_setup"](pycloudlib_instance)
         pycloudlib_instance.start(wait=wait)
         return pycloudlib_instance
 
 
 class LxdContainerCloud(_LxdIntegrationCloud):
-    datasource = 'lxd_container'
+    datasource = "lxd_container"
     pycloudlib_instance_cls = LXDContainer
-    instance_tag = 'lxd-container-integration-test'
+    instance_tag = "lxd-container-integration-test"
 
 
 class LxdVmCloud(_LxdIntegrationCloud):
-    datasource = 'lxd_vm'
+    datasource = "lxd_vm"
     pycloudlib_instance_cls = LXDVirtualMachine
-    instance_tag = 'lxd-vm-integration-test'
+    instance_tag = "lxd-vm-integration-test"
     _profile_list = None
 
     def _get_or_set_profile_list(self, release):
         if self._profile_list:
             return self._profile_list
         self._profile_list = self.cloud_instance.build_necessary_profiles(
-            release)
+            release
+        )
         return self._profile_list
 
 
 class OpenstackCloud(IntegrationCloud):
-    datasource = 'openstack'
+    datasource = "openstack"
     integration_instance_cls = IntegrationInstance
 
     def _get_cloud_instance(self):
         if not integration_settings.OPENSTACK_NETWORK:
             raise Exception(
-                'OPENSTACK_NETWORK must be set to a valid Openstack network. '
-                'If using the openstack CLI, try `openstack network list`'
+                "OPENSTACK_NETWORK must be set to a valid Openstack network. "
+                "If using the openstack CLI, try `openstack network list`"
             )
         return Openstack(
-            tag='openstack-integration-test',
+            tag="openstack-integration-test",
             network=integration_settings.OPENSTACK_NETWORK,
         )
 
@@ -343,9 +389,9 @@ class OpenstackCloud(IntegrationCloud):
             UUID(image.image_id)
         except ValueError as e:
             raise Exception(
-                'When using Openstack, `OS_IMAGE` MUST be specified with '
-                'a 36-character UUID image ID. Passing in a release name is '
-                'not valid here.\n'
-                'OS image id: {}'.format(image.image_id)
+                "When using Openstack, `OS_IMAGE` MUST be specified with "
+                "a 36-character UUID image ID. Passing in a release name is "
+                "not valid here.\n"
+                "OS image id: {}".format(image.image_id)
             ) from e
         return image.image_id

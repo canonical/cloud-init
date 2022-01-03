@@ -20,7 +20,7 @@ import configobj
 # See: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap08.html
 # or look at the 'param_expand()' function in the subst.c file in the bash
 # source tarball...
-SHELL_VAR_RULE = r'[a-zA-Z_]+[a-zA-Z0-9_]*'
+SHELL_VAR_RULE = r"[a-zA-Z_]+[a-zA-Z0-9_]*"
 SHELL_VAR_REGEXES = [
     # Basic variables
     re.compile(r"\$" + SHELL_VAR_RULE),
@@ -48,10 +48,11 @@ class SysConf(configobj.ConfigObj):
         ``configobj.ConfigObj.__init__`` (i.e. "a filename, file like object,
         or list of lines").
     """
+
     def __init__(self, contents):
-        configobj.ConfigObj.__init__(self, contents,
-                                     interpolation=False,
-                                     write_empty_values=True)
+        configobj.ConfigObj.__init__(
+            self, contents, interpolation=False, write_empty_values=True
+        )
 
     def __str__(self):
         contents = self.write()
@@ -66,11 +67,13 @@ class SysConf(configobj.ConfigObj):
         if not isinstance(value, str):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
-            return ''
+            return ""
         quot_func = None
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
             if len(value) == 1:
-                quot_func = (lambda x: self._get_single_quote(x) % x)
+                quot_func = (
+                    lambda x: self._get_single_quote(x) % x
+                )  # noqa: E731
         else:
             # Quote whitespace if it isn't the start + end of a shell command
             if value.strip().startswith("$(") and value.strip().endswith(")"):
@@ -82,11 +85,13 @@ class SysConf(configobj.ConfigObj):
                         # leave it alone since the pipes.quote function likes
                         # to use single quotes which won't get expanded...
                         if re.search(r"[\n\"']", value):
-                            quot_func = (lambda x:
-                                         self._get_triple_quote(x) % x)
+                            quot_func = (
+                                lambda x: self._get_triple_quote(x) % x
+                            )  # noqa: E731
                         else:
-                            quot_func = (lambda x:
-                                         self._get_single_quote(x) % x)
+                            quot_func = (
+                                lambda x: self._get_single_quote(x) % x
+                            )  # noqa: E731
                     else:
                         quot_func = pipes.quote
         if not quot_func:
@@ -99,10 +104,13 @@ class SysConf(configobj.ConfigObj):
         val = self._decode_element(self._quote(this_entry))
         key = self._decode_element(self._quote(entry))
         cmnt = self._decode_element(comment)
-        return '%s%s%s%s%s' % (indent_string,
-                               key,
-                               self._a_to_u('='),
-                               val,
-                               cmnt)
+        return "%s%s%s%s%s" % (
+            indent_string,
+            key,
+            self._a_to_u("="),
+            val,
+            cmnt,
+        )
+
 
 # vi: ts=4 expandtab

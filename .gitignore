@@ -19,6 +19,7 @@ stage
 .pytest_cache/
 .vscode/
 htmlcov/
+tags
 
 # Ignore packaging artifacts
 cloud-init.dsc

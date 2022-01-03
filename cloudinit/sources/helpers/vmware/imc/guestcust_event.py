@@ -14,4 +14,5 @@ class GuestCustEventEnum(object):
     GUESTCUST_EVENT_ENABLE_NICS = 103
     GUESTCUST_EVENT_QUERY_NICS = 104
 
+
 # vi: ts=4 expandtab

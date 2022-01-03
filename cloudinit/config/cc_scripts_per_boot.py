@@ -17,7 +17,7 @@ module does not accept any config keys.
 
 **Internal name:** ``cc_scripts_per_boot``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 """
@@ -25,23 +25,27 @@ module does not accept any config keys.
 import os
 
 from cloudinit import subp
-
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-SCRIPT_SUBDIR = 'per-boot'
+SCRIPT_SUBDIR = "per-boot"
 
 
 def handle(name, _cfg, cloud, log, _args):
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
-    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
+    runparts_path = os.path.join(cloud.get_cpath(), "scripts", SCRIPT_SUBDIR)
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning("Failed to run module %s (%s in %s)",
-                    name, SCRIPT_SUBDIR, runparts_path)
+        log.warning(
+            "Failed to run module %s (%s in %s)",
+            name,
+            SCRIPT_SUBDIR,
+            runparts_path,
+        )
         raise
+
 
 # vi: ts=4 expandtab

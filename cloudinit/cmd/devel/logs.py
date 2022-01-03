@@ -5,20 +5,19 @@
 """Define 'collect-logs' utility and handler to include in cloud-init cmd."""
 
 import argparse
-from datetime import datetime
 import os
 import shutil
 import sys
+from datetime import datetime
 
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.subp import (ProcessExecutionError, subp)
-from cloudinit.util import (chdir, copy, ensure_dir, write_file)
+from cloudinit.util import chdir, copy, ensure_dir, write_file
 
-
-CLOUDINIT_LOGS = ['/var/log/cloud-init.log', '/var/log/cloud-init-output.log']
-CLOUDINIT_RUN_DIR = '/run/cloud-init'
-USER_DATA_FILE = '/var/lib/cloud/instance/user-data.txt'  # Optional
+CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
+CLOUDINIT_RUN_DIR = "/run/cloud-init"
+USER_DATA_FILE = "/var/lib/cloud/instance/user-data.txt"  # Optional
 
 
 def get_parser(parser=None):
@@ -32,27 +31,49 @@ def get_parser(parser=None):
     """
     if not parser:
         parser = argparse.ArgumentParser(
-            prog='collect-logs',
-            description='Collect and tar all cloud-init debug info')
-    parser.add_argument('--verbose', '-v', action='count', default=0,
-                        dest='verbosity', help="Be more verbose.")
+            prog="collect-logs",
+            description="Collect and tar all cloud-init debug info",
+        )
     parser.add_argument(
-        "--tarfile", '-t', default='cloud-init.tar.gz',
-        help=('The tarfile to create containing all collected logs.'
-              ' Default: cloud-init.tar.gz'))
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        dest="verbosity",
+        help="Be more verbose.",
+    )
     parser.add_argument(
-        "--include-userdata", '-u', default=False, action='store_true',
-        dest='userdata', help=(
-            'Optionally include user-data from {0} which could contain'
-            ' sensitive information.'.format(USER_DATA_FILE)))
+        "--tarfile",
+        "-t",
+        default="cloud-init.tar.gz",
+        help=(
+            "The tarfile to create containing all collected logs."
+            " Default: cloud-init.tar.gz"
+        ),
+    )
+    parser.add_argument(
+        "--include-userdata",
+        "-u",
+        default=False,
+        action="store_true",
+        dest="userdata",
+        help=(
+            "Optionally include user-data from {0} which could contain"
+            " sensitive information.".format(USER_DATA_FILE)
+        ),
+    )
     return parser
 
 
-def _copytree_ignore_sensitive_files(curdir, files):
-    """Return a list of files to ignore if we are non-root"""
-    if os.getuid() == 0:
-        return ()
-    return (INSTANCE_JSON_SENSITIVE_FILE,)  # Ignore root-permissioned files
+def _copytree_rundir_ignore_files(curdir, files):
+    """Return a list of files to ignore for /run/cloud-init directory"""
+    ignored_files = [
+        "hook-hotplug-cmd",  # named pipe for hotplug
+    ]
+    if os.getuid() != 0:
+        # Ignore root-permissioned files
+        ignored_files.append(INSTANCE_JSON_SENSITIVE_FILE)
+    return ignored_files
 
 
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
@@ -90,48 +111,67 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
     if include_userdata and os.getuid() != 0:
         sys.stderr.write(
             "To include userdata, root user is required."
-            " Try sudo cloud-init collect-logs\n")
+            " Try sudo cloud-init collect-logs\n"
+        )
         return 1
     tarfile = os.path.abspath(tarfile)
-    date = datetime.utcnow().date().strftime('%Y-%m-%d')
-    log_dir = 'cloud-init-logs-{0}'.format(date)
-    with tempdir(dir='/tmp') as tmp_dir:
+    date = datetime.utcnow().date().strftime("%Y-%m-%d")
+    log_dir = "cloud-init-logs-{0}".format(date)
+    with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
         version = _write_command_output_to_file(
-            ['cloud-init', '--version'],
-            os.path.join(log_dir, 'version'),
-            "cloud-init --version", verbosity)
+            ["cloud-init", "--version"],
+            os.path.join(log_dir, "version"),
+            "cloud-init --version",
+            verbosity,
+        )
         dpkg_ver = _write_command_output_to_file(
-            ['dpkg-query', '--show', "-f=${Version}\n", 'cloud-init'],
-            os.path.join(log_dir, 'dpkg-version'),
-            "dpkg version", verbosity)
+            ["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
+            os.path.join(log_dir, "dpkg-version"),
+            "dpkg version",
+            verbosity,
+        )
         if not version:
             version = dpkg_ver if dpkg_ver else "not-available"
         _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
         _write_command_output_to_file(
-            ['dmesg'], os.path.join(log_dir, 'dmesg.txt'),
-            "dmesg output", verbosity)
+            ["dmesg"],
+            os.path.join(log_dir, "dmesg.txt"),
+            "dmesg output",
+            verbosity,
+        )
         _write_command_output_to_file(
-            ['journalctl', '--boot=0', '-o', 'short-precise'],
-            os.path.join(log_dir, 'journal.txt'),
-            "systemd journal of current boot", verbosity)
+            ["journalctl", "--boot=0", "-o", "short-precise"],
+            os.path.join(log_dir, "journal.txt"),
+            "systemd journal of current boot",
+            verbosity,
+        )
 
         for log in CLOUDINIT_LOGS:
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
             _collect_file(USER_DATA_FILE, log_dir, verbosity)
-        run_dir = os.path.join(log_dir, 'run')
+        run_dir = os.path.join(log_dir, "run")
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):
-            shutil.copytree(CLOUDINIT_RUN_DIR,
-                            os.path.join(run_dir, 'cloud-init'),
-                            ignore=_copytree_ignore_sensitive_files)
+            try:
+                shutil.copytree(
+                    CLOUDINIT_RUN_DIR,
+                    os.path.join(run_dir, "cloud-init"),
+                    ignore=_copytree_rundir_ignore_files,
+                )
+            except shutil.Error as e:
+                sys.stderr.write("Failed collecting file(s) due to error:\n")
+                sys.stderr.write(str(e) + "\n")
             _debug("collected dir %s\n" % CLOUDINIT_RUN_DIR, 1, verbosity)
         else:
-            _debug("directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR, 1,
-                   verbosity)
+            _debug(
+                "directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR,
+                1,
+                verbosity,
+            )
         with chdir(tmp_dir):
-            subp(['tar', 'czvf', tarfile, log_dir.replace(tmp_dir + '/', '')])
+            subp(["tar", "czvf", tarfile, log_dir.replace(tmp_dir + "/", "")])
     sys.stderr.write("Wrote %s\n" % tarfile)
     return 0
 
@@ -144,10 +184,10 @@ def handle_collect_logs_args(name, args):
 def main():
     """Tool to collect and tar all cloud-init related logs."""
     parser = get_parser()
-    return handle_collect_logs_args('collect-logs', parser.parse_args())
+    return handle_collect_logs_args("collect-logs", parser.parse_args())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
 
 # vi: ts=4 expandtab

@@ -28,26 +28,24 @@ This module handles
 
 **Internal name:** ``cc_refresh_rmc_and_interface``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** RHEL
 
 """
 
-from cloudinit import log as logging
-from cloudinit.settings import PER_ALWAYS
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import netinfo
-
 import errno
+
+from cloudinit import log as logging
+from cloudinit import netinfo, subp, util
+from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
 LOG = logging.getLogger(__name__)
 # Ensure that /opt/rsct/bin has been added to standard PATH of the
 # distro. The symlink to rmcctrl is /usr/sbin/rsct/bin/rmcctrl .
-RMCCTRL = 'rmcctrl'
+RMCCTRL = "rmcctrl"
 
 
 def handle(name, _cfg, _cloud, _log, _args):
@@ -56,10 +54,11 @@ def handle(name, _cfg, _cloud, _log, _args):
         return
 
     LOG.debug(
-        'Making the IPv6 up explicitly. '
-        'Ensuring IPv6 interface is not being handled by NetworkManager '
-        'and it is  restarted to re-establish the communication with '
-        'the hypervisor')
+        "Making the IPv6 up explicitly. "
+        "Ensuring IPv6 interface is not being handled by NetworkManager "
+        "and it is  restarted to re-establish the communication with "
+        "the hypervisor"
+    )
 
     ifaces = find_ipv6_ifaces()
 
@@ -80,7 +79,7 @@ def find_ipv6_ifaces():
     ifaces = []
     for iface, data in info.items():
         if iface == "lo":
-            LOG.debug('Skipping localhost interface')
+            LOG.debug("Skipping localhost interface")
         if len(data.get("ipv4", [])) != 0:
             # skip this interface, as it has ipv4 addrs
             continue
@@ -92,16 +91,16 @@ def refresh_ipv6(interface):
     # IPv6 interface is explicitly brought up, subsequent to which the
     # RMC services are restarted to re-establish the communication with
     # the hypervisor.
-    subp.subp(['ip', 'link', 'set', interface, 'down'])
-    subp.subp(['ip', 'link', 'set', interface, 'up'])
+    subp.subp(["ip", "link", "set", interface, "down"])
+    subp.subp(["ip", "link", "set", interface, "up"])
 
 
 def sysconfig_path(iface):
-    return '/etc/sysconfig/network-scripts/ifcfg-' + iface
+    return "/etc/sysconfig/network-scripts/ifcfg-" + iface
 
 
 def restart_network_manager():
-    subp.subp(['systemctl', 'restart', 'NetworkManager'])
+    subp.subp(["systemctl", "restart", "NetworkManager"])
 
 
 def disable_ipv6(iface_file):
@@ -113,12 +112,11 @@ def disable_ipv6(iface_file):
         contents = util.load_file(iface_file)
     except IOError as e:
         if e.errno == errno.ENOENT:
-            LOG.debug("IPv6 interface file %s does not exist\n",
-                      iface_file)
+            LOG.debug("IPv6 interface file %s does not exist\n", iface_file)
         else:
             raise e
 
-    if 'IPV6INIT' not in contents:
+    if "IPV6INIT" not in contents:
         LOG.debug("Interface file %s did not have IPV6INIT", iface_file)
         return
 
@@ -135,11 +133,12 @@ def disable_ipv6(iface_file):
 
 def search(contents):
     # Search for any NM_CONTROLLED or IPV6 lines in IPv6 interface file.
-    return(
-        contents.startswith("IPV6ADDR") or
-        contents.startswith("IPADDR6") or
-        contents.startswith("IPV6INIT") or
-        contents.startswith("NM_CONTROLLED"))
+    return (
+        contents.startswith("IPV6ADDR")
+        or contents.startswith("IPADDR6")
+        or contents.startswith("IPV6INIT")
+        or contents.startswith("NM_CONTROLLED")
+    )
 
 
 def refresh_rmc():
@@ -152,8 +151,8 @@ def refresh_rmc():
     # until the subsystem and all resource managers are stopped.
     # -s : start Resource Monitoring & Control subsystem.
     try:
-        subp.subp([RMCCTRL, '-z'])
-        subp.subp([RMCCTRL, '-s'])
+        subp.subp([RMCCTRL, "-z"])
+        subp.subp([RMCCTRL, "-s"])
     except Exception:
-        util.logexc(LOG, 'Failed to refresh the RMC subsystem.')
+        util.logexc(LOG, "Failed to refresh the RMC subsystem.")
         raise

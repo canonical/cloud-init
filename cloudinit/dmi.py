@@ -1,17 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import os
+from collections import namedtuple
+
 from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit.util import is_container, is_FreeBSD
-
-from collections import namedtuple
-import os
 
 LOG = logging.getLogger(__name__)
 
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
-kdmi = namedtuple('KernelNames', ['linux', 'freebsd'])
+kdmi = namedtuple("KernelNames", ["linux", "freebsd"])
 kdmi.__new__.defaults__ = (None, None)
 
 # FreeBSD's kenv(1) and Linux /sys/class/dmi/id/* both use different names from
@@ -20,23 +20,23 @@ kdmi.__new__.defaults__ = (None, None)
 # This is our canonical translation table. If we add more tools on other
 # platforms to find dmidecode's values, their keys need to be put in here.
 DMIDECODE_TO_KERNEL = {
-    'baseboard-asset-tag': kdmi('board_asset_tag', 'smbios.planar.tag'),
-    'baseboard-manufacturer': kdmi('board_vendor', 'smbios.planar.maker'),
-    'baseboard-product-name': kdmi('board_name', 'smbios.planar.product'),
-    'baseboard-serial-number': kdmi('board_serial', 'smbios.planar.serial'),
-    'baseboard-version': kdmi('board_version', 'smbios.planar.version'),
-    'bios-release-date': kdmi('bios_date', 'smbios.bios.reldate'),
-    'bios-vendor': kdmi('bios_vendor', 'smbios.bios.vendor'),
-    'bios-version': kdmi('bios_version', 'smbios.bios.version'),
-    'chassis-asset-tag': kdmi('chassis_asset_tag', 'smbios.chassis.tag'),
-    'chassis-manufacturer': kdmi('chassis_vendor', 'smbios.chassis.maker'),
-    'chassis-serial-number': kdmi('chassis_serial', 'smbios.chassis.serial'),
-    'chassis-version': kdmi('chassis_version', 'smbios.chassis.version'),
-    'system-manufacturer': kdmi('sys_vendor', 'smbios.system.maker'),
-    'system-product-name': kdmi('product_name', 'smbios.system.product'),
-    'system-serial-number': kdmi('product_serial', 'smbios.system.serial'),
-    'system-uuid': kdmi('product_uuid', 'smbios.system.uuid'),
-    'system-version': kdmi('product_version', 'smbios.system.version'),
+    "baseboard-asset-tag": kdmi("board_asset_tag", "smbios.planar.tag"),
+    "baseboard-manufacturer": kdmi("board_vendor", "smbios.planar.maker"),
+    "baseboard-product-name": kdmi("board_name", "smbios.planar.product"),
+    "baseboard-serial-number": kdmi("board_serial", "smbios.planar.serial"),
+    "baseboard-version": kdmi("board_version", "smbios.planar.version"),
+    "bios-release-date": kdmi("bios_date", "smbios.bios.reldate"),
+    "bios-vendor": kdmi("bios_vendor", "smbios.bios.vendor"),
+    "bios-version": kdmi("bios_version", "smbios.bios.version"),
+    "chassis-asset-tag": kdmi("chassis_asset_tag", "smbios.chassis.tag"),
+    "chassis-manufacturer": kdmi("chassis_vendor", "smbios.chassis.maker"),
+    "chassis-serial-number": kdmi("chassis_serial", "smbios.chassis.serial"),
+    "chassis-version": kdmi("chassis_version", "smbios.chassis.version"),
+    "system-manufacturer": kdmi("sys_vendor", "smbios.system.maker"),
+    "system-product-name": kdmi("product_name", "smbios.system.product"),
+    "system-serial-number": kdmi("product_serial", "smbios.system.serial"),
+    "system-uuid": kdmi("product_uuid", "smbios.system.uuid"),
+    "system-version": kdmi("product_version", "smbios.system.version"),
 }
 
 
@@ -62,14 +62,18 @@ def _read_dmi_syspath(key):
 
     # uninitialized dmi values show as all \xff and /sys appends a '\n'.
     # in that event, return empty string.
-    if key_data == b'\xff' * (len(key_data) - 1) + b'\n':
+    if key_data == b"\xff" * (len(key_data) - 1) + b"\n":
         key_data = b""
 
     try:
-        return key_data.decode('utf8').strip()
+        return key_data.decode("utf8").strip()
     except UnicodeDecodeError as e:
-        LOG.error("utf-8 decode of content (%s) in %s failed: %s",
-                  dmi_key_path, key_data, e)
+        LOG.error(
+            "utf-8 decode of content (%s) in %s failed: %s",
+            dmi_key_path,
+            key_data,
+            e,
+        )
 
     return None
 
@@ -91,7 +95,7 @@ def _read_kenv(key):
         LOG.debug("kenv returned '%s' for '%s'", result, kmap.freebsd)
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug('failed kenv cmd: %s\n%s', cmd, e)
+        LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
         return None
 
     return None
@@ -111,7 +115,7 @@ def _call_dmidecode(key, dmidecode_path):
             return ""
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, e)
+        LOG.debug("failed dmidecode cmd: %s\n%s", cmd, e)
         return None
 
 
@@ -144,20 +148,20 @@ def read_dmi_data(key):
         return syspath_value
 
     def is_x86(arch):
-        return (arch == 'x86_64' or (arch[0] == 'i' and arch[2:] == '86'))
+        return arch == "x86_64" or (arch[0] == "i" and arch[2:] == "86")
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if not (is_x86(uname_arch) or uname_arch in ('aarch64', 'amd64')):
+    if not (is_x86(uname_arch) or uname_arch in ("aarch64", "amd64")):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
-    dmidecode_path = subp.which('dmidecode')
+    dmidecode_path = subp.which("dmidecode")
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
-    LOG.warning("did not find either path %s or dmidecode command",
-                DMI_SYS_PATH)
+    LOG.debug("did not find either path %s or dmidecode command", DMI_SYS_PATH)
     return None
+
 
 # vi: ts=4 expandtab

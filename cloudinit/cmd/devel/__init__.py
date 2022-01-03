@@ -11,7 +11,7 @@ from cloudinit.stages import Init
 
 def addLogHandlerCLI(logger, log_level):
     """Add a commandline logging handler to emit messages to stderr."""
-    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    formatter = logging.Formatter("%(levelname)s: %(message)s")
     log.setupBasicLogging(log_level, formatter=formatter)
     return logger
 
@@ -21,5 +21,6 @@ def read_cfg_paths():
     init = Init(ds_deps=[])
     init.read_cfg()
     return init.paths
+
 
 # vi: ts=4 expandtab

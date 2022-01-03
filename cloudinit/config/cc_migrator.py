@@ -17,7 +17,7 @@ false`` in config.
 
 **Internal name:** ``cc_migrator``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
@@ -29,16 +29,14 @@ false`` in config.
 import os
 import shutil
 
-from cloudinit import helpers
-from cloudinit import util
-
+from cloudinit import helpers, util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
 
 def _migrate_canon_sems(cloud):
-    paths = (cloud.paths.get_ipath('sem'), cloud.paths.get_cpath('sem'))
+    paths = (cloud.paths.get_ipath("sem"), cloud.paths.get_cpath("sem"))
     am_adjusted = 0
     for sem_path in paths:
         if not sem_path or not os.path.exists(sem_path):
@@ -57,12 +55,12 @@ def _migrate_canon_sems(cloud):
 
 def _migrate_legacy_sems(cloud, log):
     legacy_adjust = {
-        'apt-update-upgrade': [
-            'apt-configure',
-            'package-update-upgrade-install',
+        "apt-update-upgrade": [
+            "apt-configure",
+            "package-update-upgrade-install",
         ],
     }
-    paths = (cloud.paths.get_ipath('sem'), cloud.paths.get_cpath('sem'))
+    paths = (cloud.paths.get_ipath("sem"), cloud.paths.get_cpath("sem"))
     for sem_path in paths:
         if not sem_path or not os.path.exists(sem_path):
             continue
@@ -78,8 +76,9 @@ def _migrate_legacy_sems(cloud, log):
                 util.del_file(os.path.join(sem_path, p))
                 (_name, freq) = os.path.splitext(p)
                 for m in migrate_to:
-                    log.debug("Migrating %s => %s with the same frequency",
-                              p, m)
+                    log.debug(
+                        "Migrating %s => %s with the same frequency", p, m
+                    )
                     with sem_helper.lock(m, freq):
                         pass
 
@@ -90,8 +89,10 @@ def handle(name, cfg, cloud, log, _args):
         log.debug("Skipping module named %s, migration disabled", name)
         return
     sems_moved = _migrate_canon_sems(cloud)
-    log.debug("Migrated %s semaphore files to there canonicalized names",
-              sems_moved)
+    log.debug(
+        "Migrated %s semaphore files to there canonicalized names", sems_moved
+    )
     _migrate_legacy_sems(cloud, log)
+
 
 # vi: ts=4 expandtab

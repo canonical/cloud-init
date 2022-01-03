@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
     # Don't use IMDS to configure secondary NICs by default
-    'configure_secondary_nics': False,
+    "configure_secondary_nics": False,
 }
 CHASSIS_ASSET_TAG = "OracleCloud.com"
 METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
@@ -40,6 +40,7 @@ METADATA_PATTERN = METADATA_ROOT + "{path}/"
 # https://docs.cloud.oracle.com/iaas/Content/Network/Troubleshoot/connectionhang.htm#Overview,
 # indicates that an MTU of 9000 is used within OCI
 MTU = 9000
+V2_HEADERS = {"Authorization": "Bearer Oracle"}
 
 OpcMetadata = namedtuple("OpcMetadata", "version instance_data vnics_data")
 
@@ -60,43 +61,45 @@ def _ensure_netfailover_safe(network_config):
 
     """
     # ignore anything that's not an actual network-config
-    if 'version' not in network_config:
+    if "version" not in network_config:
         return
 
-    if network_config['version'] not in [1, 2]:
-        LOG.debug('Ignoring unknown network config version: %s',
-                  network_config['version'])
+    if network_config["version"] not in [1, 2]:
+        LOG.debug(
+            "Ignoring unknown network config version: %s",
+            network_config["version"],
+        )
         return
 
     mac_to_name = get_interfaces_by_mac()
-    if network_config['version'] == 1:
-        for cfg in [c for c in network_config['config'] if 'type' in c]:
-            if cfg['type'] == 'physical':
-                if 'mac_address' in cfg:
-                    mac = cfg['mac_address']
+    if network_config["version"] == 1:
+        for cfg in [c for c in network_config["config"] if "type" in c]:
+            if cfg["type"] == "physical":
+                if "mac_address" in cfg:
+                    mac = cfg["mac_address"]
                     cur_name = mac_to_name.get(mac)
                     if not cur_name:
                         continue
                     elif is_netfail_master(cur_name):
-                        del cfg['mac_address']
+                        del cfg["mac_address"]
 
-    elif network_config['version'] == 2:
-        for _, cfg in network_config.get('ethernets', {}).items():
-            if 'match' in cfg:
-                macaddr = cfg.get('match', {}).get('macaddress')
+    elif network_config["version"] == 2:
+        for _, cfg in network_config.get("ethernets", {}).items():
+            if "match" in cfg:
+                macaddr = cfg.get("match", {}).get("macaddress")
                 if macaddr:
                     cur_name = mac_to_name.get(macaddr)
                     if not cur_name:
                         continue
                     elif is_netfail_master(cur_name):
-                        del cfg['match']['macaddress']
-                        del cfg['set-name']
-                        cfg['match']['name'] = cur_name
+                        del cfg["match"]["macaddress"]
+                        del cfg["set-name"]
+                        cfg["match"]["name"] = cur_name
 
 
 class DataSourceOracle(sources.DataSource):
 
-    dsname = 'Oracle'
+    dsname = "Oracle"
     system_uuid = None
     vendordata_pure = None
     network_config_sources = (
@@ -112,9 +115,12 @@ class DataSourceOracle(sources.DataSource):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
         self._vnics_data = None
 
-        self.ds_cfg = util.mergemanydict([
-            util.get_cfg_by_path(sys_cfg, ['datasource', self.dsname], {}),
-            BUILTIN_DS_CONFIG])
+        self.ds_cfg = util.mergemanydict(
+            [
+                util.get_cfg_by_path(sys_cfg, ["datasource", self.dsname], {}),
+                BUILTIN_DS_CONFIG,
+            ]
+        )
 
     def _is_platform_viable(self):
         """Check platform environment to report if this datasource may run."""
@@ -129,12 +135,18 @@ class DataSourceOracle(sources.DataSource):
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
         fetch_vnics_data = self.ds_cfg.get(
-            'configure_secondary_nics',
-            BUILTIN_DS_CONFIG["configure_secondary_nics"]
+            "configure_secondary_nics",
+            BUILTIN_DS_CONFIG["configure_secondary_nics"],
         )
         network_context = noop()
         if not _is_iscsi_root():
-            network_context = dhcp.EphemeralDHCPv4(net.find_fallback_nic())
+            network_context = dhcp.EphemeralDHCPv4(
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": METADATA_PATTERN.format(version=2, path="instance"),
+                    "headers": V2_HEADERS,
+                },
+            )
         with network_context:
             fetched_metadata = read_opc_metadata(
                 fetch_vnics_data=fetch_vnics_data
@@ -172,7 +184,7 @@ class DataSourceOracle(sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.system_uuid)
 
     def get_public_ssh_keys(self):
-        return sources.normalize_pubkey_data(self.metadata.get('public_keys'))
+        return sources.normalize_pubkey_data(self.metadata.get("public_keys"))
 
     @property
     def network_config(self):
@@ -189,8 +201,8 @@ class DataSourceOracle(sources.DataSource):
                 self._network_config = self.distro.generate_fallback_config()
 
             if self.ds_cfg.get(
-                'configure_secondary_nics',
-                BUILTIN_DS_CONFIG["configure_secondary_nics"]
+                "configure_secondary_nics",
+                BUILTIN_DS_CONFIG["configure_secondary_nics"],
             ):
                 try:
                     # Mutate self._network_config to include secondary
@@ -198,8 +210,8 @@ class DataSourceOracle(sources.DataSource):
                     self._add_network_config_from_opc_imds()
                 except Exception:
                     util.logexc(
-                        LOG,
-                        "Failed to parse secondary network configuration!")
+                        LOG, "Failed to parse secondary network configuration!"
+                    )
 
             # we need to verify that the nic selected is not a netfail over
             # device and, if it is a netfail master, then we need to avoid
@@ -223,11 +235,10 @@ class DataSourceOracle(sources.DataSource):
             (if the IMDS returns valid JSON with unexpected contents).
         """
         if self._vnics_data is None:
-            LOG.warning(
-                "Secondary NIC data is UNSET but should not be")
+            LOG.warning("Secondary NIC data is UNSET but should not be")
             return
 
-        if 'nicIndex' in self._vnics_data[0]:
+        if "nicIndex" in self._vnics_data[0]:
             # TODO: Once configure_secondary_nics defaults to True, lower the
             # level of this log message.  (Currently, if we're running this
             # code at all, someone has explicitly opted-in to secondary
@@ -236,8 +247,8 @@ class DataSourceOracle(sources.DataSource):
             # Metal Machine launch, which means INFO or DEBUG would be more
             # appropriate.)
             LOG.warning(
-                'VNIC metadata indicates this is a bare metal machine; '
-                'skipping secondary VNIC configuration.'
+                "VNIC metadata indicates this is a bare metal machine; "
+                "skipping secondary VNIC configuration."
             )
             return
 
@@ -247,39 +258,45 @@ class DataSourceOracle(sources.DataSource):
             # We skip the first entry in the response because the primary
             # interface is already configured by iSCSI boot; applying
             # configuration from the IMDS is not required.
-            mac_address = vnic_dict['macAddr'].lower()
+            mac_address = vnic_dict["macAddr"].lower()
             if mac_address not in interfaces_by_mac:
-                LOG.debug('Interface with MAC %s not found; skipping',
-                          mac_address)
+                LOG.debug(
+                    "Interface with MAC %s not found; skipping", mac_address
+                )
                 continue
             name = interfaces_by_mac[mac_address]
 
-            if self._network_config['version'] == 1:
+            if self._network_config["version"] == 1:
                 subnet = {
-                    'type': 'static',
-                    'address': vnic_dict['privateIp'],
+                    "type": "static",
+                    "address": vnic_dict["privateIp"],
                 }
-                self._network_config['config'].append({
-                    'name': name,
-                    'type': 'physical',
-                    'mac_address': mac_address,
-                    'mtu': MTU,
-                    'subnets': [subnet],
-                })
-            elif self._network_config['version'] == 2:
-                self._network_config['ethernets'][name] = {
-                    'addresses': [vnic_dict['privateIp']],
-                    'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
-                    'match': {'macaddress': mac_address}}
+                self._network_config["config"].append(
+                    {
+                        "name": name,
+                        "type": "physical",
+                        "mac_address": mac_address,
+                        "mtu": MTU,
+                        "subnets": [subnet],
+                    }
+                )
+            elif self._network_config["version"] == 2:
+                self._network_config["ethernets"][name] = {
+                    "addresses": [vnic_dict["privateIp"]],
+                    "mtu": MTU,
+                    "dhcp4": False,
+                    "dhcp6": False,
+                    "match": {"macaddress": mac_address},
+                }
 
 
 def _read_system_uuid():
-    sys_uuid = dmi.read_dmi_data('system-uuid')
+    sys_uuid = dmi.read_dmi_data("system-uuid")
     return None if sys_uuid is None else sys_uuid.lower()
 
 
 def _is_platform_viable():
-    asset_tag = dmi.read_dmi_data('chassis-asset-tag')
+    asset_tag = dmi.read_dmi_data("chassis-asset-tag")
     return asset_tag == CHASSIS_ASSET_TAG
 
 
@@ -304,11 +321,9 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False):
     retries = 2
 
     def _fetch(metadata_version: int, path: str) -> dict:
-        headers = {
-            "Authorization": "Bearer Oracle"} if metadata_version > 1 else None
         return readurl(
             url=METADATA_PATTERN.format(version=metadata_version, path=path),
-            headers=headers,
+            headers=V2_HEADERS if metadata_version > 1 else None,
             retries=retries,
         )._response.json()
 
@@ -324,8 +339,9 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False):
         try:
             vnics_data = _fetch(metadata_version, path="vnics")
         except UrlError:
-            util.logexc(LOG,
-                        "Failed to fetch secondary network configuration!")
+            util.logexc(
+                LOG, "Failed to fetch secondary network configuration!"
+            )
     return OpcMetadata(metadata_version, instance_data, vnics_data)
 
 

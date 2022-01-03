@@ -19,7 +19,10 @@ A hostname and fqdn can be provided by specifying a full domain name under the
 key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
-it is distro dependent whether ``hostname`` or ``fqdn`` is used.
+it is distro dependent whether ``hostname`` or ``fqdn`` is used,
+unless the ``prefer_fqdn_over_hostname`` option is true and fqdn is set
+it will force the use of FQDN in all distros, and if false then it will
+force the hostname use.
 
 This module will run in the init-local stage before networking is configured
 if the hostname is set by metadata or user data on the local system.
@@ -31,22 +34,22 @@ based on initial hostname.
 
 **Internal name:** ``cc_set_hostname``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
 **Config keys**::
 
     preserve_hostname: <true/false>
+    prefer_fqdn_over_hostname: <true/false>
     fqdn: <fqdn>
     hostname: <fqdn/hostname>
 """
 
 import os
 
-
-from cloudinit.atomic_helper import write_json
 from cloudinit import util
+from cloudinit.atomic_helper import write_json
 
 
 class SetHostnameError(Exception):
@@ -59,9 +62,20 @@ class SetHostnameError(Exception):
 
 def handle(name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug(("Configuration option 'preserve_hostname' is set,"
-                   " not setting the hostname in module %s"), name)
+        log.debug(
+            "Configuration option 'preserve_hostname' is set,"
+            " not setting the hostname in module %s",
+            name,
+        )
         return
+
+    # Set prefer_fqdn_over_hostname value in distro
+    hostname_fqdn = util.get_cfg_option_bool(
+        cfg, "prefer_fqdn_over_hostname", None
+    )
+    if hostname_fqdn is not None:
+        cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
+
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     # Check for previous successful invocation of set-hostname
 
@@ -70,14 +84,15 @@ def handle(name, cfg, cloud, log, _args):
     # previous-hostname file which only contains the base hostname.
     # TODO consolidate previous-hostname and set-hostname artifact files and
     # distro._read_hostname implementation so we only validate  one artifact.
-    prev_fn = os.path.join(cloud.get_cpath('data'), "set-hostname")
+    prev_fn = os.path.join(cloud.get_cpath("data"), "set-hostname")
     prev_hostname = {}
     if os.path.exists(prev_fn):
         prev_hostname = util.load_json(util.load_file(prev_fn))
-    hostname_changed = (hostname != prev_hostname.get('hostname') or
-                        fqdn != prev_hostname.get('fqdn'))
+    hostname_changed = hostname != prev_hostname.get(
+        "hostname"
+    ) or fqdn != prev_hostname.get("fqdn")
     if not hostname_changed:
-        log.debug('No hostname changes. Skipping set-hostname')
+        log.debug("No hostname changes. Skipping set-hostname")
         return
     log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
     try:
@@ -86,6 +101,7 @@ def handle(name, cfg, cloud, log, _args):
         msg = "Failed to set the hostname to %s (%s)" % (fqdn, hostname)
         util.logexc(log, msg)
         raise SetHostnameError("%s: %s" % (msg, e)) from e
-    write_json(prev_fn, {'hostname': hostname, 'fqdn': fqdn})
+    write_json(prev_fn, {"hostname": hostname, "fqdn": fqdn})
+
 
 # vi: ts=4 expandtab

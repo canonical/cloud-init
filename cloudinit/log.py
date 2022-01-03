@@ -8,7 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import collections
+import collections.abc
 import io
 import logging
 import logging.config
@@ -28,7 +28,7 @@ DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
 # Default basic format
-DEF_CON_FORMAT = '%(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
+DEF_CON_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 
 # Always format logging timestamps as UTC time
 logging.Formatter.converter = time.gmtime
@@ -39,8 +39,8 @@ def setupBasicLogging(level=DEBUG, formatter=None):
         formatter = logging.Formatter(DEF_CON_FORMAT)
     root = logging.getLogger()
     for handler in root.handlers:
-        if hasattr(handler, 'stream') and hasattr(handler.stream, 'name'):
-            if handler.stream.name == '<stderr>':
+        if hasattr(handler, "stream") and hasattr(handler.stream, "name"):
+            if handler.stream.name == "<stderr>":
                 handler.setLevel(level)
                 return
     # Didn't have an existing stderr handler; create a new handler
@@ -69,18 +69,18 @@ def setupLogging(cfg=None):
         cfg = {}
 
     log_cfgs = []
-    log_cfg = cfg.get('logcfg')
+    log_cfg = cfg.get("logcfg")
     if log_cfg and isinstance(log_cfg, str):
         # If there is a 'logcfg' entry in the config,
         # respect it, it is the old keyname
         log_cfgs.append(str(log_cfg))
     elif "log_cfgs" in cfg:
-        for a_cfg in cfg['log_cfgs']:
+        for a_cfg in cfg["log_cfgs"]:
             if isinstance(a_cfg, str):
                 log_cfgs.append(a_cfg)
-            elif isinstance(a_cfg, (collections.Iterable)):
+            elif isinstance(a_cfg, (collections.abc.Iterable)):
                 cfg_str = [str(c) for c in a_cfg]
-                log_cfgs.append('\n'.join(cfg_str))
+                log_cfgs.append("\n".join(cfg_str))
             else:
                 log_cfgs.append(str(a_cfg))
 
@@ -109,16 +109,17 @@ def setupLogging(cfg=None):
             pass
 
     # If it didn't work, at least setup a basic logger (if desired)
-    basic_enabled = cfg.get('log_basic', True)
+    basic_enabled = cfg.get("log_basic", True)
 
-    sys.stderr.write(("WARN: no logging configured!"
-                      " (tried %s configs)\n") % (am_tried))
+    sys.stderr.write(
+        "WARN: no logging configured! (tried %s configs)\n" % (am_tried)
+    )
     if basic_enabled:
         sys.stderr.write("Setting up basic logging...\n")
         setupBasicLogging()
 
 
-def getLogger(name='cloudinit'):
+def getLogger(name="cloudinit"):
     return logging.getLogger(name)
 
 

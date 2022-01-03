@@ -9,12 +9,9 @@
 import os
 
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import sources, subp, util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
-
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 from cloudinit.sources.helpers import openstack
 
@@ -22,25 +19,35 @@ LOG = logging.getLogger(__name__)
 
 # Various defaults/constants...
 DEFAULT_IID = "iid-dsconfigdrive"
-DEFAULT_MODE = 'pass'
+DEFAULT_MODE = "pass"
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
-FS_TYPES = ('vfat', 'iso9660')
-LABEL_TYPES = ('config-2', 'CONFIG-2')
-POSSIBLE_MOUNTS = ('sr', 'cd')
-OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
-                        for i in range(0, 2)))
+FS_TYPES = ("vfat", "iso9660")
+LABEL_TYPES = ("config-2", "CONFIG-2")
+POSSIBLE_MOUNTS = ("sr", "cd")
+OPTICAL_DEVICES = tuple(
+    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(0, 2))
+)
 
 
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
-    dsname = 'ConfigDrive'
+    dsname = "ConfigDrive"
+
+    supported_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY,
+            EventType.HOTPLUG,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
-        self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
+        self.seed_dir = os.path.join(paths.seed_dir, "config_drive")
         self.version = None
         self.ec2_metadata = None
         self._network_config = None
@@ -70,15 +77,16 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                 util.logexc(LOG, "Failed reading config drive from %s", sdir)
 
         if not found:
-            dslist = self.sys_cfg.get('datasource_list')
+            dslist = self.sys_cfg.get("datasource_list")
             for dev in find_candidate_devs(dslist=dslist):
                 mtype = None
                 if util.is_BSD():
                     if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
                 try:
-                    results = util.mount_cb(dev, read_config_drive,
-                                            mtype=mtype)
+                    results = util.mount_cb(
+                        dev, read_config_drive, mtype=mtype
+                    )
                     found = dev
                 except openstack.NonReadable:
                     pass
@@ -91,41 +99,49 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         if not found:
             return False
 
-        md = results.get('metadata', {})
+        md = results.get("metadata", {})
         md = util.mergemanydict([md, DEFAULT_METADATA])
 
         self.dsmode = self._determine_dsmode(
-            [results.get('dsmode'), self.ds_cfg.get('dsmode'),
-             sources.DSMODE_PASS if results['version'] == 1 else None])
+            [
+                results.get("dsmode"),
+                self.ds_cfg.get("dsmode"),
+                sources.DSMODE_PASS if results["version"] == 1 else None,
+            ]
+        )
 
         if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
         prev_iid = get_previous_iid(self.paths)
-        cur_iid = md['instance-id']
+        cur_iid = md["instance-id"]
         if prev_iid != cur_iid:
             # better would be to handle this centrally, allowing
             # the datasource to do something on new instance id
             # note, networking is only rendered here if dsmode is DSMODE_PASS
             # which means "DISABLED, but render files and networking"
-            on_first_boot(results, distro=self.distro,
-                          network=self.dsmode == sources.DSMODE_PASS)
+            on_first_boot(
+                results,
+                distro=self.distro,
+                network=self.dsmode == sources.DSMODE_PASS,
+            )
 
         # This is legacy and sneaky.  If dsmode is 'pass' then do not claim
         # the datasource was used, even though we did run on_first_boot above.
         if self.dsmode == sources.DSMODE_PASS:
-            LOG.debug("%s: not claiming datasource, dsmode=%s", self,
-                      self.dsmode)
+            LOG.debug(
+                "%s: not claiming datasource, dsmode=%s", self, self.dsmode
+            )
             return False
 
         self.source = found
         self.metadata = md
-        self.ec2_metadata = results.get('ec2-metadata')
-        self.userdata_raw = results.get('userdata')
-        self.version = results['version']
-        self.files.update(results.get('files', {}))
+        self.ec2_metadata = results.get("ec2-metadata")
+        self.userdata_raw = results.get("userdata")
+        self.version = results["version"]
+        self.files.update(results.get("files", {}))
 
-        vd = results.get('vendordata')
+        vd = results.get("vendordata")
         self.vendordata_pure = vd
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
@@ -137,7 +153,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         # obsolete compared to networkdata (from network_data.json) but both
         # might be present.
         self.network_eni = results.get("network_config")
-        self.network_json = results.get('networkdata')
+        self.network_json = results.get("networkdata")
         return True
 
     def check_instance_id(self, sys_cfg):
@@ -150,7 +166,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")
                 self._network_config = openstack.convert_net_json(
-                    self.network_json, known_macs=self.known_macs)
+                    self.network_json, known_macs=self.known_macs
+                )
             elif self.network_eni is not None:
                 self._network_config = eni.convert_eni_data(self.network_eni)
                 LOG.debug("network config provided via converted eni data")
@@ -160,15 +177,15 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     @property
     def platform(self):
-        return 'openstack'
+        return "openstack"
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.source.startswith('/dev'):
-            subplatform_type = 'config-disk'
+        if self.source.startswith("/dev"):
+            subplatform_type = "config-disk"
         else:
-            subplatform_type = 'seed-dir'
-        return '%s (%s)' % (subplatform_type, self.source)
+            subplatform_type = "seed-dir"
+        return "%s (%s)" % (subplatform_type, self.source)
 
 
 def read_config_drive(source_dir):
@@ -190,7 +207,7 @@ def get_previous_iid(paths):
     # interestingly, for this purpose the "previous" instance-id is the current
     # instance-id.  cloud-init hasn't moved them over yet as this datasource
     # hasn't declared itself found.
-    fname = os.path.join(paths.get_cpath('data'), 'instance-id')
+    fname = os.path.join(paths.get_cpath("data"), "instance-id")
     try:
         return util.load_file(fname).rstrip("\n")
     except IOError:
@@ -200,14 +217,15 @@ def get_previous_iid(paths):
 def on_first_boot(data, distro=None, network=True):
     """Performs any first-boot actions using data read from a config-drive."""
     if not isinstance(data, dict):
-        raise TypeError("Config-drive data expected to be a dict; not %s"
-                        % (type(data)))
+        raise TypeError(
+            "Config-drive data expected to be a dict; not %s" % (type(data))
+        )
     if network:
-        net_conf = data.get("network_config", '')
+        net_conf = data.get("network_config", "")
         if net_conf and distro:
             LOG.warning("Updating network interfaces from config drive")
             distro.apply_network_config(eni.convert_eni_data(net_conf))
-    write_injected_files(data.get('files'))
+    write_injected_files(data.get("files"))
 
 
 def write_injected_files(files):
@@ -264,12 +282,13 @@ def find_candidate_devs(probe_optical=True, dslist=None):
 
     # combine list of items by putting by-label items first
     # followed by fstype items, but with dupes removed
-    candidates = (by_label + [d for d in by_fstype if d not in by_label])
+    candidates = by_label + [d for d in by_fstype if d not in by_label]
 
     # We are looking for a block device or partition with necessary label or
     # an unpartitioned block device (ex sda, not sda1)
-    devices = [d for d in candidates
-               if d in by_label or not util.is_partition(d)]
+    devices = [
+        d for d in candidates if d in by_label or not util.is_partition(d)
+    ]
 
     LOG.debug("devices=%s dslist=%s", devices, dslist)
     if devices and "IBMCloud" in dslist:
@@ -277,8 +296,11 @@ def find_candidate_devs(probe_optical=True, dslist=None):
         ibm_platform, ibm_path = get_ibm_platform()
         if ibm_path in devices:
             devices.remove(ibm_path)
-            LOG.debug("IBMCloud device '%s' (%s) removed from candidate list",
-                      ibm_path, ibm_platform)
+            LOG.debug(
+                "IBMCloud device '%s' (%s) removed from candidate list",
+                ibm_path,
+                ibm_platform,
+            )
 
     return devices
 
@@ -295,5 +317,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

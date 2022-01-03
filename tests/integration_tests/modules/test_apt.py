@@ -1,11 +1,12 @@
 """Series of integration tests covering apt functionality."""
 import re
-from tests.integration_tests.clouds import ImageSpecification
 
 import pytest
 
+from cloudinit import gpg
+from cloudinit.config import cc_apt_configure
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-
 
 USER_DATA = """\
 #cloud-config
@@ -17,10 +18,6 @@ apt:
             Fix-Broken "true";
         }
     }
-  proxy: "http://proxy.internal:3128"
-  http_proxy: "http://squid.internal:3128"
-  ftp_proxy: "ftp://squid.internal:3128"
-  https_proxy: "https://squid.internal:3128"
   primary:
     - arches: [default]
       uri: http://badarchive.ubuntu.com/ubuntu
@@ -36,13 +33,20 @@ apt:
     deb-src $SECURITY $RELEASE-security multiverse
   sources:
     test_keyserver:
-        keyid: 72600DB15B8E4C8B1964B868038ACC97C660A937
-        keyserver: keyserver.ubuntu.com
-        source: "deb http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu $RELEASE main"
+      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyserver: keyserver.ubuntu.com
+      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
+    test_signed_by:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+    test_bad_key:
+      key: ""
+      source: "deb $MIRROR $RELEASE main"
     test_key:
       source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
       key: |
@@ -86,17 +90,30 @@ EXPECTED_REGEXES = [
     r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
-TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
-
+TEST_KEYSERVER_KEY = "110E 21D8 B0E2 A1F0 243A  F682 0856 F197 B892 ACEA"
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
-
 TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
+TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
-@pytest.mark.ci
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestApt:
+    def get_keys(self, class_client: IntegrationInstance):
+        """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
+        in human readable format. Mimics the output of apt-key finger
+        """
+        list_cmd = " ".join(gpg.GPG_LIST) + " "
+        keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
+        print(keys)
+        files = class_client.execute(
+            "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
+        )
+        for file in files.split():
+            path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
+            keys += class_client.execute(list_cmd + path) or ""
+        return keys
+
     def test_sources_list(self, class_client: IntegrationInstance):
         """Integration test for the apt module's `sources_list` functionality.
 
@@ -107,8 +124,8 @@ class TestApt:
         (This is ported from
         `tests/cloud_tests/testcases/modules/apt_configure_sources_list.yaml`.)
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert 6 == len(sources_list.rstrip().split('\n'))
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        assert 6 == len(sources_list.rstrip().split("\n"))
 
         for expected_re in EXPECTED_REGEXES:
             assert re.search(expected_re, sources_list) is not None
@@ -119,22 +136,10 @@ class TestApt:
         Ported from tests/cloud_tests/testcases/modules/apt_configure_conf.py
         """
         apt_config = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/94cloud-init-config'
+            "/etc/apt/apt.conf.d/94cloud-init-config"
         )
         assert 'Assume-Yes "true";' in apt_config
         assert 'Fix-Broken "true";' in apt_config
-
-    def test_apt_proxy(self, class_client: IntegrationInstance):
-        """Test the apt proxy functionality.
-
-        Ported from tests/cloud_tests/testcases/modules/apt_configure_proxy.py
-        """
-        out = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/90cloud-init-aptproxy')
-        assert 'Acquire::http::Proxy "http://proxy.internal:3128";' in out
-        assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
-        assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
-        assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out
 
     def test_ppa_source(self, class_client: IntegrationInstance):
         """Test the apt ppa functionality.
@@ -144,16 +149,43 @@ class TestApt:
         """
         release = ImageSpecification.from_os_image().release
         ppa_path_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/'
-            'simplestreams-dev-ubuntu-trunk-{}.list'.format(release)
+            "/etc/apt/sources.list.d/"
+            "simplestreams-dev-ubuntu-trunk-{}.list".format(release)
         )
 
         assert (
-            'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
-        ) in ppa_path_contents
+            "http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
+            in ppa_path_contents
+        )
 
-        keys = class_client.execute('apt-key finger')
-        assert TEST_PPA_KEY in keys
+        assert TEST_PPA_KEY in self.get_keys(class_client)
+
+    def test_signed_by(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality."""
+        release = ImageSpecification.from_os_image().release
+        source = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
+            "http://ppa.launchpad.net/juju/stable/ubuntu"
+            " {} main".format(release)
+        )
+        path_contents = class_client.read_from_file(
+            "/etc/apt/sources.list.d/test_signed_by.list"
+        )
+        assert path_contents == source
+
+        key = class_client.execute(
+            "gpg --no-default-keyring --with-fingerprint --list-keys "
+            "--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg"
+        )
+
+        assert TEST_SIGNED_BY_KEY in key
+
+    def test_bad_key(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality."""
+        with pytest.raises(OSError):
+            class_client.read_from_file(
+                "/etc/apt/trusted.list.d/test_bad_key.gpg"
+            )
 
     def test_key(self, class_client: IntegrationInstance):
         """Test the apt key functionality.
@@ -162,15 +194,14 @@ class TestApt:
         tests/cloud_tests/testcases/modules/apt_configure_sources_key.py
         """
         test_archive_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/test_key.list'
+            "/etc/apt/sources.list.d/test_key.list"
         )
 
         assert (
-            'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
-        ) in test_archive_contents
-
-        keys = class_client.execute('apt-key finger')
-        assert TEST_KEY in keys
+            "http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu"
+            in test_archive_contents
+        )
+        assert TEST_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
         """Test the apt keyserver functionality.
@@ -179,15 +210,15 @@ class TestApt:
         tests/cloud_tests/testcases/modules/apt_configure_sources_keyserver.py
         """
         test_keyserver_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/test_keyserver.list'
+            "/etc/apt/sources.list.d/test_keyserver.list"
         )
 
         assert (
-            'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
-        ) in test_keyserver_contents
+            "http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu"
+            in test_keyserver_contents
+        )
 
-        keys = class_client.execute('apt-key finger')
-        assert TEST_KEYSERVER_KEY in keys
+        assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
     def test_os_pipelining(self, class_client: IntegrationInstance):
         """Test 'os' settings does not write apt config file.
@@ -195,34 +226,37 @@ class TestApt:
         Ported from tests/cloud_tests/testcases/modules/apt_pipelining_os.py
         """
         conf_exists = class_client.execute(
-            'test -f /etc/apt/apt.conf.d/90cloud-init-pipelining'
+            "test -f /etc/apt/apt.conf.d/90cloud-init-pipelining"
         ).ok
         assert conf_exists is False
 
 
-DEFAULT_DATA = """\
+_DEFAULT_DATA = """\
 #cloud-config
 apt:
   primary:
     - arches:
       - default
+      {uri}
   security:
     - arches:
       - default
 """
+DEFAULT_DATA = _DEFAULT_DATA.format(uri="")
 
 
 @pytest.mark.ubuntu
 @pytest.mark.user_data(DEFAULT_DATA)
 class TestDefaults:
-    def test_primary(self, class_client: IntegrationInstance):
-        """Test apt default primary sources.
+    @pytest.mark.openstack
+    def test_primary_on_openstack(self, class_client: IntegrationInstance):
+        """Test apt default primary source on openstack.
 
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_primary.py
+        When no uri is provided.
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert 'deb http://archive.ubuntu.com/ubuntu' in sources_list
+        zone = class_client.execute("cloud-init query v1.availability_zone")
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        assert "{}.clouds.archive.ubuntu.com".format(zone) in sources_list
 
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources.
@@ -230,13 +264,31 @@ class TestDefaults:
         Ported from
         tests/cloud_tests/testcases/modules/apt_configure_security.py
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
 
         # 3 lines from main, universe, and multiverse
-        assert 3 == sources_list.count('deb http://security.ubuntu.com/ubuntu')
+        assert 3 == sources_list.count("deb http://security.ubuntu.com/ubuntu")
         assert 3 == sources_list.count(
-            '# deb-src http://security.ubuntu.com/ubuntu'
+            "# deb-src http://security.ubuntu.com/ubuntu"
         )
+
+
+DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
+    uri='uri: "http://something.random.invalid/ubuntu"'
+)
+
+
+@pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
+def test_default_primary_with_uri(client: IntegrationInstance):
+    """Test apt default primary sources.
+
+    Ported from
+    tests/cloud_tests/testcases/modules/apt_configure_primary.py
+    """
+    sources_list = client.read_from_file("/etc/apt/sources.list")
+    assert "archive.ubuntu.com" not in sources_list
+
+    assert "something.random.invalid" in sources_list
 
 
 DISABLED_DATA = """\
@@ -263,7 +315,7 @@ class TestDisabled:
         sources_list = class_client.execute(
             "cat /etc/apt/sources.list | grep -v '^#'"
         ).strip()
-        assert '' == sources_list
+        assert "" == sources_list
 
     def test_disable_apt_pipelining(self, class_client: IntegrationInstance):
         """Test disabling of apt pipelining.
@@ -272,6 +324,27 @@ class TestDisabled:
         tests/cloud_tests/testcases/modules/apt_pipelining_disable.py
         """
         conf = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/90cloud-init-pipelining'
+            "/etc/apt/apt.conf.d/90cloud-init-pipelining"
         )
         assert 'Acquire::http::Pipeline-Depth "0";' in conf
+
+
+APT_PROXY_DATA = """\
+#cloud-config
+apt:
+  proxy: "http://proxy.internal:3128"
+  http_proxy: "http://squid.internal:3128"
+  ftp_proxy: "ftp://squid.internal:3128"
+  https_proxy: "https://squid.internal:3128"
+"""
+
+
+@pytest.mark.ubuntu
+@pytest.mark.user_data(APT_PROXY_DATA)
+def test_apt_proxy(client: IntegrationInstance):
+    """Test the apt proxy data gets written correctly."""
+    out = client.read_from_file("/etc/apt/apt.conf.d/90cloud-init-aptproxy")
+    assert 'Acquire::http::Proxy "http://proxy.internal:3128";' in out
+    assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
+    assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
+    assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out

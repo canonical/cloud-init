@@ -1,3 +1,265 @@
+21.4
+ - Azure: fallback nic needs to be reevaluated during reprovisioning
+   (#1094) [Anh Vo]
+ - azure: pps imds (#1093) [Anh Vo]
+ - testing: Remove calls to 'install_new_cloud_init' (#1092)
+ - Add LXD datasource (#1040)
+ - Fix unhandled apt_configure case. (#1065) [Brett Holman]
+ - Allow libexec for hotplug (#1088)
+ - Add necessary mocks to test_ovf unit tests (#1087)
+ - Remove (deprecated) apt-key (#1068) [Brett Holman] (LP: #1836336)
+ - distros: Remove a completed "TODO" comment (#1086)
+ - cc_ssh.py: Add configuration for controlling ssh-keygen output (#1083)
+   [dermotbradley]
+ - Add "install hotplug" module (SC-476) (#1069) (LP: #1946003)
+ - hosts.alpine.tmpl: rearrange the order of short and long hostnames
+   (#1084) [dermotbradley]
+ - Add max version to docutils
+ - cloudinit/dmi.py: Change warning to debug to prevent console display
+   (#1082) [dermotbradley]
+ - remove unnecessary EOF string in
+   disable-sshd-keygen-if-cloud-init-active.conf (#1075) [Emanuele
+   Giuseppe Esposito]
+ - Add module 'write-files-deferred' executed in stage 'final' (#916)
+   [Lucendio]
+ - Bump pycloudlib to fix CI (#1080)
+ - Remove pin in dependencies for jsonschema (#1078)
+ - Add "Google" as possible system-product-name (#1077) [vteratipally]
+ - Update Debian security suite for bullseye (#1076) [Johann Queuniet]
+ - Leave the details of service management to the distro (#1074)
+   [Andy Fiddaman]
+ - Fix typos in setup.py (#1059) [Christian Clauss]
+ - Update Azure _unpickle (SC-500) (#1067) (LP: #1946644)
+ - cc_ssh.py: fix private key group owner and permissions (#1070)
+   [Emanuele Giuseppe Esposito]
+ - VMware: read network-config from ISO (#1066) [Thomas Weißschuh]
+ - testing: mock sleep in gce unit tests (#1072)
+ - CloudStack: fix data-server DNS resolution (#1004)
+   [Olivier Lemasle] (LP: #1942232)
+ - Fix unit test broken by pyyaml upgrade (#1071)
+ - testing: add get_cloud function (SC-461) (#1038)
+ - Inhibit sshd-keygen@.service if cloud-init is active (#1028)
+   [Ryan Harper]
+ - VMWARE: search the deployPkg plugin in multiarch dir (#1061)
+   [xiaofengw-vmware] (LP: #1944946)
+ - Fix set-name/interface DNS bug (#1058) [Andrew Kutz] (LP: #1946493)
+ - Use specified tmp location for growpart (#1046) [jshen28]
+ - .gitignore: ignore tags file for ctags users (#1057) [Brett Holman]
+ - Allow comments in runcmd and report failed commands correctly (#1049)
+   [Brett Holman] (LP: #1853146)
+ - tox integration: pass the *_proxy, GOOGLE_*, GCP_* env vars (#1050)
+   [Paride Legovini]
+ - Allow disabling of network activation (SC-307) (#1048) (LP: #1938299)
+ - renderer: convert relative imports to absolute (#1052) [Paride Legovini]
+ - Support ETHx_IP6_GATEWAY, SET_HOSTNAME on OpenNebula (#1045)
+   [Vlastimil Holer]
+ - integration-requirements: bump the pycloudlib commit (#1047)
+   [Paride Legovini]
+ - Allow Vultr to set MTU and use as-is configs (#1037) [eb3095]
+ - pin jsonschema in requirements.txt (#1043)
+ - testing: remove cloud_tests (#1020)
+ - Add andgein as contributor (#1042) [Andrew Gein]
+ - Make wording for module frequency consistent (#1039) [Nicolas Bock]
+ - Use ascii code for growpart (#1036) [jshen28]
+ - Add jshen28 as contributor (#1035) [jshen28]
+ - Skip test_cache_purged_on_version_change on Azure (#1033)
+ - Remove invalid ssh_import_id from examples (#1031)
+ - Cleanup Vultr support (#987) [eb3095]
+ - docs: update cc_disk_setup for fs to raw disk (#1017)
+ - HACKING.rst: change contact info to James Falcon (#1030)
+ - tox: bump the pinned flake8 and pylint version (#1029)
+   [Paride Legovini] (LP: #1944414)
+ - Add retries to DataSourceGCE.py when connecting to GCE (#1005)
+   [vteratipally]
+ - Set Azure to apply networking config every BOOT (#1023)
+ - Add connectivity_url to Oracle's EphemeralDHCPv4 (#988) (LP: #1939603)
+ - docs: fix typo and include sudo for report bugs commands (#1022)
+   [Renan Rodrigo] (LP: #1940236)
+ - VMware: Fix typo introduced in #947 and add test (#1019) [PengpengSun]
+ - Update IPv6 entries in /etc/hosts (#1021) [Richard Hansen] (LP: #1943798)
+ - Integration test upgrades for the 21.3-1 SRU (#1001)
+ - Add Jille to tools/.github-cla-signers (#1016) [Jille Timmermans]
+ - Improve ug_util.py (#1013) [Shreenidhi Shedi]
+ - Support openEuler OS (#1012) [zhuzaifangxuele]
+ - ssh_utils.py: ignore when sshd_config options are not key/value pairs
+   (#1007) [Emanuele Giuseppe Esposito]
+ - Set Azure to only update metadata on BOOT_NEW_INSTANCE (#1006)
+ - cc_update_etc_hosts: Use the distribution-defined path for the hosts
+   file (#983) [Andy Fiddaman]
+ - Add CloudLinux OS support (#1003) [Alexandr Kravchenko]
+ - puppet config: add the start_agent option (#1002) [Andrew Bogott]
+ - Fix `make style-check` errors (#1000) [Shreenidhi Shedi]
+ - Make cloud-id copyright year (#991) [Andrii Podanenko]
+ - Add support to accept-ra in networkd renderer (#999) [Shreenidhi Shedi]
+ - Update ds-identify to pass shellcheck (#979) [Andrew Kutz]
+ - Azure: Retry dhcp on timeouts when polling reprovisiondata (#998)
+   [aswinrajamannar]
+ - testing: Fix ssh keys integration test (#992)
+
+21.3
+ - Azure: During primary nic detection, check interface status continuously
+   before rebinding again (#990) [aswinrajamannar]
+ - Fix home permissions modified by ssh module (SC-338) (#984)
+   (LP: #1940233)
+ - Add integration test for sensitive jinja substitution (#986)
+ - Ignore hotplug socket when collecting logs (#985) (LP: #1940235)
+ - testing: Add missing mocks to test_vmware.py (#982)
+ - add Zadara Edge Cloud Platform to the supported clouds list (#963)
+   [sarahwzadara]
+ - testing: skip upgrade tests on LXD VMs (#980)
+ - Only invoke hotplug socket when functionality is enabled (#952)
+ - Revert unnecesary lcase in ds-identify (#978) [Andrew Kutz]
+ - cc_resolv_conf: fix typos (#969) [Shreenidhi Shedi]
+ - Replace broken httpretty tests with mock (SC-324) (#973)
+ - Azure: Check if interface is up after sleep when trying to bring it up
+   (#972) [aswinrajamannar]
+ - Update dscheck_VMware's rpctool check (#970) [Shreenidhi Shedi]
+ - Azure: Logging the detected interfaces (#968) [Moustafa Moustafa]
+ - Change netifaces dependency to 0.10.4 (#965) [Andrew Kutz]
+ - Azure: Limit polling network metadata on connection errors (#961)
+   [aswinrajamannar]
+ - Update inconsistent indentation (#962) [Andrew Kutz]
+ - cc_puppet: support AIO installations and more (#960) [Gabriel Nagy]
+ - Add Puppet contributors to CLA signers (#964) [Noah Fontes]
+ - Datasource for VMware (#953) [Andrew Kutz]
+ - photon: refactor hostname handling and add networkd activator (#958)
+   [sshedi]
+ - Stop copying ssh system keys and check folder permissions (#956)
+   [Emanuele Giuseppe Esposito]
+ - testing: port remaining cloud tests to integration testing framework
+   (SC-191) (#955)
+ - generate contents for ovf-env.xml when provisioning via IMDS (#959)
+   [Anh Vo]
+ - Add support for EuroLinux 7 && EuroLinux 8 (#957) [Aleksander Baranowski]
+ - Implementing device_aliases as described in docs (#945)
+   [Mal Graty] (LP: #1867532)
+ - testing: fix test_ssh_import_id.py (#954)
+ - Add ability to manage fallback network config on PhotonOS (#941) [sshedi]
+ - Add VZLinux support (#951) [eb3095]
+ - VMware: add network-config support in ovf-env.xml (#947) [PengpengSun]
+ - Update pylint to v2.9.3 and fix the new issues it spots (#946)
+   [Paride Legovini]
+ - Azure: mount default provisioning iso before try device listing (#870)
+   [Anh Vo]
+ - Document known hotplug limitations (#950)
+ - Initial hotplug support (#936)
+ - Fix MIME policy failure on python version upgrade (#934)
+ - run-container: fixup the centos repos baseurls when using http_proxy
+   (#944) [Paride Legovini]
+ - tools: add support for building rpms on rocky linux (#940)
+ - ssh-util: allow cloudinit to merge all ssh keys into a custom user
+   file, defined in AuthorizedKeysFile (#937) [Emanuele Giuseppe Esposito]
+   (LP: #1911680)
+ - VMware: new "allow_raw_data" switch (#939) [xiaofengw-vmware]
+ - bump pycloudlib version (#935)
+ - add renanrodrigo as a contributor (#938) [Renan Rodrigo]
+ - testing: simplify test_upgrade.py (#932)
+ - freebsd/net_v1 format: read MTU from root (#930) [Gonéri Le Bouder]
+ - Add new network activators to bring up interfaces (#919)
+ - - Detect a Python version change and clear the cache (#857)
+   [Robert Schweikert]
+ - cloud_tests: fix the Impish release name (#931) [Paride Legovini]
+ - Removed distro specific network code from Photon (#929) [sshedi]
+ - Add support for VMware PhotonOS (#909) [sshedi]
+ - cloud_tests: add impish release definition (#927) [Paride Legovini]
+ - docs: fix stale links rename master branch to main (#926)
+ - Fix DNS in NetworkState (SC-133) (#923)
+ - tests: Add 'adhoc' mark for integration tests (#925)
+ - Fix the spelling of "DigitalOcean" (#924) [Mark Mercado]
+ - Small Doc Update for ReportEventStack and Test (#920) [Mike Russell]
+ - Replace deprecated collections.Iterable with abc replacement (#922)
+   (LP: #1932048)
+ - testing: OCI availability domain is now required (SC-59) (#910)
+ - add DragonFlyBSD support (#904) [Gonéri Le Bouder]
+ - Use instance-data-sensitive.json in jinja templates (SC-117) (#917)
+   (LP: #1931392)
+ - doc: Update NoCloud docs stating required files (#918) (LP: #1931577)
+ - build-on-netbsd: don't pin a specific py3 version (#913)
+   [Gonéri Le Bouder]
+ - - Create the log file with 640 permissions (#858) [Robert Schweikert]
+ - Allow braces to appear in dhclient output (#911) [eb3095]
+ - Docs: Replace all freenode references with libera (#912)
+ - openbsd/net: flush the route table on net restart (#908)
+   [Gonéri Le Bouder]
+ - Add Rocky Linux support to cloud-init (#906) [Louis Abel]
+ - Add "esposem" as contributor (#907) [Emanuele Giuseppe Esposito]
+ - Add integration test for #868 (#901)
+ - Added support for importing keys via primary/security mirror clauses
+   (#882) [Paul Goins] (LP: #1925395)
+ - [examples] config-user-groups expire in the future (#902)
+   [Geert Stappers]
+ - BSD: static network, set the mtu (#894) [Gonéri Le Bouder]
+ - Add integration test for lp-1920939 (#891)
+ - Fix unit tests breaking from new httpretty version (#903)
+ - Allow user control over update events (#834)
+ - Update test characters in substitution unit test (#893)
+ - cc_disk_setup.py: remove UDEVADM_CMD definition as not used (#886)
+   [dermotbradley]
+ - Add AlmaLinux OS support (#872) [Andrew Lukoshko]
+
+21.2
+ - Add \r\n check for SSH keys in Azure (#889)
+ - Revert "Add support to resize rootfs if using LVM (#721)" (#887)
+   (LP: #1922742)
+ - Add Vultaire as contributor (#881) [Paul Goins]
+ - Azure: adding support for consuming userdata from IMDS (#884) [Anh Vo]
+ - test_upgrade: modify test_upgrade_package to run for more sources (#883)
+ - Fix chef module run failure when chef_license is set (#868) [Ben Hughes]
+ - Azure: Retry net metadata during nic attach for non-timeout errs (#878)
+   [aswinrajamannar]
+ - Azure: Retrieve username and hostname from IMDS (#865) [Thomas Stringer]
+ - Azure: eject the provisioning iso before reporting ready (#861) [Anh Vo]
+ - Use `partprobe` to re-read partition table if available (#856)
+   [Nicolas Bock] (LP: #1920939)
+ - fix error on upgrade caused by new vendordata2 attributes (#869)
+   (LP: #1922739)
+ - add prefer_fqdn_over_hostname config option (#859)
+   [hamalq] (LP: #1921004)
+ - Emit dots on travis to avoid timeout (#867)
+ - doc: Replace remaining references to user-scripts as a config module
+   (#866) [Ryan Harper]
+ - azure: Removing ability to invoke walinuxagent (#799) [Anh Vo]
+ - Add Vultr support (#827) [David Dymko]
+ - Fix unpickle for source paths missing run_dir (#863)
+   [lucasmoura] (LP: #1899299)
+ - sysconfig: use BONDING_MODULE_OPTS on SUSE (#831) [Jens Sandmann]
+ - bringup_static_routes: fix gateway check (#850) [Petr Fedchenkov]
+ - add hamalq user (#860) [hamalq]
+ - Add support to resize rootfs if using LVM (#721)
+   [Eduardo Otubo] (LP: #1799953)
+ - Fix mis-detecting network configuration in initramfs cmdline (#844)
+   (LP: #1919188)
+ - tools/write-ssh-key-fingerprints: do not display empty header/footer
+   (#817) [dermotbradley]
+ - Azure helper: Ensure Azure http handler sleeps between retries (#842)
+   [Johnson Shi]
+ - Fix chef apt source example (#826) [timothegenzmer]
+ - .travis.yml: generate an SSH key before running tests (#848)
+ - write passwords only to serial console, lock down cloud-init-output.log
+   (#847) (LP: #1918303)
+ - Fix apt default integration test (#845)
+ - integration_tests: bump pycloudlib dependency (#846)
+ - Fix stack trace if vendordata_raw contained an array (#837) [eb3095]
+ - archlinux: Fix broken locale logic (#841)
+   [Kristian Klausen] (LP: #1402406)
+ - Integration test for #783 (#832)
+ - integration_tests: mount more paths IN_PLACE (#838)
+ - Fix requiring device-number on EC2 derivatives (#836) (LP: #1917875)
+ - Remove the vi comment from the part-handler example (#835)
+ - net: exclude OVS internal interfaces in get_interfaces (#829)
+   (LP: #1912844)
+ - tox.ini: pass OS_* environment variables to integration tests (#830)
+ - integration_tests: add OpenStack as a platform (#804)
+ - Add flexibility to IMDS api-version (#793) [Thomas Stringer]
+ - Fix the TestApt tests using apt-key on Xenial and Hirsute (#823)
+   [Paride Legovini] (LP: #1916629)
+ - doc: remove duplicate "it" from nocloud.rst (#825) [V.I. Wood]
+ - archlinux: Use hostnamectl to set the transient hostname (#797)
+   [Kristian Klausen]
+ - cc_keys_to_console.py: Add documentation for recently added config key
+   (#824) [dermotbradley]
+ - Update cc_set_hostname documentation (#818) [Toshi Aoyama]
+
 21.1
  - Azure: Support for VMs without ephemeral resource disks. (#800)
    [Johnson Shi] (LP: #1901011)

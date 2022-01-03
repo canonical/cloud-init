@@ -12,11 +12,11 @@ import gzip
 import io
 import logging
 import os
+import shlex
 
 from cloudinit import util
 
-from . import get_devicelist
-from . import read_sys_net_safe
+from . import get_devicelist, read_sys_net_safe
 
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
@@ -57,7 +57,7 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
         if self._mac_addrs is None:
             self._mac_addrs = {}
             for k in get_devicelist():
-                mac_addr = read_sys_net_safe(k, 'address')
+                mac_addr = read_sys_net_safe(k, "address")
                 if mac_addr:
                     self._mac_addrs[k] = mac_addr
 
@@ -72,8 +72,9 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                 (ii) an open-iscsi interface file is present in the system
         """
         if self._files:
-            if 'ip=' in self._cmdline or 'ip6=' in self._cmdline:
-                return True
+            for item in shlex.split(self._cmdline):
+                if item.startswith("ip=") or item.startswith("ip6="):
+                    return True
             if os.path.exists(_OPEN_ISCSI_INTERFACE_FILE):
                 # iBft can configure networking without ip=
                 return True
@@ -81,7 +82,8 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
 
     def render_config(self) -> dict:
         return config_from_klibc_net_cfg(
-            files=self._files, mac_addrs=self._mac_addrs,
+            files=self._files,
+            mac_addrs=self._mac_addrs,
         )
 
 
@@ -111,78 +113,78 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
     data = util.load_shell_content(content)
     try:
-        name = data['DEVICE'] if 'DEVICE' in data else data['DEVICE6']
+        name = data["DEVICE"] if "DEVICE" in data else data["DEVICE6"]
     except KeyError as e:
         raise ValueError("no 'DEVICE' or 'DEVICE6' entry in data") from e
 
     # ipconfig on precise does not write PROTO
     # IPv6 config gives us IPV6PROTO, not PROTO.
-    proto = data.get('PROTO', data.get('IPV6PROTO'))
+    proto = data.get("PROTO", data.get("IPV6PROTO"))
     if not proto:
-        if data.get('filename'):
-            proto = 'dhcp'
+        if data.get("filename"):
+            proto = "dhcp"
         else:
-            proto = 'none'
+            proto = "none"
 
-    if proto not in ('none', 'dhcp', 'dhcp6'):
+    if proto not in ("none", "dhcp", "dhcp6"):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
     iface = {
-        'type': 'physical',
-        'name': name,
-        'subnets': [],
+        "type": "physical",
+        "name": name,
+        "subnets": [],
     }
 
     if name in mac_addrs:
-        iface['mac_address'] = mac_addrs[name]
+        iface["mac_address"] = mac_addrs[name]
 
     # Handle both IPv4 and IPv6 values
-    for pre in ('IPV4', 'IPV6'):
+    for pre in ("IPV4", "IPV6"):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue
 
         # PROTO for ipv4, IPV6PROTO for ipv6
-        cur_proto = data.get(pre + 'PROTO', proto)
+        cur_proto = data.get(pre + "PROTO", proto)
         # ipconfig's 'none' is called 'static'
-        if cur_proto == 'none':
-            cur_proto = 'static'
-        subnet = {'type': cur_proto, 'control': 'manual'}
+        if cur_proto == "none":
+            cur_proto = "static"
+        subnet = {"type": cur_proto, "control": "manual"}
 
         # only populate address for static types. While the rendered config
         # may have an address for dhcp, that is not really expected.
-        if cur_proto == 'static':
-            subnet['address'] = data[pre + 'ADDR']
+        if cur_proto == "static":
+            subnet["address"] = data[pre + "ADDR"]
 
         # these fields go right on the subnet
-        for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
+        for key in ("NETMASK", "BROADCAST", "GATEWAY"):
             if pre + key in data:
                 subnet[key.lower()] = data[pre + key]
 
         dns = []
         # handle IPV4DNS0 or IPV6DNS0
-        for nskey in ('DNS0', 'DNS1'):
+        for nskey in ("DNS0", "DNS1"):
             ns = data.get(pre + nskey)
             # verify it has something other than 0.0.0.0 (or ipv6)
             if ns and len(ns.strip(":.0")):
                 dns.append(data[pre + nskey])
         if dns:
-            subnet['dns_nameservers'] = dns
+            subnet["dns_nameservers"] = dns
             # add search to both ipv4 and ipv6, as it has no namespace
-            search = data.get('DOMAINSEARCH')
+            search = data.get("DOMAINSEARCH")
             if search:
-                if ',' in search:
-                    subnet['dns_search'] = search.split(",")
+                if "," in search:
+                    subnet["dns_search"] = search.split(",")
                 else:
-                    subnet['dns_search'] = search.split()
+                    subnet["dns_search"] = search.split()
 
-        iface['subnets'].append(subnet)
+        iface["subnets"].append(subnet)
 
     return name, iface
 
 
 def _get_klibc_net_cfg_files():
-    return glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
+    return glob.glob("/run/net-*.conf") + glob.glob("/run/net6-*.conf")
 
 
 def config_from_klibc_net_cfg(files=None, mac_addrs=None):
@@ -192,24 +194,28 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     entries = []
     names = {}
     for cfg_file in files:
-        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
-                                             mac_addrs=mac_addrs)
+        name, entry = _klibc_to_config_entry(
+            util.load_file(cfg_file), mac_addrs=mac_addrs
+        )
         if name in names:
-            prev = names[name]['entry']
-            if prev.get('mac_address') != entry.get('mac_address'):
+            prev = names[name]["entry"]
+            if prev.get("mac_address") != entry.get("mac_address"):
                 raise ValueError(
                     "device '{name}' was defined multiple times ({files})"
                     " but had differing mac addresses: {old} -> {new}.".format(
-                        name=name, files=' '.join(names[name]['files']),
-                        old=prev.get('mac_address'),
-                        new=entry.get('mac_address')))
-            prev['subnets'].extend(entry['subnets'])
-            names[name]['files'].append(cfg_file)
+                        name=name,
+                        files=" ".join(names[name]["files"]),
+                        old=prev.get("mac_address"),
+                        new=entry.get("mac_address"),
+                    )
+                )
+            prev["subnets"].extend(entry["subnets"])
+            names[name]["files"].append(cfg_file)
         else:
-            names[name] = {'files': [cfg_file], 'entry': entry}
+            names[name] = {"files": [cfg_file], "entry": entry}
             entries.append(entry)
 
-    return {'config': entries, 'version': 1}
+    return {"config": entries, "version": 1}
 
 
 def read_initramfs_config():
@@ -255,8 +261,10 @@ def _b64dgz(data):
     except (TypeError, ValueError):
         logging.error(
             "Expected base64 encoded kernel commandline parameter"
-            " network-config. Ignoring network-config=%s.", data)
-        return ''
+            " network-config. Ignoring network-config=%s.",
+            data,
+        )
+        return ""
 
     return _decomp_gzip(blob)
 
@@ -265,7 +273,7 @@ def read_kernel_cmdline_config(cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
 
-    if 'network-config=' in cmdline:
+    if "network-config=" in cmdline:
         data64 = None
         for tok in cmdline.split():
             if tok.startswith("network-config="):
@@ -276,5 +284,6 @@ def read_kernel_cmdline_config(cmdline=None):
             return util.load_yaml(_b64dgz(data64))
 
     return None
+
 
 # vi: ts=4 expandtab

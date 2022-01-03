@@ -9,7 +9,6 @@ system.
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 disable_root: false
@@ -82,44 +81,33 @@ ssh_keys:
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestSshKeysProvided:
-
     @pytest.mark.parametrize(
         "config_path,expected_out",
         (
             (
                 "/etc/ssh/ssh_host_dsa_key.pub",
-                (
-                    "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
-                    "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM"
-                ),
+                "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
+                "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM",
             ),
             (
                 "/etc/ssh/ssh_host_dsa_key",
-                (
-                    "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
-                    "hOVAfzZ6+jklP"
-                ),
+                "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
+                "hOVAfzZ6+jklP",
             ),
             (
                 "/etc/ssh/ssh_host_rsa_key.pub",
-                (
-                    "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"
-                    "LnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4"
-                ),
+                "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"
+                "LnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4",
             ),
             (
                 "/etc/ssh/ssh_host_rsa_key",
-                (
-                    "4DOkqNiUGl80Zp1RgZNohHUXlJMtAbrIlAVEk+mTmg7vjfyp2un"
-                    "RQvLZpMRdywBm"
-                ),
+                "4DOkqNiUGl80Zp1RgZNohHUXlJMtAbrIlAVEk+mTmg7vjfyp2un"
+                "RQvLZpMRdywBm",
             ),
             (
                 "/etc/ssh/ssh_host_rsa_key-cert.pub",
-                (
-                    "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
-                    "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD"
-                ),
+                "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
+                "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD",
             ),
             (
                 "/etc/ssh/sshd_config",
@@ -127,33 +115,25 @@ class TestSshKeysProvided:
             ),
             (
                 "/etc/ssh/ssh_host_ecdsa_key.pub",
-                (
-                    "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
-                    "BBFsS5Tvky/IC/dXhE/afxxU"
-                ),
+                "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
+                "BBFsS5Tvky/IC/dXhE/afxxU",
             ),
             (
                 "/etc/ssh/ssh_host_ecdsa_key",
-                (
-                    "AwEHoUQDQgAEWxLlO+TL8gL91eET9p/HFQbqR1A691AkJgZk3jY"
-                    "5mpZqxgX4vcgb"
-                ),
+                "AwEHoUQDQgAEWxLlO+TL8gL91eET9p/HFQbqR1A691AkJgZk3jY"
+                "5mpZqxgX4vcgb",
             ),
             (
                 "/etc/ssh/ssh_host_ed25519_key.pub",
-                (
-                    "AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6"
-                    "G15dqjQ2XkNVOEnb5"
-                ),
+                "AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6"
+                "G15dqjQ2XkNVOEnb5",
             ),
             (
                 "/etc/ssh/ssh_host_ed25519_key",
-                (
-                    "XAAAAAtzc2gtZWQyNTUxOQAAACDbnQGUruL42aVVsyHeaV5mYNT"
-                    "OhteXao0Nl5DVThJ2+Q"
-                ),
+                "XAAAAAtzc2gtZWQyNTUxOQAAACDbnQGUruL42aVVsyHeaV5mYNT"
+                "OhteXao0Nl5DVThJ2+Q",
             ),
-        )
+        ),
     )
     def test_ssh_provided_keys(self, config_path, expected_out, class_client):
         out = class_client.read_from_file(config_path).strip()

@@ -20,39 +20,52 @@ is set, then the hostname will not be altered.
 
 **Internal name:** ``cc_update_hostname``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
 **Config keys**::
 
     preserve_hostname: <true/false>
+    prefer_fqdn_over_hostname: <true/false>
     fqdn: <fqdn>
     hostname: <fqdn/hostname>
 """
 
 import os
 
-from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
+from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
 
 def handle(name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug(("Configuration option 'preserve_hostname' is set,"
-                   " not updating the hostname in module %s"), name)
+        log.debug(
+            "Configuration option 'preserve_hostname' is set,"
+            " not updating the hostname in module %s",
+            name,
+        )
         return
+
+    # Set prefer_fqdn_over_hostname value in distro
+    hostname_fqdn = util.get_cfg_option_bool(
+        cfg, "prefer_fqdn_over_hostname", None
+    )
+    if hostname_fqdn is not None:
+        cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
 
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        prev_fn = os.path.join(cloud.get_cpath('data'), "previous-hostname")
+        prev_fn = os.path.join(cloud.get_cpath("data"), "previous-hostname")
         log.debug("Updating hostname to %s (%s)", fqdn, hostname)
         cloud.distro.update_hostname(hostname, fqdn, prev_fn)
     except Exception:
-        util.logexc(log, "Failed to update the hostname to %s (%s)", fqdn,
-                    hostname)
+        util.logexc(
+            log, "Failed to update the hostname to %s (%s)", fqdn, hostname
+        )
         raise
+
 
 # vi: ts=4 expandtab

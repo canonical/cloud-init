@@ -509,13 +509,18 @@ EC2 instance:
 Using instance-data
 ===================
 
-As of cloud-init v. 18.4, any variables present in
-``/run/cloud-init/instance-data.json`` can be used in:
+As of cloud-init v. 18.4, any instance-data can be used in:
 
 * User-data scripts
 * Cloud config data
 * Command line interface via **cloud-init query** or
   **cloud-init devel render**
+
+This means that any variable present in
+``/run/cloud-init/instance-data-sensitive.json`` can be used,
+unless a non-root user is using the command line interface.
+In the non-root user case,
+``/run/cloud-init/instance-data.json`` will be used instead.
 
 Many clouds allow users to provide user-data to an instance at
 the time the instance is launched. Cloud-init supports a number of
@@ -525,12 +530,18 @@ Both user-data scripts and **#cloud-config** data support jinja template
 rendering.
 When the first line of the provided user-data begins with,
 **## template: jinja** cloud-init will use jinja to render that file.
-Any instance-data-sensitive.json variables are surfaced as dot-delimited
-jinja template variables because cloud-config modules are run as 'root'
-user.
+Any instance-data-sensitive.json variables are surfaced as jinja template
+variables because cloud-config modules are run as 'root' user.
 
+.. note::
+  cloud-init also provides jinja-safe key aliases for any instance-data.json
+  keys which contain jinja operator characters such as +, -, ., /, etc. Any
+  jinja operator will be replaced with underscores in the jinja-safe key
+  alias. This allows for cloud-init templates to use aliased variable
+  references which allow for jinja's dot-notation reference such as
+  ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Below are some examples of providing these types of user-data:
+Below are some other examples of using jinja templates in user-data:
 
 * Cloud config calling home with the ec2 public hostname and availability-zone
 
@@ -559,9 +570,39 @@ Below are some examples of providing these types of user-data:
    {%- endif %}
    ...
 
+One way to easily explore what Jinja variables are available on your machine
+is to use the ``cloud-init query --format`` (-f) commandline option which will
+render any Jinja syntax you use. Warnings or exceptions will be raised on
+invalid instance-data keys, paths or invalid syntax.
+
+.. code-block:: shell-session
+
+  # List all instance-data keys and values as root user
+  % sudo cloud-init query --all
+  {...}
+
+  # Introspect nested keys on an object
+  % cloud-init query -f "{{ds.keys()}}"
+  dict_keys(['meta_data', '_doc'])
+
+  # Test your Jinja rendering syntax on the command-line directly
+
+  # Failure to reference valid top-level instance-data key
+  % cloud-init query -f "{{invalid.instance-data.key}}"
+  WARNING: Ignoring jinja template for query commandline: 'invalid' is undefined
+
+  # Failure to reference valid dot-delimited key path on a known top-level key
+  % cloud-init query -f "{{v1.not_here}}"
+  WARNING: Could not render jinja template variables in file 'query commandline': 'not_here'
+  CI_MISSING_JINJA_VAR/not_here
+
+  # Test expected value using valid instance-data key path
+  % cloud-init query -f "My AMI: {{ds.meta_data.ami_id}}"
+  My AMI: ami-0fecc35d3c8ba8d60
+
 .. note::
   Trying to reference jinja variables that don't exist in
-  instance-data.json will result in warnings in ``/var/log/cloud-init.log``
+  instance-data will result in warnings in ``/var/log/cloud-init.log``
   and the following string in your rendered user-data:
   ``CI_MISSING_JINJA_VAR/<your_varname>``.
 

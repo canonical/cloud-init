@@ -23,6 +23,9 @@ DEFAULT_REQUIREMENTS = 'requirements.txt'
 # Map the appropriate package dir needed for each distro choice
 DISTRO_PKG_TYPE_MAP = {
     'centos': 'redhat',
+    'eurolinux': 'redhat',
+    'miraclelinux': 'redhat',
+    'rocky': 'redhat',
     'redhat': 'redhat',
     'debian': 'debian',
     'ubuntu': 'debian',
@@ -39,6 +42,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
         error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
         sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
         sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
     }
     configure_repos_for_proxy_use
     n=0; max=10;
@@ -64,11 +68,17 @@ ZYPPER_INSTALL = [
     '--auto-agree-with-licenses']
 
 DRY_DISTRO_INSTALL_PKG_CMD = {
+    'rocky': ['yum', 'install', '--assumeyes'],
     'centos': ['yum', 'install', '--assumeyes'],
+    'eurolinux': ['yum', 'install', '--assumeyes'],
+    'miraclelinux': ['yum', 'install', '--assumeyes'],
     'redhat': ['yum', 'install', '--assumeyes'],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
+    'rocky': MAYBE_RELIABLE_YUM_INSTALL,
+    'eurolinux': MAYBE_RELIABLE_YUM_INSTALL,
+    'miraclelinux': MAYBE_RELIABLE_YUM_INSTALL,
     'centos': MAYBE_RELIABLE_YUM_INSTALL,
     'redhat': MAYBE_RELIABLE_YUM_INSTALL,
     'debian': ['apt', 'install', '-y'],
@@ -81,6 +91,8 @@ DISTRO_INSTALL_PKG_CMD = {
 # List of base system packages required to enable ci automation
 CI_SYSTEM_BASE_PKGS = {
     'common': ['make', 'sudo', 'tar'],
+    'eurolinux': ['python3-tox'],
+    'miraclelinux': ['python3-tox'],
     'redhat': ['python3-tox'],
     'centos': ['python3-tox'],
     'ubuntu': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild'],
@@ -273,10 +285,10 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
         cmd = DRY_DISTRO_INSTALL_PKG_CMD[distro]
     install_cmd.extend(cmd)
 
-    if distro in ['centos', 'redhat']:
+    if distro in ['centos', 'redhat', 'rocky', 'eurolinux']:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema
         subprocess.check_call(install_cmd + ['epel-release'])
-    if distro in ['suse', 'opensuse', 'redhat', 'centos']:
+    if distro in ['suse', 'opensuse', 'redhat', 'rocky', 'centos', 'eurolinux']:
         pkg_list.append('rpm-build')
     subprocess.check_call(install_cmd + pkg_list)
 

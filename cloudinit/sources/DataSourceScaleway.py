@@ -27,21 +27,18 @@ from requests.packages.urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
-from cloudinit import net
+from cloudinit import net, sources, url_helper, util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
-DS_BASE_URL = 'http://169.254.42.42'
+DS_BASE_URL = "http://169.254.42.42"
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': DS_BASE_URL + '/conf?format=json',
-    'userdata_url': DS_BASE_URL + '/user_data/cloud-init',
-    'vendordata_url': DS_BASE_URL + '/vendor_data/cloud-init'
+    "metadata_url": DS_BASE_URL + "/conf?format=json",
+    "userdata_url": DS_BASE_URL + "/user_data/cloud-init",
+    "vendordata_url": DS_BASE_URL + "/vendor_data/cloud-init",
 }
 
 DEF_MD_RETRIES = 5
@@ -57,15 +54,15 @@ def on_scaleway():
     * the initrd created the file /var/run/scaleway.
     * "scaleway" is in the kernel cmdline.
     """
-    vendor_name = dmi.read_dmi_data('system-manufacturer')
-    if vendor_name == 'Scaleway':
+    vendor_name = dmi.read_dmi_data("system-manufacturer")
+    if vendor_name == "Scaleway":
         return True
 
-    if os.path.exists('/var/run/scaleway'):
+    if os.path.exists("/var/run/scaleway"):
         return True
 
     cmdline = util.get_cmdline()
-    if 'scaleway' in cmdline:
+    if "scaleway" in cmdline:
         return True
 
     return False
@@ -75,6 +72,7 @@ class SourceAddressAdapter(requests.adapters.HTTPAdapter):
     """
     Adapter for requests to choose the local address to bind to.
     """
+
     def __init__(self, source_address, **kwargs):
         self.source_address = source_address
         super(SourceAddressAdapter, self).__init__(**kwargs)
@@ -83,11 +81,13 @@ class SourceAddressAdapter(requests.adapters.HTTPAdapter):
         socket_options = HTTPConnection.default_socket_options + [
             (socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         ]
-        self.poolmanager = PoolManager(num_pools=connections,
-                                       maxsize=maxsize,
-                                       block=block,
-                                       source_address=self.source_address,
-                                       socket_options=socket_options)
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            source_address=self.source_address,
+            socket_options=socket_options,
+        )
 
 
 def query_data_api_once(api_address, timeout, requests_session):
@@ -117,9 +117,10 @@ def query_data_api_once(api_address, timeout, requests_session):
             session=requests_session,
             # If the error is a HTTP/404 or a ConnectionError, go into raise
             # block below and don't bother retrying.
-            exception_cb=lambda _, exc: exc.code != 404 and (
+            exception_cb=lambda _, exc: exc.code != 404
+            and (
                 not isinstance(exc.cause, requests.exceptions.ConnectionError)
-            )
+            ),
         )
         return util.decode_binary(resp.contents)
     except url_helper.UrlError as exc:
@@ -143,25 +144,22 @@ def query_data_api(api_type, api_address, retries, timeout):
     for port in range(1, max(retries, 2)):
         try:
             LOG.debug(
-                'Trying to get %s data (bind on port %d)...',
-                api_type, port
+                "Trying to get %s data (bind on port %d)...", api_type, port
             )
             requests_session = requests.Session()
             requests_session.mount(
-                'http://',
-                SourceAddressAdapter(source_address=('0.0.0.0', port))
+                "http://",
+                SourceAddressAdapter(source_address=("0.0.0.0", port)),
             )
             data = query_data_api_once(
-                api_address,
-                timeout=timeout,
-                requests_session=requests_session
+                api_address, timeout=timeout, requests_session=requests_session
             )
-            LOG.debug('%s-data downloaded', api_type)
+            LOG.debug("%s-data downloaded", api_type)
             return data
 
         except url_helper.UrlError as exc:
             # Local port already in use or HTTP/429.
-            LOG.warning('Error while trying to get %s data: %s', api_type, exc)
+            LOG.warning("Error while trying to get %s data: %s", api_type, exc)
             time.sleep(5)
             last_exc = exc
             continue
@@ -172,38 +170,44 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 class DataSourceScaleway(sources.DataSource):
     dsname = "Scaleway"
-    update_events = {'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]}
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)
 
-        self.ds_cfg = util.mergemanydict([
-            util.get_cfg_by_path(sys_cfg, ["datasource", "Scaleway"], {}),
-            BUILTIN_DS_CONFIG
-        ])
+        self.ds_cfg = util.mergemanydict(
+            [
+                util.get_cfg_by_path(sys_cfg, ["datasource", "Scaleway"], {}),
+                BUILTIN_DS_CONFIG,
+            ]
+        )
 
-        self.metadata_address = self.ds_cfg['metadata_url']
-        self.userdata_address = self.ds_cfg['userdata_url']
-        self.vendordata_address = self.ds_cfg['vendordata_url']
+        self.metadata_address = self.ds_cfg["metadata_url"]
+        self.userdata_address = self.ds_cfg["userdata_url"]
+        self.vendordata_address = self.ds_cfg["vendordata_url"]
 
-        self.retries = int(self.ds_cfg.get('retries', DEF_MD_RETRIES))
-        self.timeout = int(self.ds_cfg.get('timeout', DEF_MD_TIMEOUT))
+        self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
+        self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self._fallback_interface = None
         self._network_config = sources.UNSET
 
     def _crawl_metadata(self):
-        resp = url_helper.readurl(self.metadata_address,
-                                  timeout=self.timeout,
-                                  retries=self.retries)
+        resp = url_helper.readurl(
+            self.metadata_address, timeout=self.timeout, retries=self.retries
+        )
         self.metadata = json.loads(util.decode_binary(resp.contents))
 
         self.userdata_raw = query_data_api(
-            'user-data', self.userdata_address,
-            self.retries, self.timeout
+            "user-data", self.userdata_address, self.retries, self.timeout
         )
         self.vendordata_raw = query_data_api(
-            'vendor-data', self.vendordata_address,
-            self.retries, self.timeout
+            "vendor-data", self.vendordata_address, self.retries, self.timeout
         )
 
     def _get_data(self):
@@ -215,8 +219,10 @@ class DataSourceScaleway(sources.DataSource):
         try:
             with EphemeralDHCPv4(self._fallback_interface):
                 util.log_time(
-                    logfunc=LOG.debug, msg='Crawl of metadata service',
-                    func=self._crawl_metadata)
+                    logfunc=LOG.debug,
+                    msg="Crawl of metadata service",
+                    func=self._crawl_metadata,
+                )
         except (NoDHCPLeaseError) as e:
             util.logexc(LOG, str(e))
             return False
@@ -229,8 +235,10 @@ class DataSourceScaleway(sources.DataSource):
         metadata API.
         """
         if self._network_config is None:
-            LOG.warning('Found None as cached _network_config. '
-                        'Resetting to %s', sources.UNSET)
+            LOG.warning(
+                "Found None as cached _network_config. Resetting to %s",
+                sources.UNSET,
+            )
             self._network_config = sources.UNSET
 
         if self._network_config != sources.UNSET:
@@ -239,16 +247,19 @@ class DataSourceScaleway(sources.DataSource):
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
 
-        netcfg = {'type': 'physical', 'name': '%s' % self._fallback_interface}
-        subnets = [{'type': 'dhcp4'}]
-        if self.metadata['ipv6']:
-            subnets += [{'type': 'static',
-                         'address': '%s' % self.metadata['ipv6']['address'],
-                         'gateway': '%s' % self.metadata['ipv6']['gateway'],
-                         'netmask': '%s' % self.metadata['ipv6']['netmask'],
-                         }]
-        netcfg['subnets'] = subnets
-        self._network_config = {'version': 1, 'config': [netcfg]}
+        netcfg = {"type": "physical", "name": "%s" % self._fallback_interface}
+        subnets = [{"type": "dhcp4"}]
+        if self.metadata["ipv6"]:
+            subnets += [
+                {
+                    "type": "static",
+                    "address": "%s" % self.metadata["ipv6"]["address"],
+                    "gateway": "%s" % self.metadata["ipv6"]["gateway"],
+                    "netmask": "%s" % self.metadata["ipv6"]["netmask"],
+                }
+            ]
+        netcfg["subnets"] = subnets
+        self._network_config = {"version": 1, "config": [netcfg]}
         return self._network_config
 
     @property
@@ -256,14 +267,14 @@ class DataSourceScaleway(sources.DataSource):
         return None
 
     def get_instance_id(self):
-        return self.metadata['id']
+        return self.metadata["id"]
 
     def get_public_ssh_keys(self):
-        ssh_keys = [key['key'] for key in self.metadata['ssh_public_keys']]
+        ssh_keys = [key["key"] for key in self.metadata["ssh_public_keys"]]
 
         akeypre = "AUTHORIZED_KEY="
         plen = len(akeypre)
-        for tag in self.metadata.get('tags', []):
+        for tag in self.metadata.get("tags", []):
             if not tag.startswith(akeypre):
                 continue
             ssh_keys.append(tag[:plen].replace("_", " "))
@@ -271,7 +282,7 @@ class DataSourceScaleway(sources.DataSource):
         return ssh_keys
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return self.metadata['hostname']
+        return self.metadata["hostname"]
 
     @property
     def availability_zone(self):

@@ -2,17 +2,26 @@
 
 fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
 
+PYTHON="${PYTHON:-python3}"
+if [ ! $(which ${PYTHON}) ]; then
+    echo "Please install python first."
+    exit 1
+fi
+py_prefix=$(${PYTHON} -c 'import sys; print("py%d%d" % (sys.version_info.major, sys.version_info.minor))')
+
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
    bash
    dmidecode
-   py37-configobj
-   py37-jinja2
-   py37-oauthlib
-   py37-requests
-   py37-setuptools
-   py37-yaml
+   ${py_prefix}-configobj
+   ${py_prefix}-jinja2
+   ${py_prefix}-oauthlib
+   ${py_prefix}-requests
+   ${py_prefix}-setuptools
+   ${py_prefix}-netifaces
+   ${py_prefix}-yaml
+   ${py_prefix}-jsonschema
    sudo
 "
 [ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"
@@ -20,8 +29,8 @@ pkgs="
 touch $depschecked
 
 # Build the code and install in /usr/pkg/:
-python3.7 setup.py build
-python3.7 setup.py install -O1 --distro netbsd --skip-build --init-system sysvinit_netbsd
+${PYTHON} setup.py build
+${PYTHON} setup.py install -O1 --distro netbsd --skip-build --init-system sysvinit_netbsd
 mv -v /usr/local/etc/rc.d/cloud* /etc/rc.d
 
 # Enable cloud-init in /etc/rc.conf:

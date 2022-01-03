@@ -22,6 +22,7 @@ Modules
 .. automodule:: cloudinit.config.cc_foo
 .. automodule:: cloudinit.config.cc_growpart
 .. automodule:: cloudinit.config.cc_grub_dpkg
+.. automodule:: cloudinit.config.cc_install_hotplug
 .. automodule:: cloudinit.config.cc_keys_to_console
 .. automodule:: cloudinit.config.cc_landscape
 .. automodule:: cloudinit.config.cc_locale

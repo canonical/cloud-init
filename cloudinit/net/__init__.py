@@ -6,30 +6,46 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import functools
 import ipaddress
 import logging
 import os
 import re
+from typing import Any, Dict
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
-DEFAULT_PRIMARY_INTERFACE = 'eth0'
+DEFAULT_PRIMARY_INTERFACE = "eth0"
+OVS_INTERNAL_INTERFACE_LOOKUP_CMD = [
+    "ovs-vsctl",
+    "--format",
+    "csv",
+    "--no-headings",
+    "--timeout",
+    "10",
+    "--columns",
+    "name",
+    "find",
+    "interface",
+    "type=internal",
+]
 
 
-def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+def natural_sort_key(s, _nsre=re.compile("([0-9]+)")):
     """Sorting for Humans: natural sort order. Can be use as the key to sort
     functions.
     This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
     ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
     python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
     'eth0']."""
-    return [int(text) if text.isdigit() else text.lower()
-            for text in re.split(_nsre, s)]
+    return [
+        int(text) if text.isdigit() else text.lower()
+        for text in re.split(_nsre, s)
+    ]
 
 
 def get_sys_class_path():
@@ -41,14 +57,19 @@ def sys_dev_path(devname, path=""):
     return get_sys_class_path() + devname + "/" + path
 
 
-def read_sys_net(devname, path, translate=None,
-                 on_enoent=None, on_keyerror=None,
-                 on_einval=None):
+def read_sys_net(
+    devname,
+    path,
+    translate=None,
+    on_enoent=None,
+    on_keyerror=None,
+    on_einval=None,
+):
     dev_path = sys_dev_path(devname, path)
     try:
         contents = util.load_file(dev_path)
     except (OSError, IOError) as e:
-        e_errno = getattr(e, 'errno', None)
+        e_errno = getattr(e, "errno", None)
         if e_errno in (errno.ENOENT, errno.ENOTDIR):
             if on_enoent is not None:
                 return on_enoent(e)
@@ -65,19 +86,26 @@ def read_sys_net(devname, path, translate=None,
         if on_keyerror is not None:
             return on_keyerror(e)
         else:
-            LOG.debug("Found unexpected (not translatable) value"
-                      " '%s' in '%s", contents, dev_path)
+            LOG.debug(
+                "Found unexpected (not translatable) value '%s' in '%s",
+                contents,
+                dev_path,
+            )
             raise
 
 
 def read_sys_net_safe(iface, field, translate=None):
     def on_excp_false(e):
         return False
-    return read_sys_net(iface, field,
-                        on_keyerror=on_excp_false,
-                        on_enoent=on_excp_false,
-                        on_einval=on_excp_false,
-                        translate=translate)
+
+    return read_sys_net(
+        iface,
+        field,
+        on_keyerror=on_excp_false,
+        on_enoent=on_excp_false,
+        on_einval=on_excp_false,
+        translate=translate,
+    )
 
 
 def read_sys_net_int(iface, field):
@@ -94,7 +122,7 @@ def is_up(devname):
     # The linux kernel says to consider devices in 'unknown'
     # operstate as up for the purposes of network configuration. See
     # Documentation/networking/operstates.txt in the kernel source.
-    translate = {'up': True, 'unknown': True, 'down': False}
+    translate = {"up": True, "unknown": True, "down": False}
     return read_sys_net_safe(devname, "operstate", translate=translate)
 
 
@@ -121,7 +149,7 @@ def master_is_bridge_or_bond(devname):
         return False
     bonding_path = os.path.join(master_path, "bonding")
     bridge_path = os.path.join(master_path, "bridge")
-    return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
+    return os.path.exists(bonding_path) or os.path.exists(bridge_path)
 
 
 def master_is_openvswitch(devname):
@@ -133,24 +161,71 @@ def master_is_openvswitch(devname):
     return os.path.exists(ovs_path)
 
 
+@functools.lru_cache(maxsize=None)
+def openvswitch_is_installed() -> bool:
+    """Return a bool indicating if Open vSwitch is installed in the system."""
+    ret = bool(subp.which("ovs-vsctl"))
+    if not ret:
+        LOG.debug(
+            "ovs-vsctl not in PATH; not detecting Open vSwitch interfaces"
+        )
+    return ret
+
+
+@functools.lru_cache(maxsize=None)
+def get_ovs_internal_interfaces() -> list:
+    """Return a list of the names of OVS internal interfaces on the system.
+
+    These will all be strings, and are used to exclude OVS-specific interface
+    from cloud-init's network configuration handling.
+    """
+    try:
+        out, _err = subp.subp(OVS_INTERNAL_INTERFACE_LOOKUP_CMD)
+    except subp.ProcessExecutionError as exc:
+        if "database connection failed" in exc.stderr:
+            LOG.info(
+                "Open vSwitch is not yet up; no interfaces will be detected as"
+                " OVS-internal"
+            )
+            return []
+        raise
+    else:
+        return out.splitlines()
+
+
+def is_openvswitch_internal_interface(devname: str) -> bool:
+    """Returns True if this is an OVS internal interface.
+
+    If OVS is not installed or not yet running, this will return False.
+    """
+    if not openvswitch_is_installed():
+        return False
+    ovs_bridges = get_ovs_internal_interfaces()
+    if devname in ovs_bridges:
+        LOG.debug("Detected %s as an OVS interface", devname)
+        return True
+    return False
+
+
 def is_netfailover(devname, driver=None):
-    """ netfailover driver uses 3 nics, master, primary and standby.
-        this returns True if the device is either the primary or standby
-        as these devices are to be ignored.
+    """netfailover driver uses 3 nics, master, primary and standby.
+    this returns True if the device is either the primary or standby
+    as these devices are to be ignored.
     """
     if driver is None:
         driver = device_driver(devname)
-    if is_netfail_primary(devname, driver) or is_netfail_standby(devname,
-                                                                 driver):
+    if is_netfail_primary(devname, driver) or is_netfail_standby(
+        devname, driver
+    ):
         return True
     return False
 
 
 def get_dev_features(devname):
-    """ Returns a str from reading /sys/class/net/<devname>/device/features."""
-    features = ''
+    """Returns a str from reading /sys/class/net/<devname>/device/features."""
+    features = ""
     try:
-        features = read_sys_net(devname, 'device/features')
+        features = read_sys_net(devname, "device/features")
     except Exception:
         pass
     return features
@@ -170,13 +245,13 @@ def has_netfail_standby_feature(devname):
 
 
 def is_netfail_master(devname, driver=None):
-    """ A device is a "netfail master" device if:
+    """A device is a "netfail master" device if:
 
-        - The device does NOT have the 'master' sysfs attribute
-        - The device driver is 'virtio_net'
-        - The device has the standby feature bit set
+    - The device does NOT have the 'master' sysfs attribute
+    - The device driver is 'virtio_net'
+    - The device has the standby feature bit set
 
-        Return True if all of the above is True.
+    Return True if all of the above is True.
     """
     if get_master(devname) is not None:
         return False
@@ -194,17 +269,17 @@ def is_netfail_master(devname, driver=None):
 
 
 def is_netfail_primary(devname, driver=None):
-    """ A device is a "netfail primary" device if:
+    """A device is a "netfail primary" device if:
 
-        - the device has a 'master' sysfs file
-        - the device driver is not 'virtio_net'
-        - the 'master' sysfs file points to device with virtio_net driver
-        - the 'master' device has the 'standby' feature bit set
+    - the device has a 'master' sysfs file
+    - the device driver is not 'virtio_net'
+    - the 'master' sysfs file points to device with virtio_net driver
+    - the 'master' device has the 'standby' feature bit set
 
-        Return True if all of the above is True.
+    Return True if all of the above is True.
     """
     # /sys/class/net/<devname>/master -> ../../<master devname>
-    master_sysfs_path = sys_dev_path(devname, path='master')
+    master_sysfs_path = sys_dev_path(devname, path="master")
     if not os.path.exists(master_sysfs_path):
         return False
 
@@ -227,13 +302,13 @@ def is_netfail_primary(devname, driver=None):
 
 
 def is_netfail_standby(devname, driver=None):
-    """ A device is a "netfail standby" device if:
+    """A device is a "netfail standby" device if:
 
-        - The device has a 'master' sysfs attribute
-        - The device driver is 'virtio_net'
-        - The device has the standby feature bit set
+    - The device has a 'master' sysfs attribute
+    - The device driver is 'virtio_net'
+    - The device has the standby feature bit set
 
-        Return True if all of the above is True.
+    Return True if all of the above is True.
     """
     if get_master(devname) is None:
         return False
@@ -253,21 +328,21 @@ def is_netfail_standby(devname, driver=None):
 def is_renamed(devname):
     """
     /* interface name assignment types (sysfs name_assign_type attribute) */
-    #define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to user) */
-    #define NET_NAME_ENUM		1	/* enumerated by kernel */
-    #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
-    #define NET_NAME_USER		3	/* provided by user-space */
-    #define NET_NAME_RENAMED	4	/* renamed by user-space */
+    #define NET_NAME_UNKNOWN      0  /* unknown origin (not exposed to user) */
+    #define NET_NAME_ENUM         1  /* enumerated by kernel */
+    #define NET_NAME_PREDICTABLE  2  /* predictably named by the kernel */
+    #define NET_NAME_USER         3  /* provided by user-space */
+    #define NET_NAME_RENAMED      4  /* renamed by user-space */
     """
-    name_assign_type = read_sys_net_safe(devname, 'name_assign_type')
-    if name_assign_type and name_assign_type in ['3', '4']:
+    name_assign_type = read_sys_net_safe(devname, "name_assign_type")
+    if name_assign_type and name_assign_type in ["3", "4"]:
         return True
     return False
 
 
 def is_vlan(devname):
     uevent = str(read_sys_net_safe(devname, "uevent"))
-    return 'DEVTYPE=vlan' in uevent.splitlines()
+    return "DEVTYPE=vlan" in uevent.splitlines()
 
 
 def device_driver(devname):
@@ -291,7 +366,7 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return list(get_interfaces_by_mac().values())
 
     try:
@@ -311,12 +386,12 @@ class ParserError(Exception):
 def is_disabled_cfg(cfg):
     if not cfg or not isinstance(cfg, dict):
         return False
-    return cfg.get('config') == "disabled"
+    return cfg.get("config") == "disabled"
 
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD() or util.is_OpenBSD():
         return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
@@ -325,9 +400,9 @@ def find_fallback_nic(blacklist_drivers=None):
 
 
 def find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers=None):
-    values = list(sorted(
-        get_interfaces_by_mac().values(),
-        key=natural_sort_key))
+    values = list(
+        sorted(get_interfaces_by_mac().values(), key=natural_sort_key)
+    )
     if values:
         return values[0]
 
@@ -341,7 +416,7 @@ def find_fallback_nic_on_freebsd(blacklist_drivers=None):
 
     we'll use the first interface from ``ifconfig -l -u ether``
     """
-    stdout, _stderr = subp.subp(['ifconfig', '-l', '-u', 'ether'])
+    stdout, _stderr = subp.subp(["ifconfig", "-l", "-u", "ether"])
     values = stdout.split()
     if values:
         return values[0]
@@ -358,22 +433,31 @@ def find_fallback_nic_on_linux(blacklist_drivers=None):
     if not blacklist_drivers:
         blacklist_drivers = []
 
-    if 'net.ifnames=0' in util.get_cmdline():
-        LOG.debug('Stable ifnames disabled by net.ifnames=0 in /proc/cmdline')
+    if "net.ifnames=0" in util.get_cmdline():
+        LOG.debug("Stable ifnames disabled by net.ifnames=0 in /proc/cmdline")
     else:
-        unstable = [device for device in get_devicelist()
-                    if device != 'lo' and not is_renamed(device)]
+        unstable = [
+            device
+            for device in get_devicelist()
+            if device != "lo" and not is_renamed(device)
+        ]
         if len(unstable):
-            LOG.debug('Found unstable nic names: %s; calling udevadm settle',
-                      unstable)
-            msg = 'Waiting for udev events to settle'
+            LOG.debug(
+                "Found unstable nic names: %s; calling udevadm settle",
+                unstable,
+            )
+            msg = "Waiting for udev events to settle"
             util.log_time(LOG.debug, msg, func=util.udevadm_settle)
 
     # get list of interfaces that could have connections
-    invalid_interfaces = set(['lo'])
-    potential_interfaces = set([device for device in get_devicelist()
-                                if device_driver(device) not in
-                                blacklist_drivers])
+    invalid_interfaces = set(["lo"])
+    potential_interfaces = set(
+        [
+            device
+            for device in get_devicelist()
+            if device_driver(device) not in blacklist_drivers
+        ]
+    )
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -391,19 +475,19 @@ def find_fallback_nic_on_linux(blacklist_drivers=None):
         if is_netfailover(interface):
             # ignore netfailover primary/standby interfaces
             continue
-        carrier = read_sys_net_int(interface, 'carrier')
+        carrier = read_sys_net_int(interface, "carrier")
         if carrier:
             connected.append(interface)
             continue
         # check if nic is dormant or down, as this may make a nick appear to
         # not have a carrier even though it could acquire one when brought
         # online by dhclient
-        dormant = read_sys_net_int(interface, 'dormant')
+        dormant = read_sys_net_int(interface, "dormant")
         if dormant:
             possibly_connected.append(interface)
             continue
-        operstate = read_sys_net_safe(interface, 'operstate')
-        if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+        operstate = read_sys_net_safe(interface, "operstate")
+        if operstate in ["dormant", "down", "lowerlayerdown", "unknown"]:
             possibly_connected.append(interface)
             continue
 
@@ -423,7 +507,7 @@ def find_fallback_nic_on_linux(blacklist_drivers=None):
 
     # pick the first that has a mac-address
     for name in names:
-        if read_sys_net_safe(name, 'address'):
+        if read_sys_net_safe(name, "address"):
             return name
     return None
 
@@ -440,32 +524,32 @@ def generate_fallback_config(blacklist_drivers=None, config_driver=None):
 
     # netfail cannot use mac for matching, they have duplicate macs
     if is_netfail_master(target_name):
-        match = {'name': target_name}
+        match = {"name": target_name}
     else:
         match = {
-            'macaddress': read_sys_net_safe(target_name, 'address').lower()}
-    cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
+            "macaddress": read_sys_net_safe(target_name, "address").lower()
+        }
+    cfg = {"dhcp4": True, "set-name": target_name, "match": match}
     if config_driver:
         driver = device_driver(target_name)
         if driver:
-            cfg['match']['driver'] = driver
-    nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+            cfg["match"]["driver"] = driver
+    nconf = {"ethernets": {target_name: cfg}, "version": 2}
     return nconf
 
 
 def extract_physdevs(netcfg):
-
     def _version_1(netcfg):
         physdevs = []
-        for ent in netcfg.get('config', {}):
-            if ent.get('type') != 'physical':
+        for ent in netcfg.get("config", {}):
+            if ent.get("type") != "physical":
                 continue
-            mac = ent.get('mac_address')
+            mac = ent.get("mac_address")
             if not mac:
                 continue
-            name = ent.get('name')
-            driver = ent.get('params', {}).get('driver')
-            device_id = ent.get('params', {}).get('device_id')
+            name = ent.get("name")
+            driver = ent.get("params", {}).get("driver")
+            device_id = ent.get("params", {}).get("device_id")
             if not driver:
                 driver = device_driver(name)
             if not device_id:
@@ -475,17 +559,17 @@ def extract_physdevs(netcfg):
 
     def _version_2(netcfg):
         physdevs = []
-        for ent in netcfg.get('ethernets', {}).values():
+        for ent in netcfg.get("ethernets", {}).values():
             # only rename if configured to do so
-            name = ent.get('set-name')
+            name = ent.get("set-name")
             if not name:
                 continue
             # cloud-init requires macaddress for renaming
-            mac = ent.get('match', {}).get('macaddress')
+            mac = ent.get("match", {}).get("macaddress")
             if not mac:
                 continue
-            driver = ent.get('match', {}).get('driver')
-            device_id = ent.get('match', {}).get('device_id')
+            driver = ent.get("match", {}).get("driver")
+            device_id = ent.get("match", {}).get("device_id")
             if not driver:
                 driver = device_driver(name)
             if not device_id:
@@ -493,13 +577,13 @@ def extract_physdevs(netcfg):
             physdevs.append([mac, name, driver, device_id])
         return physdevs
 
-    version = netcfg.get('version')
+    version = netcfg.get("version")
     if version == 1:
         return _version_1(netcfg)
     elif version == 2:
         return _version_2(netcfg)
 
-    raise RuntimeError('Unknown network config version: %s' % version)
+    raise RuntimeError("Unknown network config version: %s" % version)
 
 
 def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
@@ -516,7 +600,7 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
         _rename_interfaces(extract_physdevs(netcfg))
     except RuntimeError as e:
         raise RuntimeError(
-            'Failed to apply network config names: %s' % e
+            "Failed to apply network config names: %s" % e
         ) from e
 
 
@@ -558,33 +642,37 @@ def _get_current_rename_info(check_downable=True):
     cur_info = {}
     for (name, mac, driver, device_id) in get_interfaces():
         cur_info[name] = {
-            'downable': None,
-            'device_id': device_id,
-            'driver': driver,
-            'mac': mac.lower(),
-            'name': name,
-            'up': is_up(name),
+            "downable": None,
+            "device_id": device_id,
+            "driver": driver,
+            "mac": mac.lower(),
+            "name": name,
+            "up": is_up(name),
         }
 
     if check_downable:
         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
-        ipv6, _err = subp.subp(['ip', '-6', 'addr', 'show', 'permanent',
-                                'scope', 'global'], capture=True)
-        ipv4, _err = subp.subp(['ip', '-4', 'addr', 'show'], capture=True)
+        ipv6, _err = subp.subp(
+            ["ip", "-6", "addr", "show", "permanent", "scope", "global"],
+            capture=True,
+        )
+        ipv4, _err = subp.subp(["ip", "-4", "addr", "show"], capture=True)
 
         nics_with_addresses = set()
         for bytes_out in (ipv6, ipv4):
             nics_with_addresses.update(nmatch.findall(bytes_out))
 
         for d in cur_info.values():
-            d['downable'] = (d['up'] is False or
-                             d['name'] not in nics_with_addresses)
+            d["downable"] = (
+                d["up"] is False or d["name"] not in nics_with_addresses
+            )
 
     return cur_info
 
 
-def _rename_interfaces(renames, strict_present=True, strict_busy=True,
-                       current_info=None):
+def _rename_interfaces(
+    renames, strict_present=True, strict_busy=True, current_info=None
+):
 
     if not len(renames):
         LOG.debug("no interfaces to rename")
@@ -596,14 +684,15 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     cur_info = {}
     for name, data in current_info.items():
         cur = data.copy()
-        if cur.get('mac'):
-            cur['mac'] = cur['mac'].lower()
-        cur['name'] = name
+        if cur.get("mac"):
+            cur["mac"] = cur["mac"].lower()
+        cur["name"] = name
         cur_info[name] = cur
 
+    LOG.debug("Detected interfaces %s", cur_info)
+
     def update_byname(bymac):
-        return dict((data['name'], data)
-                    for data in cur_info.values())
+        return dict((data["name"], data) for data in cur_info.values())
 
     def rename(cur, new):
         subp.subp(["ip", "link", "set", cur, "name", new], capture=True)
@@ -624,25 +713,31 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     def entry_match(data, mac, driver, device_id):
         """match if set and in data"""
         if mac and driver and device_id:
-            return (data['mac'] == mac and
-                    data['driver'] == driver and
-                    data['device_id'] == device_id)
+            return (
+                data["mac"] == mac
+                and data["driver"] == driver
+                and data["device_id"] == device_id
+            )
         elif mac and driver:
-            return (data['mac'] == mac and
-                    data['driver'] == driver)
+            return data["mac"] == mac and data["driver"] == driver
         elif mac:
-            return (data['mac'] == mac)
+            return data["mac"] == mac
 
         return False
 
     def find_entry(mac, driver, device_id):
-        match = [data for data in cur_info.values()
-                 if entry_match(data, mac, driver, device_id)]
+        match = [
+            data
+            for data in cur_info.values()
+            if entry_match(data, mac, driver, device_id)
+        ]
         if len(match):
             if len(match) > 1:
-                msg = ('Failed to match a single device. Matched devices "%s"'
-                       ' with search values "(mac:%s driver:%s device_id:%s)"'
-                       % (match, mac, driver, device_id))
+                msg = (
+                    'Failed to match a single device. Matched devices "%s"'
+                    ' with search values "(mac:%s driver:%s device_id:%s)"'
+                    % (match, mac, driver, device_id)
+                )
                 raise ValueError(msg)
             return match[0]
 
@@ -657,10 +752,11 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
             if strict_present:
                 errors.append(
                     "[nic not present] Cannot rename mac=%s to %s"
-                    ", not available." % (mac, new_name))
+                    ", not available." % (mac, new_name)
+                )
             continue
 
-        cur_name = cur.get('name')
+        cur_name = cur.get("name")
         if cur_name == new_name:
             # nothing to do
             continue
@@ -669,24 +765,25 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
             if strict_present:
                 errors.append(
                     "[nic not present] Cannot rename mac=%s to %s"
-                    ", not available." % (mac, new_name))
+                    ", not available." % (mac, new_name)
+                )
             continue
 
-        if cur['up']:
+        if cur["up"]:
             msg = "[busy] Error renaming mac=%s from %s to %s"
-            if not cur['downable']:
+            if not cur["downable"]:
                 if strict_busy:
                     errors.append(msg % (mac, cur_name, new_name))
                 continue
-            cur['up'] = False
+            cur["up"] = False
             cur_ops.append(("down", mac, new_name, (cur_name,)))
             ups.append(("up", mac, new_name, (new_name,)))
 
         if new_name in cur_byname:
             target = cur_byname[new_name]
-            if target['up']:
+            if target["up"]:
                 msg = "[busy-target] Error renaming mac=%s from %s to %s."
-                if not target['downable']:
+                if not target["downable"]:
                     if strict_busy:
                         errors.append(msg % (mac, cur_name, new_name))
                     continue
@@ -699,17 +796,17 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
                 tmp_name = tmpname_fmt % tmpi
 
             cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
-            target['name'] = tmp_name
+            target["name"] = tmp_name
             cur_byname = update_byname(cur_info)
-            if target['up']:
+            if target["up"]:
                 ups.append(("up", mac, new_name, (tmp_name,)))
 
-        cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
-        cur['name'] = new_name
+        cur_ops.append(("rename", mac, new_name, (cur["name"], new_name)))
+        cur["name"] = new_name
         cur_byname = update_byname(cur_info)
         ops += cur_ops
 
-    opmap = {'rename': rename, 'down': down, 'up': up}
+    opmap = {"rename": rename, "down": down, "up": up}
 
     if len(ops) + len(ups) == 0:
         if len(errors):
@@ -724,11 +821,12 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
                 opmap.get(op)(*params)
             except Exception as e:
                 errors.append(
-                    "[unknown] Error performing %s%s for %s, %s: %s" %
-                    (op, params, mac, new_name, e))
+                    "[unknown] Error performing %s%s for %s, %s: %s"
+                    % (op, params, mac, new_name, e)
+                )
 
     if len(errors):
-        raise Exception('\n'.join(errors))
+        raise Exception("\n".join(errors))
 
 
 def get_interface_mac(ifname):
@@ -747,7 +845,7 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
     representation of the address will be returned.
     """
     # Type 32 is Infiniband.
-    if read_sys_net_safe(ifname, 'type') == '32':
+    if read_sys_net_safe(ifname, "type") == "32":
         mac = get_interface_mac(ifname)
         if mac and ethernet_format:
             # Use bytes 13-15 and 18-20 of the hardware address.
@@ -756,28 +854,32 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return get_interfaces_by_mac_on_freebsd(
-            blacklist_drivers=blacklist_drivers)
+            blacklist_drivers=blacklist_drivers
+        )
     elif util.is_NetBSD():
         return get_interfaces_by_mac_on_netbsd(
-            blacklist_drivers=blacklist_drivers)
+            blacklist_drivers=blacklist_drivers
+        )
     elif util.is_OpenBSD():
         return get_interfaces_by_mac_on_openbsd(
-            blacklist_drivers=blacklist_drivers)
+            blacklist_drivers=blacklist_drivers
+        )
     else:
         return get_interfaces_by_mac_on_linux(
-            blacklist_drivers=blacklist_drivers)
+            blacklist_drivers=blacklist_drivers
+        )
 
 
 def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict():
-    (out, _) = subp.subp(['ifconfig', '-a', 'ether'])
+    (out, _) = subp.subp(["ifconfig", "-a", "ether"])
 
     # flatten each interface block in a single line
     def flatten(out):
-        curr_block = ''
-        for line in out.split('\n'):
-            if line.startswith('\t'):
+        curr_block = ""
+        for line in out.split("\n"):
+            if line.startswith("\t"):
                 curr_block += line
             else:
                 if curr_block:
@@ -789,10 +891,11 @@ def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict():
     def find_mac(flat_list):
         for block in flat_list:
             m = re.search(
-                r"^(?P<ifname>\S*): .*ether\s(?P<mac>[\da-f:]{17}).*",
-                block)
+                r"^(?P<ifname>\S*): .*ether\s(?P<mac>[\da-f:]{17}).*", block
+            )
             if m:
-                yield (m.group('mac'), m.group('ifname'))
+                yield (m.group("mac"), m.group("ifname"))
+
     results = {mac: ifname for mac, ifname in find_mac(flatten(out))}
     return results
 
@@ -803,13 +906,13 @@ def get_interfaces_by_mac_on_netbsd(blacklist_drivers=None) -> dict():
         r"(?P<ifname>\w+).*address:\s"
         r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
     )
-    (out, _) = subp.subp(['ifconfig', '-a'])
-    if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
+    (out, _) = subp.subp(["ifconfig", "-a"])
+    if_lines = re.sub(r"\n\s+", " ", out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)
         if m:
             fields = m.groupdict()
-            ret[fields['mac']] = fields['ifname']
+            ret[fields["mac"]] = fields["ifname"]
     return ret
 
 
@@ -817,14 +920,15 @@ def get_interfaces_by_mac_on_openbsd(blacklist_drivers=None) -> dict():
     ret = {}
     re_field_match = (
         r"(?P<ifname>\w+).*lladdr\s"
-        r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
-    (out, _) = subp.subp(['ifconfig', '-a'])
-    if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
+        r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
+    )
+    (out, _) = subp.subp(["ifconfig", "-a"])
+    if_lines = re.sub(r"\n\s+", " ", out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)
         if m:
             fields = m.groupdict()
-            ret[fields['mac']] = fields['ifname']
+            ret[fields["mac"]] = fields["ifname"]
     return ret
 
 
@@ -834,11 +938,13 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = {}
     for name, mac, _driver, _devid in get_interfaces(
-            blacklist_drivers=blacklist_drivers):
+        blacklist_drivers=blacklist_drivers
+    ):
         if mac in ret:
             raise RuntimeError(
-                "duplicate mac found! both '%s' and '%s' have mac '%s'" %
-                (name, ret[mac], mac))
+                "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                % (name, ret[mac], mac)
+            )
         ret[mac] = name
         # Try to get an Infiniband hardware address (in 6 byte Ethernet format)
         # for the interface.
@@ -846,8 +952,9 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
         if ib_mac:
             if ib_mac in ret:
                 raise RuntimeError(
-                    "duplicate mac found! both '%s' and '%s' have mac '%s'" %
-                    (name, ret[ib_mac], ib_mac))
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                    % (name, ret[ib_mac], ib_mac)
+                )
             ret[ib_mac] = name
     return ret
 
@@ -861,7 +968,7 @@ def get_interfaces(blacklist_drivers=None) -> list:
         blacklist_drivers = []
     devs = get_devicelist()
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
-    zero_mac = ':'.join(('00',) * 16)
+    zero_mac = ":".join(("00",) * 16)
     for name in devs:
         if not interface_has_own_mac(name):
             continue
@@ -872,8 +979,9 @@ def get_interfaces(blacklist_drivers=None) -> list:
         if is_bond(name):
             continue
         if get_master(name) is not None:
-            if (not master_is_bridge_or_bond(name) and
-                    not master_is_openvswitch(name)):
+            if not master_is_bridge_or_bond(
+                name
+            ) and not master_is_openvswitch(name):
                 continue
         if is_netfailover(name):
             continue
@@ -882,7 +990,9 @@ def get_interfaces(blacklist_drivers=None) -> list:
         if not mac:
             continue
         # skip nics that have no mac (00:00....)
-        if name != 'lo' and mac == zero_mac[:len(mac)]:
+        if name != "lo" and mac == zero_mac[: len(mac)]:
+            continue
+        if is_openvswitch_internal_interface(name):
             continue
         # skip nics that have drivers blacklisted
         driver = device_driver(name)
@@ -901,24 +1011,43 @@ def get_ib_hwaddrs_by_interface():
         if ib_mac:
             if ib_mac in ret:
                 raise RuntimeError(
-                    "duplicate mac found! both '%s' and '%s' have mac '%s'" %
-                    (name, ret[ib_mac], ib_mac))
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                    % (name, ret[ib_mac], ib_mac)
+                )
             ret[name] = ib_mac
     return ret
 
 
-def has_url_connectivity(url):
-    """Return true when the instance has access to the provided URL
+def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
+    """Return true when the instance has access to the provided URL.
 
     Logs a warning if url is not the expected format.
+
+    url_data is a dictionary of kwargs to send to readurl. E.g.:
+
+    has_url_connectivity({
+        "url": "http://example.invalid",
+        "headers": {"some": "header"},
+        "timeout": 10
+    })
     """
-    if not any([url.startswith('http://'), url.startswith('https://')]):
+    if "url" not in url_data:
+        LOG.warning(
+            "Ignoring connectivity check. No 'url' to check in %s", url_data
+        )
+        return False
+    url = url_data["url"]
+    if not any([url.startswith("http://"), url.startswith("https://")]):
         LOG.warning(
             "Ignoring connectivity check. Expected URL beginning with http*://"
-            " received '%s'", url)
+            " received '%s'",
+            url,
+        )
         return False
+    if "timeout" not in url_data:
+        url_data["timeout"] = 5
     try:
-        readurl(url, timeout=5)
+        readurl(**url_data)
     except UrlError:
         return False
     return True
@@ -961,14 +1090,22 @@ class EphemeralIPv4Network(object):
 
     No operations are performed if the provided interface already has the
     specified configuration.
-    This can be verified with the connectivity_url.
+    This can be verified with the connectivity_url_data.
     If unconnected, bring up the interface with valid ip, prefix and broadcast.
     If router is provided setup a default route for that interface. Upon
     context exit, clean up the interface leaving no configuration behind.
     """
 
-    def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None,
-                 connectivity_url=None, static_routes=None):
+    def __init__(
+        self,
+        interface,
+        ip,
+        prefix_or_mask,
+        broadcast,
+        router=None,
+        connectivity_url_data: Dict[str, Any] = None,
+        static_routes=None,
+    ):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
@@ -977,22 +1114,22 @@ class EphemeralIPv4Network(object):
             prefix.
         @param broadcast: Broadcast address for the IPv4 network.
         @param router: Optionally the default gateway IP.
-        @param connectivity_url: Optionally, a URL to verify if a usable
+        @param connectivity_url_data: Optionally, a URL to verify if a usable
            connection already exists.
         @param static_routes: Optionally a list of static routes from DHCP
         """
         if not all([interface, ip, prefix_or_mask, broadcast]):
             raise ValueError(
-                'Cannot init network on {0} with {1}/{2} and bcast {3}'.format(
-                    interface, ip, prefix_or_mask, broadcast))
+                "Cannot init network on {0} with {1}/{2} and bcast {3}".format(
+                    interface, ip, prefix_or_mask, broadcast
+                )
+            )
         try:
             self.prefix = mask_to_net_prefix(prefix_or_mask)
         except ValueError as e:
-            raise ValueError(
-                'Cannot setup network: {0}'.format(e)
-            ) from e
+            raise ValueError("Cannot setup network: {0}".format(e)) from e
 
-        self.connectivity_url = connectivity_url
+        self.connectivity_url_data = connectivity_url_data
         self.interface = interface
         self.ip = ip
         self.broadcast = broadcast
@@ -1002,11 +1139,13 @@ class EphemeralIPv4Network(object):
 
     def __enter__(self):
         """Perform ephemeral network setup if interface is not connected."""
-        if self.connectivity_url:
-            if has_url_connectivity(self.connectivity_url):
+        if self.connectivity_url_data:
+            if has_url_connectivity(self.connectivity_url_data):
                 LOG.debug(
-                    'Skip ephemeral network setup, instance has connectivity'
-                    ' to %s', self.connectivity_url)
+                    "Skip ephemeral network setup, instance has connectivity"
+                    " to %s",
+                    self.connectivity_url_data["url"],
+                )
                 return
 
         self._bringup_device()
@@ -1035,74 +1174,169 @@ class EphemeralIPv4Network(object):
     def _delete_address(self, address, prefix):
         """Perform the ip command to remove the specified address."""
         subp.subp(
-            ['ip', '-family', 'inet', 'addr', 'del',
-             '%s/%s' % (address, prefix), 'dev', self.interface],
-            capture=True)
+            [
+                "ip",
+                "-family",
+                "inet",
+                "addr",
+                "del",
+                "%s/%s" % (address, prefix),
+                "dev",
+                self.interface,
+            ],
+            capture=True,
+        )
 
     def _bringup_device(self):
         """Perform the ip comands to fully setup the device."""
-        cidr = '{0}/{1}'.format(self.ip, self.prefix)
+        cidr = "{0}/{1}".format(self.ip, self.prefix)
         LOG.debug(
-            'Attempting setup of ephemeral network on %s with %s brd %s',
-            self.interface, cidr, self.broadcast)
+            "Attempting setup of ephemeral network on %s with %s brd %s",
+            self.interface,
+            cidr,
+            self.broadcast,
+        )
         try:
             subp.subp(
-                ['ip', '-family', 'inet', 'addr', 'add', cidr, 'broadcast',
-                 self.broadcast, 'dev', self.interface],
-                capture=True, update_env={'LANG': 'C'})
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "addr",
+                    "add",
+                    cidr,
+                    "broadcast",
+                    self.broadcast,
+                    "dev",
+                    self.interface,
+                ],
+                capture=True,
+                update_env={"LANG": "C"},
+            )
         except subp.ProcessExecutionError as e:
             if "File exists" not in e.stderr:
                 raise
             LOG.debug(
-                'Skip ephemeral network setup, %s already has address %s',
-                self.interface, self.ip)
+                "Skip ephemeral network setup, %s already has address %s",
+                self.interface,
+                self.ip,
+            )
         else:
             # Address creation success, bring up device and queue cleanup
             subp.subp(
-                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
-                 'up'], capture=True)
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "link",
+                    "set",
+                    "dev",
+                    self.interface,
+                    "up",
+                ],
+                capture=True,
+            )
             self.cleanup_cmds.append(
-                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
-                 'down'])
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "link",
+                    "set",
+                    "dev",
+                    self.interface,
+                    "down",
+                ]
+            )
             self.cleanup_cmds.append(
-                ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
-                 self.interface])
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "addr",
+                    "del",
+                    cidr,
+                    "dev",
+                    self.interface,
+                ]
+            )
 
     def _bringup_static_routes(self):
         # static_routes = [("169.254.169.254/32", "130.56.248.255"),
         #                  ("0.0.0.0/0", "130.56.240.1")]
         for net_address, gateway in self.static_routes:
             via_arg = []
-            if gateway != "0.0.0.0/0":
-                via_arg = ['via', gateway]
+            if gateway != "0.0.0.0":
+                via_arg = ["via", gateway]
             subp.subp(
-                ['ip', '-4', 'route', 'add', net_address] + via_arg +
-                ['dev', self.interface], capture=True)
+                ["ip", "-4", "route", "append", net_address]
+                + via_arg
+                + ["dev", self.interface],
+                capture=True,
+            )
             self.cleanup_cmds.insert(
-                0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
-                   ['dev', self.interface])
+                0,
+                ["ip", "-4", "route", "del", net_address]
+                + via_arg
+                + ["dev", self.interface],
+            )
 
     def _bringup_router(self):
         """Perform the ip commands to fully setup the router if needed."""
         # Check if a default route exists and exit if it does
-        out, _ = subp.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
-        if 'default' in out:
+        out, _ = subp.subp(["ip", "route", "show", "0.0.0.0/0"], capture=True)
+        if "default" in out:
             LOG.debug(
-                'Skip ephemeral route setup. %s already has default route: %s',
-                self.interface, out.strip())
+                "Skip ephemeral route setup. %s already has default route: %s",
+                self.interface,
+                out.strip(),
+            )
             return
         subp.subp(
-            ['ip', '-4', 'route', 'add', self.router, 'dev', self.interface,
-             'src', self.ip], capture=True)
+            [
+                "ip",
+                "-4",
+                "route",
+                "add",
+                self.router,
+                "dev",
+                self.interface,
+                "src",
+                self.ip,
+            ],
+            capture=True,
+        )
         self.cleanup_cmds.insert(
             0,
-            ['ip', '-4', 'route', 'del', self.router, 'dev', self.interface,
-             'src', self.ip])
+            [
+                "ip",
+                "-4",
+                "route",
+                "del",
+                self.router,
+                "dev",
+                self.interface,
+                "src",
+                self.ip,
+            ],
+        )
         subp.subp(
-            ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
-             'dev', self.interface], capture=True)
+            [
+                "ip",
+                "-4",
+                "route",
+                "add",
+                "default",
+                "via",
+                self.router,
+                "dev",
+                self.interface,
+            ],
+            capture=True,
+        )
         self.cleanup_cmds.insert(
-            0, ['ip', '-4', 'route', 'del', 'default', 'dev', self.interface])
+            0, ["ip", "-4", "route", "del", "default", "dev", self.interface]
+        )
 
 
 class RendererNotFoundError(RuntimeError):

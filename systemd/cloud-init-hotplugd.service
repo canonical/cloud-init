@@ -1,0 +1,22 @@
+# Paired with cloud-init-hotplugd.socket to read from the FIFO
+# /run/cloud-init/hook-hotplug-cmd which is created during a udev network
+# add or remove event as processed by 10-cloud-init-hook-hotplug.rules.
+
+# On start, read args from the FIFO, process and provide structured arguments
+# to `cloud-init devel hotplug-hook` which will setup or teardown network
+# devices as configured by user-data.
+
+# Known bug with an enforcing SELinux policy: LP: #1936229
+# cloud-init-hotplud.service will read args from file descriptor 3
+
+[Unit]
+Description=cloud-init hotplug hook daemon
+After=cloud-init-hotplugd.socket
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'read args <&3; echo "args=$args"; \
+                        exec /usr/bin/cloud-init devel hotplug-hook $args; \
+                        exit 0'
+SyslogIdentifier=cloud-init-hotplugd
+TimeoutStopSec=5

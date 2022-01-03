@@ -10,7 +10,9 @@ network configuration, and confirms that the bridge can be used to ping the
 default gateway.
 """
 import pytest
+
 from tests.integration_tests import random_mac_address
+from tests.integration_tests.util import verify_clean_log
 
 MAC_ADDRESS = random_mac_address()
 
@@ -31,13 +33,17 @@ ethernets:
       match:
           macaddress: {}
 version: 2
-""".format(MAC_ADDRESS)
+""".format(
+    MAC_ADDRESS
+)
 
 
-@pytest.mark.lxd_config_dict({
-    "user.network-config": NETWORK_CONFIG,
-    "volatile.eth0.hwaddr": MAC_ADDRESS,
-})
+@pytest.mark.lxd_config_dict(
+    {
+        "user.network-config": NETWORK_CONFIG,
+        "volatile.eth0.hwaddr": MAC_ADDRESS,
+    }
+)
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_use_exec
 @pytest.mark.not_bionic
@@ -59,7 +65,7 @@ class TestInterfaceListingWithOpenvSwitch:
         cloudinit_output = client.read_from_file("/var/log/cloud-init.log")
 
         # Confirm that the network configuration was applied successfully
-        assert "WARN" not in cloudinit_output
+        verify_clean_log(cloudinit_output)
         # Confirm that the applied network config created the OVS bridge
         assert "ovs-br" in client.execute("ip addr")
 

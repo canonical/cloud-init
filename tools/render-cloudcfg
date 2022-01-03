@@ -4,9 +4,9 @@ import argparse
 import os
 import sys
 
-VARIANTS = ["alpine", "amazon", "arch", "centos", "debian", "fedora",
-            "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu",
-            "unknown"]
+VARIANTS = ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
+            "eurolinux", "fedora", "freebsd", "miraclelinux", "netbsd", "openbsd", "openEuler", "photon",
+            "rhel", "suse","rocky", "ubuntu", "unknown", "virtuozzo"]
 
 
 if "avoid-pep8-E402-import-not-top-of-file":

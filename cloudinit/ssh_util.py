@@ -60,14 +60,16 @@ _DISABLE_USER_SSH_EXIT = 142
 
 DISABLE_USER_OPTS = (
     "no-port-forwarding,no-agent-forwarding,"
-    "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
-    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10;"
-    "exit " + str(_DISABLE_USER_SSH_EXIT) + "\"")
+    'no-X11-forwarding,command="echo \'Please login as the user \\"$USER\\"'
+    ' rather than the user \\"$DISABLE_USER\\".\';echo;sleep 10;'
+    "exit " + str(_DISABLE_USER_SSH_EXIT) + '"'
+)
 
 
 class AuthKeyLine(object):
-    def __init__(self, source, keytype=None, base64=None,
-                 comment=None, options=None):
+    def __init__(
+        self, source, keytype=None, base64=None, comment=None, options=None
+    ):
         self.base64 = base64
         self.comment = comment
         self.options = options
@@ -75,7 +77,7 @@ class AuthKeyLine(object):
         self.source = source
 
     def valid(self):
-        return (self.base64 and self.keytype)
+        return self.base64 and self.keytype
 
     def __str__(self):
         toks = []
@@ -90,7 +92,7 @@ class AuthKeyLine(object):
         if not toks:
             return self.source
         else:
-            return ' '.join(toks)
+            return " ".join(toks)
 
 
 class AuthKeyLineParser(object):
@@ -121,8 +123,7 @@ class AuthKeyLineParser(object):
         """
         quoted = False
         i = 0
-        while (i < len(ent) and
-               ((quoted) or (ent[i] not in (" ", "\t")))):
+        while i < len(ent) and ((quoted) or (ent[i] not in (" ", "\t"))):
             curc = ent[i]
             if i + 1 >= len(ent):
                 i = i + 1
@@ -143,7 +144,7 @@ class AuthKeyLineParser(object):
     def parse(self, src_line, options=None):
         # modeled after opensshes auth2-pubkey.c:user_key_allowed2
         line = src_line.rstrip("\r\n")
-        if line.startswith("#") or line.strip() == '':
+        if line.startswith("#") or line.strip() == "":
             return AuthKeyLine(src_line)
 
         def parse_ssh_key(ent):
@@ -174,8 +175,13 @@ class AuthKeyLineParser(object):
             except TypeError:
                 return AuthKeyLine(src_line)
 
-        return AuthKeyLine(src_line, keytype=keytype, base64=base64,
-                           comment=comment, options=options)
+        return AuthKeyLine(
+            src_line,
+            keytype=keytype,
+            base64=base64,
+            comment=comment,
+            options=options,
+        )
 
 
 def parse_authorized_keys(fnames):
@@ -218,15 +224,15 @@ def update_authorized_keys(old_entries, keys):
     lines = [str(b) for b in old_entries]
 
     # Ensure it ends with a newline
-    lines.append('')
-    return '\n'.join(lines)
+    lines.append("")
+    return "\n".join(lines)
 
 
 def users_ssh_info(username):
     pw_ent = pwd.getpwnam(username)
     if not pw_ent or not pw_ent.pw_dir:
         raise RuntimeError("Unable to get SSH info for user %r" % (username))
-    return (os.path.join(pw_ent.pw_dir, '.ssh'), pw_ent)
+    return (os.path.join(pw_ent.pw_dir, ".ssh"), pw_ent)
 
 
 def render_authorizedkeysfile_paths(value, homedir, username):
@@ -249,35 +255,213 @@ def render_authorizedkeysfile_paths(value, homedir, username):
     return rendered
 
 
+# Inspired from safe_path() in openssh source code (misc.c).
+def check_permissions(username, current_path, full_path, is_file, strictmodes):
+    """Check if the file/folder in @current_path has the right permissions.
+
+    We need to check that:
+    1. If StrictMode is enabled, the owner is either root or the user
+    2. the user can access the file/folder, otherwise ssh won't use it
+    3. If StrictMode is enabled, no write permission is given to group
+       and world users (022)
+    """
+
+    # group/world can only execute the folder (access)
+    minimal_permissions = 0o711
+    if is_file:
+        # group/world can only read the file
+        minimal_permissions = 0o644
+
+    # 1. owner must be either root or the user itself
+    owner = util.get_owner(current_path)
+    if strictmodes and owner != username and owner != "root":
+        LOG.debug(
+            "Path %s in %s must be own by user %s or"
+            " by root, but instead is own by %s. Ignoring key.",
+            current_path,
+            full_path,
+            username,
+            owner,
+        )
+        return False
+
+    parent_permission = util.get_permissions(current_path)
+    # 2. the user can access the file/folder, otherwise ssh won't use it
+    if owner == username:
+        # need only the owner permissions
+        minimal_permissions &= 0o700
+    else:
+        group_owner = util.get_group(current_path)
+        user_groups = util.get_user_groups(username)
+
+        if group_owner in user_groups:
+            # need only the group permissions
+            minimal_permissions &= 0o070
+        else:
+            # need only the world permissions
+            minimal_permissions &= 0o007
+
+    if parent_permission & minimal_permissions == 0:
+        LOG.debug(
+            "Path %s in %s must be accessible by user %s,"
+            " check its permissions",
+            current_path,
+            full_path,
+            username,
+        )
+        return False
+
+    # 3. no write permission (w) is given to group and world users (022)
+    # Group and world user can still have +rx.
+    if strictmodes and parent_permission & 0o022 != 0:
+        LOG.debug(
+            "Path %s in %s must not give write"
+            "permission to group or world users. Ignoring key.",
+            current_path,
+            full_path,
+        )
+        return False
+
+    return True
+
+
+def check_create_path(username, filename, strictmodes):
+    user_pwent = users_ssh_info(username)[1]
+    root_pwent = users_ssh_info("root")[1]
+    try:
+        # check the directories first
+        directories = filename.split("/")[1:-1]
+
+        # scan in order, from root to file name
+        parent_folder = ""
+        # this is to comply also with unit tests, and
+        # strange home directories
+        home_folder = os.path.dirname(user_pwent.pw_dir)
+        for directory in directories:
+            parent_folder += "/" + directory
+
+            # security check, disallow symlinks in the AuthorizedKeysFile path.
+            if os.path.islink(parent_folder):
+                LOG.debug(
+                    "Invalid directory. Symlink exists in path: %s",
+                    parent_folder,
+                )
+                return False
+
+            if os.path.isfile(parent_folder):
+                LOG.debug(
+                    "Invalid directory. File exists in path: %s", parent_folder
+                )
+                return False
+
+            if (
+                home_folder.startswith(parent_folder)
+                or parent_folder == user_pwent.pw_dir
+            ):
+                continue
+
+            if not os.path.exists(parent_folder):
+                # directory does not exist, and permission so far are good:
+                # create the directory, and make it accessible by everyone
+                # but owned by root, as it might be used by many users.
+                with util.SeLinuxGuard(parent_folder):
+                    mode = 0o755
+                    uid = root_pwent.pw_uid
+                    gid = root_pwent.pw_gid
+                    if parent_folder.startswith(user_pwent.pw_dir):
+                        mode = 0o700
+                        uid = user_pwent.pw_uid
+                        gid = user_pwent.pw_gid
+                    os.makedirs(parent_folder, mode=mode, exist_ok=True)
+                    util.chownbyid(parent_folder, uid, gid)
+
+            permissions = check_permissions(
+                username, parent_folder, filename, False, strictmodes
+            )
+            if not permissions:
+                return False
+
+        if os.path.islink(filename) or os.path.isdir(filename):
+            LOG.debug("%s is not a file!", filename)
+            return False
+
+        # check the file
+        if not os.path.exists(filename):
+            # if file does not exist: we need to create it, since the
+            # folders at this point exist and have right permissions
+            util.write_file(filename, "", mode=0o600, ensure_dir_exists=True)
+            util.chownbyid(filename, user_pwent.pw_uid, user_pwent.pw_gid)
+
+        permissions = check_permissions(
+            username, filename, filename, True, strictmodes
+        )
+        if not permissions:
+            return False
+    except (IOError, OSError) as e:
+        util.logexc(LOG, str(e))
+        return False
+
+    return True
+
+
 def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
     (ssh_dir, pw_ent) = users_ssh_info(username)
-    default_authorizedkeys_file = os.path.join(ssh_dir, 'authorized_keys')
+    default_authorizedkeys_file = os.path.join(ssh_dir, "authorized_keys")
+    user_authorizedkeys_file = default_authorizedkeys_file
     auth_key_fns = []
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
             ssh_cfg = parse_ssh_config_map(sshd_cfg_file)
+            key_paths = ssh_cfg.get(
+                "authorizedkeysfile", "%h/.ssh/authorized_keys"
+            )
+            strictmodes = ssh_cfg.get("strictmodes", "yes")
             auth_key_fns = render_authorizedkeysfile_paths(
-                ssh_cfg.get("authorizedkeysfile", "%h/.ssh/authorized_keys"),
-                pw_ent.pw_dir, username)
+                key_paths, pw_ent.pw_dir, username
+            )
 
         except (IOError, OSError):
             # Give up and use a default key filename
             auth_key_fns[0] = default_authorizedkeys_file
-            util.logexc(LOG, "Failed extracting 'AuthorizedKeysFile' in SSH "
-                        "config from %r, using 'AuthorizedKeysFile' file "
-                        "%r instead", DEF_SSHD_CFG, auth_key_fns[0])
+            util.logexc(
+                LOG,
+                "Failed extracting 'AuthorizedKeysFile' in SSH "
+                "config from %r, using 'AuthorizedKeysFile' file "
+                "%r instead",
+                DEF_SSHD_CFG,
+                auth_key_fns[0],
+            )
 
-    # always store all the keys in the user's private file
-    return (default_authorizedkeys_file, parse_authorized_keys(auth_key_fns))
+    # check if one of the keys is the user's one and has the right permissions
+    for key_path, auth_key_fn in zip(key_paths.split(), auth_key_fns):
+        if any(
+            [
+                "%u" in key_path,
+                "%h" in key_path,
+                auth_key_fn.startswith("{}/".format(pw_ent.pw_dir)),
+            ]
+        ):
+            permissions_ok = check_create_path(
+                username, auth_key_fn, strictmodes == "yes"
+            )
+            if permissions_ok:
+                user_authorizedkeys_file = auth_key_fn
+                break
+
+    if user_authorizedkeys_file != default_authorizedkeys_file:
+        LOG.debug(
+            "AuthorizedKeysFile has an user-specific authorized_keys, "
+            "using %s",
+            user_authorizedkeys_file,
+        )
+
+    return (
+        user_authorizedkeys_file,
+        parse_authorized_keys([user_authorizedkeys_file]),
+    )
 
 
 def setup_user_keys(keys, username, options=None):
-    # Make sure the users .ssh dir is setup accordingly
-    (ssh_dir, pwent) = users_ssh_info(username)
-    if not os.path.isdir(ssh_dir):
-        util.ensure_dir(ssh_dir, mode=0o700)
-        util.chownbyid(ssh_dir, pwent.pw_uid, pwent.pw_gid)
-
     # Turn the 'update' keys given into actual entries
     parser = AuthKeyLineParser()
     key_entries = []
@@ -286,11 +470,10 @@ def setup_user_keys(keys, username, options=None):
 
     # Extract the old and make the new
     (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)
+    ssh_dir = os.path.dirname(auth_key_fn)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         content = update_authorized_keys(auth_key_entries, key_entries)
-        util.ensure_dir(os.path.dirname(auth_key_fn), mode=0o700)
-        util.write_file(auth_key_fn, content, mode=0o600)
-        util.chownbyid(auth_key_fn, pwent.pw_uid, pwent.pw_gid)
+        util.write_file(auth_key_fn, content, preserve_mode=True)
 
 
 class SshdConfigLine(object):
@@ -336,7 +519,15 @@ def parse_ssh_config_lines(lines):
         try:
             key, val = line.split(None, 1)
         except ValueError:
-            key, val = line.split('=', 1)
+            try:
+                key, val = line.split("=", 1)
+            except ValueError:
+                LOG.debug(
+                    'sshd_config: option "%s" has no key/value pair,'
+                    " skipping it",
+                    line,
+                )
+                continue
         ret.append(SshdConfigLine(line, key, val))
     return ret
 
@@ -362,9 +553,10 @@ def update_ssh_config(updates, fname=DEF_SSHD_CFG):
     changed = update_ssh_config_lines(lines=lines, updates=updates)
     if changed:
         util.write_file(
-            fname, "\n".join(
-                [str(line) for line in lines]
-            ) + "\n", preserve_mode=True)
+            fname,
+            "\n".join([str(line) for line in lines]) + "\n",
+            preserve_mode=True,
+        )
     return len(changed) != 0
 
 
@@ -388,12 +580,18 @@ def update_ssh_config_lines(lines, updates):
             value = updates[key]
             found.add(key)
             if line.value == value:
-                LOG.debug("line %d: option %s already set to %s",
-                          i, key, value)
+                LOG.debug(
+                    "line %d: option %s already set to %s", i, key, value
+                )
             else:
                 changed.append(key)
-                LOG.debug("line %d: option %s updated %s -> %s", i,
-                          key, line.value, value)
+                LOG.debug(
+                    "line %d: option %s updated %s -> %s",
+                    i,
+                    key,
+                    line.value,
+                    value,
+                )
                 line.value = value
 
     if len(found) != len(updates):
@@ -401,9 +599,11 @@ def update_ssh_config_lines(lines, updates):
             if key in found:
                 continue
             changed.append(key)
-            lines.append(SshdConfigLine('', key, value))
-            LOG.debug("line %d: option %s added with %s",
-                      len(lines), key, value)
+            lines.append(SshdConfigLine("", key, value))
+            LOG.debug(
+                "line %d: option %s added with %s", len(lines), key, value
+            )
     return changed
+
 
 # vi: ts=4 expandtab

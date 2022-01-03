@@ -10,21 +10,19 @@
 
 import os
 
-from cloudinit import handlers
-from cloudinit import util
-
-from cloudinit.settings import (PER_ALWAYS)
+from cloudinit import handlers, util
+from cloudinit.settings import PER_ALWAYS
 
 
 class ShellScriptPartHandler(handlers.Handler):
 
-    prefixes = ['#!']
+    prefixes = ["#!"]
 
     def __init__(self, paths, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
-        self.script_dir = paths.get_ipath_cur('scripts')
-        if 'script_path' in _kwargs:
-            self.script_dir = paths.get_ipath_cur(_kwargs['script_path'])
+        self.script_dir = paths.get_ipath_cur("scripts")
+        if "script_path" in _kwargs:
+            self.script_dir = paths.get_ipath_cur(_kwargs["script_path"])
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         if ctype in handlers.CONTENT_SIGNALS:
@@ -35,5 +33,6 @@ class ShellScriptPartHandler(handlers.Handler):
         payload = util.dos2unix(payload)
         path = os.path.join(self.script_dir, filename)
         util.write_file(path, payload, 0o700)
+
 
 # vi: ts=4 expandtab
