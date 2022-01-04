@@ -223,9 +223,9 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
         )
     errors_by_line = defaultdict(list)
     error_footer = []
-    error_header = '# Errors: -------------\n{0}\n\n'
+    error_header = "# Errors: -------------\n{0}\n\n"
     annotated_content = []
-    lines = original_content.decode().split('\n')
+    lines = original_content.decode().split("\n")
     cloud_config_body = lines[1:]
 
     # Return a meaningful message on empty cloud-config
@@ -242,7 +242,8 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
             errors_by_line[schemapaths[path]].append(msg)
         if col is not None:
             msg = "Line {line} column {col}: {msg}".format(
-                line=line, col=col, msg=msg)
+                line=line, col=col, msg=msg
+            )
     error_index = 1
     for line_number, line in enumerate(lines, 1):
         errors = errors_by_line[line_number]
