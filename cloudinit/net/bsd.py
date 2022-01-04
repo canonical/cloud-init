@@ -138,14 +138,14 @@ class BSDRenderer(renderer.Renderer):
             resolvconf.parse()
 
         # Add some nameservers
-        for server in nameservers:
+        for server in set(nameservers):
             try:
                 resolvconf.add_nameserver(server)
             except ValueError:
                 util.logexc(LOG, "Failed to add nameserver %s", server)
 
         # And add any searchdomains.
-        for domain in searchdomains:
+        for domain in set(searchdomains):
             try:
                 resolvconf.add_search_domain(domain)
             except ValueError:
