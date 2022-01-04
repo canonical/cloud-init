@@ -847,6 +847,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         LOG.debug("Attempting to load yaml from string "
                   "of length %s with allowed root types %s",
                   len(blob), allowed)
+
         converted = safeyaml.load(blob)
         if converted is None:
             LOG.debug("loaded blob returned None, returning default.")
