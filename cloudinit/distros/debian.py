@@ -11,25 +11,25 @@ import fcntl
 import os
 import time
 
-from cloudinit import distros
-from cloudinit import helpers
+from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
-
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 APT_LOCK_WAIT_TIMEOUT = 30
-APT_GET_COMMAND = ('apt-get', '--option=Dpkg::Options::=--force-confold',
-                   '--option=Dpkg::options::=--force-unsafe-io',
-                   '--assume-yes', '--quiet')
+APT_GET_COMMAND = (
+    "apt-get",
+    "--option=Dpkg::Options::=--force-confold",
+    "--option=Dpkg::options::=--force-unsafe-io",
+    "--assume-yes",
+    "--quiet",
+)
 APT_GET_WRAPPER = {
-    'command': 'eatmydata',
-    'enabled': 'auto',
+    "command": "eatmydata",
+    "enabled": "auto",
 }
 
 NETWORK_FILE_HEADER = """\
@@ -43,10 +43,17 @@ NETWORK_FILE_HEADER = """\
 NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
 
+# The frontend lock needs to be acquired first followed by the order that
+# apt uses. /var/lib/apt/lists is locked independently of that install chain,
+# and only locked during update, so you can acquire it either order.
+# Also update does not acquire the dpkg frontend lock.
+# More context:
+#   https://github.com/canonical/cloud-init/pull/1034#issuecomment-986971376
 APT_LOCK_FILES = [
-    '/var/lib/dpkg/lock',
-    '/var/lib/apt/lists/lock',
-    '/var/cache/apt/archives/lock',
+    "/var/lib/dpkg/lock-frontend",
+    "/var/lib/dpkg/lock",
+    "/var/cache/apt/archives/lock",
+    "/var/lib/apt/lists/lock",
 ]
 
 
@@ -54,14 +61,18 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init",
-        "netplan": "/etc/netplan/50-cloud-init.yaml"
+        "netplan": "/etc/netplan/50-cloud-init.yaml",
     }
     renderer_configs = {
-        "eni": {"eni_path": network_conf_fn["eni"],
-                "eni_header": NETWORK_FILE_HEADER},
-        "netplan": {"netplan_path": network_conf_fn["netplan"],
-                    "netplan_header": NETWORK_FILE_HEADER,
-                    "postcmds": True}
+        "eni": {
+            "eni_path": network_conf_fn["eni"],
+            "eni_header": NETWORK_FILE_HEADER,
+        },
+        "netplan": {
+            "netplan_path": network_conf_fn["netplan"],
+            "netplan_header": NETWORK_FILE_HEADER,
+            "postcmds": True,
+        },
     }
 
     def __init__(self, name, cfg, paths):
@@ -70,8 +81,8 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-        self.osfamily = 'debian'
-        self.default_locale = 'en_US.UTF-8'
+        self.osfamily = "debian"
+        self.default_locale = "en_US.UTF-8"
         self.system_locale = None
 
     def get_locale(self):
@@ -82,25 +93,29 @@ class Distro(distros.Distro):
             self.system_locale = read_system_locale()
 
         # Return system_locale setting if valid, else use default locale
-        return (self.system_locale if self.system_locale else
-                self.default_locale)
+        return (
+            self.system_locale if self.system_locale else self.default_locale
+        )
 
-    def apply_locale(self, locale, out_fn=None, keyname='LANG'):
+    def apply_locale(self, locale, out_fn=None, keyname="LANG"):
         """Apply specified locale to system, regenerate if specified locale
-            differs from system default."""
+        differs from system default."""
         if not out_fn:
             out_fn = LOCALE_CONF_FN
 
         if not locale:
-            raise ValueError('Failed to provide locale value.')
+            raise ValueError("Failed to provide locale value.")
 
         # Only call locale regeneration if needed
         # Update system locale config with specified locale if needed
         distro_locale = self.get_locale()
         conf_fn_exists = os.path.exists(out_fn)
         sys_locale_unset = False if self.system_locale else True
-        need_regen = (locale.lower() != distro_locale.lower() or
-                      not conf_fn_exists or sys_locale_unset)
+        need_regen = (
+            locale.lower() != distro_locale.lower()
+            or not conf_fn_exists
+            or sys_locale_unset
+        )
         need_conf = not conf_fn_exists or need_regen or sys_locale_unset
 
         if need_regen:
@@ -108,7 +123,10 @@ class Distro(distros.Distro):
         else:
             LOG.debug(
                 "System has '%s=%s' requested '%s', skipping regeneration.",
-                keyname, self.system_locale, locale)
+                keyname,
+                self.system_locale,
+                locale,
+            )
 
         if need_conf:
             update_locale_conf(locale, out_fn, keyname=keyname)
@@ -117,7 +135,7 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.update_package_sources()
-        self.package_command('install', pkgs=pkglist)
+        self.package_command("install", pkgs=pkglist)
 
     def _write_network_state(self, network_state):
         _maybe_remove_legacy_eth0()
@@ -132,7 +150,7 @@ class Distro(distros.Distro):
         except IOError:
             pass
         if not conf:
-            conf = HostnameConf('')
+            conf = HostnameConf("")
         conf.set_hostname(hostname)
         util.write_file(filename, str(conf), 0o644)
 
@@ -174,7 +192,7 @@ class Distro(distros.Distro):
             if not os.path.exists(lock):
                 # Only wait for lock files that already exist
                 continue
-            with open(lock, 'w') as handle:
+            with open(lock, "w") as handle:
                 try:
                     fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except OSError:
@@ -190,17 +208,17 @@ class Distro(distros.Distro):
         subp_kwargs: kwargs to pass to subp
         """
         start_time = time.time()
-        LOG.debug('Waiting for apt lock')
+        LOG.debug("Waiting for apt lock")
         while time.time() - start_time < timeout:
             if not self._apt_lock_available():
                 time.sleep(1)
                 continue
-            LOG.debug('apt lock available')
+            LOG.debug("apt lock available")
             try:
                 # Allow the output of this to flow outwards (not be captured)
                 log_msg = "apt-%s [%s]" % (
                     short_cmd,
-                    ' '.join(subp_kwargs['args'])
+                    " ".join(subp_kwargs["args"]),
                 )
                 return util.log_time(
                     logfunc=LOG.debug,
@@ -221,9 +239,9 @@ class Distro(distros.Distro):
                 # error received. If the lock is unavailable, just keep waiting
                 if self._apt_lock_available():
                     raise
-                LOG.debug('Another process holds apt lock. Waiting...')
+                LOG.debug("Another process holds apt lock. Waiting...")
                 time.sleep(1)
-        raise TimeoutError('Could not get apt lock')
+        raise TimeoutError("Could not get apt lock")
 
     def package_command(self, command, args=None, pkgs=None):
         """Run the given package command.
@@ -240,12 +258,13 @@ class Distro(distros.Distro):
 
         e = os.environ.copy()
         # See: http://manpages.ubuntu.com/manpages/xenial/man7/debconf.7.html
-        e['DEBIAN_FRONTEND'] = 'noninteractive'
+        e["DEBIAN_FRONTEND"] = "noninteractive"
 
         wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)
         cmd = _get_wrapper_prefix(
-            wcfg.get('command', APT_GET_WRAPPER['command']),
-            wcfg.get('enabled', APT_GET_WRAPPER['enabled']))
+            wcfg.get("command", APT_GET_WRAPPER["command"]),
+            wcfg.get("enabled", APT_GET_WRAPPER["enabled"]),
+        )
 
         cmd.extend(list(self.get_option("apt_get_command", APT_GET_COMMAND)))
 
@@ -256,22 +275,27 @@ class Distro(distros.Distro):
 
         subcmd = command
         if command == "upgrade":
-            subcmd = self.get_option("apt_get_upgrade_subcommand",
-                                     "dist-upgrade")
+            subcmd = self.get_option(
+                "apt_get_upgrade_subcommand", "dist-upgrade"
+            )
 
         cmd.append(subcmd)
 
-        pkglist = util.expand_package_list('%s=%s', pkgs)
+        pkglist = util.expand_package_list("%s=%s", pkgs)
         cmd.extend(pkglist)
 
         self._wait_for_apt_command(
             short_cmd=command,
-            subp_kwargs={'args': cmd, 'env': e, 'capture': False}
+            subp_kwargs={"args": cmd, "env": e, "capture": False},
         )
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ["update"], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["update"],
+            freq=PER_INSTANCE,
+        )
 
     def get_primary_arch(self):
         return util.get_dpkg_architecture()
@@ -281,9 +305,9 @@ def _get_wrapper_prefix(cmd, mode):
     if isinstance(cmd, str):
         cmd = [str(cmd)]
 
-    if (util.is_true(mode) or
-        (str(mode).lower() == "auto" and cmd[0] and
-         subp.which(cmd[0]))):
+    if util.is_true(mode) or (
+        str(mode).lower() == "auto" and cmd[0] and subp.which(cmd[0])
+    ):
         return cmd
     else:
         return []
@@ -291,13 +315,13 @@ def _get_wrapper_prefix(cmd, mode):
 
 def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
     """Ubuntu cloud images previously included a 'eth0.cfg' that had
-       hard coded content.  That file would interfere with the rendered
-       configuration if it was present.
+    hard coded content.  That file would interfere with the rendered
+    configuration if it was present.
 
-       if the file does not exist do nothing.
-       If the file exists:
-         - with known content, remove it and warn
-         - with unknown content, leave it and warn
+    if the file does not exist do nothing.
+    If the file exists:
+      - with known content, remove it and warn
+      - with unknown content, leave it and warn
     """
 
     if not os.path.exists(path):
@@ -307,24 +331,25 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
     try:
         contents = util.load_file(path)
         known_contents = ["auto eth0", "iface eth0 inet dhcp"]
-        lines = [f.strip() for f in contents.splitlines()
-                 if not f.startswith("#")]
+        lines = [
+            f.strip() for f in contents.splitlines() if not f.startswith("#")
+        ]
         if lines == known_contents:
             util.del_file(path)
             msg = "removed %s with known contents" % path
         else:
-            msg = (bmsg + " '%s' exists with user configured content." % path)
+            msg = bmsg + " '%s' exists with user configured content." % path
     except Exception:
         msg = bmsg + " %s exists, but could not be read." % path
 
     LOG.warning(msg)
 
 
-def read_system_locale(sys_path=LOCALE_CONF_FN, keyname='LANG'):
+def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
     """Read system default locale setting, if present"""
     sys_val = ""
     if not sys_path:
-        raise ValueError('Invalid path: %s' % sys_path)
+        raise ValueError("Invalid path: %s" % sys_path)
 
     if os.path.exists(sys_path):
         locale_content = util.load_file(sys_path)
@@ -334,16 +359,22 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname='LANG'):
     return sys_val
 
 
-def update_locale_conf(locale, sys_path, keyname='LANG'):
+def update_locale_conf(locale, sys_path, keyname="LANG"):
     """Update system locale config"""
-    LOG.debug('Updating %s with locale setting %s=%s',
-              sys_path, keyname, locale)
+    LOG.debug(
+        "Updating %s with locale setting %s=%s", sys_path, keyname, locale
+    )
     subp.subp(
-        ['update-locale', '--locale-file=' + sys_path,
-         '%s=%s' % (keyname, locale)], capture=False)
+        [
+            "update-locale",
+            "--locale-file=" + sys_path,
+            "%s=%s" % (keyname, locale),
+        ],
+        capture=False,
+    )
 
 
-def regenerate_locale(locale, sys_path, keyname='LANG'):
+def regenerate_locale(locale, sys_path, keyname="LANG"):
     """
     Run locale-gen for the provided locale and set the default
     system variable `keyname` appropriately in the provided `sys_path`.
@@ -354,13 +385,13 @@ def regenerate_locale(locale, sys_path, keyname='LANG'):
     # C
     # C.UTF-8
     # POSIX
-    if locale.lower() in ['c', 'c.utf-8', 'posix']:
-        LOG.debug('%s=%s does not require rengeneration', keyname, locale)
+    if locale.lower() in ["c", "c.utf-8", "posix"]:
+        LOG.debug("%s=%s does not require rengeneration", keyname, locale)
         return
 
     # finally, trigger regeneration
-    LOG.debug('Generating locales for %s', locale)
-    subp.subp(['locale-gen', locale], capture=False)
+    LOG.debug("Generating locales for %s", locale)
+    subp.subp(["locale-gen", locale], capture=False)
 
 
 # vi: ts=4 expandtab

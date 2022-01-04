@@ -11,8 +11,8 @@ import pytest
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
 from cloudinit.sources.DataSourceOracle import OpcMetadata
-from tests.unittests import helpers as test_helpers
 from cloudinit.url_helper import UrlError
+from tests.unittests import helpers as test_helpers
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 
@@ -119,7 +119,9 @@ def oracle_ds(request, fixture_utils, paths, metadata_version):
                     return_value=metadata,
                 ):
                     yield oracle.DataSourceOracle(
-                        sys_cfg=sys_cfg, distro=mock.Mock(), paths=paths,
+                        sys_cfg=sys_cfg,
+                        distro=mock.Mock(),
+                        paths=paths,
                     )
 
 
@@ -129,18 +131,22 @@ class TestDataSourceOracle:
         assert "oracle" == oracle_ds.platform_type
 
     def test_subplatform_before_fetch(self, oracle_ds):
-        assert 'unknown' == oracle_ds.subplatform
+        assert "unknown" == oracle_ds.subplatform
 
     def test_platform_info_after_fetch(self, oracle_ds):
         oracle_ds._get_data()
-        assert 'metadata (http://169.254.169.254/opc/v2/)' == \
-            oracle_ds.subplatform
+        assert (
+            "metadata (http://169.254.169.254/opc/v2/)"
+            == oracle_ds.subplatform
+        )
 
-    @pytest.mark.parametrize('metadata_version', [1])
+    @pytest.mark.parametrize("metadata_version", [1])
     def test_v1_platform_info_after_fetch(self, oracle_ds):
         oracle_ds._get_data()
-        assert 'metadata (http://169.254.169.254/opc/v1/)' == \
-            oracle_ds.subplatform
+        assert (
+            "metadata (http://169.254.169.254/opc/v1/)"
+            == oracle_ds.subplatform
+        )
 
     def test_secondary_nics_disabled_by_default(self, oracle_ds):
         assert not oracle_ds.ds_cfg["configure_secondary_nics"]
@@ -153,29 +159,30 @@ class TestDataSourceOracle:
 
 
 class TestIsPlatformViable(test_helpers.CiTestCase):
-    @mock.patch(DS_PATH + ".dmi.read_dmi_data",
-                return_value=oracle.CHASSIS_ASSET_TAG)
+    @mock.patch(
+        DS_PATH + ".dmi.read_dmi_data", return_value=oracle.CHASSIS_ASSET_TAG
+    )
     def test_expected_viable(self, m_read_dmi_data):
         """System with known chassis tag is viable."""
         self.assertTrue(oracle._is_platform_viable())
-        m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
+        m_read_dmi_data.assert_has_calls([mock.call("chassis-asset-tag")])
 
     @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value=None)
     def test_expected_not_viable_dmi_data_none(self, m_read_dmi_data):
         """System without known chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
-        m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
+        m_read_dmi_data.assert_has_calls([mock.call("chassis-asset-tag")])
 
     @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value="LetsGoCubs")
     def test_expected_not_viable_other(self, m_read_dmi_data):
         """System with unnown chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
-        m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
+        m_read_dmi_data.assert_has_calls([mock.call("chassis-asset-tag")])
 
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
-    mock.Mock(return_value=False)
+    mock.Mock(return_value=False),
 )
 class TestNetworkConfigFromOpcImds:
     def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
@@ -192,222 +199,317 @@ class TestNetworkConfigFromOpcImds:
         # operations are used
         oracle_ds._network_config = object()
         oracle_ds._add_network_config_from_opc_imds()
-        assert 'bare metal machine' in caplog.text
+        assert "bare metal machine" in caplog.text
 
     def test_missing_mac_skipped(self, oracle_ds, caplog):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
 
         oracle_ds._network_config = {
-            'version': 1, 'config': [{'primary': 'nic'}]
+            "version": 1,
+            "config": [{"primary": "nic"}],
         }
         with mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={}):
             oracle_ds._add_network_config_from_opc_imds()
 
-        assert 1 == len(oracle_ds.network_config['config'])
-        assert 'Interface with MAC 00:00:17:02:2b:b1 not found; skipping' in \
-            caplog.text
+        assert 1 == len(oracle_ds.network_config["config"])
+        assert (
+            "Interface with MAC 00:00:17:02:2b:b1 not found; skipping"
+            in caplog.text
+        )
 
     def test_missing_mac_skipped_v2(self, oracle_ds, caplog):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
 
         oracle_ds._network_config = {
-            'version': 2, 'ethernets': {'primary': {'nic': {}}}
+            "version": 2,
+            "ethernets": {"primary": {"nic": {}}},
         }
         with mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={}):
             oracle_ds._add_network_config_from_opc_imds()
 
-        assert 1 == len(oracle_ds.network_config['ethernets'])
-        assert 'Interface with MAC 00:00:17:02:2b:b1 not found; skipping' in \
-            caplog.text
+        assert 1 == len(oracle_ds.network_config["ethernets"])
+        assert (
+            "Interface with MAC 00:00:17:02:2b:b1 not found; skipping"
+            in caplog.text
+        )
 
     def test_secondary_nic(self, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
-            'version': 1, 'config': [{'primary': 'nic'}]
+            "version": 1,
+            "config": [{"primary": "nic"}],
         }
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
-        with mock.patch(DS_PATH + ".get_interfaces_by_mac",
-                        return_value={mac_addr: nic_name}):
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
+        with mock.patch(
+            DS_PATH + ".get_interfaces_by_mac",
+            return_value={mac_addr: nic_name},
+        ):
             oracle_ds._add_network_config_from_opc_imds()
 
         # The input is mutated
-        assert 2 == len(oracle_ds.network_config['config'])
+        assert 2 == len(oracle_ds.network_config["config"])
 
-        secondary_nic_cfg = oracle_ds.network_config['config'][1]
-        assert nic_name == secondary_nic_cfg['name']
-        assert 'physical' == secondary_nic_cfg['type']
-        assert mac_addr == secondary_nic_cfg['mac_address']
-        assert 9000 == secondary_nic_cfg['mtu']
+        secondary_nic_cfg = oracle_ds.network_config["config"][1]
+        assert nic_name == secondary_nic_cfg["name"]
+        assert "physical" == secondary_nic_cfg["type"]
+        assert mac_addr == secondary_nic_cfg["mac_address"]
+        assert 9000 == secondary_nic_cfg["mtu"]
 
-        assert 1 == len(secondary_nic_cfg['subnets'])
-        subnet_cfg = secondary_nic_cfg['subnets'][0]
+        assert 1 == len(secondary_nic_cfg["subnets"])
+        subnet_cfg = secondary_nic_cfg["subnets"][0]
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert '10.0.0.231' == subnet_cfg['address']
+        assert "10.0.0.231" == subnet_cfg["address"]
 
     def test_secondary_nic_v2(self, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
-            'version': 2, 'ethernets': {'primary': {'nic': {}}}
+            "version": 2,
+            "ethernets": {"primary": {"nic": {}}},
         }
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
-        with mock.patch(DS_PATH + ".get_interfaces_by_mac",
-                        return_value={mac_addr: nic_name}):
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
+        with mock.patch(
+            DS_PATH + ".get_interfaces_by_mac",
+            return_value={mac_addr: nic_name},
+        ):
             oracle_ds._add_network_config_from_opc_imds()
 
         # The input is mutated
-        assert 2 == len(oracle_ds.network_config['ethernets'])
+        assert 2 == len(oracle_ds.network_config["ethernets"])
 
-        secondary_nic_cfg = oracle_ds.network_config['ethernets']['ens3']
-        assert secondary_nic_cfg['dhcp4'] is False
-        assert secondary_nic_cfg['dhcp6'] is False
-        assert mac_addr == secondary_nic_cfg['match']['macaddress']
-        assert 9000 == secondary_nic_cfg['mtu']
+        secondary_nic_cfg = oracle_ds.network_config["ethernets"]["ens3"]
+        assert secondary_nic_cfg["dhcp4"] is False
+        assert secondary_nic_cfg["dhcp6"] is False
+        assert mac_addr == secondary_nic_cfg["match"]["macaddress"]
+        assert 9000 == secondary_nic_cfg["mtu"]
 
-        assert 1 == len(secondary_nic_cfg['addresses'])
+        assert 1 == len(secondary_nic_cfg["addresses"])
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert '10.0.0.231' == secondary_nic_cfg['addresses'][0]
+        assert "10.0.0.231" == secondary_nic_cfg["addresses"][0]
 
 
 class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
-
     def setUp(self):
         super(TestNetworkConfigFiltersNetFailover, self).setUp()
-        self.add_patch(DS_PATH + '.get_interfaces_by_mac',
-                       'm_get_interfaces_by_mac')
-        self.add_patch(DS_PATH + '.is_netfail_master', 'm_netfail_master')
+        self.add_patch(
+            DS_PATH + ".get_interfaces_by_mac", "m_get_interfaces_by_mac"
+        )
+        self.add_patch(DS_PATH + ".is_netfail_master", "m_netfail_master")
 
     def test_ignore_bogus_network_config(self):
-        netcfg = {'something': 'here'}
+        netcfg = {"something": "here"}
         passed_netcfg = copy.copy(netcfg)
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
 
     def test_ignore_network_config_unknown_versions(self):
-        netcfg = {'something': 'here', 'version': 3}
+        netcfg = {"something": "here", "version": 3}
         passed_netcfg = copy.copy(netcfg)
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
 
     def test_checks_v1_type_physical_interfaces(self):
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
         self.m_get_interfaces_by_mac.return_value = {
             mac_addr: nic_name,
         }
-        netcfg = {'version': 1, 'config': [
-            {'type': 'physical', 'name': nic_name, 'mac_address': mac_addr,
-             'subnets': [{'type': 'dhcp4'}]}]}
+        netcfg = {
+            "version": 1,
+            "config": [
+                {
+                    "type": "physical",
+                    "name": nic_name,
+                    "mac_address": mac_addr,
+                    "subnets": [{"type": "dhcp4"}],
+                }
+            ],
+        }
         passed_netcfg = copy.copy(netcfg)
         self.m_netfail_master.return_value = False
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
-        self.assertEqual([mock.call(nic_name)],
-                         self.m_netfail_master.call_args_list)
+        self.assertEqual(
+            [mock.call(nic_name)], self.m_netfail_master.call_args_list
+        )
 
     def test_checks_v1_skips_non_phys_interfaces(self):
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'bond0'
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "bond0"
         self.m_get_interfaces_by_mac.return_value = {
             mac_addr: nic_name,
         }
-        netcfg = {'version': 1, 'config': [
-            {'type': 'bond', 'name': nic_name, 'mac_address': mac_addr,
-             'subnets': [{'type': 'dhcp4'}]}]}
+        netcfg = {
+            "version": 1,
+            "config": [
+                {
+                    "type": "bond",
+                    "name": nic_name,
+                    "mac_address": mac_addr,
+                    "subnets": [{"type": "dhcp4"}],
+                }
+            ],
+        }
         passed_netcfg = copy.copy(netcfg)
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
         self.assertEqual(0, self.m_netfail_master.call_count)
 
     def test_removes_master_mac_property_v1(self):
-        nic_master, mac_master = 'ens3', self.random_string()
-        nic_other, mac_other = 'ens7', self.random_string()
-        nic_extra, mac_extra = 'enp0s1f2', self.random_string()
+        nic_master, mac_master = "ens3", self.random_string()
+        nic_other, mac_other = "ens7", self.random_string()
+        nic_extra, mac_extra = "enp0s1f2", self.random_string()
         self.m_get_interfaces_by_mac.return_value = {
             mac_master: nic_master,
             mac_other: nic_other,
             mac_extra: nic_extra,
         }
-        netcfg = {'version': 1, 'config': [
-            {'type': 'physical', 'name': nic_master,
-             'mac_address': mac_master},
-            {'type': 'physical', 'name': nic_other, 'mac_address': mac_other},
-            {'type': 'physical', 'name': nic_extra, 'mac_address': mac_extra},
-        ]}
+        netcfg = {
+            "version": 1,
+            "config": [
+                {
+                    "type": "physical",
+                    "name": nic_master,
+                    "mac_address": mac_master,
+                },
+                {
+                    "type": "physical",
+                    "name": nic_other,
+                    "mac_address": mac_other,
+                },
+                {
+                    "type": "physical",
+                    "name": nic_extra,
+                    "mac_address": mac_extra,
+                },
+            ],
+        }
 
         def _is_netfail_master(iface):
-            if iface == 'ens3':
+            if iface == "ens3":
                 return True
             return False
+
         self.m_netfail_master.side_effect = _is_netfail_master
-        expected_cfg = {'version': 1, 'config': [
-            {'type': 'physical', 'name': nic_master},
-            {'type': 'physical', 'name': nic_other, 'mac_address': mac_other},
-            {'type': 'physical', 'name': nic_extra, 'mac_address': mac_extra},
-        ]}
+        expected_cfg = {
+            "version": 1,
+            "config": [
+                {"type": "physical", "name": nic_master},
+                {
+                    "type": "physical",
+                    "name": nic_other,
+                    "mac_address": mac_other,
+                },
+                {
+                    "type": "physical",
+                    "name": nic_extra,
+                    "mac_address": mac_extra,
+                },
+            ],
+        }
         oracle._ensure_netfailover_safe(netcfg)
         self.assertEqual(expected_cfg, netcfg)
 
     def test_checks_v2_type_ethernet_interfaces(self):
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
         self.m_get_interfaces_by_mac.return_value = {
             mac_addr: nic_name,
         }
-        netcfg = {'version': 2, 'ethernets': {
-            nic_name: {'dhcp4': True, 'critical': True, 'set-name': nic_name,
-                       'match': {'macaddress': mac_addr}}}}
+        netcfg = {
+            "version": 2,
+            "ethernets": {
+                nic_name: {
+                    "dhcp4": True,
+                    "critical": True,
+                    "set-name": nic_name,
+                    "match": {"macaddress": mac_addr},
+                }
+            },
+        }
         passed_netcfg = copy.copy(netcfg)
         self.m_netfail_master.return_value = False
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
-        self.assertEqual([mock.call(nic_name)],
-                         self.m_netfail_master.call_args_list)
+        self.assertEqual(
+            [mock.call(nic_name)], self.m_netfail_master.call_args_list
+        )
 
     def test_skips_v2_non_ethernet_interfaces(self):
-        mac_addr, nic_name = '00:00:17:02:2b:b1', 'wlps0'
+        mac_addr, nic_name = "00:00:17:02:2b:b1", "wlps0"
         self.m_get_interfaces_by_mac.return_value = {
             mac_addr: nic_name,
         }
-        netcfg = {'version': 2, 'wifis': {
-            nic_name: {'dhcp4': True, 'critical': True, 'set-name': nic_name,
-                       'match': {'macaddress': mac_addr}}}}
+        netcfg = {
+            "version": 2,
+            "wifis": {
+                nic_name: {
+                    "dhcp4": True,
+                    "critical": True,
+                    "set-name": nic_name,
+                    "match": {"macaddress": mac_addr},
+                }
+            },
+        }
         passed_netcfg = copy.copy(netcfg)
         oracle._ensure_netfailover_safe(passed_netcfg)
         self.assertEqual(netcfg, passed_netcfg)
         self.assertEqual(0, self.m_netfail_master.call_count)
 
     def test_removes_master_mac_property_v2(self):
-        nic_master, mac_master = 'ens3', self.random_string()
-        nic_other, mac_other = 'ens7', self.random_string()
-        nic_extra, mac_extra = 'enp0s1f2', self.random_string()
+        nic_master, mac_master = "ens3", self.random_string()
+        nic_other, mac_other = "ens7", self.random_string()
+        nic_extra, mac_extra = "enp0s1f2", self.random_string()
         self.m_get_interfaces_by_mac.return_value = {
             mac_master: nic_master,
             mac_other: nic_other,
             mac_extra: nic_extra,
         }
-        netcfg = {'version': 2, 'ethernets': {
-            nic_extra: {'dhcp4': True, 'set-name': nic_extra,
-                        'match': {'macaddress': mac_extra}},
-            nic_other: {'dhcp4': True, 'set-name': nic_other,
-                        'match': {'macaddress': mac_other}},
-            nic_master: {'dhcp4': True, 'set-name': nic_master,
-                         'match': {'macaddress': mac_master}},
-        }}
+        netcfg = {
+            "version": 2,
+            "ethernets": {
+                nic_extra: {
+                    "dhcp4": True,
+                    "set-name": nic_extra,
+                    "match": {"macaddress": mac_extra},
+                },
+                nic_other: {
+                    "dhcp4": True,
+                    "set-name": nic_other,
+                    "match": {"macaddress": mac_other},
+                },
+                nic_master: {
+                    "dhcp4": True,
+                    "set-name": nic_master,
+                    "match": {"macaddress": mac_master},
+                },
+            },
+        }
 
         def _is_netfail_master(iface):
-            if iface == 'ens3':
+            if iface == "ens3":
                 return True
             return False
+
         self.m_netfail_master.side_effect = _is_netfail_master
 
-        expected_cfg = {'version': 2, 'ethernets': {
-            nic_master: {'dhcp4': True, 'match': {'name': nic_master}},
-            nic_extra: {'dhcp4': True, 'set-name': nic_extra,
-                        'match': {'macaddress': mac_extra}},
-            nic_other: {'dhcp4': True, 'set-name': nic_other,
-                        'match': {'macaddress': mac_other}},
-        }}
+        expected_cfg = {
+            "version": 2,
+            "ethernets": {
+                nic_master: {"dhcp4": True, "match": {"name": nic_master}},
+                nic_extra: {
+                    "dhcp4": True,
+                    "set-name": nic_extra,
+                    "match": {"macaddress": mac_extra},
+                },
+                nic_other: {
+                    "dhcp4": True,
+                    "set-name": nic_other,
+                    "match": {"macaddress": mac_other},
+                },
+            },
+        }
         oracle._ensure_netfailover_safe(netcfg)
         import pprint
+
         pprint.pprint(netcfg)
-        print('---- ^^ modified ^^ ---- vv original vv ----')
+        print("---- ^^ modified ^^ ---- vv original vv ----")
         pprint.pprint(expected_cfg)
         self.assertEqual(expected_cfg, netcfg)
 
@@ -425,12 +527,12 @@ def _mock_v2_urls(httpretty):
     httpretty.register_uri(
         httpretty.GET,
         "http://169.254.169.254/opc/v2/instance/",
-        body=instance_callback
+        body=instance_callback,
     )
     httpretty.register_uri(
         httpretty.GET,
         "http://169.254.169.254/opc/v2/vnics/",
-        body=vnics_callback
+        body=vnics_callback,
     )
 
 
@@ -443,12 +545,12 @@ def _mock_no_v2_urls(httpretty):
     httpretty.register_uri(
         httpretty.GET,
         "http://169.254.169.254/opc/v1/instance/",
-        body=OPC_V1_METADATA
+        body=OPC_V1_METADATA,
     )
     httpretty.register_uri(
         httpretty.GET,
         "http://169.254.169.254/opc/v1/vnics/",
-        body=OPC_BM_SECONDARY_VNIC_RESPONSE
+        body=OPC_BM_SECONDARY_VNIC_RESPONSE,
     )
 
 
@@ -459,18 +561,34 @@ class TestReadOpcMetadata:
 
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
     @pytest.mark.parametrize(
-        'version,setup_urls,instance_data,fetch_vnics,vnics_data', [
-            (2, _mock_v2_urls, json.loads(OPC_V2_METADATA), True,
-             json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)),
+        "version,setup_urls,instance_data,fetch_vnics,vnics_data",
+        [
+            (
+                2,
+                _mock_v2_urls,
+                json.loads(OPC_V2_METADATA),
+                True,
+                json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE),
+            ),
             (2, _mock_v2_urls, json.loads(OPC_V2_METADATA), False, None),
-            (1, _mock_no_v2_urls, json.loads(OPC_V1_METADATA), True,
-             json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)),
+            (
+                1,
+                _mock_no_v2_urls,
+                json.loads(OPC_V1_METADATA),
+                True,
+                json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE),
+            ),
             (1, _mock_no_v2_urls, json.loads(OPC_V1_METADATA), False, None),
-        ]
+        ],
     )
     def test_metadata_returned(
-        self, version, setup_urls, instance_data,
-        fetch_vnics, vnics_data, httpretty
+        self,
+        version,
+        setup_urls,
+        instance_data,
+        fetch_vnics,
+        vnics_data,
+        httpretty,
     ):
         setup_urls(httpretty)
         metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
@@ -490,10 +608,16 @@ class TestReadOpcMetadata:
             (3, 1, json.loads(OPC_V1_METADATA), does_not_raise()),
             (3, 2, json.loads(OPC_V1_METADATA), does_not_raise()),
             (3, 3, None, pytest.raises(UrlError)),
-        ]
+        ],
     )
-    def test_retries(self, v2_failure_count, v1_failure_count,
-                     expected_body, expectation, httpretty):
+    def test_retries(
+        self,
+        v2_failure_count,
+        v1_failure_count,
+        expected_body,
+        expectation,
+        httpretty,
+    ):
         v2_responses = [httpretty.Response("", status=404)] * v2_failure_count
         v2_responses.append(httpretty.Response(OPC_V2_METADATA))
         v1_responses = [httpretty.Response("", status=404)] * v1_failure_count
@@ -548,7 +672,8 @@ class TestCommon_GetDataBehaviour:
         DS_PATH + "._is_platform_viable", mock.Mock(return_value=False)
     )
     def test_false_if_platform_not_viable(
-        self, parameterized_oracle_ds,
+        self,
+        parameterized_oracle_ds,
     ):
         assert not parameterized_oracle_ds._get_data()
 
@@ -571,7 +696,10 @@ class TestCommon_GetDataBehaviour:
         ),
     )
     def test_metadata_keys_set_correctly(
-        self, keyname, expected_value, parameterized_oracle_ds,
+        self,
+        keyname,
+        expected_value,
+        parameterized_oracle_ds,
     ):
         assert parameterized_oracle_ds._get_data()
         assert expected_value == parameterized_oracle_ds.metadata[keyname]
@@ -591,7 +719,10 @@ class TestCommon_GetDataBehaviour:
         DS_PATH + "._read_system_uuid", mock.Mock(return_value="my-test-uuid")
     )
     def test_attributes_set_correctly(
-        self, attribute_name, expected_value, parameterized_oracle_ds,
+        self,
+        attribute_name,
+        expected_value,
+        parameterized_oracle_ds,
     ):
         assert parameterized_oracle_ds._get_data()
         assert expected_value == getattr(
@@ -624,7 +755,8 @@ class TestCommon_GetDataBehaviour:
             instance_data["metadata"]["ssh_authorized_keys"] = ssh_keys
         metadata = OpcMetadata(None, instance_data, None)
         with mock.patch(
-            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+            DS_PATH + ".read_opc_metadata",
+            mock.Mock(return_value=metadata),
         ):
             assert parameterized_oracle_ds._get_data()
             assert (
@@ -638,7 +770,8 @@ class TestCommon_GetDataBehaviour:
         del instance_data["metadata"]["user_data"]
         metadata = OpcMetadata(None, instance_data, None)
         with mock.patch(
-            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+            DS_PATH + ".read_opc_metadata",
+            mock.Mock(return_value=metadata),
         ):
             assert parameterized_oracle_ds._get_data()
 
@@ -651,7 +784,8 @@ class TestCommon_GetDataBehaviour:
         del instance_data["metadata"]
         metadata = OpcMetadata(None, instance_data, None)
         with mock.patch(
-            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+            DS_PATH + ".read_opc_metadata",
+            mock.Mock(return_value=metadata),
         ):
             assert parameterized_oracle_ds._get_data()
 
@@ -697,11 +831,9 @@ class TestNonIscsiRoot_GetDataBehaviour:
             mock.call(
                 iface=m_find_fallback_nic.return_value,
                 connectivity_url_data={
-                    'headers': {
-                        'Authorization': 'Bearer Oracle'
-                    },
-                    'url': 'http://169.254.169.254/opc/v2/instance/'
-                }
+                    "headers": {"Authorization": "Bearer Oracle"},
+                    "url": "http://169.254.169.254/opc/v2/instance/",
+                },
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
@@ -761,9 +893,10 @@ class TestNetworkConfig:
         def side_effect(self):
             self._network_config["secondary_added"] = mock.sentinel.needle
 
-        oracle_ds._vnics_data = 'DummyData'
+        oracle_ds._vnics_data = "DummyData"
         with mock.patch.object(
-            oracle.DataSourceOracle, "_add_network_config_from_opc_imds",
+            oracle.DataSourceOracle,
+            "_add_network_config_from_opc_imds",
             new=side_effect,
         ):
             was_secondary_added = "secondary_added" in oracle_ds.network_config
@@ -779,8 +912,9 @@ class TestNetworkConfig:
         oracle_ds._vnics_data = "DummyData"
 
         with mock.patch.object(
-            oracle.DataSourceOracle, "_add_network_config_from_opc_imds",
-            side_effect=Exception()
+            oracle.DataSourceOracle,
+            "_add_network_config_from_opc_imds",
+            side_effect=Exception(),
         ):
             network_config = oracle_ds.network_config
         assert network_config == m_read_initramfs_config.return_value

@@ -30,13 +30,13 @@ either ``lp:`` for launchpad or ``gh:`` for github to the username.
         - lp:user
 """
 
-from cloudinit.distros import ug_util
-from cloudinit import subp
-from cloudinit import util
 import pwd
 
+from cloudinit import subp, util
+from cloudinit.distros import ug_util
+
 # https://launchpad.net/ssh-import-id
-distros = ['ubuntu', 'debian']
+distros = ["ubuntu", "debian"]
 
 
 def handle(_name, cfg, cloud, log, args):
@@ -56,11 +56,11 @@ def handle(_name, cfg, cloud, log, args):
     elist = []
     for (user, user_cfg) in users.items():
         import_ids = []
-        if user_cfg['default']:
+        if user_cfg["default"]:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
         else:
             try:
-                import_ids = user_cfg['ssh_import_id']
+                import_ids = user_cfg["ssh_import_id"]
             except Exception:
                 log.debug("User %s is not configured for ssh_import_id", user)
                 continue
@@ -69,8 +69,9 @@ def handle(_name, cfg, cloud, log, args):
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
         except Exception:
-            log.debug("User %s is not correctly configured for ssh_import_id",
-                      user)
+            log.debug(
+                "User %s is not correctly configured for ssh_import_id", user
+            )
             continue
 
         if not len(import_ids):
@@ -79,8 +80,9 @@ def handle(_name, cfg, cloud, log, args):
         try:
             import_ssh_ids(import_ids, user, log)
         except Exception as exc:
-            util.logexc(log, "ssh-import-id failed for: %s %s", user,
-                        import_ids)
+            util.logexc(
+                log, "ssh-import-id failed for: %s %s", user, import_ids
+            )
             elist.append(exc)
 
     if len(elist):
@@ -106,5 +108,6 @@ def import_ssh_ids(ids, user, log):
     except subp.ProcessExecutionError as exc:
         util.logexc(log, "Failed to run command to import %s SSH ids", user)
         raise exc
+
 
 # vi: ts=4 expandtab

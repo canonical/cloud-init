@@ -43,11 +43,10 @@ seeded with empty values, and install_devices_empty is set to true.
 
 import os
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.subp import ProcessExecutionError
 
-distros = ['ubuntu', 'debian']
+distros = ["ubuntu", "debian"]
 
 
 def fetch_idevs(log):
@@ -60,8 +59,9 @@ def fetch_idevs(log):
 
     try:
         # get the root disk where the /boot directory resides.
-        disk = subp.subp(['grub-probe', '-t', 'disk', '/boot'],
-                         capture=True)[0].strip()
+        disk = subp.subp(["grub-probe", "-t", "disk", "/boot"], capture=True)[
+            0
+        ].strip()
     except ProcessExecutionError as e:
         # grub-common may not be installed, especially on containers
         # FileNotFoundError is a nested exception of ProcessExecutionError
@@ -81,26 +81,30 @@ def fetch_idevs(log):
 
     if not disk or not os.path.exists(disk):
         # If we failed to detect a disk, we can return early
-        return ''
+        return ""
 
     try:
         # check if disk exists and use udevadm to fetch symlinks
-        devices = subp.subp(
-            ['udevadm', 'info', '--root', '--query=symlink', disk],
-            capture=True
-        )[0].strip().split()
+        devices = (
+            subp.subp(
+                ["udevadm", "info", "--root", "--query=symlink", disk],
+                capture=True,
+            )[0]
+            .strip()
+            .split()
+        )
     except Exception:
         util.logexc(
             log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
         )
 
-    log.debug('considering these device symlinks: %s', ','.join(devices))
+    log.debug("considering these device symlinks: %s", ",".join(devices))
     # filter symlinks for /dev/disk/by-id entries
-    devices = [dev for dev in devices if 'disk/by-id' in dev]
-    log.debug('filtered to these disk/by-id symlinks: %s', ','.join(devices))
+    devices = [dev for dev in devices if "disk/by-id" in dev]
+    log.debug("filtered to these disk/by-id symlinks: %s", ",".join(devices))
     # select first device if there is one, else fall back to plain name
     idevs = sorted(devices)[0] if devices else disk
-    log.debug('selected %s', idevs)
+    log.debug("selected %s", idevs)
 
     return idevs
 
@@ -111,14 +115,15 @@ def handle(name, cfg, _cloud, log, _args):
     if not mycfg:
         mycfg = {}
 
-    enabled = mycfg.get('enabled', True)
+    enabled = mycfg.get("enabled", True)
     if util.is_false(enabled):
         log.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
         return
 
     idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
     idevs_empty = util.get_cfg_option_str(
-        mycfg, "grub-pc/install_devices_empty", None)
+        mycfg, "grub-pc/install_devices_empty", None
+    )
 
     if idevs is None:
         idevs = fetch_idevs(log)
@@ -128,16 +133,21 @@ def handle(name, cfg, _cloud, log, _args):
     # now idevs and idevs_empty are set to determined values
     # or, those set by user
 
-    dconf_sel = (("grub-pc grub-pc/install_devices string %s\n"
-                 "grub-pc grub-pc/install_devices_empty boolean %s\n") %
-                 (idevs, idevs_empty))
+    dconf_sel = (
+        "grub-pc grub-pc/install_devices string %s\n"
+        "grub-pc grub-pc/install_devices_empty boolean %s\n"
+        % (idevs, idevs_empty)
+    )
 
-    log.debug("Setting grub debconf-set-selections with '%s','%s'" %
-              (idevs, idevs_empty))
+    log.debug(
+        "Setting grub debconf-set-selections with '%s','%s'"
+        % (idevs, idevs_empty)
+    )
 
     try:
-        subp.subp(['debconf-set-selections'], dconf_sel)
+        subp.subp(["debconf-set-selections"], dconf_sel)
     except Exception:
         util.logexc(log, "Failed to run debconf-set-selections for grub-dpkg")
+
 
 # vi: ts=4 expandtab

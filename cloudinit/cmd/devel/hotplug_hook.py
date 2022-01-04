@@ -6,20 +6,17 @@ import os
 import sys
 import time
 
-from cloudinit import log
-from cloudinit import reporting
-from cloudinit import stages
+from cloudinit import log, reporting, stages
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
-from cloudinit.stages import Init
 from cloudinit.sources import DataSource  # noqa: F401
 from cloudinit.sources import DataSourceNotFoundException
-
+from cloudinit.stages import Init
 
 LOG = log.getLogger(__name__)
-NAME = 'hotplug-hook'
+NAME = "hotplug-hook"
 
 
 def get_parser(parser=None):
@@ -35,33 +32,38 @@ def get_parser(parser=None):
 
     parser.description = __doc__
     parser.add_argument(
-        "-s", "--subsystem", required=True,
+        "-s",
+        "--subsystem",
+        required=True,
         help="subsystem to act on",
-        choices=['net']
+        choices=["net"],
     )
 
     subparsers = parser.add_subparsers(
-        title='Hotplug Action',
-        dest='hotplug_action'
+        title="Hotplug Action", dest="hotplug_action"
     )
     subparsers.required = True
 
     subparsers.add_parser(
-        'query',
-        help='query if hotplug is enabled for given subsystem'
+        "query", help="query if hotplug is enabled for given subsystem"
     )
 
     parser_handle = subparsers.add_parser(
-        'handle', help='handle the hotplug event')
-    parser_handle.add_argument(
-        "-d", "--devpath", required=True,
-        metavar="PATH",
-        help="sysfs path to hotplugged device"
+        "handle", help="handle the hotplug event"
     )
     parser_handle.add_argument(
-        "-u", "--udevaction", required=True,
+        "-d",
+        "--devpath",
+        required=True,
+        metavar="PATH",
+        help="sysfs path to hotplugged device",
+    )
+    parser_handle.add_argument(
+        "-u",
+        "--udevaction",
+        required=True,
         help="action to take",
-        choices=['add', 'remove']
+        choices=["add", "remove"],
     )
 
     return parser
@@ -90,27 +92,29 @@ class UeventHandler(abc.ABC):
 
     def detect_hotplugged_device(self):
         detect_presence = None
-        if self.action == 'add':
+        if self.action == "add":
             detect_presence = True
-        elif self.action == 'remove':
+        elif self.action == "remove":
             detect_presence = False
         else:
-            raise ValueError('Unknown action: %s' % self.action)
+            raise ValueError("Unknown action: %s" % self.action)
 
         if detect_presence != self.device_detected():
             raise RuntimeError(
-                'Failed to detect %s in updated metadata' % self.id)
+                "Failed to detect %s in updated metadata" % self.id
+            )
 
     def success(self):
         return self.success_fn()
 
     def update_metadata(self):
-        result = self.datasource.update_metadata_if_supported([
-            EventType.HOTPLUG])
+        result = self.datasource.update_metadata_if_supported(
+            [EventType.HOTPLUG]
+        )
         if not result:
             raise RuntimeError(
-                'Datasource %s not updated for '
-                'event %s' % (self.datasource, EventType.HOTPLUG)
+                "Datasource %s not updated for event %s"
+                % (self.datasource, EventType.HOTPLUG)
             )
         return result
 
@@ -118,7 +122,7 @@ class UeventHandler(abc.ABC):
 class NetHandler(UeventHandler):
     def __init__(self, datasource, devpath, action, success_fn):
         # convert devpath to mac address
-        id = read_sys_net_safe(os.path.basename(devpath), 'address')
+        id = read_sys_net_safe(os.path.basename(devpath), "address")
         super().__init__(id, datasource, devpath, action, success_fn)
 
     def apply(self):
@@ -128,14 +132,16 @@ class NetHandler(UeventHandler):
         )
         interface_name = os.path.basename(self.devpath)
         activator = activators.select_activator()
-        if self.action == 'add':
+        if self.action == "add":
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
-                    'Failed to bring up device: {}'.format(self.devpath))
-        elif self.action == 'remove':
+                    "Failed to bring up device: {}".format(self.devpath)
+                )
+        elif self.action == "remove":
             if not activator.bring_down_interface(interface_name):
                 raise RuntimeError(
-                    'Failed to bring down device: {}'.format(self.devpath))
+                    "Failed to bring down device: {}".format(self.devpath)
+                )
 
     @property
     def config(self):
@@ -144,15 +150,16 @@ class NetHandler(UeventHandler):
     def device_detected(self) -> bool:
         netstate = parse_net_config_data(self.config)
         found = [
-            iface for iface in netstate.iter_interfaces()
-            if iface.get('mac_address') == self.id
+            iface
+            for iface in netstate.iter_interfaces()
+            if iface.get("mac_address") == self.id
         ]
-        LOG.debug('Ifaces with ID=%s : %s', self.id, found)
+        LOG.debug("Ifaces with ID=%s : %s", self.id, found)
         return len(found) > 0
 
 
 SUBSYSTEM_PROPERTES_MAP = {
-    'net': (NetHandler, EventScope.NETWORK),
+    "net": (NetHandler, EventScope.NETWORK),
 }
 
 
@@ -161,66 +168,65 @@ def is_enabled(hotplug_init, subsystem):
         scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
     except KeyError as e:
         raise Exception(
-            'hotplug-hook: cannot handle events for subsystem: {}'.format(
-                subsystem)
+            "hotplug-hook: cannot handle events for subsystem: {}".format(
+                subsystem
+            )
         ) from e
 
     return stages.update_event_enabled(
         datasource=hotplug_init.datasource,
         cfg=hotplug_init.cfg,
         event_source_type=EventType.HOTPLUG,
-        scope=scope
+        scope=scope,
     )
 
 
 def initialize_datasource(hotplug_init, subsystem):
-    LOG.debug('Fetching datasource')
+    LOG.debug("Fetching datasource")
     datasource = hotplug_init.fetch(existing="trust")
 
     if not datasource.get_supported_events([EventType.HOTPLUG]):
-        LOG.debug('hotplug not supported for event of type %s', subsystem)
+        LOG.debug("hotplug not supported for event of type %s", subsystem)
         return
 
     if not is_enabled(hotplug_init, subsystem):
-        LOG.debug('hotplug not enabled for event of type %s', subsystem)
+        LOG.debug("hotplug not enabled for event of type %s", subsystem)
         return
     return datasource
 
 
-def handle_hotplug(
-    hotplug_init: Init, devpath, subsystem, udevaction
-):
+def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
     datasource = initialize_datasource(hotplug_init, subsystem)
     if not datasource:
         return
     handler_cls = SUBSYSTEM_PROPERTES_MAP[subsystem][0]
-    LOG.debug('Creating %s event handler', subsystem)
+    LOG.debug("Creating %s event handler", subsystem)
     event_handler = handler_cls(
         datasource=datasource,
         devpath=devpath,
         action=udevaction,
-        success_fn=hotplug_init._write_to_cache
+        success_fn=hotplug_init._write_to_cache,
     )  # type: UeventHandler
     wait_times = [1, 3, 5, 10, 30]
     for attempt, wait in enumerate(wait_times):
         LOG.debug(
-            'subsystem=%s update attempt %s/%s',
+            "subsystem=%s update attempt %s/%s",
             subsystem,
             attempt,
-            len(wait_times)
+            len(wait_times),
         )
         try:
-            LOG.debug('Refreshing metadata')
+            LOG.debug("Refreshing metadata")
             event_handler.update_metadata()
-            LOG.debug('Detecting device in updated metadata')
+            LOG.debug("Detecting device in updated metadata")
             event_handler.detect_hotplugged_device()
-            LOG.debug('Applying config change')
+            LOG.debug("Applying config change")
             event_handler.apply()
-            LOG.debug('Updating cache')
+            LOG.debug("Updating cache")
             event_handler.success()
             break
         except Exception as e:
-            LOG.debug('Exception while processing hotplug event. %s', e)
+            LOG.debug("Exception while processing hotplug event. %s", e)
             time.sleep(wait)
             last_exception = e
     else:
@@ -238,31 +244,33 @@ def handle_args(name, args):
     hotplug_init.read_cfg()
 
     log.setupLogging(hotplug_init.cfg)
-    if 'reporting' in hotplug_init.cfg:
-        reporting.update_configuration(hotplug_init.cfg.get('reporting'))
+    if "reporting" in hotplug_init.cfg:
+        reporting.update_configuration(hotplug_init.cfg.get("reporting"))
     # Logging isn't going to be setup until now
     LOG.debug(
-        '%s called with the following arguments: {'
-        'hotplug_action: %s, subsystem: %s, udevaction: %s, devpath: %s}',
+        "%s called with the following arguments: {"
+        "hotplug_action: %s, subsystem: %s, udevaction: %s, devpath: %s}",
         name,
         args.hotplug_action,
         args.subsystem,
-        args.udevaction if 'udevaction' in args else None,
-        args.devpath if 'devpath' in args else None,
+        args.udevaction if "udevaction" in args else None,
+        args.devpath if "devpath" in args else None,
     )
 
     with hotplug_reporter:
         try:
-            if args.hotplug_action == 'query':
+            if args.hotplug_action == "query":
                 try:
                     datasource = initialize_datasource(
-                        hotplug_init, args.subsystem)
+                        hotplug_init, args.subsystem
+                    )
                 except DataSourceNotFoundException:
                     print(
                         "Unable to determine hotplug state. No datasource "
-                        "detected")
+                        "detected"
+                    )
                     sys.exit(1)
-                print('enabled' if datasource else 'disabled')
+                print("enabled" if datasource else "disabled")
             else:
                 handle_hotplug(
                     hotplug_init=hotplug_init,
@@ -271,13 +279,13 @@ def handle_args(name, args):
                     udevaction=args.udevaction,
                 )
         except Exception:
-            LOG.exception('Received fatal exception handling hotplug!')
+            LOG.exception("Received fatal exception handling hotplug!")
             raise
 
-    LOG.debug('Exiting hotplug handler')
+    LOG.debug("Exiting hotplug handler")
     reporting.flush_events()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = get_parser().parse_args()
     handle_args(NAME, args)

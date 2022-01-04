@@ -8,13 +8,11 @@ import time
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit.sources.helpers import openstack
 from cloudinit.sources import DataSourceOracle as oracle
+from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
 
@@ -26,13 +24,13 @@ DEFAULT_METADATA = {
 }
 
 # OpenStack DMI constants
-DMI_PRODUCT_NOVA = 'OpenStack Nova'
-DMI_PRODUCT_COMPUTE = 'OpenStack Compute'
+DMI_PRODUCT_NOVA = "OpenStack Nova"
+DMI_PRODUCT_COMPUTE = "OpenStack Compute"
 VALID_DMI_PRODUCT_NAMES = [DMI_PRODUCT_NOVA, DMI_PRODUCT_COMPUTE]
-DMI_ASSET_TAG_OPENTELEKOM = 'OpenTelekomCloud'
+DMI_ASSET_TAG_OPENTELEKOM = "OpenTelekomCloud"
 # See github.com/sapcc/helm-charts/blob/master/openstack/nova/values.yaml
 # -> compute.defaults.vmware.smbios_asset_tag for this value
-DMI_ASSET_TAG_SAPCCLOUD = 'SAP CCloud VM'
+DMI_ASSET_TAG_SAPCCLOUD = "SAP CCloud VM"
 VALID_DMI_ASSET_TAGS = VALID_DMI_PRODUCT_NAMES
 VALID_DMI_ASSET_TAGS += [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
 
@@ -46,12 +44,14 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
 
-    supported_update_events = {EventScope.NETWORK: {
-        EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT,
-        EventType.BOOT_LEGACY,
-        EventType.HOTPLUG
-    }}
+    supported_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY,
+            EventType.HOTPLUG,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
@@ -71,8 +71,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         urls = self.ds_cfg.get("metadata_urls", [DEF_MD_URL])
         filtered = [x for x in urls if util.is_resolvable_url(x)]
         if set(filtered) != set(urls):
-            LOG.debug("Removed the following from metadata urls: %s",
-                      list((set(urls) - set(filtered))))
+            LOG.debug(
+                "Removed the following from metadata urls: %s",
+                list((set(urls) - set(filtered))),
+            )
         if len(filtered):
             urls = filtered
         else:
@@ -82,20 +84,25 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         md_urls = []
         url2base = {}
         for url in urls:
-            md_url = url_helper.combine_url(url, 'openstack')
+            md_url = url_helper.combine_url(url, "openstack")
             md_urls.append(md_url)
             url2base[md_url] = url
 
         url_params = self.get_url_params()
         start_time = time.time()
         avail_url, _response = url_helper.wait_for_url(
-            urls=md_urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds)
+            urls=md_urls,
+            max_wait=url_params.max_wait_seconds,
+            timeout=url_params.timeout_seconds,
+        )
         if avail_url:
             LOG.debug("Using metadata source: '%s'", url2base[avail_url])
         else:
-            LOG.debug("Giving up on OpenStack md from %s after %s seconds",
-                      md_urls, int(time.time() - start_time))
+            LOG.debug(
+                "Giving up on OpenStack md from %s after %s seconds",
+                md_urls,
+                int(time.time() - start_time),
+            )
 
         self.metadata_address = url2base.get(avail_url)
         return bool(avail_url)
@@ -113,18 +120,20 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         # RELEASE_BLOCKER: SRU to Xenial and Artful SRU should not provide
         # network_config by default unless configured in /etc/cloud/cloud.cfg*.
         # Patch Xenial and Artful before release to default to False.
-        if util.is_false(self.ds_cfg.get('apply_network_config', True)):
+        if util.is_false(self.ds_cfg.get("apply_network_config", True)):
             self._network_config = None
             return self._network_config
         if self.network_json == sources.UNSET:
             # this would happen if get_data hadn't been called. leave as UNSET
             LOG.warning(
-                'Unexpected call to network_config when network_json is None.')
+                "Unexpected call to network_config when network_json is None."
+            )
             return None
 
-        LOG.debug('network config provided via network_json')
+        LOG.debug("network config provided via network_json")
         self._network_config = openstack.convert_net_json(
-            self.network_json, known_macs=None)
+            self.network_json, known_macs=None
+        )
         return self._network_config
 
     def _get_data(self):
@@ -134,7 +143,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        oracle_considered = 'Oracle' in self.sys_cfg.get('datasource_list')
+        oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
         if not detect_openstack(accept_oracle=not oracle_considered):
             return False
 
@@ -142,8 +151,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             try:
                 with EphemeralDHCPv4(self.fallback_interface):
                     results = util.log_time(
-                        logfunc=LOG.debug, msg='Crawl of metadata service',
-                        func=self._crawl_metadata)
+                        logfunc=LOG.debug,
+                        msg="Crawl of metadata service",
+                        func=self._crawl_metadata,
+                    )
             except (NoDHCPLeaseError, sources.InvalidMetaDataException) as e:
                 util.logexc(LOG, str(e))
                 return False
@@ -154,19 +165,19 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                 util.logexc(LOG, str(e))
                 return False
 
-        self.dsmode = self._determine_dsmode([results.get('dsmode')])
+        self.dsmode = self._determine_dsmode([results.get("dsmode")])
         if self.dsmode == sources.DSMODE_DISABLED:
             return False
-        md = results.get('metadata', {})
+        md = results.get("metadata", {})
         md = util.mergemanydict([md, DEFAULT_METADATA])
         self.metadata = md
-        self.ec2_metadata = results.get('ec2-metadata')
-        self.network_json = results.get('networkdata')
-        self.userdata_raw = results.get('userdata')
-        self.version = results['version']
-        self.files.update(results.get('files', {}))
+        self.ec2_metadata = results.get("ec2-metadata")
+        self.network_json = results.get("networkdata")
+        self.userdata_raw = results.get("userdata")
+        self.version = results["version"]
+        self.files.update(results.get("files", {}))
 
-        vd = results.get('vendordata')
+        vd = results.get("vendordata")
         self.vendordata_pure = vd
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
@@ -174,7 +185,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             LOG.warning("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
-        vd2 = results.get('vendordata2')
+        vd2 = results.get("vendordata2")
         self.vendordata2_pure = vd2
         try:
             self.vendordata2_raw = sources.convert_vendordata(vd2)
@@ -194,26 +205,35 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 raise sources.InvalidMetaDataException(
-                    'No active metadata service found')
+                    "No active metadata service found"
+                )
         except IOError as e:
             raise sources.InvalidMetaDataException(
-                'IOError contacting metadata service: {error}'.format(
-                    error=str(e)))
+                "IOError contacting metadata service: {error}".format(
+                    error=str(e)
+                )
+            )
 
         url_params = self.get_url_params()
 
         try:
             result = util.log_time(
-                LOG.debug, 'Crawl of openstack metadata service',
-                read_metadata_service, args=[self.metadata_address],
-                kwargs={'ssl_details': self.ssl_details,
-                        'retries': url_params.num_retries,
-                        'timeout': url_params.timeout_seconds})
+                LOG.debug,
+                "Crawl of openstack metadata service",
+                read_metadata_service,
+                args=[self.metadata_address],
+                kwargs={
+                    "ssl_details": self.ssl_details,
+                    "retries": url_params.num_retries,
+                    "timeout": url_params.timeout_seconds,
+                },
+            )
         except openstack.NonReadable as e:
             raise sources.InvalidMetaDataException(str(e))
         except (openstack.BrokenMetadata, IOError) as e:
-            msg = 'Broken metadata address {addr}'.format(
-                addr=self.metadata_address)
+            msg = "Broken metadata address {addr}".format(
+                addr=self.metadata_address
+            )
             raise sources.InvalidMetaDataException(msg) from e
         return result
 
@@ -230,10 +250,10 @@ class DataSourceOpenStackLocal(DataSourceOpenStack):
     perform_dhcp_setup = True  # Get metadata network config if present
 
 
-def read_metadata_service(base_url, ssl_details=None,
-                          timeout=5, retries=5):
-    reader = openstack.MetadataReader(base_url, ssl_details=ssl_details,
-                                      timeout=timeout, retries=retries)
+def read_metadata_service(base_url, ssl_details=None, timeout=5, retries=5):
+    reader = openstack.MetadataReader(
+        base_url, ssl_details=ssl_details, timeout=timeout, retries=retries
+    )
     return reader.read_v2()
 
 
@@ -241,14 +261,14 @@ def detect_openstack(accept_oracle=False):
     """Return True when a potential OpenStack platform is detected."""
     if not util.is_x86():
         return True  # Non-Intel cpus don't properly report dmi product names
-    product_name = dmi.read_dmi_data('system-product-name')
+    product_name = dmi.read_dmi_data("system-product-name")
     if product_name in VALID_DMI_PRODUCT_NAMES:
         return True
-    elif dmi.read_dmi_data('chassis-asset-tag') in VALID_DMI_ASSET_TAGS:
+    elif dmi.read_dmi_data("chassis-asset-tag") in VALID_DMI_ASSET_TAGS:
         return True
     elif accept_oracle and oracle._is_platform_viable():
         return True
-    elif util.get_proc_env(1).get('product_name') == DMI_PRODUCT_NOVA:
+    elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
         return True
     return False
 
@@ -263,5 +283,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

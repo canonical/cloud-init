@@ -5,7 +5,6 @@ import os
 import stat
 
 from cloudinit import atomic_helper
-
 from tests.unittests.helpers import CiTestCase
 
 
@@ -34,7 +33,7 @@ class TestAtomicHelper(CiTestCase):
     def test_write_json(self):
         """write_json output is readable json."""
         path = self.tmp_path("test_write_json")
-        data = {'key1': 'value1', 'key2': ['i1', 'i2']}
+        data = {"key1": "value1", "key2": ["i1", "i2"]}
         atomic_helper.write_json(path, data)
         with open(path, "r") as fp:
             found = json.load(fp)
@@ -54,5 +53,6 @@ class TestAtomicHelper(CiTestCase):
     def check_perms(self, path, perms):
         file_stat = os.stat(path)
         self.assertEqual(perms, stat.S_IMODE(file_stat.st_mode))
+
 
 # vi: ts=4 expandtab

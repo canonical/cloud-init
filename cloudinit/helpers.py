@@ -8,20 +8,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from time import time
-
 import contextlib
 import os
-from configparser import NoSectionError, NoOptionError, RawConfigParser
+from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
-
-from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
-                                CFG_ENV_NAME)
+from time import time
 
 from cloudinit import log as logging
-from cloudinit import type_utils
-from cloudinit import persistence
-from cloudinit import util
+from cloudinit import persistence, type_utils, util
+from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
 
 LOG = logging.getLogger(__name__)
 
@@ -92,8 +87,9 @@ class FileSemaphores(object):
         try:
             util.del_dir(self.sem_path)
         except (IOError, OSError):
-            util.logexc(LOG, "Failed deleting semaphore directory %s",
-                        self.sem_path)
+            util.logexc(
+                LOG, "Failed deleting semaphore directory %s", self.sem_path
+            )
 
     def _acquire(self, name, freq):
         # Check again if its been already gotten
@@ -125,11 +121,14 @@ class FileSemaphores(object):
         # this case could happen if the migrator module hadn't run yet
         # but the item had run before we did canon_sem_name.
         if cname != name and os.path.exists(self._get_path(name, freq)):
-            LOG.warning("%s has run without canonicalized name [%s].\n"
-                        "likely the migrator has not yet run. "
-                        "It will run next boot.\n"
-                        "run manually with: cloud-init single --name=migrator",
-                        name, cname)
+            LOG.warning(
+                "%s has run without canonicalized name [%s].\n"
+                "likely the migrator has not yet run. "
+                "It will run next boot.\n"
+                "run manually with: cloud-init single --name=migrator",
+                name,
+                cname,
+            )
             return True
 
         return False
@@ -188,9 +187,14 @@ class Runners(object):
 
 
 class ConfigMerger(object):
-    def __init__(self, paths=None, datasource=None,
-                 additional_fns=None, base_cfg=None,
-                 include_vendor=True):
+    def __init__(
+        self,
+        paths=None,
+        datasource=None,
+        additional_fns=None,
+        base_cfg=None,
+        include_vendor=True,
+    ):
         self._paths = paths
         self._ds = datasource
         self._fns = additional_fns
@@ -207,8 +211,11 @@ class ConfigMerger(object):
                 if ds_cfg and isinstance(ds_cfg, (dict)):
                     d_cfgs.append(ds_cfg)
             except Exception:
-                util.logexc(LOG, "Failed loading of datasource config object "
-                            "from %s", self._ds)
+                util.logexc(
+                    LOG,
+                    "Failed loading of datasource config object from %s",
+                    self._ds,
+                )
         return d_cfgs
 
     def _get_env_configs(self):
@@ -218,8 +225,7 @@ class ConfigMerger(object):
             try:
                 e_cfgs.append(util.read_conf(e_fn))
             except Exception:
-                util.logexc(LOG, 'Failed loading of env. config from %s',
-                            e_fn)
+                util.logexc(LOG, "Failed loading of env. config from %s", e_fn)
         return e_cfgs
 
     def _get_instance_configs(self):
@@ -229,13 +235,13 @@ class ConfigMerger(object):
         if not self._paths:
             return i_cfgs
 
-        cc_paths = ['cloud_config']
+        cc_paths = ["cloud_config"]
         if self._include_vendor:
             # the order is important here: we want vendor2
             #  (dynamic vendor data from OpenStack)
             #  to override vendor (static data from OpenStack)
-            cc_paths.append('vendor2_cloud_config')
-            cc_paths.append('vendor_cloud_config')
+            cc_paths.append("vendor2_cloud_config")
+            cc_paths.append("vendor_cloud_config")
 
         for cc_p in cc_paths:
             cc_fn = self._paths.get_ipath_cur(cc_p)
@@ -244,11 +250,14 @@ class ConfigMerger(object):
                     i_cfgs.append(util.read_conf(cc_fn))
                 except PermissionError:
                     LOG.debug(
-                        'Skipped loading cloud-config from %s due to'
-                        ' non-root.', cc_fn)
+                        "Skipped loading cloud-config from %s due to"
+                        " non-root.",
+                        cc_fn,
+                    )
                 except Exception:
-                    util.logexc(LOG, 'Failed loading of cloud-config from %s',
-                                cc_fn)
+                    util.logexc(
+                        LOG, "Failed loading of cloud-config from %s", cc_fn
+                    )
         return i_cfgs
 
     def _read_cfg(self):
@@ -264,8 +273,9 @@ class ConfigMerger(object):
                 try:
                     cfgs.append(util.read_conf(c_fn))
                 except Exception:
-                    util.logexc(LOG, "Failed loading of configuration from %s",
-                                c_fn)
+                    util.logexc(
+                        LOG, "Failed loading of configuration from %s", c_fn
+                    )
 
         cfgs.extend(self._get_env_configs())
         cfgs.extend(self._get_instance_configs())
@@ -283,7 +293,6 @@ class ConfigMerger(object):
 
 
 class ContentHandlers(object):
-
     def __init__(self):
         self.registered = {}
         self.initialized = []
@@ -324,15 +333,15 @@ class Paths(persistence.CloudInitPickleMixin):
     def __init__(self, path_cfgs, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
-        self.run_dir = path_cfgs.get('run_dir', '/run/cloud-init')
-        self.instance_link = os.path.join(self.cloud_dir, 'instance')
+        self.cloud_dir = path_cfgs.get("cloud_dir", "/var/lib/cloud")
+        self.run_dir = path_cfgs.get("run_dir", "/run/cloud-init")
+        self.instance_link = os.path.join(self.cloud_dir, "instance")
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
-        self.upstart_conf_d = path_cfgs.get('upstart_dir')
-        self.seed_dir = os.path.join(self.cloud_dir, 'seed')
+        self.upstart_conf_d = path_cfgs.get("upstart_dir")
+        self.seed_dir = os.path.join(self.cloud_dir, "seed")
         # This one isn't joined, since it should just be read-only
-        template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
-        self.template_tpl = os.path.join(template_dir, '%s.tmpl')
+        template_dir = path_cfgs.get("templates_dir", "/etc/cloud/templates/")
+        self.template_tpl = os.path.join(template_dir, "%s.tmpl")
         self.lookups = {
             "handlers": "handlers",
             "scripts": "scripts",
@@ -366,8 +375,8 @@ class Paths(persistence.CloudInitPickleMixin):
             # we will rely on this attribute. To fix that, we are now
             # manually adding that attribute here.
             self.run_dir = Paths(
-                path_cfgs=self.cfgs,
-                ds=self.datasource).run_dir
+                path_cfgs=self.cfgs, ds=self.datasource
+            ).run_dir
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
@@ -386,8 +395,8 @@ class Paths(persistence.CloudInitPickleMixin):
         iid = self.datasource.get_instance_id()
         if iid is None:
             return None
-        path_safe_iid = str(iid).replace(os.sep, '_')
-        ipath = os.path.join(self.cloud_dir, 'instances', path_safe_iid)
+        path_safe_iid = str(iid).replace(os.sep, "_")
+        ipath = os.path.join(self.cloud_dir, "instances", path_safe_iid)
         add_on = self.lookups.get(name)
         if add_on:
             ipath = os.path.join(ipath, add_on)
@@ -399,8 +408,10 @@ class Paths(persistence.CloudInitPickleMixin):
     def get_ipath(self, name=None):
         ipath = self._get_ipath(name)
         if not ipath:
-            LOG.warning(("No per instance data available, "
-                         "is there an datasource/iid set?"))
+            LOG.warning(
+                "No per instance data available, "
+                "is there an datasource/iid set?"
+            )
             return None
         else:
             return ipath
@@ -423,6 +434,7 @@ class Paths(persistence.CloudInitPickleMixin):
 # you can avoid catching exceptions that you typically don't
 # care about...
 
+
 class DefaultingConfigParser(RawConfigParser):
     DEF_INT = 0
     DEF_FLOAT = 0.0
@@ -440,7 +452,7 @@ class DefaultingConfigParser(RawConfigParser):
         return value
 
     def set(self, section, option, value=None):
-        if not self.has_section(section) and section.lower() != 'default':
+        if not self.has_section(section) and section.lower() != "default":
             self.add_section(section)
         RawConfigParser.set(self, section, option, value)
 
@@ -464,13 +476,14 @@ class DefaultingConfigParser(RawConfigParser):
         return RawConfigParser.getint(self, section, option)
 
     def stringify(self, header=None):
-        contents = ''
+        contents = ""
         outputstream = StringIO()
         self.write(outputstream)
         outputstream.flush()
         contents = outputstream.getvalue()
         if header:
-            contents = '\n'.join([header, contents, ''])
+            contents = "\n".join([header, contents, ""])
         return contents
+
 
 # vi: ts=4 expandtab

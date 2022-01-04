@@ -4,8 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-DEF_MERGE_TYPE = 'no_replace'
-MERGE_TYPES = ('replace', DEF_MERGE_TYPE,)
+DEF_MERGE_TYPE = "no_replace"
+MERGE_TYPES = (
+    "replace",
+    DEF_MERGE_TYPE,
+)
 
 
 def _has_any(what, *keys):
@@ -25,21 +28,27 @@ class Merger(object):
                 self._method = m
                 break
         # Affect how recursive merging is done on other primitives.
-        self._recurse_str = 'recurse_str' in opts
-        self._recurse_array = _has_any(opts, 'recurse_array', 'recurse_list')
-        self._allow_delete = 'allow_delete' in opts
+        self._recurse_str = "recurse_str" in opts
+        self._recurse_array = _has_any(opts, "recurse_array", "recurse_list")
+        self._allow_delete = "allow_delete" in opts
         # Backwards compat require this to be on.
         self._recurse_dict = True
 
     def __str__(self):
-        s = ('DictMerger: (method=%s,recurse_str=%s,'
-             'recurse_dict=%s,recurse_array=%s,allow_delete=%s)')
-        s = s % (self._method, self._recurse_str,
-                 self._recurse_dict, self._recurse_array, self._allow_delete)
+        s = (
+            "DictMerger: (method=%s,recurse_str=%s,"
+            "recurse_dict=%s,recurse_array=%s,allow_delete=%s)"
+        )
+        s = s % (
+            self._method,
+            self._recurse_str,
+            self._recurse_dict,
+            self._recurse_array,
+            self._allow_delete,
+        )
         return s
 
     def _do_dict_replace(self, value, merge_with, do_replace):
-
         def merge_same_key(old_v, new_v):
             if do_replace:
                 return new_v
@@ -65,12 +74,13 @@ class Merger(object):
     def _on_dict(self, value, merge_with):
         if not isinstance(merge_with, (dict)):
             return value
-        if self._method == 'replace':
+        if self._method == "replace":
             merged = self._do_dict_replace(dict(value), merge_with, True)
-        elif self._method == 'no_replace':
+        elif self._method == "no_replace":
             merged = self._do_dict_replace(dict(value), merge_with, False)
         else:
             raise NotImplementedError("Unknown merge type %s" % (self._method))
         return merged
+
 
 # vi: ts=4 expandtab

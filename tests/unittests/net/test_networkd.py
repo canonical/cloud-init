@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import safeyaml
-from cloudinit.net import networkd, network_state
+from cloudinit.net import network_state, networkd
 
 V2_CONFIG_SET_NAME = """\
 network:

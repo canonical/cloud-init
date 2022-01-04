@@ -7,7 +7,6 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 
-
 VALID_USER_DATA = """\
 #cloud-config
 runcmd:
@@ -27,9 +26,9 @@ def test_valid_userdata(client: IntegrationInstance):
 
     PR #575
     """
-    result = client.execute('cloud-init devel schema --system')
+    result = client.execute("cloud-init devel schema --system")
     assert result.ok
-    assert 'Valid cloud-config: system userdata' == result.stdout.strip()
+    assert "Valid cloud-config: system userdata" == result.stdout.strip()
 
 
 @pytest.mark.sru_2020_11
@@ -39,7 +38,7 @@ def test_invalid_userdata(client: IntegrationInstance):
 
     PR #575
     """
-    result = client.execute('cloud-init devel schema --system')
+    result = client.execute("cloud-init devel schema --system")
     assert not result.ok
-    assert 'Cloud config schema errors' in result.stderr
+    assert "Cloud config schema errors" in result.stderr
     assert 'needs to begin with "#cloud-config"' in result.stderr

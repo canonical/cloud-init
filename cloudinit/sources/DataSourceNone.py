@@ -14,23 +14,23 @@ class DataSourceNone(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
         self.metadata = {}
-        self.userdata_raw = ''
+        self.userdata_raw = ""
 
     def _get_data(self):
         # If the datasource config has any provided 'fallback'
         # userdata or metadata, use it...
-        if 'userdata_raw' in self.ds_cfg:
-            self.userdata_raw = self.ds_cfg['userdata_raw']
-        if 'metadata' in self.ds_cfg:
-            self.metadata = self.ds_cfg['metadata']
+        if "userdata_raw" in self.ds_cfg:
+            self.userdata_raw = self.ds_cfg["userdata_raw"]
+        if "metadata" in self.ds_cfg:
+            self.metadata = self.ds_cfg["metadata"]
         return True
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        return 'config'
+        return "config"
 
     def get_instance_id(self):
-        return 'iid-datasource-none'
+        return "iid-datasource-none"
 
     @property
     def is_disconnected(self):
@@ -47,5 +47,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

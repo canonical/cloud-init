@@ -50,9 +50,7 @@ ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
     hostname: <fqdn/hostname>
 """
 
-from cloudinit import templater
-from cloudinit import util
-
+from cloudinit import templater, util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
@@ -63,35 +61,45 @@ def handle(name, cfg, cloud, log, _args):
 
     hosts_fn = cloud.distro.hosts_fn
 
-    if util.translate_bool(manage_hosts, addons=['template']):
+    if util.translate_bool(manage_hosts, addons=["template"]):
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warning(("Option 'manage_etc_hosts' was set,"
-                         " but no hostname was found"))
+            log.warning(
+                "Option 'manage_etc_hosts' was set, but no hostname was found"
+            )
             return
 
         # Render from a template file
-        tpl_fn_name = cloud.get_template_filename("hosts.%s" %
-                                                  (cloud.distro.osfamily))
+        tpl_fn_name = cloud.get_template_filename(
+            "hosts.%s" % (cloud.distro.osfamily)
+        )
         if not tpl_fn_name:
-            raise RuntimeError(("No hosts template could be"
-                                " found for distro %s") %
-                               (cloud.distro.osfamily))
+            raise RuntimeError(
+                "No hosts template could be found for distro %s"
+                % (cloud.distro.osfamily)
+            )
 
-        templater.render_to_file(tpl_fn_name, hosts_fn,
-                                 {'hostname': hostname, 'fqdn': fqdn})
+        templater.render_to_file(
+            tpl_fn_name, hosts_fn, {"hostname": hostname, "fqdn": fqdn}
+        )
 
     elif manage_hosts == "localhost":
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warning(("Option 'manage_etc_hosts' was set,"
-                         " but no hostname was found"))
+            log.warning(
+                "Option 'manage_etc_hosts' was set, but no hostname was found"
+            )
             return
 
         log.debug("Managing localhost in %s", hosts_fn)
         cloud.distro.update_etc_hosts(hostname, fqdn)
     else:
-        log.debug(("Configuration option 'manage_etc_hosts' is not set,"
-                   " not managing %s in module %s"), hosts_fn, name)
+        log.debug(
+            "Configuration option 'manage_etc_hosts' is not set,"
+            " not managing %s in module %s",
+            hosts_fn,
+            name,
+        )
+
 
 # vi: ts=4 expandtab
