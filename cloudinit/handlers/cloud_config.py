@@ -90,7 +90,7 @@ class CloudConfigPartHandler(handlers.Handler):
         # if neither exists (or is empty) from the later.
         payload_yaml = util.load_yaml(payload)
         if payload_yaml is None:
-            raise ValueError("empty yaml file")
+            raise ValueError("empty cloud config")
 
         mergers_yaml = mergers.dict_extract_mergers(payload_yaml)
         mergers_header = mergers.string_extract_mergers(merge_header_headers)
@@ -143,7 +143,7 @@ class CloudConfigPartHandler(handlers.Handler):
                 filename = filename.replace(i, " ")
             self.file_names.append(filename.strip())
         except ValueError as err:
-            LOG.warning("Failed at merging in %s", str(err))
+            LOG.warning("Failed at merging in %s", err)
         except Exception:
             util.logexc(
                 LOG, "Failed at merging in cloud config part from %s", filename
