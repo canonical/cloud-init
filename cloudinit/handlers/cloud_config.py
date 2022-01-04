@@ -89,7 +89,7 @@ class CloudConfigPartHandler(handlers.Handler):
         # or the merge type from the headers or default to our own set
         # if neither exists (or is empty) from the later.
         payload_yaml = util.load_yaml(payload)
-        if not payload_yaml:
+        if payload_yaml is None:
             raise ValueError("empty yaml file")
 
         mergers_yaml = mergers.dict_extract_mergers(payload_yaml)
