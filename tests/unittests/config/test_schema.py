@@ -128,69 +128,85 @@ class SchemaValidationErrorTest(CiTestCase):
         self.assertTrue(isinstance(exception, ValueError))
 
 
-class ValidateCloudConfigSchemaTest(CiTestCase):
+class TestValidateCloudConfigSchema:
     """Tests for validate_cloudconfig_schema."""
 
     with_logs = True
 
+    @pytest.mark.parametrize(
+        "schema, call_count",
+        ((None, 1), ({"properties": {"p1": {"type": "string"}}}, 0)),
+    )
     @skipUnlessJsonSchema()
-    def test_validateconfig_schema_non_strict_emits_warnings(self):
+    @mock.patch("cloudinit.config.schema.get_schema")
+    def test_validateconfig_schema_use_full_schema_when_no_schema_param(
+        self, get_schema, schema, call_count
+    ):
+        """Use full schema when schema param is absent."""
+        get_schema.return_value = {"properties": {"p1": {"type": "string"}}}
+        kwargs = {"config": {"p1": "valid"}}
+        if schema:
+            kwargs["schema"] = schema
+        validate_cloudconfig_schema(**kwargs)
+        assert call_count == get_schema.call_count
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_non_strict_emits_warnings(self, caplog):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
         validate_cloudconfig_schema({"p1": -1}, schema, strict=False)
-        self.assertIn(
-            "Invalid config:\np1: -1 is not of type 'string'\n",
-            self.logs.getvalue(),
+        assert "Invalid config:\np1: -1 is not of type 'string'\n" in (
+            caplog.text
         )
 
     @skipUnlessJsonSchema()
-    def test_validateconfig_schema_emits_warning_on_missing_jsonschema(self):
+    def test_validateconfig_schema_emits_warning_on_missing_jsonschema(
+        self, caplog
+    ):
         """Warning from validate_cloudconfig_schema when missing jsonschema."""
         schema = {"properties": {"p1": {"type": "string"}}}
         with mock.patch.dict("sys.modules", **{"jsonschema": ImportError()}):
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
-        self.assertIn(
-            "Ignoring schema validation. jsonschema is not present",
-            self.logs.getvalue(),
+        assert "Ignoring schema validation. jsonschema is not present" in (
+            caplog.text
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_strict_raises_errors(self):
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {"properties": {"p1": {"type": "string"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
-        self.assertEqual(
-            "Cloud config schema errors: p1: -1 is not of type 'string'",
-            str(context_mgr.exception),
+        assert"Cloud config schema errors: p1: -1 is not of type 'string'" == (
+            str(context_mgr.value)
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({"p1": "-1"}, schema, strict=True)
-        self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'email'",
-            str(context_mgr.exception),
+        assert "Cloud config schema errors: p1: '-1' is not a 'email'" == (
+            str(context_mgr.value)
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats_strict_metaschema(self):
         """With strict and strict_metaschema True, ensure errors on format"""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema(
                 {"p1": "-1"}, schema, strict=True, strict_metaschema=True
             )
-        self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'email'",
-            str(context_mgr.exception),
+        assert "Cloud config schema errors: p1: '-1' is not a 'email'" == str(
+            context_mgr.value
         )
 
     @skipUnlessJsonSchema()
-    def test_validateconfig_strict_metaschema_do_not_raise_exception(self):
+    def test_validateconfig_strict_metaschema_do_not_raise_exception(
+        self, caplog
+    ):
         """With strict_metaschema=True, do not raise exceptions.
 
         This flag is currently unused, but is intended for run-time validation.
@@ -202,7 +218,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         )
         assert (
             "Meta-schema validation failed, attempting to validate config"
-            in self.logs.getvalue()
+            in caplog.text
         )
 
 
