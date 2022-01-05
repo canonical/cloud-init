@@ -16,12 +16,13 @@ from cloudinit.util import get_cmdline, load_file, load_json
 
 CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
 
+
 # customer visible status messages
 @enum.unique
 class UXAppStatus(enum.Enum):
     """Enum representing user-visible cloud-init application status."""
 
-    ENABLED_NOT_RUN = "not-run"
+    NOT_RUN = "not-run"
     RUNNING = "running"
     DONE = "done"
     ERROR = "error"
@@ -68,19 +69,17 @@ def handle_status_args(name, args):
     init.read_cfg()
     status, status_detail, time = get_status_details(init.paths)
     if args.wait:
-        while status in (UXAppStatus.ENABLED_NOT_RUN, UXAppStatus.RUNNING):
+        while status in (UXAppStatus.NOT_RUN, UXAppStatus.RUNNING):
             sys.stdout.write(".")
             sys.stdout.flush()
             status, status_detail, time = get_status_details(init.paths)
             sleep(0.25)
         sys.stdout.write("\n")
+    print("status: {0}".format(status.value))
     if args.long:
-        print("status: {0}".format(status.value))
         if time:
             print("time: {0}".format(time))
         print("detail:\n{0}".format(status_detail))
-    else:
-        print("status: {0}".format(status.value))
     return 1 if status == UXAppStatus.ERROR else 0
 
 
@@ -126,7 +125,7 @@ def get_status_details(paths=None):
         init.read_cfg()
         paths = init.paths
 
-    status = UXAppStatus.ENABLED_NOT_RUN
+    status = UXAppStatus.NOT_RUN
     status_detail = ""
     status_v1 = {}
 
@@ -164,7 +163,7 @@ def get_status_details(paths=None):
     if errors:
         status = UXAppStatus.ERROR
         status_detail = "\n".join(errors)
-    elif status == UXAppStatus.ENABLED_NOT_RUN and latest_event > 0:
+    elif status == UXAppStatus.NOT_RUN and latest_event > 0:
         status = UXAppStatus.DONE
     if latest_event:
         time = strftime("%a, %d %b %Y %H:%M:%S %z", gmtime(latest_event))

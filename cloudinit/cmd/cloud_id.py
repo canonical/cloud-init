@@ -66,11 +66,10 @@ def handle_args(name, args):
     @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not-run.
     """
     status, _status_details, _time = get_status_details()
-    exit_code = 0
     if status == UXAppStatus.DISABLED:
         sys.stdout.write("{0}\n".format(status.value))
         return 2
-    elif status == UXAppStatus.ENABLED_NOT_RUN:
+    elif status == UXAppStatus.NOT_RUN:
         sys.stdout.write("{0}\n".format(status.value))
         return 3
 
@@ -101,7 +100,7 @@ def handle_args(name, args):
     else:
         response = cloud_id
     sys.stdout.write("%s\n" % response)
-    return exit_code
+    return 0
 
 
 def main():

@@ -137,7 +137,7 @@ class TestStatus(CiTestCase):
         )
 
     def test_status_returns_not_run(self):
-        """When status.json does not exist yet, return 'not run'."""
+        """When status.json does not exist yet, return 'not-run'."""
         self.assertFalse(
             os.path.exists(self.status_file), "Unexpected status.json found"
         )
