@@ -217,21 +217,21 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
     if not schema_errors:
         return original_content
     schemapaths = {}
-    if cloudconfig:
-        schemapaths = _schemapath_for_cloudconfig(
-            cloudconfig, original_content
-        )
     errors_by_line = defaultdict(list)
     error_footer = []
     error_header = "# Errors: -------------\n{0}\n\n"
     annotated_content = []
     lines = original_content.decode().split("\n")
-    cloud_config_body = lines[1:]
-
-    # Return a meaningful message on empty cloud-config
-    if not [line for line in cloud_config_body if line.strip()]:
-        return error_header.format("Empty cloud-config")
-
+    if not isinstance(cloudconfig, dict):
+        # Return a meaningful message on empty cloud-config
+        return "\n".join(
+            lines
+            + [error_header.format("# E1: Cloud-config is not a YAML dict.")]
+        )
+    if cloudconfig:
+        schemapaths = _schemapath_for_cloudconfig(
+            cloudconfig, original_content
+        )
     for path, msg in schema_errors:
         match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
         if match:

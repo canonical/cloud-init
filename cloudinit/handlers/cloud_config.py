@@ -143,7 +143,11 @@ class CloudConfigPartHandler(handlers.Handler):
                 filename = filename.replace(i, " ")
             self.file_names.append(filename.strip())
         except ValueError as err:
-            LOG.warning("Failed at merging in %s", err)
+            LOG.warning(
+                "Failed at merging in cloud config part from %s: %s",
+                filename,
+                err,
+            )
         except Exception:
             util.logexc(
                 LOG, "Failed at merging in cloud config part from %s", filename

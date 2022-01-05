@@ -546,6 +546,31 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
             content, annotated_cloudconfig_file({}, content, schema_errors=[])
         )
 
+    def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
+        """Error when empty non-dict cloud-config is provided.
+
+        OurJSON validation when user-data is None type generates a bunch
+        schema validation errors of the format:
+        ('', "None is not of type 'object'"). Ignore those symptoms and
+        report the general problem instead.
+        """
+        content = b"\n\n\n"
+        expected = "\n".join(
+            [
+                content.decode(),
+                "# Errors: -------------",
+                "# E1: Cloud-config is not a YAML dict.\n\n",
+            ]
+        )
+        self.assertEqual(
+            expected,
+            annotated_cloudconfig_file(
+                None,
+                content,
+                schema_errors=[("", "None is not of type 'object'")],
+            ),
+        )
+
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
         """With schema_errors, error lines are annotated and a footer added."""
         content = dedent(
