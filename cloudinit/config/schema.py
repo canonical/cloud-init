@@ -166,14 +166,18 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
 
 
 def validate_cloudconfig_schema(
-    config: dict, schema: dict, strict=False, strict_metaschema=False
+    config: dict,
+    schema: dict = None,
+    strict: bool = False,
+    strict_metaschema: bool = False,
 ):
     """Validate provided config meets the schema definition.
 
     @param config: Dict of cloud configuration settings validated against
         schema. Ignored if strict_metaschema=True
     @param schema: jsonschema dict describing the supported schema definition
-       for the cloud config module (config.cc_*).
+       for the cloud config module (config.cc_*). If None, validate against
+       global schema.
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
     @param strict_metaschema: Boolean, when True validates schema using strict
@@ -183,6 +187,8 @@ def validate_cloudconfig_schema(
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
     """
+    if schema is None:
+        schema = get_schema()
     try:
         (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
         if strict_metaschema:
