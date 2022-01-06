@@ -36,6 +36,7 @@ script:
 env:
   TOXENV=py3
   PYTEST_ADDOPTS=-v  # List all tests run by pytest
+  DEB_BUILD_OPTIONS=nocheck
 
 matrix:
     fast_finish: true
