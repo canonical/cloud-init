@@ -181,6 +181,7 @@ def validate_cloudconfig_schema(
 
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
+    @raises: RuntimeError when provided config sourced from YAML is not a dict.
     """
     try:
         (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
@@ -324,6 +325,10 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if annotate:
             print(annotated_cloudconfig_file({}, content, error.schema_errors))
         raise error from e
+    if not isinstance(cloudconfig, dict):
+        # Return a meaningful message on empty cloud-config
+        if not annotate:
+            raise RuntimeError("Cloud-config is not a YAML dict.")
     try:
         validate_cloudconfig_schema(cloudconfig, schema, strict=True)
     except SchemaValidationError as e:
