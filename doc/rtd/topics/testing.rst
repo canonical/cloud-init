@@ -146,7 +146,7 @@ Test Argument Ordering
 .. [#fixture-list] This list of fixtures (with markup) can be
    reproduced by running::
 
-     python3 -m pytest  --fixtures -q | grep "^[^ -]" | grep -v '\(no\|capturelog\)' | sort | sed 's/.*/* ``\0``/'
+     python3 -m pytest  --fixtures -q | grep "^[^ -]" | grep -v 'no tests ran in' | sort | sed 's/ \[session scope\]//g;s/.*/* ``\0``/g'
 
    in an ubuntu lxd container with python3-pytest installed.
 
