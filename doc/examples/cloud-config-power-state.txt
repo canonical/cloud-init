@@ -4,7 +4,7 @@
 # default: none
 #
 # power_state can be used to make the system shutdown, reboot or
-# halt after boot is finished.  This same thing can be acheived by
+# halt after boot is finished.  This same thing can be achieved by
 # user-data scripts or by runcmd by simply invoking 'shutdown'.
 # 
 # Doing it this way ensures that cloud-init is entirely finished with
