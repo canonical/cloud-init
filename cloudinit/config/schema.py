@@ -673,6 +673,8 @@ def handle_schema_args(name, args):
     exclusive_args = [args.config_file, args.docs, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
         error("Expected one of --config-file, --system or --docs arguments")
+    if args.annotate and args.docs:
+        error("Invalid flag combination. Cannot use --annotate with --docs")
     full_schema = get_schema()
     if args.config_file or args.system:
         try:
