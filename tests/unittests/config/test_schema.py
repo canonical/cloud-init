@@ -683,6 +683,19 @@ class TestMain:
         _out, err = capsys.readouterr()
         assert "Error:\nConfigfile NOT_A_FILE does not exist\n" == err
 
+    def test_main_invalid_flag_combo(self, capsys):
+        """Main exits non-zero when invalid flag combo used."""
+        myargs = ["mycmd", "--annotate", "--docs", "DOES_NOT_MATTER"]
+        with mock.patch("sys.argv", myargs):
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+        _, err = capsys.readouterr()
+        assert (
+            "Error:\nInvalid flag combination. "
+            "Cannot use --annotate with --docs\n" == err
+        )
+
     def test_main_prints_docs(self, capsys):
         """When --docs parameter is provided, main generates documentation."""
         myargs = ["mycmd", "--docs", "all"]
