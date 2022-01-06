@@ -181,6 +181,7 @@ def validate_cloudconfig_schema(
 
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
+    @raises: RuntimeError when provided config sourced from YAML is not a dict.
     """
     try:
         (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
@@ -217,13 +218,21 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
     if not schema_errors:
         return original_content
     schemapaths = {}
+    errors_by_line = defaultdict(list)
+    error_footer = []
+    error_header = "# Errors: -------------\n{0}\n\n"
+    annotated_content = []
+    lines = original_content.decode().split("\n")
+    if not isinstance(cloudconfig, dict):
+        # Return a meaningful message on empty cloud-config
+        return "\n".join(
+            lines
+            + [error_header.format("# E1: Cloud-config is not a YAML dict.")]
+        )
     if cloudconfig:
         schemapaths = _schemapath_for_cloudconfig(
             cloudconfig, original_content
         )
-    errors_by_line = defaultdict(list)
-    error_footer = []
-    annotated_content = []
     for path, msg in schema_errors:
         match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
         if match:
@@ -236,7 +245,6 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
             msg = "Line {line} column {col}: {msg}".format(
                 line=line, col=col, msg=msg
             )
-    lines = original_content.decode().split("\n")
     error_index = 1
     for line_number, line in enumerate(lines, 1):
         errors = errors_by_line[line_number]
@@ -247,11 +255,10 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
                 error_footer.append("# E{0}: {1}".format(error_index, error))
                 error_index += 1
             annotated_content.append(line + "\t\t# " + ",".join(error_label))
+
         else:
             annotated_content.append(line)
-    annotated_content.append(
-        "# Errors: -------------\n{0}\n\n".format("\n".join(error_footer))
-    )
+    annotated_content.append(error_header.format("\n".join(error_footer)))
     return "\n".join(annotated_content)
 
 
@@ -318,6 +325,10 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if annotate:
             print(annotated_cloudconfig_file({}, content, error.schema_errors))
         raise error from e
+    if not isinstance(cloudconfig, dict):
+        # Return a meaningful message on empty cloud-config
+        if not annotate:
+            raise RuntimeError("Cloud-config is not a YAML dict.")
     try:
         validate_cloudconfig_schema(cloudconfig, schema, strict=True)
     except SchemaValidationError as e:
@@ -662,6 +673,8 @@ def handle_schema_args(name, args):
     exclusive_args = [args.config_file, args.docs, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
         error("Expected one of --config-file, --system or --docs arguments")
+    if args.annotate and args.docs:
+        error("Invalid flag combination. Cannot use --annotate with --docs")
     full_schema = get_schema()
     if args.config_file or args.system:
         try:

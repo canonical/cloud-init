@@ -546,6 +546,31 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
             content, annotated_cloudconfig_file({}, content, schema_errors=[])
         )
 
+    def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
+        """Error when empty non-dict cloud-config is provided.
+
+        OurJSON validation when user-data is None type generates a bunch
+        schema validation errors of the format:
+        ('', "None is not of type 'object'"). Ignore those symptoms and
+        report the general problem instead.
+        """
+        content = b"\n\n\n"
+        expected = "\n".join(
+            [
+                content.decode(),
+                "# Errors: -------------",
+                "# E1: Cloud-config is not a YAML dict.\n\n",
+            ]
+        )
+        self.assertEqual(
+            expected,
+            annotated_cloudconfig_file(
+                None,
+                content,
+                schema_errors=[("", "None is not of type 'object'")],
+            ),
+        )
+
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
         """With schema_errors, error lines are annotated and a footer added."""
         content = dedent(
@@ -657,6 +682,19 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         assert "Error:\nConfigfile NOT_A_FILE does not exist\n" == err
+
+    def test_main_invalid_flag_combo(self, capsys):
+        """Main exits non-zero when invalid flag combo used."""
+        myargs = ["mycmd", "--annotate", "--docs", "DOES_NOT_MATTER"]
+        with mock.patch("sys.argv", myargs):
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+        _, err = capsys.readouterr()
+        assert (
+            "Error:\nInvalid flag combination. "
+            "Cannot use --annotate with --docs\n" == err
+        )
 
     def test_main_prints_docs(self, capsys):
         """When --docs parameter is provided, main generates documentation."""
