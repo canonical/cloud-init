@@ -8,7 +8,6 @@ import pytest
 import yaml
 
 from tests.integration_tests import random_mac_address
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 MAC_ADDRESS = random_mac_address()
@@ -29,7 +28,6 @@ iface eth0 inet dhcp
     ethernet-wol g"""
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_config_dict(
@@ -39,11 +37,6 @@ iface eth0 inet dhcp
     }
 )
 def test_wakeonlan(client: IntegrationInstance):
-    if ImageSpecification.from_os_image().release == "xenial":
-        eni = client.execute("cat /etc/network/interfaces.d/50-cloud-init.cfg")
-        assert eni.endswith(EXPECTED_ENI_END)
-        return
-
     netplan_cfg = client.execute("cat /etc/netplan/50-cloud-init.yaml")
     netplan_yaml = yaml.safe_load(netplan_cfg)
     assert "wakeonlan" in netplan_yaml["network"]["ethernets"]["eth0"]

@@ -106,7 +106,6 @@ def test_sudoers_includedir(client: IntegrationInstance):
     https://github.com/canonical/cloud-init/pull/783
     """
     if ImageSpecification.from_os_image().release in [
-        "xenial",
         "bionic",
         "focal",
     ]:

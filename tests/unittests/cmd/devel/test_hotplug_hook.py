@@ -16,7 +16,7 @@ hotplug_args = namedtuple("hotplug_args", "udevaction, subsystem, devpath")
 FAKE_MAC = "11:22:33:44:55:66"
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def mocks():
     m_init = mock.MagicMock(spec=Init)
     m_distro = mock.MagicMock(spec=Distro)

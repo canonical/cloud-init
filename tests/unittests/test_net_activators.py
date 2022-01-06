@@ -39,7 +39,7 @@ NETPLAN_CALL_LIST = [
 ]
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def available_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file")
     with patch("cloudinit.subp.which", return_value=True) as m_which:
@@ -47,7 +47,7 @@ def available_mocks():
             yield mocks(m_which, m_file)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def unavailable_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file")
     with patch("cloudinit.subp.which", return_value=False) as m_which:

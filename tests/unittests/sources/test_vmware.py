@@ -57,7 +57,7 @@ runcmd:
 """
 
 
-@pytest.yield_fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def common_patches():
     with mock.patch("cloudinit.util.platform.platform", return_value="Linux"):
         with mock.patch.multiple(
