@@ -276,6 +276,7 @@ data_files = [
     (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl")]),
     (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
     (ETC + "/cloud/templates", glob("templates/*")),
+    (ETC + "/cloud/schema", glob("config/cloud-init-schema-*")),
     (
         USR_LIB_EXEC + "/cloud-init",
         [

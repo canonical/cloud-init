@@ -328,13 +328,14 @@ class ContentHandlers(object):
 
 
 class Paths(persistence.CloudInitPickleMixin):
-    _ci_pkl_version = 1
+    _ci_pkl_version = 2
 
     def __init__(self, path_cfgs, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir = path_cfgs.get("cloud_dir", "/var/lib/cloud")
         self.run_dir = path_cfgs.get("run_dir", "/run/cloud-init")
+        self.schema_dir = path_cfgs.get("schema_dir", "/etc/cloud/schema")
         self.instance_link = os.path.join(self.cloud_dir, "instance")
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
         self.upstart_conf_d = path_cfgs.get("upstart_dir")
@@ -377,6 +378,10 @@ class Paths(persistence.CloudInitPickleMixin):
             self.run_dir = Paths(
                 path_cfgs=self.cfgs, ds=self.datasource
             ).run_dir
+        if not hasattr(self, "schema_dir"):
+            self.schema_dir = Paths(
+                path_cfgs=self.cfgs, ds=self.datasource
+            ).schema_dir
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):

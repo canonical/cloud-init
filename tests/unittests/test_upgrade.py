@@ -47,6 +47,9 @@ class TestUpgrade:
     def test_paths_has_run_dir_attribute(self, previous_obj_pkl):
         assert previous_obj_pkl.paths.run_dir is not None
 
+    def test_paths_has_schema_dir_attribute(self, previous_obj_pkl):
+        assert previous_obj_pkl.paths.schema_dir is not None
+
     def test_vendordata_exists(self, previous_obj_pkl):
         assert previous_obj_pkl.vendordata2 is None
         assert previous_obj_pkl.vendordata2_raw is None

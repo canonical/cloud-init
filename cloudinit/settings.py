@@ -53,6 +53,7 @@ CFG_BUILTIN = {
     "syslog_fix_perms": ["syslog:adm", "root:adm", "root:wheel", "root:root"],
     "system_info": {
         "paths": {
+            "schema_dir": "/etc/cloud/schema",
             "cloud_dir": "/var/lib/cloud",
             "templates_dir": "/etc/cloud/templates/",
         },
