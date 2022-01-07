@@ -355,12 +355,14 @@ def _schemapath_for_cloudconfig(config, original_content):
     @param config: The yaml.loaded config dictionary of a cloud-config file.
     @param original_content: The simple file content of the cloud-config file
     """
-    # FIXME Doesn't handle multi-line lists or multi-line strings
+    # TODO( handle multi-line lists or multi-line strings, inline dicts)
     content_lines = original_content.decode().split("\n")
     schema_line_numbers = {}
     list_index = 0
     RE_YAML_INDENT = r"^(\s*)"
     scopes = []
+    if not config:
+        return {}  # No YAML config dict, no schemapaths to annotate
     for line_number, line in enumerate(content_lines, 1):
         indent_depth = len(re.match(RE_YAML_INDENT, line).groups()[0])
         line = line.strip()
@@ -377,7 +379,6 @@ def _schemapath_for_cloudconfig(config, original_content):
             if path_prefix and path_prefix.endswith(previous_list_idx):
                 path_prefix = path_prefix[: -len(previous_list_idx)]
             key = str(list_index)
-            schema_line_numbers[key] = line_number
             item_indent = len(re.match(RE_YAML_INDENT, line[1:]).groups()[0])
             item_indent += 1  # For the leading '-' character
             previous_depth = indent_depth
@@ -388,7 +389,7 @@ def _schemapath_for_cloudconfig(config, original_content):
             # Process non-list lines setting value if present
             list_index = 0
             key, value = line.split(":", 1)
-        if path_prefix:
+        if path_prefix and indent_depth > previous_depth:
             # Append any existing path_prefix for a fully-pathed key
             key = path_prefix + "." + key
         while indent_depth <= previous_depth:
@@ -637,7 +638,8 @@ def get_schema() -> dict:
             LOG.warning("Cannot parse JSON schema file %s. %s", schema_file, e)
     if not full_schema:
         LOG.warning(
-            "No base JSON schema files found at %s/cloud-init-schema-*. Setting default empty schema",
+            "No base JSON schema files found at %s/cloud-init-schema-*."
+            " Setting default empty schema",
             paths.schema_dir,
         )
         full_schema = {
