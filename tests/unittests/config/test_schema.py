@@ -21,6 +21,7 @@ from cloudinit.config.schema import (
     get_jsonschema_validator,
     get_meta_doc,
     get_schema,
+    load_doc,
     main,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
@@ -78,14 +79,15 @@ def get_module_variable(var_name) -> dict:
     return schemas
 
 
-class GetSchemaTest(CiTestCase):
+class TestGetSchema:
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        self.assertCountEqual(
+        assert sorted(
             [
                 "cc_apk_configure",
                 "cc_apt_configure",
+                "cc_apt_pipelining",
                 "cc_bootcmd",
                 "cc_locale",
                 "cc_ntp",
@@ -98,14 +100,32 @@ class GetSchemaTest(CiTestCase):
                 "cc_zypper_add_repo",
                 "cc_chef",
                 "cc_install_hotplug",
-            ],
-            [meta["id"] for meta in get_metas().values() if meta is not None],
+            ]
+        ) == sorted(
+            [meta["id"] for meta in get_metas().values() if meta is not None]
         )
-        self.assertEqual("cloud-config-schema", schema["id"])
-        self.assertEqual(
-            "http://json-schema.org/draft-04/schema#", schema["$schema"]
+        assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]
+        assert ["$defs", "$schema", "allOf"] == sorted(
+            list(get_schema().keys())
         )
-        self.assertCountEqual(["id", "$schema", "allOf"], get_schema().keys())
+
+
+class TestLoadDoc:
+
+    docs = get_module_variable("__doc__")
+
+    # TODO( Drop legacy test when all sub-schemas in cloud-init-schema.json )
+    @pytest.mark.parametrize(
+        "module_name",
+        (
+            "cc_apt_pipelining",  # new style composite schema file
+            "cc_bootcmd",  # legacy sub-schema defined in module
+        ),
+    )
+    def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):
+        doc = load_doc([module_name])
+        assert doc, "Unexpected empty docs for {}".format(module_name)
+        assert self.docs[module_name] == doc
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -177,8 +197,9 @@ class TestValidateCloudConfigSchema:
         schema = {"properties": {"p1": {"type": "string"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
-        assert"Cloud config schema errors: p1: -1 is not of type 'string'" == (
-            str(context_mgr.value)
+        assert (
+            "Cloud config schema errors: p1: -1 is not of type 'string'"
+            == (str(context_mgr.value))
         )
 
     @skipUnlessJsonSchema()
