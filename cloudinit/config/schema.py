@@ -118,12 +118,12 @@ def get_jsonschema_validator():
             type_checker=type_checker,
         )
     else:  # jsonschema 2.6 workaround
-        types = Draft4Validator.DEFAULT_TYPES
+        types = Draft4Validator.DEFAULT_TYPES  # pylint: disable=E1101
         # Allow bytes as well as string (and disable a spurious unsupported
         # assignment-operation pylint warning which appears because this
         # code path isn't written against the latest jsonschema).
         types["string"] = (str, bytes)  # pylint: disable=E1137
-        cloudinitValidator = create(
+        cloudinitValidator = create(  #pylint: disable=E1123
             meta_schema=strict_metaschema,
             validators=Draft4Validator.VALIDATORS,
             version="draft4",
