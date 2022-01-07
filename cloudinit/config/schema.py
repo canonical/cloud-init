@@ -2,6 +2,8 @@
 """schema.py: Set of module functions for processing cloud-config schema."""
 
 import argparse
+import glob
+import json
 import logging
 import os
 import re
@@ -455,7 +457,7 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
-def _get_property_doc(schema: dict, prefix="    ") -> str:
+def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + "    "
     properties = []
@@ -466,6 +468,10 @@ def _get_property_doc(schema: dict, prefix="    ") -> str:
 
     for props in property_keys:
         for prop_key, prop_config in props.items():
+            if "$ref" in prop_config:
+                # Update the defined references in subschema for doc rendering
+                ref = defs[prop_config["$ref"].replace("#/$defs/", "")]
+                prop_config.update(ref)
             # Define prop_name and description for SCHEMA_PROPERTY_TMPL
             description = prop_config.get("description", "")
 
@@ -484,7 +490,9 @@ def _get_property_doc(schema: dict, prefix="    ") -> str:
                 if isinstance(items, list):
                     for item in items:
                         properties.append(
-                            _get_property_doc(item, prefix=new_prefix)
+                            _get_property_doc(
+                                item, defs=defs, prefix=new_prefix
+                            )
                         )
                 elif isinstance(items, dict) and (
                     items.get("properties") or items.get("patternProperties")
@@ -496,14 +504,16 @@ def _get_property_doc(schema: dict, prefix="    ") -> str:
                     )
                     new_prefix += "    "
                     properties.append(
-                        _get_property_doc(items, prefix=new_prefix)
+                        _get_property_doc(items, defs=defs, prefix=new_prefix)
                     )
             if (
                 "properties" in prop_config
                 or "patternProperties" in prop_config
             ):
                 properties.append(
-                    _get_property_doc(prop_config, prefix=new_prefix)
+                    _get_property_doc(
+                        prop_config, defs=defs, prefix=new_prefix
+                    )
                 )
     return "\n\n".join(properties)
 
@@ -526,15 +536,18 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
-def get_meta_doc(meta: MetaSchema, schema: dict) -> str:
+def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
     @param meta: Dict of metadata to render.
+    @param schema: Optional module schema, if absent, read global schema.
     @raise KeyError: If metadata lacks an expected key.
     """
 
+    if schema is None:
+        schema = get_schema()
     if not meta or not schema:
-        raise ValueError("Expected meta and schema")
+        raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
     expected = set(
         {
@@ -563,8 +576,11 @@ def get_meta_doc(meta: MetaSchema, schema: dict) -> str:
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
+    defs = schema.get("$defs", {})
+    if defs.get(meta["id"]):
+        schema = defs.get(meta["id"])
     try:
-        meta_copy["property_doc"] = _get_property_doc(schema)
+        meta_copy["property_doc"] = _get_property_doc(schema, defs=defs)
     except AttributeError:
         LOG.warning("Unable to render property_doc due to invalid schema")
         meta_copy["property_doc"] = ""
@@ -599,7 +615,7 @@ def load_doc(requested_modules: list) -> str:
     for mod_name in all_modules:
         if "all" in requested_modules or mod_name in requested_modules:
             (mod_locs, _) = importer.find_module(
-                mod_name, ["cloudinit.config"], ["schema"]
+                mod_name, ["cloudinit.config"], ["meta"]
             )
             if mod_locs:
                 mod = importer.import_module(mod_locs[0])
@@ -608,14 +624,35 @@ def load_doc(requested_modules: list) -> str:
 
 
 def get_schema() -> dict:
-    """Return jsonschema coalesced from all cc_* cloud-config module."""
-    full_schema = {
-        "$schema": "http://json-schema.org/draft-04/schema#",
-        "id": "cloud-config-schema",
-        "allOf": [],
-    }
+    """Return jsonschema coalesced from all cc_* cloud-config modules."""
+    paths = read_cfg_paths()
+    schema_files = glob.glob(
+        os.path.join(paths.schema_dir, "cloud-init-schema-*")
+    )
+    full_schema = None
+    for schema_file in schema_files:
+        try:
+            full_schema = json.loads(load_file(schema_file))
+        except Exception as e:
+            LOG.warning("Cannot parse JSON schema file %s. %s", schema_file, e)
+    if not full_schema:
+        LOG.warning(
+            "No base JSON schema files found at %s/cloud-init-schema-*. Setting default empty schema",
+            paths.schema_dir,
+        )
+        full_schema = {
+            "$defs": {},
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "allOf": [],
+        }
 
+    # TODO( Drop the get_modules loop when all legacy cc_* schema migrates )
+    # Supplement base_schema with any legacy modules which still contain a
+    # "schema" attribute. Legacy cc_* modules will be migrated to use the
+    # store module schema in the composite cloud-init-schema-<version>.json
+    # and will drop "schema" at that point.
     for (_, mod_name) in get_modules().items():
+        # All cc_* modules need a "meta" attribute to represent schema defs
         (mod_locs, _) = importer.find_module(
             mod_name, ["cloudinit.config"], ["schema"]
         )
