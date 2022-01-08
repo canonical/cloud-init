@@ -211,7 +211,9 @@ def validate_cloudconfig_schema(
             raise SchemaValidationError(errors)
         else:
             messages = ["{0}: {1}".format(k, msg) for k, msg in errors]
-            LOG.warning("Invalid config:\n%s", "\n".join(messages))
+            LOG.warning(
+                "Invalid cloud-config provided:\n%s", "\n".join(messages)
+            )
 
 
 def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):

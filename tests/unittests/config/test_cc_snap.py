@@ -284,8 +284,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """If the snap configuration is not a dict, emit a warning."""
         validate_cloudconfig_schema({"snap": "wrong type"}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap: 'wrong type' is not of type"
-            " 'object'\n",
+            "WARNING: Invalid cloud-config provided:\nsnap: 'wrong type'"
+            " is not of type 'object'\n",
             self.logs.getvalue(),
         )
 
@@ -296,8 +296,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"snap": {"commands": ["ls"], "invalid-key": ""}}, schema
         )
         self.assertIn(
-            "WARNING: Invalid config:\nsnap: Additional properties are not"
-            " allowed ('invalid-key' was unexpected)",
+            "WARNING: Invalid cloud-config provided:\nsnap: Additional"
+            " properties are not allowed ('invalid-key' was unexpected)",
             self.logs.getvalue(),
         )
 
@@ -305,8 +305,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """Warn when snap configuration lacks both commands and assertions."""
         validate_cloudconfig_schema({"snap": {}}, schema)
         self.assertIn(
-            "WARNING: Invalid config:\nsnap: {} does not have enough"
-            " properties",
+            "WARNING: Invalid cloud-config provided:\nsnap: {} does not"
+            " have enough properties",
             self.logs.getvalue(),
         )
 
@@ -315,8 +315,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """Warn when snap:commands config is not a list or dict."""
         validate_cloudconfig_schema({"snap": {"commands": "broken"}}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap.commands: 'broken' is not of type"
-            " 'object', 'array'\n",
+            "WARNING: Invalid cloud-config provided:\nsnap.commands: 'broken'"
+            " is not of type 'object', 'array'\n",
             self.logs.getvalue(),
         )
 
@@ -326,9 +326,9 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         validate_cloudconfig_schema({"snap": {"commands": []}}, schema)
         validate_cloudconfig_schema({"snap": {"commands": {}}}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap.commands: [] is too short\n"
-            "WARNING: Invalid config:\nsnap.commands: {} does not have enough"
-            " properties\n",
+            "WARNING: Invalid cloud-config provided:\nsnap.commands: [] is"
+            " too short\nWARNING: Invalid cloud-config provided:\n"
+            "snap.commands: {} does not have enough properties\n",
             self.logs.getvalue(),
         )
 
@@ -349,10 +349,10 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"snap": {"commands": {"01": 123}}}, schema
         )
         self.assertEqual(
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.commands.0: 123 is not valid under any of the given"
             " schemas\n"
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.commands.01: 123 is not valid under any of the given"
             " schemas\n",
             self.logs.getvalue(),
@@ -368,10 +368,10 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"snap": {"commands": {"01": ["snap", "install", 123]}}}, schema
         )
         self.assertEqual(
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.commands.0: ['snap', 'install', 123] is not valid under any"
             " of the given schemas\n",
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.commands.0: ['snap', 'install', 123] is not valid under any"
             " of the given schemas\n",
             self.logs.getvalue(),
@@ -385,9 +385,9 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"snap": {"assertions": {"01": 123}}}, schema
         )
         self.assertEqual(
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.assertions.0: 123 is not of type 'string'\n"
-            "WARNING: Invalid config:\n"
+            "WARNING: Invalid cloud-config provided:\n"
             "snap.assertions.01: 123 is not of type 'string'\n",
             self.logs.getvalue(),
         )
@@ -397,8 +397,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """Warn when snap:assertions config is not a list or dict."""
         validate_cloudconfig_schema({"snap": {"assertions": "broken"}}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap.assertions: 'broken' is not of"
-            " type 'object', 'array'\n",
+            "WARNING: Invalid cloud-config provided:\nsnap.assertions:"
+            " 'broken' is not of type 'object', 'array'\n",
             self.logs.getvalue(),
         )
 
@@ -408,9 +408,10 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         validate_cloudconfig_schema({"snap": {"assertions": []}}, schema)
         validate_cloudconfig_schema({"snap": {"assertions": {}}}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap.assertions: [] is too short\n"
-            "WARNING: Invalid config:\nsnap.assertions: {} does not have"
-            " enough properties\n",
+            "WARNING: Invalid cloud-config provided:\nsnap.assertions: []"
+            " is too short\n"
+            "WARNING: Invalid cloud-config provided:\nsnap.assertions: {}"
+            " does not have enough properties\n",
             self.logs.getvalue(),
         )
 
@@ -574,8 +575,8 @@ class TestHandle(CiTestCase):
             args=None,
         )
         self.assertEqual(
-            "WARNING: Invalid config:\nsnap: Additional properties are not"
-            " allowed ('invalid' was unexpected)\n",
+            "WARNING: Invalid cloud-config provided:\nsnap: Additional"
+            " properties are not allowed ('invalid' was unexpected)\n",
             self.logs.getvalue(),
         )
 
