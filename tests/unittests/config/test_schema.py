@@ -87,6 +87,7 @@ class GetSchemaTest(CiTestCase):
                 "cc_apk_configure",
                 "cc_apt_configure",
                 "cc_bootcmd",
+                "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
                 "cc_resizefs",

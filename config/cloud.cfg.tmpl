@@ -107,6 +107,7 @@ cloud_config_modules:
 {% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
+ - keyboard
  - locale
 {% endif %}
  - set-passwords

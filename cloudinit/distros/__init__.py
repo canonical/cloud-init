@@ -881,6 +881,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True)
 
+    def set_keymap(self, layout, model, variant, options):
+        if self.uses_systemd():
+            subp.subp(
+                [
+                    "localectl",
+                    "set-x11-keymap",
+                    layout,
+                    model,
+                    variant,
+                    options,
+                ]
+            )
+        else:
+            raise NotImplementedError()
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
