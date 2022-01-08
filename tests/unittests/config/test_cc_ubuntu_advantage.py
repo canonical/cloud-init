@@ -184,8 +184,8 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """If ubuntu_advantage configuration is not a dict, emit a warning."""
         validate_cloudconfig_schema({"ubuntu_advantage": "wrong type"}, schema)
         self.assertEqual(
-            "WARNING: Invalid config:\nubuntu_advantage: 'wrong type' is not"
-            " of type 'object'\n",
+            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
+            " 'wrong type' is not of type 'object'\n",
             self.logs.getvalue(),
         )
 
@@ -198,8 +198,9 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             schema,
         )
         self.assertIn(
-            "WARNING: Invalid config:\nubuntu_advantage: Additional properties"
-            " are not allowed ('invalid-key' was unexpected)",
+            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
+            " Additional properties are not allowed ('invalid-key' was"
+            " unexpected)",
             self.logs.getvalue(),
         )
 
@@ -211,7 +212,7 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"ubuntu_advantage": {"enable": ["esm"]}}, schema
         )
         self.assertEqual(
-            "WARNING: Invalid config:\nubuntu_advantage:"
+            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
             " 'token' is a required property\n",
             self.logs.getvalue(),
         )
@@ -224,9 +225,9 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {"ubuntu_advantage": {"enable": "needslist"}}, schema
         )
         self.assertEqual(
-            "WARNING: Invalid config:\nubuntu_advantage: 'token' is a"
-            " required property\nubuntu_advantage.enable: 'needslist'"
-            " is not of type 'array'\n",
+            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
+            " 'token' is a required property\nubuntu_advantage.enable:"
+            " 'needslist' is not of type 'array'\n",
             self.logs.getvalue(),
         )
 
