@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
-from distutils.util import strtobool
+
+from cloudinit.util import is_false, is_true
 
 ##################################################################
 # LAUNCH SETTINGS
@@ -126,8 +127,9 @@ for setting in current_settings:
         "CLOUD_INIT_{}".format(setting), globals()[setting]
     )
     if isinstance(env_setting, str):
-        try:
-            env_setting = bool(strtobool(env_setting.strip()))
-        except ValueError:
-            pass
+        env_setting = env_setting.strip()
+        if is_true(env_setting):
+            env_setting = True
+        elif is_false(env_setting):
+            env_setting = False
     globals()[setting] = env_setting
