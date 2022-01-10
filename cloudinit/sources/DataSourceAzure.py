@@ -12,6 +12,7 @@ import os.path
 import re
 import xml.etree.ElementTree as ET
 from enum import Enum
+from functools import partial
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 from xml.dom import minidom
@@ -68,6 +69,12 @@ IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
 IMDS_VER_WANT = "2021-08-01"
 IMDS_EXTENDED_VER_MIN = "2021-03-01"
+IMDS_RETRY_CODES = (
+    404,
+    410,
+    429,
+    500,
+)
 
 
 class MetadataType(Enum):
@@ -502,10 +509,16 @@ class DataSourceAzure(sources.DataSource):
         except NoDHCPLeaseError:
             pass
 
+        imds_md = {}
         if self._is_ephemeral_networking_up():
-            imds_md = self.get_imds_data_with_api_fallback(retries=10)
-        else:
-            imds_md = {}
+            try:
+                imds_md = self.get_imds_data_with_api_fallback(retries=10)
+            except UrlError as error:
+                report_diagnostic_event(
+                    "Ignoring IMDS instance metadata. "
+                    "Get metadata from IMDS failed: %s" % error,
+                    logger_func=LOG.warning,
+                )
 
         if not imds_md and not ovf_is_accessible:
             msg = "No OVF or IMDS available"
@@ -527,7 +540,14 @@ class DataSourceAzure(sources.DataSource):
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
-            imds_md = self.get_imds_data_with_api_fallback(retries=10)
+            try:
+                imds_md = self.get_imds_data_with_api_fallback(retries=10)
+            except UrlError as error:
+                report_diagnostic_event(
+                    "Ignoring IMDS instance metadata. "
+                    "Get metadata from IMDS failed: %s" % error,
+                    logger_func=LOG.warning,
+                )
 
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
@@ -666,7 +686,8 @@ class DataSourceAzure(sources.DataSource):
             )
         except Exception as e:
             report_diagnostic_event(
-                "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
+                "Could not crawl Azure metadata: %s" % e,
+                logger_func=LOG.error,
             )
             self._report_failure(
                 description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
@@ -726,44 +747,38 @@ class DataSourceAzure(sources.DataSource):
     def get_imds_data_with_api_fallback(
         self,
         *,
-        retries,
-        md_type=MetadataType.ALL,
-        exc_cb=retry_on_url_exc,
-        infinite=False,
-    ):
-        """
-        Wrapper for get_metadata_from_imds so that we can have flexibility
-        in which IMDS api-version we use. If a particular instance of IMDS
-        does not have the api version that is desired, we want to make
-        this fault tolerant and fall back to a good known minimum api
-        version.
-        """
-        for _ in range(retries):
-            try:
-                LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
-                return get_metadata_from_imds(
-                    retries=0,
-                    md_type=md_type,
-                    api_version=IMDS_VER_WANT,
-                    exc_cb=exc_cb,
-                )
-            except UrlError as err:
-                LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
-                if err.code == 400:
-                    log_msg = "Fall back to IMDS api-version: {}".format(
-                        IMDS_VER_MIN
-                    )
-                    report_diagnostic_event(log_msg, logger_func=LOG.info)
-                    break
+        retries: int,
+        md_type: MetadataType = MetadataType.ALL,
+    ) -> dict:
+        """Fetch metadata from IMDS using IMDS_VER_WANT API version.
 
-        LOG.info("Using IMDS api-version: %s", IMDS_VER_MIN)
-        return get_metadata_from_imds(
+        Falls back to IMDS_VER_MIN version if IMDS returns a 400 error code,
+        indicating that IMDS_VER_WANT is unsupported.
+
+        :raises UrlError: on failure.
+        :return: Parsed metadata dictionary or empty dict on error.
+        """
+        LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
+        try:
+            contents = get_metadata_from_imds(
+                retries=retries,
+                md_type=md_type,
+                api_version=IMDS_VER_WANT,
+            )
+            return parse_imds_md(contents)
+        except UrlError as error:
+            LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
+            # Fall back if HTTP code is 400.
+            if error.code != 400:
+                raise
+
+        LOG.info("Falling back to IMDS api-version: %s", IMDS_VER_MIN)
+        contents = get_metadata_from_imds(
             retries=retries,
             md_type=md_type,
             api_version=IMDS_VER_MIN,
-            exc_cb=exc_cb,
-            infinite=infinite,
         )
+        return parse_imds_md(contents)
 
     def device_name_to_device(self, name):
         return self.ds_cfg["disk_aliases"].get(name)
@@ -992,75 +1007,40 @@ class DataSourceAzure(sources.DataSource):
         """
         is_primary = False
         expected_nic_count = -1
-        imds_md = None
-        metadata_poll_count = 0
-        metadata_logging_threshold = 1
-        expected_errors_count = 0
+        imds_md = {}
 
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
         # primary or secondary. In this case, retry DHCP until successful.
         self._setup_ephemeral_networking(iface=ifname, timeout_minutes=20)
 
-        # Retry polling network metadata for a limited duration only when the
-        # calls fail due to network unreachable error or timeout.
-        # This is because the platform drops packets going towards IMDS
-        # when it is not a primary nic. If the calls fail due to other issues
-        # like 410, 503 etc, then it means we are primary but IMDS service
-        # is unavailable at the moment. Retry indefinitely in those cases
-        # since we cannot move on without the network metadata. In the future,
-        # all this will not be necessary, as a new dhcp option would tell
-        # whether the nic is primary or not.
-        def network_metadata_exc_cb(msg, exc):
-            nonlocal expected_errors_count, metadata_poll_count
-            nonlocal metadata_logging_threshold
-
-            metadata_poll_count = metadata_poll_count + 1
-
-            # Log when needed but back off exponentially to avoid exploding
-            # the log file.
-            if metadata_poll_count >= metadata_logging_threshold:
-                metadata_logging_threshold *= 2
-                report_diagnostic_event(
-                    "Ran into exception when attempting to reach %s "
-                    "after %d polls." % (msg, metadata_poll_count),
-                    logger_func=LOG.error,
-                )
-
-                if isinstance(exc, UrlError):
-                    report_diagnostic_event(
-                        "poll IMDS with %s failed. Exception: %s and code: %s"
-                        % (msg, exc.cause, exc.code),
-                        logger_func=LOG.error,
-                    )
-
-            # Retry up to a certain limit for both timeout and network
-            # unreachable errors.
-            if exc.cause and isinstance(
-                exc.cause, (requests.Timeout, requests.ConnectionError)
-            ):
-                expected_errors_count = expected_errors_count + 1
-                return expected_errors_count <= 10
-            return True
-
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
-        try:
-            imds_md = self.get_imds_data_with_api_fallback(
-                retries=0,
-                md_type=MetadataType.NETWORK,
-                exc_cb=network_metadata_exc_cb,
-                infinite=True,
-            )
-        except Exception as e:
-            LOG.warning(
-                "Failed to get network metadata using nic %s. Attempt to "
-                "contact IMDS failed with error %s. Assuming this is not the "
-                "primary nic.",
-                ifname,
-                e,
-            )
+        retries = 10
+        while not imds_md:
+            try:
+                imds_md = self.get_imds_data_with_api_fallback(
+                    retries=retries,
+                    md_type=MetadataType.NETWORK,
+                )
+            except UrlError as error:
+                # If it is due to timeout, we are probably not the primary nic.
+                if error.cause and isinstance(
+                    error.cause, (requests.Timeout, requests.ConnectionError)
+                ):
+                    LOG.warning(
+                        "Failed to get network metadata using nic %s, "
+                        "assuming this is not the primary nic.",
+                        ifname,
+                    )
+                    break
+
+                # Otherwise we are getting unsupported HTTP code and we have no
+                # choice but to retry indefinitely.  We exponentially increase
+                # retries to minimize logging in the worst-case (at least
+                # every four hours).
+                retries = min(14400, retries * 2)
 
         if imds_md:
             # Only primary NIC will get a response from IMDS.
@@ -1200,52 +1180,10 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
-        url = "{}?api-version={}".format(
-            MetadataType.REPROVISION_DATA.value, IMDS_VER_MIN
-        )
-        headers = {"Metadata": "true"}
         nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
-        self.imds_logging_threshold = 1
-        self.imds_poll_counter = 1
         dhcp_attempts = 0
         reprovision_data = None
-
-        def exc_cb(msg, exception):
-            if isinstance(exception, UrlError):
-                if exception.code in (404, 410):
-                    if self.imds_poll_counter == self.imds_logging_threshold:
-                        # Reducing the logging frequency as we are polling IMDS
-                        self.imds_logging_threshold *= 2
-                        LOG.debug(
-                            "Backing off logging threshold for the same "
-                            "exception to %d",
-                            self.imds_logging_threshold,
-                        )
-                        report_diagnostic_event(
-                            "poll IMDS with %s failed. "
-                            "Exception: %s and code: %s"
-                            % (msg, exception.cause, exception.code),
-                            logger_func=LOG.debug,
-                        )
-                    self.imds_poll_counter += 1
-                    return True
-                else:
-                    # If we get an exception while trying to call IMDS, we call
-                    # DHCP and setup the ephemeral network to acquire a new IP.
-                    report_diagnostic_event(
-                        "poll IMDS with %s failed. Exception: %s and code: %s"
-                        % (msg, exception.cause, exception.code),
-                        logger_func=LOG.warning,
-                    )
-                    return False
-
-            report_diagnostic_event(
-                "poll IMDS failed with an unexpected exception: %s"
-                % exception,
-                logger_func=LOG.warning,
-            )
-            return False
 
         if report_ready:
             # Networking must be up for netlink to detect
@@ -1307,6 +1245,7 @@ class DataSourceAzure(sources.DataSource):
             # Teardown old network configuration.
             self._teardown_ephemeral_networking()
 
+        retries = 10
         while not reprovision_data:
             if not self._is_ephemeral_networking_up():
                 dhcp_attempts += 1
@@ -1321,27 +1260,28 @@ class DataSourceAzure(sources.DataSource):
                 parent=azure_ds_reporter,
             ):
                 try:
-                    reprovision_data = readurl(
-                        url,
-                        timeout=IMDS_TIMEOUT_IN_SECONDS,
-                        headers=headers,
-                        exception_cb=exc_cb,
-                        infinite=True,
+                    reprovision_data = _get_metadata_from_imds(
+                        md_type=MetadataType.REPROVISION_DATA,
+                        api_version=IMDS_VER_MIN,
+                        retries=retries,
+                        retry_instances=(),
                         log_req_resp=False,
-                    ).contents
-                except UrlError:
+                    )
+                except UrlError as error:
+                    if error.code in IMDS_RETRY_CODES:
+                        # Exponentially back off retries.
+                        retries = min(14400, retries * 2)
+                        continue
+
+                    # Fresh DHCP may resolve timeout/connection issues,
+                    # tear it down and reset number of retries.
+                    retries = 10
                     self._teardown_ephemeral_networking()
-                    continue
 
         report_diagnostic_event(
             "attempted dhcp %d times after reuse" % dhcp_attempts,
             logger_func=LOG.debug,
         )
-        report_diagnostic_event(
-            "polled imds %d times after reuse" % self.imds_poll_counter,
-            logger_func=LOG.debug,
-        )
-
         return reprovision_data
 
     @azure_ds_telemetry_reporter
@@ -2305,14 +2245,31 @@ def _generate_network_config_from_fallback_config() -> dict:
     return cfg
 
 
+def parse_imds_md(contents: bytes) -> dict:
+    try:
+        from json.decoder import JSONDecodeError
+
+        json_decode_error = JSONDecodeError
+    except ImportError:
+        json_decode_error = ValueError  # type: ignore
+
+    try:
+        return util.load_json(contents)
+    except json_decode_error as e:
+        report_diagnostic_event(
+            "Ignoring non-json IMDS instance metadata response: %r. "
+            "Loading non-json IMDS response failed: %s" % (contents, e),
+            logger_func=LOG.warning,
+        )
+    return {}
+
+
 @azure_ds_telemetry_reporter
 def get_metadata_from_imds(
-    retries,
-    md_type=MetadataType.ALL,
-    api_version=IMDS_VER_MIN,
-    exc_cb=retry_on_url_exc,
-    infinite=False,
-):
+    retries: int,
+    md_type: MetadataType = MetadataType.ALL,
+    api_version: str = IMDS_VER_MIN,
+) -> bytes:
     """Query Azure's instance metadata service, returning a dictionary.
 
     For more info on IMDS:
@@ -2329,70 +2286,65 @@ def get_metadata_from_imds(
         "logfunc": LOG.debug,
         "msg": "Crawl of Azure Instance Metadata Service (IMDS)",
         "func": _get_metadata_from_imds,
-        "args": (retries, exc_cb, md_type, api_version, infinite),
+        "kwargs": {
+            "retries": retries,
+            "md_type": md_type,
+            "api_version": api_version,
+        },
     }
-    try:
-        return util.log_time(**kwargs)
-    except Exception as e:
-        report_diagnostic_event(
-            "exception while getting metadata: %s" % e,
-            logger_func=LOG.warning,
-        )
-        raise
+    return util.log_time(**kwargs)
 
 
 @azure_ds_telemetry_reporter
 def _get_metadata_from_imds(
-    retries,
-    exc_cb,
+    *,
     md_type=MetadataType.ALL,
     api_version=IMDS_VER_MIN,
-    infinite=False,
-):
+    retries: int,
+    retry_instances=(
+        requests.Timeout,
+        requests.ConnectionError,
+    ),
+    log_req_resp: bool = True,
+) -> bytes:
     url = "{}?api-version={}".format(md_type.value, api_version)
-    headers = {"Metadata": "true"}
 
     # support for extended metadata begins with 2021-03-01
     if api_version >= IMDS_EXTENDED_VER_MIN and md_type == MetadataType.ALL:
         url = url + "&extended=true"
 
+    # Retry IMDS for:
+    # - code 404 = not found (yet)
+    # - code 410 = gone / unavailable (yet)
+    # - code 429 = rate-limited/throttled
+    # - code 500 = server error
+    # Never retry for:
+    # - code 400 = bad request (unsupported API version or malformed request)
+    exception_cb = partial(
+        retry_on_url_exc,
+        retry_codes=IMDS_RETRY_CODES,
+        retry_instances=retry_instances,
+    )
+    headers = {"Metadata": "true"}
     try:
         response = readurl(
             url,
             timeout=IMDS_TIMEOUT_IN_SECONDS,
             headers=headers,
             retries=retries,
-            exception_cb=exc_cb,
-            infinite=infinite,
+            exception_cb=exception_cb,
+            log_req_resp=log_req_resp,
         )
-    except Exception as e:
-        # pylint:disable=no-member
-        if isinstance(e, UrlError) and e.code == 400:
-            raise
-        else:
-            report_diagnostic_event(
-                "Ignoring IMDS instance metadata. "
-                "Get metadata from IMDS failed: %s" % e,
-                logger_func=LOG.warning,
-            )
-            return {}
-    try:
-        from json.decoder import JSONDecodeError
-
-        json_decode_error = JSONDecodeError
-    except ImportError:
-        json_decode_error = ValueError
-
-    try:
-        return util.load_json(response.contents)
-    except json_decode_error as e:
+    except UrlError as error:
         report_diagnostic_event(
-            "Ignoring non-json IMDS instance metadata response: %s. "
-            "Loading non-json IMDS response failed: %s"
-            % (response.contents, e),
+            "poll IMDS (url=%r headers=%r retries=%r) failed. "
+            "Exception: %s and code: %s"
+            % (url, headers, retries, error.cause, error.code),
             logger_func=LOG.warning,
         )
-    return {}
+        raise
+
+    return response.contents
 
 
 @azure_ds_telemetry_reporter
