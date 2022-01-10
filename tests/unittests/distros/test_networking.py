@@ -13,7 +13,7 @@ from cloudinit.distros.networking import (
 )
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def generic_networking_cls():
     """Returns a direct Networking subclass which errors on /sys usage.
 
@@ -40,7 +40,7 @@ def generic_networking_cls():
         yield TestNetworking
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def sys_class_net(tmpdir):
     sys_class_net_path = tmpdir.join("sys/class/net")
     sys_class_net_path.ensure_dir()

@@ -133,7 +133,7 @@ meta = {
               source1:
                   keyid: 'keyid'
                   keyserver: 'keyserverurl'
-                  source: 'deb [signed-by=$KEY_FILE] http://<url>/ xenial main'
+                  source: 'deb [signed-by=$KEY_FILE] http://<url>/ bionic main'
               source2:
                   source: 'ppa:<ppa-name>'
               source3:
