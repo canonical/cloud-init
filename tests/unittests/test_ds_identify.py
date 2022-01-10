@@ -92,6 +92,7 @@ MOCK_VIRT_IS_CONTAINER_OTHER = {
     "RET": "container-other",
     "ret": 0,
 }
+MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
 MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
@@ -99,6 +100,8 @@ MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
+
+DEFAULT_MOCKS = [MOCK_NOT_LXD_DATASOURCE]
 
 shell_true = 0
 shell_false = 1
@@ -230,6 +233,13 @@ class DsIdentifyBase(CiTestCase):
                 xwargs[k] = data[k]
             if k in kwargs:
                 xwargs[k] = kwargs[k]
+        if "mocks" not in xwargs:
+            xwargs["mocks"] = DEFAULT_MOCKS
+        else:
+            mocked_funcs = [m["name"] for m in xwargs["mocks"]]
+            for default_mock in DEFAULT_MOCKS:
+                if default_mock["name"] not in mocked_funcs:
+                    xwargs["mocks"].append(default_mock)
 
         return self.call(**xwargs)
 
