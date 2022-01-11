@@ -57,8 +57,10 @@ def _netdev_info_iproute(ipaddr_out):
             devs[dev_name]["ipv6"].append(m.groupdict())
         elif "inet" in line:
             m = re.match(
-                r"\s+inet\s(?P<cidr4>\S+)(\sbrd\s(?P<bcast>\S+))?\sscope\s"
-                r"(?P<scope>\S+).*",
+                r"\s+inet\s(?P<cidr4>\S+)"
+                r"(\smetric\s(?P<metric>\d+))?"
+                r"(\sbrd\s(?P<bcast>\S+))?"
+                r"\sscope\s(?P<scope>\S+).*",
                 line,
             )
             if not m:
