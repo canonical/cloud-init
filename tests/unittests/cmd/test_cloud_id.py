@@ -160,5 +160,28 @@ class TestCloudId:
         assert 0 == context_manager.value.code
         assert expected + "\n" == out
 
+    @pytest.mark.parametrize(
+        "status, exit_code",
+        (
+            (cloud_id.UXAppStatus.DISABLED, 2),
+            (cloud_id.UXAppStatus.NOT_RUN, 3),
+            (cloud_id.UXAppStatus.RUNNING, 0),
+        ),
+    )
+    @mock.patch(M_PATH + "get_status_details")
+    def test_cloud_id_unique_exit_codes_for_status(
+        self, get_status_details, status, exit_code, tmpdir, capsys
+    ):
+        """cloud-id returns unique exit codes for status."""
+        get_status_details.return_value = status, "n/a", ""
+        instance_data = tmpdir.join("instance-data.json")
+        if status == cloud_id.UXAppStatus.RUNNING:
+            instance_data.write("{}")
+        cmd = ["cloud-id", "--instance-data", instance_data.strpath, "--json"]
+        with mock.patch("sys.argv", cmd):
+            with pytest.raises(SystemExit) as context_manager:
+                cloud_id.main()
+        assert exit_code == context_manager.value.code
+
 
 # vi: ts=4 expandtab
