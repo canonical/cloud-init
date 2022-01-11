@@ -35,12 +35,14 @@ meta = {
     "examples": [
         dedent(
             """\
+            # Set keyboard layout to "us"
             keyboard:
               layout: us
             """
         ),
         dedent(
             """\
+            # Set specific keyboard layout, model, variant, options
             keyboard:
               layout: de
               model: pc105
