@@ -24,6 +24,7 @@ APT_GET_COMMAND = (
     "apt-get",
     "--option=Dpkg::Options::=--force-confold",
     "--option=Dpkg::options::=--force-unsafe-io",
+    "--option=Acquire::Check-Date=false",
     "--assume-yes",
     "--quiet",
 )
