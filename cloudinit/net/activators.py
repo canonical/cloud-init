@@ -141,6 +141,34 @@ class NetworkManagerActivator(NetworkActivator):
         return _alter_interface(cmd, device_name)
 
     @staticmethod
+    def bring_up_interfaces(device_names: Iterable[str]) -> bool:
+        """Bring up specified list of interfaces.
+
+        Return True is successful, otherwise return False
+        """
+        for device_name in device_names:
+            """Load new connection"""
+            cmd = ["nmcli", "connection", "load", f'/etc/sysconfig/network-scripts/ifcfg-{device_name}']
+            ok = _alter_interface(cmd, device_name)
+            if not ok:
+                return False
+            """Up new connection"""
+            cmd = ["nmcli", "connection", "up", f'/etc/sysconfig/network-scripts/ifcfg-{device_name}']
+            _alter_interface(cmd, device_name)
+
+        cmd = ["nmcli", "connection", "reload"]
+        ok = _alter_interface(cmd, device_names)
+        if not ok:
+            return False
+        """reload network"""
+        cmd = ["nmcli", "networking", "off"]
+        ok = _alter_interface(cmd, device_names)
+        if not ok:
+            return False
+        cmd = ["nmcli", "networking", "on"]
+        return _alter_interface(cmd, device_names)
+
+    @staticmethod
     def bring_down_interface(device_name: str) -> bool:
         """Bring down interface using nmcli.
 
