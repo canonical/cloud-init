@@ -75,10 +75,10 @@ IMDS_EXTENDED_VER_MIN = "2021-03-01"
 SSHKeys = namedtuple("SSHKeys", ("keys_from_imds", "ssh_keys"))
 
 
-class metadata_type(Enum):
-    all = "{}/instance".format(IMDS_URL)
-    network = "{}/instance/network".format(IMDS_URL)
-    reprovisiondata = "{}/reprovisiondata".format(IMDS_URL)
+class MetadataType(Enum):
+    ALL = "{}/instance".format(IMDS_URL)
+    NETWORK = "{}/instance/network".format(IMDS_URL)
+    REPROVISION_DATA = "{}/reprovisiondata".format(IMDS_URL)
 
 
 PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
@@ -633,7 +633,7 @@ class DataSourceAzure(sources.DataSource):
         self,
         fallback_nic,
         retries,
-        md_type=metadata_type.all,
+        md_type=MetadataType.ALL,
         exc_cb=retry_on_url_exc,
         infinite=False,
     ):
@@ -1015,7 +1015,7 @@ class DataSourceAzure(sources.DataSource):
         # could add several seconds of delay.
         try:
             imds_md = self.get_imds_data_with_api_fallback(
-                ifname, 0, metadata_type.network, network_metadata_exc_cb, True
+                ifname, 0, MetadataType.NETWORK, network_metadata_exc_cb, True
             )
         except Exception as e:
             LOG.warning(
@@ -1167,7 +1167,7 @@ class DataSourceAzure(sources.DataSource):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
         url = "{}?api-version={}".format(
-            metadata_type.reprovisiondata.value, IMDS_VER_MIN
+            MetadataType.REPROVISION_DATA.value, IMDS_VER_MIN
         )
         headers = {"Metadata": "true"}
         nl_sock = None
@@ -2287,7 +2287,7 @@ def _generate_network_config_from_fallback_config() -> dict:
 def get_metadata_from_imds(
     fallback_nic,
     retries,
-    md_type=metadata_type.all,
+    md_type=MetadataType.ALL,
     api_version=IMDS_VER_MIN,
     exc_cb=retry_on_url_exc,
     infinite=False,
@@ -2331,7 +2331,7 @@ def get_metadata_from_imds(
 def _get_metadata_from_imds(
     retries,
     exc_cb,
-    md_type=metadata_type.all,
+    md_type=MetadataType.ALL,
     api_version=IMDS_VER_MIN,
     infinite=False,
 ):
@@ -2339,7 +2339,7 @@ def _get_metadata_from_imds(
     headers = {"Metadata": "true"}
 
     # support for extended metadata begins with 2021-03-01
-    if api_version >= IMDS_EXTENDED_VER_MIN and md_type == metadata_type.all:
+    if api_version >= IMDS_EXTENDED_VER_MIN and md_type == MetadataType.ALL:
         url = url + "&extended=true"
 
     try:

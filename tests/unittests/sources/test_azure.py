@@ -500,7 +500,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         )
 
         dsaz.get_metadata_from_imds(
-            "eth0", retries=3, md_type=dsaz.metadata_type.all
+            "eth0", retries=3, md_type=dsaz.MetadataType.ALL
         )
         m_readurl.assert_called_with(
             "http://169.254.169.254/metadata/instance?api-version=2019-06-01",
@@ -525,7 +525,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         )
 
         dsaz.get_metadata_from_imds(
-            "eth0", retries=3, md_type=dsaz.metadata_type.network
+            "eth0", retries=3, md_type=dsaz.MetadataType.NETWORK
         )
         m_readurl.assert_called_with(
             "http://169.254.169.254/metadata/instance/network?api-version="
@@ -576,7 +576,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         dsaz.get_metadata_from_imds(
             "eth0",
             retries=3,
-            md_type=dsaz.metadata_type.all,
+            md_type=dsaz.MetadataType.ALL,
             api_version="2021-08-01",
         )
         m_readurl.assert_called_with(
@@ -2154,14 +2154,14 @@ scbus-1 on xpt0 bus 0
             mock.call(
                 fallback_nic="eth9",
                 retries=0,
-                md_type=dsaz.metadata_type.all,
+                md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
             ),
             mock.call(
                 fallback_nic="eth9",
                 retries=10,
-                md_type=dsaz.metadata_type.all,
+                md_type=dsaz.MetadataType.ALL,
                 api_version="2019-06-01",
                 exc_cb=mock.ANY,
                 infinite=False,
@@ -2186,7 +2186,7 @@ scbus-1 on xpt0 bus 0
             mock.call(
                 fallback_nic="eth9",
                 retries=0,
-                md_type=dsaz.metadata_type.all,
+                md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
             )
