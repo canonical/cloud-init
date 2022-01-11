@@ -12,7 +12,6 @@ import re
 import xml.etree.ElementTree as ET
 from collections import namedtuple
 from enum import Enum
-from functools import partial
 from time import sleep, time
 from xml.dom import minidom
 
@@ -28,7 +27,9 @@ from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
+    DEFAULT_WIRESERVER_ENDPOINT,
     EphemeralDHCPv4WithReporting,
+    WALinuxAgentShim,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     build_minimal_ovf,
@@ -51,7 +52,6 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 # azure systems will always have a resource disk, and 66-azure-ephemeral.rules
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
-LEASE_FILE = "/var/lib/dhcp/dhclient.eth0.leases"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
@@ -234,7 +234,6 @@ def get_resource_disk_on_freebsd(port_id):
 
 # update the FreeBSD specific information
 if util.is_FreeBSD():
-    LEASE_FILE = "/var/db/dhclient.leases.hn0"
     DEFAULT_FS = "freebsd-ufs"
     res_disk = get_resource_disk_on_freebsd(1)
     if res_disk is not None:
@@ -248,7 +247,6 @@ if util.is_FreeBSD():
 BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
-    "dhclient_lease_file": LEASE_FILE,
     "apply_network_config": True,  # Use IMDS published network configuration
 }
 # RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
@@ -294,15 +292,17 @@ class DataSourceAzure(sources.DataSource):
         self.ds_cfg = util.mergemanydict(
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
-        self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
-        self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self.iso_dev = None
+        self._network_config = None
+        self._wireserver_address = DEFAULT_WIRESERVER_ENDPOINT
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
         if not hasattr(self, "iso_dev"):
             self.iso_dev = None
+        if not hasattr(self, "_wireserver_address"):
+            self._wireserver_address = DEFAULT_WIRESERVER_ENDPOINT
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -520,14 +520,15 @@ class DataSourceAzure(sources.DataSource):
                 self.fallback_interface
             ) and getattr(self, "_ephemeral_dhcp_ctx", None)
             if use_cached_ephemeral:
-                self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
+                self._report_ready()
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
             else:
                 try:
                     with EphemeralDHCPv4WithReporting(
                         azure_ds_reporter
                     ) as lease:
-                        self._report_ready(lease=lease)
+                        self._process_dhcp_lease(lease)
+                        self._report_ready()
                 except Exception as e:
                     report_diagnostic_event(
                         "exception while reporting ready: %s" % e,
@@ -895,6 +896,18 @@ class DataSourceAzure(sources.DataSource):
             logger_func=LOG.debug,
         )
 
+    def _process_dhcp_lease(self, lease: dict) -> None:
+        """Maintain relevant info for leases."""
+        dhcp_opt_245 = lease.get("unknown-245")
+        if dhcp_opt_245:
+            self._wireserver_address = (
+                WALinuxAgentShim.get_ip_from_lease_value(dhcp_opt_245)
+            )
+            LOG.debug(
+                "Using wireserver address configured by DHCP: %s",
+                self._wireserver_address,
+            )
+
     @azure_ds_telemetry_reporter
     def _report_ready_if_needed(self):
         """Report ready to the platform if the marker file is not present,
@@ -910,7 +923,8 @@ class DataSourceAzure(sources.DataSource):
             )
             try:
                 with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
-                    self._report_ready(lease=lease)
+                    self._process_dhcp_lease(lease)
+                    self._report_ready()
             except Exception as e:
                 report_diagnostic_event(
                     "Exception reporting ready during "
@@ -959,7 +973,8 @@ class DataSourceAzure(sources.DataSource):
                 dhcp_ctx = EphemeralDHCPv4(
                     iface=ifname, dhcp_log_func=dhcp_log_cb
                 )
-                dhcp_ctx.obtain_lease()
+                lease = dhcp_ctx.obtain_lease()
+                self._process_dhcp_lease(lease)
         except Exception as e:
             report_diagnostic_event(
                 "Giving up. Failed to obtain dhcp lease "
@@ -1243,6 +1258,7 @@ class DataSourceAzure(sources.DataSource):
                             dhcp_log_func=dhcp_log_cb
                         )
                         lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                        self._process_dhcp_lease(lease)
 
                 if vnet_switched:
                     dhcp_attempts += 1
@@ -1257,7 +1273,7 @@ class DataSourceAzure(sources.DataSource):
                         self._ephemeral_dhcp_ctx.clean_network()
                         break
 
-                    report_ready_succeeded = self._report_ready(lease=lease)
+                    report_ready_succeeded = self._report_ready()
                     if not report_ready_succeeded:
                         msg = (
                             "Failed reporting ready while in "
@@ -1334,14 +1350,11 @@ class DataSourceAzure(sources.DataSource):
         @param description: A description of the error encountered.
         @return: The success status of sending the failure signal.
         """
-        unknown_245_key = "unknown-245"
-
         try:
             if (
                 self.distro.networking.is_up(self.fallback_interface)
                 and getattr(self, "_ephemeral_dhcp_ctx", None)
                 and getattr(self._ephemeral_dhcp_ctx, "lease", None)
-                and unknown_245_key in self._ephemeral_dhcp_ctx.lease
             ):
                 report_diagnostic_event(
                     "Using cached ephemeral dhcp context "
@@ -1349,7 +1362,7 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
                 report_failure_to_fabric(
-                    dhcp_opts=self._ephemeral_dhcp_ctx.lease[unknown_245_key],
+                    endpoint=self._wireserver_address,
                     description=description,
                 )
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
@@ -1367,8 +1380,9 @@ class DataSourceAzure(sources.DataSource):
                 logger_func=LOG.debug,
             )
             with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
+                self._process_dhcp_lease(lease)
                 report_failure_to_fabric(
-                    dhcp_opts=lease[unknown_245_key], description=description
+                    endpoint=self._wireserver_address, description=description
                 )
             return True
         except Exception as e:
@@ -1382,7 +1396,7 @@ class DataSourceAzure(sources.DataSource):
                 "Using fallback lease to report failure to Azure"
             )
             report_failure_to_fabric(
-                fallback_lease_file=self.dhclient_lease_file,
+                endpoint=self._wireserver_address,
                 description=description,
             )
             return True
@@ -1394,16 +1408,14 @@ class DataSourceAzure(sources.DataSource):
 
         return False
 
-    def _report_ready(self, lease: dict) -> bool:
+    def _report_ready(self) -> bool:
         """Tells the fabric provisioning has completed.
 
-        @param lease: dhcp lease to use for sending the ready signal.
         @return: The success status of sending the ready signal.
         """
         try:
             get_metadata_from_fabric(
-                fallback_lease_file=None,
-                dhcp_opts=lease["unknown-245"],
+                endpoint=self._wireserver_address,
                 iso_dev=self.iso_dev,
             )
             return True
@@ -1521,15 +1533,11 @@ class DataSourceAzure(sources.DataSource):
             )
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
-        metadata_func = partial(
-            get_metadata_from_fabric,
-            fallback_lease_file=self.dhclient_lease_file,
-            pubkey_info=pubkey_info,
-        )
-
         LOG.debug("negotiating with fabric")
         try:
-            fabric_data = metadata_func()
+            fabric_data = get_metadata_from_fabric(
+                endpoint=self._wireserver_address, pubkey_info=pubkey_info
+            )
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "

@@ -11,7 +11,7 @@ from xml.sax.saxutils import escape, unescape
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
@@ -85,70 +85,6 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
 class SentinelException(Exception):
     pass
-
-
-class TestFindEndpoint(CiTestCase):
-    def setUp(self):
-        super(TestFindEndpoint, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.load_file = patches.enter_context(
-            mock.patch.object(azure_helper.util, "load_file")
-        )
-
-        self.dhcp_options = patches.enter_context(
-            mock.patch.object(wa_shim, "_load_dhclient_json")
-        )
-
-        self.networkd_leases = patches.enter_context(
-            mock.patch.object(wa_shim, "_networkd_get_value_from_leases")
-        )
-        self.networkd_leases.return_value = None
-
-    def test_missing_file(self):
-        """wa_shim find_endpoint uses default endpoint if
-        leasefile not found
-        """
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    def test_missing_special_azure_line(self):
-        """wa_shim find_endpoint uses default endpoint if leasefile is found
-        but does not contain DHCP Option 245 (whose value is the endpoint)
-        """
-        self.load_file.return_value = ""
-        self.dhcp_options.return_value = {"eth0": {"key": "value"}}
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    @staticmethod
-    def _build_lease_content(encoded_address):
-        endpoint = azure_helper._get_dhcp_endpoint_option_name()
-        return "\n".join(
-            [
-                "lease {",
-                ' interface "eth0";',
-                " option {0} {1};".format(endpoint, encoded_address),
-                "}",
-            ]
-        )
-
-    def test_from_dhcp_client(self):
-        self.dhcp_options.return_value = {"eth0": {"unknown_245": "5:4:3:2"}}
-        self.assertEqual("5.4.3.2", wa_shim.find_endpoint(None))
-
-    def test_latest_lease_used(self):
-        encoded_addresses = ["5:4:3:2", "4:3:2:1"]
-        file_content = "\n".join(
-            [
-                self._build_lease_content(encoded_address)
-                for encoded_address in encoded_addresses
-            ]
-        )
-        self.load_file.return_value = file_content
-        self.assertEqual(
-            encoded_addresses[-1].replace(":", "."),
-            wa_shim.find_endpoint("foobar"),
-        )
 
 
 class TestExtractIpAddressFromLeaseValue(CiTestCase):
@@ -1101,9 +1037,6 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient = patches.enter_context(
             mock.patch.object(azure_helper, "AzureEndpointHttpClient")
         )
-        self.find_endpoint = patches.enter_context(
-            mock.patch.object(wa_shim, "find_endpoint")
-        )
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, "GoalState")
         )
@@ -1144,8 +1077,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
@@ -1164,8 +1096,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_goalstate_during_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
@@ -1216,8 +1147,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertEqual([], data["public-keys"])
 
     def test_correct_url_used_for_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
@@ -1226,8 +1156,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
@@ -1450,16 +1379,11 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
-        azure_helper.get_metadata_from_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
-        )
+        azure_helper.get_metadata_from_fabric(endpoint="test_endpoint")
         self.assertEqual(1, self.m_shim.call_count)
         self.assertEqual(
             mock.call(
-                fallback_lease_file=m_fallback_lease_file,
-                dhcp_options=m_dhcp_options,
+                "test_endpoint",
             ),
             self.m_shim.call_args,
         )
@@ -1525,85 +1449,8 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
-        azure_helper.report_failure_to_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
-        )
-        self.m_shim.assert_called_once_with(
-            fallback_lease_file=m_fallback_lease_file,
-            dhcp_options=m_dhcp_options,
-        )
-
-
-class TestExtractIpAddressFromNetworkd(CiTestCase):
-
-    azure_lease = dedent(
-        """\
-    # This is private data. Do not parse.
-    ADDRESS=10.132.0.5
-    NETMASK=255.255.255.255
-    ROUTER=10.132.0.1
-    SERVER_ADDRESS=169.254.169.254
-    NEXT_SERVER=10.132.0.1
-    MTU=1460
-    T1=43200
-    T2=75600
-    LIFETIME=86400
-    DNS=169.254.169.254
-    NTP=169.254.169.254
-    DOMAINNAME=c.ubuntu-foundations.internal
-    DOMAIN_SEARCH_LIST=c.ubuntu-foundations.internal google.internal
-    HOSTNAME=tribaal-test-171002-1349.c.ubuntu-foundations.internal
-    ROUTES=10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1
-    CLIENTID=ff405663a200020000ab11332859494d7a8b4c
-    OPTION_245=624c3620
-    """
-    )
-
-    def setUp(self):
-        super(TestExtractIpAddressFromNetworkd, self).setUp()
-        self.lease_d = self.tmp_dir()
-
-    def test_no_valid_leases_is_none(self):
-        """No valid leases should return None."""
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_option_245_is_found_in_single(self):
-        """A single valid lease with 245 option should return it."""
-        populate_dir(self.lease_d, {"9": self.azure_lease})
-        self.assertEqual(
-            "624c3620", wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_option_245_not_found_returns_None(self):
-        """A valid lease, but no option 245 should return None."""
-        populate_dir(
-            self.lease_d,
-            {"9": self.azure_lease.replace("OPTION_245", "OPTION_999")},
-        )
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_multiple_returns_first(self):
-        """Somewhat arbitrarily return the first address when multiple.
-
-        Most important at the moment is that this is consistent behavior
-        rather than changing randomly as in order of a dictionary."""
-        myval = "624c3601"
-        populate_dir(
-            self.lease_d,
-            {
-                "9": self.azure_lease,
-                "2": self.azure_lease.replace("624c3620", myval),
-            },
-        )
-        self.assertEqual(
-            myval, wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
+        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
+        self.m_shim.assert_called_once_with("test_endpoint")
 
 
 # vi: ts=4 expandtab
