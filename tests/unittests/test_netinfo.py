@@ -42,7 +42,7 @@ class TestNetInfo:
         m_subp.return_value = (SAMPLE_NEW_IFCONFIG_OUT, "")
         m_which.side_effect = lambda x: x if x == "ifconfig" else None
         content = netdev_pformat()
-        NETDEV_FORMATTED_OUT == content
+        assert NETDEV_FORMATTED_OUT == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
