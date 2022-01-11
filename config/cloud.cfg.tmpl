@@ -176,7 +176,7 @@ cloud_final_modules:
 system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
-                  "eurolinux", "fedora", "freebsd", "netbsd", "miraclelinux", "openbsd", "openEuler",
+                  "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "miraclelinux", "openbsd", "openEuler",
                   "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
@@ -231,7 +231,7 @@ system_info:
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
 {% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "eurolinux",
-                    "fedora", "miraclelinux", "openEuler", "rhel", "rocky", "suse", "virtuozzo"] %}
+                    "fedora", "gentoo", "miraclelinux", "openEuler", "rhel", "rocky", "suse", "virtuozzo"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
@@ -245,6 +245,10 @@ system_info:
 {% endif %}
 {% if variant == "suse" %}
      groups: [cdrom, users]
+{% if variant == "gentoo" %}
+     groups: [users, wheel]
+     primary_group: users
+     no_user_group: true
 {% elif variant == "alpine" %}
      groups: [adm, sudo]
 {% elif variant == "arch" %}
