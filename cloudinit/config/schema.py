@@ -633,11 +633,19 @@ def get_schema() -> dict:
         os.path.join(paths.schema_dir, "cloud-init-schema-*")
     )
     full_schema = None
-    for schema_file in schema_files:
+    if len(schema_files) > 1:
+        LOG.warning(
+            "Found multiple cloud-init-schema files in %s. Ignoring %s",
+            paths.schema_dir,
+            ", ".join(schema_files[1:]),
+        )
+    elif len(schema_files) == 1:
         try:
-            full_schema = json.loads(load_file(schema_file))
+            full_schema = json.loads(load_file(schema_files[0]))
         except Exception as e:
-            LOG.warning("Cannot parse JSON schema file %s. %s", schema_file, e)
+            LOG.warning(
+                "Cannot parse JSON schema file %s. %s", schema_files[0], e
+            )
     if not full_schema:
         LOG.warning(
             "No base JSON schema files found at %s/cloud-init-schema-*."
