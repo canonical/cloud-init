@@ -40,7 +40,7 @@ from tests.unittests.helpers import (
 
 
 def get_schemas() -> dict:
-    """Return all module schemas
+    """Return all legacy module schemas
 
     Assumes that module schemas have the variable name "schema"
     """
@@ -335,7 +335,6 @@ class TestValidateCloudConfigSchema:
 
 
 class TestCloudConfigExamples:
-    schema = get_schemas()
     metas = get_metas()
     params = [
         (meta["id"], example)
@@ -346,14 +345,22 @@ class TestCloudConfigExamples:
 
     @pytest.mark.parametrize("schema_id, example", params)
     @skipUnlessJsonSchema()
-    def test_validateconfig_schema_of_example(self, schema_id, example):
+    @mock.patch("cloudinit.config.schema.read_cfg_paths")
+    def test_validateconfig_schema_of_example(
+        self, read_cfg_paths, schema_id, example, paths
+    ):
         """For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
         """
+        read_cfg_paths.return_value = paths
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        for schema_file in Path(cloud_init_project_dir("config/")).glob(
+            "cloud-init-schema*.json"
+        ):
+            util_copy(schema_file, paths.schema_dir)
+        schema = get_schema()
         config_load = safe_load(example)
-        validate_cloudconfig_schema(
-            config_load, self.schema[schema_id], strict=True
-        )
+        validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
