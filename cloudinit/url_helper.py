@@ -12,21 +12,23 @@ import copy
 import json
 import os
 import time
-from typing import Tuple, Any, Union, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, Dict
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
+
+import urllib3
 from urllib.parse import urlparse, urlunparse, quote
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3._collections import RecentlyUsedContainer
 from urllib3.poolmanager import PoolKey, key_fn_by_scheme
 from urllib3.util import Url
 
-import urllib3
 import requests
-from requests import exceptions
+from requests import exceptions, Session
+from requests.adapters import HTTPAdapter
 
 from cloudinit import log as logging
 from cloudinit import version
@@ -185,6 +187,7 @@ class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
                 ),
                 InsecureRequestWarning,
             )
+        print("HTTPConnectionPool: validate_conn(): {} ".format(conn))
 
     def connect(self):
         """Create a connection without creating a request
@@ -197,11 +200,13 @@ class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
 
         # insert connection into pool immediately for reuse
         self._put_conn(conn)
+        print("HTTPConnectionPool: connect(): {} ".format(conn))
         return conn
 
 
-# TODO: add https?
+# TODO: add https? (doesn't looks like any sources use https currently)
 pool_classes_by_scheme = {"http": HTTPConnectionPoolEarlyConnect}
+
 
 class PoolManagerEarlyConnect(urllib3.PoolManager):
     """Enable early connection to multiple "hosts" for dual-stack addresses
@@ -214,7 +219,6 @@ class PoolManagerEarlyConnect(urllib3.PoolManager):
     """
     proxy: Optional[Url] = None
     proxy_config: Optional[Any] = None
-
 
     def __init__(
         self,
@@ -231,10 +235,42 @@ class PoolManagerEarlyConnect(urllib3.PoolManager):
         self.pools: RecentlyUsedContainer[PoolKey, HTTPConnectionPoolEarlyConnect]
         self.pools = RecentlyUsedContainer(num_pools, dispose_func=dispose_func)
 
-        # Locally set the pool classes and keys so other PoolManagers can
-        # override them.
+        # Override pool classes from base class
         self.pool_classes_by_scheme = pool_classes_by_scheme
         self.key_fn_by_scheme = key_fn_by_scheme.copy()
+        print("PoolManager: __init__")
+
+    def connection_from_url(
+        self, url: str, pool_kwargs: Optional[Dict[str, Any]] = None
+        ) -> HTTPConnectionPoolEarlyConnect:
+        """Init pool and connect
+        """
+        pool = super().connection_from_url(url, pool_kwargs)
+        pool.connect()
+        print("PoolManager: connection_from_url: {}".format(url))
+        return pool
+
+
+class HTTPAdapterEarlyConnect(HTTPAdapter):
+    def init_poolmanager(
+            self, connections, maxsize, block=False):
+        self.poolmanager = PoolManagerEarlyConnect(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block)
+        print("HTTPAdapter: init_poolmanager")
+
+    def connect(self, prefix) -> HTTPConnectionPoolEarlyConnect:
+        print("HTTPAdapter: init_poolmanager: {}".format(prefix))
+        return self.poolmanager.connection_from_url(prefix)
+
+
+class SessionEarlyConnect(Session):
+    def mount(self, prefix, adapter):
+        """Register a connection adapter and create the initial connection."""
+        super().mount(prefix, adapter)
+        print("Session: mount(): {}, {}".format(prefix, adapter))
+        return adapter.connect(prefix)
 
 
 def _get_ssl_args(url, ssl_details):
@@ -453,8 +489,10 @@ def dual_stack(
     def _run_func(func, addr, delay=None):
         """Execute func with optional delay
         """
+
         if delay:
             time.sleep(delay)
+        print("dual_stack()._run_func():  {}({})".format(func, addr))
         return func(addr)
 
     executor = ThreadPoolExecutor(max_workers=len(addresses))

@@ -8,16 +8,13 @@ import requests
 import pytest
 from functools import partial
 from time import sleep, process_time
+from typing import Tuple
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
-    NOT_FOUND,
-    REDACTED,
-    UrlError,
-    oauth_headers,
-    read_file_or_url,
-    retry_on_url_exc,
-)
+    NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
+    retry_on_url_exc, dual_stack, HTTPConnectionPoolEarlyConnect,
+    HTTPAdapterEarlyConnect)
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 try:
@@ -253,8 +250,6 @@ class TestRetryOnUrlExc(CiTestCase):
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
 
-from typing import Tuple, Callable
-
 
 def _raise(a):
     raise a
@@ -338,24 +333,55 @@ class TestHTTPConnectionPoolEarlyConnect:
         assert 200 == out.status
 
 
-#class TestHTTPAdapterEarlyConnect:
-#    """ TODO: add tests for adapter class
-#    """
-#    def test_instantiate_dualstack(self):
-#        assert False
-#        pool = HTTPConnectionPoolEarlyConnect("google.com")
-#
-#        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
-#        first = "google.com"
-#        not_first = "yahoo.com"
-#        gen = partial(
-#            dual_stack,
-#            pool.connect,
-#            first, not_first,
-#            stagger_delay=1,
-#            max_timeout=1)
-#        out = assert_time(gen)
-#        out = pool.urlopen("GET", "google.com", assert_same_host=False)
-#        assert out
+def mount(session, adapter, delay_prefix=None, delay=1):
+    """Return closure for executing mount"""
+    def do_mount(prefix):
+        print("do_mount(): session.mount(prefix, adapter): {}.mount({}, {})".format(session, prefix, adapter))
+        if delay_prefix == prefix:
+            sleep(delay)
+        session.mount(prefix, adapter)
+        return session.get(prefix)
+    return do_mount
+
+
+class TestHTTPAdapterEarlyConnect:
+    """ TODO
+    """
+
+    def test_instantiate_dualstack(self):
+        s = requests.Session()
+        a = HTTPAdapterEarlyConnect()
+
+        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
+        first = "http://www.google.com/"
+        not_first = "http://www.yahoo.com/"
+        gen = partial(
+            dual_stack,
+            mount(s, a),
+            first,
+            not_first,
+            stagger_delay=1,
+            max_timeout=1)
+        out = assert_time(gen)
+        assert 200 == out.status_code
+        assert first == out.url
+
+    def test_instantiate_dualstack_second_first(self):
+        s = requests.Session()
+        a = HTTPAdapterEarlyConnect()
+
+        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
+        first = "http://www.google.com/"
+        not_first = "http://www.example.com/"
+        gen = partial(
+            dual_stack,
+            mount(s, a, delay_prefix=first),
+            first,
+            not_first,
+            stagger_delay=0,
+            max_timeout=1)
+        out = assert_time(gen)
+        assert 200 == out.status_code
+        assert not_first == out.url
 
 # vi: ts=4 expandtab
