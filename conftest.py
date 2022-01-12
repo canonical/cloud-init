@@ -198,6 +198,7 @@ def paths(tmpdir):
     (This uses the builtin tmpdir fixture.)
     """
     dirs = {
+        "schema_dir": tmpdir.mkdir("schema").strpath,
         "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
         "run_dir": tmpdir.mkdir("run_dir").strpath,
     }

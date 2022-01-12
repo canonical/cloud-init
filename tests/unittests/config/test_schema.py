@@ -29,6 +29,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
 )
+from cloudinit.util import copy as util_copy
 from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
@@ -82,8 +83,40 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestGetSchema:
-    def test_get_schema_coalesces_known_schema(self):
+    @mock.patch("cloudinit.config.schema.read_cfg_paths")
+    def test_get_schema_warn_on_multiple_schema_files(
+        self, read_cfg_paths, paths, caplog
+    ):
+        """Warn about ignored files when multiple schemas in schema_dir."""
+        read_cfg_paths.return_value = paths
+
+        for schema_file in Path(cloud_init_project_dir("config/")).glob(
+            "cloud-init-schema*.json"
+        ):
+            util_copy(schema_file, paths.schema_dir)
+            # Add a duplicate entry that'll be warned
+            duplicate_schema = (
+                f"{paths.schema_dir}/{schema_file.name}".replace(
+                    ".json", ".2.json"
+                )
+            )
+            util_copy(schema_file, duplicate_schema)
+        get_schema()
+        assert (
+            f"Found multiple cloud-init-schema files in {paths.schema_dir}"
+            in caplog.text
+        )
+
+    @mock.patch("cloudinit.config.schema.read_cfg_paths")
+    def test_get_schema_coalesces_known_schema(self, read_cfg_paths, paths):
         """Every cloudconfig module with schema is listed in allOf keyword."""
+        read_cfg_paths.return_value = paths
+
+        # Copy existing packages base schema files into paths.schema_dir
+        for schema_file in Path(cloud_init_project_dir("config/")).glob(
+            "cloud-init-schema*.json"
+        ):
+            util_copy(schema_file, paths.schema_dir)
         schema = get_schema()
         assert sorted(
             [
@@ -108,9 +141,39 @@ class TestGetSchema:
             [meta["id"] for meta in get_metas().values() if meta is not None]
         )
         assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]
-        assert ["$defs", "$schema", "allOf"] == sorted(
-            list(get_schema().keys())
-        )
+        assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
+        # New style schema should be defined in static schema file in $defs
+        expected_subschema_defs = [
+            {"$ref": "#/$defs/cc_apt_pipelining"},
+        ]
+        found_subschema_defs = []
+        legacy_schema_keys = []
+        for subschema in schema["allOf"]:
+            if "$ref" in subschema:
+                found_subschema_defs.append(subschema)
+            else:  # Legacy subschema sourced from cc_* module 'schema' attr
+                legacy_schema_keys.extend(subschema["properties"].keys())
+
+        assert expected_subschema_defs == found_subschema_defs
+        # This list will dwindle as we move legacy schema to new $defs
+        assert [
+            "apk_repos",
+            "apt",
+            "bootcmd",
+            "chef",
+            "drivers",
+            "locale",
+            "locale_configfile",
+            "ntp",
+            "resize_rootfs",
+            "runcmd",
+            "snap",
+            "ubuntu_advantage",
+            "updates",
+            "write_files",
+            "write_files",
+            "zypper",
+        ] == sorted(legacy_schema_keys)
 
 
 class TestLoadDoc:
