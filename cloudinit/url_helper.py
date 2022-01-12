@@ -27,25 +27,7 @@ from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
-
-# Check if requests has ssl support (added in requests >= 0.8.8)
-SSL_ENABLED = False
-CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
-_REQ_VER = None
 REDACTED = "REDACTED"
-try:
-    from distutils.version import LooseVersion
-
-    import pkg_resources
-
-    _REQ = pkg_resources.get_distribution("requests")
-    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=no-member
-    if _REQ_VER >= LooseVersion("0.8.8"):
-        SSL_ENABLED = True
-    if LooseVersion("0.7.0") <= _REQ_VER < LooseVersion("1.0.0"):
-        CONFIG_ENABLED = True
-except ImportError:
-    pass
 
 
 def _cleanurl(url):
@@ -175,24 +157,17 @@ def _get_ssl_args(url, ssl_details):
     ssl_args = {}
     scheme = urlparse(url).scheme
     if scheme == "https" and ssl_details:
-        if not SSL_ENABLED:
-            LOG.warning(
-                "SSL is not supported in requests v%s, "
-                "cert. verification can not occur!",
-                _REQ_VER,
-            )
+        if "ca_certs" in ssl_details and ssl_details["ca_certs"]:
+            ssl_args["verify"] = ssl_details["ca_certs"]
         else:
-            if "ca_certs" in ssl_details and ssl_details["ca_certs"]:
-                ssl_args["verify"] = ssl_details["ca_certs"]
-            else:
-                ssl_args["verify"] = True
-            if "cert_file" in ssl_details and "key_file" in ssl_details:
-                ssl_args["cert"] = [
-                    ssl_details["cert_file"],
-                    ssl_details["key_file"],
-                ]
-            elif "cert_file" in ssl_details:
-                ssl_args["cert"] = str(ssl_details["cert_file"])
+            ssl_args["verify"] = True
+        if "cert_file" in ssl_details and "key_file" in ssl_details:
+            ssl_args["cert"] = [
+                ssl_details["cert_file"],
+                ssl_details["key_file"],
+            ]
+        elif "cert_file" in ssl_details:
+            ssl_args["cert"] = str(ssl_details["cert_file"])
     return ssl_args
 
 
@@ -257,19 +232,6 @@ def readurl(
         req_args["timeout"] = max(float(timeout), 0)
     if headers_redact is None:
         headers_redact = []
-    # It doesn't seem like config
-    # was added in older library versions (or newer ones either), thus we
-    # need to manually do the retries if it wasn't...
-    if CONFIG_ENABLED:
-        req_config = {
-            "store_cookies": False,
-        }
-        # Don't use the retry support built-in
-        # since it doesn't allow for 'sleep_times'
-        # in between tries....
-        # if retries:
-        #     req_config['max_retries'] = max(int(retries), 0)
-        req_args["config"] = req_config
     manual_tries = 1
     if retries:
         manual_tries = max(int(retries) + 1, 1)
@@ -358,7 +320,7 @@ def readurl(
                 )
             else:
                 excps.append(UrlError(e, url=url))
-                if SSL_ENABLED and isinstance(e, exceptions.SSLError):
+                if isinstance(e, exceptions.SSLError):
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break

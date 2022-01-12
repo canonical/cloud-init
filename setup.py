@@ -15,12 +15,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from distutils.errors import DistutilsArgError
 from glob import glob
 
 import setuptools
 from setuptools.command.egg_info import egg_info
 from setuptools.command.install import install
+
+try:
+    from setuptools.errors import DistutilsError
+except ImportError:
+    from distutils.errors import DistutilsArgError as DistutilsError
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
@@ -245,9 +249,7 @@ class InitsysInstallData(install):
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
         if len(bad) != 0:
-            raise DistutilsArgError(
-                "Invalid --init-system: %s" % ",".join(bad)
-            )
+            raise DistutilsError("Invalid --init-system: %s" % ",".join(bad))
 
         for system in self.init_system:
             # add data files for anything that starts with '<system>.'

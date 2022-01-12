@@ -68,14 +68,13 @@ import json
 import os
 import socket
 import time
-from distutils.spawn import find_executable
 
 import netifaces
 
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources, util
-from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.subp import ProcessExecutionError, subp, which
 
 PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
 
@@ -85,7 +84,7 @@ NOVAL = "No value found"
 DATA_ACCESS_METHOD_ENVVAR = "envvar"
 DATA_ACCESS_METHOD_GUESTINFO = "guestinfo"
 
-VMWARE_RPCTOOL = find_executable("vmware-rpctool")
+VMWARE_RPCTOOL = which("vmware-rpctool")
 REDACT = "redact"
 CLEANUP_GUESTINFO = "cleanup-guestinfo"
 VMX_GUESTINFO = "VMX_GUESTINFO"
