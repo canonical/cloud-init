@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import sys
 import copy
 import json
 import os
@@ -611,7 +612,11 @@ def dual_stack(
     # in the constructor, otherwise the context manager would be preferred
     # think they would take a PR implementing that?
     finally:
-        executor.shutdown(wait=False, cancel_futures=True)
+        # python 3.9 allows canceling futures, which may save some cycles
+        if sys.version_info.major >= 3 and sys.version_info.minor > 9:
+            executor.shutdown(wait=False, cancel_futures=True)
+        else:
+            executor.shutdown(wait=False)
     return return_result
 
 
