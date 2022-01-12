@@ -594,7 +594,8 @@ def dual_stack(
 
 def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
                  headers_cb=None, headers_redact=None, sleep_time=1,
-                 exception_cb=None, sleep_time_cb=None, request_method=None):
+                 exception_cb=None, sleep_time_cb=None, request_method=None,
+                 connect_synchronously=True):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -643,79 +644,109 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             return False
         return (max_wait <= 0) or (time.time() - start_time > max_wait)
 
-    loop_n = 0
-    response = None
-    print("before loop")
-    while True:
-        last_reason = None
-        if sleep_time_cb is not None:
-            sleep_time = sleep_time_cb(response, loop_n)
+    def read_url_handle_response(response, url):
+        if not response.contents:
+            reason = "empty response [%s]" % (response.code)
+            url_exc = UrlError(ValueError(reason), code=response.code,
+                               headers=response.headers, url=url)
+        elif not response.ok():
+            reason = "bad status code [%s]" % (response.code)
+            url_exc = UrlError(ValueError(reason), code=response.code,
+                               headers=response.headers, url=url)
         else:
-            sleep_time = int(loop_n / 5) + 1
+            reason = ""
+            url_exc = None
+        return (url_exc, reason)
+
+    def readurl_handle_exceptions(url_reader, url):
+        reason = ""
+        url_exc = None
+        try:
+
+            response = url_reader(url)
+
+            url_exc, reason = read_url_handle_response(response, url)
+            print("handled response: {} {}".format(url_exc, reason))
+            if not url_exc:
+                return url, response.contents
+        except UrlError as e:
+            reason = "request error [%s]" % e
+            url_exc = e
+        except Exception as e:
+            reason = "unexpected error [%s]" % e
+            url_exc = e
+            print("Exception: [{}]".format(url_exc))
+        time_taken = int(time.time() - start_time)
+        max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
+        status_msg = "Calling '%s' failed [%s/%s]: %s" % (url,
+                                                          time_taken,
+                                                          max_wait_str,
+                                                          reason)
+        status_cb(status_msg)
+        if exception_cb:
+            # This can be used to alter the headers that will be sent
+            # in the future, for example this is what the MAAS datasource
+            # does.
+            exception_cb(msg=status_msg, exception=url_exc)
+
+    def url_reader_serial(url):
+        if headers_cb is not None:
+            headers = headers_cb(url)
+        else:
+            headers = {}
+
+        return readurl(
+            url,
+            headers=headers,
+            headers_redact=headers_redact,
+            timeout=timeout,
+            check_status=False,
+            request_method=request_method)
+
+    url_reader_parallel = partial(
+        dual_stack,
+        url_reader_serial,
+        stagger_delay=0.150,
+        max_timeout=timeout
+    )
+
+    def read_url_serial(timeout):
         for url in urls:
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
-                    break
-                if (
-                    max_wait is not None
-                    and timeout
-                    and (now + timeout > (start_time + max_wait))
-                ):
+                    return
+                if (max_wait is not None and
+                        timeout and (now + timeout > (start_time + max_wait))):
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
-            reason = ""
-            url_exc = None
-            try:
-                if headers_cb is not None:
-                    headers = headers_cb(url)
-                else:
-                    headers = {}
+            out = readurl_handle_exceptions(url_reader_serial, url)
+            if out:
+                return out
 
-                response = readurl(
-                    url, headers=headers, headers_redact=headers_redact,
-                    timeout=timeout, check_status=False,
-                    request_method=request_method)
+    def read_url_parallel():
+        out = readurl_handle_exceptions(url_reader_parallel, urls)
+        if out:
+            return out
 
-                if not response.contents:
-                    reason = "empty response [%s]" % (response.code)
-                    url_exc = UrlError(
-                        ValueError(reason),
-                        code=response.code,
-                        headers=response.headers,
-                        url=url,
-                    )
-                elif not response.ok():
-                    reason = "bad status code [%s]" % (response.code)
-                    url_exc = UrlError(
-                        ValueError(reason),
-                        code=response.code,
-                        headers=response.headers,
-                        url=url,
-                    )
-                else:
-                    return url, response.contents
-            except UrlError as e:
-                reason = "request error [%s]" % e
-                url_exc = e
-            except Exception as e:
-                reason = "unexpected error [%s]" % e
-                url_exc = e
-            time_taken = int(time.time() - start_time)
-            max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
-            status_msg = "Calling '%s' failed [%s/%s]: %s" % (
-                url,
-                time_taken,
-                max_wait_str,
-                reason,
-            )
-            status_cb(status_msg)
-            if exception_cb:
-                # This can be used to alter the headers that will be sent
-                # in the future, for example this is what the MAAS datasource
-                # does.
-                exception_cb(msg=status_msg, exception=url_exc)
+    loop_n = 0
+    response = None
+    print("before loop")
+    while True:
+        if sleep_time_cb is not None:
+            sleep_time = sleep_time_cb(response, loop_n)
+        else:
+            sleep_time = int(loop_n / 5) + 1
+
+        if connect_synchronously:
+            out = read_url_serial(timeout)
+            if out:
+                return out
+        else:
+            out = read_url_parallel()
+            if out:
+                return out
 
         if timeup(max_wait, start_time):
             break
