@@ -929,6 +929,12 @@ def list_sources(cfg_list, depends, pkg_list):
         m_locs, _looked_locs = importer.find_module(
             ds_name, pkg_list, ["get_datasource_list"]
         )
+        if not m_locs:
+            LOG.error(
+                "Could not import %s. Does the DataSource exist and "
+                "is it importable?",
+                ds_name,
+            )
         for m_loc in m_locs:
             mod = importer.import_module(m_loc)
             lister = getattr(mod, "get_datasource_list")
