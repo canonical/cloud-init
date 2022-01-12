@@ -192,8 +192,9 @@ class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
             print(
                 (
                     "Unverified HTTPS request is being made to host '{}'. "
-                    "Adding certificate verification is strongly advised. See: "
-                    "https://urllib3.readthedocs.io/en/latest/advanced-usage.html"
+                    "Adding certificate verification is strongly advised. "
+                    "See: https://urllib3.readthedocs.io/en/latest/"
+                    "advanced-usage.html"
                     "#tls-warnings".format(conn.host)
                 ),
                 InsecureRequestWarning,
