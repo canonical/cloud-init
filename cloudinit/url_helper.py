@@ -28,7 +28,7 @@ from requests import Session, exceptions
 from requests.adapters import HTTPAdapter
 from urllib3._collections import RecentlyUsedContainer
 from urllib3.exceptions import InsecureRequestWarning
-from urllib3.poolmanager import PoolKey, key_fn_by_scheme
+from urllib3.poolmanager import key_fn_by_scheme
 from urllib3.util import Url
 
 from cloudinit import log as logging
