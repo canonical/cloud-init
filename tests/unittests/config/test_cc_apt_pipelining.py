@@ -59,7 +59,7 @@ class TestAptPipelining:
     )
     @skipUnlessJsonSchema()
     @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    def test_schema_vaidatoin(self, read_cfg_paths, config, error_msg, paths):
+    def test_schema_validation(self, read_cfg_paths, config, error_msg, paths):
         """Assert expected schema validation and error messages."""
         read_cfg_paths.return_value = paths
         # New-style schema $defs exist in config/cloud-init-schema*.json
