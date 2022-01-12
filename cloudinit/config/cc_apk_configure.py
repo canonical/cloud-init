@@ -10,7 +10,7 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import temp_utils, templater, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -102,104 +102,7 @@ meta = {
     "frequency": frequency,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "apk_repos": {
-            "type": "object",
-            "properties": {
-                "preserve_repositories": {
-                    "type": "boolean",
-                    "default": False,
-                    "description": dedent(
-                        """\
-                        By default, cloud-init will generate a new repositories
-                        file ``/etc/apk/repositories`` based on any valid
-                        configuration settings specified within a apk_repos
-                        section of cloud config. To disable this behavior and
-                        preserve the repositories file from the pristine image,
-                        set ``preserve_repositories`` to ``true``.
-
-                        The ``preserve_repositories`` option overrides
-                        all other config keys that would alter
-                        ``/etc/apk/repositories``.
-                    """
-                    ),
-                },
-                "alpine_repo": {
-                    "type": ["object", "null"],
-                    "properties": {
-                        "base_url": {
-                            "type": "string",
-                            "default": DEFAULT_MIRROR,
-                            "description": dedent(
-                                """\
-                                The base URL of an Alpine repository, or
-                                mirror, to download official packages from.
-                                If not specified then it defaults to ``{}``
-                            """.format(
-                                    DEFAULT_MIRROR
-                                )
-                            ),
-                        },
-                        "community_enabled": {
-                            "type": "boolean",
-                            "default": False,
-                            "description": dedent(
-                                """\
-                                Whether to add the Community repo to the
-                                repositories file. By default the Community
-                                repo is not included.
-                            """
-                            ),
-                        },
-                        "testing_enabled": {
-                            "type": "boolean",
-                            "default": False,
-                            "description": dedent(
-                                """\
-                                Whether to add the Testing repo to the
-                                repositories file. By default the Testing
-                                repo is not included. It is only recommended
-                                to use the Testing repo on a machine running
-                                the ``Edge`` version of Alpine as packages
-                                installed from Testing may have dependancies
-                                that conflict with those in non-Edge Main or
-                                Community repos."
-                            """
-                            ),
-                        },
-                        "version": {
-                            "type": "string",
-                            "description": dedent(
-                                """\
-                                The Alpine version to use (e.g. ``v3.12`` or
-                                ``edge``)
-                            """
-                            ),
-                        },
-                    },
-                    "required": ["version"],
-                    "minProperties": 1,
-                    "additionalProperties": False,
-                },
-                "local_repo_base_url": {
-                    "type": "string",
-                    "description": dedent(
-                        """\
-                        The base URL of an Alpine repository containing
-                        unofficial packages
-                    """
-                    ),
-                },
-            },
-            "minProperties": 1,  # Either preserve_repositories or alpine_repo
-            "additionalProperties": False,
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -221,8 +124,6 @@ def handle(name, cfg, cloud, log, _args):
             "Skipping module named %s, no 'apk_repos' section found", name
         )
         return
-
-    validate_cloudconfig_schema(cfg, schema)
 
     # If "preserve_repositories" is explicitly set to True in
     # the configuration do nothing.
