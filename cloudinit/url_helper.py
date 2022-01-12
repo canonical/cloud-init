@@ -652,8 +652,7 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             sleep_time = sleep_time_cb(response, loop_n)
         else:
             sleep_time = int(loop_n / 5) + 1
-        for url_session in urls:
-            url = url_session.url
+        for url in urls:
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
@@ -677,7 +676,8 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
                 response = readurl(
                     url, headers=headers, headers_redact=headers_redact,
                     timeout=timeout, check_status=False,
-                    request_method=request_method, session=url_session.session)
+                    request_method=request_method)
+
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(
