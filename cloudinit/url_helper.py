@@ -12,24 +12,23 @@ import copy
 import json
 import os
 import time
-from typing import Any, Callable, Mapping, Optional, Dict
+from collections import namedtuple
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from collections import namedtuple
-
-import urllib3
-from urllib.parse import urlparse, urlunparse, quote
-from urllib3.exceptions import InsecureRequestWarning
-from urllib3._collections import RecentlyUsedContainer
-from urllib3.poolmanager import PoolKey, key_fn_by_scheme
-from urllib3.util import Url
+from typing import Any, Callable, Dict, Mapping, Optional
+from urllib.parse import quote, urlparse, urlunparse
 
 import requests
-from requests import exceptions, Session
+import urllib3
+from requests import Session, exceptions
 from requests.adapters import HTTPAdapter
+from urllib3._collections import RecentlyUsedContainer
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3.poolmanager import PoolKey, key_fn_by_scheme
+from urllib3.util import Url
 
 from cloudinit import log as logging
 from cloudinit import version
@@ -562,8 +561,8 @@ def dual_stack(
 
     from concurrent.futures import (
         ThreadPoolExecutor,
-        as_completed,
         TimeoutError,
+        as_completed,
     )
 
     def _run_func(func, addr, delay=None):

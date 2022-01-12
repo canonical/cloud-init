@@ -1,27 +1,26 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from functools import partial
+from time import process_time, sleep
 
 import httpretty
 import pytest
 import requests
-import pytest
-from functools import partial
-from time import sleep, process_time
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
     NOT_FOUND,
-    UrlError,
     REDACTED,
+    HTTPAdapterEarlyConnect,
+    HTTPConnectionPoolEarlyConnect,
+    UrlError,
+    dual_stack,
+    get_session_to_first_response,
+    mount,
     oauth_headers,
     read_file_or_url,
     retry_on_url_exc,
-    dual_stack,
-    HTTPConnectionPoolEarlyConnect,
-    HTTPAdapterEarlyConnect,
-    mount,
-    get_session_to_first_response,
 )
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
