@@ -8,10 +8,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import sys
 import copy
 import json
 import os
+import sys
 import time
 from collections import namedtuple
 from email.utils import parsedate
@@ -246,9 +246,6 @@ class PoolManagerEarlyConnect(urllib3.PoolManager):
         def dispose_func(p: Any) -> None:
             p.close()
 
-        self.pools: RecentlyUsedContainer[
-            PoolKey, HTTPConnectionPoolEarlyConnect
-        ]
         self.pools = RecentlyUsedContainer(
             num_pools, dispose_func=dispose_func
         )
@@ -614,7 +611,9 @@ def dual_stack(
     finally:
         # python 3.9 allows canceling futures, which may save some cycles
         if sys.version_info.major >= 3 and sys.version_info.minor > 9:
-            executor.shutdown(wait=False, cancel_futures=True)
+            executor.shutdown(  # pylint: disable=E1123
+                wait=False, cancel_futures=True
+            )
         else:
             executor.shutdown(wait=False)
     return return_result
