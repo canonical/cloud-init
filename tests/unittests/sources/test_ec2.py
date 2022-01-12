@@ -572,10 +572,11 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ] + ds.extended_metadata_versions
         for ver in all_versions[:-1]:
             register_mock_metaserver(
-                "http://169.254.169.254/{0}/meta-data/instance-id".format(ver),
-                None,
+                "http://[fd00:ec2::254]/{0}/meta-data/instance-id".format(ver),
+                None
             )
-        ds.metadata_address = "http://169.254.169.254"
+
+        ds.metadata_address = "http://[fd00:ec2::254]"
         register_mock_metaserver(
             "{0}/{1}/meta-data/".format(ds.metadata_address, all_versions[-1]),
             DEFAULT_METADATA,
