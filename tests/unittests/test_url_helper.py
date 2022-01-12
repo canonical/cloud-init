@@ -11,9 +11,18 @@ from time import sleep, process_time
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
-    NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
-    retry_on_url_exc, dual_stack, HTTPConnectionPoolEarlyConnect,
-    HTTPAdapterEarlyConnect, mount, get_session_to_first_response)
+    NOT_FOUND,
+    UrlError,
+    REDACTED,
+    oauth_headers,
+    read_file_or_url,
+    retry_on_url_exc,
+    dual_stack,
+    HTTPConnectionPoolEarlyConnect,
+    HTTPAdapterEarlyConnect,
+    mount,
+    get_session_to_first_response,
+)
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 try:
@@ -249,9 +258,9 @@ class TestRetryOnUrlExc(CiTestCase):
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
 
-
 def _raise(a):
     raise a
+
 
 def assert_time(func, max_time=1):
     """Assert function time is bounded by a max (default=1s)
@@ -265,7 +274,7 @@ def assert_time(func, max_time=1):
     try:
         out = func()
     finally:
-        diff = (process_time() - start)
+        diff = process_time() - start
         assert diff < max_time
     return out
 
@@ -285,35 +294,48 @@ class TestDualStack:
         "expected_exc",
         [
             # Assert order based on timeout
-            (lambda x:x, ("one", "two"), 1, 1, "one", None),
-            (lambda x:sleep(1) if x != "two" else x, ("one", "two"), 0, 1, "two", None),
-            (lambda x:sleep(1) if x != "tri" else x, ("one", "two", "tri"), 0, 1, "tri", None),
-
+            (lambda x: x, ("one", "two"), 1, 1, "one", None),
+            (
+                lambda x: sleep(1) if x != "two" else x,
+                ("one", "two"),
+                0,
+                1,
+                "two",
+                None,
+            ),
+            (
+                lambda x: sleep(1) if x != "tri" else x,
+                ("one", "two", "tri"),
+                0,
+                1,
+                "tri",
+                None,
+            ),
             # Assert timeout results in (None, None)
-            (lambda _:sleep(1), ("one", "two"), 1, 0, None, None),
-
+            (lambda _: sleep(1), ("one", "two"), 1, 0, None, None),
             # Assert that exception in func is raised
-            (lambda _:1/0, ("one", "two"), 1, 1, None, ZeroDivisionError),
-
+            (lambda _: 1 / 0, ("one", "two"), 1, 1, None, ZeroDivisionError),
             # TODO: add httpretty tests
-        ])
+        ],
+    )
     def test_dual_stack(
-            self,
-            func,
-            addresses,
-            stagger_delay,
-            max_timeout,
-            expected_val,
-            expected_exc):
-        """Assert various failure modes behave as expected
-        """
+        self,
+        func,
+        addresses,
+        stagger_delay,
+        max_timeout,
+        expected_val,
+        expected_exc,
+    ):
+        """Assert various failure modes behave as expected"""
 
         gen = partial(
             dual_stack,
             func,
             *addresses,
             stagger_delay=stagger_delay,
-            max_timeout=max_timeout)
+            max_timeout=max_timeout
+        )
         if expected_exc:
             with pytest.raises(expected_exc):
                 assert expected_val == assert_time(gen)
@@ -322,8 +344,8 @@ class TestDualStack:
 
 
 class TestHTTPConnectionPoolEarlyConnect:
-    """ TODO: use httpretty, not google.com
-    """
+    """TODO: use httpretty, not google.com"""
+
     def test_instantiate(self):
         pool = HTTPConnectionPoolEarlyConnect("google.com")
         out = pool.urlopen("GET", "google.com", assert_same_host=False)
@@ -332,23 +354,23 @@ class TestHTTPConnectionPoolEarlyConnect:
     def test_instantiate_init(self):
         pool = HTTPConnectionPoolEarlyConnect("google.com")
         pool.connect()
-        out = (pool.urlopen("GET", "google.com", assert_same_host=False))
+        out = pool.urlopen("GET", "google.com", assert_same_host=False)
         assert 200 == out.status
 
 
 class TestHTTPAdapterEarlyConnect:
-    """ These two tests demonstrate asynchronously requesting two connections,
+    """These two tests demonstrate asynchronously requesting two connections,
     staggered, and returning a connection to the first address to respond, and
     then making a request on that connection.
     """
 
     def test_instantiate_dualstack_helper(self):
-        """Test helper "get_session_to_first_response"
-        """
+        """Test helper "get_session_to_first_response" """
         first = "http://www.google.com/"
         not_first = "http://www.yahoo.com/"
         u = assert_time(
-            partial(get_session_to_first_response, first, not_first))
+            partial(get_session_to_first_response, first, not_first)
+        )
         out = assert_time(partial(u.session.get, u.url))
         assert 200 == out.status_code
         assert first == out.url
@@ -365,7 +387,8 @@ class TestHTTPAdapterEarlyConnect:
             first,
             not_first,
             stagger_delay=1,
-            max_timeout=1)
+            max_timeout=1,
+        )
         (session, prefix) = assert_time(gen)
         out = assert_time(partial(session.get, prefix))
         assert 200 == out.status_code
@@ -384,10 +407,12 @@ class TestHTTPAdapterEarlyConnect:
             first,
             not_first,
             stagger_delay=0,
-            max_timeout=1)
+            max_timeout=1,
+        )
         (session, prefix) = assert_time(gen)
         out = assert_time(partial(session.get, prefix))
         assert 200 == out.status_code
         assert not_first == out.url
+
 
 # vi: ts=4 expandtab

@@ -220,36 +220,57 @@ def _get_instance_metadata(
 
 
 # Todo: update these to use happy eyes
-def get_instance_metadata(api_version='latest',
-                          metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5,
-                          leaf_decoder=None, headers_cb=None,
-                          headers_redact=None,
-                          exception_cb=None):
+def get_instance_metadata(
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    leaf_decoder=None,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
-    return _get_instance_metadata(tree='meta-data/', api_version=api_version,
-                                  metadata_address=metadata_address,
-                                  ssl_details=ssl_details, timeout=timeout,
-                                  retries=retries, leaf_decoder=leaf_decoder,
-                                  headers_redact=headers_redact,
-                                  headers_cb=headers_cb,
-                                  exception_cb=exception_cb)
+    return _get_instance_metadata(
+        tree="meta-data/",
+        api_version=api_version,
+        metadata_address=metadata_address,
+        ssl_details=ssl_details,
+        timeout=timeout,
+        retries=retries,
+        leaf_decoder=leaf_decoder,
+        headers_redact=headers_redact,
+        headers_cb=headers_cb,
+        exception_cb=exception_cb,
+    )
 
 
 # Todo: update these to use happy eyes
-def get_instance_identity(api_version='latest',
-                          metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5,
-                          leaf_decoder=None, headers_cb=None,
-                          headers_redact=None,
-                          exception_cb=None):
-    return _get_instance_metadata(tree='dynamic/instance-identity',
-                                  api_version=api_version,
-                                  metadata_address=metadata_address,
-                                  ssl_details=ssl_details, timeout=timeout,
-                                  retries=retries, leaf_decoder=leaf_decoder,
-                                  headers_redact=headers_redact,
-                                  headers_cb=headers_cb,
-                                  exception_cb=exception_cb)
+def get_instance_identity(
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    leaf_decoder=None,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
+    return _get_instance_metadata(
+        tree="dynamic/instance-identity",
+        api_version=api_version,
+        metadata_address=metadata_address,
+        ssl_details=ssl_details,
+        timeout=timeout,
+        retries=retries,
+        leaf_decoder=leaf_decoder,
+        headers_redact=headers_redact,
+        headers_cb=headers_cb,
+        exception_cb=exception_cb,
+    )
+
+
 # vi: ts=4 expandtab

@@ -58,7 +58,7 @@ class DataSourceEc2(sources.DataSource):
     metadata_urls = [
         "http://[fd00:ec2::254]",
         "http://169.254.169.254",
-        "http://instance-data.:8773"
+        "http://instance-data.:8773",
     ]
 
     # The minimum supported metadata_version from the ec2 metadata apis
@@ -257,7 +257,8 @@ class DataSourceEc2(sources.DataSource):
                 exception_cb=self._imds_exception_cb,
                 request_method=request_method,
                 headers_redact=AWS_TOKEN_REDACT,
-                connect_synchronously=False)
+                connect_synchronously=False,
+            )
         except uhelp.UrlError:
             # We use the raised exception to interupt the retry loop.
             # Nothing else to do here.
@@ -315,10 +316,15 @@ class DataSourceEc2(sources.DataSource):
 
             start_time = time.time()
             url, _ = uhelp.wait_for_url(
-                urls=urls, max_wait=url_params.max_wait_seconds,
-                timeout=url_params.timeout_seconds, status_cb=LOG.warning,
-                headers_redact=AWS_TOKEN_REDACT, headers_cb=self._get_headers,
-                request_method=request_method, connect_synchronously=False)
+                urls=urls,
+                max_wait=url_params.max_wait_seconds,
+                timeout=url_params.timeout_seconds,
+                status_cb=LOG.warning,
+                headers_redact=AWS_TOKEN_REDACT,
+                headers_cb=self._get_headers,
+                request_method=request_method,
+                connect_synchronously=False,
+            )
 
             if url:
                 metadata_address = url2base[url]
