@@ -15,7 +15,7 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-# FIXME: setting keyboard layout should be suppored by all OSes.
+# FIXME: setting keyboard layout should be supported by all OSes.
 # But currently only implemented for Linux distributions that use systemd.
 osfamilies = ["arch", "debian", "redhat", "suse"]
 distros = distros.Distro.expand_osfamily(osfamilies)
@@ -25,7 +25,7 @@ DEFAULT_KEYBOARD_MODEL = "pc105"
 meta = {
     "id": "cc_keyboard",
     "name": "Keyboard",
-    "title": "set keyboard layout",
+    "title": "Set keyboard layout",
     "description": dedent(
         """\
         Handle keyboard configuration.
@@ -65,7 +65,7 @@ schema = {
                     "type": "string",
                     "description": dedent(
                         """\
-                        Keyboard layout. Corresponds to XKBLAYOUT.
+                        Required. Keyboard layout. Corresponds to XKBLAYOUT.
                         """
                     ),
                 },
@@ -74,7 +74,7 @@ schema = {
                     "default": DEFAULT_KEYBOARD_MODEL,
                     "description": dedent(
                         """\
-                        Keyboard model. Corresponds to XKBMODEL.
+                        Optional. Keyboard model. Corresponds to XKBMODEL.
                         """
                     ),
                 },
@@ -82,7 +82,7 @@ schema = {
                     "type": "string",
                     "description": dedent(
                         """\
-                        Keyboard variant. Corresponds to XKBVARIANT.
+                        Optional. Keyboard variant. Corresponds to XKBVARIANT.
                         """
                     ),
                 },
@@ -90,7 +90,7 @@ schema = {
                     "type": "string",
                     "description": dedent(
                         """\
-                        Keyboard options. Corresponds to XKBOPTIONS.
+                        Optional. Keyboard options. Corresponds to XKBOPTIONS.
                         """
                     ),
                 },
