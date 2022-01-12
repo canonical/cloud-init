@@ -573,7 +573,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         for ver in all_versions[:-1]:
             register_mock_metaserver(
                 "http://[fd00:ec2::254]/{0}/meta-data/instance-id".format(ver),
-                None
+                None,
             )
 
         ds.metadata_address = "http://[fd00:ec2::254]"
