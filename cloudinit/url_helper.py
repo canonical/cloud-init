@@ -18,6 +18,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
+from collections import namedtuple
 
 import urllib3
 from urllib.parse import urlparse, urlunparse, quote
@@ -35,6 +36,13 @@ from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
+# Store a url and its (optional) session together
+UrlSession = namedtuple("UrlSession", ["url", "session"])
+
+# Check if requests has ssl support (added in requests >= 0.8.8)
+SSL_ENABLED = False
+CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
+_REQ_VER = None
 REDACTED = "REDACTED"
 
 
@@ -163,9 +171,12 @@ class UrlError(IOError):
 
 class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
     """Allow socket connection prior to http request for dual-stack address
-    selection followed by socket reuse.
+    selection.
 
-    A connection pool enables connection reuse to a single host.
+    In HTTPConnectionPool "connections" are reused to a single host, but socket
+    doesn't actually get connected until the first http(s) request when using
+    HTTPConnectionPool. Allow early socket opening for negotiating address
+    selection.
     """
     def _validate_conn(self, conn) -> None:
         """
@@ -212,10 +223,11 @@ class PoolManagerEarlyConnect(urllib3.PoolManager):
     """Enable early connection to multiple "hosts" for dual-stack addresses
     selection.
 
+    PoolManager handles HTTPConnectionPool allocation based on connection.
     Requests and urllib3 expose a high level API wherein the socket connection
     occurs with the first http request. Allow initializing the connection
     separately which enables dual stack selection (rfc 6555, aka "happy
-    eyeballs") prior to the http request
+    eyeballs") prior to the http request.
     """
     proxy: Optional[Url] = None
     proxy_config: Optional[Any] = None
@@ -243,7 +255,7 @@ class PoolManagerEarlyConnect(urllib3.PoolManager):
     def connection_from_url(
         self, url: str, pool_kwargs: Optional[Dict[str, Any]] = None
         ) -> HTTPConnectionPoolEarlyConnect:
-        """Init pool and connect
+        """Override parent class: Init pool and connect
         """
         pool = super().connection_from_url(url, pool_kwargs)
         pool.connect()
@@ -261,13 +273,30 @@ class HTTPAdapterEarlyConnect(HTTPAdapter):
         print("HTTPAdapter: init_poolmanager")
 
     def connect(self, prefix) -> HTTPConnectionPoolEarlyConnect:
+        """Override parent class: Init pool and connect
+        """
         print("HTTPAdapter: init_poolmanager: {}".format(prefix))
         return self.poolmanager.connection_from_url(prefix)
 
 
 class SessionEarlyConnect(Session):
+    """Allow early connection for address negotiation prior to http request.
+
+    Example:
+    ```
+    # create session
+    s = requests.Session()
+
+    # Mount adapter and initialize socket connection
+    s.mount('https://github.com/', HTTPAdapterEarlyConnect())
+
+    # Make http request and reuse socket from mount
+    s.get('https://github.com/')
+    ```
+    """
     def mount(self, prefix, adapter):
-        """Register a connection adapter and create the initial connection."""
+        """Override parent class: Register a connection adapter and create the
+        initial connection."""
         super().mount(prefix, adapter)
         print("Session: mount(): {}, {}".format(prefix, adapter))
         return adapter.connect(prefix)
@@ -340,6 +369,7 @@ def readurl(
         Typically GET, or POST. Default: POST if data is provided, GET
         otherwise.
     """
+    print("in readurl")
     url = _cleanurl(url)
     req_args = {
         "url": url,
@@ -409,6 +439,8 @@ def readurl(
 
             if session is None:
                 session = requests.Session()
+            else:
+                print("reuse session")
 
             with session as sess:
                 r = sess.request(**req_args)
@@ -465,6 +497,32 @@ def readurl(
                 time.sleep(sec_between)
 
     raise excps[-1]
+
+
+def get_session_to_first_response(*urls):
+    """ Helper takes list of urls and returns the first
+    """
+    s = requests.Session()
+    a = HTTPAdapterEarlyConnect()
+    (session, url) = dual_stack(
+        mount(s, a),
+        *urls,
+        stagger_delay=0.150,
+        max_timeout=1)
+    return UrlSession(url, session)
+
+
+def mount(session, adapter, delay_prefix=None, delay=1):
+    """Return closure for executing mount"""
+    def do_mount(prefix):
+        print("do_mount(): session.mount(prefix, adapter):"
+              "{}.mount({}, {})".format(session, prefix, adapter))
+        if delay_prefix == prefix:
+            time.sleep(delay)
+        print("mount: {}:{}".format(session, prefix))
+        session.mount(prefix, adapter)
+        return (session, prefix)
+    return do_mount
 
 
 def dual_stack(
@@ -587,12 +645,15 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
 
     loop_n = 0
     response = None
+    print("before loop")
     while True:
+        last_reason = None
         if sleep_time_cb is not None:
             sleep_time = sleep_time_cb(response, loop_n)
         else:
             sleep_time = int(loop_n / 5) + 1
-        for url in urls:
+        for url_session in urls:
+            url = url_session.url
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
@@ -614,13 +675,9 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
                     headers = {}
 
                 response = readurl(
-                    url,
-                    headers=headers,
-                    headers_redact=headers_redact,
-                    timeout=timeout,
-                    check_status=False,
-                    request_method=request_method,
-                )
+                    url, headers=headers, headers_redact=headers_redact,
+                    timeout=timeout, check_status=False,
+                    request_method=request_method, session=url_session.session)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(
@@ -645,7 +702,6 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             except Exception as e:
                 reason = "unexpected error [%s]" % e
                 url_exc = e
-
             time_taken = int(time.time() - start_time)
             max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
             status_msg = "Calling '%s' failed [%s/%s]: %s" % (
@@ -669,6 +725,7 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             "Please wait %s seconds while we wait to try again", sleep_time
         )
         time.sleep(sleep_time)
+    print("after loop")
 
     return False, None
 

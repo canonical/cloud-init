@@ -14,7 +14,7 @@ from cloudinit import util, version
 from cloudinit.url_helper import (
     NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
     retry_on_url_exc, dual_stack, HTTPConnectionPoolEarlyConnect,
-    HTTPAdapterEarlyConnect)
+    HTTPAdapterEarlyConnect, mount)
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 try:
@@ -331,18 +331,6 @@ class TestHTTPConnectionPoolEarlyConnect:
         pool.connect()
         out = (pool.urlopen("GET", "google.com", assert_same_host=False))
         assert 200 == out.status
-
-
-def mount(session, adapter, delay_prefix=None, delay=1):
-    """Return closure for executing mount"""
-    def do_mount(prefix):
-        print("do_mount(): session.mount(prefix, adapter): {}.mount({}, {})".format(session, prefix, adapter))
-        if delay_prefix == prefix:
-            sleep(delay)
-        print("mount: {}:{}".format(session, prefix))
-        session.mount(prefix, adapter)
-        return (session, prefix)
-    return do_mount
 
 
 class TestHTTPAdapterEarlyConnect:
