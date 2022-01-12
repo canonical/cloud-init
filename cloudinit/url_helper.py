@@ -550,7 +550,6 @@ def dual_stack(
 
         if delay:
             time.sleep(delay)
-        print("dual_stack()._run_func():  {}({})".format(func, addr))
         return func(addr)
 
     executor = ThreadPoolExecutor(max_workers=len(addresses))
@@ -666,7 +665,6 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             response = url_reader(url)
 
             url_exc, reason = read_url_handle_response(response, url)
-            print("handled response: {} {}".format(url_exc, reason))
             if not url_exc:
                 return url, response.contents
         except UrlError as e:
@@ -675,7 +673,6 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
         except Exception as e:
             reason = "unexpected error [%s]" % e
             url_exc = e
-            print("Exception: [{}]".format(url_exc))
         time_taken = int(time.time() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (url,
@@ -726,13 +723,12 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
                 return out
 
     def read_url_parallel():
-        out = readurl_handle_exceptions(url_reader_parallel, urls)
+        out = readurl_handle_exceptions(url_reader_parallel, urls[0])
         if out:
             return out
 
     loop_n = 0
     response = None
-    print("before loop")
     while True:
         if sleep_time_cb is not None:
             sleep_time = sleep_time_cb(response, loop_n)
@@ -752,11 +748,9 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             break
 
         loop_n = loop_n + 1
-        LOG.debug(
             "Please wait %s seconds while we wait to try again", sleep_time
         )
         time.sleep(sleep_time)
-    print("after loop")
 
     return False, None
 

@@ -524,11 +524,12 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
-            "http://169.254.169.254/2009-04-04/meta-data/", DEFAULT_METADATA
-        )
-        mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
-        get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
-        ds.fallback_nic = "eth9"
+            'http://[fd00:ec2::254]/2009-04-04/meta-data/', DEFAULT_METADATA)
+        register_mock_metaserver(
+            'http://169.254.169.254/2009-04-04/meta-data/', DEFAULT_METADATA)
+        mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
+        get_interface_mac_path = M_PATH_NET + 'get_interfaces_by_mac'
+        ds.fallback_nic = 'eth9'
         with mock.patch(get_interface_mac_path) as m_get_interfaces_by_mac:
             m_get_interfaces_by_mac.return_value = {mac1: "eth9"}
             nc = ds.network_config  # Will re-crawl network metadata
