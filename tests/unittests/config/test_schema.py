@@ -144,6 +144,7 @@ class TestGetSchema:
         assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
+            {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
         ]
         found_subschema_defs = []
@@ -157,7 +158,6 @@ class TestGetSchema:
         assert expected_subschema_defs == found_subschema_defs
         # This list will dwindle as we move legacy schema to new $defs
         assert [
-            "apk_repos",
             "apt",
             "bootcmd",
             "chef",
