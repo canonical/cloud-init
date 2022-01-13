@@ -23,6 +23,5 @@ def test_network_disabled_via_etc_cloud(client: IntegrationInstance):
         )
     _customize_envionment(client)
 
-    # assert client.execute("test -f /etc/netplan/50-cloud-init.yaml").failed
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "network config is disabled by system_cfg" in log
