@@ -106,15 +106,6 @@ class IntegrationCloud(ABC):
     def __init__(self, settings=integration_settings):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
-        if settings.PUBLIC_SSH_KEY is not None:
-            # If we have a non-default key, use it.
-            self.cloud_instance.use_key(
-                settings.PUBLIC_SSH_KEY, name=settings.KEYPAIR_NAME
-            )
-        elif settings.KEYPAIR_NAME is not None:
-            # Even if we're using the default key, it may still have a
-            # different name in the clouds, so we need to set it separately.
-            self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
         self.released_image_id = self._get_initial_image()
         self.snapshot_id = None
 
@@ -260,17 +251,8 @@ class OciCloud(IntegrationCloud):
     integration_instance_cls = IntegrationOciInstance
 
     def _get_cloud_instance(self):
-        if not integration_settings.ORACLE_AVAILABILITY_DOMAIN:
-            raise Exception(
-                "ORACLE_AVAILABILITY_DOMAIN must be set to a valid "
-                "availability domain. If using the oracle CLI, "
-                "try `oci iam availability-domain list`"
-            )
         return OCI(
             tag="oci-integration-test",
-            availability_domain=(
-                integration_settings.ORACLE_AVAILABILITY_DOMAIN,
-            ),
         )
 
 
@@ -373,14 +355,8 @@ class OpenstackCloud(IntegrationCloud):
     integration_instance_cls = IntegrationInstance
 
     def _get_cloud_instance(self):
-        if not integration_settings.OPENSTACK_NETWORK:
-            raise Exception(
-                "OPENSTACK_NETWORK must be set to a valid Openstack network. "
-                "If using the openstack CLI, try `openstack network list`"
-            )
         return Openstack(
             tag="openstack-integration-test",
-            network=integration_settings.OPENSTACK_NETWORK,
         )
 
     def _get_initial_image(self):
