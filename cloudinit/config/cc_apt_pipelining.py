@@ -56,7 +56,6 @@ __doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, _cloud, log, _args):
-    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", "os")
     apt_pipe_value = cfg.get("apt_pipelining", "os")
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 

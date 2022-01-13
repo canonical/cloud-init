@@ -420,10 +420,17 @@ def _get_property_type(property_dict: dict) -> str:
     jsonschema.
     """
     property_type = property_dict.get("type")
-    if property_type is None and property_dict.get("enum"):
-        property_type = [
-            str(_YAML_MAP.get(k, k)) for k in property_dict["enum"]
-        ]
+    if property_type is None:
+        if property_dict.get("enum"):
+            property_type = [
+                str(_YAML_MAP.get(k, k)) for k in property_dict["enum"]
+            ]
+        elif property_dict.get("oneOf"):
+            property_type = [
+                subschema["type"]
+                for subschema in property_dict.get("oneOf")
+                if subschema.get("type")
+            ]
     if isinstance(property_type, list):
         property_type = "/".join(property_type)
     items = property_dict.get("items", {})
@@ -629,9 +636,8 @@ def load_doc(requested_modules: list) -> str:
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config modules."""
     paths = read_cfg_paths()
-    schema_files = glob.glob(
-        os.path.join(paths.schema_dir, "cloud-init-schema-*")
-    )
+    schema_dir = os.environ.get("CLOUD_INIT_SCHEMA_DIR", paths.schema_dir)
+    schema_files = glob.glob(os.path.join(schema_dir, "cloud-init-schema-*"))
     full_schema = None
     if len(schema_files) > 1:
         LOG.warning(
