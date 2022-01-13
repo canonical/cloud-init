@@ -162,6 +162,7 @@ class TestGetSchema:
             "bootcmd",
             "chef",
             "drivers",
+            "keyboard",
             "locale",
             "locale_configfile",
             "ntp",
