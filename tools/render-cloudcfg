@@ -2,14 +2,63 @@
 
 import os
 import sys
+import argparse
 
 
 def main():
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(0, _tdir)
-    from cloudinit import templater  # pylint: disable=E0401
+    from cloudinit import templater, util  # pylint: disable=E0401
 
-    templater.render_cloudcfg(sys.argv[1:])
+    VARIANTS = [
+        "almalinux",
+        "alpine",
+        "amazon",
+        "arch",
+        "centos",
+        "cloudlinux",
+        "debian",
+        "eurolinux",
+        "fedora",
+        "freebsd",
+        "miraclelinux",
+        "netbsd",
+        "openbsd",
+        "openEuler",
+        "photon",
+        "rhel",
+        "suse",
+        "rocky",
+        "ubuntu",
+        "unknown",
+        "virtuozzo",
+    ]
+    parser = argparse.ArgumentParser()
+    platform = util.system_info()
+    parser.add_argument(
+        "--variant",
+        default=platform["variant"],
+        action="store",
+        help="define the variant.",
+        choices=VARIANTS,
+    )
+    parser.add_argument(
+        "template",
+        nargs="?",
+        action="store",
+        default="./config/cloud.cfg.tmpl",
+        help="Path to the cloud.cfg template",
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        action="store",
+        default="-",
+        help="Output file.  Use '-' to write to stdout",
+    )
+
+    args = parser.parse_args(sys.argv[1:])
+    templater.render_cloudcfg(args.variant, args.template, args.output)
 
 
 if __name__ == "__main__":

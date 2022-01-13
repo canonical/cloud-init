@@ -10,7 +10,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import argparse
 import collections
 import re
 import sys
@@ -183,65 +182,17 @@ def render_string(content, params):
     return renderer(content, params)
 
 
-def render_cloudcfg(argv):
-    VARIANTS = [
-        "almalinux",
-        "alpine",
-        "amazon",
-        "arch",
-        "centos",
-        "cloudlinux",
-        "debian",
-        "eurolinux",
-        "fedora",
-        "freebsd",
-        "miraclelinux",
-        "netbsd",
-        "openbsd",
-        "openEuler",
-        "photon",
-        "rhel",
-        "suse",
-        "rocky",
-        "ubuntu",
-        "unknown",
-        "virtuozzo",
-    ]
-    parser = argparse.ArgumentParser()
-    platform = util.system_info()
-    parser.add_argument(
-        "--variant",
-        default=platform["variant"],
-        action="store",
-        help="define the variant.",
-        choices=VARIANTS,
-    )
-    parser.add_argument(
-        "template",
-        nargs="?",
-        action="store",
-        default="./config/cloud.cfg.tmpl",
-        help="Path to the cloud.cfg template",
-    )
-    parser.add_argument(
-        "output",
-        nargs="?",
-        action="store",
-        default="-",
-        help="Output file.  Use '-' to write to stdout",
-    )
+def render_cloudcfg(variant, template, output):
 
-    args = parser.parse_args(argv)
-
-    with open(args.template, "r") as fh:
+    with open(template, "r") as fh:
         contents = fh.read()
-    tpl_params = {"variant": args.variant}
+    tpl_params = {"variant": variant}
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
     util.load_yaml(contents)
-    if args.output == "-":
+    if output == "-":
         sys.stdout.write(contents)
     else:
-        write_file(args.output, contents, omode="w")
+        write_file(output, contents, omode="w")
 
 
 # vi: ts=4 expandtab
