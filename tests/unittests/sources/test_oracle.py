@@ -922,7 +922,7 @@ class TestNetworkConfig:
 
     def test_ds_network_cfg_order(self, _m):
         """Ensure that DS net config is preferred over initramfs config
-        but less tahn system config."""
+        but less than system config."""
         config_sources = oracle.DataSourceOracle.network_config_sources
         system_idx = config_sources.index(NetworkConfigSource.system_cfg)
         ds_idx = config_sources.index(NetworkConfigSource.ds)
