@@ -10,8 +10,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import sys
 import collections
 import re
+import argparse
 
 try:
     from Cheetah.Template import Template as CTemplate
@@ -32,6 +34,7 @@ except (ImportError, AttributeError):
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
+from cloudinit.atomic_helper import write_file
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
@@ -178,6 +181,67 @@ def render_string(content, params):
         params = {}
     _template_type, renderer, content = detect_template(content)
     return renderer(content, params)
+
+
+def render_cloudcfg(argv):
+    VARIANTS = [
+        "almalinux",
+        "alpine",
+        "amazon",
+        "arch",
+        "centos",
+        "cloudlinux",
+        "debian",
+        "eurolinux",
+        "fedora",
+        "freebsd",
+        "miraclelinux",
+        "netbsd",
+        "openbsd",
+        "openEuler",
+        "photon",
+        "rhel",
+        "suse",
+        "rocky",
+        "ubuntu",
+        "unknown",
+        "virtuozzo",
+    ]
+    parser = argparse.ArgumentParser()
+    platform = util.system_info()
+    parser.add_argument(
+        "--variant",
+        default=platform["variant"],
+        action="store",
+        help="define the variant.",
+        choices=VARIANTS,
+    )
+    parser.add_argument(
+        "template",
+        nargs="?",
+        action="store",
+        default="./config/cloud.cfg.tmpl",
+        help="Path to the cloud.cfg template",
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        action="store",
+        default="-",
+        help="Output file.  Use '-' to write to stdout",
+    )
+
+    args = parser.parse_args(argv)
+
+    with open(args.template, "r") as fh:
+        contents = fh.read()
+    tpl_params = {"variant": args.variant}
+    contents = (render_string(contents, tpl_params)).rstrip() + "\n"
+    util.load_yaml(contents)
+    if args.output == "-":
+        sys.stdout.write(contents)
+    else:
+        write_file(args.output, contents, omode="w")
 
 
 # vi: ts=4 expandtab
