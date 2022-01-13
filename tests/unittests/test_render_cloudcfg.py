@@ -40,34 +40,6 @@ class TestRenderCloudCfg:
             system_cfg = util.load_yaml(stream.read())
         assert system_cfg["system_info"]["distro"] == "ubuntu"
 
-    def test_variant_sets_default_user_in_cloud_cfg_subp(self, tmpdir):
-        outfile = tmpdir.join("outcfg").strpath
-        templater.render_cloudcfg(
-            ["--variant", "ubuntu", self.tmpl_path, outfile]
-        )
-        with open(outfile) as stream:
-            system_cfg = util.load_yaml(stream.read())
-
-        default_user_exceptions = {
-            "amazon": "ec2-user",
-            "debian": "ubuntu",
-            "unknown": "ubuntu",
-        }
-        default_user = system_cfg["system_info"]["default_user"]["name"]
-        assert default_user == default_user_exceptions.get("ubuntu", "ubuntu")
-
-    def test_variant_sets_network_renderer_priority_in_cloud_cfg_subp(
-        self, tmpdir
-    ):
-        outfile = tmpdir.join("outcfg").strpath
-        templater.render_cloudcfg(
-            ["--variant", "openbsd", self.tmpl_path, outfile]
-        )
-        with open(outfile) as stream:
-            system_cfg = util.load_yaml(stream.read())
-
-        assert ["openbsd"] == system_cfg["system_info"]["network"]["renderers"]
-
     @pytest.mark.parametrize("variant", (DISTRO_VARIANTS))
     def test_variant_sets_distro_in_cloud_cfg(self, variant, tmpdir):
         """Testing parametrized inputs with imported function saves ~0.5s per
