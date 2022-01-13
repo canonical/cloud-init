@@ -1,6 +1,33 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "apt_configure.mirror": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["arches"],
+        "properties": {
+          "arches": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1
+          },
+          "uri": {"type": "string", "format": "uri"},
+          "search": {
+            "type": "array",
+            "items": {"type": "string", "format": "uri"},
+            "minItems": 1
+          },
+          "search_dns": {
+            "type": "boolean"
+          },
+          "keyid": {"type": "string"},
+          "key": {"type": "string"},
+          "keyserver": {"type": "string"}
+        }
+      }
+    },
     "cc_apk_configure": {
       "type": "object",
       "properties": {
@@ -49,10 +76,79 @@
         }
       }
     },
+    "cc_apt_configure": {
+      "properties": {
+        "apt": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preserve_sources_list": {
+              "type": "boolean",
+              "default": false,
+              "description": "By default, cloud-init will generate a new sources list in ``/etc/apt/sources.list.d`` based on any changes specified in cloud config. To disable this behavior and preserve the sources list from the pristine image, set ``preserve_sources_list`` to ``true``.\n\nThe ``preserve_sources_list`` option overrides all other config keys that would alter ``sources.list`` or ``sources.list.d``, **except** for additional sources to be added to ``sources.list.d``."
+            },
+            "disable_suites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "uniqueItems": true,
+              "description": "Entries in the sources list can be disabled using ``disable_suites``, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the ``disable_suites`` list, it will be replaced with the release name. If a suite specified in ``disable_suites`` is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for`` disable_suites``:\n\n - ``updates`` => ``$RELEASE-updates``\n - ``backports`` => ``$RELEASE-backports``\n - ``security`` => ``$RELEASE-security``\n - ``proposed`` => ``$RELEASE-proposed``\n - ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using ``disable_suites``, its entry in ``sources.list`` is not deleted; it is just commented out."
+            },
+            "primary": {
+              "$ref": "#/$defs/apt_configure.mirror",
+              "description": "The primary and security archive mirrors can be specified using the ``primary`` and ``security`` keys, respectively. Both the ``primary`` and ``security`` keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for ``arches``, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the ``uri`` key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by ``uri`` or ``search``, ``search_dns`` may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n\n - fqdn of this host per cloud metadata,\n - localdomain,\n - domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the ``primary`` key is defined, but not the ``security`` key, then then configuration for ``primary`` is also used for ``security``. If ``search_dns`` is used for the ``security`` key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n\n - ``primary`` => ``http://archive.ubuntu.com/ubuntu``.\n - ``security`` => ``http://security.ubuntu.com/ubuntu``"
+                    },
+            "security": {
+              "$ref": "#/$defs/apt_configure.mirror",
+              "description": "Please refer to the primary config documentation"
+            },
+            "add_apt_repo_match": {
+              "type": "string",
+              "default": "^[\\w-]+:\\w",
+              "description": "All source entries in ``apt-sources`` that match regex in ``add_apt_repo_match`` will be added to the system using ``add-apt-repository``. If ``add_apt_repo_match`` is not specified, it defaults to ``^[\\w-]+:\\w``"
+            },
+            "debconf_selections": {
+              "type": "object",
+              "items": {"type": "string"},
+              "description": "Debconf additional configurations can be specified as a dictionary under the ``debconf_selections`` config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to ``debconf-set-selections``. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n\n - ``pkgname`` is the name of the package.\n - ``question`` the name of the questions.\n - ``type`` is the type of question.\n - ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``"
+            },
+            "sources_list": {
+              "type": "string",
+              "description": "Specifies a custom template for rendering ``sources.list`` . If no ``sources_list`` template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n\n - ``$MIRROR``\n - ``$RELEASE``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$KEY_FILE``"
+            },
+            "conf": {
+              "type": "string",
+              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multiline APT configuration, make sure to follow yaml syntax."
+            },
+            "https_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify https APT proxy. https proxy url is specified in the format ``https://[[user][:pass]@]host[:port]/``."
+            },
+            "http_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify http APT proxy. http proxy url is specified in the format ``http://[[user][:pass]@]host[:port]/``."
+            },
+            "proxy": {
+              "type": "string",
+              "description": "Alias for defining a http APT proxy."
+            },
+            "ftp_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify ftp APT proxy. ftp proxy url is specified in the format ``ftp://[[user][:pass]@]host[:port]/``."
+            },
+            "sources": {
+              "type": "object",
+              "items": {"type": "string"},
+              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
+            }
+          }
+        }
+      }
+    },
     "cc_apt_pipelining": {
       "type": "object",
       "properties": {
         "apt_pipelining": {
+          "type": ["integer", "boolean", "string"],
           "oneOf": [
             {"type": "integer"},
             {"type": "boolean"},
@@ -64,6 +160,7 @@
   },
   "allOf": [
     { "$ref": "#/$defs/cc_apk_configure" },
+    { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" }
   ]
 }

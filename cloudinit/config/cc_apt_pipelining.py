@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Apt Pipelining: configure apt pipelining."""
+"""APT Pipelining: configure APT pipelining."""
 
 from textwrap import dedent
 
@@ -26,7 +26,7 @@ APT_PIPE_TPL = (
 
 meta = {
     "id": "cc_apt_pipelining",
-    "name": "Apt Pipelining",
+    "name": "APT Pipelining",
     "title": "Configure apt pipelining",
     "description": dedent(
         """\
