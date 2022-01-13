@@ -5,12 +5,11 @@ import sys
 
 
 def main():
-    if "avoid-pep8-E402-import-not-top-of-file":
-        _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        sys.path.insert(0, _tdir)
-        from cloudinit import templater
+    _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, _tdir)
+    from cloudinit import templater  # pylint: disable=E0401
 
-        templater.render_cloudcfg(sys.argv[1:])
+    templater.render_cloudcfg(sys.argv[1:])
 
 
 if __name__ == "__main__":
