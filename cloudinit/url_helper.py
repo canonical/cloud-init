@@ -13,31 +13,23 @@ import json
 import os
 import sys
 import time
-from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Callable
 from urllib.parse import quote, urlparse, urlunparse
 
 import requests
-import urllib3
-from requests import Session, exceptions
-from requests.adapters import HTTPAdapter
-from urllib3._collections import RecentlyUsedContainer
-from urllib3.exceptions import InsecureRequestWarning
-from urllib3.poolmanager import key_fn_by_scheme
-from urllib3.util import Url
+from requests import exceptions
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
-# Store a url and its (optional) session together
-UrlSession = namedtuple("UrlSession", ["url", "session"])
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
@@ -169,139 +161,6 @@ class UrlError(IOError):
         self.url = url
 
 
-class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
-    """Allow socket connection prior to http request for dual-stack address
-    selection.
-
-    In HTTPConnectionPool "connections" are reused to a single host, but socket
-    doesn't actually get connected until the first http(s) request when using
-    HTTPConnectionPool. Allow early socket opening for negotiating address
-    selection.
-    """
-
-    def _validate_conn(self, conn) -> None:
-        """
-        Called right before a request is made, after the socket is created.
-        """
-        super()._validate_conn(conn)
-
-        # Force connect early to allow us to validate the connection.
-        if not conn.sock:
-            conn.connect()
-
-        if not conn.is_verified:
-            print(
-                (
-                    "Unverified HTTPS request is being made to host '{}'. "
-                    "Adding certificate verification is strongly advised. "
-                    "See: https://urllib3.readthedocs.io/en/latest/"
-                    "advanced-usage.html"
-                    "#tls-warnings".format(conn.host)
-                ),
-                InsecureRequestWarning,
-            )
-        print("HTTPConnectionPool: validate_conn(): {} ".format(conn))
-
-    def connect(self):
-        """Create a connection without creating a request"""
-        # Make space in the pool and init an HTTPConnection
-        conn = self._get_conn()
-
-        # connect and validate the connection immediately
-        self._validate_conn(conn)
-
-        # insert connection into pool immediately for reuse
-        self._put_conn(conn)
-        print("HTTPConnectionPool: connect(): {} ".format(conn))
-        return conn
-
-
-# TODO: add https? (doesn't looks like any sources use https currently)
-pool_classes_by_scheme = {"http": HTTPConnectionPoolEarlyConnect}
-
-
-class PoolManagerEarlyConnect(urllib3.PoolManager):
-    """Enable early connection to multiple "hosts" for dual-stack addresses
-    selection.
-
-    PoolManager handles HTTPConnectionPool allocation based on connection.
-    Requests and urllib3 expose a high level API wherein the socket connection
-    occurs with the first http request. Allow initializing the connection
-    separately which enables dual stack selection (rfc 6555, aka "happy
-    eyeballs") prior to the http request.
-    """
-
-    proxy: Optional[Url] = None
-    proxy_config: Optional[Any] = None
-
-    def __init__(
-        self,
-        num_pools: int = 10,
-        headers: Optional[Mapping[str, str]] = None,
-        **connection_pool_kw: Any,
-    ) -> None:
-        super().__init__(headers)
-        self.connection_pool_kw = connection_pool_kw
-
-        def dispose_func(p: Any) -> None:
-            p.close()
-
-        self.pools = RecentlyUsedContainer(
-            num_pools, dispose_func=dispose_func
-        )
-
-        # Override pool classes from base class
-        self.pool_classes_by_scheme = pool_classes_by_scheme
-        self.key_fn_by_scheme = key_fn_by_scheme.copy()
-        print("PoolManager: __init__")
-
-    def connection_from_url(
-        self, url: str, pool_kwargs: Optional[Dict[str, Any]] = None
-    ) -> HTTPConnectionPoolEarlyConnect:
-        """Override parent class: Init pool and connect"""
-        pool = super().connection_from_url(url, pool_kwargs)
-        pool.connect()
-        print("PoolManager: connection_from_url: {}".format(url))
-        return pool
-
-
-class HTTPAdapterEarlyConnect(HTTPAdapter):
-    def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = PoolManagerEarlyConnect(
-            num_pools=connections, maxsize=maxsize, block=block
-        )
-        print("HTTPAdapter: init_poolmanager")
-
-    def connect(self, prefix) -> HTTPConnectionPoolEarlyConnect:
-        """Override parent class: Init pool and connect"""
-        print("HTTPAdapter: init_poolmanager: {}".format(prefix))
-        return self.poolmanager.connection_from_url(prefix)
-
-
-class SessionEarlyConnect(Session):
-    """Allow early connection for address negotiation prior to http request.
-
-    Example:
-    ```
-    # create session
-    s = requests.Session()
-
-    # Mount adapter and initialize socket connection
-    s.mount('https://github.com/', HTTPAdapterEarlyConnect())
-
-    # Make http request and reuse socket from mount
-    s.get('https://github.com/')
-    ```
-    """
-
-    def mount(self, prefix, adapter):
-        """Override parent class: Register a connection adapter and create the
-        initial connection."""
-        super().mount(prefix, adapter)
-        print("Session: mount(): {}, {}".format(prefix, adapter))
-        return adapter.connect(prefix)
-
-
 def _get_ssl_args(url, ssl_details):
     ssl_args = {}
     scheme = urlparse(url).scheme
@@ -369,7 +228,6 @@ def readurl(
         Typically GET, or POST. Default: POST if data is provided, GET
         otherwise.
     """
-    print("in readurl")
     url = _cleanurl(url)
     req_args = {
         "url": url,
@@ -399,7 +257,6 @@ def readurl(
         # if retries:
         #     req_config['max_retries'] = max(int(retries), 0)
         req_args["config"] = req_config
-    print("manual_retries")
     manual_tries = 1
     if retries:
         manual_tries = max(int(retries) + 1, 1)
@@ -427,7 +284,6 @@ def readurl(
     # doesn't handle sleeping between tries...
     # Infinitely retry if infinite is True
     for i in count() if infinite else range(0, manual_tries):
-        print("retry")
         req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
@@ -454,8 +310,6 @@ def readurl(
 
             if session is None:
                 session = requests.Session()
-            else:
-                print("reuse session")
 
             with session as sess:
                 r = sess.request(**req_args)
@@ -514,33 +368,6 @@ def readurl(
     raise excps[-1]
 
 
-def get_session_to_first_response(*urls):
-    """Helper takes list of urls and returns the first"""
-    s = requests.Session()
-    a = HTTPAdapterEarlyConnect()
-    (session, url) = dual_stack(
-        mount(s, a), *urls, stagger_delay=0.150, max_timeout=1
-    )
-    return UrlSession(url, session)
-
-
-def mount(session, adapter, delay_prefix=None, delay=1):
-    """Return closure for executing mount"""
-
-    def do_mount(prefix):
-        print(
-            "do_mount(): session.mount(prefix, adapter):"
-            "{}.mount({}, {})".format(session, prefix, adapter)
-        )
-        if delay_prefix == prefix:
-            time.sleep(delay)
-        print("mount: {}:{}".format(session, prefix))
-        session.mount(prefix, adapter)
-        return (session, prefix)
-
-    return do_mount
-
-
 def dual_stack(
     func: Callable[..., Any],
     *addresses: str,
@@ -557,12 +384,6 @@ def dual_stack(
     - replace print() w/logging
     """
     return_result = None
-
-    from concurrent.futures import (
-        ThreadPoolExecutor,
-        TimeoutError,
-        as_completed,
-    )
 
     def _run_func(func, addr, delay=None):
         """Execute func with optional delay"""

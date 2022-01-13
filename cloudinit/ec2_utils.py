@@ -219,7 +219,6 @@ def _get_instance_metadata(
         return {}
 
 
-# Todo: update these to use happy eyes
 def get_instance_metadata(
     api_version="latest",
     metadata_address="http://169.254.169.254",
@@ -247,7 +246,6 @@ def get_instance_metadata(
     )
 
 
-# Todo: update these to use happy eyes
 def get_instance_identity(
     api_version="latest",
     metadata_address="http://169.254.169.254",

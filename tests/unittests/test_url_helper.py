@@ -12,12 +12,8 @@ from cloudinit import util, version
 from cloudinit.url_helper import (
     NOT_FOUND,
     REDACTED,
-    HTTPAdapterEarlyConnect,
-    HTTPConnectionPoolEarlyConnect,
     UrlError,
     dual_stack,
-    get_session_to_first_response,
-    mount,
     oauth_headers,
     read_file_or_url,
     retry_on_url_exc,
@@ -340,78 +336,6 @@ class TestDualStack:
                 assert expected_val == assert_time(gen)
         else:
             assert expected_val == assert_time(gen)
-
-
-class TestHTTPConnectionPoolEarlyConnect:
-    """TODO: use httpretty, not google.com"""
-
-    def test_instantiate(self):
-        pool = HTTPConnectionPoolEarlyConnect("google.com")
-        out = pool.urlopen("GET", "google.com", assert_same_host=False)
-        assert 200 == out.status
-
-    def test_instantiate_init(self):
-        pool = HTTPConnectionPoolEarlyConnect("google.com")
-        pool.connect()
-        out = pool.urlopen("GET", "google.com", assert_same_host=False)
-        assert 200 == out.status
-
-
-class TestHTTPAdapterEarlyConnect:
-    """These two tests demonstrate asynchronously requesting two connections,
-    staggered, and returning a connection to the first address to respond, and
-    then making a request on that connection.
-    """
-
-    def test_instantiate_dualstack_helper(self):
-        """Test helper "get_session_to_first_response" """
-        first = "http://www.google.com/"
-        not_first = "http://www.yahoo.com/"
-        u = assert_time(
-            partial(get_session_to_first_response, first, not_first)
-        )
-        out = assert_time(partial(u.session.get, u.url))
-        assert 200 == out.status_code
-        assert first == out.url
-
-    def test_instantiate_dualstack(self):
-        s = requests.Session()
-        a = HTTPAdapterEarlyConnect()
-
-        first = "http://www.google.com/"
-        not_first = "http://www.yahoo.com/"
-        gen = partial(
-            dual_stack,
-            mount(s, a),
-            first,
-            not_first,
-            stagger_delay=1,
-            max_timeout=1,
-        )
-        (session, prefix) = assert_time(gen)
-        out = assert_time(partial(session.get, prefix))
-        assert 200 == out.status_code
-        assert first == out.url
-
-    def test_instantiate_dualstack_second_first(self):
-        s = requests.Session()
-        a = HTTPAdapterEarlyConnect()
-
-        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
-        first = "http://www.google.com/"
-        not_first = "http://www.example.com/"
-        gen = partial(
-            dual_stack,
-            mount(s, a, delay_prefix=first),
-            first,
-            not_first,
-            stagger_delay=0,
-            max_timeout=1,
-        )
-        (session, prefix) = assert_time(gen)
-        out = assert_time(partial(session.get, prefix))
-        assert 200 == out.status_code
-        assert not_first == out.url
 
 
 # vi: ts=4 expandtab
