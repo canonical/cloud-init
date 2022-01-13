@@ -10,10 +10,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import sys
+import argparse
 import collections
 import re
-import argparse
+import sys
 
 try:
     from Cheetah.Template import Template as CTemplate
