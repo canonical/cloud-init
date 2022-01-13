@@ -89,7 +89,7 @@ class TestStatus(CiTestCase):
         )
 
     def test__is_cloudinit_disabled_true_on_kernel_cmdline(self):
-        """When using systemd and disable_file is present return disabled."""
+        """When kernel command line disables cloud-init return True."""
         (is_disabled, reason) = wrap_and_call(
             "cloudinit.cmd.status",
             {
@@ -107,9 +107,9 @@ class TestStatus(CiTestCase):
         )
 
     def test__is_cloudinit_disabled_true_when_generator_disables(self):
-        """When cloud-init-generator doesn't write enabled file return True."""
-        enabled_file = os.path.join(self.paths.run_dir, "enabled")
-        self.assertFalse(os.path.exists(enabled_file))
+        """When cloud-init-generator writes disabled file return True."""
+        disabled_file = os.path.join(self.paths.run_dir, "disabled")
+        ensure_file(disabled_file)
         (is_disabled, reason) = wrap_and_call(
             "cloudinit.cmd.status",
             {"uses_systemd": True, "get_cmdline": "something"},
@@ -137,7 +137,7 @@ class TestStatus(CiTestCase):
         )
 
     def test_status_returns_not_run(self):
-        """When status.json does not exist yet, return 'not run'."""
+        """When status.json does not exist yet, return 'not-run'."""
         self.assertFalse(
             os.path.exists(self.status_file), "Unexpected status.json found"
         )
@@ -154,7 +154,7 @@ class TestStatus(CiTestCase):
                 cmdargs,
             )
         self.assertEqual(0, retcode)
-        self.assertEqual("status: not run\n", m_stdout.getvalue())
+        self.assertEqual("status: not-run\n", m_stdout.getvalue())
 
     def test_status_returns_disabled_long_on_presence_of_disable_file(self):
         """When cloudinit is disabled, return disabled reason."""
