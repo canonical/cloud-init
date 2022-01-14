@@ -337,7 +337,7 @@ class DataSourceAzure(sources.DataSource):
         # the candidate list determines the path to take in order to get the
         # metadata we need.
         reprovision = False
-        ovf_is_accessible = True
+        ovf_is_accessible = False
         reprovision_after_nic_attach = False
         metadata_source = None
         ret = None
@@ -370,9 +370,9 @@ class DataSourceAzure(sources.DataSource):
                             ret = util.mount_cb(src, load_azure_ds_dir)
                         # save the device for ejection later
                         self.iso_dev = src
-                        ovf_is_accessible = True
                     else:
                         ret = load_azure_ds_dir(src)
+                    ovf_is_accessible = True
                     metadata_source = src
                     break
                 except NonAzureDataSource:
@@ -385,7 +385,6 @@ class DataSourceAzure(sources.DataSource):
                     report_diagnostic_event(
                         "%s was not mountable" % src, logger_func=LOG.debug
                     )
-                    ovf_is_accessible = False
                     empty_md = {"local-hostname": ""}
                     empty_cfg = dict(
                         system_info=dict(default_user=dict(name=""))
