@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from cloudinit import subp, util
+from cloudinit import subp, templater, util
 from tests.unittests.helpers import cloud_init_project_dir
 
 # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
@@ -32,10 +32,22 @@ class TestRenderCloudCfg:
     cmd = [sys.executable, cloud_init_project_dir("tools/render-cloudcfg")]
     tmpl_path = cloud_init_project_dir("config/cloud.cfg.tmpl")
 
+    def test_variant_sets_distro_in_cloud_cfg_subp(self, tmpdir):
+        outfile = tmpdir.join("outcfg").strpath
+
+        subp.subp(self.cmd + ["--variant", "ubuntu", self.tmpl_path, outfile])
+        with open(outfile) as stream:
+            system_cfg = util.load_yaml(stream.read())
+        assert system_cfg["system_info"]["distro"] == "ubuntu"
+
     @pytest.mark.parametrize("variant", (DISTRO_VARIANTS))
     def test_variant_sets_distro_in_cloud_cfg(self, variant, tmpdir):
+        """Testing parametrized inputs with imported function saves ~0.5s per
+        call versus calling as subp
+        """
         outfile = tmpdir.join("outcfg").strpath
-        subp.subp(self.cmd + ["--variant", variant, self.tmpl_path, outfile])
+
+        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
         if variant == "unknown":
@@ -44,8 +56,11 @@ class TestRenderCloudCfg:
 
     @pytest.mark.parametrize("variant", (DISTRO_VARIANTS))
     def test_variant_sets_default_user_in_cloud_cfg(self, variant, tmpdir):
+        """Testing parametrized inputs with imported function saves ~0.5s per
+        call versus calling as subp
+        """
         outfile = tmpdir.join("outcfg").strpath
-        subp.subp(self.cmd + ["--variant", variant, self.tmpl_path, outfile])
+        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
 
@@ -69,8 +84,11 @@ class TestRenderCloudCfg:
     def test_variant_sets_network_renderer_priority_in_cloud_cfg(
         self, variant, renderers, tmpdir
     ):
+        """Testing parametrized inputs with imported function saves ~0.5s per
+        call versus calling as subp
+        """
         outfile = tmpdir.join("outcfg").strpath
-        subp.subp(self.cmd + ["--variant", variant, self.tmpl_path, outfile])
+        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
 
