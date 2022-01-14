@@ -84,30 +84,6 @@ def get_module_variable(var_name) -> dict:
 
 class TestGetSchema:
     @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    def test_get_schema_warn_on_multiple_schema_files(
-        self, read_cfg_paths, paths, caplog
-    ):
-        """Warn about ignored files when multiple schemas in schema_dir."""
-        read_cfg_paths.return_value = paths
-
-        for schema_file in Path(cloud_init_project_dir("config/")).glob(
-            "cloud-init-schema*.json"
-        ):
-            util_copy(schema_file, paths.schema_dir)
-            # Add a duplicate entry that'll be warned
-            duplicate_schema = (
-                f"{paths.schema_dir}/{schema_file.name}".replace(
-                    ".json", ".2.json"
-                )
-            )
-            util_copy(schema_file, duplicate_schema)
-        get_schema()
-        assert (
-            f"Found multiple cloud-init-schema files in {paths.schema_dir}"
-            in caplog.text
-        )
-
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
     def test_get_schema_coalesces_known_schema(self, read_cfg_paths, paths):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         read_cfg_paths.return_value = paths

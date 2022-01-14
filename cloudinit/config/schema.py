@@ -2,7 +2,6 @@
 """schema.py: Set of module functions for processing cloud-config schema."""
 
 import argparse
-import glob
 import json
 import logging
 import os
@@ -635,28 +634,20 @@ def load_doc(requested_modules: list) -> str:
 
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config modules."""
-    paths = read_cfg_paths()
-    schema_dir = os.environ.get("CLOUD_INIT_SCHEMA_DIR", paths.schema_dir)
-    schema_files = glob.glob(os.path.join(schema_dir, "cloud-init-schema-*"))
+    schema_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "cloud-init-schema-1.0.json",
+    )
     full_schema = None
-    if len(schema_files) > 1:
-        LOG.warning(
-            "Found multiple cloud-init-schema files in %s. Ignoring %s",
-            paths.schema_dir,
-            ", ".join(schema_files[1:]),
-        )
-    elif len(schema_files) == 1:
-        try:
-            full_schema = json.loads(load_file(schema_files[0]))
-        except Exception as e:
-            LOG.warning(
-                "Cannot parse JSON schema file %s. %s", schema_files[0], e
-            )
+    try:
+        full_schema = json.loads(load_file(schema_file))
+    except Exception as e:
+        LOG.warning("Cannot parse JSON schema file %s. %s", schema_file, e)
     if not full_schema:
         LOG.warning(
-            "No base JSON schema files found at %s/cloud-init-schema-*."
+            "No base JSON schema files found at %s."
             " Setting default empty schema",
-            paths.schema_dir,
+            schema_file,
         )
         full_schema = {
             "$defs": {},
