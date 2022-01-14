@@ -23,7 +23,6 @@ from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
-from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
@@ -32,7 +31,6 @@ from cloudinit.sources.helpers.azure import (
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     build_minimal_ovf,
-    dhcp_log_cb,
     get_boot_telemetry,
     get_metadata_from_fabric,
     get_system_info,
@@ -946,20 +944,10 @@ class DataSourceAzure(sources.DataSource):
         # VM provisioning if there is any DHCP failure when trying to determine
         # the primary NIC.
         try:
-            with events.ReportEventStack(
-                name="obtain-dhcp-lease",
-                description=(
-                    "obtain dhcp lease for %s when attempting to "
-                    "determine primary NIC during reprovision of "
-                    "a pre-provisioned VM"
-                )
-                % ifname,
-                parent=azure_ds_reporter,
-            ):
-                dhcp_ctx = EphemeralDHCPv4(
-                    iface=ifname, dhcp_log_func=dhcp_log_cb
-                )
-                dhcp_ctx.obtain_lease()
+            dhcp_ctx = EphemeralDHCPv4WithReporting(
+                azure_ds_reporter, iface=ifname
+            )
+            dhcp_ctx.obtain_lease()
         except Exception as e:
             report_diagnostic_event(
                 "Giving up. Failed to obtain dhcp lease "
@@ -1234,15 +1222,10 @@ class DataSourceAzure(sources.DataSource):
                 if not is_ephemeral_ctx_present:
                     # Save our EphemeralDHCPv4 context to avoid repeated dhcp
                     # later when we report ready
-                    with events.ReportEventStack(
-                        name="obtain-dhcp-lease",
-                        description="obtain dhcp lease",
-                        parent=azure_ds_reporter,
-                    ):
-                        self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
-                            dhcp_log_func=dhcp_log_cb
-                        )
-                        lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4WithReporting(
+                        azure_ds_reporter
+                    )
+                    lease = self._ephemeral_dhcp_ctx.obtain_lease()
 
                 if vnet_switched:
                     dhcp_attempts += 1
