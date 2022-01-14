@@ -83,16 +83,8 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestGetSchema:
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    def test_get_schema_coalesces_known_schema(self, read_cfg_paths, paths):
+    def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
-        read_cfg_paths.return_value = paths
-
-        # Copy existing packages base schema files into paths.schema_dir
-        for schema_file in Path(cloud_init_project_dir("config/")).glob(
-            "cloud-init-schema*.json"
-        ):
-            util_copy(schema_file, paths.schema_dir)
         schema = get_schema()
         assert sorted(
             [

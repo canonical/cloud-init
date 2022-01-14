@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import textwrap
-from pathlib import Path
 
 import pytest
 
@@ -21,7 +20,6 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
-    cloud_init_project_dir,
     mock,
     skipUnlessJsonSchema,
 )
@@ -400,14 +398,7 @@ class TestApkConfigureSchema:
         ),
     )
     @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    def test_schema_validation(self, read_cfg_paths, config, error_msg, paths):
-        read_cfg_paths.return_value = paths
-        # New-style schema $defs exist in config/cloud-init-schema*.json
-        for schema_file in Path(cloud_init_project_dir("config/")).glob(
-            "cloud-init-schema*.json"
-        ):
-            util.copy(schema_file, paths.schema_dir)
+    def test_schema_validation(self, config, error_msg):
         schema = get_schema()
         if error_msg is None:
             validate_cloudconfig_schema(config, schema, strict=True)

@@ -635,8 +635,7 @@ def load_doc(requested_modules: list) -> str:
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config modules."""
     schema_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "cloud-init-schema-1.0.json",
+        os.path.dirname(os.path.abspath(__file__)), "cloud-init-schema.json"
     )
     full_schema = None
     try:
