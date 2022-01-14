@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "2022, Canonical Ltd."
+copyright = "2020, Canonical Ltd."
 
 # -- General configuration ----------------------------------------------------
 

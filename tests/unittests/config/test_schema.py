@@ -29,7 +29,6 @@ from cloudinit.config.schema import (
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
 )
-from cloudinit.util import copy as util_copy
 from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
@@ -315,19 +314,10 @@ class TestCloudConfigExamples:
 
     @pytest.mark.parametrize("schema_id, example", params)
     @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    def test_validateconfig_schema_of_example(
-        self, read_cfg_paths, schema_id, example, paths
-    ):
+    def test_validateconfig_schema_of_example(self, schema_id, example):
         """For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
         """
-        read_cfg_paths.return_value = paths
-        # New-style schema $defs exist in config/cloud-init-schema*.json
-        for schema_file in Path(cloud_init_project_dir("config/")).glob(
-            "cloud-init-schema*.json"
-        ):
-            util_copy(schema_file, paths.schema_dir)
         schema = get_schema()
         config_load = safe_load(example)
         validate_cloudconfig_schema(config_load, schema, strict=True)
