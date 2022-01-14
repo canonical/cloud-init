@@ -50,6 +50,10 @@ class DataSourceVultr(sources.DataSource):
         self.metadata = self.get_metadata()
         self.metadata["instance-id"] = self.metadata["instanceid"]
         self.metadata["local-hostname"] = self.metadata["hostname"]
+        region = self.metadata["region"]["regioncode"]
+        if self.metadata["region"]['countrycode']:
+            region = self.metadata["region"]["countrycode"]
+        self.metadata["region"] = region.lower()
         self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
