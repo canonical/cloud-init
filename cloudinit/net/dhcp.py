@@ -216,6 +216,21 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
+def write_dhclient_conf(config_path: str) -> None:
+    """Write minimal dhclient configuration."""
+    with open(config_path, "w") as f:
+        f.write(
+            "timeout 300;\n"
+            "option rfc3442-classless-static-routes code 121 = "
+            "array of unsigned integer 8;\n"
+            "request subnet-mask, broadcast-address, time-offset, routers, "
+            "domain-name, domain-name-servers, domain-search, host-name, "
+            "dhcp6.name-servers, dhcp6.domain-search, dhcp6.fqdn, "
+            "dhcp6.sntp-servers, interface-mtu, "
+            "rfc3442-classless-static-routes, ntp-servers;\n"
+        )
+
+
 def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
@@ -240,12 +255,15 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     util.copy(dhclient_cmd_path, sandbox_dhclient_cmd)
     pid_file = os.path.join(cleandir, "dhclient.pid")
     lease_file = os.path.join(cleandir, "dhcp.leases")
+    cf_file = os.path.join(cleandir, "dhclient.conf")
 
     # In some cases files in /var/tmp may not be executable, launching dhclient
     # from there will certainly raise 'Permission denied' error. Try launching
     # the original dhclient instead.
     if not os.access(sandbox_dhclient_cmd, os.X_OK):
         sandbox_dhclient_cmd = dhclient_cmd_path
+
+    write_dhclient_conf(cf_file)
 
     # ISC dhclient needs the interface up to send initial discovery packets.
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
@@ -263,6 +281,8 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
         interface,
         "-sf",
         "/bin/true",
+        "-cf",
+        cf_file,
     ]
     out, err = subp.subp(cmd, capture=True)
 
