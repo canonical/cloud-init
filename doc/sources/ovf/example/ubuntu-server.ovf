@@ -50,7 +50,7 @@
       </Property>
       <Property ovf:key="network-config" ovf:type="string" ovf:userConfigurable="true">
           <Label>Encoded network-config</Label>
-          <Description>This field is optional. It will be taken if no network configuration is set in user-data. The value for network-config has to be base64 encoded.</Description>
+          <Description>This field is optional. The value for network-config has to be base64 encoded.</Description>
       </Property>
     </ProductSection>
     <VirtualHardwareSection>
