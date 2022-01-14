@@ -3213,10 +3213,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
     @mock.patch("time.sleep", mock.MagicMock())
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4WithReporting", autospec=True)
     def test_poll_imds_re_dhcp_on_timeout(
         self,
-        m_dhcpv4,
         m_report_ready,
         m_request,
         m_media_switch,
@@ -3236,7 +3234,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
-        m_dhcpv4.return_value = dhcp_ctx
 
         self.tries = 0
 
@@ -3260,7 +3257,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
         m_report_ready.assert_called_with(lease=lease)
-        self.assertEqual(3, m_dhcpv4.call_count, "Expected 3 DHCP calls")
+        self.assertEqual(3, m_dhcp.call_count, "Expected 3 DHCP calls")
         self.assertEqual(4, self.tries, "Expected 4 total reads from IMDS")
 
     @mock.patch("os.path.isfile")
