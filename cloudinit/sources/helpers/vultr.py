@@ -28,7 +28,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
             with EphemeralDHCPv4(iface=iface[0],
                                  connectivity_url_data={"url": url}):
                 # Set metadata route
-                set_route()
+                set_route(iface[0])
 
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
@@ -41,7 +41,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
 
 
 # Set route for metadata
-def set_route():
+def set_route(iface):
     # Get routes, confirm entry does not exist
     routes = netinfo.route_info()
 
@@ -76,7 +76,7 @@ def set_route():
                 "add",
                 "169.254.169.254/32",
                 "dev",
-                net.find_fallback_nic(),
+                iface,
             ]
         )
     elif subp.which("route"):
