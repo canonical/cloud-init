@@ -8,6 +8,7 @@ import stat
 import xml.etree.ElementTree as ET
 
 import httpretty
+import pytest
 import requests
 import yaml
 
@@ -35,6 +36,13 @@ from tests.unittests.helpers import (
     resourceLocation,
     wrap_and_call,
 )
+
+
+@pytest.fixture
+def azure_ds(request, paths):
+    """Provide DataSourceAzure instance with mocks for minimal test case."""
+    with mock.patch(MOCKPATH + "_is_platform_viable", return_value=True):
+        yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
 
 
 def construct_valid_ovf_env(
@@ -1235,40 +1243,6 @@ scbus-1 on xpt0 bus 0
         )
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = self._get_ds(data)
-        poll_imds_func.return_value = ovfenv
-        dsrc.crawl_metadata()
-        self.assertEqual(1, report_ready_func.call_count)
-        self.assertEqual(1, detect_nics.call_count)
-
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready"
-    )
-    @mock.patch("cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds")
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure."
-        "_wait_for_all_nics_ready"
-    )
-    @mock.patch("os.path.isfile")
-    def test_detect_nics_when_marker_present(
-        self,
-        is_file,
-        detect_nics,
-        poll_imds_func,
-        report_ready_func,
-        m_write,
-    ):
-        """If reprovisioning, wait for nic attach if marker present"""
-
-        def is_file_ret(key):
-            return key == dsaz.REPROVISION_NIC_ATTACH_MARKER_FILE
-
-        is_file.side_effect = is_file_ret
-        ovfenv = construct_valid_ovf_env()
-
-        data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-
         dsrc = self._get_ds(data)
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
@@ -2761,60 +2735,92 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
 
-@mock.patch("os.path.isfile")
-class TestPreprovisioningShouldReprovision(CiTestCase):
+@pytest.mark.parametrize(
+    "ovf_cfg,imds_md,pps_type",
+    [
+        (
+            {"PreprovisionedVm": False, "PreprovisionedVMType": None},
+            {},
+            dsaz.PPSType.NONE,
+        ),
+        (
+            {"PreprovisionedVm": True, "PreprovisionedVMType": "Running"},
+            {},
+            dsaz.PPSType.RUNNING,
+        ),
+        (
+            {"PreprovisionedVm": True, "PreprovisionedVMType": "Savable"},
+            {},
+            dsaz.PPSType.SAVABLE,
+        ),
+        (
+            {"PreprovisionedVm": True},
+            {},
+            dsaz.PPSType.RUNNING,
+        ),
+        (
+            {},
+            {"extended": {"compute": {"ppsType": "None"}}},
+            dsaz.PPSType.NONE,
+        ),
+        (
+            {},
+            {"extended": {"compute": {"ppsType": "Running"}}},
+            dsaz.PPSType.RUNNING,
+        ),
+        (
+            {},
+            {"extended": {"compute": {"ppsType": "Savable"}}},
+            dsaz.PPSType.SAVABLE,
+        ),
+        (
+            {"PreprovisionedVm": False, "PreprovisionedVMType": None},
+            {"extended": {"compute": {"ppsType": "None"}}},
+            dsaz.PPSType.NONE,
+        ),
+        (
+            {"PreprovisionedVm": True, "PreprovisionedVMType": "Running"},
+            {"extended": {"compute": {"ppsType": "Running"}}},
+            dsaz.PPSType.RUNNING,
+        ),
+        (
+            {"PreprovisionedVm": True, "PreprovisionedVMType": "Savable"},
+            {"extended": {"compute": {"ppsType": "Savable"}}},
+            dsaz.PPSType.SAVABLE,
+        ),
+        (
+            {"PreprovisionedVm": True},
+            {"extended": {"compute": {"ppsType": "Running"}}},
+            dsaz.PPSType.RUNNING,
+        ),
+    ],
+)
+class TestDeterminePPSTypeScenarios:
+    @mock.patch("os.path.isfile", return_value=False)
+    def test_determine_pps_without_reprovision_marker(
+        self, is_file, azure_ds, ovf_cfg, imds_md, pps_type
+    ):
+        assert azure_ds._determine_pps_type(ovf_cfg, imds_md) == pps_type
+
+    @mock.patch("os.path.isfile", return_value=True)
+    def test_determine_pps_with_reprovision_marker(
+        self, is_file, azure_ds, ovf_cfg, imds_md, pps_type
+    ):
+        assert (
+            azure_ds._determine_pps_type(ovf_cfg, imds_md)
+            == dsaz.PPSType.UNKNOWN
+        )
+        assert is_file.mock_calls == [mock.call(dsaz.REPROVISION_MARKER_FILE)]
+
+
+@mock.patch("os.path.isfile", return_value=False)
+class TestReprovision(CiTestCase):
     def setUp(self):
-        super(TestPreprovisioningShouldReprovision, self).setUp()
+        super(TestReprovision, self).setUp()
         tmp = self.tmp_dir()
         self.waagent_d = self.tmp_path("/var/lib/waagent", tmp)
         self.paths = helpers.Paths({"cloud_dir": tmp})
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
-
-    @mock.patch(MOCKPATH + "util.write_file")
-    def test__should_reprovision_with_true_cfg(self, isfile, write_f):
-        """The _should_reprovision method should return true with config
-        flag present."""
-        isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        self.assertTrue(
-            dsa._should_reprovision({"PreprovisionedVm": True}, None)
-        )
-
-    def test__should_reprovision_with_file_existing(self, isfile):
-        """The _should_reprovision method should return True if the sentinal
-        exists."""
-        isfile.return_value = True
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        self.assertTrue(
-            dsa._should_reprovision({"preprovisionedvm": False}, None)
-        )
-
-    def test__should_reprovision_returns_false(self, isfile):
-        """The _should_reprovision method should return False
-        if config and sentinal are not present."""
-        isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        self.assertFalse(dsa._should_reprovision({}))
-
-    @mock.patch(MOCKPATH + "util.write_file", autospec=True)
-    def test__should_reprovision_uses_imds_md(self, write_file, isfile):
-        """The _should_reprovision method should be able to
-        retrieve the preprovisioning VM type from imds metadata"""
-        isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        self.assertTrue(
-            dsa._should_reprovision(
-                {},
-                {"extended": {"compute": {"ppsType": "Running"}}},
-            )
-        )
-        self.assertFalse(dsa._should_reprovision({}, {}))
-        self.assertFalse(
-            dsa._should_reprovision(
-                {},
-                {"extended": {"compute": {"hasCustomData": False}}},
-            )
-        )
 
     @mock.patch(MOCKPATH + "DataSourceAzure._poll_imds")
     def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
