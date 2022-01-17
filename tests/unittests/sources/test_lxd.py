@@ -57,7 +57,7 @@ def lxd_metadata():
     return LXD_V1_METADATA
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def lxd_ds(request, paths, lxd_metadata):
     """
     Return an instantiated DataSourceLXD.

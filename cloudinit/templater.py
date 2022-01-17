@@ -12,6 +12,7 @@
 
 import collections
 import re
+import sys
 
 try:
     from Cheetah.Template import Template as CTemplate
@@ -32,6 +33,7 @@ except (ImportError, AttributeError):
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
+from cloudinit.atomic_helper import write_file
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
@@ -178,6 +180,19 @@ def render_string(content, params):
         params = {}
     _template_type, renderer, content = detect_template(content)
     return renderer(content, params)
+
+
+def render_cloudcfg(variant, template, output):
+
+    with open(template, "r") as fh:
+        contents = fh.read()
+    tpl_params = {"variant": variant}
+    contents = (render_string(contents, tpl_params)).rstrip() + "\n"
+    util.load_yaml(contents)
+    if output == "-":
+        sys.stdout.write(contents)
+    else:
+        write_file(output, contents, omode="w")
 
 
 # vi: ts=4 expandtab

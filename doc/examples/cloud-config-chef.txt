@@ -4,9 +4,6 @@
 # list of recipes when the instance boots for the first time.
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
-#
-# This example assumes the instance is 16.04 (xenial)
-
 
 # The default is to install from packages.
 
@@ -55,7 +52,7 @@ chef:
 
   # Valid values are 'accept' and 'accept-no-persist'
   chef_license: "accept"
-  
+
   # Valid values are 'gems' and 'packages' and 'omnibus'
   install_type: "packages"
 

@@ -257,7 +257,7 @@ class Distro(distros.Distro):
             pkgs = []
 
         e = os.environ.copy()
-        # See: http://manpages.ubuntu.com/manpages/xenial/man7/debconf.7.html
+        # See: http://manpages.ubuntu.com/manpages/bionic/man7/debconf.7.html
         e["DEBIAN_FRONTEND"] = "noninteractive"
 
         wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)
@@ -299,6 +299,13 @@ class Distro(distros.Distro):
 
     def get_primary_arch(self):
         return util.get_dpkg_architecture()
+
+    def set_keymap(self, layout, model, variant, options):
+        # Let localectl take care of updating /etc/default/keyboard
+        distros.Distro.set_keymap(self, layout, model, variant, options)
+        # Workaround for localectl not applying new settings instantly
+        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=926037
+        self.manage_service("restart", "console-setup")
 
 
 def _get_wrapper_prefix(cmd, mode):

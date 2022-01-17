@@ -45,17 +45,6 @@ os_list = ["ubuntu"]
 
 session_start_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
 
-XENIAL_LXD_VM_EXEC_MSG = """\
-The default xenial images do not support `exec` for LXD VMs.
-
-Specify an image known to work using:
-
-    OS_IMAGE=<image id>::ubuntu::xenial
-
-You can re-run specifically tests that require this by passing `-m
-lxd_use_exec` to pytest.
-"""
-
 
 def pytest_runtest_setup(item):
     """Skip tests on unsupported clouds.
@@ -101,7 +90,7 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def session_cloud():
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
@@ -246,16 +235,6 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     if lxd_use_exec is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_use_exec requires LXD")
-        if isinstance(session_cloud, LxdVmCloud):
-            image_spec = ImageSpecification.from_os_image()
-            if image_spec.release == image_spec.image_id == "xenial":
-                # Why fail instead of skip?  We expect that skipped tests will
-                # be run in a different one of our usual battery of test runs
-                # (e.g. LXD-only tests are skipped on EC2 but will run in our
-                # normal LXD test runs).  This is not true of this test: it
-                # can't run in our usual xenial LXD VM test run, and it may not
-                # run anywhere else.  A failure flags up this discrepancy.
-                pytest.fail(XENIAL_LXD_VM_EXEC_MSG)
         launch_kwargs["execute_via_ssh"] = False
     local_launch_kwargs = {}
     if lxd_setup is not None:
@@ -276,21 +255,21 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
         _collect_logs(instance, request.node.nodeid, test_failed)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.fixture(scope="module")
 def module_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def class_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:

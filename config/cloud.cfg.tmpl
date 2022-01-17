@@ -107,6 +107,7 @@ cloud_config_modules:
 {% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
+ - keyboard
  - locale
 {% endif %}
  - set-passwords
@@ -245,7 +246,7 @@ system_info:
 {% endif %}
 {% if variant == "suse" %}
      groups: [cdrom, users]
-{% if variant == "gentoo" %}
+{% elif variant == "gentoo" %}
      groups: [users, wheel]
      primary_group: users
      no_user_group: true

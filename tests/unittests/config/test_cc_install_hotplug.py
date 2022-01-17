@@ -12,7 +12,7 @@ from cloudinit.config.cc_install_hotplug import (
 from cloudinit.event import EventScope, EventType
 
 
-@pytest.yield_fixture()
+@pytest.fixture()
 def mocks():
     m_update_enabled = mock.patch("cloudinit.stages.update_event_enabled")
     m_write = mock.patch("cloudinit.util.write_file", autospec=True)
