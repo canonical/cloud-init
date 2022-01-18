@@ -53,7 +53,7 @@
           <Description>This field is optional. The value for network-config has to be base64 encoded.</Description>
       </Property>
     </ProductSection>
-    <VirtualHardwareSection>
+    <VirtualHardwareSection ovf:transport="iso">
       <Info>Virtual hardware requirements</Info>
       <System>
         <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
