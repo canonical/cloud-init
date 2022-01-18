@@ -338,7 +338,10 @@ class DataSourceAzure(sources.DataSource):
         ovf_is_accessible = False
         reprovision_after_nic_attach = False
         metadata_source = None
-        ret = None
+        md = {}
+        userdata_raw = ""
+        cfg = {}
+        files = {}
         if os.path.isfile(REPROVISION_MARKER_FILE):
             reprovision = True
             metadata_source = "IMDS"
@@ -361,15 +364,17 @@ class DataSourceAzure(sources.DataSource):
                 try:
                     if src.startswith("/dev/"):
                         if util.is_FreeBSD():
-                            ret = util.mount_cb(
+                            md, userdata_raw, cfg, files = util.mount_cb(
                                 src, load_azure_ds_dir, mtype="udf"
                             )
                         else:
-                            ret = util.mount_cb(src, load_azure_ds_dir)
+                            md, userdata_raw, cfg, files = util.mount_cb(
+                                src, load_azure_ds_dir
+                            )
                         # save the device for ejection later
                         self.iso_dev = src
                     else:
-                        ret = load_azure_ds_dir(src)
+                        md, userdata_raw, cfg, files = load_azure_ds_dir(src)
                     ovf_is_accessible = True
                     metadata_source = src
                     break
@@ -383,11 +388,8 @@ class DataSourceAzure(sources.DataSource):
                     report_diagnostic_event(
                         "%s was not mountable" % src, logger_func=LOG.debug
                     )
-                    empty_md = {"local-hostname": ""}
-                    empty_cfg = dict(
-                        system_info=dict(default_user=dict(name=""))
-                    )
-                    ret = (empty_md, "", empty_cfg, {})
+                    md = {"local-hostname": ""}
+                    cfg = {"system_info": {"default_user": {"name": ""}}}
                     metadata_source = "IMDS"
                     continue
                 except BrokenAzureDataSource as exc:
@@ -414,11 +416,11 @@ class DataSourceAzure(sources.DataSource):
             raise sources.InvalidMetaDataException(msg)
 
         perform_reprovision = reprovision or self._should_reprovision(
-            ret, imds_md
+            cfg, imds_md
         )
         perform_reprovision_after_nic_attach = (
             reprovision_after_nic_attach
-            or self._should_reprovision_after_nic_attach(ret, imds_md)
+            or self._should_reprovision_after_nic_attach(cfg, imds_md)
         )
 
         if perform_reprovision or perform_reprovision_after_nic_attach:
@@ -428,13 +430,12 @@ class DataSourceAzure(sources.DataSource):
                 raise sources.InvalidMetaDataException(msg)
             if perform_reprovision_after_nic_attach:
                 self._wait_for_all_nics_ready()
-            ret = self._reprovision()
+            md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_imds_data_with_api_fallback(
                 self.fallback_interface, retries=10
             )
 
-        (md, userdata_raw, cfg, files) = ret
         self.seed = metadata_source
         crawled_data.update(
             {
@@ -1408,7 +1409,7 @@ class DataSourceAzure(sources.DataSource):
             return None
 
     def _should_reprovision_after_nic_attach(
-        self, ovf_md, imds_md=None
+        self, cfg: dict, imds_md=None
     ) -> bool:
         """Whether or not we should wait for nic attach and then poll
         IMDS for reprovisioning data. Also sets a marker file to poll IMDS.
@@ -1421,13 +1422,10 @@ class DataSourceAzure(sources.DataSource):
         the ISO, thus cloud-init needs to have a way of knowing that it should
         jump back into the waiting mode in order to retrieve the ovf_env.
 
-        @param ovf_md: Metadata obtained from reading ovf-env.
+        @param cfg: OVF cfg.
         @param imds_md: Metadata obtained from IMDS
         @return: Whether to reprovision after waiting for nics to be attached.
         """
-        if not ovf_md:
-            return False
-        (_md, _userdata_raw, cfg, _files) = ovf_md
         path = REPROVISION_NIC_ATTACH_MARKER_FILE
         if (
             cfg.get("PreprovisionedVMType", None) == "Savable"
@@ -1445,7 +1443,7 @@ class DataSourceAzure(sources.DataSource):
             return True
         return False
 
-    def _should_reprovision(self, ovf_md, imds_md=None):
+    def _should_reprovision(self, cfg: dict, imds_md=None):
         """Whether or not we should poll IMDS for reprovisioning data.
         Also sets a marker file to poll IMDS.
 
@@ -1456,9 +1454,6 @@ class DataSourceAzure(sources.DataSource):
         However, since the VM reports ready to the Fabric, we will not attach
         the ISO, thus cloud-init needs to have a way of knowing that it should
         jump back into the polling loop in order to retrieve the ovf_env."""
-        if not ovf_md:
-            return False
-        (_md, _userdata_raw, cfg, _files) = ovf_md
         path = REPROVISION_MARKER_FILE
         if (
             cfg.get("PreprovisionedVm") is True
