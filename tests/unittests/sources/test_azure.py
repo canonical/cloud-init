@@ -784,7 +784,13 @@ scbus-1 on xpt0 bus 0
         return dsaz
 
     def _get_ds(
-        self, data, distro="ubuntu", apply_network=None, instance_id=None
+        self,
+        data,
+        distro="ubuntu",
+        apply_network=None,
+        instance_id=None,
+        write_ovf_to_data_dir: bool = False,
+        write_ovf_to_seed_dir: bool = True,
     ):
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data["waited"] = flist
@@ -798,8 +804,11 @@ scbus-1 on xpt0 bus 0
                 yield cache_dir
 
         seed_dir = os.path.join(self.paths.seed_dir, "azure")
-        if data.get("ovfcontent") is not None:
+        if write_ovf_to_seed_dir and data.get("ovfcontent") is not None:
             populate_dir(seed_dir, {"ovf-env.xml": data["ovfcontent"]})
+
+        if write_ovf_to_data_dir and data.get("ovfcontent") is not None:
+            populate_dir(self.waagent_d, {"ovf-env.xml": data["ovfcontent"]})
 
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
@@ -1005,6 +1014,34 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(
             "seed-dir (%s/seed/azure)" % self.tmp, dsrc.subplatform
         )
+
+    def test_data_dir_without_imds_data(self):
+        odata = {"HostName": "myhost", "UserName": "myuser"}
+        data = {
+            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "sys_cfg": {},
+        }
+        dsrc = self._get_ds(
+            data, write_ovf_to_data_dir=True, write_ovf_to_seed_dir=False
+        )
+
+        self.m_get_metadata_from_imds.return_value = {}
+        with mock.patch(MOCKPATH + "util.mount_cb") as m_mount_cb:
+            m_mount_cb.side_effect = [
+                MountFailedError("fail"),
+                ({"local-hostname": "me"}, "ud", {"cfg": ""}, {}),
+            ]
+            ret = dsrc.get_data()
+
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, "")
+        self.assertEqual(dsrc.metadata["local-hostname"], odata["HostName"])
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
+        )
+        self.assertEqual("azure", dsrc.cloud_name)
+        self.assertEqual("azure", dsrc.platform_type)
+        self.assertEqual("seed-dir (%s)" % self.waagent_d, dsrc.subplatform)
 
     def test_basic_dev_file(self):
         """When a device path is used, present that in subplatform."""
