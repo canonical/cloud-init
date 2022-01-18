@@ -11,16 +11,19 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
+import yaml
 from yaml import safe_load
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     MetaSchema,
     SchemaValidationError,
+    _schemapath_for_cloudconfig,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
     get_schema,
+    load_doc,
     main,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
@@ -36,7 +39,7 @@ from tests.unittests.helpers import (
 
 
 def get_schemas() -> dict:
-    """Return all module schemas
+    """Return all legacy module schemas
 
     Assumes that module schemas have the variable name "schema"
     """
@@ -78,14 +81,15 @@ def get_module_variable(var_name) -> dict:
     return schemas
 
 
-class GetSchemaTest(CiTestCase):
+class TestGetSchema:
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        self.assertCountEqual(
+        assert sorted(
             [
                 "cc_apk_configure",
                 "cc_apt_configure",
+                "cc_apt_pipelining",
                 "cc_bootcmd",
                 "cc_keyboard",
                 "cc_locale",
@@ -99,14 +103,88 @@ class GetSchemaTest(CiTestCase):
                 "cc_zypper_add_repo",
                 "cc_chef",
                 "cc_install_hotplug",
-            ],
-            [meta["id"] for meta in get_metas().values() if meta is not None],
+            ]
+        ) == sorted(
+            [meta["id"] for meta in get_metas().values() if meta is not None]
         )
-        self.assertEqual("cloud-config-schema", schema["id"])
-        self.assertEqual(
-            "http://json-schema.org/draft-04/schema#", schema["$schema"]
+        assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]
+        assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
+        # New style schema should be defined in static schema file in $defs
+        expected_subschema_defs = [
+            {"$ref": "#/$defs/cc_apk_configure"},
+            {"$ref": "#/$defs/cc_apt_pipelining"},
+        ]
+        found_subschema_defs = []
+        legacy_schema_keys = []
+        for subschema in schema["allOf"]:
+            if "$ref" in subschema:
+                found_subschema_defs.append(subschema)
+            else:  # Legacy subschema sourced from cc_* module 'schema' attr
+                legacy_schema_keys.extend(subschema["properties"].keys())
+
+        assert expected_subschema_defs == found_subschema_defs
+        # This list will dwindle as we move legacy schema to new $defs
+        assert [
+            "apt",
+            "bootcmd",
+            "chef",
+            "drivers",
+            "keyboard",
+            "locale",
+            "locale_configfile",
+            "ntp",
+            "resize_rootfs",
+            "runcmd",
+            "snap",
+            "ubuntu_advantage",
+            "updates",
+            "write_files",
+            "write_files",
+            "zypper",
+        ] == sorted(legacy_schema_keys)
+
+
+class TestLoadDoc:
+
+    docs = get_module_variable("__doc__")
+
+    # TODO( Drop legacy test when all sub-schemas in cloud-init-schema.json )
+    @pytest.mark.parametrize(
+        "module_name",
+        (
+            "cc_apt_pipelining",  # new style composite schema file
+            "cc_bootcmd",  # legacy sub-schema defined in module
+        ),
+    )
+    def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):
+        doc = load_doc([module_name])
+        assert doc, "Unexpected empty docs for {}".format(module_name)
+        assert self.docs[module_name] == doc
+
+
+class Test_SchemapathForCloudconfig:
+    """Coverage tests for supported YAML formats."""
+
+    @pytest.mark.parametrize(
+        "source_content, expected",
+        (
+            (b"{}", {}),  # assert empty config handled
+            # Multiple keys account for comments and whitespace lines
+            (b"#\na: va\n  \nb: vb\n#\nc: vc", {"a": 2, "b": 4, "c": 6}),
+            # List items represented on correct line number
+            (b"a:\n - a1\n\n - a2\n", {"a": 1, "a.0": 2, "a.1": 4}),
+            # Nested dicts represented on correct line number
+            (b"a:\n a1:\n\n  aa1: aa1v\n", {"a": 1, "a.a1": 2, "a.a1.aa1": 4}),
+        ),
+    )
+    def test_schemapaths_representatative_of_source_yaml(
+        self, source_content, expected
+    ):
+        """Validate schemapaths dict accurately represents source YAML line."""
+        cfg = yaml.safe_load(source_content)
+        assert expected == _schemapath_for_cloudconfig(
+            config=cfg, original_content=source_content
         )
-        self.assertCountEqual(["id", "$schema", "allOf"], get_schema().keys())
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -129,69 +207,87 @@ class SchemaValidationErrorTest(CiTestCase):
         self.assertTrue(isinstance(exception, ValueError))
 
 
-class ValidateCloudConfigSchemaTest(CiTestCase):
+class TestValidateCloudConfigSchema:
     """Tests for validate_cloudconfig_schema."""
 
     with_logs = True
 
+    @pytest.mark.parametrize(
+        "schema, call_count",
+        ((None, 1), ({"properties": {"p1": {"type": "string"}}}, 0)),
+    )
     @skipUnlessJsonSchema()
-    def test_validateconfig_schema_non_strict_emits_warnings(self):
+    @mock.patch("cloudinit.config.schema.get_schema")
+    def test_validateconfig_schema_use_full_schema_when_no_schema_param(
+        self, get_schema, schema, call_count
+    ):
+        """Use full schema when schema param is absent."""
+        get_schema.return_value = {"properties": {"p1": {"type": "string"}}}
+        kwargs = {"config": {"p1": "valid"}}
+        if schema:
+            kwargs["schema"] = schema
+        validate_cloudconfig_schema(**kwargs)
+        assert call_count == get_schema.call_count
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_non_strict_emits_warnings(self, caplog):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
         validate_cloudconfig_schema({"p1": -1}, schema, strict=False)
-        self.assertIn(
-            "Invalid config:\np1: -1 is not of type 'string'\n",
-            self.logs.getvalue(),
+        assert (
+            "Invalid cloud-config provided:\np1: -1 is not of type 'string'\n"
+            in (caplog.text)
         )
 
     @skipUnlessJsonSchema()
-    def test_validateconfig_schema_emits_warning_on_missing_jsonschema(self):
+    def test_validateconfig_schema_emits_warning_on_missing_jsonschema(
+        self, caplog
+    ):
         """Warning from validate_cloudconfig_schema when missing jsonschema."""
         schema = {"properties": {"p1": {"type": "string"}}}
         with mock.patch.dict("sys.modules", **{"jsonschema": ImportError()}):
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
-        self.assertIn(
-            "Ignoring schema validation. jsonschema is not present",
-            self.logs.getvalue(),
+        assert "Ignoring schema validation. jsonschema is not present" in (
+            caplog.text
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_strict_raises_errors(self):
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {"properties": {"p1": {"type": "string"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
-        self.assertEqual(
-            "Cloud config schema errors: p1: -1 is not of type 'string'",
-            str(context_mgr.exception),
+        assert (
+            "Cloud config schema errors: p1: -1 is not of type 'string'"
+            == (str(context_mgr.value))
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({"p1": "-1"}, schema, strict=True)
-        self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'email'",
-            str(context_mgr.exception),
+        assert "Cloud config schema errors: p1: '-1' is not a 'email'" == (
+            str(context_mgr.value)
         )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats_strict_metaschema(self):
         """With strict and strict_metaschema True, ensure errors on format"""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
-        with self.assertRaises(SchemaValidationError) as context_mgr:
+        with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema(
                 {"p1": "-1"}, schema, strict=True, strict_metaschema=True
             )
-        self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'email'",
-            str(context_mgr.exception),
+        assert "Cloud config schema errors: p1: '-1' is not a 'email'" == str(
+            context_mgr.value
         )
 
     @skipUnlessJsonSchema()
-    def test_validateconfig_strict_metaschema_do_not_raise_exception(self):
+    def test_validateconfig_strict_metaschema_do_not_raise_exception(
+        self, caplog
+    ):
         """With strict_metaschema=True, do not raise exceptions.
 
         This flag is currently unused, but is intended for run-time validation.
@@ -203,12 +299,11 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         )
         assert (
             "Meta-schema validation failed, attempting to validate config"
-            in self.logs.getvalue()
+            in caplog.text
         )
 
 
 class TestCloudConfigExamples:
-    schema = get_schemas()
     metas = get_metas()
     params = [
         (meta["id"], example)
@@ -223,10 +318,9 @@ class TestCloudConfigExamples:
         """For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
         """
+        schema = get_schema()
         config_load = safe_load(example)
-        validate_cloudconfig_schema(
-            config_load, self.schema[schema_id], strict=True
-        )
+        validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):

@@ -79,9 +79,11 @@ class TestWriteFilesSchema(CiTestCase):
         cc = self.tmp_cloud("ubuntu")
         valid_config = {"write_files": [{"path": "/some/path"}]}
         handle("cc_write_file", valid_config, cc, LOG, [])
-        self.assertNotIn("Invalid config:", self.logs.getvalue())
+        self.assertNotIn(
+            "Invalid cloud-config provided:", self.logs.getvalue()
+        )
         handle("cc_write_file", INVALID_SCHEMA, cc, LOG, [])
-        self.assertIn("Invalid config:", self.logs.getvalue())
+        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
         self.assertIn("'path' is a required property", self.logs.getvalue())
 
     def test_schema_validation_warns_non_string_type_for_files(
@@ -105,7 +107,7 @@ class TestWriteFilesSchema(CiTestCase):
                 "write_files.0.%s: 1 is not of type '%s'" % (key, key_type),
                 self.logs.getvalue(),
             )
-        self.assertIn("Invalid config:", self.logs.getvalue())
+        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
 
     def test_schema_validation_warns_on_additional_undefined_propertes(
         self, m_write_files
@@ -116,8 +118,8 @@ class TestWriteFilesSchema(CiTestCase):
         invalid_config["write_files"][0]["bogus"] = "value"
         handle("cc_write_file", invalid_config, cc, LOG, [])
         self.assertIn(
-            "Invalid config:\nwrite_files.0: Additional properties"
-            " are not allowed ('bogus' was unexpected)",
+            "Invalid cloud-config provided:\nwrite_files.0: Additional"
+            " properties are not allowed ('bogus' was unexpected)",
             self.logs.getvalue(),
         )
 
@@ -139,7 +141,8 @@ class TestWriteFiles(FilesystemMockingTestCase):
         with self.assertRaises(TypeError):
             handle("cc_write_file", invalid_config, cc, LOG, [])
         self.assertIn(
-            "Invalid config:\nwrite_files: 1 is not of type 'array'",
+            "Invalid cloud-config provided:\nwrite_files: 1 is not of type"
+            " 'array'",
             self.logs.getvalue(),
         )
 

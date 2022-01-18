@@ -6,11 +6,23 @@ Test creation of repositories file
 
 import logging
 import os
+import re
 import textwrap
+
+import pytest
 
 from cloudinit import cloud, helpers, util
 from cloudinit.config import cc_apk_configure
-from tests.unittests.helpers import FilesystemMockingTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import (
+    FilesystemMockingTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 
 REPO_FILE = "/etc/apk/repositories"
 DEFAULT_MIRROR_URL = "https://alpine.global.ssl.fastly.net/alpine"
@@ -320,6 +332,79 @@ class TestConfig(FilesystemMockingTestCase):
         )
 
         self.assertEqual(expected_content, util.load_file(REPO_FILE))
+
+
+class TestApkConfigureSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas
+            ({"apk_repos": {"preserve_repositories": True}}, None),
+            ({"apk_repos": {"alpine_repo": None}}, None),
+            ({"apk_repos": {"alpine_repo": {"version": "v3.21"}}}, None),
+            (
+                {
+                    "apk_repos": {
+                        "alpine_repo": {
+                            "base_url": "http://yep",
+                            "community_enabled": True,
+                            "testing_enabled": True,
+                            "version": "v3.21",
+                        }
+                    }
+                },
+                None,
+            ),
+            ({"apk_repos": {"local_repo_base_url": "http://some"}}, None),
+            # Invalid schemas
+            (
+                {"apk_repos": {"alpine_repo": {"version": False}}},
+                "apk_repos.alpine_repo.version: False is not of type"
+                " 'string'",
+            ),
+            (
+                {
+                    "apk_repos": {
+                        "alpine_repo": {"version": "v3.12", "bogus": 1}
+                    }
+                },
+                re.escape(
+                    "apk_repos.alpine_repo: Additional properties are not"
+                    " allowed ('bogus' was unexpected)"
+                ),
+            ),
+            (
+                {"apk_repos": {"alpine_repo": {}}},
+                "apk_repos.alpine_repo: 'version' is a required property,"
+                " apk_repos.alpine_repo: {} does not have enough properties",
+            ),
+            (
+                {"apk_repos": {"alpine_repo": True}},
+                "apk_repos.alpine_repo: True is not of type 'object', 'null'",
+            ),
+            (
+                {"apk_repos": {"preserve_repositories": "wrongtype"}},
+                "apk_repos.preserve_repositories: 'wrongtype' is not of type"
+                " 'boolean'",
+            ),
+            (
+                {"apk_repos": {}},
+                "apk_repos: {} does not have enough properties",
+            ),
+            (
+                {"apk_repos": {"local_repo_base_url": None}},
+                "apk_repos.local_repo_base_url: None is not of type 'string'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        schema = get_schema()
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab
