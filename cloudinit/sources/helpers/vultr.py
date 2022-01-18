@@ -25,8 +25,9 @@ def get_metadata(url, timeout, retries, sec_between, agent):
         if "dummy" in iface[0]:
             continue
         try:
-            with EphemeralDHCPv4(iface=iface[0],
-                                 connectivity_url_data={"url": url}):
+            with EphemeralDHCPv4(
+                iface=iface[0], connectivity_url_data={"url": url}
+            ):
                 # Set metadata route
                 set_route(iface[0])
 
