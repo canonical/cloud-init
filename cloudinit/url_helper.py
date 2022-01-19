@@ -615,11 +615,11 @@ def wait_for_url(
             sleep_time = int(loop_n / 5) + 1
 
         if connect_synchronously:
-            url, _ = read_url_serial(timeout)
+            url = read_url_serial(timeout)
             if url:
                 return url
         else:
-            url, _ = read_url_parallel()
+            url = read_url_parallel()
             if url:
                 return url
 

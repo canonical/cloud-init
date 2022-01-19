@@ -526,9 +526,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         register_mock_metaserver(
             "http://[fd00:ec2::254]/2009-04-04/meta-data/", DEFAULT_METADATA
         )
-        register_mock_metaserver(
-            "http://169.254.169.254/2009-04-04/meta-data/", DEFAULT_METADATA
-        )
         mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
         get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
         ds.fallback_nic = "eth9"
@@ -684,8 +681,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
         logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
         logs_with_token = [log for log in all_logs if "API-TOKEN" in log]
-        self.assertEqual(1, len(logs_with_redacted_ttl))
-        self.assertEqual(83, len(logs_with_redacted))
+        self.assertEqual(5, len(logs_with_redacted_ttl))
+        self.assertEqual(81, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")

@@ -362,16 +362,20 @@ class TestUrlHelper:
             ((SLEEP, ADDR2), 1, "SUCCESS"),
             ((SLEEP, SLEEP, ADDR2), 2, "SUCCESS"),
             ((ADDR1, SLEEP, SLEEP), 0, "SUCCESS"),
-            ((SLEEP, SLEEP, SLEEP), None, "SUCCESS"),
+            ((SLEEP, SLEEP, SLEEP), None, ""),
         ],
     )
     @httpretty.activate
     def test_order(self, addresses, expected_address_index, response):
-        """Check that the first response is returned. Simulate a non-responding
-        endpoint with a response that has a one second sleep. If this test
-        proves flaky, increase sleep time. Since it is async, increasing
-        sleep time should not increase total test time, since execution
-        of subsequent tests will continue after the first response is received.
+        """Check that the first response gets returned. Simulate a
+        non-responding endpoint with a response that has a one second sleep.
+
+        If this test proves flaky, increase sleep time. Since it is async,
+        increasing sleep time for the non-responding endpoint should not
+        increase total test time, assuming async_delay=0 is used and at least
+        one non-sleep endpoint is registered with httpretty.
+        Subsequent tests will continue execution after the first response is
+        received.
         """
         for address in addresses:
             httpretty.register_uri(httpretty.GET, address, body=self.response)
@@ -385,6 +389,8 @@ class TestUrlHelper:
             connect_synchronously=False,
             async_delay=0.0,
         )
+
+        # Test for timeout (no responding endpoint)
         if expected_address_index is None:
             assert not url
             assert not response_contents
