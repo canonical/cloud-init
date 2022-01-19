@@ -106,14 +106,14 @@ class IntegrationCloud(ABC):
     def __init__(self, settings=integration_settings):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
-        self.released_image_id = self._get_initial_image()
+        self.initial_image_id = self._get_initial_image()
         self.snapshot_id = None
 
     @property
     def image_id(self):
         if self.snapshot_id:
             return self.snapshot_id
-        return self.released_image_id
+        return self.initial_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -133,7 +133,7 @@ class IntegrationCloud(ABC):
     def _get_initial_image(self):
         image = ImageSpecification.from_os_image()
         try:
-            return self.cloud_instance.released_image(image.image_id)
+            return self.cloud_instance.daily_image(image.image_id)
         except (ValueError, IndexError):
             return image.image_id
 
