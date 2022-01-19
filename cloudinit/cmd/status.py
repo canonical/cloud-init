@@ -22,7 +22,7 @@ CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
 class UXAppStatus(enum.Enum):
     """Enum representing user-visible cloud-init application status."""
 
-    NOT_RUN = "not-run"
+    NOT_RUN = "not run"
     RUNNING = "running"
     DONE = "done"
     ERROR = "error"
