@@ -16,23 +16,33 @@ LOG = log.getLogger(__name__)
 
 @lru_cache()
 def get_metadata(url, timeout, retries, sec_between, agent):
-    # Bring up interface
-    try:
-        with EphemeralDHCPv4(connectivity_url_data={"url": url}):
-            # Set metadata route
-            set_route()
+    # Bring up interface (and try untill one works)
+    exception = RuntimeError("Failed to DHCP")
 
-            # Fetch the metadata
-            v1 = read_metadata(url, timeout, retries, sec_between, agent)
-    except (NoDHCPLeaseError) as exc:
-        LOG.error("Bailing, DHCP Exception: %s", exc)
-        raise
+    # Seek iface with DHCP
+    for iface in net.get_interfaces():
+        # Skip dummy interfaces
+        if "dummy" in iface[0]:
+            continue
+        try:
+            with EphemeralDHCPv4(
+                iface=iface[0], connectivity_url_data={"url": url}
+            ):
+                # Set metadata route
+                set_route(iface[0])
 
-    return json.loads(v1)
+                # Fetch the metadata
+                v1 = read_metadata(url, timeout, retries, sec_between, agent)
+        except (NoDHCPLeaseError) as exc:
+            LOG.error("DHCP Exception: %s", exc)
+            exception = exc
+
+        return json.loads(v1)
+    raise exception
 
 
 # Set route for metadata
-def set_route():
+def set_route(iface):
     # Get routes, confirm entry does not exist
     routes = netinfo.route_info()
 
@@ -67,7 +77,7 @@ def set_route():
                 "add",
                 "169.254.169.254/32",
                 "dev",
-                net.find_fallback_nic(),
+                iface,
             ]
         )
     elif subp.which("route"):
