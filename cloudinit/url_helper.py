@@ -540,7 +540,7 @@ def wait_for_url(
 
             url_exc, reason = read_url_handle_response(response, url)
             if not url_exc:
-                return url, response.contents
+                return (url, response.contents)
         except UrlError as e:
             reason = "request error [%s]" % e
             url_exc = e
@@ -561,8 +561,9 @@ def wait_for_url(
             # in the future, for example this is what the MAAS datasource
             # does.
             exception_cb(msg=status_msg, exception=url_exc)
+        return (None, None)
 
-    def url_reader_serial(url):
+    def url_reader(url):
         if headers_cb is not None:
             headers = headers_cb(url)
         else:
@@ -577,9 +578,12 @@ def wait_for_url(
             request_method=request_method,
         )
 
+    def url_reader_serial(url):
+        return (url, url_reader(url))
+
     url_reader_parallel = partial(
         dual_stack,
-        url_reader_serial,
+        url_reader,
         stagger_delay=async_delay,
         max_wait=max_wait,
     )
@@ -598,7 +602,7 @@ def wait_for_url(
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
-            out = readurl_handle_exceptions(url_reader_serial, url)
+            (url, out) = readurl_handle_exceptions(url_reader_serial, url)
             if out:
                 return (url, out)
         return (None, None)

@@ -257,7 +257,6 @@ class DataSourceEc2(sources.DataSource):
                 exception_cb=self._imds_exception_cb,
                 request_method=request_method,
                 headers_redact=AWS_TOKEN_REDACT,
-                connect_synchronously=False,
             )
         except uhelp.UrlError:
             # We use the raised exception to interupt the retry loop.

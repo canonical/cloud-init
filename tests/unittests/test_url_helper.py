@@ -350,7 +350,7 @@ class TestUrlHelper:
     @classmethod
     def response(cls, _, uri, response_headers):
         if uri == SLEEP:
-            sleep(1)
+            sleep(2)
             return [500, response_headers, cls.fail]
         return [200, response_headers, cls.success]
 
@@ -362,7 +362,6 @@ class TestUrlHelper:
             ((SLEEP, ADDR2), 1, "SUCCESS"),
             ((SLEEP, SLEEP, ADDR2), 2, "SUCCESS"),
             ((ADDR1, SLEEP, SLEEP), 0, "SUCCESS"),
-            ((SLEEP, SLEEP, SLEEP), None, ""),
         ],
     )
     @httpretty.activate
@@ -384,19 +383,33 @@ class TestUrlHelper:
         # In practice a value such as 0.150 is used
         url, response_contents = wait_for_url(
             urls=addresses,
-            max_wait=0.1,
+            max_wait=1,
             timeout=1,
             connect_synchronously=False,
             async_delay=0.0,
         )
 
         # Test for timeout (no responding endpoint)
-        if expected_address_index is None:
-            assert not url
-            assert not response_contents
-        else:
-            assert addresses[expected_address_index] == url
-            assert response.encode() == response_contents
+        assert addresses[expected_address_index] == url
+        assert response.encode() == response_contents
+
+    @httpretty.activate
+    def test_timeout(self):
+        addresses = [SLEEP, SLEEP, SLEEP]
+        for address in addresses:
+            httpretty.register_uri(httpretty.GET, address, body=self.response)
+
+        # Use async_delay=0.0 to avoid adding unnecessary time to tests
+        # In practice a value such as 0.150 is used
+        url, response_contents = wait_for_url(
+            urls=addresses,
+            max_wait=0,
+            timeout=0,
+            connect_synchronously=False,
+            async_delay=0.0,
+        )
+        assert not url
+        assert not response_contents
 
 
 # vi: ts=4 expandtab
