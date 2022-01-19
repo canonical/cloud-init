@@ -1737,15 +1737,14 @@ scbus-1 on xpt0 bus 0
             test_lease = {"unknown-245": test_lease_dhcp_option_245}
             m_ephemeral_dhcp_ctx.lease = test_lease
 
-            # We expect 3 calls to report_failure_to_fabric,
-            # because we try 3 different methods of calling report failure.
+            # We expect 2 calls to report_failure_to_fabric,
+            # because we try 2 different methods of calling report failure.
             # The different methods are attempted in the following order:
             # 1. Using cached ephemeral dhcp context to report failure to Azure
             # 2. Using new ephemeral dhcp to report failure to Azure
-            # 3. Using fallback lease to report failure to Azure
             self.m_report_failure_to_fabric.side_effect = Exception
             self.assertFalse(dsrc._report_failure())
-            self.assertEqual(3, self.m_report_failure_to_fabric.call_count)
+            self.assertEqual(2, self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_description_msg(self):
         dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
@@ -1824,31 +1823,6 @@ scbus-1 on xpt0 bus 0
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
                 description=mock.ANY, dhcp_opts=test_lease_dhcp_option_245
-            )
-
-    def test_dsaz_report_failure_no_net_and_no_dhcp_uses_fallback_lease(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
-
-        with mock.patch.object(
-            dsrc, "crawl_metadata"
-        ) as m_crawl_metadata, mock.patch.object(
-            dsrc.distro.networking, "is_up"
-        ) as m_dsrc_distro_networking_is_up:
-            # mock crawl metadata failure to cause report failure
-            m_crawl_metadata.side_effect = Exception
-
-            # net is not up and cannot use cached ephemeral dhcp
-            m_dsrc_distro_networking_is_up.return_value = False
-            # ephemeral dhcp discovery failure,
-            # so cannot use a new ephemeral dhcp
-            self.m_dhcp.return_value.__enter__.side_effect = Exception
-
-            self.assertTrue(dsrc._report_failure())
-
-            # ensure called with fallback lease
-            self.m_report_failure_to_fabric.assert_called_once_with(
-                description=mock.ANY,
-                fallback_lease_file=dsrc.dhclient_lease_file,
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
