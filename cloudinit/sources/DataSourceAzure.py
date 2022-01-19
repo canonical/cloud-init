@@ -299,6 +299,8 @@ class DataSourceAzure(sources.DataSource):
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
+
+        self._ephemeral_dhcp_ctx = None
         if not hasattr(self, "iso_dev"):
             self.iso_dev = None
 
@@ -513,9 +515,10 @@ class DataSourceAzure(sources.DataSource):
 
         if perform_reprovision or perform_reprovision_after_nic_attach:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            use_cached_ephemeral = self.distro.networking.is_up(
-                self.fallback_interface
-            ) and getattr(self, "_ephemeral_dhcp_ctx", None)
+            use_cached_ephemeral = (
+                self.distro.networking.is_up(self.fallback_interface)
+                and self._ephemeral_dhcp_ctx
+            )
             if use_cached_ephemeral:
                 self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
@@ -1321,8 +1324,8 @@ class DataSourceAzure(sources.DataSource):
         try:
             if (
                 self.distro.networking.is_up(self.fallback_interface)
-                and getattr(self, "_ephemeral_dhcp_ctx", None)
-                and getattr(self._ephemeral_dhcp_ctx, "lease", None)
+                and self._ephemeral_dhcp_ctx
+                and self._ephemeral_dhcp_ctx.lease
                 and unknown_245_key in self._ephemeral_dhcp_ctx.lease
             ):
                 report_diagnostic_event(
