@@ -518,6 +518,7 @@ class DataSourceAzure(sources.DataSource):
             use_cached_ephemeral = (
                 self.distro.networking.is_up(self.fallback_interface)
                 and self._ephemeral_dhcp_ctx
+                and self._ephemeral_dhcp_ctx.lease
             )
             if use_cached_ephemeral:
                 self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
