@@ -414,7 +414,11 @@ def dual_stack(
             print("Got exception %s" % return_exception)
             raise return_exception
         elif return_result:
-            print("Address {} returned: {}".format(returned_address, return_result))
+            print(
+                "Address {} returned: {}".format(
+                    returned_address, return_result
+                )
+            )
         else:
             print("Empty result for address: {}".format(returned_address))
 
@@ -574,7 +578,10 @@ def wait_for_url(
         )
 
     url_reader_parallel = partial(
-        dual_stack, url_reader_serial, stagger_delay=async_delay, max_wait=max_wait
+        dual_stack,
+        url_reader_serial,
+        stagger_delay=async_delay,
+        max_wait=max_wait,
     )
 
     def read_url_serial(timeout) -> Tuple:
@@ -582,7 +589,7 @@ def wait_for_url(
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
-                    return ()
+                    return (None, None)
                 if (
                     max_wait is not None
                     and timeout
@@ -594,6 +601,7 @@ def wait_for_url(
             out = readurl_handle_exceptions(url_reader_serial, url)
             if out:
                 return (url, out)
+        return (None, None)
 
     def read_url_parallel() -> Tuple:
         return readurl_handle_exceptions(url_reader_parallel, urls)
@@ -607,13 +615,13 @@ def wait_for_url(
             sleep_time = int(loop_n / 5) + 1
 
         if connect_synchronously:
-            out = read_url_serial(timeout)
-            if out:
-                return out
+            url, _ = read_url_serial(timeout)
+            if url:
+                return url
         else:
-            out = read_url_parallel()
-            if out:
-                return out
+            url, _ = read_url_parallel()
+            if url:
+                return url
 
         if timeup(max_wait, start_time):
             break

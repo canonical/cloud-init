@@ -17,7 +17,7 @@ from cloudinit.url_helper import (
     oauth_headers,
     read_file_or_url,
     retry_on_url_exc,
-    wait_for_url
+    wait_for_url,
 )
 from tests.unittests.helpers import CiTestCase, mock, skipIf
 
@@ -290,10 +290,8 @@ class TestDualStack:
         [
             # Assert order based on timeout
             (lambda x: x, ("one", "two"), 1, 1, "one", None),
-
             # Assert timeout results in (None, None)
             (lambda _: sleep(1), ("one", "two"), 1, 0, None, None),
-
             # Assert that exception in func is raised
             (lambda _: 1 / 0, ("one", "two"), 1, 1, None, ZeroDivisionError),
             (
@@ -331,7 +329,7 @@ class TestDualStack:
             func,
             addresses,
             stagger_delay=stagger_delay,
-            max_wait=max_wait
+            max_wait=max_wait,
         )
         if expected_exc:
             with pytest.raises(expected_exc):
@@ -343,9 +341,11 @@ class TestDualStack:
 
 
 ADDR1, ADDR2, SLEEP = "https://addr1/", "https://addr2/", "https://sleep/"
+
+
 class TestUrlHelper:
-    success="SUCCESS"
-    fail="FAIL"
+    success = "SUCCESS"
+    fail = "FAIL"
 
     @classmethod
     def response(cls, _, uri, response_headers):
@@ -355,9 +355,7 @@ class TestUrlHelper:
         return [200, response_headers, cls.success]
 
     @pytest.mark.parametrize(
-        "addresses,"
-        "expected_address_index,"
-        "response,",
+        "addresses," "expected_address_index," "response,",
         [
             # Use timeout to test ordering happens as expected
             ((ADDR1, SLEEP), 0, "SUCCESS"),
@@ -365,7 +363,8 @@ class TestUrlHelper:
             ((SLEEP, SLEEP, ADDR2), 2, "SUCCESS"),
             ((ADDR1, SLEEP, SLEEP), 0, "SUCCESS"),
             ((SLEEP, SLEEP, SLEEP), None, "SUCCESS"),
-        ])
+        ],
+    )
     @httpretty.activate
     def test_order(self, addresses, expected_address_index, response):
         """Check that the first response is returned. Simulate a non-responding
@@ -375,10 +374,7 @@ class TestUrlHelper:
         of subsequent tests will continue after the first response is received.
         """
         for address in addresses:
-            httpretty.register_uri(
-                httpretty.GET,
-                address,
-                body=self.response)
+            httpretty.register_uri(httpretty.GET, address, body=self.response)
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
         # In practice a value such as 0.150 is used
@@ -387,13 +383,14 @@ class TestUrlHelper:
             max_wait=0.1,
             timeout=1,
             connect_synchronously=False,
-            async_delay=0.0
+            async_delay=0.0,
         )
-        if expected_address_index == None:
+        if expected_address_index is None:
             assert not url
             assert not response_contents
         else:
             assert addresses[expected_address_index] == url
             assert response.encode() == response_contents
+
 
 # vi: ts=4 expandtab
