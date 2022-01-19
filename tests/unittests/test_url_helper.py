@@ -284,7 +284,7 @@ class TestDualStack:
         "func,"
         "addresses,"
         "stagger_delay,"
-        "max_timeout,"
+        "max_wait,"
         "expected_val,"
         "expected_exc",
         [
@@ -320,7 +320,7 @@ class TestDualStack:
         func,
         addresses,
         stagger_delay,
-        max_timeout,
+        max_wait,
         expected_val,
         expected_exc,
     ):
@@ -329,45 +329,71 @@ class TestDualStack:
         gen = partial(
             dual_stack,
             func,
-            *addresses,
+            addresses,
             stagger_delay=stagger_delay,
-            max_timeout=max_timeout
+            max_wait=max_wait
         )
         if expected_exc:
             with pytest.raises(expected_exc):
-                assert expected_val == assert_time(gen)
+                _, result = assert_time(gen)
+                assert expected_val == result
         else:
-            assert expected_val == assert_time(gen)
+            _, result = assert_time(gen)
+            assert expected_val == result
 
 
-
+ADDR1, ADDR2, SLEEP = "https://addr1/", "https://addr2/", "https://sleep/"
 class TestUrlHelper:
-    uri_sleep="https://sleep/"
     success="SUCCESS"
     fail="FAIL"
 
     @classmethod
     def response(cls, _, uri, response_headers):
-        if uri == cls.uri_sleep:
+        if uri == SLEEP:
             sleep(1)
             return [500, response_headers, cls.fail]
         return [200, response_headers, cls.success]
 
+    @pytest.mark.parametrize(
+        "addresses,"
+        "expected_address_index,"
+        "response,",
+        [
+            # Use timeout to test ordering happens as expected
+            ((ADDR1, SLEEP), 0, "SUCCESS"),
+            ((SLEEP, ADDR2), 1, "SUCCESS"),
+            ((SLEEP, SLEEP, ADDR2), 2, "SUCCESS"),
+            ((ADDR1, SLEEP, SLEEP), 0, "SUCCESS"),
+            ((SLEEP, SLEEP, SLEEP), None, "SUCCESS"),
+        ])
     @httpretty.activate
-    def test_order(self):
-        urls = ["https://first/", self.uri_sleep]
-        for url in urls:
+    def test_order(self, addresses, expected_address_index, response):
+        """Check that the first response is returned. Simulate a non-responding
+        endpoint with a response that has a one second sleep. If this test
+        proves flaky, increase sleep time. Since it is async, increasing
+        sleep time should not increase total test time, since execution
+        of subsequent tests will continue after the first response is received.
+        """
+        for address in addresses:
             httpretty.register_uri(
                 httpretty.GET,
-                url,
+                address,
                 body=self.response)
+
+        # Use async_delay=0.0 to avoid adding unnecessary time to tests
+        # In practice a value such as 0.150 is used
         url, response_contents = wait_for_url(
-            urls=urls,
-            max_wait=1,
+            urls=addresses,
+            max_wait=0.1,
             timeout=1,
-            connect_synchronously=False
+            connect_synchronously=False,
+            async_delay=0.0
         )
-        assert url == urls[0]
-        assert response_contents
+        if expected_address_index == None:
+            assert not url
+            assert not response_contents
+        else:
+            assert addresses[expected_address_index] == url
+            assert response.encode() == response_contents
 
 # vi: ts=4 expandtab

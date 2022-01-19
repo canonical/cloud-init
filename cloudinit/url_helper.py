@@ -19,7 +19,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from typing import Any, Callable
+from typing import Any, Callable, List, Tuple
 from urllib.parse import quote, urlparse, urlunparse
 
 import requests
@@ -370,10 +370,10 @@ def readurl(
 
 def dual_stack(
     func: Callable[..., Any],
-    *addresses: str,
+    addresses: List[str],
     stagger_delay: float = 0.150,
-    max_timeout: int = 10,
-) -> Any:
+    max_wait: int = 10,
+) -> Tuple:
     """attempt connecting to multiple addresses asynchronously
 
     Run blocking func against two different addresses staggered with a
@@ -384,10 +384,10 @@ def dual_stack(
     - replace print() w/logging
     """
     return_result = None
+    returned_address = None
 
     def _run_func(func, addr, delay=None):
         """Execute func with optional delay"""
-
         if delay:
             time.sleep(delay)
         return func(addr)
@@ -405,7 +405,7 @@ def dual_stack(
         }
 
         # handle the first function to complete from the threadpool executor
-        future = next(as_completed(futures, timeout=max_timeout))
+        future = next(as_completed(futures, timeout=max_wait))
 
         returned_address = futures[future]
         return_result = future.result()
@@ -414,11 +414,11 @@ def dual_stack(
             print("Got exception %s" % return_exception)
             raise return_exception
         elif return_result:
-            print("Address {} returned".format(returned_address))
+            print("Address {} returned: {}".format(returned_address, return_result))
         else:
             print("Empty result for address: {}".format(returned_address))
 
-    # when max_timeout expires
+    # when max_wait expires
     except TimeoutError:
         print(
             "Timed out waiting for addresses: {}".format(
@@ -437,7 +437,7 @@ def dual_stack(
             )
         else:
             executor.shutdown(wait=False)
-    return return_result
+    return (returned_address, return_result)
 
 
 def wait_for_url(
@@ -452,6 +452,7 @@ def wait_for_url(
     sleep_time_cb=None,
     request_method=None,
     connect_synchronously=True,
+    async_delay=0.150,
 ):
     """
     urls:      a list of urls to try
@@ -469,6 +470,8 @@ def wait_for_url(
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
                    generates the next sleep time.
     request_method: indicate the type of HTTP request, GET, PUT, or POST
+    connect_synchonously: enable dual-stack support
+    async_delay: delay before parallel metadata requests, see RFC 6555
     returns: tuple of (url, response contents), on failure, (False, None)
 
     the idea of this routine is to wait for the EC2 metadata service to
@@ -523,12 +526,13 @@ def wait_for_url(
             url_exc = None
         return (url_exc, reason)
 
-    def readurl_handle_exceptions(url_reader, url):
+    def readurl_handle_exceptions(url_reader, urls):
         reason = ""
         url_exc = None
+        url = None
         try:
 
-            response = url_reader(url)
+            url, response = url_reader(urls)
 
             url_exc, reason = read_url_handle_response(response, url)
             if not url_exc:
@@ -570,15 +574,15 @@ def wait_for_url(
         )
 
     url_reader_parallel = partial(
-        dual_stack, url_reader_serial, stagger_delay=0.150, max_timeout=timeout
+        dual_stack, url_reader_serial, stagger_delay=async_delay, max_wait=max_wait
     )
 
-    def read_url_serial(timeout):
+    def read_url_serial(timeout) -> Tuple:
         for url in urls:
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
-                    return
+                    return ()
                 if (
                     max_wait is not None
                     and timeout
@@ -589,12 +593,10 @@ def wait_for_url(
 
             out = readurl_handle_exceptions(url_reader_serial, url)
             if out:
-                return out
+                return (url, out)
 
-    def read_url_parallel():
-        out = readurl_handle_exceptions(url_reader_parallel, urls[0])
-        if out:
-            return out
+    def read_url_parallel() -> Tuple:
+        return readurl_handle_exceptions(url_reader_parallel, urls)
 
     loop_n = 0
     response = None
