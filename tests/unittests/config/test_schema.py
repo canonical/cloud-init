@@ -234,9 +234,12 @@ class TestValidateCloudConfigSchema:
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
         validate_cloudconfig_schema({"p1": -1}, schema, strict=False)
+        [(module, log_level, log_msg)] = caplog.record_tuples
+        assert "cloudinit.config.schema" == module
+        assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided:\np1: -1 is not of type 'string'\n"
-            in (caplog.text)
+            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
+            == log_msg
         )
 
     @skipUnlessJsonSchema()
