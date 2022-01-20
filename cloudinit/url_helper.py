@@ -374,14 +374,12 @@ def dual_stack(
     stagger_delay: float = 0.150,
     max_wait: int = 10,
 ) -> Tuple:
-    """attempt connecting to multiple addresses asynchronously
+    """execute multiple callbacks in parallel
 
     Run blocking func against two different addresses staggered with a
     delay. The first call to return is returned from this function and
-    remaining unfinished calls will be canceled.
-
-    TODO:
-    - replace print() w/logging
+    remaining unfinished calls are canceled (or finish asynchronously on
+    python <3.9
     """
     return_result = None
     returned_address = None
@@ -411,28 +409,21 @@ def dual_stack(
         return_result = future.result()
         return_exception = future.exception()
         if return_exception:
-            print("Got exception %s" % return_exception)
-            raise return_exception
-        elif return_result:
-            print(
-                "Address {} returned: {}".format(
-                    returned_address, return_result
-                )
+            LOG.warning(
+                "Exception %s during request to %s",
+                return_exception,
+                returned_address,
             )
-        else:
-            print("Empty result for address: {}".format(returned_address))
+            raise return_exception
+        elif not return_result:
+            LOG.warning("Empty result for address %s", returned_address)
 
     # when max_wait expires
     except TimeoutError:
-        print(
-            "Timed out waiting for addresses: {}".format(
-                " ".join(map(str, addresses))
-            )
-        )
+        LOG.warning("Timed out waiting for addresses: %s", " ".join(addresses))
 
     # Executor doesn't provide kwargs for setting shutdown behavior
     # in the constructor, otherwise the context manager would be preferred
-    # think they would take a PR implementing that?
     finally:
         # python 3.9 allows canceling futures, which may save some cycles
         if sys.version_info.major >= 3 and sys.version_info.minor > 9:
@@ -474,7 +465,7 @@ def wait_for_url(
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
                    generates the next sleep time.
     request_method: indicate the type of HTTP request, GET, PUT, or POST
-    connect_synchonously: enable dual-stack support
+    connect_synchronously: if false, enables executing requests in parallel
     async_delay: delay before parallel metadata requests, see RFC 6555
     returns: tuple of (url, response contents), on failure, (False, None)
 
@@ -530,14 +521,11 @@ def wait_for_url(
             url_exc = None
         return (url_exc, reason)
 
-    def readurl_handle_exceptions(url_reader, urls):
+    def read_url_handle_exceptions(url_reader_cb, urls):
         reason = ""
-        url_exc = None
         url = None
         try:
-
-            url, response = url_reader(urls)
-
+            url, response = url_reader_cb(urls)
             url_exc, reason = read_url_handle_response(response, url)
             if not url_exc:
                 return (url, response.contents)
@@ -561,39 +549,32 @@ def wait_for_url(
             # in the future, for example this is what the MAAS datasource
             # does.
             exception_cb(msg=status_msg, exception=url_exc)
-        return (None, None)
 
-    def url_reader(url):
-        if headers_cb is not None:
-            headers = headers_cb(url)
-        else:
-            headers = {}
-
+    def read_url_cb(url):
         return readurl(
             url,
-            headers=headers,
+            headers={} if headers_cb is None else headers_cb(url),
             headers_redact=headers_redact,
             timeout=timeout,
             check_status=False,
             request_method=request_method,
         )
 
-    def url_reader_serial(url):
-        return (url, url_reader(url))
+    def read_url_serial():
+        """iterate over list of urls, request each one and handle responses
+        and thrown exceptions individually per url
+        """
 
-    url_reader_parallel = partial(
-        dual_stack,
-        url_reader,
-        stagger_delay=async_delay,
-        max_wait=max_wait,
-    )
+        def url_reader_serial(url):
+            return (url, read_url_cb(url))
 
-    def read_url_serial(timeout) -> Tuple:
+        nonlocal timeout
+
         for url in urls:
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
-                    return (None, None)
+                    return
                 if (
                     max_wait is not None
                     and timeout
@@ -602,13 +583,27 @@ def wait_for_url(
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
-            (url, out) = readurl_handle_exceptions(url_reader_serial, url)
+            out = read_url_handle_exceptions(url_reader_serial, url)
             if out:
-                return (url, out)
-        return (None, None)
+                return out
 
-    def read_url_parallel() -> Tuple:
-        return readurl_handle_exceptions(url_reader_parallel, urls)
+    def read_url_parallel():
+        """pass list of urls to dual_stack which sends requests in parallel
+        handle response and exceptions of the first endpoint to respond
+        """
+        url_reader_parallel = partial(
+            dual_stack,
+            read_url_cb,
+            stagger_delay=async_delay,
+            max_wait=max_wait,
+        )
+        out = read_url_handle_exceptions(url_reader_parallel, urls)
+        if out:
+            return out
+
+    do_read_url = (
+        read_url_serial if connect_synchronously else read_url_parallel
+    )
 
     loop_n = 0
     response = None
@@ -618,14 +613,9 @@ def wait_for_url(
         else:
             sleep_time = int(loop_n / 5) + 1
 
-        if connect_synchronously:
-            url = read_url_serial(timeout)
-            if url:
-                return url
-        else:
-            url = read_url_parallel()
-            if url:
-                return url
+        url = do_read_url()
+        if url:
+            return url
 
         if timeup(max_wait, start_time):
             break

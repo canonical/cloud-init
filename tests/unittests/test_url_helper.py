@@ -340,7 +340,9 @@ class TestDualStack:
             assert expected_val == result
 
 
-ADDR1, ADDR2, SLEEP = "https://addr1/", "https://addr2/", "https://sleep/"
+ADDR1 = "https://addr1/"
+SLEEP1 = "https://sleep1/"
+SLEEP2 = "https://sleep2/"
 
 
 class TestUrlHelper:
@@ -349,8 +351,8 @@ class TestUrlHelper:
 
     @classmethod
     def response(cls, _, uri, response_headers):
-        if uri == SLEEP:
-            sleep(2)
+        if uri in (SLEEP1, SLEEP2):
+            sleep(1)
             return [500, response_headers, cls.fail]
         return [200, response_headers, cls.success]
 
@@ -358,10 +360,10 @@ class TestUrlHelper:
         "addresses," "expected_address_index," "response,",
         [
             # Use timeout to test ordering happens as expected
-            ((ADDR1, SLEEP), 0, "SUCCESS"),
-            ((SLEEP, ADDR2), 1, "SUCCESS"),
-            ((SLEEP, SLEEP, ADDR2), 2, "SUCCESS"),
-            ((ADDR1, SLEEP, SLEEP), 0, "SUCCESS"),
+            ((ADDR1, SLEEP1), 0, "SUCCESS"),
+            ((SLEEP1, ADDR1), 1, "SUCCESS"),
+            ((SLEEP1, SLEEP2, ADDR1), 2, "SUCCESS"),
+            ((ADDR1, SLEEP1, SLEEP2), 0, "SUCCESS"),
         ],
     )
     @httpretty.activate
@@ -376,7 +378,7 @@ class TestUrlHelper:
         Subsequent tests will continue execution after the first response is
         received.
         """
-        for address in addresses:
+        for address in set(addresses):
             httpretty.register_uri(httpretty.GET, address, body=self.response)
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
@@ -395,8 +397,8 @@ class TestUrlHelper:
 
     @httpretty.activate
     def test_timeout(self):
-        addresses = [SLEEP, SLEEP, SLEEP]
-        for address in addresses:
+        addresses = [SLEEP1, SLEEP2]
+        for address in set(addresses):
             httpretty.register_uri(httpretty.GET, address, body=self.response)
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
@@ -406,7 +408,7 @@ class TestUrlHelper:
             max_wait=0,
             timeout=0,
             connect_synchronously=False,
-            async_delay=0.0,
+            async_delay=0,
         )
         assert not url
         assert not response_contents
