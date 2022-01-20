@@ -2803,9 +2803,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         isfile.return_value = False
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(
-            dsa._should_reprovision(
-                (None, None, {"PreprovisionedVm": True}, None)
-            )
+            dsa._should_reprovision({"PreprovisionedVm": True}, None)
         )
 
     def test__should_reprovision_with_file_existing(self, isfile):
@@ -2814,9 +2812,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(
-            dsa._should_reprovision(
-                (None, None, {"preprovisionedvm": False}, None)
-            )
+            dsa._should_reprovision({"preprovisionedvm": False}, None)
         )
 
     def test__should_reprovision_returns_false(self, isfile):
@@ -2824,7 +2820,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         if config and sentinal are not present."""
         isfile.return_value = False
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
+        self.assertFalse(dsa._should_reprovision({}))
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     def test__should_reprovision_uses_imds_md(self, write_file, isfile):
@@ -2834,14 +2830,14 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(
             dsa._should_reprovision(
-                (None, None, {}, None),
+                {},
                 {"extended": {"compute": {"ppsType": "Running"}}},
             )
         )
-        self.assertFalse(dsa._should_reprovision((None, None, {}, None), {}))
+        self.assertFalse(dsa._should_reprovision({}, {}))
         self.assertFalse(
             dsa._should_reprovision(
-                (None, None, {}, None),
+                {},
                 {"extended": {"compute": {"hasCustomData": False}}},
             )
         )
