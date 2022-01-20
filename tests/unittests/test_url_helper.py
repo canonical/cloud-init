@@ -397,12 +397,13 @@ class TestUrlHelper:
 
     @httpretty.activate
     def test_timeout(self):
+        """If no endpoint responds in time, expect no response"""
+
         addresses = [SLEEP1, SLEEP2]
         for address in set(addresses):
             httpretty.register_uri(httpretty.GET, address, body=self.response)
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
-        # In practice a value such as 0.150 is used
         url, response_contents = wait_for_url(
             urls=addresses,
             max_wait=0,
