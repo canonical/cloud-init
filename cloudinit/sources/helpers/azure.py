@@ -1243,11 +1243,12 @@ def dhcp_log_cb(out, err):
     )
 
 
-class EphemeralDHCPv4WithReporting:
-    def __init__(self, reporter, nic=None):
+class EphemeralDHCPv4WithReporting(EphemeralDHCPv4):
+    def __init__(self, reporter, iface=None):
         self.reporter = reporter
-        self.ephemeralDHCPv4 = EphemeralDHCPv4(
-            iface=nic, dhcp_log_func=dhcp_log_cb
+
+        super(EphemeralDHCPv4WithReporting, self).__init__(
+            iface=iface, dhcp_log_func=dhcp_log_cb
         )
 
     def __enter__(self):
@@ -1256,10 +1257,7 @@ class EphemeralDHCPv4WithReporting:
             description="obtain dhcp lease",
             parent=self.reporter,
         ):
-            return self.ephemeralDHCPv4.__enter__()
-
-    def __exit__(self, excp_type, excp_value, excp_traceback):
-        self.ephemeralDHCPv4.__exit__(excp_type, excp_value, excp_traceback)
+            return super(EphemeralDHCPv4WithReporting, self).__enter__()
 
 
 # vi: ts=4 expandtab

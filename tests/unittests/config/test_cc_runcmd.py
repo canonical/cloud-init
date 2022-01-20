@@ -73,7 +73,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         with self.assertRaises(TypeError) as cm:
             handle("cc_runcmd", invalid_config, cc, LOG, [])
         self.assertIn(
-            "Invalid config:\nruncmd: 1 is not of type 'array'",
+            "Invalid cloud-config provided:\nruncmd: 1 is not of type 'array'",
             self.logs.getvalue(),
         )
         self.assertIn("Failed to shellify", str(cm.exception))

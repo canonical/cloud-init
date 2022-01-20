@@ -73,6 +73,7 @@ matrix:
             - sudo usermod -a -G lxd $USER
             - sudo sbuild-adduser $USER
             - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+            - echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
           script:
             # Ubuntu LTS: Build
             - ./packages/bddeb -S -d --release bionic

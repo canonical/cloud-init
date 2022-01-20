@@ -4,10 +4,6 @@ import os
 import sys
 import argparse
 
-VARIANTS = ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
-            "eurolinux", "fedora", "freebsd", "gentoo", "miraclelinux", "netbsd", "openbsd", "openEuler", "photon",
-            "rhel", "suse","rocky", "ubuntu", "unknown", "virtuozzo"]
-
 def main():
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(0, _tdir)
@@ -24,6 +20,7 @@ def main():
         "eurolinux",
         "fedora",
         "freebsd",
+        "gentoo",
         "miraclelinux",
         "netbsd",
         "openbsd",

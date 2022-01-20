@@ -77,7 +77,8 @@ class TestBootcmd(CiTestCase):
         with self.assertRaises(TypeError):
             handle("cc_bootcmd", invalid_config, cc, LOG, [])
         self.assertIn(
-            "Invalid config:\nbootcmd: 1 is not of type 'array'",
+            "Invalid cloud-config provided:\nbootcmd: 1 is not of type"
+            " 'array'",
             self.logs.getvalue(),
         )
         self.assertIn("Failed to shellify", self.logs.getvalue())

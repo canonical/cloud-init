@@ -43,9 +43,11 @@ class TestWriteFilesDeferredSchema(CiTestCase):
 
         cc = self.tmp_cloud("ubuntu")
         handle("cc_write_files_deferred", valid_config, cc, LOG, [])
-        self.assertNotIn("Invalid config:", self.logs.getvalue())
+        self.assertNotIn(
+            "Invalid cloud-config provided:", self.logs.getvalue()
+        )
         handle("cc_write_files_deferred", invalid_config, cc, LOG, [])
-        self.assertIn("Invalid config:", self.logs.getvalue())
+        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
         self.assertIn(
             "defer: 'no' is not of type 'boolean'", self.logs.getvalue()
         )

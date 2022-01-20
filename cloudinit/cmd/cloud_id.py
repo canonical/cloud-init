@@ -63,7 +63,7 @@ def handle_args(name, args):
 
     Print the canonical cloud-id on which the instance is running.
 
-    @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not-run.
+    @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not run.
     """
     status, _status_details, _time = get_status_details()
     if status == UXAppStatus.DISABLED:

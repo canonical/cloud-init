@@ -92,8 +92,8 @@ class TestResizefs(CiTestCase):
         handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
         logs = self.logs.getvalue()
         self.assertIn(
-            "WARNING: Invalid config:\nresize_rootfs: 'junk' is not one of"
-            " [True, False, 'noblock']",
+            "WARNING: Invalid cloud-config provided:\nresize_rootfs: 'junk' is"
+            " not one of [True, False, 'noblock']",
             logs,
         )
         self.assertIn(
@@ -108,7 +108,9 @@ class TestResizefs(CiTestCase):
         cfg = {"resize_rootfs": True}
         handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
         logs = self.logs.getvalue()
-        self.assertNotIn("WARNING: Invalid config:\nresize_rootfs:", logs)
+        self.assertNotIn(
+            "WARNING: Invalid cloud-config provided:\nresize_rootfs:", logs
+        )
         self.assertIn(
             "WARNING: Could not determine filesystem type of /\n", logs
         )

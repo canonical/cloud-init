@@ -332,6 +332,9 @@ setuptools.setup(
     author="Scott Moser",
     author_email="scott.moser@canonical.com",
     url="http://launchpad.net/cloud-init/",
+    package_data={
+        "": ["*.json"],
+    },
     packages=setuptools.find_packages(exclude=["tests.*", "tests"]),
     scripts=["tools/cloud-init-per"],
     license="Dual-licensed under GPLv3 or Apache 2.0",

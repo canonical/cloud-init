@@ -137,7 +137,7 @@ class TestStatus(CiTestCase):
         )
 
     def test_status_returns_not_run(self):
-        """When status.json does not exist yet, return 'not-run'."""
+        """When status.json does not exist yet, return 'not run'."""
         self.assertFalse(
             os.path.exists(self.status_file), "Unexpected status.json found"
         )
@@ -154,7 +154,7 @@ class TestStatus(CiTestCase):
                 cmdargs,
             )
         self.assertEqual(0, retcode)
-        self.assertEqual("status: not-run\n", m_stdout.getvalue())
+        self.assertEqual("status: not run\n", m_stdout.getvalue())
 
     def test_status_returns_disabled_long_on_presence_of_disable_file(self):
         """When cloudinit is disabled, return disabled reason."""
