@@ -16,6 +16,7 @@ DISTRO_VARIANTS = [
     "eurolinux",
     "fedora",
     "freebsd",
+    "gentoo",
     "netbsd",
     "openbsd",
     "photon",
