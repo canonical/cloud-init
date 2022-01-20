@@ -14,6 +14,7 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from time import sleep, time
+from typing import Optional
 from xml.dom import minidom
 
 import requests
@@ -1315,7 +1316,7 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description=None) -> bool:
+    def _report_failure(self, description: Optional[str] = None) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
@@ -1361,21 +1362,6 @@ class DataSourceAzure(sources.DataSource):
         except Exception as e:
             report_diagnostic_event(
                 "Failed to report failure using new ephemeral dhcp: %s" % e,
-                logger_func=LOG.debug,
-            )
-
-        try:
-            report_diagnostic_event(
-                "Using fallback lease to report failure to Azure"
-            )
-            report_failure_to_fabric(
-                fallback_lease_file=self.dhclient_lease_file,
-                description=description,
-            )
-            return True
-        except Exception as e:
-            report_diagnostic_event(
-                "Failed to report failure using fallback lease: %s" % e,
                 logger_func=LOG.debug,
             )
 
