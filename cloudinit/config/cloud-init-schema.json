@@ -545,6 +545,35 @@
         }
       }
     },
+    "cc_keyboard": {
+      "type": "object",
+      "properties": {
+        "keyboard": {
+          "type": "object",
+          "properties": {
+            "layout": {
+              "type": "string",
+              "description": "Required. Keyboard layout. Corresponds to XKBLAYOUT."
+            },
+            "model": {
+              "type": "string",
+              "default": "pc105",
+              "description": "Optional. Keyboard model. Corresponds to XKBMODEL. Default: ``pc105``."
+            },
+            "variant": {
+              "type": "string",
+              "description": "Optional. Keyboard variant. Corresponds to XKBVARIANT."
+            },
+            "options": {
+              "type": "string",
+              "description": "Optional. Keyboard options. Corresponds to XKBOPTIONS."
+            }
+          },
+          "required": ["layout"],
+          "additionalProperties": false
+        }
+      }
+    },
     "cc_package_update_upgrade_install": {
         "type": "object",
         "properties": {
@@ -1020,6 +1049,7 @@
     { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
+    { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},

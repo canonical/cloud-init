@@ -135,6 +135,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
+            {"$ref": "#/$defs/cc_keyboard"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},
             {"$ref": "#/$defs/cc_phone_home"},
             {"$ref": "#/$defs/cc_power_state_change"},
@@ -158,7 +159,6 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "drivers",
-            "keyboard",
             "locale",
             "locale_configfile",
             "ntp",
