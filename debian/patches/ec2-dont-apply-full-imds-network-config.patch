@@ -7,40 +7,42 @@ Author: Chad Smith <chad.smith@canonical.com>
 Origin: backport
 Forwarded: not-needed
 Last-Update: 2020-06-01
---- a/cloudinit/sources/DataSourceEc2.py
-+++ b/cloudinit/sources/DataSourceEc2.py
-@@ -417,13 +417,13 @@ class DataSourceEc2(sources.DataSource):
-         iface = self.fallback_interface
-         net_md = self.metadata.get('network')
+Index: cloud-init/cloudinit/sources/DataSourceEc2.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/DataSourceEc2.py	2022-01-20 13:15:13.608854440 -0700
++++ cloud-init/cloudinit/sources/DataSourceEc2.py	2022-01-20 13:19:34.252913487 -0700
+@@ -457,12 +457,12 @@
          if isinstance(net_md, dict):
--            # SRU_BLOCKER: xenial, bionic and eoan should default
-+            # xenial, bionic and eoan now default
+             # SRU_BLOCKER: xenial, bionic and eoan should default
              # apply_full_imds_network_config to False to retain original
 -            # behavior on those releases.
 +            # behavior on those releases.  SRU_UPSTREAM_COMMIT: 6600c6
              result = convert_ec2_metadata_network_config(
-                 net_md, fallback_nic=iface,
+                 net_md,
+                 fallback_nic=iface,
                  full_network_config=util.get_cfg_option_bool(
--                    self.ds_cfg, 'apply_full_imds_network_config', True))
-+                    self.ds_cfg, 'apply_full_imds_network_config', False))
+-                    self.ds_cfg, "apply_full_imds_network_config", True
++                    self.ds_cfg, "apply_full_imds_network_config", False
+                 ),
+             )
  
-             # RELEASE_BLOCKER: xenial should drop the below if statement,
-             # because the issue being addressed doesn't exist pre-netplan.
---- a/tests/unittests/sources/test_ec2.py
-+++ b/tests/unittests/sources/test_ec2.py
-@@ -447,7 +447,14 @@ class TestEc2(test_helpers.HttprettyTest
+Index: cloud-init/tests/unittests/sources/test_ec2.py
+===================================================================
+--- cloud-init.orig/tests/unittests/sources/test_ec2.py	2022-01-20 13:15:13.608854440 -0700
++++ cloud-init/tests/unittests/sources/test_ec2.py	2022-01-20 13:32:36.485771603 -0700
+@@ -451,7 +451,14 @@
          """
          ds = self._setup_ds(
              platform_data=self.valid_platform_data,
--            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+-            sys_cfg={"datasource": {"Ec2": {"strict_id": True}}},
 +            sys_cfg={
-+                'datasource': {
-+                    'Ec2': {
-+                        'strict_id': True,
-+                        'apply_full_imds_network_config': True
++                "datasource": {
++                    "Ec2": {
++                        "strict_id": True,
++                        "apply_full_imds_network_config": True,
 +                    }
 +                }
 +            },
-             md={'md': SECONDARY_IP_METADATA_2018_09_24})
-         find_fallback_path = M_PATH_NET + 'find_fallback_nic'
-         with mock.patch(find_fallback_path) as m_find_fallback:
+             md={"md": SECONDARY_IP_METADATA_2018_09_24},
+         )
+         find_fallback_path = M_PATH_NET + "find_fallback_nic"
