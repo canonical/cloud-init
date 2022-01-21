@@ -105,6 +105,8 @@ class TestUpstartJobPartHandler(FilesystemMockingTestCase):
 
 class TestJinjaTemplatePartHandler(CiTestCase):
 
+    with_logs = True
+    
     mpath = "cloudinit.handlers.jinja_template."
 
     def setUp(self):
