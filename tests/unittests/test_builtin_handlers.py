@@ -25,6 +25,7 @@ from cloudinit.handlers.shell_script_by_frequency import (
     pathMap,
 )
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
+
 # from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import (
@@ -102,7 +103,7 @@ class TestUpstartJobPartHandler(FilesystemMockingTestCase):
         )
 
 
-class TestJinjaTemplatePartHandler():
+class TestJinjaTemplatePartHandler:
 
     mpath = "cloudinit.handlers.jinja_template."
 
