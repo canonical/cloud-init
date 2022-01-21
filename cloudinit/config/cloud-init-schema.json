@@ -1036,6 +1036,36 @@
           }
         }
       }
+    },
+    "cc_keys_to_console": {
+      "type": "object",
+      "properties": {
+        "ssh": {
+          "type": "object",
+          "properties": {
+            "emit_keys_to_console": {
+              "type": "boolean",
+              "default": true,
+              "description": "Set false to avoid printing SSH keys to system console. Default: ``true``."
+            }
+           },
+           "additionalProperties": false,
+           "required": ["emit_keys_to_console"]
+        },
+        "ssh_key_console_blacklist": {
+          "type": "array",
+          "default": ["ssh-dss"],
+          "description": "Avoid printing matching SSH key types to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "ssh_fp_console_blacklist": {
+          "type": "array",
+          "description": "Avoid printing matching SSH fingerprints to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      }
     }
   },
   "allOf": [
@@ -1050,6 +1080,7 @@
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
     { "$ref": "#/$defs/cc_keyboard" },
+    { "$ref": "#/$defs/cc_keys_to_console" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
