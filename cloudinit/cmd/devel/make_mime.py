@@ -32,9 +32,9 @@ def create_mime_message(files):
         sub_message.add_header('Content-Disposition',
                                'attachment; filename="%s"' % (filename))
         content_type = sub_message.get_content_type().lower()
-        if content_type not in get_content_types(): 
+        if content_type not in get_content_types():
             msg = ("content type %r for attachment %s "
-                   "may be incorrect!") % (content_type, i+1)
+                   "may be incorrect!") % (content_type, i + 1)
             errors.append(msg)
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()
@@ -105,6 +105,7 @@ def get_content_types(strip_prefix=False):
             for ctype in INCLUSION_TYPES_MAP.values()
         ]
     )
+
 
 def handle_args(name, args):
     """Create a multi-part MIME archive for use as user-data.  Optionally

@@ -20,14 +20,14 @@ from cloudinit.handlers.jinja_template import (
 )
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+# from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, PER_ONCE)
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     mock,
     skipUnlessJinja,
 )
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, PER_ONCE)
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
 

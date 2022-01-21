@@ -2,7 +2,7 @@
 """Integration tests for various handlers."""
 
 from io import StringIO
-from types import SimpleNamespace
+# from types import SimpleNamespace
 
 import pytest
 
@@ -28,7 +28,7 @@ PER_ONCE_FILE = StringIO(PER_FREQ_TEMPLATE.format('once'))
 #     ]
 # )
 
-FILES=[
+FILES = [
     (PER_BOOT_FILE, 'boot.sh', 'x-shellscript-per-boot'),
     (PER_INSTANCE_FILE, 'instance.sh', 'x-shellscript-per-instance'),
     (PER_ONCE_FILE, 'once.sh', 'x-shellscript-per-once'),
@@ -37,6 +37,8 @@ FILES=[
 USER_DATA, errors = create_mime_message(FILES)
 print(f'errors={errors}')
 print(f'USER_DATA=${USER_DATA}')
+
+
 @pytest.mark.user_data(USER_DATA)
 def test_per_freq(client: IntegrationInstance):
     print('checking /v/l/c/scripts exists ...')
@@ -44,23 +46,29 @@ def test_per_freq(client: IntegrationInstance):
     assert rc_ok is True
     # Test per-boot
     print('checking /v/l/c/s/per-boot/boot.sh exists ...')
-    rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/boot.sh').ok
+    cmd = 'test -f /var/lib/cloud/scripts/per-boot/boot.sh'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     print('checking /tmp/c/test_per_freq_boot exists ...')
-    rc_ok = client.execute('test -f /tmp/test_per_freq_boot').ok
+    cmd = 'test -f /tmp/test_per_freq_boot'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     # Test per-instance
     print('checking /v/l/c/s/per-boot/instance.sh exists ...')
-    rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/instance.sh').ok
+    cmd = 'test -f /var/lib/cloud/scripts/per-boot/instance.sh'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     print('checking /tmp/c/test_per_freq_instance exists ...')
-    rc_ok = client.execute('test -f /tmp/test_per_freq_instance').ok
+    cmd = 'test -f /tmp/test_per_freq_instance'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     # Test per-once
     print('checking /v/l/c/s/per-boot/once.sh exists ...')
-    rc_ok = client.execute('test -f /var/lib/cloud/scripts/per-boot/once.sh').ok
+    cmd = 'test -f /var/lib/cloud/scripts/per-boot/once.sh'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     print('checking /tmp/c/test_per_freq_once exists ...')
-    rc_ok = client.execute('test -f /tmp/test_per_freq_once').ok
+    cmd = 'test -f /tmp/test_per_freq_once'
+    rc_ok = client.execute(cmd).ok
     assert rc_ok is True
     pass
