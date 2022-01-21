@@ -12,6 +12,7 @@ from textwrap import dedent
 import pytest
 
 from cloudinit import handlers, helpers, subp, util
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
     JinjaTemplatePartHandler,
@@ -19,8 +20,11 @@ from cloudinit.handlers.jinja_template import (
     render_jinja_payload,
 )
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
+from cloudinit.handlers.shell_script_by_frequency import (
+    get_script_folder_by_frequency,
+    pathMap,
+)
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-
 # from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import (
@@ -98,9 +102,7 @@ class TestUpstartJobPartHandler(FilesystemMockingTestCase):
         )
 
 
-class TestJinjaTemplatePartHandler(CiTestCase):
-
-    with_logs = True
+class TestJinjaTemplatePartHandler():
 
     mpath = "cloudinit.handlers.jinja_template."
 
@@ -479,17 +481,11 @@ class TestShellScriptByFrequencyHandlers(CiTestCase):
     with_logs = True
 
     def do_test_frequency(self, frequency):
-        from cloudinit.cmd.devel import read_cfg_paths
-        from cloudinit.handlers.shell_script_by_frequency import (
-            get_script_folder_by_frequency,
-            pathMap,
-        )
-
         ci_paths = read_cfg_paths()
         scripts_dir = ci_paths.get_cpath("scripts")
         testFolder = os.path.join(scripts_dir, pathMap[frequency])
         folder = get_script_folder_by_frequency(frequency, scripts_dir)
-        self.assertEqual(testFolder, folder)
+        assert testFolder == folder
 
     def test_get_script_folder_per_boot(self):
         self.do_test_frequency(PER_ALWAYS)
