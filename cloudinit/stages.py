@@ -15,13 +15,15 @@ from cloudinit import cloud, config, distros, handlers, helpers, importer
 from cloudinit import log as logging
 from cloudinit import net, sources, type_utils, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
+
 # Default handlers (used if not overridden)
 from cloudinit.handlers.boot_hook import BootHookPartHandler
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
-from cloudinit.handlers.shell_script_by_frequency import \
-    ShellScriptByFreqPartHandler
+from cloudinit.handlers.shell_script_by_frequency import (
+    ShellScriptByFreqPartHandler,
+)
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
@@ -518,12 +520,15 @@ class Init(object):
         # TODO(harlowja) Hmmm, should we dynamically import these??
         cloudconfig_handler = CloudConfigPartHandler(**opts)
         shellscript_handler = ShellScriptPartHandler(**opts)
-        shellscript_per_boot_handler = \
-            ShellScriptByFreqPartHandler(PER_ALWAYS, **opts)
-        shellscript_per_instance_handler = \
-            ShellScriptByFreqPartHandler(PER_INSTANCE, **opts)
-        shellscript_per_once_handler = \
-            ShellScriptByFreqPartHandler(PER_ONCE, **opts)
+        shellscript_per_boot_handler = ShellScriptByFreqPartHandler(
+            PER_ALWAYS, **opts
+        )
+        shellscript_per_instance_handler = ShellScriptByFreqPartHandler(
+            PER_INSTANCE, **opts
+        )
+        shellscript_per_once_handler = ShellScriptByFreqPartHandler(
+            PER_ONCE, **opts
+        )
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,

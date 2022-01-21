@@ -40,23 +40,23 @@ PART_FN_TPL = "part-%03d"
 
 # Different file beginnings to their content type
 INCLUSION_TYPES_MAP = {
-    '#include': 'text/x-include-url',
-    '#include-once': 'text/x-include-once-url',
-    '#!': 'text/x-shellscript',
-    '#cloud-config': 'text/cloud-config',
-    '#upstart-job': 'text/upstart-job',
-    '#part-handler': 'text/part-handler',
-    '#cloud-boothook': 'text/cloud-boothook',
-    '#cloud-config-archive': 'text/cloud-config-archive',
-    '#cloud-config-jsonp': 'text/cloud-config-jsonp',
-    '## template: jinja': 'text/jinja2',
+    "#include": "text/x-include-url",
+    "#include-once": "text/x-include-once-url",
+    "#!": "text/x-shellscript",
+    "#cloud-config": "text/cloud-config",
+    "#upstart-job": "text/upstart-job",
+    "#part-handler": "text/part-handler",
+    "#cloud-boothook": "text/cloud-boothook",
+    "#cloud-config-archive": "text/cloud-config-archive",
+    "#cloud-config-jsonp": "text/cloud-config-jsonp",
+    "## template: jinja": "text/jinja2",
     # Note: for the next 3 entries, the prefix doesn't matter because these
     # are for types that can only be used as part of a MIME message. However,
     # including these entries supresses warnings during `cloudinit devel
     # make-mime`, which otherwise would require `--force`.
-    'text/x-shellscript-per-boot': 'text/x-shellscript-per-boot',
-    'text/x-shellscript-per-instance': 'text/x-shellscript-per-instance',
-    'text/x-shellscript-per-once': 'text/x-shellscript-per-once'
+    "text/x-shellscript-per-boot": "text/x-shellscript-per-boot",
+    "text/x-shellscript-per-instance": "text/x-shellscript-per-instance",
+    "text/x-shellscript-per-once": "text/x-shellscript-per-once",
 }
 
 # Sorted longest first

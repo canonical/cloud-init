@@ -21,25 +21,27 @@ EPILOG = (
 
 
 def create_mime_message(files):
-    print(f'files={files}')
-    print(f'len(files)={len(files)}')
+    print(f"files={files}")
+    print(f"len(files)={len(files)}")
     sub_messages = []
     errors = []
     for i, (fh, filename, format_type) in enumerate(files):
-        print(f'files[{i}]={filename}')
+        print(f"files[{i}]={filename}")
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
-        sub_message.add_header('Content-Disposition',
-                               'attachment; filename="%s"' % (filename))
+        sub_message.add_header(
+            "Content-Disposition", 'attachment; filename="%s"' % (filename)
+        )
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
-            msg = ("content type %r for attachment %s "
-                   "may be incorrect!") % (content_type, i + 1)
+            msg = (
+                "content type %r for attachment %s " "may be incorrect!"
+            ) % (content_type, i + 1)
             errors.append(msg)
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()
     for msg in sub_messages:
-        print('attaching message')
+        print("attaching message")
         combined_message.attach(msg)
     return (combined_message, errors)
 
@@ -123,9 +125,9 @@ def handle_args(name, args):
 
     combined_message, errors = create_mime_message(args.files)
     if errors:
-        level = 'WARNING' if args.force else 'ERROR'
+        level = "WARNING" if args.force else "ERROR"
         for error in errors:
-            sys.stderr.write(f'{level}: {error}\n')
+            sys.stderr.write(f"{level}: {error}\n")
         sys.stderr.write("Invalid content-types, override with --force\n")
         if not args.force:
             return 1

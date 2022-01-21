@@ -20,8 +20,9 @@ from cloudinit.handlers.jinja_template import (
 )
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
+
 # from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, PER_ONCE)
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
@@ -479,11 +480,13 @@ class TestShellScriptByFrequencyHandlers(CiTestCase):
 
     def do_test_frequency(self, frequency):
         from cloudinit.cmd.devel import read_cfg_paths
-        from cloudinit.handlers.shell_script_by_frequency \
-            import (get_script_folder_by_frequency,
-                    pathMap)
+        from cloudinit.handlers.shell_script_by_frequency import (
+            get_script_folder_by_frequency,
+            pathMap,
+        )
+
         ci_paths = read_cfg_paths()
-        scripts_dir = ci_paths.get_cpath('scripts')
+        scripts_dir = ci_paths.get_cpath("scripts")
         testFolder = os.path.join(scripts_dir, pathMap[frequency])
         folder = get_script_folder_by_frequency(frequency, scripts_dir)
         self.assertEqual(testFolder, folder)
