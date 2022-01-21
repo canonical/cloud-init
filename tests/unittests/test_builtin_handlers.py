@@ -103,7 +103,7 @@ class TestUpstartJobPartHandler(FilesystemMockingTestCase):
         )
 
 
-class TestJinjaTemplatePartHandler:
+class TestJinjaTemplatePartHandler(CiTestCase):
 
     mpath = "cloudinit.handlers.jinja_template."
 
@@ -478,7 +478,7 @@ class TestRenderJinjaPayload(CiTestCase):
         self.assertIn(expected_log, self.logs.getvalue())
 
 
-class TestShellScriptByFrequencyHandlers(CiTestCase):
+class TestShellScriptByFrequencyHandlers():
     with_logs = True
 
     def do_test_frequency(self, frequency):
