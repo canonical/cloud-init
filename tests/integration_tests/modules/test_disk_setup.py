@@ -20,7 +20,7 @@ def setup_and_mount_lxd_disk(instance: LXDInstance):
     )
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def create_disk():
     # 640k should be enough for anybody
     subp("dd if=/dev/zero of={} bs=1k count=640".format(DISK_PATH).split())
@@ -133,10 +133,9 @@ class TestPartProbeAvailability:
         assert sdb["children"][1]["name"] == "sdb2"
         assert sdb["children"][1]["mountpoint"] == "/mnt2"
 
-    # Not bionic or xenial because the LXD agent gets in the way of us
+    # Not bionic because the LXD agent gets in the way of us
     # changing the userdata
     @pytest.mark.not_bionic
-    @pytest.mark.not_xenial
     def test_disk_setup_when_mounted(
         self, create_disk, client: IntegrationInstance
     ):

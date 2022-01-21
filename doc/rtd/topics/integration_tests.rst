@@ -14,6 +14,69 @@ laid out in :ref:`testing` should be followed for integration tests.
 Setup is accomplished via a set of fixtures located in
 ``tests/integration_tests/conftest.py``.
 
+Test Definition
+===============
+Tests are defined like any other pytest test. The ``user_data``
+mark can be used to supply the cloud-config user data. Platform specific
+marks can be used to limit tests to particular platforms. The
+client fixture can be used to interact with the launched
+test instance.
+
+A basic example:
+
+.. code-block:: python
+
+    USER_DATA = """#cloud-config
+    bootcmd:
+    - echo 'hello config!' > /tmp/user_data.txt"""
+
+
+    class TestSimple:
+        @pytest.mark.user_data(USER_DATA)
+        @pytest.mark.ec2
+        def test_simple(self, client):
+            print(client.exec('cloud-init -v'))
+
+Test Execution
+==============
+Test execution happens via pytest. To run all integration tests,
+you would run:
+
+.. code-block:: bash
+
+    pytest tests/integration_tests/
+
+
+Configuration
+=============
+
+All possible configuration values are defined in
+`tests/integration_tests/integration_settings.py <https://github.com/canonical/cloud-init/blob/main/tests/integration_tests/integration_settings.py>`_.
+Defaults can be
+overridden by supplying values in ``tests/integration_tests/user_settings.py``
+or by providing an environment variable of the same name prepended with
+``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
+
+.. code-block:: bash
+
+    CLOUD_INIT_PLATFORM='ec2' pytest tests/integration_tests/
+
+
+Cloud Interation
+================
+Cloud interaction happens via the
+`pycloudlib <https://pycloudlib.readthedocs.io/en/latest/index.html>`_ library.
+In order to run integration tests, pycloudlib must first be
+`configured <https://pycloudlib.readthedocs.io/en/latest/configuration.html#configuration>`_.
+
+For a minimal setup using LXD, write the following to
+``~/.config/pycloudlib.toml``:
+
+.. code-block:: toml
+
+    [lxd]
+
+
 Image Selection
 ===============
 
@@ -63,49 +126,3 @@ Test setup occurs between image setup and test execution. Test setup
 is implemented via one of the ``client`` fixtures. When a client fixture
 is used, a test instance from which to run tests is launched prior to
 test execution and torn down after.
-
-Test Definition
-===============
-Tests are defined like any other pytest test. The ``user_data``
-mark can be used to supply the cloud-config user data. Platform specific
-marks can be used to limit tests to particular platforms. The
-client fixture can be used to interact with the launched
-test instance.
-
-A basic example:
-
-.. code-block:: python
-
-    USER_DATA = """#cloud-config
-    bootcmd:
-    - echo 'hello config!' > /tmp/user_data.txt"""
-
-
-    class TestSimple:
-        @pytest.mark.user_data(USER_DATA)
-        @pytest.mark.ec2
-        def test_simple(self, client):
-            print(client.exec('cloud-init -v'))
-
-Test Execution
-==============
-Test execution happens via pytest. To run all integration tests,
-you would run:
-
-.. code-block:: bash
-
-    pytest tests/integration_tests/
-
-
-Configuration
-=============
-
-All possible configuration values are defined in
-``tests/integration_tests/integration_settings.py``. Defaults can be
-overridden by supplying values in ``tests/integration_tests/user_settings.py``
-or by providing an environment variable of the same name prepended with
-``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
-
-.. code-block:: bash
-
-    CLOUD_INIT_PLATFORM='ec2' pytest tests/integration_tests/

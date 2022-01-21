@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 
+from cloudinit.cmd.status import UXAppStatus, get_status_details
 from cloudinit.sources import (
     INSTANCE_JSON_FILE,
     METADATA_UNKNOWN,
@@ -62,8 +63,16 @@ def handle_args(name, args):
 
     Print the canonical cloud-id on which the instance is running.
 
-    @return: 0 on success, 1 otherwise.
+    @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not run.
     """
+    status, _status_details, _time = get_status_details()
+    if status == UXAppStatus.DISABLED:
+        sys.stdout.write("{0}\n".format(status.value))
+        return 2
+    elif status == UXAppStatus.NOT_RUN:
+        sys.stdout.write("{0}\n".format(status.value))
+        return 3
+
     try:
         instance_data = json.load(open(args.instance_data))
     except IOError:

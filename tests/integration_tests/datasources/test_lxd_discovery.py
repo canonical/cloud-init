@@ -59,13 +59,9 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     )
     if (
         client.settings.PLATFORM == "lxd_vm"
-        and ImageSpecification.from_os_image().release
-        in (
-            "xenial",
-            "bionic",
-        )
+        and ImageSpecification.from_os_image().release == "bionic"
     ):
-        # pycloudlib injects user.vendor_data for lxd_vm on bionic and xenial
+        # pycloudlib injects user.vendor_data for lxd_vm on bionic
         # to start the lxd-agent.
         # https://github.com/canonical/pycloudlib/blob/main/pycloudlib/\
         #    lxd/defaults.py#L13-L27

@@ -22,6 +22,7 @@ from cloudinit import patcher
 
 patcher.patch_logging()
 
+from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log as logging
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -473,6 +474,12 @@ def main_init(name, args):
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return (init.datasource, ["Consuming user data failed!"])
+
+    # Validate user-data adheres to schema definition
+    if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
+        validate_cloudconfig_schema(config=init.cfg, strict=False)
+    else:
+        LOG.debug("Skipping user-data validation. No user-data found.")
 
     apply_reporting_cfg(init.cfg)
 

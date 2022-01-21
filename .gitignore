@@ -5,6 +5,7 @@ dist
 __pycache__
 .tox
 .coverage
+.python-version
 doc/rtd_html
 parts
 prime

@@ -254,7 +254,7 @@ apt:
       #
       # Creates a file in /etc/apt/sources.list.d/ for the sources list entry
       # based on the key: "/etc/apt/sources.list.d/curtin-dev-ppa.list"
-      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu xenial main"
+      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu bionic main"
 
       # 2.2 keyid
       #
@@ -282,13 +282,13 @@ apt:
       # They will be replaced with the default or specified mirrors and the
       # running release.
       # The entry below would be possibly turned into:
-      #   source: deb http://archive.ubuntu.com/ubuntu xenial multiverse
+      #   source: deb http://archive.ubuntu.com/ubuntu bionic multiverse
       source: deb [signed-by=$KEY_FILE] $MIRROR $RELEASE multiverse
       keyid: F430BBA5
 
     my-repo3.list:
       # this would have the same end effect as 'ppa:curtin-dev/test-archive'
-      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu xenial main"
+      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu bionic main"
       keyid: F430BBA5 # GPG key ID published on the key server
       filename: curtin-dev-ppa.list
 

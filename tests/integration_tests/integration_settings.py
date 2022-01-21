@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
-from distutils.util import strtobool
+
+from cloudinit.util import is_false, is_true
 
 ##################################################################
 # LAUNCH SETTINGS
@@ -78,32 +79,6 @@ COLLECT_LOGS = "ON_ERROR"
 LOCAL_LOG_PATH = "/tmp/cloud_init_test_logs"
 
 ##################################################################
-# SSH KEY SETTINGS
-##################################################################
-
-# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
-# default behaviour, using ~/.ssh/id_rsa.pub.)
-PUBLIC_SSH_KEY = None
-
-# For clouds which use named keypairs for SSH connection, the name that is used
-# for the keypair.  (Defaults to pycloudlib's default behaviour.)
-KEYPAIR_NAME = None
-
-##################################################################
-# OPENSTACK SETTINGS
-##################################################################
-# Network to use for Openstack. Should be one of the names/ids found
-# in `openstack network list`
-OPENSTACK_NETWORK = None
-
-##################################################################
-# OCI SETTINGS
-##################################################################
-# Availability domain to use for Oracle. Should be one of the namess found
-# in `oci iam availability-domain list`
-ORACLE_AVAILABILITY_DOMAIN = None
-
-##################################################################
 # USER SETTINGS OVERRIDES
 ##################################################################
 # Bring in any user-file defined settings
@@ -126,8 +101,9 @@ for setting in current_settings:
         "CLOUD_INIT_{}".format(setting), globals()[setting]
     )
     if isinstance(env_setting, str):
-        try:
-            env_setting = bool(strtobool(env_setting.strip()))
-        except ValueError:
-            pass
+        env_setting = env_setting.strip()
+        if is_true(env_setting):
+            env_setting = True
+        elif is_false(env_setting):
+            env_setting = False
     globals()[setting] = env_setting

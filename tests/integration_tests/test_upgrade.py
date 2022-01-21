@@ -59,7 +59,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         return
 
     launch_kwargs = {
-        "image_id": session_cloud.released_image_id,
+        "image_id": session_cloud.initial_image_id,
     }
 
     with session_cloud.launch(
@@ -178,7 +178,7 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
 
-    launch_kwargs = {"image_id": session_cloud.released_image_id}
+    launch_kwargs = {"image_id": session_cloud.initial_image_id}
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
         instance.install_new_cloud_init(

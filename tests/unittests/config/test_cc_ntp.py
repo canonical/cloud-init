@@ -385,7 +385,9 @@ class TestNtp(FilesystemMockingTestCase):
                         "servers []\npools {0}\n".format(pools),
                         util.load_file(confpath),
                     )
-            self.assertNotIn("Invalid config:", self.logs.getvalue())
+            self.assertNotIn(
+                "Invalid cloud-config provided:", self.logs.getvalue()
+            )
 
     @skipUnlessJsonSchema()
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
@@ -404,8 +406,8 @@ class TestNtp(FilesystemMockingTestCase):
             m_sel.return_value = ntpconfig
             cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
             self.assertIn(
-                "Invalid config:\nntp.pools.0: 123 is not of type 'string'\n"
-                "ntp.servers.1: None is not of type 'string'",
+                "Invalid cloud-config provided:\nntp.pools.0: 123 is not of"
+                " type 'string'\nntp.servers.1: None is not of type 'string'",
                 self.logs.getvalue(),
             )
             self.assertEqual(
@@ -431,8 +433,8 @@ class TestNtp(FilesystemMockingTestCase):
             m_select.return_value = ntpconfig
             cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
             self.assertIn(
-                "Invalid config:\nntp.pools: 123 is not of type 'array'\n"
-                "ntp.servers: 'non-array' is not of type 'array'",
+                "Invalid cloud-config provided:\nntp.pools: 123 is not of type"
+                " 'array'\nntp.servers: 'non-array' is not of type 'array'",
                 self.logs.getvalue(),
             )
             self.assertEqual(
@@ -459,8 +461,9 @@ class TestNtp(FilesystemMockingTestCase):
                 m_select.return_value = ntpconfig
                 cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
                 self.assertIn(
-                    "Invalid config:\nntp: Additional properties are not "
-                    "allowed ('invalidkey' was unexpected)",
+                    "Invalid cloud-config provided:\nntp: Additional"
+                    " properties are not allowed ('invalidkey' was"
+                    " unexpected)",
                     self.logs.getvalue(),
                 )
                 self.assertEqual(
@@ -488,8 +491,8 @@ class TestNtp(FilesystemMockingTestCase):
             m_select.return_value = ntpconfig
             cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
             self.assertIn(
-                "Invalid config:\nntp.pools: ['0.mypool.org', '0.mypool.org']"
-                " has non-unique elements\nntp.servers: "
+                "Invalid cloud-config provided:\nntp.pools: ['0.mypool.org',"
+                " '0.mypool.org'] has non-unique elements\nntp.servers: "
                 "['10.0.0.1', '10.0.0.1'] has non-unique elements",
                 self.logs.getvalue(),
             )

@@ -137,7 +137,7 @@ def configure_ua(token=None, enable=None):
     enable_errors = []
     for service in enable:
         try:
-            cmd = ["ua", "enable", service]
+            cmd = ["ua", "enable", "--assume-yes", service]
             subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
             enable_errors.append((service, e))

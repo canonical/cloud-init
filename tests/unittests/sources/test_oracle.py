@@ -93,7 +93,7 @@ def metadata_version():
     return 2
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def oracle_ds(request, fixture_utils, paths, metadata_version):
     """
     Return an instantiated DataSourceOracle.
@@ -649,7 +649,7 @@ class TestCommon_GetDataBehaviour:
     separate class for that case.)
     """
 
-    @pytest.yield_fixture(params=[True, False])
+    @pytest.fixture(params=[True, False])
     def parameterized_oracle_ds(self, request, oracle_ds):
         """oracle_ds parameterized for iSCSI and non-iSCSI root respectively"""
         is_iscsi_root = request.param
@@ -920,12 +920,14 @@ class TestNetworkConfig:
         assert network_config == m_read_initramfs_config.return_value
         assert "Failed to parse secondary network configuration" in caplog.text
 
-    def test_ds_network_cfg_preferred_over_initramfs(self, _m):
-        """Ensure that DS net config is preferred over initramfs config"""
+    def test_ds_network_cfg_order(self, _m):
+        """Ensure that DS net config is preferred over initramfs config
+        but less than system config."""
         config_sources = oracle.DataSourceOracle.network_config_sources
+        system_idx = config_sources.index(NetworkConfigSource.system_cfg)
         ds_idx = config_sources.index(NetworkConfigSource.ds)
         initramfs_idx = config_sources.index(NetworkConfigSource.initramfs)
-        assert ds_idx < initramfs_idx
+        assert system_idx < ds_idx < initramfs_idx
 
 
 # vi: ts=4 expandtab

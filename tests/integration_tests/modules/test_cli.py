@@ -13,9 +13,16 @@ runcmd:
   - echo 'hi' > /var/tmp/test
 """
 
-INVALID_USER_DATA = """\
+INVALID_USER_DATA_HEADER = """\
 runcmd:
   - echo 'hi' > /var/tmp/test
+"""
+
+INVALID_USER_DATA_SCHEMA = """\
+#cloud-config
+updates:
+ notnetwork: -1
+apt_pipelining: bogus
 """
 
 
@@ -29,10 +36,15 @@ def test_valid_userdata(client: IntegrationInstance):
     result = client.execute("cloud-init devel schema --system")
     assert result.ok
     assert "Valid cloud-config: system userdata" == result.stdout.strip()
+    result = client.execute("cloud-init status --long")
+    if not result.ok:
+        raise AssertionError(
+            f"Unexpected error from cloud-init status: {result}"
+        )
 
 
 @pytest.mark.sru_2020_11
-@pytest.mark.user_data(INVALID_USER_DATA)
+@pytest.mark.user_data(INVALID_USER_DATA_HEADER)
 def test_invalid_userdata(client: IntegrationInstance):
     """Test `cloud-init devel schema` with invalid userdata.
 
@@ -42,3 +54,30 @@ def test_invalid_userdata(client: IntegrationInstance):
     assert not result.ok
     assert "Cloud config schema errors" in result.stderr
     assert 'needs to begin with "#cloud-config"' in result.stderr
+    result = client.execute("cloud-init status --long")
+    if not result.ok:
+        raise AssertionError(
+            f"Unexpected error from cloud-init status: {result}"
+        )
+
+
+@pytest.mark.user_data(INVALID_USER_DATA_SCHEMA)
+def test_invalid_userdata_schema(client: IntegrationInstance):
+    """Test invalid schema represented as Warnings, not fatal
+
+    PR #1175
+    """
+    result = client.execute("cloud-init status --long")
+    assert result.ok
+    log = client.read_from_file("/var/log/cloud-init.log")
+    warning = (
+        "[WARNING]: Invalid cloud-config provided:\napt_pipelining: 'bogus'"
+        " is not valid under any of the given schemas\nupdates: Additional"
+        " properties are not allowed ('notnetwork' was unexpected)"
+    )
+    assert warning in log
+    result = client.execute("cloud-init status --long")
+    if not result.ok:
+        raise AssertionError(
+            f"Unexpected error from cloud-init status: {result}"
+        )
