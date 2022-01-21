@@ -11,7 +11,7 @@
 
 Rsyslog
 -------
-**Summary:** configure system loggig via rsyslog
+**Summary:** configure system logging via rsyslog
 
 This module configures remote system logging using rsyslog.
 
