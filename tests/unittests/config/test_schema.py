@@ -82,6 +82,13 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestGetSchema:
+    def test_static_schema_file_is_valid(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            get_schema()
+        # Assert no warnings parsing our packaged schema file
+        warnings = [msg for (_, _, msg) in caplog.record_tuples]
+        assert [] == warnings
+
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
@@ -138,6 +145,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_keyboard"},
             {"$ref": "#/$defs/cc_keys_to_console"},
+            {"$ref": "#/$defs/cc_locale"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},
             {"$ref": "#/$defs/cc_phone_home"},
             {"$ref": "#/$defs/cc_power_state_change"},
@@ -161,8 +169,6 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "drivers",
-            "locale",
-            "locale_configfile",
             "ntp",
             "snap",
             "ubuntu_advantage",

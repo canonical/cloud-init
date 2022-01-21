@@ -1066,6 +1066,19 @@
           "uniqueItems": true
         }
       }
+    },
+    "cc_locale": {
+      "type": "object",
+      "properties": {
+        "locale": {
+          "type": "string",
+          "description": "The locale to set as the system's locale (e.g. ar_PS)"
+        },
+        "locale_configfile": {
+          "type": "string",
+          "description": "The file in which to write the locale configuration (defaults to the distro's default location)"
+        }
+      }
     }
   },
   "allOf": [
@@ -1081,6 +1094,7 @@
     { "$ref": "#/$defs/cc_disk_setup" },
     { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_keys_to_console" },
+    { "$ref": "#/$defs/cc_locale" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
