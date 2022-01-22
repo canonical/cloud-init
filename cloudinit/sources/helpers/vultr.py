@@ -21,8 +21,8 @@ def get_metadata(url, timeout, retries, sec_between, agent):
 
     # Seek iface with DHCP
     for iface in net.get_interfaces():
-        # Skip dummy interfaces
-        if "dummy" in iface[0]:
+        # Skip dummy, lo interfaces
+        if iface[0] in ['lo', 'dummy']:
             continue
         try:
             with EphemeralDHCPv4(
@@ -33,7 +33,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
 
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
-        except (NoDHCPLeaseError) as exc:
+        except (NoDHCPLeaseError, subp.ProcessExecutionError) as exc:
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
 
