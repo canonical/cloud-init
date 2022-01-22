@@ -1079,6 +1079,111 @@
           "description": "The file in which to write the locale configuration (defaults to the distro's default location)"
         }
       }
+    },
+    "cc_lxd": {
+      "type": "object",
+      "properties": {
+        "lxd": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "init": {
+              "type": "object",
+              "properties": {
+                "network_address": {
+                  "type": "string",
+                  "description": "IP address for LXD to listen on"
+                },
+                "network_port": {
+                  "type": "integer",
+                  "description": "Network port to bind LXD to."
+                },
+                "storage_backend": {
+                  "type": "string",
+                  "enum": ["zfs", "dir"],
+                  "default": "dir",
+                  "description": "Storage backend to use. Default: ``dir``."
+                },
+                "storage_create_device": {
+                  "type": "string",
+                  "description": "Setup device based storage using DEVICE"
+                },
+                "storage_create_loop": {
+                  "type": "integer",
+                  "description": "Setup loop based storage with SIZE in GB"
+                },
+                "storage_pool": {
+                  "type": "string",
+                  "description": "Name of storage pool to use or create"
+                },
+                "trust_password": {
+                  "type": "string",
+                  "description": "The password required to add new clients"
+                }
+              }
+            },
+            "bridge": {
+              "type": "object",
+              "required": ["mode"],
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "Whether to setup LXD bridge, use an existing bridge by ``name`` or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching ``name`` and `new` will create a new bridge.",
+                  "enum": ["none", "existing", "new"]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
+                  "default": "lxdbr0"
+                },
+                "ipv4_address": {
+                  "type": "string",
+                  "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
+                },
+                "ipv4_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for the ``ipv4_address`` key. Required when ``ipv4_address`` is set."
+                },
+                "ipv4_dhcp_first": {
+                  "type": "string",
+                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_last`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_last": {
+                  "type": "string",
+                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_first`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_leases": {
+                  "type": "integer",
+                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dchp_last` when unset."
+                },
+                "ipv4_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Set ``true`` to NAT the IPv4 traffic allowing for a routed IPv4 network. Default: ``false``."
+                },
+                "ipv6_address": {
+                  "type": "string",
+                  "description": "IPv6 address for the bridge (CIDR notation). When set, ``ipv6_netmask`` key is required. When absent, no IPv6 will be configured."
+                },
+                "ipv6_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for ``ipv6_address`` provided. Required when ``ipv6_address`` is set."
+                },
+                "ipv6_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to NAT. Default: ``false``."
+                },
+                "domain": {
+                  "type": "string",
+                  "description": "Domain to advertise to DHCP clients and use for DNS resolution."
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
     }
   },
   "allOf": [
@@ -1095,6 +1200,7 @@
     { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_keys_to_console" },
     { "$ref": "#/$defs/cc_locale" },
+    { "$ref": "#/$defs/cc_lxd" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
