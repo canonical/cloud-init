@@ -34,4 +34,4 @@ cloud-init_*.tar.xz
 cloud-init_*.upload
 
 # user test settings
-misc/
+tests/integration_tests/user_settings.py
