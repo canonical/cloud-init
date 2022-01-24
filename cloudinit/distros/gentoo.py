@@ -44,7 +44,9 @@ class Distro(distros.Distro):
         Locales need to be added to /etc/locale.gen and generated prior
         to selection. Default to en_US.UTF-8 for simplicity.
         """
-        util.write_file(self.locale_gen_file, "\n".join(self.locales), mode=644)
+        util.write_file(
+            self.locale_gen_file, "\n".join(self.locales), mode=644
+        )
 
         # generate locales
         subp.subp(["locale-gen"], capture=False)
@@ -59,7 +61,7 @@ class Distro(distros.Distro):
             'LANG="%s"' % self.default_locale,
             "",
         ]
-        util.write_file(out_fn, "\n".join(lines))
+        util.write_file(self.locale_conf_fn, "\n".join(lines))
 
     def install_packages(self, pkglist):
         self.update_package_sources()
