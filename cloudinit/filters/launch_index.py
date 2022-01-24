@@ -23,7 +23,7 @@ class Filter(object):
         self.allow_none = allow_none
 
     def _select(self, message):
-        msg_idx = message.get('Launch-Index', None)
+        msg_idx = message.get("Launch-Index", None)
         if self.allow_none and msg_idx is None:
             return True
         msg_idx = util.safe_int(msg_idx)
@@ -47,9 +47,12 @@ class Filter(object):
                     new_msgs.append(m)
                 else:
                     discarded += 1
-            LOG.debug(("Discarding %s multipart messages "
-                       "which do not match launch index %s"),
-                      discarded, self.wanted_idx)
+            LOG.debug(
+                "Discarding %s multipart messages "
+                "which do not match launch index %s",
+                discarded,
+                self.wanted_idx,
+            )
             new_message = copy.copy(message)
             new_message.set_payload(new_msgs)
             new_message[ud.ATTACHMENT_FIELD] = str(len(new_msgs))
@@ -61,5 +64,6 @@ class Filter(object):
         if self.wanted_idx is None:
             return root_message
         return self._do_filter(root_message)
+
 
 # vi: ts=4 expandtab

@@ -38,49 +38,53 @@ host keys are not written to console.
 
 import os
 
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import subp
-from cloudinit import util
 
 frequency = PER_INSTANCE
 
 # This is a tool that cloud init provides
-HELPER_TOOL_TPL = '%s/cloud-init/write-ssh-key-fingerprints'
+HELPER_TOOL_TPL = "%s/cloud-init/write-ssh-key-fingerprints"
 
 
 def _get_helper_tool_path(distro):
     try:
         base_lib = distro.usr_lib_exec
     except AttributeError:
-        base_lib = '/usr/lib'
+        base_lib = "/usr/lib"
     return HELPER_TOOL_TPL % base_lib
 
 
 def handle(name, cfg, cloud, log, _args):
     if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
-        log.debug(("Skipping module named %s, "
-                   "logging of SSH host keys disabled"), name)
+        log.debug(
+            "Skipping module named %s, logging of SSH host keys disabled", name
+        )
         return
 
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
-        log.warning(("Unable to activate module %s,"
-                     " helper tool not found at %s"), name, helper_path)
+        log.warning(
+            "Unable to activate module %s, helper tool not found at %s",
+            name,
+            helper_path,
+        )
         return
 
-    fp_blacklist = util.get_cfg_option_list(cfg,
-                                            "ssh_fp_console_blacklist", [])
-    key_blacklist = util.get_cfg_option_list(cfg,
-                                             "ssh_key_console_blacklist",
-                                             ["ssh-dss"])
+    fp_blacklist = util.get_cfg_option_list(
+        cfg, "ssh_fp_console_blacklist", []
+    )
+    key_blacklist = util.get_cfg_option_list(
+        cfg, "ssh_key_console_blacklist", ["ssh-dss"]
+    )
 
     try:
-        cmd = [helper_path, ','.join(fp_blacklist), ','.join(key_blacklist)]
+        cmd = [helper_path, ",".join(fp_blacklist), ",".join(key_blacklist)]
         (stdout, _stderr) = subp.subp(cmd)
-        util.multi_log("%s\n" % (stdout.strip()),
-                       stderr=False, console=True)
+        util.multi_log("%s\n" % (stdout.strip()), stderr=False, console=True)
     except Exception:
         log.warning("Writing keys to the system console failed!")
         raise
+
 
 # vi: ts=4 expandtab

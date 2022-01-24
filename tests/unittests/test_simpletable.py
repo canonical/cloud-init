@@ -13,14 +13,19 @@ from cloudinit.simpletable import SimpleTable
 from tests.unittests.helpers import CiTestCase
 
 # Examples rendered by cloud-init using PrettyTable
-NET_DEVICE_FIELDS = (
-    'Device', 'Up', 'Address', 'Mask', 'Scope', 'Hw-Address')
+NET_DEVICE_FIELDS = ("Device", "Up", "Address", "Mask", "Scope", "Hw-Address")
 NET_DEVICE_ROWS = (
-    ('ens3', True, '172.31.4.203', '255.255.240.0', '.', '0a:1f:07:15:98:70'),
-    ('ens3', True, 'fe80::81f:7ff:fe15:9870/64', '.', 'link',
-        '0a:1f:07:15:98:70'),
-    ('lo', True, '127.0.0.1', '255.0.0.0', '.', '.'),
-    ('lo', True, '::1/128', '.', 'host', '.'),
+    ("ens3", True, "172.31.4.203", "255.255.240.0", ".", "0a:1f:07:15:98:70"),
+    (
+        "ens3",
+        True,
+        "fe80::81f:7ff:fe15:9870/64",
+        ".",
+        "link",
+        "0a:1f:07:15:98:70",
+    ),
+    ("lo", True, "127.0.0.1", "255.0.0.0", ".", "."),
+    ("lo", True, "::1/128", ".", "host", "."),
 )
 NET_DEVICE_TABLE = """\
 +--------+------+----------------------------+---------------+-------+-------------------+
@@ -32,11 +37,17 @@ NET_DEVICE_TABLE = """\
 |   lo   | True |          ::1/128           |       .       |  host |         .         |
 +--------+------+----------------------------+---------------+-------+-------------------+"""  # noqa: E501
 ROUTE_IPV4_FIELDS = (
-    'Route', 'Destination', 'Gateway', 'Genmask', 'Interface', 'Flags')
+    "Route",
+    "Destination",
+    "Gateway",
+    "Genmask",
+    "Interface",
+    "Flags",
+)
 ROUTE_IPV4_ROWS = (
-    ('0', '0.0.0.0', '172.31.0.1', '0.0.0.0', 'ens3', 'UG'),
-    ('1', '169.254.0.0', '0.0.0.0', '255.255.0.0', 'ens3', 'U'),
-    ('2', '172.31.0.0', '0.0.0.0', '255.255.240.0', 'ens3', 'U'),
+    ("0", "0.0.0.0", "172.31.0.1", "0.0.0.0", "ens3", "UG"),
+    ("1", "169.254.0.0", "0.0.0.0", "255.255.0.0", "ens3", "U"),
+    ("2", "172.31.0.0", "0.0.0.0", "255.255.240.0", "ens3", "U"),
 )
 ROUTE_IPV4_TABLE = """\
 +-------+-------------+------------+---------------+-----------+-------+
@@ -47,11 +58,14 @@ ROUTE_IPV4_TABLE = """\
 |   2   |  172.31.0.0 |  0.0.0.0   | 255.255.240.0 |    ens3   |   U   |
 +-------+-------------+------------+---------------+-----------+-------+"""
 
-AUTHORIZED_KEYS_FIELDS = (
-    'Keytype', 'Fingerprint (md5)', 'Options', 'Comment')
+AUTHORIZED_KEYS_FIELDS = ("Keytype", "Fingerprint (md5)", "Options", "Comment")
 AUTHORIZED_KEYS_ROWS = (
-    ('ssh-rsa', '24:c7:41:49:47:12:31:a0:de:6f:62:79:9b:13:06:36', '-',
-        'ajorgens'),
+    (
+        "ssh-rsa",
+        "24:c7:41:49:47:12:31:a0:de:6f:62:79:9b:13:06:36",
+        "-",
+        "ajorgens",
+    ),
 )
 AUTHORIZED_KEYS_TABLE = """\
 +---------+-------------------------------------------------+---------+----------+
@@ -63,7 +77,7 @@ AUTHORIZED_KEYS_TABLE = """\
 # from prettytable import PrettyTable
 # pt = PrettyTable(('HEADER',))
 # print(pt)
-NO_ROWS_FIELDS = ('HEADER',)
+NO_ROWS_FIELDS = ("HEADER",)
 NO_ROWS_TABLE = """\
 +--------+
 | HEADER |
@@ -72,7 +86,6 @@ NO_ROWS_TABLE = """\
 
 
 class TestSimpleTable(CiTestCase):
-
     def test_no_rows(self):
         """An empty table is rendered as PrettyTable would have done it."""
         table = SimpleTable(NO_ROWS_FIELDS)

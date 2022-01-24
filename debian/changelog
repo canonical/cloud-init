@@ -1,9 +1,70 @@
-cloud-init (21.4-39-ge9634266-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (21.4-82-g0d364a29-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
+   + debian/patches/renderer-do-not-prefer-netplan.patch
   * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+    - cc_rsyslog: fix typo in docstring (#1207) [Louis Sautier]
+    - Update .github-cla-signers (#1204) [Chris Lalos]
+    - sources/azure: drop unused case in _report_failure() (#1200)
+      [Chris Patterson]
+    - sources/azure: always initialize _ephemeral_dhcp_ctx on unpickle (#1199)
+      [Chris Patterson]
+    - Add support for gentoo templates and cloud.cfg (#1179) [vteratipally]
+    - sources/azure: unpack ret tuple in crawl_metadata() (#1194)
+      [Chris Patterson]
+    - tests: focal caplog has whitespace indentation for multi-line logs
+      (#1201)
+    - Seek interfaces, skip dummy interface, fix region codes (#1192) [eb3095]
+    - integration: test against the Ubuntu daily images (#1198)
+      [Paride Legovini]
+    - cmd: status and cloud-id avoid change in behavior for 'not run' (#1197)
+    - tox: pass PYCLOUDLIB_* env vars into integration tests when present
+      (#1196)
+    - sources/azure: set ovf_is_accessible when OVF is read successfully
+      (#1193) [Chris Patterson]
+    - Enable OVF environment transport via ISO in example (#1195) [Megian]
+    - sources/azure: consolidate DHCP variants to EphemeralDHCPv4WithReporting
+      (#1190) [Chris Patterson]
+    - Single JSON schema validation in early boot (#1175)
+    - Add DatasourceOVF network-config property to Ubuntu OVF example (#1184)
+      [Megian]
+    - testing: support pycloudlib config file (#1189)
+    - Ensure system_cfg read before ds net config on Oracle (SC-720) (#1174)
+    - Test Optimization Proposal (SC-736) (#1188) [Brett Holman]
+    - cli: cloud-id report not-run or disabled state as cloud-id (#1162)
+    - Remove distutils usage (#1177) [Shreenidhi Shedi]
+    - add .python-version to gitignore (#1186) [Brett Holman]
+    - print error if datasource import fails (#1170)
+      [Emanuele Giuseppe Esposito]
+    - Add new config module to set keyboard layout (#1176) [maxnet]
+    - sources/azure: rename metadata_type -> MetadataType (#1181)
+      [Chris Patterson]
+    - Remove 3.5 and xenial support (SC-711) (#1167)
+    - tests: mock LXD datasource detection in ds-identify on LXD containers
+      (#1178)
+    - pylint: silence errors on compat code for old jsonschema (#1172)
+      [Paride Legovini]
+    - testing: Add 3.10 Test Coverage (#1173) [Brett Holman]
+    - Remove unittests from integration test job in travis (#1141)
+      [Brett Holman]
+    - Don't throw exceptions for empty cloud config (#1130) [Brett Holman]
+    - bsd/resolv.d/ avoid duplicated entries (#1163) [Gonéri Le Bouder]
+    - sources/azure: do not persist failed_desired_api_version flag (#1159)
+      [Chris Patterson]
+    - Update cc_ubuntu_advantage calls to assume-yes (#1158) [John Chittum]
+    - openbsd: properly restart the network on 7.0 (#1150) [Gonéri Le Bouder]
+    - Add .git-blame-ignore-revs (#1161)
+    - Adopt Black and isort (SC-700) (#1157)
+    - Include dpkg frontend lock in APT_LOCK_FILES (#1153)
+    - tests/cmd/query: fix test run as root and add coverage for defaults
+      (#1156) [Chris Patterson]
+    - Schema processing changes (SC-676) (#1144)
+    - Add dependency workaround for impish in bddeb (#1148) [Brett Holman]
+    - netbsd: install new dep packages (#1151) [Gonéri Le Bouder]
+    - find_devs_with_openbsd: ensure we return the last entry (#1149)
+      [Gonéri Le Bouder]
     - sources/azure: remove unnecessary hostname bounce (#1143)
       [Chris Patterson]
     - find_devs/openbsd: accept ISO on disk (#1132) [Gonéri Le Bouder]
@@ -53,7 +114,7 @@ cloud-init (21.4-39-ge9634266-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     - testing: stop chef test from running on openstack (#1102)
     - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 13 Dec 2021 18:46:17 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Jan 2022 09:05:03 -0700
 
 cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 

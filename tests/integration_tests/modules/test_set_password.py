@@ -15,7 +15,6 @@ import yaml
 
 from tests.integration_tests.util import retry
 
-
 COMMON_USER_DATA = """\
 #cloud-config
 ssh_pwauth: yes
@@ -42,7 +41,9 @@ Uh69tP4GSrGW5XKHxMLiKowJgm/"
     lock_passwd: false
 """
 
-LIST_USER_DATA = COMMON_USER_DATA + """
+LIST_USER_DATA = (
+    COMMON_USER_DATA
+    + """
 chpasswd:
   list:
     - tom:mypassword123!
@@ -50,8 +51,11 @@ chpasswd:
     - harry:RANDOM
     - mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
+)
 
-STRING_USER_DATA = COMMON_USER_DATA + """
+STRING_USER_DATA = (
+    COMMON_USER_DATA
+    + """
 chpasswd:
     list: |
       tom:mypassword123!
@@ -59,6 +63,7 @@ chpasswd:
       harry:RANDOM
       mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
+)
 
 USERS_DICTS = yaml.safe_load(COMMON_USER_DATA)["users"]
 USERS_PASSWD_VALUES = {
@@ -141,13 +146,13 @@ class Mixin:
             # log
             pytest.skip("NotImplementedError when requesting console log")
             return
-        if console_log.lower() == 'no console output':
+        if console_log.lower() == "no console output":
             # This test retries because we might not have the full console log
             # on the first fetch. However, if we have no console output
             # at all, we don't want to keep retrying as that would trigger
             # another 5 minute wait on the pycloudlib side, which could
             # leave us waiting for a couple hours
-            pytest.fail('no console output')
+            pytest.fail("no console output")
             return
         assert "dick:" in console_log
         assert "harry:" in console_log

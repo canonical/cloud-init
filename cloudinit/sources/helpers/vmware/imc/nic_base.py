@@ -18,7 +18,7 @@ class NicBase(object):
         Retrieves the mac address of the nic
         @return (str) : the MACADDR setting
         """
-        raise NotImplementedError('MACADDR')
+        raise NotImplementedError("MACADDR")
 
     @property
     def primary(self):
@@ -29,7 +29,7 @@ class NicBase(object):
         be set.
         @return (bool): the PRIMARY setting
         """
-        raise NotImplementedError('PRIMARY')
+        raise NotImplementedError("PRIMARY")
 
     @property
     def onboot(self):
@@ -37,7 +37,7 @@ class NicBase(object):
         Retrieves whether the nic should be up at the boot time
         @return (bool) : the ONBOOT setting
         """
-        raise NotImplementedError('ONBOOT')
+        raise NotImplementedError("ONBOOT")
 
     @property
     def bootProto(self):
@@ -45,7 +45,7 @@ class NicBase(object):
         Retrieves the boot protocol of the nic
         @return (str): the BOOTPROTO setting, valid values: dhcp and static.
         """
-        raise NotImplementedError('BOOTPROTO')
+        raise NotImplementedError("BOOTPROTO")
 
     @property
     def ipv4_mode(self):
@@ -54,7 +54,7 @@ class NicBase(object):
         @return (str): the IPv4_MODE setting, valid values:
         backwards_compatible, static, dhcp, disabled, as_is
         """
-        raise NotImplementedError('IPv4_MODE')
+        raise NotImplementedError("IPv4_MODE")
 
     @property
     def staticIpv4(self):
@@ -62,7 +62,7 @@ class NicBase(object):
         Retrieves the static IPv4 configuration of the nic
         @return (StaticIpv4Base list): the static ipv4 setting
         """
-        raise NotImplementedError('Static IPv4')
+        raise NotImplementedError("Static IPv4")
 
     @property
     def staticIpv6(self):
@@ -70,7 +70,7 @@ class NicBase(object):
         Retrieves the IPv6 configuration of the nic
         @return (StaticIpv6Base list): the static ipv6 setting
         """
-        raise NotImplementedError('Static Ipv6')
+        raise NotImplementedError("Static Ipv6")
 
     def validate(self):
         """
@@ -78,7 +78,7 @@ class NicBase(object):
         For example, the staticIpv4 property is required and should not be
         empty when ipv4Mode is STATIC
         """
-        raise NotImplementedError('Check constraints on properties')
+        raise NotImplementedError("Check constraints on properties")
 
 
 class StaticIpv4Base(object):
@@ -93,7 +93,7 @@ class StaticIpv4Base(object):
         Retrieves the Ipv4 address
         @return (str): the IPADDR setting
         """
-        raise NotImplementedError('Ipv4 Address')
+        raise NotImplementedError("Ipv4 Address")
 
     @property
     def netmask(self):
@@ -101,7 +101,7 @@ class StaticIpv4Base(object):
         Retrieves the Ipv4 NETMASK setting
         @return (str): the NETMASK setting
         """
-        raise NotImplementedError('Ipv4 NETMASK')
+        raise NotImplementedError("Ipv4 NETMASK")
 
     @property
     def gateways(self):
@@ -109,7 +109,7 @@ class StaticIpv4Base(object):
         Retrieves the gateways on this Ipv4 subnet
         @return (str list): the GATEWAY setting
         """
-        raise NotImplementedError('Ipv4 GATEWAY')
+        raise NotImplementedError("Ipv4 GATEWAY")
 
 
 class StaticIpv6Base(object):
@@ -123,7 +123,7 @@ class StaticIpv6Base(object):
         Retrieves the Ipv6 address
         @return (str): the IPv6ADDR setting
         """
-        raise NotImplementedError('Ipv6 Address')
+        raise NotImplementedError("Ipv6 Address")
 
     @property
     def netmask(self):
@@ -131,7 +131,7 @@ class StaticIpv6Base(object):
         Retrieves the Ipv6 NETMASK setting
         @return (str): the IPv6NETMASK setting
         """
-        raise NotImplementedError('Ipv6 NETMASK')
+        raise NotImplementedError("Ipv6 NETMASK")
 
     @property
     def gateway(self):
@@ -139,6 +139,7 @@ class StaticIpv6Base(object):
         Retrieves the Ipv6 GATEWAY setting
         @return (str): the IPv6GATEWAY setting
         """
-        raise NotImplementedError('Ipv6 GATEWAY')
+        raise NotImplementedError("Ipv6 GATEWAY")
+
 
 # vi: ts=4 expandtab

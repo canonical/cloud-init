@@ -47,12 +47,12 @@ lxd-bridge will be configured accordingly.
             domain: <domain>
 """
 
-from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
 import os
 
-distros = ['ubuntu']
+from cloudinit import log as logging
+from cloudinit import subp, util
+
+distros = ["ubuntu"]
 
 LOG = logging.getLogger(__name__)
 
@@ -61,36 +61,42 @@ _DEFAULT_NETWORK_NAME = "lxdbr0"
 
 def handle(name, cfg, cloud, log, args):
     # Get config
-    lxd_cfg = cfg.get('lxd')
+    lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:
-        log.debug("Skipping module named %s, not present or disabled by cfg",
-                  name)
+        log.debug(
+            "Skipping module named %s, not present or disabled by cfg", name
+        )
         return
     if not isinstance(lxd_cfg, dict):
-        log.warning("lxd config must be a dictionary. found a '%s'",
-                    type(lxd_cfg))
+        log.warning(
+            "lxd config must be a dictionary. found a '%s'", type(lxd_cfg)
+        )
         return
 
     # Grab the configuration
-    init_cfg = lxd_cfg.get('init')
+    init_cfg = lxd_cfg.get("init")
     if not isinstance(init_cfg, dict):
-        log.warning("lxd/init config must be a dictionary. found a '%s'",
-                    type(init_cfg))
+        log.warning(
+            "lxd/init config must be a dictionary. found a '%s'",
+            type(init_cfg),
+        )
         init_cfg = {}
 
-    bridge_cfg = lxd_cfg.get('bridge', {})
+    bridge_cfg = lxd_cfg.get("bridge", {})
     if not isinstance(bridge_cfg, dict):
-        log.warning("lxd/bridge config must be a dictionary. found a '%s'",
-                    type(bridge_cfg))
+        log.warning(
+            "lxd/bridge config must be a dictionary. found a '%s'",
+            type(bridge_cfg),
+        )
         bridge_cfg = {}
 
     # Install the needed packages
     packages = []
     if not subp.which("lxd"):
-        packages.append('lxd')
+        packages.append("lxd")
 
-    if init_cfg.get("storage_backend") == "zfs" and not subp.which('zfs'):
-        packages.append('zfsutils-linux')
+    if init_cfg.get("storage_backend") == "zfs" and not subp.which("zfs"):
+        packages.append("zfsutils-linux")
 
     if len(packages):
         try:
@@ -102,23 +108,30 @@ def handle(name, cfg, cloud, log, args):
     # Set up lxd if init config is given
     if init_cfg:
         init_keys = (
-            'network_address', 'network_port', 'storage_backend',
-            'storage_create_device', 'storage_create_loop',
-            'storage_pool', 'trust_password')
-        subp.subp(['lxd', 'waitready', '--timeout=300'])
-        cmd = ['lxd', 'init', '--auto']
+            "network_address",
+            "network_port",
+            "storage_backend",
+            "storage_create_device",
+            "storage_create_loop",
+            "storage_pool",
+            "trust_password",
+        )
+        subp.subp(["lxd", "waitready", "--timeout=300"])
+        cmd = ["lxd", "init", "--auto"]
         for k in init_keys:
             if init_cfg.get(k):
-                cmd.extend(["--%s=%s" %
-                            (k.replace('_', '-'), str(init_cfg[k]))])
+                cmd.extend(
+                    ["--%s=%s" % (k.replace("_", "-"), str(init_cfg[k]))]
+                )
         subp.subp(cmd)
 
     # Set up lxd-bridge if bridge config is given
     dconf_comm = "debconf-communicate"
     if bridge_cfg:
         net_name = bridge_cfg.get("name", _DEFAULT_NETWORK_NAME)
-        if os.path.exists("/etc/default/lxd-bridge") \
-                and subp.which(dconf_comm):
+        if os.path.exists("/etc/default/lxd-bridge") and subp.which(
+            dconf_comm
+        ):
             # Bridge configured through packaging
 
             debconf = bridge_to_debconf(bridge_cfg)
@@ -126,39 +139,47 @@ def handle(name, cfg, cloud, log, args):
             # Update debconf database
             try:
                 log.debug("Setting lxd debconf via " + dconf_comm)
-                data = "\n".join(["set %s %s" % (k, v)
-                                  for k, v in debconf.items()]) + "\n"
-                subp.subp(['debconf-communicate'], data)
+                data = (
+                    "\n".join(
+                        ["set %s %s" % (k, v) for k, v in debconf.items()]
+                    )
+                    + "\n"
+                )
+                subp.subp(["debconf-communicate"], data)
             except Exception:
-                util.logexc(log, "Failed to run '%s' for lxd with" %
-                            dconf_comm)
+                util.logexc(
+                    log, "Failed to run '%s' for lxd with" % dconf_comm
+                )
 
             # Remove the existing configuration file (forces re-generation)
             util.del_file("/etc/default/lxd-bridge")
 
             # Run reconfigure
             log.debug("Running dpkg-reconfigure for lxd")
-            subp.subp(['dpkg-reconfigure', 'lxd',
-                       '--frontend=noninteractive'])
+            subp.subp(["dpkg-reconfigure", "lxd", "--frontend=noninteractive"])
         else:
             # Built-in LXD bridge support
             cmd_create, cmd_attach = bridge_to_cmd(bridge_cfg)
             maybe_cleanup_default(
-                net_name=net_name, did_init=bool(init_cfg),
-                create=bool(cmd_create), attach=bool(cmd_attach))
+                net_name=net_name,
+                did_init=bool(init_cfg),
+                create=bool(cmd_create),
+                attach=bool(cmd_attach),
+            )
             if cmd_create:
-                log.debug("Creating lxd bridge: %s" %
-                          " ".join(cmd_create))
+                log.debug("Creating lxd bridge: %s" % " ".join(cmd_create))
                 _lxc(cmd_create)
 
             if cmd_attach:
-                log.debug("Setting up default lxd bridge: %s" %
-                          " ".join(cmd_attach))
+                log.debug(
+                    "Setting up default lxd bridge: %s" % " ".join(cmd_attach)
+                )
                 _lxc(cmd_attach)
 
     elif bridge_cfg:
         raise RuntimeError(
-            "Unable to configure lxd bridge without %s." + dconf_comm)
+            "Unable to configure lxd bridge without %s." + dconf_comm
+        )
 
 
 def bridge_to_debconf(bridge_cfg):
@@ -180,33 +201,32 @@ def bridge_to_debconf(bridge_cfg):
 
         if bridge_cfg.get("ipv4_address"):
             debconf["lxd/bridge-ipv4"] = "true"
-            debconf["lxd/bridge-ipv4-address"] = \
-                bridge_cfg.get("ipv4_address")
-            debconf["lxd/bridge-ipv4-netmask"] = \
-                bridge_cfg.get("ipv4_netmask")
-            debconf["lxd/bridge-ipv4-dhcp-first"] = \
-                bridge_cfg.get("ipv4_dhcp_first")
-            debconf["lxd/bridge-ipv4-dhcp-last"] = \
-                bridge_cfg.get("ipv4_dhcp_last")
-            debconf["lxd/bridge-ipv4-dhcp-leases"] = \
-                bridge_cfg.get("ipv4_dhcp_leases")
-            debconf["lxd/bridge-ipv4-nat"] = \
-                bridge_cfg.get("ipv4_nat", "true")
+            debconf["lxd/bridge-ipv4-address"] = bridge_cfg.get("ipv4_address")
+            debconf["lxd/bridge-ipv4-netmask"] = bridge_cfg.get("ipv4_netmask")
+            debconf["lxd/bridge-ipv4-dhcp-first"] = bridge_cfg.get(
+                "ipv4_dhcp_first"
+            )
+            debconf["lxd/bridge-ipv4-dhcp-last"] = bridge_cfg.get(
+                "ipv4_dhcp_last"
+            )
+            debconf["lxd/bridge-ipv4-dhcp-leases"] = bridge_cfg.get(
+                "ipv4_dhcp_leases"
+            )
+            debconf["lxd/bridge-ipv4-nat"] = bridge_cfg.get("ipv4_nat", "true")
 
         if bridge_cfg.get("ipv6_address"):
             debconf["lxd/bridge-ipv6"] = "true"
-            debconf["lxd/bridge-ipv6-address"] = \
-                bridge_cfg.get("ipv6_address")
-            debconf["lxd/bridge-ipv6-netmask"] = \
-                bridge_cfg.get("ipv6_netmask")
-            debconf["lxd/bridge-ipv6-nat"] = \
-                bridge_cfg.get("ipv6_nat", "false")
+            debconf["lxd/bridge-ipv6-address"] = bridge_cfg.get("ipv6_address")
+            debconf["lxd/bridge-ipv6-netmask"] = bridge_cfg.get("ipv6_netmask")
+            debconf["lxd/bridge-ipv6-nat"] = bridge_cfg.get(
+                "ipv6_nat", "false"
+            )
 
         if bridge_cfg.get("domain"):
             debconf["lxd/bridge-domain"] = bridge_cfg.get("domain")
 
     else:
-        raise Exception("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
+        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     return debconf
 
@@ -217,37 +237,41 @@ def bridge_to_cmd(bridge_cfg):
 
     bridge_name = bridge_cfg.get("name", _DEFAULT_NETWORK_NAME)
     cmd_create = []
-    cmd_attach = ["network", "attach-profile", bridge_name,
-                  "default", "eth0"]
+    cmd_attach = ["network", "attach-profile", bridge_name, "default", "eth0"]
 
     if bridge_cfg.get("mode") == "existing":
         return None, cmd_attach
 
     if bridge_cfg.get("mode") != "new":
-        raise Exception("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
+        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     cmd_create = ["network", "create", bridge_name]
 
     if bridge_cfg.get("ipv4_address") and bridge_cfg.get("ipv4_netmask"):
-        cmd_create.append("ipv4.address=%s/%s" %
-                          (bridge_cfg.get("ipv4_address"),
-                           bridge_cfg.get("ipv4_netmask")))
+        cmd_create.append(
+            "ipv4.address=%s/%s"
+            % (bridge_cfg.get("ipv4_address"), bridge_cfg.get("ipv4_netmask"))
+        )
 
         if bridge_cfg.get("ipv4_nat", "true") == "true":
             cmd_create.append("ipv4.nat=true")
 
-        if bridge_cfg.get("ipv4_dhcp_first") and \
-                bridge_cfg.get("ipv4_dhcp_last"):
-            dhcp_range = "%s-%s" % (bridge_cfg.get("ipv4_dhcp_first"),
-                                    bridge_cfg.get("ipv4_dhcp_last"))
+        if bridge_cfg.get("ipv4_dhcp_first") and bridge_cfg.get(
+            "ipv4_dhcp_last"
+        ):
+            dhcp_range = "%s-%s" % (
+                bridge_cfg.get("ipv4_dhcp_first"),
+                bridge_cfg.get("ipv4_dhcp_last"),
+            )
             cmd_create.append("ipv4.dhcp.ranges=%s" % dhcp_range)
     else:
         cmd_create.append("ipv4.address=none")
 
     if bridge_cfg.get("ipv6_address") and bridge_cfg.get("ipv6_netmask"):
-        cmd_create.append("ipv6.address=%s/%s" %
-                          (bridge_cfg.get("ipv6_address"),
-                           bridge_cfg.get("ipv6_netmask")))
+        cmd_create.append(
+            "ipv6.address=%s/%s"
+            % (bridge_cfg.get("ipv6_address"), bridge_cfg.get("ipv6_netmask"))
+        )
 
         if bridge_cfg.get("ipv6_nat", "false") == "true":
             cmd_create.append("ipv6.nat=true")
@@ -262,14 +286,17 @@ def bridge_to_cmd(bridge_cfg):
 
 
 def _lxc(cmd):
-    env = {'LC_ALL': 'C',
-           'HOME': os.environ.get('HOME', '/root'),
-           'USER': os.environ.get('USER', 'root')}
-    subp.subp(['lxc'] + list(cmd) + ["--force-local"], update_env=env)
+    env = {
+        "LC_ALL": "C",
+        "HOME": os.environ.get("HOME", "/root"),
+        "USER": os.environ.get("USER", "root"),
+    }
+    subp.subp(["lxc"] + list(cmd) + ["--force-local"], update_env=env)
 
 
-def maybe_cleanup_default(net_name, did_init, create, attach,
-                          profile="default", nic_name="eth0"):
+def maybe_cleanup_default(
+    net_name, did_init, create, attach, profile="default", nic_name="eth0"
+):
     """Newer versions of lxc (3.0.1+) create a lxdbr0 network when
     'lxd init --auto' is run.  Older versions did not.
 
@@ -305,5 +332,6 @@ def maybe_cleanup_default(net_name, did_init, create, attach,
             if e.exit_code != 1:
                 raise e
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
+
 
 # vi: ts=4 expandtab

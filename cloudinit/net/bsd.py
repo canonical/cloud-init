@@ -3,11 +3,9 @@
 import re
 
 from cloudinit import log as logging
-from cloudinit import net
-from cloudinit import util
-from cloudinit import subp
-from cloudinit.distros.parsers.resolv_conf import ResolvConf
+from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
+from cloudinit.distros.parsers.resolv_conf import ResolvConf
 
 from . import renderer
 
@@ -15,8 +13,8 @@ LOG = logging.getLogger(__name__)
 
 
 class BSDRenderer(renderer.Renderer):
-    resolv_conf_fn = 'etc/resolv.conf'
-    rc_conf_fn = 'etc/rc.conf'
+    resolv_conf_fn = "etc/resolv.conf"
+    rc_conf_fn = "etc/rc.conf"
 
     def get_rc_config_value(self, key):
         fn = subp.target_path(self.target, self.rc_conf_fn)
@@ -31,52 +29,59 @@ class BSDRenderer(renderer.Renderer):
             config = {}
         self.target = None
         self.interface_configurations = {}
-        self._postcmds = config.get('postcmds', True)
+        self._postcmds = config.get("postcmds", True)
 
     def _ifconfig_entries(self, settings):
         ifname_by_mac = net.get_interfaces_by_mac()
         for interface in settings.iter_interfaces():
             device_name = interface.get("name")
             device_mac = interface.get("mac_address")
-            if device_name and re.match(r'^lo\d+$', device_name):
+            if device_name and re.match(r"^lo\d+$", device_name):
                 continue
             if device_mac not in ifname_by_mac:
-                LOG.info('Cannot find any device with MAC %s', device_mac)
+                LOG.info("Cannot find any device with MAC %s", device_mac)
             elif device_mac and device_name:
                 cur_name = ifname_by_mac[device_mac]
                 if cur_name != device_name:
-                    LOG.info('netif service will rename interface %s to %s',
-                             cur_name, device_name)
+                    LOG.info(
+                        "netif service will rename interface %s to %s",
+                        cur_name,
+                        device_name,
+                    )
                     try:
                         self.rename_interface(cur_name, device_name)
                     except NotImplementedError:
-                        LOG.error((
-                            'Interface renaming is '
-                            'not supported on this OS'))
+                        LOG.error(
+                            "Interface renaming is not supported on this OS"
+                        )
                         device_name = cur_name
 
             else:
                 device_name = ifname_by_mac[device_mac]
 
-            LOG.info('Configuring interface %s', device_name)
+            LOG.info("Configuring interface %s", device_name)
 
-            self.interface_configurations[device_name] = 'DHCP'
+            self.interface_configurations[device_name] = "DHCP"
 
             for subnet in interface.get("subnets", []):
-                if subnet.get('type') == 'static':
-                    if not subnet.get('netmask'):
+                if subnet.get("type") == "static":
+                    if not subnet.get("netmask"):
                         LOG.debug(
-                            'Skipping IP %s, because there is no netmask',
-                            subnet.get('address')
+                            "Skipping IP %s, because there is no netmask",
+                            subnet.get("address"),
                         )
                         continue
-                    LOG.debug('Configuring dev %s with %s / %s', device_name,
-                              subnet.get('address'), subnet.get('netmask'))
+                    LOG.debug(
+                        "Configuring dev %s with %s / %s",
+                        device_name,
+                        subnet.get("address"),
+                        subnet.get("netmask"),
+                    )
 
                     self.interface_configurations[device_name] = {
-                        'address': subnet.get('address'),
-                        'netmask': subnet.get('netmask'),
-                        'mtu': subnet.get('mtu') or interface.get('mtu'),
+                        "address": subnet.get("address"),
+                        "netmask": subnet.get("netmask"),
+                        "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
 
     def _route_entries(self, settings):
@@ -84,22 +89,25 @@ class BSDRenderer(renderer.Renderer):
         for interface in settings.iter_interfaces():
             subnets = interface.get("subnets", [])
             for subnet in subnets:
-                if subnet.get('type') != 'static':
+                if subnet.get("type") != "static":
                     continue
-                gateway = subnet.get('gateway')
-                if gateway and len(gateway.split('.')) == 4:
-                    routes.append({
-                        'network': '0.0.0.0',
-                        'netmask': '0.0.0.0',
-                        'gateway': gateway})
-                routes += subnet.get('routes', [])
+                gateway = subnet.get("gateway")
+                if gateway and len(gateway.split(".")) == 4:
+                    routes.append(
+                        {
+                            "network": "0.0.0.0",
+                            "netmask": "0.0.0.0",
+                            "gateway": gateway,
+                        }
+                    )
+                routes += subnet.get("routes", [])
         for route in routes:
-            network = route.get('network')
+            network = route.get("network")
             if not network:
-                LOG.debug('Skipping a bad route entry')
+                LOG.debug("Skipping a bad route entry")
                 continue
-            netmask = route.get('netmask')
-            gateway = route.get('gateway')
+            netmask = route.get("netmask")
+            gateway = route.get("gateway")
             self.set_route(network, netmask, gateway)
 
     def _resolve_conf(self, settings):
@@ -107,38 +115,46 @@ class BSDRenderer(renderer.Renderer):
         searchdomains = settings.dns_searchdomains
         for interface in settings.iter_interfaces():
             for subnet in interface.get("subnets", []):
-                if 'dns_nameservers' in subnet:
-                    nameservers.extend(subnet['dns_nameservers'])
-                if 'dns_search' in subnet:
-                    searchdomains.extend(subnet['dns_search'])
+                if "dns_nameservers" in subnet:
+                    nameservers.extend(subnet["dns_nameservers"])
+                if "dns_search" in subnet:
+                    searchdomains.extend(subnet["dns_search"])
         # Try to read the /etc/resolv.conf or just start from scratch if that
         # fails.
         try:
-            resolvconf = ResolvConf(util.load_file(subp.target_path(
-                self.target, self.resolv_conf_fn)))
+            resolvconf = ResolvConf(
+                util.load_file(
+                    subp.target_path(self.target, self.resolv_conf_fn)
+                )
+            )
             resolvconf.parse()
         except IOError:
-            util.logexc(LOG, "Failed to parse %s, use new empty file",
-                        subp.target_path(self.target, self.resolv_conf_fn))
-            resolvconf = ResolvConf('')
+            util.logexc(
+                LOG,
+                "Failed to parse %s, use new empty file",
+                subp.target_path(self.target, self.resolv_conf_fn),
+            )
+            resolvconf = ResolvConf("")
             resolvconf.parse()
 
         # Add some nameservers
-        for server in nameservers:
+        for server in set(nameservers):
             try:
                 resolvconf.add_nameserver(server)
             except ValueError:
                 util.logexc(LOG, "Failed to add nameserver %s", server)
 
         # And add any searchdomains.
-        for domain in searchdomains:
+        for domain in set(searchdomains):
             try:
                 resolvconf.add_search_domain(domain)
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
         util.write_file(
             subp.target_path(self.target, self.resolv_conf_fn),
-            str(resolvconf), 0o644)
+            str(resolvconf),
+            0o644,
+        )
 
     def render_network_state(self, network_state, templates=None, target=None):
         if target:
@@ -152,7 +168,7 @@ class BSDRenderer(renderer.Renderer):
 
     def dhcp_interfaces(self):
         ic = self.interface_configurations.items
-        return [k for k, v in ic() if v == 'DHCP']
+        return [k for k, v in ic() if v == "DHCP"]
 
     def start_services(self, run=False):
         raise NotImplementedError()

@@ -32,15 +32,18 @@ def generate_udev_rule(interface, mac, driver=None):
     ATTR{address}="ff:ee:dd:cc:bb:aa", NAME="eth0"
     """
     if not driver:
-        driver = '?*'
+        driver = "?*"
 
-    rule = ', '.join([
-        compose_udev_equality('SUBSYSTEM', 'net'),
-        compose_udev_equality('ACTION', 'add'),
-        compose_udev_equality('DRIVERS', driver),
-        compose_udev_attr_equality('address', mac),
-        compose_udev_setting('NAME', interface),
-    ])
-    return '%s\n' % rule
+    rule = ", ".join(
+        [
+            compose_udev_equality("SUBSYSTEM", "net"),
+            compose_udev_equality("ACTION", "add"),
+            compose_udev_equality("DRIVERS", driver),
+            compose_udev_attr_equality("address", mac),
+            compose_udev_setting("NAME", interface),
+        ]
+    )
+    return "%s\n" % rule
+
 
 # vi: ts=4 expandtab syntax=python

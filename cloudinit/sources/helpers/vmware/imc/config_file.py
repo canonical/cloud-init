@@ -35,7 +35,7 @@ class ConfigFile(ConfigSource, dict):
         key = key.strip()
         val = val.strip()
 
-        if key.startswith('-') or '|-' in key:
+        if key.startswith("-") or "|-" in key:
             canLog = False
         else:
             canLog = True
@@ -59,7 +59,7 @@ class ConfigFile(ConfigSource, dict):
         Keyword arguments:
         filename - The full path to the config file.
         """
-        logger.info('Parsing the config file %s.', filename)
+        logger.info("Parsing the config file %s.", filename)
 
         config = configparser.ConfigParser()
         config.optionxform = str
@@ -71,7 +71,7 @@ class ConfigFile(ConfigSource, dict):
             logger.debug("FOUND CATEGORY = '%s'", category)
 
             for (key, value) in config.items(category):
-                self._insertKey(category + '|' + key, value)
+                self._insertKey(category + "|" + key, value)
 
     def should_keep_current_value(self, key):
         """
@@ -114,5 +114,6 @@ class ConfigFile(ConfigSource, dict):
         prefix -- prefix of the key
         """
         return len([key for key in self if key.startswith(prefix)])
+
 
 # vi: ts=4 expandtab

@@ -53,4 +53,5 @@ frequency = PER_INSTANCE
 def handle(name, _cfg, _cloud, log, _args):
     log.debug("Hi from module %s", name)
 
+
 # vi: ts=4 expandtab

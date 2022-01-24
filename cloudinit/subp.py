@@ -4,7 +4,6 @@
 import logging
 import os
 import subprocess
-
 from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ def prepend_base_command(base_command, commands):
             elif command[0] != base_command:  # Automatically prepend
                 command.insert(0, base_command)
         elif isinstance(command, str):
-            if not command.startswith('%s ' % base_command):
+            if not command.startswith("%s " % base_command):
                 warnings.append(command)
         else:
             errors.append(str(command))
@@ -46,30 +45,43 @@ def prepend_base_command(base_command, commands):
 
     if warnings:
         LOG.warning(
-            'Non-%s commands in %s config:\n%s',
-            base_command, base_command, '\n'.join(warnings))
+            "Non-%s commands in %s config:\n%s",
+            base_command,
+            base_command,
+            "\n".join(warnings),
+        )
     if errors:
         raise TypeError(
-            'Invalid {name} config.'
-            ' These commands are not a string or list:\n{errors}'.format(
-                name=base_command, errors='\n'.join(errors)))
+            "Invalid {name} config."
+            " These commands are not a string or list:\n{errors}".format(
+                name=base_command, errors="\n".join(errors)
+            )
+        )
     return fixed_commands
 
 
 class ProcessExecutionError(IOError):
 
-    MESSAGE_TMPL = ('%(description)s\n'
-                    'Command: %(cmd)s\n'
-                    'Exit code: %(exit_code)s\n'
-                    'Reason: %(reason)s\n'
-                    'Stdout: %(stdout)s\n'
-                    'Stderr: %(stderr)s')
-    empty_attr = '-'
+    MESSAGE_TMPL = (
+        "%(description)s\n"
+        "Command: %(cmd)s\n"
+        "Exit code: %(exit_code)s\n"
+        "Reason: %(reason)s\n"
+        "Stdout: %(stdout)s\n"
+        "Stderr: %(stderr)s"
+    )
+    empty_attr = "-"
 
-    def __init__(self, stdout=None, stderr=None,
-                 exit_code=None, cmd=None,
-                 description=None, reason=None,
-                 errno=None):
+    def __init__(
+        self,
+        stdout=None,
+        stderr=None,
+        exit_code=None,
+        cmd=None,
+        description=None,
+        reason=None,
+        errno=None,
+    ):
         if not cmd:
             self.cmd = self.empty_attr
         else:
@@ -77,9 +89,9 @@ class ProcessExecutionError(IOError):
 
         if not description:
             if not exit_code and errno == ENOEXEC:
-                self.description = 'Exec format error. Missing #! in script?'
+                self.description = "Exec format error. Missing #! in script?"
             else:
-                self.description = 'Unexpected error while running command.'
+                self.description = "Unexpected error while running command."
         else:
             self.description = description
 
@@ -111,12 +123,12 @@ class ProcessExecutionError(IOError):
 
         self.errno = errno
         message = self.MESSAGE_TMPL % {
-            'description': self._ensure_string(self.description),
-            'cmd': self._ensure_string(self.cmd),
-            'exit_code': self._ensure_string(self.exit_code),
-            'stdout': self._ensure_string(self.stdout),
-            'stderr': self._ensure_string(self.stderr),
-            'reason': self._ensure_string(self.reason),
+            "description": self._ensure_string(self.description),
+            "cmd": self._ensure_string(self.cmd),
+            "exit_code": self._ensure_string(self.exit_code),
+            "stdout": self._ensure_string(self.stdout),
+            "stderr": self._ensure_string(self.stderr),
+            "reason": self._ensure_string(self.reason),
         }
         IOError.__init__(self, message)
 
@@ -130,8 +142,8 @@ class ProcessExecutionError(IOError):
         """
         indent text on all but the first line, allowing for easy to read output
         """
-        cr = '\n'
-        indent = ' ' * indent_level
+        cr = "\n"
+        indent = " " * indent_level
         # if input is bytes, return bytes
         if isinstance(text, bytes):
             cr = cr.encode()
@@ -141,10 +153,21 @@ class ProcessExecutionError(IOError):
         return text.rstrip(cr).replace(cr, cr + indent)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True,
-         combine_capture=False, shell=False,
-         logstring=False, decode="replace", target=None, update_env=None,
-         status_cb=None, cwd=None):
+def subp(
+    args,
+    data=None,
+    rcs=None,
+    env=None,
+    capture=True,
+    combine_capture=False,
+    shell=False,
+    logstring=False,
+    decode="replace",
+    target=None,
+    update_env=None,
+    status_cb=None,
+    cwd=None,
+):
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
@@ -210,18 +233,26 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
         env.update(update_env)
 
     if target_path(target) != "/":
-        args = ['chroot', target] + list(args)
+        args = ["chroot", target] + list(args)
 
     if status_cb:
-        command = ' '.join(args) if isinstance(args, list) else args
-        status_cb('Begin run command: {command}\n'.format(command=command))
+        command = " ".join(args) if isinstance(args, list) else args
+        status_cb("Begin run command: {command}\n".format(command=command))
     if not logstring:
-        LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"),
-                  args, rcs, shell, 'combine' if combine_capture else capture)
+        LOG.debug(
+            "Running command %s with allowed return codes %s"
+            " (shell=%s, capture=%s)",
+            args,
+            rcs,
+            shell,
+            "combine" if combine_capture else capture,
+        )
     else:
-        LOG.debug(("Running hidden command to protect sensitive "
-                   "input/output logstring: %s"), logstring)
+        LOG.debug(
+            "Running hidden command to protect sensitive "
+            "input/output logstring: %s",
+            logstring,
+        )
 
     stdin = None
     stdout = None
@@ -251,20 +282,28 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
         bytes_args = args.encode("utf-8")
     else:
         bytes_args = [
-            x if isinstance(x, bytes) else x.encode("utf-8")
-            for x in args]
+            x if isinstance(x, bytes) else x.encode("utf-8") for x in args
+        ]
     try:
-        sp = subprocess.Popen(bytes_args, stdout=stdout,
-                              stderr=stderr, stdin=stdin,
-                              env=env, shell=shell, cwd=cwd)
+        sp = subprocess.Popen(
+            bytes_args,
+            stdout=stdout,
+            stderr=stderr,
+            stdin=stdin,
+            env=env,
+            shell=shell,
+            cwd=cwd,
+        )
         (out, err) = sp.communicate(data)
     except OSError as e:
         if status_cb:
-            status_cb('ERROR: End run command: invalid command provided\n')
+            status_cb("ERROR: End run command: invalid command provided\n")
         raise ProcessExecutionError(
-            cmd=args, reason=e, errno=e.errno,
+            cmd=args,
+            reason=e,
+            errno=e.errno,
             stdout="-" if decode else b"-",
-            stderr="-" if decode else b"-"
+            stderr="-" if decode else b"-",
         ) from e
     finally:
         if devnull_fp:
@@ -273,11 +312,12 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
     # Just ensure blank instead of none.
     if capture or combine_capture:
         if not out:
-            out = b''
+            out = b""
         if not err:
-            err = b''
+            err = b""
     if decode:
-        def ldecode(data, m='utf-8'):
+
+        def ldecode(data, m="utf-8"):
             if not isinstance(data, bytes):
                 return data
             return data.decode(m, decode)
@@ -288,13 +328,12 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
     rc = sp.returncode
     if rc not in rcs:
         if status_cb:
-            status_cb(
-                'ERROR: End run command: exit({code})\n'.format(code=rc))
-        raise ProcessExecutionError(stdout=out, stderr=err,
-                                    exit_code=rc,
-                                    cmd=args)
+            status_cb("ERROR: End run command: exit({code})\n".format(code=rc))
+        raise ProcessExecutionError(
+            stdout=out, stderr=err, exit_code=rc, cmd=args
+        )
     if status_cb:
-        status_cb('End run command: exit({code})\n'.format(code=rc))
+        status_cb("End run command: exit({code})\n".format(code=rc))
     return (out, err)
 
 
@@ -331,8 +370,9 @@ def which(program, search=None, target=None):
             return program
 
     if search is None:
-        paths = [p.strip('"') for p in
-                 os.environ.get("PATH", "").split(os.pathsep)]
+        paths = [
+            p.strip('"') for p in os.environ.get("PATH", "").split(os.pathsep)
+        ]
         if target == "/":
             search = paths
         else:
@@ -382,8 +422,9 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
 
     if failed and attempted:
         raise RuntimeError(
-            'Runparts: %s failures (%s) in %s attempted commands' %
-            (len(failed), ",".join(failed), len(attempted)))
+            "Runparts: %s failures (%s) in %s attempted commands"
+            % (len(failed), ",".join(failed), len(attempted))
+        )
 
 
 # vi: ts=4 expandtab

@@ -33,18 +33,20 @@ ethernets:
       match:
           macaddress: {}
 version: 2
-""".format(MAC_ADDRESS)
+""".format(
+    MAC_ADDRESS
+)
 
 
-@pytest.mark.lxd_config_dict({
-    "user.network-config": NETWORK_CONFIG,
-    "volatile.eth0.hwaddr": MAC_ADDRESS,
-})
+@pytest.mark.lxd_config_dict(
+    {
+        "user.network-config": NETWORK_CONFIG,
+        "volatile.eth0.hwaddr": MAC_ADDRESS,
+    }
+)
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_use_exec
 @pytest.mark.not_bionic
-@pytest.mark.not_xenial
-@pytest.mark.sru_2020_11
 @pytest.mark.ubuntu
 class TestInterfaceListingWithOpenvSwitch:
     def test_ovs_member_interfaces_not_excluded(self, client):
