@@ -5,6 +5,7 @@ import errno
 import ipaddress
 import os
 import textwrap
+from typing import Optional
 from unittest import mock
 
 import httpretty
@@ -388,6 +389,163 @@ class TestNetFindFallBackNic(CiTestCase):
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth1", "address"), mac)
         self.assertEqual("eth1", net.find_fallback_nic())
+
+
+class TestNetFindCandidateNics:
+    def create_fake_interface(
+        self,
+        name: str,
+        address: Optional[str] = "aa:bb:cc:aa:bb:cc",
+        carrier: bool = True,
+        bonding: bool = False,
+        dormant: bool = False,
+        driver: str = "fakenic",
+        bridge: bool = False,
+        failover_standby: bool = False,
+        operstate: Optional[str] = None,
+    ):
+        interface_path = self.sys_path / name
+        interface_path.mkdir(parents=True)
+
+        if address is not None:
+            (interface_path / "address").write_text(str(address))
+
+        if carrier:
+            (interface_path / "carrier").write_text("1")
+        else:
+            (interface_path / "carrier").write_text("0")
+
+        if bonding:
+            (interface_path / "bonding").write_text("1")
+
+        if bridge:
+            (interface_path / "bridge").write_text("1")
+
+        if dormant:
+            (interface_path / "dormant").write_text("1")
+        else:
+            (interface_path / "dormant").write_text("0")
+
+        if operstate:
+            (interface_path / "operstate").write_text(operstate)
+
+        device_path = interface_path / "device"
+        device_path.mkdir()
+        if failover_standby:
+            driver = "virtio_net"
+            (interface_path / "master").symlink_to(os.path.join("..", name))
+            (device_path / "features").write_text("1" * 64)
+
+        if driver:
+            (device_path / driver).write_text(driver)
+            (device_path / "driver").symlink_to(driver)
+
+    @pytest.fixture(autouse=True)
+    def setup(self, monkeypatch, tmp_path):
+        self.sys_path = tmp_path / "sys"
+        monkeypatch.setattr(
+            net, "get_sys_class_path", lambda: str(self.sys_path) + "/"
+        )
+        monkeypatch.setattr(
+            net.util,
+            "is_container",
+            lambda: False,
+        )
+        monkeypatch.setattr(net.util, "udevadm_settle", lambda: None)
+
+    def test_ignored_interfaces(self):
+        self.create_fake_interface(
+            name="ethNoCarrierDormantOperstateIgnored",
+            carrier=False,
+        )
+        self.create_fake_interface(
+            name="ethWithoutMacIgnored",
+            address=None,
+        )
+        self.create_fake_interface(name="vethIgnored", carrier=1)
+        self.create_fake_interface(
+            name="bondIgnored",
+            bonding=True,
+        )
+        self.create_fake_interface(
+            name="bridgeIgnored",
+            bridge=True,
+        )
+        self.create_fake_interface(
+            name="failOverIgnored",
+            failover_standby=True,
+        )
+        self.create_fake_interface(
+            name="TestingOperStateIgnored",
+            carrier=False,
+            operstate="testing",
+        )
+        self.create_fake_interface(
+            name="blacklistedDriverIgnored",
+            driver="bad",
+        )
+
+        assert (
+            net.find_candidate_nics_on_linux(blacklist_drivers=["bad"]) == []
+        )
+
+    def test_carrier_preferred(self):
+        self.create_fake_interface(name="eth0", carrier=False, dormant=True)
+        self.create_fake_interface(name="eth1")
+
+        assert net.find_candidate_nics_on_linux() == ["eth1", "eth0"]
+
+    def test_natural_sort(self):
+        self.create_fake_interface(name="a")
+        self.create_fake_interface(name="a1")
+        self.create_fake_interface(name="a2")
+        self.create_fake_interface(name="a10")
+        self.create_fake_interface(name="b1")
+
+        assert net.find_candidate_nics_on_linux() == [
+            "a",
+            "a1",
+            "a2",
+            "a10",
+            "b1",
+        ]
+
+    def test_eth0_preferred_with_carrier(self):
+        self.create_fake_interface(name="abc0")
+        self.create_fake_interface(name="eth0")
+
+        assert net.find_candidate_nics_on_linux() == ["eth0", "abc0"]
+
+    @pytest.mark.parametrize("dormant", [False, True])
+    @pytest.mark.parametrize(
+        "operstate", ["dormant", "down", "lowerlayerdown", "unknown"]
+    )
+    def test_eth0_preferred_after_carrier(self, dormant, operstate):
+        self.create_fake_interface(name="xeth10")
+        self.create_fake_interface(name="eth", carrier=False, dormant=True)
+        self.create_fake_interface(
+            name="eth0",
+            carrier=False,
+            dormant=dormant,
+            operstate=operstate,
+        )
+        self.create_fake_interface(name="eth1", carrier=False, dormant=True)
+        self.create_fake_interface(
+            name="eth2",
+            carrier=False,
+            operstate=operstate,
+        )
+
+        assert net.find_candidate_nics_on_linux() == [
+            "xeth10",
+            "eth0",
+            "eth",
+            "eth1",
+            "eth2",
+        ]
+
+    def test_no_nics(self):
+        assert net.find_candidate_nics_on_linux() == []
 
 
 class TestGetDeviceList(CiTestCase):
