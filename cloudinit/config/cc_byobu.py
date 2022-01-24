@@ -6,11 +6,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Byobu
------
-**Summary:** enable/disable byobu system wide and for default user
+"""Byobu: Enable/disable byobu system wide and for default user."""
 
+from cloudinit import subp, util
+from cloudinit.config.schema import get_meta_doc
+from cloudinit.distros import ug_util
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module controls whether byobu is enabled or disabled system wide and for
 the default system user. If byobu is to be enabled, this module will ensure it
 is installed. Likewise, if it is to be disabled, it will be removed if
@@ -26,22 +29,23 @@ Valid configuration options for this module are:
   - ``disable``: disable byobu for all users
   - ``user``: alias for ``enable-user``
   - ``system``: alias for ``enable-system``
-
-**Internal name:** ``cc_byobu``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu, debian
-
-**Config keys**::
-
-    byobu_by_default: <user/system>
 """
-
-from cloudinit import subp, util
-from cloudinit.distros import ug_util
-
 distros = ["ubuntu", "debian"]
+
+meta = {
+    "id": "cc_byobu",
+    "name": "Byobu",
+    "title": "Enable/disable byobu system wide and for default user",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        "byobu_by_default: enable-user",
+        "byobu_by_default: disable-system",
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, args):

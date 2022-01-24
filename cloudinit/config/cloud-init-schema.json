@@ -76,11 +76,30 @@
           "minItems": 1
         }
       }
+    },
+    "cc_byobu": {
+      "type": "object",
+      "properties": {
+        "byobu_by_default": {
+          "type": "string",
+          "enum": [
+            "enable-system",
+            "enable-user",
+            "disable-system",
+            "disable-user",
+            "enable",
+            "disable",
+            "user",
+            "system"
+          ]
+        }
+      }
     }
   },
   "allOf": [
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
-    { "$ref": "#/$defs/cc_bootcmd" }
+    { "$ref": "#/$defs/cc_bootcmd" },
+    { "$ref": "#/$defs/cc_byobu" }
   ]
 }
