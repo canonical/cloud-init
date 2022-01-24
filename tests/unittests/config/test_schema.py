@@ -113,6 +113,7 @@ class TestGetSchema:
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
             {"$ref": "#/$defs/cc_apk_configure"},
+            {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
@@ -128,7 +129,6 @@ class TestGetSchema:
         assert expected_subschema_defs == found_subschema_defs
         # This list will dwindle as we move legacy schema to new $defs
         assert [
-            "apt",
             "chef",
             "drivers",
             "keyboard",
