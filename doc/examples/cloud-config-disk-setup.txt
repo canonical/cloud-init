@@ -80,7 +80,7 @@ fs_setup:
 disk_setup:
   ephmeral0:
     table_type: 'mbr'
-    layout: 'auto'
+    layout: true
   /dev/xvdh:
     table_type: 'mbr'
     layout:

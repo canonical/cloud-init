@@ -60,10 +60,27 @@
           ]
         }
       }
+    },
+    "cc_bootcmd": {
+      "type": "object",
+      "properties": {
+        "bootcmd": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "string"}
+            ]
+          },
+          "additionalItems": false,
+          "minItems": 1
+        }
+      }
     }
   },
   "allOf": [
     { "$ref": "#/$defs/cc_apk_configure" },
-    { "$ref": "#/$defs/cc_apt_pipelining" }
+    { "$ref": "#/$defs/cc_apt_pipelining" },
+    { "$ref": "#/$defs/cc_bootcmd" }
   ]
 }

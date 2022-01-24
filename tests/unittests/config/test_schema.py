@@ -113,6 +113,7 @@ class TestGetSchema:
         expected_subschema_defs = [
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
+            {"$ref": "#/$defs/cc_bootcmd"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -126,7 +127,6 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "apt",
-            "bootcmd",
             "chef",
             "drivers",
             "keyboard",
@@ -153,7 +153,7 @@ class TestLoadDoc:
         "module_name",
         (
             "cc_apt_pipelining",  # new style composite schema file
-            "cc_bootcmd",  # legacy sub-schema defined in module
+            "cc_zypper_add_repo",  # legacy sub-schema defined in module
         ),
     )
     def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):
