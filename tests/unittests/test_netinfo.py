@@ -4,14 +4,18 @@
 
 from copy import copy
 
+import pytest
+
+from cloudinit import subp
 from cloudinit.netinfo import netdev_info, netdev_pformat, route_pformat
-from tests.unittests.helpers import CiTestCase, mock, readResource
+from tests.unittests.helpers import mock, readResource
 
 # Example ifconfig and route output
 SAMPLE_OLD_IFCONFIG_OUT = readResource("netinfo/old-ifconfig-output")
 SAMPLE_NEW_IFCONFIG_OUT = readResource("netinfo/new-ifconfig-output")
 SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 SAMPLE_IPADDRSHOW_OUT = readResource("netinfo/sample-ipaddrshow-output")
+SAMPLE_IPADDRSHOW_JSON = readResource("netinfo/sample-ipaddrshow-json")
 SAMPLE_ROUTE_OUT_V4 = readResource("netinfo/sample-route-output-v4")
 SAMPLE_ROUTE_OUT_V6 = readResource("netinfo/sample-route-output-v6")
 SAMPLE_IPROUTE_OUT_V4 = readResource("netinfo/sample-iproute-output-v4")
@@ -21,11 +25,7 @@ ROUTE_FORMATTED_OUT = readResource("netinfo/route-formatted-output")
 FREEBSD_NETDEV_OUT = readResource("netinfo/freebsd-netdev-formatted-output")
 
 
-class TestNetInfo(CiTestCase):
-
-    maxDiff = None
-    with_logs = True
-
+class TestNetInfo:
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
     def test_netdev_old_nettools_pformat(self, m_subp, m_which):
@@ -33,7 +33,7 @@ class TestNetInfo(CiTestCase):
         m_subp.return_value = (SAMPLE_OLD_IFCONFIG_OUT, "")
         m_which.side_effect = lambda x: x if x == "ifconfig" else None
         content = netdev_pformat()
-        self.assertEqual(NETDEV_FORMATTED_OUT, content)
+        assert NETDEV_FORMATTED_OUT == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
@@ -42,7 +42,7 @@ class TestNetInfo(CiTestCase):
         m_subp.return_value = (SAMPLE_NEW_IFCONFIG_OUT, "")
         m_which.side_effect = lambda x: x if x == "ifconfig" else None
         content = netdev_pformat()
-        self.assertEqual(NETDEV_FORMATTED_OUT, content)
+        assert NETDEV_FORMATTED_OUT == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
@@ -54,13 +54,19 @@ class TestNetInfo(CiTestCase):
         print()
         print(content)
         print()
-        self.assertEqual(FREEBSD_NETDEV_OUT, content)
+        assert FREEBSD_NETDEV_OUT == content
 
+    @pytest.mark.parametrize(
+        "resource,is_json",
+        [(SAMPLE_IPADDRSHOW_OUT, False), (SAMPLE_IPADDRSHOW_JSON, True)],
+    )
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
-    def test_netdev_iproute_pformat(self, m_subp, m_which):
-        """netdev_pformat properly rendering ip route info."""
-        m_subp.return_value = (SAMPLE_IPADDRSHOW_OUT, "")
+    def test_netdev_iproute_pformat(self, m_subp, m_which, resource, is_json):
+        """netdev_pformat properly rendering ip route info (non json)."""
+        m_subp.return_value = (resource, "")
+        if not is_json:
+            m_subp.side_effect = [subp.ProcessExecutionError, (resource, "")]
         m_which.side_effect = lambda x: x if x == "ip" else None
         content = netdev_pformat()
         new_output = copy(NETDEV_FORMATTED_OUT)
@@ -70,19 +76,19 @@ class TestNetInfo(CiTestCase):
         new_output = new_output.replace(
             "255.0.0.0   |   .    |", "255.0.0.0   |  host  |"
         )
-        self.assertEqual(new_output, content)
+        assert new_output == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
-    def test_netdev_warn_on_missing_commands(self, m_subp, m_which):
+    def test_netdev_warn_on_missing_commands(self, m_subp, m_which, caplog):
         """netdev_pformat warns when missing both ip and 'netstat'."""
         m_which.return_value = None  # Niether ip nor netstat found
         content = netdev_pformat()
-        self.assertEqual("\n", content)
-        self.assertEqual(
-            "WARNING: Could not print networks: missing 'ip' and 'ifconfig'"
-            " commands\n",
-            self.logs.getvalue(),
+        assert "\n" == content
+        log = caplog.records[0]
+        assert log.levelname == "WARNING"
+        assert log.msg == (
+            "Could not print networks: missing 'ip' and 'ifconfig' commands"
         )
         m_subp.assert_not_called()
 
@@ -95,57 +101,62 @@ class TestNetInfo(CiTestCase):
             "",
         )
         m_which.side_effect = lambda x: x if x == "ifconfig" else None
-        self.assertEqual(
-            {
-                "eth0": {
-                    "ipv4": [],
-                    "ipv6": [],
-                    "hwaddr": "00:16:3e:de:51:a6",
-                    "up": False,
-                },
-                "lo": {
-                    "ipv4": [{"ip": "127.0.0.1", "mask": "255.0.0.0"}],
-                    "ipv6": [{"ip": "::1/128", "scope6": "host"}],
-                    "hwaddr": ".",
-                    "up": True,
-                },
+        assert netdev_info(".") == {
+            "eth0": {
+                "ipv4": [],
+                "ipv6": [],
+                "hwaddr": "00:16:3e:de:51:a6",
+                "up": False,
             },
-            netdev_info("."),
-        )
+            "lo": {
+                "ipv4": [{"ip": "127.0.0.1", "mask": "255.0.0.0"}],
+                "ipv6": [{"ip": "::1/128", "scope6": "host"}],
+                "hwaddr": ".",
+                "up": True,
+            },
+        }
 
+    @pytest.mark.parametrize(
+        "resource,is_json",
+        [
+            ("netinfo/sample-ipaddrshow-output-down", False),
+            ("netinfo/sample-ipaddrshow-json-down", True),
+        ],
+    )
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
-    def test_netdev_info_iproute_down(self, m_subp, m_which):
+    def test_netdev_info_iproute_down(
+        self, m_subp, m_which, resource, is_json
+    ):
         """Test netdev_info with ip and down interfaces."""
-        m_subp.return_value = (
-            readResource("netinfo/sample-ipaddrshow-output-down"),
-            "",
-        )
+        m_subp.return_value = (readResource(resource), "")
+        if not is_json:
+            m_subp.side_effect = [
+                subp.ProcessExecutionError,
+                (readResource(resource), ""),
+            ]
         m_which.side_effect = lambda x: x if x == "ip" else None
-        self.assertEqual(
-            {
-                "lo": {
-                    "ipv4": [
-                        {
-                            "ip": "127.0.0.1",
-                            "bcast": ".",
-                            "mask": "255.0.0.0",
-                            "scope": "host",
-                        }
-                    ],
-                    "ipv6": [{"ip": "::1/128", "scope6": "host"}],
-                    "hwaddr": ".",
-                    "up": True,
-                },
-                "eth0": {
-                    "ipv4": [],
-                    "ipv6": [],
-                    "hwaddr": "00:16:3e:de:51:a6",
-                    "up": False,
-                },
+        assert netdev_info(".") == {
+            "lo": {
+                "ipv4": [
+                    {
+                        "ip": "127.0.0.1",
+                        "bcast": ".",
+                        "mask": "255.0.0.0",
+                        "scope": "host",
+                    }
+                ],
+                "ipv6": [{"ip": "::1/128", "scope6": "host"}],
+                "hwaddr": ".",
+                "up": True,
             },
-            netdev_info("."),
-        )
+            "eth0": {
+                "ipv4": [],
+                "ipv6": [],
+                "hwaddr": "00:16:3e:de:51:a6",
+                "up": False,
+            },
+        }
 
     @mock.patch("cloudinit.netinfo.netdev_info")
     def test_netdev_pformat_with_down(self, m_netdev_info):
@@ -166,9 +177,9 @@ class TestNetInfo(CiTestCase):
                 "up": False,
             },
         }
-        self.assertEqual(
-            readResource("netinfo/netdev-formatted-output-down"),
-            netdev_pformat(),
+        assert (
+            readResource("netinfo/netdev-formatted-output-down")
+            == netdev_pformat()
         )
 
     @mock.patch("cloudinit.netinfo.subp.which")
@@ -186,7 +197,7 @@ class TestNetInfo(CiTestCase):
         m_subp.side_effect = subp_netstat_route_selector
         m_which.side_effect = lambda x: x if x == "netstat" else None
         content = route_pformat()
-        self.assertEqual(ROUTE_FORMATTED_OUT, content)
+        assert ROUTE_FORMATTED_OUT == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
@@ -204,19 +215,19 @@ class TestNetInfo(CiTestCase):
         m_subp.side_effect = subp_iproute_selector
         m_which.side_effect = lambda x: x if x == "ip" else None
         content = route_pformat()
-        self.assertEqual(ROUTE_FORMATTED_OUT, content)
+        assert ROUTE_FORMATTED_OUT == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
-    def test_route_warn_on_missing_commands(self, m_subp, m_which):
+    def test_route_warn_on_missing_commands(self, m_subp, m_which, caplog):
         """route_pformat warns when missing both ip and 'netstat'."""
         m_which.return_value = None  # Niether ip nor netstat found
         content = route_pformat()
-        self.assertEqual("\n", content)
-        self.assertEqual(
-            "WARNING: Could not print routes: missing 'ip' and 'netstat'"
-            " commands\n",
-            self.logs.getvalue(),
+        assert "\n" == content
+        log = caplog.records[0]
+        assert log.levelname == "WARNING"
+        assert log.msg == (
+            "Could not print routes: missing 'ip' and 'netstat' commands"
         )
         m_subp.assert_not_called()
 

@@ -8,8 +8,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import json
 import re
 from copy import copy, deepcopy
+from ipaddress import IPv4Network
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -18,13 +20,74 @@ from cloudinit.simpletable import SimpleTable
 
 LOG = logging.getLogger()
 
-
+# Example netdev format:
+# {'eth0': {'hwaddr': '00:16:3e:16:db:54',
+#           'ipv4': [{'bcast': '10.85.130.255',
+#                     'ip': '10.85.130.116',
+#                     'mask': '255.255.255.0',
+#                     'scope': 'global'}],
+#           'ipv6': [{'ip': 'fd42:baa2:3dd:17a:216:3eff:fe16:db54/64',
+#                     'scope6': 'global'},
+#                    {'ip': 'fe80::216:3eff:fe16:db54/64', 'scope6': 'link'}],
+#           'up': True},
+#  'lo': {'hwaddr': '',
+#         'ipv4': [{'bcast': '',
+#                   'ip': '127.0.0.1',
+#                   'mask': '255.0.0.0',
+#                   'scope': 'host'}],
+#         'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
+#         'up': True}}
 DEFAULT_NETDEV_INFO = {"ipv4": [], "ipv6": [], "hwaddr": "", "up": False}
+
+
+def _netdev_info_iproute_json(ipaddr_json):
+    """Get network device dicts from ip route and ip link info.
+
+    ipaddr_out: Output string from 'ip --json addr' command.
+
+    Returns a dict of device info keyed by network device name containing
+    device configuration values.
+
+    Raises json.JSONDecodeError if json could not be decoded
+    """
+    ipaddr_data = json.loads(ipaddr_json)
+    devs = {}
+
+    for dev in ipaddr_data:
+        flags = dev["flags"]
+        dev_info = {
+            "hwaddr": dev["address"] if dev["link_type"] == "ether" else "",
+            "up": bool("UP" in flags and "LOWER_UP" in flags),
+            "ipv4": [],
+            "ipv6": [],
+        }
+        for addr in dev["addr_info"]:
+            if addr["family"] == "inet":
+                parsed_addr = {
+                    "ip": addr["local"],
+                    "mask": str(
+                        IPv4Network(f'0.0.0.0/{addr["prefixlen"]}').netmask
+                    ),
+                    "bcast": (
+                        addr["broadcast"] if "broadcast" in addr else ""
+                    ),
+                    "scope": addr["scope"],
+                }
+                dev_info["ipv4"].append(parsed_addr)
+            elif addr["family"] == "inet6":
+                parsed_addr = {
+                    "ip": f"{addr['local']}/{addr['prefixlen']}",
+                    "scope6": addr["scope"],
+                }
+                dev_info["ipv6"].append(parsed_addr)
+        devs[dev["ifname"]] = dev_info
+    return devs
 
 
 def _netdev_info_iproute(ipaddr_out):
     """
-    Get network device dicts from ip route and ip link info.
+    DEPRECATED: Only used on distros that don't support ip json output
+    Use _netdev_info_iproute_json() when possible.
 
     @param ipaddr_out: Output string from 'ip addr show' command.
 
@@ -209,8 +272,13 @@ def netdev_info(empty=""):
         devs = _netdev_info_ifconfig_netbsd(ifcfg_out)
     elif subp.which("ip"):
         # Try iproute first of all
-        (ipaddr_out, _err) = subp.subp(["ip", "addr", "show"])
-        devs = _netdev_info_iproute(ipaddr_out)
+        try:
+            (ipaddr_out, _err) = subp.subp(["ip", "--json", "addr"])
+            devs = _netdev_info_iproute_json(ipaddr_out)
+        except subp.ProcessExecutionError:
+            # Can be removed when "ip --json" is available everywhere
+            (ipaddr_out, _err) = subp.subp(["ip", "addr", "show"])
+            devs = _netdev_info_iproute(ipaddr_out)
     elif subp.which("ifconfig"):
         # Fall back to net-tools if iproute2 is not present
         (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
