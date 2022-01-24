@@ -3,7 +3,10 @@ cloud-init (21.4-39-ge9634266-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
-  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+  * refresh patches:
+   + debian/patches/ec2-dont-apply-full-imds-network-config.patch
+   + debian/patches/openstack-no-network-config.patch
+   + debian/patches/renderer-do-not-prefer-netplan.patch
     - sources/azure: remove unnecessary hostname bounce (#1143)
       [Chris Patterson]
     - find_devs/openbsd: accept ISO on disk (#1132) [Gonéri Le Bouder]
@@ -53,7 +56,7 @@ cloud-init (21.4-39-ge9634266-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     - testing: stop chef test from running on openstack (#1102)
     - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 13 Dec 2021 18:46:17 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Jan 2022 09:05:02 -0700
 
 cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
