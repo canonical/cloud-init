@@ -13,11 +13,9 @@ Description: Fallback network config instead of network_data.json for OpenStack
 Forwarded: not-needed
 Author: Chad Smith <chad.smith@canonical.com>
 
-Index: cloud-init/cloudinit/sources/DataSourceOpenStack.py
-===================================================================
---- cloud-init.orig/cloudinit/sources/DataSourceOpenStack.py	2022-01-20 12:34:23.522713641 -0700
-+++ cloud-init/cloudinit/sources/DataSourceOpenStack.py	2022-01-20 12:40:13.796706171 -0700
-@@ -117,10 +117,11 @@
+--- a/cloudinit/sources/DataSourceOpenStack.py
++++ b/cloudinit/sources/DataSourceOpenStack.py
+@@ -117,10 +117,11 @@ class DataSourceOpenStack(openstack.Sour
          if self._network_config != sources.UNSET:
              return self._network_config
  
@@ -31,16 +29,21 @@ Index: cloud-init/cloudinit/sources/DataSourceOpenStack.py
              self._network_config = None
              return self._network_config
          if self.network_json == sources.UNSET:
-Index: cloud-init/tests/unittests/sources/test_openstack.py
-===================================================================
---- cloud-init.orig/tests/unittests/sources/test_openstack.py	2022-01-20 12:34:23.522713641 -0700
-+++ cloud-init/tests/unittests/sources/test_openstack.py	2022-01-20 13:07:15.153509050 -0700
-@@ -371,7 +371,7 @@
+--- a/tests/unittests/sources/test_openstack.py
++++ b/tests/unittests/sources/test_openstack.py
+@@ -371,7 +371,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
          ds_os = ds.DataSourceOpenStack(
              settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
          )
 -        ds_os.ds_cfg = {"apply_network_config": False}
-+        ds_os.ds_cfg = {"apply_network_config": True}  # Default is False
          sample_json = {
              "links": [{"ethernet_mac_address": "mymac"}],
              "networks": [],
+@@ -395,6 +394,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
+             "services": [],
+         }
+         ds_os.network_json = sample_json
++        ds_os.ds_cfg = {"apply_network_config": True}  # Default is False
+         with test_helpers.mock.patch(mock_path) as m_convert_json:
+             m_convert_json.return_value = example_cfg
+             self.assertEqual(example_cfg, ds_os.network_config)

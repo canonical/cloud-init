@@ -7,11 +7,9 @@ Author: Chad Smith <chad.smith@canonical.com>
 Origin: backport
 Forwarded: not-needed
 Last-Update: 2020-06-01
-Index: cloud-init/cloudinit/sources/DataSourceEc2.py
-===================================================================
---- cloud-init.orig/cloudinit/sources/DataSourceEc2.py	2022-01-20 13:15:13.608854440 -0700
-+++ cloud-init/cloudinit/sources/DataSourceEc2.py	2022-01-20 13:19:34.252913487 -0700
-@@ -457,12 +457,12 @@
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -457,12 +457,12 @@ class DataSourceEc2(sources.DataSource):
          if isinstance(net_md, dict):
              # SRU_BLOCKER: xenial, bionic and eoan should default
              # apply_full_imds_network_config to False to retain original
@@ -26,11 +24,9 @@ Index: cloud-init/cloudinit/sources/DataSourceEc2.py
                  ),
              )
  
-Index: cloud-init/tests/unittests/sources/test_ec2.py
-===================================================================
---- cloud-init.orig/tests/unittests/sources/test_ec2.py	2022-01-20 13:15:13.608854440 -0700
-+++ cloud-init/tests/unittests/sources/test_ec2.py	2022-01-20 13:32:36.485771603 -0700
-@@ -451,7 +451,14 @@
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
+@@ -451,7 +451,14 @@ class TestEc2(test_helpers.HttprettyTest
          """
          ds = self._setup_ds(
              platform_data=self.valid_platform_data,
