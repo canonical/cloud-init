@@ -24,7 +24,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
         # Skip dummy, lo interfaces
         if "dummy" in iface[0]:
             continue
-        if 'lo' == iface[0]:
+        if "lo" == iface[0]:
             continue
         try:
             with EphemeralDHCPv4(
