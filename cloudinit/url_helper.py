@@ -487,6 +487,7 @@ def wait_for_url(
 
     A value of None for max_wait will retry indefinitely.
     """
+
     def log_status_cb(msg, exc=None):
         LOG.debug(msg)
 
@@ -578,7 +579,8 @@ def wait_for_url(
                     timeout = int((start_time + max_wait) - now)
 
             out = read_url_handle_exceptions(
-                url_reader_serial, url, start_time)
+                url_reader_serial, url, start_time
+            )
             if out:
                 return out
 

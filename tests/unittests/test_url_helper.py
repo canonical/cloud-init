@@ -2,13 +2,12 @@
 
 import logging
 from functools import partial
+from threading import Event
 from time import process_time
 
 import httpretty
 import pytest
 import requests
-from threading import Event
-
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -298,7 +297,14 @@ class TestDualStack:
             # Assert timeout results in (None, None)
             (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None, None),
             # Assert that exception in func is raised
-            (lambda _a, _b: 1 / 0, ("one", "two"), 1, 1, None, ZeroDivisionError),
+            (
+                lambda _a, _b: 1 / 0,
+                ("one", "two"),
+                1,
+                1,
+                None,
+                ZeroDivisionError,
+            ),
             (
                 lambda x, _: event.wait(1) if x != "two" else x,
                 ("one", "two"),
