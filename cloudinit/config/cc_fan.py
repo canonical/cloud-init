@@ -38,60 +38,62 @@ If cloud-init sees a ``fan`` entry in cloud-config it will:
 """
 
 from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import subp
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 
 BUILTIN_CFG = {
-    'config': None,
-    'config_path': '/etc/network/fan',
+    "config": None,
+    "config_path": "/etc/network/fan",
 }
 
 
 def stop_update_start(distro, service, config_file, content):
     try:
-        distro.manage_service('stop', service)
+        distro.manage_service("stop", service)
         stop_failed = False
     except subp.ProcessExecutionError as e:
         stop_failed = True
         LOG.warning("failed to stop %s: %s", service, e)
 
-    if not content.endswith('\n'):
-        content += '\n'
+    if not content.endswith("\n"):
+        content += "\n"
     util.write_file(config_file, content, omode="w")
 
     try:
-        distro.manage_service('start', service)
+        distro.manage_service("start", service)
         if stop_failed:
             LOG.warning("success: %s started", service)
     except subp.ProcessExecutionError as e:
         LOG.warning("failed to start %s: %s", service, e)
 
-    distro.manage_service('enable', service)
+    distro.manage_service("enable", service)
 
 
 def handle(name, cfg, cloud, log, args):
-    cfgin = cfg.get('fan')
+    cfgin = cfg.get("fan")
     if not cfgin:
         cfgin = {}
     mycfg = util.mergemanydict([cfgin, BUILTIN_CFG])
 
-    if not mycfg.get('config'):
+    if not mycfg.get("config"):
         LOG.debug("%s: no 'fan' config entry. disabling", name)
         return
 
-    util.write_file(mycfg.get('config_path'), mycfg.get('config'), omode="w")
+    util.write_file(mycfg.get("config_path"), mycfg.get("config"), omode="w")
     distro = cloud.distro
-    if not subp.which('fanctl'):
-        distro.install_packages(['ubuntu-fan'])
+    if not subp.which("fanctl"):
+        distro.install_packages(["ubuntu-fan"])
 
     stop_update_start(
         distro,
-        service='ubuntu-fan', config_file=mycfg.get('config_path'),
-        content=mycfg.get('config'))
+        service="ubuntu-fan",
+        config_file=mycfg.get("config_path"),
+        content=mycfg.get("config"),
+    )
+
 
 # vi: ts=4 expandtab

@@ -27,15 +27,17 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
 
 def abstract_to_concrete(abclass):
     """Takes an abstract class and returns a concrete version of it."""
+
     class concreteCls(abclass):
         pass
+
     concreteCls.__abstractmethods__ = frozenset()
-    return type('DummyConcrete' + abclass.__name__, (concreteCls,), {})
+    return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
 class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return 'hostname'
+        return "hostname"
 
     def persist_instance_data(self):
         return True
@@ -46,7 +48,7 @@ class DataSourceTesting(DataSourceNone):
 
     @property
     def cloud_name(self):
-        return 'testing'
+        return "testing"
 
 
 class MockDistro(distros.Distro):
@@ -68,7 +70,7 @@ class MockDistro(distros.Distro):
         return True
 
     def get_primary_arch(self):
-        return 'i386'
+        return "i386"
 
     def get_package_mirror_info(self, arch=None, data_source=None):
         pass
@@ -110,7 +112,7 @@ class MockDistro(distros.Distro):
         pass
 
     def add_snap_user(self, name, **kwargs):
-        return 'snap_user'
+        return "snap_user"
 
     def create_user(self, name, **kwargs):
         return True
@@ -124,7 +126,7 @@ class MockDistro(distros.Distro):
     def set_passwd(self, user, passwd, hashed=False):
         return True
 
-    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+    def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         pass
 
     def write_sudo_rules(self, user, rules, sudo_file=None):

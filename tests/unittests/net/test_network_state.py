@@ -8,7 +8,7 @@ from cloudinit import safeyaml
 from cloudinit.net import network_state
 from tests.unittests.helpers import CiTestCase
 
-netstate_path = 'cloudinit.net.network_state'
+netstate_path = "cloudinit.net.network_state"
 
 
 _V1_CONFIG_NAMESERVERS = """\
@@ -36,8 +36,8 @@ network:
       mac_address: '66:77:88:99:00:11'
 """
 
-V1_CONFIG_NAMESERVERS_VALID = _V1_CONFIG_NAMESERVERS.format(iface='eth1')
-V1_CONFIG_NAMESERVERS_INVALID = _V1_CONFIG_NAMESERVERS.format(iface='eth90')
+V1_CONFIG_NAMESERVERS_VALID = _V1_CONFIG_NAMESERVERS.format(iface="eth1")
+V1_CONFIG_NAMESERVERS_INVALID = _V1_CONFIG_NAMESERVERS.format(iface="eth90")
 
 V2_CONFIG_NAMESERVERS = """\
 network:
@@ -60,11 +60,10 @@ network:
 
 
 class TestNetworkStateParseConfig(CiTestCase):
-
     def setUp(self):
         super(TestNetworkStateParseConfig, self).setUp()
-        nsi_path = netstate_path + '.NetworkStateInterpreter'
-        self.add_patch(nsi_path, 'm_nsi')
+        nsi_path = netstate_path + ".NetworkStateInterpreter"
+        self.add_patch(nsi_path, "m_nsi")
 
     def test_missing_version_returns_none(self):
         ncfg = {}
@@ -72,93 +71,96 @@ class TestNetworkStateParseConfig(CiTestCase):
             network_state.parse_net_config_data(ncfg)
 
     def test_unknown_versions_returns_none(self):
-        ncfg = {'version': 13.2}
+        ncfg = {"version": 13.2}
         with self.assertRaises(RuntimeError):
             network_state.parse_net_config_data(ncfg)
 
     def test_version_2_passes_self_as_config(self):
-        ncfg = {'version': 2, 'otherconfig': {}, 'somemore': [1, 2, 3]}
+        ncfg = {"version": 2, "otherconfig": {}, "somemore": [1, 2, 3]}
         network_state.parse_net_config_data(ncfg)
-        self.assertEqual([mock.call(version=2, config=ncfg)],
-                         self.m_nsi.call_args_list)
+        self.assertEqual(
+            [mock.call(version=2, config=ncfg)], self.m_nsi.call_args_list
+        )
 
     def test_valid_config_gets_network_state(self):
-        ncfg = {'version': 2, 'otherconfig': {}, 'somemore': [1, 2, 3]}
+        ncfg = {"version": 2, "otherconfig": {}, "somemore": [1, 2, 3]}
         result = network_state.parse_net_config_data(ncfg)
         self.assertNotEqual(None, result)
 
     def test_empty_v1_config_gets_network_state(self):
-        ncfg = {'version': 1, 'config': []}
+        ncfg = {"version": 1, "config": []}
         result = network_state.parse_net_config_data(ncfg)
         self.assertNotEqual(None, result)
 
     def test_empty_v2_config_gets_network_state(self):
-        ncfg = {'version': 2}
+        ncfg = {"version": 2}
         result = network_state.parse_net_config_data(ncfg)
         self.assertNotEqual(None, result)
 
 
 class TestNetworkStateParseConfigV2(CiTestCase):
-
     def test_version_2_ignores_renderer_key(self):
-        ncfg = {'version': 2, 'renderer': 'networkd', 'ethernets': {}}
-        nsi = network_state.NetworkStateInterpreter(version=ncfg['version'],
-                                                    config=ncfg)
+        ncfg = {"version": 2, "renderer": "networkd", "ethernets": {}}
+        nsi = network_state.NetworkStateInterpreter(
+            version=ncfg["version"], config=ncfg
+        )
         nsi.parse_config(skip_broken=False)
-        self.assertEqual(ncfg, nsi.as_dict()['config'])
+        self.assertEqual(ncfg, nsi.as_dict()["config"])
 
 
 class TestNetworkStateParseNameservers:
     def _parse_network_state_from_config(self, config):
         yaml = safeyaml.load(config)
-        return network_state.parse_net_config_data(yaml['network'])
+        return network_state.parse_net_config_data(yaml["network"])
 
     def test_v1_nameservers_valid(self):
         config = self._parse_network_state_from_config(
-            V1_CONFIG_NAMESERVERS_VALID)
+            V1_CONFIG_NAMESERVERS_VALID
+        )
 
         # If an interface was specified, DNS shouldn't be in the global list
-        assert ['192.168.1.0', '4.4.4.4'] == sorted(
-            config.dns_nameservers)
-        assert ['eggs.local'] == config.dns_searchdomains
+        assert ["192.168.1.0", "4.4.4.4"] == sorted(config.dns_nameservers)
+        assert ["eggs.local"] == config.dns_searchdomains
 
         # If an interface was specified, DNS should be part of the interface
         for iface in config.iter_interfaces():
-            if iface['name'] == 'eth1':
-                assert iface['dns']['addresses'] == ['192.168.1.1', '8.8.8.8']
-                assert iface['dns']['search'] == ['spam.local']
+            if iface["name"] == "eth1":
+                assert iface["dns"]["addresses"] == ["192.168.1.1", "8.8.8.8"]
+                assert iface["dns"]["search"] == ["spam.local"]
             else:
-                assert 'dns' not in iface
+                assert "dns" not in iface
 
     def test_v1_nameservers_invalid(self):
         with pytest.raises(ValueError):
             self._parse_network_state_from_config(
-                V1_CONFIG_NAMESERVERS_INVALID)
+                V1_CONFIG_NAMESERVERS_INVALID
+            )
 
     def test_v2_nameservers(self):
         config = self._parse_network_state_from_config(V2_CONFIG_NAMESERVERS)
 
         # Ensure DNS defined on interface exists on interface
         for iface in config.iter_interfaces():
-            if iface['name'] == 'eth0':
-                assert iface['dns'] == {
-                    'nameservers': ['8.8.8.8'],
-                    'search': ['spam.local', 'eggs.local'],
+            if iface["name"] == "eth0":
+                assert iface["dns"] == {
+                    "nameservers": ["8.8.8.8"],
+                    "search": ["spam.local", "eggs.local"],
                 }
             else:
-                assert iface['dns'] == {
-                    'nameservers': ['4.4.4.4'],
-                    'search': ['foo.local', 'bar.local']
+                assert iface["dns"] == {
+                    "nameservers": ["4.4.4.4"],
+                    "search": ["foo.local", "bar.local"],
                 }
 
         # Ensure DNS defined on interface also exists globally (since there
         # is no global DNS definitions in v2)
-        assert ['4.4.4.4', '8.8.8.8'] == sorted(config.dns_nameservers)
+        assert ["4.4.4.4", "8.8.8.8"] == sorted(config.dns_nameservers)
         assert [
-            'bar.local',
-            'eggs.local',
-            'foo.local',
-            'spam.local',
+            "bar.local",
+            "eggs.local",
+            "foo.local",
+            "spam.local",
         ] == sorted(config.dns_searchdomains)
+
 
 # vi: ts=4 expandtab

@@ -48,7 +48,7 @@ def find_module(base_name: str, search_paths, required_attrs=None) -> tuple:
         if path:
             real_path.extend(path.split("."))
         real_path.append(base_name)
-        full_path = '.'.join(real_path)
+        full_path = ".".join(real_path)
         lookup_paths.append(full_path)
     found_paths = []
     for full_path in lookup_paths:
@@ -66,5 +66,6 @@ def find_module(base_name: str, search_paths, required_attrs=None) -> tuple:
         if found_attrs == len(required_attrs):
             found_paths.append(full_path)
     return (found_paths, lookup_paths)
+
 
 # vi: ts=4 expandtab

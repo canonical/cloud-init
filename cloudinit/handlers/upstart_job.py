@@ -13,17 +13,15 @@ import re
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit import subp, util
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 
 class UpstartJobPartHandler(handlers.Handler):
 
-    prefixes = ['#upstart-job']
+    prefixes = ["#upstart-job"]
 
     def __init__(self, paths, **_kwargs):
         handlers.Handler.__init__(self, PER_INSTANCE)
@@ -43,7 +41,7 @@ class UpstartJobPartHandler(handlers.Handler):
         filename = util.clean_filename(filename)
         (_name, ext) = os.path.splitext(filename)
         if not ext:
-            ext = ''
+            ext = ""
         ext = ext.lower()
         if ext != ".conf":
             filename = filename + ".conf"
@@ -78,9 +76,10 @@ def _has_suitable_upstart():
         if not os.path.exists("/usr/bin/dpkg-query"):
             return False
         try:
-            (dpkg_ver, _err) = subp.subp(["dpkg-query",
-                                          "--showformat=${Version}",
-                                          "--show", "upstart"], rcs=[0, 1])
+            (dpkg_ver, _err) = subp.subp(
+                ["dpkg-query", "--showformat=${Version}", "--show", "upstart"],
+                rcs=[0, 1],
+            )
         except Exception:
             util.logexc(LOG, "dpkg-query failed")
             return False
@@ -93,8 +92,9 @@ def _has_suitable_upstart():
             if e.exit_code == 1:
                 pass
             else:
-                util.logexc(LOG, "dpkg --compare-versions failed [%s]",
-                            e.exit_code)
+                util.logexc(
+                    LOG, "dpkg --compare-versions failed [%s]", e.exit_code
+                )
         except Exception:
             util.logexc(LOG, "dpkg --compare-versions failed")
         return False

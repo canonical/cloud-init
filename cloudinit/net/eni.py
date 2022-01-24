@@ -5,32 +5,58 @@ import glob
 import os
 import re
 
-from . import ParserError
-
-from . import renderer
-from .network_state import subnet_is_ipv6
-
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
+from . import ParserError, renderer
+from .network_state import subnet_is_ipv6
 
 LOG = logging.getLogger(__name__)
 
 NET_CONFIG_COMMANDS = [
-    "pre-up", "up", "post-up", "down", "pre-down", "post-down",
+    "pre-up",
+    "up",
+    "post-up",
+    "down",
+    "pre-down",
+    "post-down",
 ]
 
 NET_CONFIG_BRIDGE_OPTIONS = [
-    "bridge_ageing", "bridge_bridgeprio", "bridge_fd", "bridge_gcinit",
-    "bridge_hello", "bridge_maxage", "bridge_maxwait", "bridge_stp",
+    "bridge_ageing",
+    "bridge_bridgeprio",
+    "bridge_fd",
+    "bridge_gcinit",
+    "bridge_hello",
+    "bridge_maxage",
+    "bridge_maxwait",
+    "bridge_stp",
 ]
 
 NET_CONFIG_OPTIONS = [
-    "address", "netmask", "broadcast", "network", "metric", "gateway",
-    "pointtopoint", "media", "mtu", "hostname", "leasehours", "leasetime",
-    "vendor", "client", "bootfile", "server", "hwaddr", "provider", "frame",
-    "netnum", "endpoint", "local", "ttl",
+    "address",
+    "netmask",
+    "broadcast",
+    "network",
+    "metric",
+    "gateway",
+    "pointtopoint",
+    "media",
+    "mtu",
+    "hostname",
+    "leasehours",
+    "leasetime",
+    "vendor",
+    "client",
+    "bootfile",
+    "server",
+    "hwaddr",
+    "provider",
+    "frame",
+    "netnum",
+    "endpoint",
+    "local",
+    "ttl",
 ]
 
 
@@ -38,27 +64,27 @@ NET_CONFIG_OPTIONS = [
 def _iface_add_subnet(iface, subnet):
     content = []
     valid_map = [
-        'address',
-        'netmask',
-        'broadcast',
-        'metric',
-        'gateway',
-        'pointopoint',
-        'mtu',
-        'scope',
-        'dns_search',
-        'dns_nameservers',
+        "address",
+        "netmask",
+        "broadcast",
+        "metric",
+        "gateway",
+        "pointopoint",
+        "mtu",
+        "scope",
+        "dns_search",
+        "dns_nameservers",
     ]
     for key, value in subnet.items():
-        if key == 'netmask':
+        if key == "netmask":
             continue
-        if key == 'address':
-            value = "%s/%s" % (subnet['address'], subnet['prefix'])
+        if key == "address":
+            value = "%s/%s" % (subnet["address"], subnet["prefix"])
         if value and key in valid_map:
             if type(value) == list:
                 value = " ".join(value)
-            if '_' in key:
-                key = key.replace('_', '-')
+            if "_" in key:
+                key = key.replace("_", "-")
             content.append("    {0} {1}".format(key, value))
 
     return sorted(content)
@@ -75,41 +101,44 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
         return []
     content = []
     ignore_map = [
-        'control',
-        'device_id',
-        'driver',
-        'index',
-        'inet',
-        'mode',
-        'name',
-        'subnets',
-        'type',
+        "control",
+        "device_id",
+        "driver",
+        "index",
+        "inet",
+        "mode",
+        "name",
+        "subnets",
+        "type",
     ]
 
     # The following parameters require repetitive entries of the key for
     # each of the values
     multiline_keys = [
-        'bridge_pathcost',
-        'bridge_portprio',
-        'bridge_waitport',
+        "bridge_pathcost",
+        "bridge_portprio",
+        "bridge_waitport",
     ]
 
-    renames = {'mac_address': 'hwaddress'}
-    if iface['type'] not in ['bond', 'bridge', 'infiniband', 'vlan']:
-        ignore_map.append('mac_address')
+    renames = {"mac_address": "hwaddress"}
+    if iface["type"] not in ["bond", "bridge", "infiniband", "vlan"]:
+        ignore_map.append("mac_address")
 
     for key, value in iface.items():
         # convert bool to string for eni
         if type(value) == bool:
-            value = 'on' if iface[key] else 'off'
+            value = "on" if iface[key] else "off"
         if not value or key in ignore_map:
             continue
-        if key == 'mtu' and ipv4_subnet_mtu:
+        if key == "mtu" and ipv4_subnet_mtu:
             if value != ipv4_subnet_mtu:
                 LOG.warning(
                     "Network config: ignoring %s device-level mtu:%s because"
                     " ipv4 subnet-level mtu:%s provided.",
-                    iface['name'], value, ipv4_subnet_mtu)
+                    iface["name"],
+                    value,
+                    ipv4_subnet_mtu,
+                )
             continue
         if key in multiline_keys:
             for v in value:
@@ -123,9 +152,9 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
 
 
 def _iface_start_entry(iface, index, render_hwaddress=False):
-    fullname = iface['name']
+    fullname = iface["name"]
 
-    control = iface['control']
+    control = iface["control"]
     if control == "auto":
         cverb = "auto"
     elif control in ("hotplug",):
@@ -134,12 +163,13 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
         cverb = "# control-" + control
 
     subst = iface.copy()
-    subst.update({'fullname': fullname, 'cverb': cverb})
+    subst.update({"fullname": fullname, "cverb": cverb})
 
     lines = [
         "{cverb} {fullname}".format(**subst),
-        "iface {fullname} {inet} {mode}".format(**subst)]
-    if render_hwaddress and iface.get('mac_address'):
+        "iface {fullname} {inet} {mode}".format(**subst),
+    ]
+    if render_hwaddress and iface.get("mac_address"):
         lines.append("    hwaddress {mac_address}".format(**subst))
 
     return lines
@@ -159,9 +189,9 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
     currif = None
     for line in contents.splitlines():
         line = line.strip()
-        if line.startswith('#'):
+        if line.startswith("#"):
             continue
-        split = line.split(' ')
+        split = line.split(" ")
         option = split[0]
         if option == "source-directory":
             parsed_src_dir = split[1]
@@ -172,16 +202,18 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
                 dir_contents = [
                     os.path.join(expanded_path, path)
                     for path in dir_contents
-                    if (os.path.isfile(os.path.join(expanded_path, path)) and
-                        re.match("^[a-zA-Z0-9_-]+$", path) is not None)
+                    if (
+                        os.path.isfile(os.path.join(expanded_path, path))
+                        and re.match("^[a-zA-Z0-9_-]+$", path) is not None
+                    )
                 ]
                 for entry in dir_contents:
                     with open(entry, "r") as fp:
                         src_data = fp.read().strip()
                     abs_entry = os.path.abspath(entry)
                     _parse_deb_config_data(
-                        ifaces, src_data,
-                        os.path.dirname(abs_entry), abs_entry)
+                        ifaces, src_data, os.path.dirname(abs_entry), abs_entry
+                    )
         elif option == "source":
             new_src_path = split[1]
             if not new_src_path.startswith("/"):
@@ -191,8 +223,8 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
                     src_data = fp.read().strip()
                 abs_path = os.path.abspath(expanded_path)
                 _parse_deb_config_data(
-                    ifaces, src_data,
-                    os.path.dirname(abs_path), abs_path)
+                    ifaces, src_data, os.path.dirname(abs_path), abs_path
+                )
         elif option == "auto":
             for iface in split[1:]:
                 if iface not in ifaces:
@@ -200,7 +232,7 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
                         # Include the source path this interface was found in.
                         "_source_path": src_path
                     }
-                ifaces[iface]['auto'] = True
+                ifaces[iface]["auto"] = True
         elif option == "iface":
             iface, family, method = split[1:4]
             if iface not in ifaces:
@@ -208,71 +240,72 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
                     # Include the source path this interface was found in.
                     "_source_path": src_path
                 }
-            elif 'family' in ifaces[iface]:
+            elif "family" in ifaces[iface]:
                 raise ParserError(
                     "Interface %s can only be defined once. "
-                    "Re-defined in '%s'." % (iface, src_path))
-            ifaces[iface]['family'] = family
-            ifaces[iface]['method'] = method
+                    "Re-defined in '%s'." % (iface, src_path)
+                )
+            ifaces[iface]["family"] = family
+            ifaces[iface]["method"] = method
             currif = iface
         elif option == "hwaddress":
             if split[1] == "ether":
                 val = split[2]
             else:
                 val = split[1]
-            ifaces[currif]['hwaddress'] = val
+            ifaces[currif]["hwaddress"] = val
         elif option in NET_CONFIG_OPTIONS:
             ifaces[currif][option] = split[1]
         elif option in NET_CONFIG_COMMANDS:
             if option not in ifaces[currif]:
                 ifaces[currif][option] = []
-            ifaces[currif][option].append(' '.join(split[1:]))
-        elif option.startswith('dns-'):
-            if 'dns' not in ifaces[currif]:
-                ifaces[currif]['dns'] = {}
-            if option == 'dns-search':
-                ifaces[currif]['dns']['search'] = []
+            ifaces[currif][option].append(" ".join(split[1:]))
+        elif option.startswith("dns-"):
+            if "dns" not in ifaces[currif]:
+                ifaces[currif]["dns"] = {}
+            if option == "dns-search":
+                ifaces[currif]["dns"]["search"] = []
                 for domain in split[1:]:
-                    ifaces[currif]['dns']['search'].append(domain)
-            elif option == 'dns-nameservers':
-                ifaces[currif]['dns']['nameservers'] = []
+                    ifaces[currif]["dns"]["search"].append(domain)
+            elif option == "dns-nameservers":
+                ifaces[currif]["dns"]["nameservers"] = []
                 for server in split[1:]:
-                    ifaces[currif]['dns']['nameservers'].append(server)
-        elif option.startswith('bridge_'):
-            if 'bridge' not in ifaces[currif]:
-                ifaces[currif]['bridge'] = {}
+                    ifaces[currif]["dns"]["nameservers"].append(server)
+        elif option.startswith("bridge_"):
+            if "bridge" not in ifaces[currif]:
+                ifaces[currif]["bridge"] = {}
             if option in NET_CONFIG_BRIDGE_OPTIONS:
-                bridge_option = option.replace('bridge_', '', 1)
-                ifaces[currif]['bridge'][bridge_option] = split[1]
+                bridge_option = option.replace("bridge_", "", 1)
+                ifaces[currif]["bridge"][bridge_option] = split[1]
             elif option == "bridge_ports":
-                ifaces[currif]['bridge']['ports'] = []
+                ifaces[currif]["bridge"]["ports"] = []
                 for iface in split[1:]:
-                    ifaces[currif]['bridge']['ports'].append(iface)
+                    ifaces[currif]["bridge"]["ports"].append(iface)
             elif option == "bridge_hw":
                 # doc is confusing and thus some may put literal 'MAC'
                 #    bridge_hw MAC <address>
                 # but correct is:
                 #    bridge_hw <address>
                 if split[1].lower() == "mac":
-                    ifaces[currif]['bridge']['mac'] = split[2]
+                    ifaces[currif]["bridge"]["mac"] = split[2]
                 else:
-                    ifaces[currif]['bridge']['mac'] = split[1]
+                    ifaces[currif]["bridge"]["mac"] = split[1]
             elif option == "bridge_pathcost":
-                if 'pathcost' not in ifaces[currif]['bridge']:
-                    ifaces[currif]['bridge']['pathcost'] = {}
-                ifaces[currif]['bridge']['pathcost'][split[1]] = split[2]
+                if "pathcost" not in ifaces[currif]["bridge"]:
+                    ifaces[currif]["bridge"]["pathcost"] = {}
+                ifaces[currif]["bridge"]["pathcost"][split[1]] = split[2]
             elif option == "bridge_portprio":
-                if 'portprio' not in ifaces[currif]['bridge']:
-                    ifaces[currif]['bridge']['portprio'] = {}
-                ifaces[currif]['bridge']['portprio'][split[1]] = split[2]
-        elif option.startswith('bond-'):
-            if 'bond' not in ifaces[currif]:
-                ifaces[currif]['bond'] = {}
-            bond_option = option.replace('bond-', '', 1)
-            ifaces[currif]['bond'][bond_option] = split[1]
+                if "portprio" not in ifaces[currif]["bridge"]:
+                    ifaces[currif]["bridge"]["portprio"] = {}
+                ifaces[currif]["bridge"]["portprio"][split[1]] = split[2]
+        elif option.startswith("bond-"):
+            if "bond" not in ifaces[currif]:
+                ifaces[currif]["bond"] = {}
+            bond_option = option.replace("bond-", "", 1)
+            ifaces[currif]["bond"][bond_option] = split[1]
     for iface in ifaces.keys():
-        if 'auto' not in ifaces[iface]:
-            ifaces[iface]['auto'] = False
+        if "auto" not in ifaces[iface]:
+            ifaces[iface]["auto"] = False
 
 
 def parse_deb_config(path):
@@ -282,8 +315,8 @@ def parse_deb_config(path):
         contents = fp.read().strip()
     abs_path = os.path.abspath(path)
     _parse_deb_config_data(
-        ifaces, contents,
-        os.path.dirname(abs_path), abs_path)
+        ifaces, contents, os.path.dirname(abs_path), abs_path
+    )
     return ifaces
 
 
@@ -308,32 +341,31 @@ def _ifaces_to_net_config_data(ifaces):
                 dtype = "loopback"
             else:
                 dtype = "physical"
-            devs[devname] = {'type': dtype, 'name': devname, 'subnets': []}
+            devs[devname] = {"type": dtype, "name": devname, "subnets": []}
             # this isnt strictly correct, but some might specify
             # hwaddress on a nic for matching / declaring name.
-            if 'hwaddress' in data:
-                devs[devname]['mac_address'] = data['hwaddress']
-        subnet = {'_orig_eni_name': name, 'type': data['method']}
-        if data.get('auto'):
-            subnet['control'] = 'auto'
+            if "hwaddress" in data:
+                devs[devname]["mac_address"] = data["hwaddress"]
+        subnet = {"_orig_eni_name": name, "type": data["method"]}
+        if data.get("auto"):
+            subnet["control"] = "auto"
         else:
-            subnet['control'] = 'manual'
+            subnet["control"] = "manual"
 
-        if data.get('method') == 'static':
-            subnet['address'] = data['address']
+        if data.get("method") == "static":
+            subnet["address"] = data["address"]
 
-        for copy_key in ('netmask', 'gateway', 'broadcast'):
+        for copy_key in ("netmask", "gateway", "broadcast"):
             if copy_key in data:
                 subnet[copy_key] = data[copy_key]
 
-        if 'dns' in data:
-            for n in ('nameservers', 'search'):
-                if n in data['dns'] and data['dns'][n]:
-                    subnet['dns_' + n] = data['dns'][n]
-        devs[devname]['subnets'].append(subnet)
+        if "dns" in data:
+            for n in ("nameservers", "search"):
+                if n in data["dns"] and data["dns"][n]:
+                    subnet["dns_" + n] = data["dns"][n]
+        devs[devname]["subnets"].append(subnet)
 
-    return {'version': 1,
-            'config': [devs[d] for d in sorted(devs)]}
+    return {"version": 1, "config": [devs[d] for d in sorted(devs)]}
 
 
 class Renderer(renderer.Renderer):
@@ -342,10 +374,11 @@ class Renderer(renderer.Renderer):
     def __init__(self, config=None):
         if not config:
             config = {}
-        self.eni_path = config.get('eni_path', 'etc/network/interfaces')
-        self.eni_header = config.get('eni_header', None)
+        self.eni_path = config.get("eni_path", "etc/network/interfaces")
+        self.eni_header = config.get("eni_header", None)
         self.netrules_path = config.get(
-            'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
+            "netrules_path", "etc/udev/rules.d/70-persistent-net.rules"
+        )
 
     def _render_route(self, route, indent=""):
         """When rendering routes for an iface, in some cases applying a route
@@ -367,153 +400,166 @@ class Renderer(renderer.Renderer):
         down = indent + "pre-down route del"
         or_true = " || true"
         mapping = {
-            'gateway': 'gw',
-            'metric': 'metric',
+            "gateway": "gw",
+            "metric": "metric",
         }
 
-        default_gw = ''
-        if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
-            default_gw = ' default'
-        elif route['network'] == '::' and route['prefix'] == 0:
-            default_gw = ' -A inet6 default'
+        default_gw = ""
+        if route["network"] == "0.0.0.0" and route["netmask"] == "0.0.0.0":
+            default_gw = " default"
+        elif route["network"] == "::" and route["prefix"] == 0:
+            default_gw = " -A inet6 default"
 
-        route_line = ''
-        for k in ['network', 'gateway', 'metric']:
-            if default_gw and k == 'network':
+        route_line = ""
+        for k in ["network", "gateway", "metric"]:
+            if default_gw and k == "network":
                 continue
-            if k == 'gateway':
-                route_line += '%s %s %s' % (default_gw, mapping[k], route[k])
+            if k == "gateway":
+                route_line += "%s %s %s" % (default_gw, mapping[k], route[k])
             elif k in route:
-                if k == 'network':
-                    if ':' in route[k]:
-                        route_line += ' -A inet6'
-                    elif route.get('prefix') == 32:
-                        route_line += ' -host'
+                if k == "network":
+                    if ":" in route[k]:
+                        route_line += " -A inet6"
+                    elif route.get("prefix") == 32:
+                        route_line += " -host"
                     else:
-                        route_line += ' -net'
-                    if 'prefix' in route:
-                        route_line += ' %s/%s' % (route[k], route['prefix'])
+                        route_line += " -net"
+                    if "prefix" in route:
+                        route_line += " %s/%s" % (route[k], route["prefix"])
                 else:
-                    route_line += ' %s %s' % (mapping[k], route[k])
+                    route_line += " %s %s" % (mapping[k], route[k])
         content.append(up + route_line + or_true)
         content.append(down + route_line + or_true)
         return content
 
     def _render_iface(self, iface, render_hwaddress=False):
         sections = []
-        subnets = iface.get('subnets', {})
-        accept_ra = iface.pop('accept-ra', None)
-        ethernet_wol = iface.pop('wakeonlan', None)
+        subnets = iface.get("subnets", {})
+        accept_ra = iface.pop("accept-ra", None)
+        ethernet_wol = iface.pop("wakeonlan", None)
         if ethernet_wol:
             # Specify WOL setting 'g' for using "Magic Packet"
-            iface['ethernet-wol'] = 'g'
+            iface["ethernet-wol"] = "g"
         if subnets:
             for index, subnet in enumerate(subnets):
                 ipv4_subnet_mtu = None
-                iface['index'] = index
-                iface['mode'] = subnet['type']
-                iface['control'] = subnet.get('control', 'auto')
-                subnet_inet = 'inet'
+                iface["index"] = index
+                iface["mode"] = subnet["type"]
+                iface["control"] = subnet.get("control", "auto")
+                subnet_inet = "inet"
                 if subnet_is_ipv6(subnet):
-                    subnet_inet += '6'
+                    subnet_inet += "6"
                 else:
-                    ipv4_subnet_mtu = subnet.get('mtu')
-                iface['inet'] = subnet_inet
-                if (subnet['type'] == 'dhcp4' or subnet['type'] == 'dhcp6' or
-                        subnet['type'] == 'ipv6_dhcpv6-stateful'):
+                    ipv4_subnet_mtu = subnet.get("mtu")
+                iface["inet"] = subnet_inet
+                if (
+                    subnet["type"] == "dhcp4"
+                    or subnet["type"] == "dhcp6"
+                    or subnet["type"] == "ipv6_dhcpv6-stateful"
+                ):
                     # Configure network settings using DHCP or DHCPv6
-                    iface['mode'] = 'dhcp'
+                    iface["mode"] = "dhcp"
                     if accept_ra is not None:
                         # Accept router advertisements (0=off, 1=on)
-                        iface['accept_ra'] = '1' if accept_ra else '0'
-                elif subnet['type'] == 'ipv6_dhcpv6-stateless':
+                        iface["accept_ra"] = "1" if accept_ra else "0"
+                elif subnet["type"] == "ipv6_dhcpv6-stateless":
                     # Configure network settings using SLAAC from RAs
-                    iface['mode'] = 'auto'
+                    iface["mode"] = "auto"
                     # Use stateless DHCPv6 (0=off, 1=on)
-                    iface['dhcp'] = '1'
-                elif subnet['type'] == 'ipv6_slaac':
+                    iface["dhcp"] = "1"
+                elif subnet["type"] == "ipv6_slaac":
                     # Configure network settings using SLAAC from RAs
-                    iface['mode'] = 'auto'
+                    iface["mode"] = "auto"
                     # Use stateless DHCPv6 (0=off, 1=on)
-                    iface['dhcp'] = '0'
+                    iface["dhcp"] = "0"
                 elif subnet_is_ipv6(subnet):
                     # mode might be static6, eni uses 'static'
-                    iface['mode'] = 'static'
+                    iface["mode"] = "static"
                     if accept_ra is not None:
                         # Accept router advertisements (0=off, 1=on)
-                        iface['accept_ra'] = '1' if accept_ra else '0'
+                        iface["accept_ra"] = "1" if accept_ra else "0"
 
                 # do not emit multiple 'auto $IFACE' lines as older (precise)
                 # ifupdown complains
-                if True in ["auto %s" % (iface['name']) in line
-                            for line in sections]:
-                    iface['control'] = 'alias'
+                if True in [
+                    "auto %s" % (iface["name"]) in line for line in sections
+                ]:
+                    iface["control"] = "alias"
 
                 lines = list(
                     _iface_start_entry(
-                        iface, index, render_hwaddress=render_hwaddress) +
-                    _iface_add_subnet(iface, subnet) +
-                    _iface_add_attrs(iface, index, ipv4_subnet_mtu)
+                        iface, index, render_hwaddress=render_hwaddress
+                    )
+                    + _iface_add_subnet(iface, subnet)
+                    + _iface_add_attrs(iface, index, ipv4_subnet_mtu)
                 )
-                for route in subnet.get('routes', []):
+                for route in subnet.get("routes", []):
                     lines.extend(self._render_route(route, indent="    "))
 
                 sections.append(lines)
         else:
             # ifenslave docs say to auto the slave devices
             lines = []
-            if 'bond-master' in iface or 'bond-slaves' in iface:
+            if "bond-master" in iface or "bond-slaves" in iface:
                 lines.append("auto {name}".format(**iface))
             lines.append("iface {name} {inet} {mode}".format(**iface))
             lines.extend(
-                _iface_add_attrs(iface, index=0, ipv4_subnet_mtu=None))
+                _iface_add_attrs(iface, index=0, ipv4_subnet_mtu=None)
+            )
             sections.append(lines)
         return sections
 
     def _render_interfaces(self, network_state, render_hwaddress=False):
-        '''Given state, emit etc/network/interfaces content.'''
+        """Given state, emit etc/network/interfaces content."""
 
         # handle 'lo' specifically as we need to insert the global dns entries
         # there (as that is the only interface that will be always up).
-        lo = {'name': 'lo', 'type': 'physical', 'inet': 'inet',
-              'subnets': [{'type': 'loopback', 'control': 'auto'}]}
+        lo = {
+            "name": "lo",
+            "type": "physical",
+            "inet": "inet",
+            "subnets": [{"type": "loopback", "control": "auto"}],
+        }
         for iface in network_state.iter_interfaces():
-            if iface.get('name') == "lo":
+            if iface.get("name") == "lo":
                 lo = copy.deepcopy(iface)
 
         nameservers = network_state.dns_nameservers
         if nameservers:
-            lo['subnets'][0]["dns_nameservers"] = (" ".join(nameservers))
+            lo["subnets"][0]["dns_nameservers"] = " ".join(nameservers)
 
         searchdomains = network_state.dns_searchdomains
         if searchdomains:
-            lo['subnets'][0]["dns_search"] = (" ".join(searchdomains))
+            lo["subnets"][0]["dns_search"] = " ".join(searchdomains)
 
         # Apply a sort order to ensure that we write out the physical
         # interfaces first; this is critical for bonding
         order = {
-            'loopback': 0,
-            'physical': 1,
-            'infiniband': 2,
-            'bond': 3,
-            'bridge': 4,
-            'vlan': 5,
+            "loopback": 0,
+            "physical": 1,
+            "infiniband": 2,
+            "bond": 3,
+            "bridge": 4,
+            "vlan": 5,
         }
 
         sections = []
         sections.extend(self._render_iface(lo))
-        for iface in sorted(network_state.iter_interfaces(),
-                            key=lambda k: (order[k['type']], k['name'])):
+        for iface in sorted(
+            network_state.iter_interfaces(),
+            key=lambda k: (order[k["type"]], k["name"]),
+        ):
 
-            if iface.get('name') == "lo":
+            if iface.get("name") == "lo":
                 continue
             sections.extend(
-                self._render_iface(iface, render_hwaddress=render_hwaddress))
+                self._render_iface(iface, render_hwaddress=render_hwaddress)
+            )
 
         for route in network_state.iter_routes():
             sections.append(self._render_route(route))
 
-        return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
+        return "\n\n".join(["\n".join(s) for s in sections]) + "\n"
 
     def render_network_state(self, network_state, templates=None, target=None):
         fpeni = subp.target_path(target, self.eni_path)
@@ -524,34 +570,38 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules = subp.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
-            util.write_file(netrules,
-                            self._render_persistent_net(network_state))
+            util.write_file(
+                netrules, self._render_persistent_net(network_state)
+            )
 
 
 def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     # render the provided network state, return a string of equivalent eni
-    eni_path = 'etc/network/interfaces'
-    renderer = Renderer(config={
-        'eni_path': eni_path,
-        'eni_header': header,
-        'netrules_path': None,
-    })
+    eni_path = "etc/network/interfaces"
+    renderer = Renderer(
+        config={
+            "eni_path": eni_path,
+            "eni_header": header,
+            "netrules_path": None,
+        }
+    )
     if not header:
         header = ""
     if not header.endswith("\n"):
         header += "\n"
     contents = renderer._render_interfaces(
-        network_state, render_hwaddress=render_hwaddress)
+        network_state, render_hwaddress=render_hwaddress
+    )
     return header + contents
 
 
 def available(target=None):
-    expected = ['ifquery', 'ifup', 'ifdown']
-    search = ['/sbin', '/usr/sbin']
+    expected = ["ifquery", "ifup", "ifdown"]
+    search = ["/sbin", "/usr/sbin"]
     for p in expected:
         if not subp.which(p, search=search, target=target):
             return False
-    eni = subp.target_path(target, 'etc/network/interfaces')
+    eni = subp.target_path(target, "etc/network/interfaces")
     if not os.path.isfile(eni):
         return False
 

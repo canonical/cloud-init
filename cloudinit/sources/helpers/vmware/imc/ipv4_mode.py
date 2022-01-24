@@ -18,18 +18,19 @@ class Ipv4ModeEnum(object):
 
     # The legacy mode which only allows dhcp/static based on whether IPv4
     # addresses list is empty or not
-    IPV4_MODE_BACKWARDS_COMPATIBLE = 'BACKWARDS_COMPATIBLE'
+    IPV4_MODE_BACKWARDS_COMPATIBLE = "BACKWARDS_COMPATIBLE"
 
     # IPv4 must use static address. Reserved for future use
-    IPV4_MODE_STATIC = 'STATIC'
+    IPV4_MODE_STATIC = "STATIC"
 
     # IPv4 must use DHCPv4. Reserved for future use
-    IPV4_MODE_DHCP = 'DHCP'
+    IPV4_MODE_DHCP = "DHCP"
 
     # IPv4 must be disabled
-    IPV4_MODE_DISABLED = 'DISABLED'
+    IPV4_MODE_DISABLED = "DISABLED"
 
     # IPv4 settings should be left untouched. Reserved for future use
-    IPV4_MODE_AS_IS = 'AS_IS'
+    IPV4_MODE_AS_IS = "AS_IS"
+
 
 # vi: ts=4 expandtab

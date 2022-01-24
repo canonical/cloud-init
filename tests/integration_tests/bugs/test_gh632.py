@@ -14,18 +14,20 @@ from tests.integration_tests.util import verify_clean_log
 @pytest.mark.lxd_vm
 def test_datasource_rbx_no_stacktrace(client: IntegrationInstance):
     client.write_to_file(
-        '/etc/cloud/cloud.cfg.d/90_dpkg.cfg',
-        'datasource_list: [ RbxCloud, NoCloud ]\n',
+        "/etc/cloud/cloud.cfg.d/90_dpkg.cfg",
+        "datasource_list: [ RbxCloud, NoCloud ]\n",
     )
     client.write_to_file(
-        '/etc/cloud/ds-identify.cfg',
-        'policy: enabled\n',
+        "/etc/cloud/ds-identify.cfg",
+        "policy: enabled\n",
     )
-    client.execute('cloud-init clean --logs')
+    client.execute("cloud-init clean --logs")
     client.restart()
 
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
-    assert 'Failed to load metadata and userdata' not in log
-    assert ("Getting data from <class 'cloudinit.sources.DataSourceRbxCloud."
-            "DataSourceRbxCloud'> failed") not in log
+    assert "Failed to load metadata and userdata" not in log
+    assert (
+        "Getting data from <class 'cloudinit.sources.DataSourceRbxCloud."
+        "DataSourceRbxCloud'> failed" not in log
+    )

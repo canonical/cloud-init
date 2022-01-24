@@ -6,9 +6,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
-
 from cloudinit import log as logging
+from cloudinit.settings import FREQUENCIES, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -22,26 +21,27 @@ MOD_PREFIX = "cc_"
 def form_module_name(name):
     canon_name = name.replace("-", "_")
     if canon_name.lower().endswith(".py"):
-        canon_name = canon_name[0:(len(canon_name) - 3)]
+        canon_name = canon_name[0 : (len(canon_name) - 3)]
     canon_name = canon_name.strip()
     if not canon_name:
         return None
     if not canon_name.startswith(MOD_PREFIX):
-        canon_name = '%s%s' % (MOD_PREFIX, canon_name)
+        canon_name = "%s%s" % (MOD_PREFIX, canon_name)
     return canon_name
 
 
 def fixup_module(mod, def_freq=PER_INSTANCE):
-    if not hasattr(mod, 'frequency'):
-        setattr(mod, 'frequency', def_freq)
+    if not hasattr(mod, "frequency"):
+        setattr(mod, "frequency", def_freq)
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
             LOG.warning("Module %s has an unknown frequency %s", mod, freq)
-    if not hasattr(mod, 'distros'):
-        setattr(mod, 'distros', [])
-    if not hasattr(mod, 'osfamilies'):
-        setattr(mod, 'osfamilies', [])
+    if not hasattr(mod, "distros"):
+        setattr(mod, "distros", [])
+    if not hasattr(mod, "osfamilies"):
+        setattr(mod, "osfamilies", [])
     return mod
+
 
 # vi: ts=4 expandtab

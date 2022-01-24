@@ -5,4 +5,6 @@ from cloudinit.distros import rhel
 
 class Distro(rhel.Distro):
     pass
+
+
 # vi: ts=4 expandtab

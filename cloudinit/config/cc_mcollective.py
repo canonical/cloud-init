@@ -56,18 +56,21 @@ import io
 from configobj import ConfigObj
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
-SERVER_CFG = '/etc/mcollective/server.cfg'
+SERVER_CFG = "/etc/mcollective/server.cfg"
 
 LOG = logging.getLogger(__name__)
 
 
-def configure(config, server_cfg=SERVER_CFG,
-              pubcert_file=PUBCERT_FILE, pricert_file=PRICERT_FILE):
+def configure(
+    config,
+    server_cfg=SERVER_CFG,
+    pubcert_file=PUBCERT_FILE,
+    pricert_file=PRICERT_FILE,
+):
     # Read server.cfg (if it exists) values from the
     # original file in order to be able to mix the rest up.
     try:
@@ -77,20 +80,20 @@ def configure(config, server_cfg=SERVER_CFG,
         if e.errno != errno.ENOENT:
             raise
         else:
-            LOG.debug("Did not find file %s (starting with an empty"
-                      " config)", server_cfg)
+            LOG.debug(
+                "Did not find file %s (starting with an empty config)",
+                server_cfg,
+            )
             mcollective_config = ConfigObj()
     for (cfg_name, cfg) in config.items():
-        if cfg_name == 'public-cert':
+        if cfg_name == "public-cert":
             util.write_file(pubcert_file, cfg, mode=0o644)
-            mcollective_config[
-                'plugin.ssl_server_public'] = pubcert_file
-            mcollective_config['securityprovider'] = 'ssl'
-        elif cfg_name == 'private-cert':
+            mcollective_config["plugin.ssl_server_public"] = pubcert_file
+            mcollective_config["securityprovider"] = "ssl"
+        elif cfg_name == "private-cert":
             util.write_file(pricert_file, cfg, mode=0o600)
-            mcollective_config[
-                'plugin.ssl_server_private'] = pricert_file
-            mcollective_config['securityprovider'] = 'ssl'
+            mcollective_config["plugin.ssl_server_private"] = pricert_file
+            mcollective_config["securityprovider"] = "ssl"
         else:
             if isinstance(cfg, str):
                 # Just set it in the 'main' section
@@ -126,21 +129,24 @@ def configure(config, server_cfg=SERVER_CFG,
 def handle(name, cfg, cloud, log, _args):
 
     # If there isn't a mcollective key in the configuration don't do anything
-    if 'mcollective' not in cfg:
-        log.debug(("Skipping module named %s, "
-                   "no 'mcollective' key in configuration"), name)
+    if "mcollective" not in cfg:
+        log.debug(
+            "Skipping module named %s, no 'mcollective' key in configuration",
+            name,
+        )
         return
 
-    mcollective_cfg = cfg['mcollective']
+    mcollective_cfg = cfg["mcollective"]
 
     # Start by installing the mcollective package ...
     cloud.distro.install_packages(("mcollective",))
 
     # ... and then update the mcollective configuration
-    if 'conf' in mcollective_cfg:
-        configure(config=mcollective_cfg['conf'])
+    if "conf" in mcollective_cfg:
+        configure(config=mcollective_cfg["conf"])
 
     # restart mcollective to handle updated config
-    subp.subp(['service', 'mcollective', 'restart'], capture=False)
+    subp.subp(["service", "mcollective", "restart"], capture=False)
+
 
 # vi: ts=4 expandtab
