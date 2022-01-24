@@ -2,11 +2,13 @@
 
 import logging
 from functools import partial
-from time import process_time, sleep
+from time import process_time
 
 import httpretty
 import pytest
 import requests
+from threading import Event
+
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -275,27 +277,30 @@ def assert_time(func, max_time=1):
     return out
 
 
+event = Event()
+
+
 class TestDualStack:
-    """Async testing suggestions welcome - these all rely on
-    sleep and time-bounded assertions to prove ordering
+    """Async testing suggestions welcome - these all rely on time-bounded
+    assertions (via threading.Event) to prove ordering
     """
 
     @pytest.mark.parametrize(
         "func,"
         "addresses,"
         "stagger_delay,"
-        "max_wait,"
+        "timeout,"
         "expected_val,"
         "expected_exc",
         [
             # Assert order based on timeout
-            (lambda x: x, ("one", "two"), 1, 1, "one", None),
+            (lambda x, _: x, ("one", "two"), 1, 1, "one", None),
             # Assert timeout results in (None, None)
-            (lambda _: sleep(1), ("one", "two"), 1, 0, None, None),
+            (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None, None),
             # Assert that exception in func is raised
-            (lambda _: 1 / 0, ("one", "two"), 1, 1, None, ZeroDivisionError),
+            (lambda _a, _b: 1 / 0, ("one", "two"), 1, 1, None, ZeroDivisionError),
             (
-                lambda x: sleep(1) if x != "two" else x,
+                lambda x, _: event.wait(1) if x != "two" else x,
                 ("one", "two"),
                 0,
                 1,
@@ -303,7 +308,7 @@ class TestDualStack:
                 None,
             ),
             (
-                lambda x: sleep(1) if x != "tri" else x,
+                lambda x, _: event.wait(1) if x != "tri" else x,
                 ("one", "two", "tri"),
                 0,
                 1,
@@ -318,7 +323,7 @@ class TestDualStack:
         func,
         addresses,
         stagger_delay,
-        max_wait,
+        timeout,
         expected_val,
         expected_exc,
     ):
@@ -329,7 +334,7 @@ class TestDualStack:
             func,
             addresses,
             stagger_delay=stagger_delay,
-            max_wait=max_wait,
+            timeout=timeout,
         )
         if expected_exc:
             with pytest.raises(expected_exc):
@@ -338,6 +343,8 @@ class TestDualStack:
         else:
             _, result = assert_time(gen)
             assert expected_val == result
+        event.set()
+        event.clear()
 
 
 ADDR1 = "https://addr1/"
@@ -348,11 +355,12 @@ SLEEP2 = "https://sleep2/"
 class TestUrlHelper:
     success = "SUCCESS"
     fail = "FAIL"
+    event = Event()
 
     @classmethod
     def response(cls, _, uri, response_headers):
         if uri in (SLEEP1, SLEEP2):
-            sleep(1)
+            cls.event.wait(1)
             return [500, response_headers, cls.fail]
         return [200, response_headers, cls.success]
 
@@ -369,12 +377,12 @@ class TestUrlHelper:
     @httpretty.activate
     def test_order(self, addresses, expected_address_index, response):
         """Check that the first response gets returned. Simulate a
-        non-responding endpoint with a response that has a one second sleep.
+        non-responding endpoint with a response that has a one second wait.
 
-        If this test proves flaky, increase sleep time. Since it is async,
-        increasing sleep time for the non-responding endpoint should not
+        If this test proves flaky, increase wait time. Since it is async,
+        increasing wait time for the non-responding endpoint should not
         increase total test time, assuming async_delay=0 is used and at least
-        one non-sleep endpoint is registered with httpretty.
+        one non-waiting endpoint is registered with httpretty.
         Subsequent tests will continue execution after the first response is
         received.
         """
@@ -390,6 +398,8 @@ class TestUrlHelper:
             connect_synchronously=False,
             async_delay=0.0,
         )
+        self.event.set()
+        self.event.clear()
 
         # Test for timeout (no responding endpoint)
         assert addresses[expected_address_index] == url
@@ -411,6 +421,8 @@ class TestUrlHelper:
             connect_synchronously=False,
             async_delay=0,
         )
+        self.event.set()
+        self.event.clear()
         assert not url
         assert not response_contents
 

@@ -372,7 +372,7 @@ def dual_stack(
     func: Callable[..., Any],
     addresses: List[str],
     stagger_delay: float = 0.150,
-    max_wait: int = 10,
+    timeout: int = 10,
 ) -> Tuple:
     """execute multiple callbacks in parallel
 
@@ -384,11 +384,11 @@ def dual_stack(
     return_result = None
     returned_address = None
 
-    def _run_func(func, addr, delay=None):
+    def _run_func(func, addr, timeout, delay=None):
         """Execute func with optional delay"""
         if delay:
             time.sleep(delay)
-        return func(addr)
+        return func(addr, timeout)
 
     executor = ThreadPoolExecutor(max_workers=len(addresses))
     try:
@@ -397,13 +397,14 @@ def dual_stack(
                 _run_func,
                 func=func,
                 addr=addr,
-                delay=(None if i == 0 else stagger_delay),
+                timeout=timeout,
+                delay=(i * stagger_delay),
             ): addr
             for i, addr in enumerate(addresses)
         }
 
         # handle the first function to complete from the threadpool executor
-        future = next(as_completed(futures, timeout=max_wait))
+        future = next(as_completed(futures, timeout=timeout))
 
         returned_address = futures[future]
         return_result = future.result()
@@ -486,13 +487,8 @@ def wait_for_url(
 
     A value of None for max_wait will retry indefinitely.
     """
-    start_time = time.time()
-
     def log_status_cb(msg, exc=None):
         LOG.debug(msg)
-
-    if status_cb is None:
-        status_cb = log_status_cb
 
     def timeup(max_wait, start_time):
         if max_wait is None:
@@ -521,7 +517,7 @@ def wait_for_url(
             url_exc = None
         return (url_exc, reason)
 
-    def read_url_handle_exceptions(url_reader_cb, urls):
+    def read_url_handle_exceptions(url_reader_cb, urls, start_time):
         reason = ""
         url = None
         try:
@@ -550,7 +546,7 @@ def wait_for_url(
             # does.
             exception_cb(msg=status_msg, exception=url_exc)
 
-    def read_url_cb(url):
+    def read_url_cb(url, timeout):
         return readurl(
             url,
             headers={} if headers_cb is None else headers_cb(url),
@@ -560,15 +556,13 @@ def wait_for_url(
             request_method=request_method,
         )
 
-    def read_url_serial():
+    def read_url_serial(start_time, timeout):
         """iterate over list of urls, request each one and handle responses
         and thrown exceptions individually per url
         """
 
         def url_reader_serial(url):
-            return (url, read_url_cb(url))
-
-        nonlocal timeout
+            return (url, read_url_cb(url, timeout))
 
         for url in urls:
             now = time.time()
@@ -583,11 +577,12 @@ def wait_for_url(
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
-            out = read_url_handle_exceptions(url_reader_serial, url)
+            out = read_url_handle_exceptions(
+                url_reader_serial, url, start_time)
             if out:
                 return out
 
-    def read_url_parallel():
+    def read_url_parallel(start_time, timeout):
         """pass list of urls to dual_stack which sends requests in parallel
         handle response and exceptions of the first endpoint to respond
         """
@@ -595,11 +590,16 @@ def wait_for_url(
             dual_stack,
             read_url_cb,
             stagger_delay=async_delay,
-            max_wait=max_wait,
+            timeout=timeout,
         )
-        out = read_url_handle_exceptions(url_reader_parallel, urls)
+        out = read_url_handle_exceptions(url_reader_parallel, urls, start_time)
         if out:
             return out
+
+    start_time = time.time()
+
+    if status_cb is None:
+        status_cb = log_status_cb
 
     do_read_url = (
         read_url_serial if connect_synchronously else read_url_parallel
@@ -613,7 +613,7 @@ def wait_for_url(
         else:
             sleep_time = int(loop_n / 5) + 1
 
-        url = do_read_url()
+        url = do_read_url(start_time, timeout)
         if url:
             return url
 
@@ -625,6 +625,9 @@ def wait_for_url(
             "Please wait %s seconds while we wait to try again", sleep_time
         )
         time.sleep(sleep_time)
+
+        # shorten timeout to not run way over max_time
+        timeout = int((start_time + max_wait) - time.time())
 
     return False, None
 
