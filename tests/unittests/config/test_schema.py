@@ -94,6 +94,7 @@ class TestGetSchema:
                 "cc_byobu",
                 "cc_ca_certs",
                 "cc_chef",
+                "cc_debug",
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
@@ -120,6 +121,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
+            {"$ref": "#/$defs/cc_debug"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []

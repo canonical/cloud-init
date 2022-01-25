@@ -392,6 +392,26 @@
           }
         }
       }
+    },
+    "cc_debug": {
+      "type": "object",
+      "properties": {
+        "debug": {
+          "additionalProperties": false,
+          "minProperties": 1,
+          "type": "object",
+          "properties": {
+            "verbose": {
+              "description": "Should always be true for this module",
+              "type": "boolean"
+            },
+            "output": {
+              "description": "Location to write output. Defaults to console + log",
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -401,6 +421,7 @@
     { "$ref": "#/$defs/cc_bootcmd" },
     { "$ref": "#/$defs/cc_byobu" },
     { "$ref": "#/$defs/cc_ca_certs" },
-    { "$ref": "#/$defs/cc_chef" }
+    { "$ref": "#/$defs/cc_chef" },
+    { "$ref": "#/$defs/cc_debug" }
   ]
 }
