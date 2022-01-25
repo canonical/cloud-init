@@ -92,6 +92,7 @@ class TestGetSchema:
                 "cc_apt_pipelining",
                 "cc_bootcmd",
                 "cc_byobu",
+                "cc_ca_certs",
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
@@ -117,6 +118,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_apt_pipelining"},
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
+            {"$ref": "#/$defs/cc_ca_certs"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []

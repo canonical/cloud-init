@@ -1,14 +1,22 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 import shutil
 import tempfile
 import unittest
 from contextlib import ExitStack
 from unittest import mock
 
+import pytest
+
 from cloudinit import distros, helpers, subp, util
 from cloudinit.config import cc_ca_certs
-from tests.unittests.helpers import TestCase
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
@@ -405,5 +413,55 @@ class TestRemoveDefaultCaCerts(TestCase):
                         " select no",
                     )
 
+
+class TestCACertsSchema:
+    """Directly test schema rather than through handle."""
+
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Invalid schemas
+            (
+                {"ca_certs": 1},
+                "ca_certs: 1 is not of type 'object'",
+            ),
+            (
+                {"ca_certs": {}},
+                re.escape("ca_certs: {} does not have enough properties"),
+            ),
+            (
+                {"ca_certs": {"boguskey": 1}},
+                re.escape(
+                    "ca_certs: Additional properties are not allowed"
+                    " ('boguskey' was unexpected)"
+                ),
+            ),
+            (
+                {"ca_certs": {"remove_defaults": 1}},
+                "ca_certs.remove_defaults: 1 is not of type 'boolean'",
+            ),
+            (
+                {"ca_certs": {"trusted": [1]}},
+                "ca_certs.trusted.0: 1 is not of type 'string'",
+            ),
+            (
+                {"ca_certs": {"trusted": []}},
+                re.escape("ca_certs.trusted: [] is too short"),
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)
+
+
+# vi: ts=4 expandtab
 
 # vi: ts=4 expandtab

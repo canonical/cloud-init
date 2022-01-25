@@ -221,6 +221,29 @@
           ]
         }
       }
+    },
+    "cc_ca_certs": {
+      "type": "object",
+      "properties": {
+        "ca_certs": {
+          "type": "object",
+          "properties": {
+            "remove_defaults": {
+              "description": "Remove default CA certificates if true. Default: false",
+              "type": "boolean",
+              "default": false
+            },
+            "trusted": {
+              "description": "List of trusted CA certificates to add.",
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
+        }
+      }
     }
   },
   "allOf": [
@@ -228,6 +251,7 @@
     { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
     { "$ref": "#/$defs/cc_bootcmd" },
-    { "$ref": "#/$defs/cc_byobu" }
+    { "$ref": "#/$defs/cc_byobu" },
+    { "$ref": "#/$defs/cc_ca_certs" }
   ]
 }
