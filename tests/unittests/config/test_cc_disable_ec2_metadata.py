@@ -4,8 +4,15 @@
 
 import logging
 
+import pytest
+
 import cloudinit.config.cc_disable_ec2_metadata as ec2_meta
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 LOG = logging.getLogger(__name__)
 
@@ -45,6 +52,30 @@ class TestEC2MetadataRoute(CiTestCase):
             [mock.call("ip"), mock.call("ifconfig")], m_which.call_args_list
         )
         m_subp.assert_not_called()
+
+
+@skipUnlessJsonSchema()
+class TestDisableEc2MetadataSchema:
+    """Directly test schema rather than through handle."""
+
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas tested by meta.examples in test_schema
+            # Invalid schemas
+            (
+                {"disable_ec2_metadata": 1},
+                "disable_ec2_metadata: 1 is not of type 'boolean'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab

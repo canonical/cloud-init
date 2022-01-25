@@ -95,6 +95,8 @@ class TestGetSchema:
                 "cc_ca_certs",
                 "cc_chef",
                 "cc_debug",
+                "cc_disable_ec2_metadata",
+                "cc_install_hotplug",
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
@@ -105,7 +107,6 @@ class TestGetSchema:
                 "cc_ubuntu_drivers",
                 "cc_write_files",
                 "cc_zypper_add_repo",
-                "cc_install_hotplug",
             ]
         ) == sorted(
             [meta["id"] for meta in get_metas().values() if meta is not None]
@@ -122,6 +123,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
             {"$ref": "#/$defs/cc_debug"},
+            {"$ref": "#/$defs/cc_disable_ec2_metadata"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []

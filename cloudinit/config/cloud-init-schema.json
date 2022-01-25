@@ -412,6 +412,16 @@
           }
         }
       }
+    },
+    "cc_disable_ec2_metadata": {
+      "type": "object",
+      "properties": {
+        "disable_ec2_metadata": {
+          "default": false,
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: false.",
+          "type": "boolean"
+        }
+      }
     }
   },
   "allOf": [
@@ -422,6 +432,7 @@
     { "$ref": "#/$defs/cc_byobu" },
     { "$ref": "#/$defs/cc_ca_certs" },
     { "$ref": "#/$defs/cc_chef" },
-    { "$ref": "#/$defs/cc_debug" }
+    { "$ref": "#/$defs/cc_debug" },
+    { "$ref": "#/$defs/cc_disable_ec2_metadata" }
   ]
 }
