@@ -5,11 +5,31 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Disk Setup
-----------
-**Summary:** configure partitions and filesystems
+"""Disk Setup: Configure partitions and filesystems."""
 
+import logging
+import os
+import shlex
+from textwrap import dedent
+
+from cloudinit import subp, util
+from cloudinit.config.schema import get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+# Define the commands to use
+SFDISK_CMD = subp.which("sfdisk")
+SGDISK_CMD = subp.which("sgdisk")
+LSBLK_CMD = subp.which("lsblk")
+BLKID_CMD = subp.which("blkid")
+BLKDEV_CMD = subp.which("blockdev")
+PARTPROBE_CMD = subp.which("partprobe")
+WIPEFS_CMD = subp.which("wipefs")
+
+LANG_C_ENV = {"LANG": "C"}
+LOG = logging.getLogger(__name__)
+
+MODULE_DESCRIPTION = """\
 This module is able to configure simple partition tables and filesystems.
 
 .. note::
@@ -25,102 +45,45 @@ will refer to the block device of the ephemeral image.
 Disk partitioning is done using the ``disk_setup`` directive. This config
 directive accepts a dictionary where each key is either a path to a block
 device or an alias specified in ``device_aliases``, and each value is the
-configuration options for the device. The ``table_type`` option specifies the
-partition table type, either ``mbr`` or ``gpt``. The ``layout`` option
-specifies how partitions on the device are to be arranged. If ``layout`` is set
-to ``true``, a single partition using all the space on the device will be
-created. If set to ``false``, no partitions will be created. Partitions can be
-specified by providing a list to ``layout``, where each entry in the list is
-either a size or a list containing a size and the numerical value for a
-partition type. The size for partitions is specified in **percentage** of disk
-space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space).
-The ``overwrite`` option controls whether this module tries to be safe about
-writing partition tables or not. If ``overwrite: false`` is set, the device
-will be checked for a partition table and for a file system and if either is
-found, the operation will be skipped. If ``overwrite: true`` is set, no checks
-will be performed.
-
-.. note::
-    Using ``overwrite: true`` is dangerous and can lead to data loss, so double
-    check that the correct device has been specified if using this option.
-
-File system configuration is done using the ``fs_setup`` directive. This config
-directive accepts a list of filesystem configs. The device to create the
-filesystem on may be specified either as a path or as an alias in the format
-``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device.
-The partition can also be specified by setting ``partition`` to the desired
-partition number. The ``partition`` option may also be set to ``auto``, in
-which this module will search for the existence of a filesystem matching the
-``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip
-creating the filesystem if one is found. The ``partition`` option may also be
-set to ``any``, in which case any file system that matches ``type`` and
-``device`` will cause this module to skip filesystem creation for the
-``fs_setup`` entry, regardless of ``label`` matching or not. To write a
-filesystem directly to a device, use ``partition: none``. ``partition: none``
-will **always** write the filesystem, even when the ``label`` and
-``filesystem`` are matched, and ``overwrite`` is ``false``.
-
-A label can be specified for the filesystem using
-``label``, and the filesystem type can be specified using ``filesystem``.
-
-.. note::
-    If specifying device using the ``<device name>.<partition number>`` format,
-    the value of ``partition`` will be overwritten.
-
-.. note::
-    Using ``overwrite: true`` for filesystems is dangerous and can lead to data
-    loss, so double check the entry in ``fs_setup``.
-
-.. note::
-    ``replace_fs`` is ignored unless ``partition`` is ``auto`` or ``any``.
-
-**Internal name:** ``cc_disk_setup``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    device_aliases:
-        <alias name>: <device path>
-    disk_setup:
-        <alias name/path>:
-            table_type: <'mbr'/'gpt'>
-            layout:
-                - [33,82]
-                - 66
-            overwrite: <true/false>
-    fs_setup:
-        - label: <label>
-          filesystem: <filesystem type>
-          device: <device>
-          partition: <"auto"/"any"/"none"/<partition number>>
-          overwrite: <true/false>
-          replace_fs: <filesystem type>
+configuration options for the device. File system configuration is done using
+the ``fs_setup`` directive. This config directive accepts a list of
+filesystem configs.
 """
 
-import logging
-import os
-import shlex
+meta = {
+    "id": "cc_disk_setup",
+    "name": "Disk Setup",
+    "title": "Configure partitions and filesystems",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            device_aliases:
+              my_alias: /dev/sdb
+            disk_setup:
+              my_alias:
+                table_type: gpt
+                layout: [50, 50]
+                overwrite: true
+            fs_setup:
+            - label: fs1
+              filesystem: ext4
+              device: my_alias.1
+              cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+            - label: fs2
+              device: my_alias.2
+              filesystem: ext4
+            mounts:
+            - ["my_alias.1", "/mnt1"]
+            - ["my_alias.2", "/mnt2"]
+            """
+        )
+    ],
+}
 
-from cloudinit import subp, util
-from cloudinit.settings import PER_INSTANCE
-
-frequency = PER_INSTANCE
-
-# Define the commands to use
-SFDISK_CMD = subp.which("sfdisk")
-SGDISK_CMD = subp.which("sgdisk")
-LSBLK_CMD = subp.which("lsblk")
-BLKID_CMD = subp.which("blkid")
-BLKDEV_CMD = subp.which("blockdev")
-PARTPROBE_CMD = subp.which("partprobe")
-WIPEFS_CMD = subp.which("wipefs")
-
-LANG_C_ENV = {"LANG": "C"}
-
-LOG = logging.getLogger(__name__)
+__doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -1008,7 +971,7 @@ def mkfs(fs_cfg):
 
         if not device:
             LOG.debug(
-                "No device aviable that matches request. "
+                "No device available that matches request. "
                 "Skipping fs creation for %s",
                 fs_cfg,
             )

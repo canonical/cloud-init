@@ -422,6 +422,117 @@
           "type": "boolean"
         }
       }
+    },
+    "cc_disk_setup": {
+      "type": "object",
+      "properties": {
+        "device_aliases": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "label": "<alias_name>",
+              "type": "string",
+              "description": "Path to disk to be aliased by this name."
+            }
+          }
+        },
+        "disk_setup": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "label": "<alias name/path>",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "table_type": {
+                  "type": "string",
+                  "default": "mbr",
+                  "enum": ["mbr", "gpt"],
+                  "description": "Specifies the partition table type, either ``mbr`` or ``gpt``. Default: ``mbr``."
+                },
+                "layout": {
+                  "type": ["string", "boolean", "array"],
+                  "default": false,
+                  "oneOf": [
+                    {"type": "string", "enum": ["auto", "remove"]},
+                    {"type": "boolean"},
+                    {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {"type": "integer"},
+                          {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "description": "If set to ``true``, a single partition using all the space on the device will be created. If set to ``false``, no partitions will be created. If set to ``remove``, any existing partion table will be purged. Partitions can be specified by providing a list to ``layout``, where each entry in the list is either a size or a list containing a size and the numerical value for a partition type. The size for partitions is specified in **percentage** of disk space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space). Default: ``false``."
+                },
+                "overwrite": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Controls whether this module tries to be safe about writing partition tables or not. If ``overwrite: false`` is set, the device will be checked for a partition table and for a file system and if either is found, the operation will be skipped. If ``overwrite: true`` is set, no checks will be performed. Using ``overwrite: true`` is **dangerous** and can lead to data loss, so double check that the correct device has been specified if using this option. Default: ``false``"
+                }
+              }
+            }
+          }
+        },
+        "fs_setup": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Label for the filesystem."
+              },
+              "filesystem": {
+                "type": "string",
+                "description": "Filesystem type to create. E.g., ``ext4`` or ``btrfs``"
+              },
+              "device": {
+                "type": "string",
+                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<device name>.<partition number>`` format, the value of ``partition`` will be overwritten."
+              },
+              "partition": {
+                "type": ["string", "integer"],
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": ["auto", "any", "none"]
+                  },
+                  {"type": "integer"}
+                ],
+                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
+              },
+              "overwrite": {
+                "type": "boolean",
+                "description": "If ``true``, overwrite any existing filesystem. Using ``overwrite: true`` for filesystems is **dangerous** and can lead to data loss, so double check the entry in ``fs_setup``. Default: ``false``"
+              },
+              "replace_fs": {
+                "type": "string",
+                "description": "Ignored unless ``partition`` is ``auto`` or ``any``. Default ``false``."
+              },
+              "extra_opts": {
+                "type": ["array", "string"],
+                "items": {"type": "string"},
+                "description": "Optional options to pass to the filesystem creation command. Ignored if you using ``cmd`` directly."
+              },
+              "cmd": {
+                "type": ["array", "string"],
+                "items": {"type": "string"},
+                "description": "Optional command to run to create the filesystem. Can include string substitutions of the other ``fs_setup`` config keys. This is only necessary if you need to override the default command."
+              }
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -433,6 +544,7 @@
     { "$ref": "#/$defs/cc_ca_certs" },
     { "$ref": "#/$defs/cc_chef" },
     { "$ref": "#/$defs/cc_debug" },
-    { "$ref": "#/$defs/cc_disable_ec2_metadata" }
+    { "$ref": "#/$defs/cc_disable_ec2_metadata" },
+    { "$ref": "#/$defs/cc_disk_setup" }
   ]
 }

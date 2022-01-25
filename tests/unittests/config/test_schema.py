@@ -96,6 +96,7 @@ class TestGetSchema:
                 "cc_chef",
                 "cc_debug",
                 "cc_disable_ec2_metadata",
+                "cc_disk_setup",
                 "cc_install_hotplug",
                 "cc_keyboard",
                 "cc_locale",
@@ -124,6 +125,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_chef"},
             {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
+            {"$ref": "#/$defs/cc_disk_setup"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -136,7 +138,6 @@ class TestGetSchema:
         assert expected_subschema_defs == found_subschema_defs
         # This list will dwindle as we move legacy schema to new $defs
         assert [
-            "chef",
             "drivers",
             "keyboard",
             "locale",
