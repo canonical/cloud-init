@@ -14,7 +14,7 @@ import os
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
@@ -433,7 +433,7 @@ schema = {
     },
 }
 
-__doc__ = get_meta_doc(meta, schema)
+__doc__ = get_meta_doc(meta)
 
 
 def post_run_chef(chef_cfg, log):
@@ -489,7 +489,6 @@ def handle(name, cfg, cloud, log, _args):
         )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
     chef_cfg = cfg["chef"]
 
     # Ensure the chef directories we use exist

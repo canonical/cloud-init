@@ -93,6 +93,7 @@ class TestGetSchema:
                 "cc_bootcmd",
                 "cc_byobu",
                 "cc_ca_certs",
+                "cc_chef",
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
@@ -103,7 +104,6 @@ class TestGetSchema:
                 "cc_ubuntu_drivers",
                 "cc_write_files",
                 "cc_zypper_add_repo",
-                "cc_chef",
                 "cc_install_hotplug",
             ]
         ) == sorted(
@@ -119,6 +119,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
+            {"$ref": "#/$defs/cc_chef"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
