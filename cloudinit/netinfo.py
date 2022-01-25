@@ -43,7 +43,7 @@ DEFAULT_NETDEV_INFO = {"ipv4": [], "ipv6": [], "hwaddr": "", "up": False}
 def _netdev_info_iproute_json(ipaddr_json):
     """Get network device dicts from ip route and ip link info.
 
-    ipaddr_out: Output string from 'ip --json addr' command.
+    ipaddr_json: Output string from 'ip --json addr' command.
 
     Returns a dict of device info keyed by network device name containing
     device configuration values.
@@ -54,29 +54,34 @@ def _netdev_info_iproute_json(ipaddr_json):
     devs = {}
 
     for dev in ipaddr_data:
-        flags = dev["flags"]
+        flags = dev["flags"] if "flags" in dev else []
+        address = dev["address"] if dev.get("link_type") == "ether" else ""
         dev_info = {
-            "hwaddr": dev["address"] if dev["link_type"] == "ether" else "",
+            "hwaddr": address,
             "up": bool("UP" in flags and "LOWER_UP" in flags),
             "ipv4": [],
             "ipv6": [],
         }
-        for addr in dev["addr_info"]:
-            if addr["family"] == "inet":
+        for addr in dev.get("addr_info", []):
+            if addr.get("family") == "inet":
+                mask = (
+                    str(IPv4Network(f'0.0.0.0/{addr["prefixlen"]}').netmask)
+                    if "prefixlen" in addr
+                    else ""
+                )
                 parsed_addr = {
-                    "ip": addr["local"],
-                    "mask": str(
-                        IPv4Network(f'0.0.0.0/{addr["prefixlen"]}').netmask
-                    ),
-                    "bcast": (
-                        addr["broadcast"] if "broadcast" in addr else ""
-                    ),
-                    "scope": addr["scope"],
+                    "ip": addr.get("local", ""),
+                    "mask": mask,
+                    "bcast": addr.get("broadcast", ""),
+                    "scope": addr.get("scope", ""),
                 }
                 dev_info["ipv4"].append(parsed_addr)
             elif addr["family"] == "inet6":
+                ip = addr.get("local", "")
+                if ip:
+                    ip = f"{ip}/{addr.get('prefixlen', 64)}"
                 parsed_addr = {
-                    "ip": f"{addr['local']}/{addr['prefixlen']}",
+                    "ip": ip,
                     "scope6": addr["scope"],
                 }
                 dev_info["ipv6"].append(parsed_addr)
