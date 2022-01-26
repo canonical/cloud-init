@@ -22,7 +22,7 @@ from cloudinit.handlers.jinja_template import (
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.shell_script_by_frequency import (
     get_script_folder_by_frequency,
-    pathMap,
+    path_map,
 )
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
@@ -482,7 +482,7 @@ class TestShellScriptByFrequencyHandlers:
     def do_test_frequency(self, frequency):
         ci_paths = read_cfg_paths()
         scripts_dir = ci_paths.get_cpath("scripts")
-        testFolder = os.path.join(scripts_dir, pathMap[frequency])
+        testFolder = os.path.join(scripts_dir, path_map[frequency])
         folder = get_script_folder_by_frequency(frequency, scripts_dir)
         assert testFolder == folder
 
