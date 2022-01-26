@@ -5,12 +5,10 @@
 import copy
 import errno
 import os
+import pytest
 import shutil
 import tempfile
 from textwrap import dedent
-
-import pytest
-
 from cloudinit import handlers, helpers, subp, util
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
@@ -25,8 +23,6 @@ from cloudinit.handlers.shell_script_by_frequency import (
     pathMap,
 )
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-
-# from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import (
     CiTestCase,
@@ -36,7 +32,6 @@ from tests.unittests.helpers import (
 )
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
-
 
 class TestUpstartJobPartHandler(FilesystemMockingTestCase):
 
@@ -481,7 +476,6 @@ class TestRenderJinjaPayload(CiTestCase):
 
 
 class TestShellScriptByFrequencyHandlers:
-    with_logs = True
 
     def do_test_frequency(self, frequency):
         ci_paths = read_cfg_paths()
