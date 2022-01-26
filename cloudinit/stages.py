@@ -22,7 +22,9 @@ from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.shell_script_by_frequency import (
-    ShellScriptByFreqPartHandler,
+    ShellScriptPerBootPartHandler,
+    ShellScriptPerInstancePartHandler,
+    ShellScriptPerOncePartHandler,
 )
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 from cloudinit.net import cmdline
@@ -520,21 +522,12 @@ class Init(object):
         # TODO(harlowja) Hmmm, should we dynamically import these??
         cloudconfig_handler = CloudConfigPartHandler(**opts)
         shellscript_handler = ShellScriptPartHandler(**opts)
-        shellscript_per_boot_handler = ShellScriptByFreqPartHandler(
-            PER_ALWAYS, **opts
-        )
-        shellscript_per_instance_handler = ShellScriptByFreqPartHandler(
-            PER_INSTANCE, **opts
-        )
-        shellscript_per_once_handler = ShellScriptByFreqPartHandler(
-            PER_ONCE, **opts
-        )
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,
-            shellscript_per_boot_handler,
-            shellscript_per_instance_handler,
-            shellscript_per_once_handler,
+            ShellScriptPerBootPartHandler(**opts),
+            ShellScriptPerInstancePartHandler(**opts),
+            ShellScriptPerOncePartHandler(**opts),
             BootHookPartHandler(**opts),
             UpstartJobPartHandler(**opts),
         ]
