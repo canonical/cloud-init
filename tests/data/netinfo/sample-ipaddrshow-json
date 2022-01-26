@@ -59,6 +59,7 @@
                 "family": "inet",
                 "local": "192.168.2.18",
                 "prefixlen": 24,
+                "metric": 100,
                 "broadcast": "192.168.2.255",
                 "scope": "global",
                 "dynamic": true,
