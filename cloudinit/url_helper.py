@@ -11,7 +11,6 @@
 import copy
 import json
 import os
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate

@@ -524,7 +524,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
-            "http://[fd00:ec2::254]/2009-04-04/meta-data/", DEFAULT_METADATA
+            "http://169.254.169.254/2009-04-04/meta-data/", DEFAULT_METADATA
         )
         mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
         get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
