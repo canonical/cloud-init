@@ -35,3 +35,4 @@ cloud-init_*.upload
 
 # user test settings
 tests/integration_tests/user_settings.py
+
