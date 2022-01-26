@@ -56,8 +56,8 @@ class DataSourceEc2(sources.DataSource):
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
     metadata_urls = [
-        "http://[fd00:ec2::254]",
         "http://169.254.169.254",
+        "http://[fd00:ec2::254]",
         "http://instance-data.:8773",
     ]
 
