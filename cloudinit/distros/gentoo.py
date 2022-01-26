@@ -37,6 +37,8 @@ class Distro(distros.Distro):
         self.osfamily = "gentoo"
         # Fix sshd restarts
         cfg["ssh_svcname"] = "/etc/init.d/sshd"
+        if distros.uses_systemd():
+            LOG.error("Cloud-init does not support systemd with gentoo")
 
     def apply_locale(self, _, out_fn=None):
         """rc-only - not compatible with systemd
