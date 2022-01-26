@@ -32,7 +32,6 @@ from cloudinit.reporting import events
 from cloudinit.settings import (
     CLOUD_CONFIG,
     FREQUENCIES,
-    PER_ALWAYS,
     PER_INSTANCE,
     PER_ONCE,
     RUN_CLOUD_CONFIG,

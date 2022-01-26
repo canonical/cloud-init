@@ -41,7 +41,7 @@ class ShellScriptByFreqPartHandler(Handler):
     """Common base class for the frequency-specific script handlers."""
 
     def __init__(self, script_frequency, paths, **_kwargs):
-        self.freq = script_frequency
+        self.script_frequency = script_frequency
         Handler.__init__(self, PER_ALWAYS)
         self.scripts_dir = paths.get_cpath("scripts")
         if "script_path" in _kwargs:
@@ -61,7 +61,8 @@ class ShellScriptPerBootPartHandler(ShellScriptByFreqPartHandler):
 
     def __init__(self, paths, **kwargs):
         ShellScriptByFreqPartHandler.__init__(
-            self, PER_ALWAYS, paths, **kwargs)
+            self, PER_ALWAYS, paths, **kwargs
+        )
 
 
 class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
@@ -69,12 +70,12 @@ class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
 
     def __init__(self, paths, **kwargs):
         ShellScriptByFreqPartHandler.__init__(
-            self, PER_INSTANCE, paths, **kwargs)
+            self, PER_INSTANCE, paths, **kwargs
+        )
 
 
 class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
     prefixes = ["text/x-shellscript-per-once"]
 
     def __init__(self, paths, **kwargs):
-        ShellScriptByFreqPartHandler.__init__(
-            self, PER_ONCE, paths, **kwargs)
+        ShellScriptByFreqPartHandler.__init__(self, PER_ONCE, paths, **kwargs)
