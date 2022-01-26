@@ -78,7 +78,12 @@ def _netdev_info_iproute_json(ipaddr_json):
                 dev_info["ipv4"].append(parsed_addr)
             elif addr["family"] == "inet6":
                 ip = addr.get("local", "")
-                if ip:
+                # address here refers to a peer address, and according
+                # to "man 8 ip-address":
+                # If a peer address is specified, the local address cannot
+                # have a prefix length. The network prefix is associated
+                # with the peer rather than with the local address.
+                if ip and not addr.get("address"):
                     ip = f"{ip}/{addr.get('prefixlen', 64)}"
                 parsed_addr = {
                     "ip": ip,
