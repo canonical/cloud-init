@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import ipaddress
 from unittest import mock
 
 import pytest
@@ -161,6 +161,62 @@ class TestNetworkStateParseNameservers:
             "foo.local",
             "spam.local",
         ] == sorted(config.dns_searchdomains)
+
+
+class TestNetworkStateHelperFunctions(CiTestCase):
+    def test_mask_to_net_prefix_ipv4(self):
+        netmask_value = "255.255.255.0"
+        expected = 24
+        prefix_value = network_state.ipv4_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
+
+    def test_mask_to_net_prefix_all_bits_ipv4(self):
+        netmask_value = "255.255.255.255"
+        expected = 32
+        prefix_value = network_state.ipv4_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
+
+    def test_mask_to_net_prefix_to_many_bits_ipv4(self):
+        netmask_value = "33"
+        self.assertRaises(
+            ValueError, network_state.ipv4_mask_to_net_prefix, netmask_value
+        )
+
+    def test_mask_to_net_prefix_all_bits_ipv6(self):
+        netmask_value = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+        expected = 128
+        prefix_value = network_state.ipv6_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
+
+    def test_mask_to_net_prefix_ipv6(self):
+        netmask_value = "ffff:ffff:ffff:ffff::"
+        expected = 64
+        prefix_value = network_state.ipv6_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
+
+    def test_mask_to_net_prefix_raises_value_error(self):
+        netmask_value = "ff:ff:ff:ff::"
+        self.assertRaises(
+            ValueError, network_state.ipv6_mask_to_net_prefix, netmask_value
+        )
+
+    def test_mask_to_net_prefix_to_many_bits_ipv6(self):
+        netmask_value = "129"
+        self.assertRaises(
+            ValueError, network_state.ipv6_mask_to_net_prefix, netmask_value
+        )
+
+    def test_mask_to_net_prefix_ipv4_object(self):
+        netmask_value = ipaddress.IPv4Address("255.255.255.255")
+        expected = 32
+        prefix_value = network_state.ipv4_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
+
+    def test_mask_to_net_prefix_ipv6_object(self):
+        netmask_value = ipaddress.IPv6Address("ffff:ffff:ffff::")
+        expected = 48
+        prefix_value = network_state.ipv6_mask_to_net_prefix(netmask_value)
+        assert prefix_value == expected
 
 
 # vi: ts=4 expandtab

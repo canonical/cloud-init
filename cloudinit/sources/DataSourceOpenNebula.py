@@ -248,7 +248,7 @@ class OpenNebulaNetwork(object):
             # Set IPv4 address
             devconf["addresses"] = []
             mask = self.get_mask(c_dev)
-            prefix = str(net.mask_to_net_prefix(mask))
+            prefix = str(net.ipv4_mask_to_net_prefix(mask))
             devconf["addresses"].append(self.get_ip(c_dev, mac) + "/" + prefix)
 
             # Set IPv6 Global and ULA address
