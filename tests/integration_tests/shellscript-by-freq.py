@@ -33,7 +33,7 @@ def test_per_freq(client: IntegrationInstance):
     # Test per-boot
     cmd = "test -f /var/lib/cloud/scripts/per-boot/always.sh"
     assert client.execute(cmd).ok
-    cmd = "test -f /tmp/test_per_freq_boot"
+    cmd = "test -f /tmp/test_per_freq_always"
     assert client.execute(cmd).ok
     # Test per-instance
     cmd = "test -f /var/lib/cloud/scripts/per-instance/instance.sh"
