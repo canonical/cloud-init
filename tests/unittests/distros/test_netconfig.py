@@ -520,6 +520,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
@@ -534,6 +535,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
             self.ifcfg_path("eth1"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=dhcp
                 DEVICE=eth1
                 NM_CONTROLLED=no
@@ -559,6 +561,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
@@ -575,6 +578,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
             self.ifcfg_path("eth1"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=dhcp
                 DEVICE=eth1
                 NM_CONTROLLED=no
@@ -619,6 +623,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEVICE=eth0
                 HWADDR=00:16:3e:60:7c:df
@@ -632,6 +637,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
             self.ifcfg_path("infra0"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEVICE=infra0
                 IPADDR=10.0.1.2
@@ -668,6 +674,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEVICE=eth0
                 IPADDR=192.10.1.2
@@ -680,6 +687,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
             self.ifcfg_path("eth0.1001"): dedent(
                 """\
+                AUTOCONNECT_PRIORITY=999
                 BOOTPROTO=none
                 DEVICE=eth0.1001
                 IPADDR=10.0.1.2

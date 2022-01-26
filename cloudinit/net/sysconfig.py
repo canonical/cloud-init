@@ -345,6 +345,7 @@ class Renderer(renderer.Renderer):
             "USERCTL": False,
             "NM_CONTROLLED": False,
             "BOOTPROTO": "none",
+            "AUTOCONNECT_PRIORITY": 999,
         },
         "suse": {"BOOTPROTO": "static", "STARTMODE": "auto"},
     }
