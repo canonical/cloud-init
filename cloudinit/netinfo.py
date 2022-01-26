@@ -121,7 +121,7 @@ def _netdev_info_iproute(ipaddr_out):
         elif "inet6" in line:
             m = re.match(
                 r"\s+inet6\s(?P<ip>\S+)"
-                r"\s(peer\s\S+)?"
+                r"(\s(peer\s\S+))?"
                 r"\sscope\s(?P<scope6>\S+).*",
                 line,
             )
