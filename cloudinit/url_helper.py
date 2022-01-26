@@ -427,11 +427,11 @@ def dual_stack(
     # in the constructor, otherwise the context manager would be preferred
     finally:
         # python 3.9 allows canceling futures, which may save some cycles
-        if sys.version_info.major >= 3 and sys.version_info.minor > 9:
+        try:
             executor.shutdown(  # pylint: disable=E1123
                 wait=False, cancel_futures=True
             )
-        else:
+        except TypeError:  # no cancel_futures support
             executor.shutdown(wait=False)
     return (returned_address, return_result)
 
