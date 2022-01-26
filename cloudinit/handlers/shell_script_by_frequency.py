@@ -29,13 +29,11 @@ def get_script_folder_by_frequency(freq, scripts_dir):
 def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     """Given a filename, a payload, a frequency, and a scripts folder, write
     the payload to the correct frequency-specific path"""
-    print("write_script_by_frequency()")
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
     folder = get_script_folder_by_frequency(frequency, scripts_dir)
     path = os.path.join(folder, filename)
     payload = util.dos2unix(payload)
-    print(f"Writing payload to {path}")
     util.write_file(path, payload, 0o700)
 
 
@@ -49,15 +47,12 @@ class ShellScriptByFreqPartHandler(Handler):
     ]
 
     def __init__(self, freq, paths, **_kwargs):
-        print("ShellScriptByFreqPartHandler: c'tor()")
         Handler.__init__(self, freq)
         self.scripts_dir = paths.get_cpath("scripts")
         if "script_path" in _kwargs:
             self.scripts_dir = paths.get_cpath(_kwargs["script_path"])
 
     def handle_part(self, data, ctype, script_path, payload, frequency):
-        print("ShellScriptByFreqPartHandler.handle_part()")
-        print("script_path=%s", script_path)
         if script_path is not None:
             filename = os.path.basename(script_path)
             filename = util.clean_filename(filename)
