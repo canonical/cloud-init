@@ -4,6 +4,7 @@ import logging
 from functools import partial
 from threading import Event
 from time import process_time
+from unittest.mock import call
 
 import httpretty
 import pytest
@@ -351,6 +352,26 @@ class TestDualStack:
             assert expected_val == result
         event.set()
         event.clear()
+
+    def test_dual_stack_staggered(self):
+        """Assert expected sleeps occur"""
+        event = Event()
+        with mock.patch("time.sleep", side_effect=event.wait) as sleep_m:
+            dual_stack(
+                lambda x, _: x,
+                ["you", "and", "me", "and", "dog"],
+                stagger_delay=1,
+                timeout=1,
+            )
+        sleep_m.assert_has_calls(
+            [
+                call(1),
+                call(2),
+                call(3),
+                call(4),
+            ]
+        )
+        event.set()
 
 
 ADDR1 = "https://addr1/"
