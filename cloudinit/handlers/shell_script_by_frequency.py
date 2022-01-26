@@ -11,17 +11,22 @@ LOG = log.getLogger(__name__)
 # specific folders in /v/l/c/scripts. It might make sense to expose this at a
 # higher level or in a more general module -- eg maybe in cloudinit/settings.py
 # itself -- but for now it's here.
-pathMap = {
+path_map = {
     PER_ALWAYS: "per-boot",
     PER_INSTANCE: "per-instance",
     PER_ONCE: "per-once",
 }
 
 
+def get_mime_type_by_frequency(freq):
+    mime_type = f"text/x-shellscript-{path_map[freq]}"
+    return mime_type
+
+
 def get_script_folder_by_frequency(freq, scripts_dir):
     """Return the frequency-specific subfolder for a given frequency constant
     and parent folder."""
-    freqPath = pathMap[freq]
+    freqPath = path_map[freq]
     folder = os.path.join(scripts_dir, freqPath)
     return folder
 
@@ -41,8 +46,9 @@ class ShellScriptByFreqPartHandler(Handler):
     """Common base class for the frequency-specific script handlers."""
 
     def __init__(self, script_frequency, paths, **_kwargs):
-        self.script_frequency = script_frequency
         Handler.__init__(self, PER_ALWAYS)
+        self.prefixes = [get_mime_type_by_frequency(script_frequency)]
+        self.script_frequency = script_frequency
         self.scripts_dir = paths.get_cpath("scripts")
         if "script_path" in _kwargs:
             self.scripts_dir = paths.get_cpath(_kwargs["script_path"])
@@ -54,28 +60,3 @@ class ShellScriptByFreqPartHandler(Handler):
             write_script_by_frequency(
                 script_path, payload, self.script_frequency, self.scripts_dir
             )
-
-
-class ShellScriptPerBootPartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-boot"]
-
-    def __init__(self, paths, **kwargs):
-        ShellScriptByFreqPartHandler.__init__(
-            self, PER_ALWAYS, paths, **kwargs
-        )
-
-
-class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-instance"]
-
-    def __init__(self, paths, **kwargs):
-        ShellScriptByFreqPartHandler.__init__(
-            self, PER_INSTANCE, paths, **kwargs
-        )
-
-
-class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-once"]
-
-    def __init__(self, paths, **kwargs):
-        ShellScriptByFreqPartHandler.__init__(self, PER_ONCE, paths, **kwargs)
