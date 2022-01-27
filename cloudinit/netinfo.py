@@ -87,7 +87,7 @@ def _netdev_info_iproute_json(ipaddr_json):
                     ip = f"{ip}/{addr.get('prefixlen', 64)}"
                 parsed_addr = {
                     "ip": ip,
-                    "scope6": addr["scope"],
+                    "scope6": addr.get("scope", ""),
                 }
                 dev_info["ipv6"].append(parsed_addr)
         devs[dev["ifname"]] = dev_info

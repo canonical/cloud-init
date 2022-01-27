@@ -2,12 +2,18 @@
 
 """Tests netinfo module functions and classes."""
 
+import json
 from copy import copy
 
 import pytest
 
 from cloudinit import subp
-from cloudinit.netinfo import netdev_info, netdev_pformat, route_pformat
+from cloudinit.netinfo import (
+    _netdev_info_iproute_json,
+    netdev_info,
+    netdev_pformat,
+    route_pformat,
+)
 from tests.unittests.helpers import mock, readResource
 
 # Example ifconfig and route output
@@ -230,6 +236,118 @@ class TestNetInfo:
             "Could not print routes: missing 'ip' and 'netstat' commands"
         )
         m_subp.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "input,expected",
+        [
+            # Test hwaddr set when link_type is ether,
+            # Test up True when flags contains UP and LOWER_UP
+            (
+                [
+                    {
+                        "ifname": "eth0",
+                        "link_type": "ether",
+                        "address": "00:00:00:00:00:00",
+                        "flags": ["LOOPBACK", "UP", "LOWER_UP"],
+                    }
+                ],
+                {
+                    "eth0": {
+                        "hwaddr": "00:00:00:00:00:00",
+                        "ipv4": [],
+                        "ipv6": [],
+                        "up": True,
+                    }
+                },
+            ),
+            # Test hwaddr not set when link_type is not ether
+            # Test up False when flags does not contain both UP and LOWER_UP
+            (
+                [
+                    {
+                        "ifname": "eth0",
+                        "link_type": "none",
+                        "address": "00:00:00:00:00:00",
+                        "flags": ["LOOPBACK", "UP"],
+                    }
+                ],
+                {
+                    "eth0": {
+                        "hwaddr": "",
+                        "ipv4": [],
+                        "ipv6": [],
+                        "up": False,
+                    }
+                },
+            ),
+            (
+                [
+                    {
+                        "ifname": "eth0",
+                        "addr_info": [
+                            # Test for ipv4:
+                            #  ip set correctly
+                            #  mask set correctly
+                            #  bcast set correctly
+                            #  scope set correctly
+                            {
+                                "family": "inet",
+                                "local": "10.0.0.1",
+                                "broadcast": "10.0.0.255",
+                                "prefixlen": 24,
+                                "scope": "global",
+                            },
+                            # Test for ipv6:
+                            #  ip set correctly
+                            #  mask set correctly when no 'address' present
+                            #  scope6 set correctly
+                            {
+                                "family": "inet6",
+                                "local": "fd12:3456:7890:1234::5678:9012",
+                                "prefixlen": 64,
+                                "scope": "global",
+                            },
+                            # Test for ipv6:
+                            #  mask not set when 'address' present
+                            {
+                                "family": "inet6",
+                                "local": "fd12:3456:7890:1234::5678:9012",
+                                "address": "fd12:3456:7890:1234::1",
+                                "prefixlen": 64,
+                            },
+                        ],
+                    }
+                ],
+                {
+                    "eth0": {
+                        "hwaddr": "",
+                        "ipv4": [
+                            {
+                                "ip": "10.0.0.1",
+                                "mask": "255.255.255.0",
+                                "bcast": "10.0.0.255",
+                                "scope": "global",
+                            }
+                        ],
+                        "ipv6": [
+                            {
+                                "ip": "fd12:3456:7890:1234::5678:9012/64",
+                                "scope6": "global",
+                            },
+                            {
+                                "ip": "fd12:3456:7890:1234::5678:9012",
+                                "scope6": "",
+                            },
+                        ],
+                        "up": False,
+                    }
+                },
+            ),
+        ],
+    )
+    def test_netdev_info_iproute_json(self, input, expected):
+        out = _netdev_info_iproute_json(json.dumps(input))
+        assert out == expected
 
 
 # vi: ts=4 expandtab
