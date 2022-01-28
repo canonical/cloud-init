@@ -3522,7 +3522,6 @@ class TestRhelSysConfigRendering(CiTestCase):
 
     with_logs = True
 
-    nm_cfg_file = "/etc/NetworkManager/NetworkManager.conf"
     scripts_dir = "/etc/sysconfig/network-scripts"
     header = (
         "# Created by cloud-init on instance boot automatically, "
@@ -4099,78 +4098,6 @@ USERCTL=no
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
-
-    def test_check_ifcfg_rh(self):
-        """ifcfg-rh plugin is added NetworkManager.conf if conf present."""
-        render_dir = self.tmp_dir()
-        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
-        util.ensure_dir(os.path.dirname(nm_cfg))
-
-        # write a template nm.conf, note plugins is a list here
-        with open(nm_cfg, "w") as fh:
-            fh.write("# test_check_ifcfg_rh\n[main]\nplugins=foo,bar\n")
-        self.assertTrue(os.path.exists(nm_cfg))
-
-        # render and read
-        entry = NETWORK_CONFIGS["small"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml"]), dir=render_dir
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-        # check ifcfg-rh is in the 'plugins' list
-        config = sysconfig.ConfigObj(nm_cfg)
-        self.assertIn("ifcfg-rh", config["main"]["plugins"])
-
-    def test_check_ifcfg_rh_plugins_string(self):
-        """ifcfg-rh plugin is append when plugins is a string."""
-        render_dir = self.tmp_path("render")
-        os.makedirs(render_dir)
-        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
-        util.ensure_dir(os.path.dirname(nm_cfg))
-
-        # write a template nm.conf, note plugins is a value here
-        util.write_file(nm_cfg, "# test_check_ifcfg_rh\n[main]\nplugins=foo\n")
-
-        # render and read
-        entry = NETWORK_CONFIGS["small"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml"]), dir=render_dir
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-        # check raw content has plugin
-        nm_file_content = util.load_file(nm_cfg)
-        self.assertIn("ifcfg-rh", nm_file_content)
-
-        # check ifcfg-rh is in the 'plugins' list
-        config = sysconfig.ConfigObj(nm_cfg)
-        self.assertIn("ifcfg-rh", config["main"]["plugins"])
-
-    def test_check_ifcfg_rh_plugins_no_plugins(self):
-        """enable_ifcfg_plugin creates plugins value if missing."""
-        render_dir = self.tmp_path("render")
-        os.makedirs(render_dir)
-        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
-        util.ensure_dir(os.path.dirname(nm_cfg))
-
-        # write a template nm.conf, note plugins is missing
-        util.write_file(nm_cfg, "# test_check_ifcfg_rh\n[main]\n")
-        self.assertTrue(os.path.exists(nm_cfg))
-
-        # render and read
-        entry = NETWORK_CONFIGS["small"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml"]), dir=render_dir
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-        # check ifcfg-rh is in the 'plugins' list
-        config = sysconfig.ConfigObj(nm_cfg)
-        self.assertIn("ifcfg-rh", config["main"]["plugins"])
 
     def test_netplan_dhcp_false_disable_dhcp_in_state(self):
         """netplan config with dhcp[46]: False should not add dhcp in state"""
@@ -6164,60 +6091,50 @@ class TestNetworkdRoundTrip(CiTestCase):
 
 class TestRenderersSelect:
     @pytest.mark.parametrize(
-        "renderer_selected,netplan,eni,nm,scfg,sys,networkd",
+        "renderer_selected,netplan,eni,sys,networkd",
         (
-            # -netplan -ifupdown -nm -scfg -sys raises error
+            # -netplan -ifupdown -sys raises error
             (
                 net.RendererNotFoundError,
                 False,
                 False,
                 False,
                 False,
-                False,
-                False,
             ),
-            # -netplan +ifupdown -nm -scfg -sys selects eni
-            ("eni", False, True, False, False, False, False),
-            # +netplan +ifupdown -nm -scfg -sys selects eni
-            ("eni", True, True, False, False, False, False),
-            # +netplan -ifupdown -nm -scfg -sys selects netplan
-            ("netplan", True, False, False, False, False, False),
+            # -netplan +ifupdown -sys selects eni
+            ("eni", False, True, False, False),
+            # +netplan +ifupdown -sys selects eni
+            ("eni", True, True, False, False),
+            # +netplan -ifupdown -sys selects netplan
+            ("netplan", True, False, False, False),
             # Ubuntu with Network-Manager installed
-            # +netplan -ifupdown +nm -scfg -sys selects netplan
-            ("netplan", True, False, True, False, False, False),
+            # +netplan -ifupdown -sys selects netplan
+            ("netplan", True, False, False, False),
             # Centos/OpenSuse with Network-Manager installed selects sysconfig
-            # -netplan -ifupdown +nm -scfg +sys selects netplan
-            ("sysconfig", False, False, True, False, True, False),
-            # -netplan -ifupdown -nm -scfg -sys +networkd selects networkd
-            ("networkd", False, False, False, False, False, True),
+            # -netplan -ifupdown +sys selects netplan
+            ("sysconfig", False, False, True, False),
+            # -netplan -ifupdown -sys +networkd selects networkd
+            ("networkd", False, False, False, True),
         ),
     )
     @mock.patch("cloudinit.net.renderers.networkd.available")
     @mock.patch("cloudinit.net.renderers.netplan.available")
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
-    @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
-    @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
     @mock.patch("cloudinit.net.renderers.eni.available")
     def test_valid_renderer_from_defaults_depending_on_availability(
         self,
         m_eni_avail,
-        m_nm_avail,
-        m_scfg_avail,
         m_sys_avail,
         m_netplan_avail,
         m_networkd_avail,
         renderer_selected,
         netplan,
         eni,
-        nm,
-        scfg,
         sys,
         networkd,
     ):
         """Assert proper renderer per DEFAULT_PRIORITY given availability."""
         m_eni_avail.return_value = eni  # ifupdown pkg presence
-        m_nm_avail.return_value = nm  # network-manager presence
-        m_scfg_avail.return_value = scfg  # sysconfig presence
         m_sys_avail.return_value = sys  # sysconfig/ifup/down presence
         m_netplan_avail.return_value = netplan  # netplan presence
         m_networkd_avail.return_value = networkd  # networkd presence
@@ -6277,7 +6194,7 @@ class TestNetRenderers(CiTestCase):
             priority=["sysconfig", "eni"],
         )
 
-    @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
+    @mock.patch("cloudinit.net.sysconfig.available")
     @mock.patch("cloudinit.util.system_info")
     def test_sysconfig_available_uses_variant_mapping(self, m_info, m_avail):
         m_avail.return_value = True
