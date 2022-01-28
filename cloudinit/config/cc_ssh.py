@@ -212,22 +212,29 @@ def handle(_name, cfg, cloud, log, _args):
                 cert_config = {"HostCertificate": tgt_fn}
                 ssh_util.update_ssh_config(cert_config)
 
-        for (priv, pub) in PRIV_TO_PUB.items():
-            if pub in cfg["ssh_keys"] or priv not in cfg["ssh_keys"]:
+        for private_type, public_type in PRIV_TO_PUB.items():
+            if (
+                public_type in cfg["ssh_keys"]
+                or private_type not in cfg["ssh_keys"]
+            ):
                 continue
-            pair = (CONFIG_KEY_TO_FILE[priv][0], CONFIG_KEY_TO_FILE[pub][0])
-            cmd = ["sh", "-xc", KEY_GEN_TPL % pair]
+            private_file, public_file = (
+                CONFIG_KEY_TO_FILE[private_type][0],
+                CONFIG_KEY_TO_FILE[public_type][0],
+            )
+            cmd = ["sh", "-xc", KEY_GEN_TPL % (private_file, public_file)]
             try:
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     subp.subp(cmd, capture=False)
-                log.debug("Generated a key for %s from %s", pair[0], pair[1])
+                log.debug(
+                    f"Generated a key for {public_file} from {private_file}"
+                )
             except Exception:
                 util.logexc(
                     log,
-                    "Failed generated a key for %s from %s",
-                    pair[0],
-                    pair[1],
+                    "Failed generating a key for "
+                    f"{public_file} from {private_file}",
                 )
     else:
         # if not, generate them
