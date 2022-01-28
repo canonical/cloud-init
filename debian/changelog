@@ -1,5 +1,6 @@
 cloud-init (21.4-82-g0d364a29-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
+  * d/cloud-init.templates: Move LXD to back of datasource_list
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
