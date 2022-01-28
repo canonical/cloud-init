@@ -895,8 +895,6 @@ class DataSourceAzure(sources.DataSource):
         """Report ready for PPS, creating the marker file upon completion.
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
-
-        :return: Name of interface used to report ready.
         """
         report_ready_succeeded = self._report_ready(lease=lease)
         if not report_ready_succeeded:
