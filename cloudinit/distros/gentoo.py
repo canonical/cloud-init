@@ -57,13 +57,6 @@ class Distro(distros.Distro):
         subp.subp(
             ["eselect", "locale", "set", self.default_locale], capture=False
         )
-        # "" provides trailing newline during join
-        lines = [
-            util.make_header(),
-            'LANG="%s"' % self.default_locale,
-            "",
-        ]
-        util.write_file(self.locale_conf_fn, "\n".join(lines))
 
     def install_packages(self, pkglist):
         self.update_package_sources()
