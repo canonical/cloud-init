@@ -481,5 +481,27 @@ class TestCACertsSchema:
             assert warning in caplog.text
         assert 1 == update_ca_certs.call_count
 
+    @mock.patch.object(cc_ca_certs, "update_ca_certs")
+    def test_duplicate_keys(self, update_ca_certs, caplog):
+        """Assert warnings are logged for deprecated keys."""
+        log = logging.getLogger("CALogTest")
+        cloud = get_cloud("ubuntu")
+        cc_ca_certs.handle(
+            "IGNORE",
+            {
+                "ca-certs": {"remove-defaults": True},
+                "ca_certs": {"remove_defaults": False},
+            },
+            cloud,
+            log,
+            [],
+        )
+        expected_warning = (
+            "Found both ca-certs (deprecated) and ca_certs config keys."
+            " Ignoring ca-certs."
+        )
+        assert expected_warning in caplog.text
+        assert 1 == update_ca_certs.call_count
+
 
 # vi: ts=4 expandtab

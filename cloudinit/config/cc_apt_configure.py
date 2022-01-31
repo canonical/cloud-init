@@ -593,6 +593,10 @@ def add_apt_sources(
 def convert_v1_to_v2_apt_format(srclist):
     """convert v1 apt format to v2 (dict in apt_sources)"""
     srcdict = {}
+    LOG.warning(
+        "DEPRECATION: 'apt_sources' deprecated config key found."
+        " Use 'apt' instead"
+    )
     if isinstance(srclist, list):
         LOG.debug("apt config: convert V1 to V2 format (source list to dict)")
         for srcent in srclist:
@@ -667,15 +671,19 @@ def convert_v2_to_v3_apt_format(oldcfg):
     # no old config, so no new one to be created
     if not needtoconvert:
         return oldcfg
-    LOG.debug(
-        "apt config: convert V2 to V3 format for keys '%s'",
+    LOG.warning(
+        "DEPRECATION apt: converted deprecated config V2 to V3 format for"
+        " keys '%s'. Use updated config keys.",
         ", ".join(needtoconvert),
     )
 
     # if old AND new config are provided, prefer the new one (LP #1616831)
     newaptcfg = oldcfg.get("apt", None)
     if newaptcfg is not None:
-        LOG.debug("apt config: V1/2 and V3 format specified, preferring V3")
+        LOG.warning(
+            "DEPRECATION: apt config: deprecated V1/2 and V3 format specified,"
+            " preferring V3"
+        )
         for oldkey in needtoconvert:
             newkey = mapoldkeys[oldkey]
             verify = oldcfg[oldkey]  # drop, but keep a ref for verification

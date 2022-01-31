@@ -174,15 +174,19 @@ def handle(name, cfg, cloud, log, _args):
             "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
             " instead."
         )
-        ca_cert_cfg = cfg["ca-certs"]
     elif "ca_certs" not in cfg:
         log.debug(
             "Skipping module named %s, no 'ca_certs' key in configuration",
             name,
         )
         return
-    else:
-        ca_cert_cfg = cfg["ca_certs"]
+
+    if "ca-certs" in cfg and "ca_certs" in cfg:
+        log.warning(
+            "Found both ca-certs (deprecated) and ca_certs config keys."
+            " Ignoring ca-certs."
+        )
+    ca_cert_cfg = cfg.get("ca_certs", cfg.get("ca-certs"))
     distro_cfg = _distro_ca_certs_configs(cloud.distro.name)
 
     # If there is a remove_defaults option set to true, remove the system
