@@ -56,7 +56,7 @@ instance
 --------
 
 The `/var/lib/cloud/instance` directory is a symbolic link that points
-to the most recenlty used instance-id directory. This folder contains the
+to the most recently used instance-id directory. This folder contains the
 information cloud-init received from datasources, including vendor and user
 data. This can be helpful to review to ensure the correct data was passed.
 
@@ -74,9 +74,9 @@ previous boot:
 * `instance-id`: id of the instance as discovered by cloud-init. Changing
   this file has no effect.
 * `result.json`: json file will show both the datasource used to setup
-  the instance, and if any errors occured
+  the instance, and if any errors occurred
 * `status.json`: json file shows the datasource used and a break down
-  of all four modules if any errors occured and the start and stop times.
+  of all four modules if any errors occurred and the start and stop times.
 
 What datasource am I using?
 ===========================

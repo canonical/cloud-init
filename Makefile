@@ -122,4 +122,4 @@ fix_spelling:
 
 .PHONY: test flake8 clean rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
-.PHONY: unittest style-check doc fix_spelling check_spelling _check_spelling
+.PHONY: unittest style-check doc fix_spelling check_spelling

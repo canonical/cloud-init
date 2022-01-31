@@ -28,7 +28,7 @@ Usage() {
 	cat <<EOF
 Usage: ${0##*/} ovf-env.xml.tmpl [user-data-file]
 
-   create an an ovf transport iso with ovf-env.xml.tmpl
+   create an ovf transport iso with ovf-env.xml.tmpl
    as ovf-env.xml on the iso.
 
    if user-data-file is given, the file's contents will be base64 encoded
