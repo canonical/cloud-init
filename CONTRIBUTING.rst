@@ -19,7 +19,7 @@ Before any pull request can be accepted, you must do the following:
   `tools/.github-cla-signers`_
 * Add or update any `unit tests`_ accordingly
 * Add or update any `integration tests`_ (if applicable)
-* Format code (using black and isort) with `tox -e format`
+* Format code (using black and isort) with `tox -e do_format`
 * Ensure unit tests and linting pass using `tox`_
 * Submit a PR against the `main` branch of the `cloud-init` repository
 
