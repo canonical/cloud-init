@@ -31,33 +31,6 @@ CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
-mirror_property = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["arches"],
-        "properties": {
-            "arches": {
-                "type": "array",
-                "items": {"type": "string"},
-                "minItems": 1,
-            },
-            "uri": {"type": "string", "format": "uri"},
-            "search": {
-                "type": "array",
-                "items": {"type": "string", "format": "uri"},
-                "minItems": 1,
-            },
-            "search_dns": {
-                "type": "boolean",
-            },
-            "keyid": {"type": "string"},
-            "key": {"type": "string"},
-            "keyserver": {"type": "string"},
-        },
-    },
-}
 
 meta = {
     "id": "cc_apt_configure",

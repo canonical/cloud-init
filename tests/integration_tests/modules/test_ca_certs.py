@@ -12,8 +12,8 @@ import pytest
 
 USER_DATA = """\
 #cloud-config
-ca-certs:
-  remove-defaults: true
+ca_certs:
+  remove_defaults: true
   trusted:
     - |
       -----BEGIN CERTIFICATE-----
