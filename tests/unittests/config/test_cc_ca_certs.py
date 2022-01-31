@@ -473,9 +473,9 @@ class TestCACertsSchema:
         )
         expected_warnings = [
             "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
-            " by version 23.1.",
+            " instead.",
             "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
-            " Use 'ca_certs.remove_defaults' by version 23.1.",
+            " Use 'ca_certs.remove_defaults' instead.",
         ]
         for warning in expected_warnings:
             assert warning in caplog.text

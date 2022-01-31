@@ -171,13 +171,13 @@ def handle(name, cfg, cloud, log, _args):
     """
     if "ca-certs" in cfg:
         log.warning(
-            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs' by"
-            " version 23.1."
+            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
+            " instead."
         )
         ca_cert_cfg = cfg["ca-certs"]
     elif "ca_certs" not in cfg:
         log.debug(
-            "Skipping module named %s, no 'ca-certs' key in configuration",
+            "Skipping module named %s, no 'ca_certs' key in configuration",
             name,
         )
         return
@@ -190,7 +190,7 @@ def handle(name, cfg, cloud, log, _args):
     if "remove-defaults" in ca_cert_cfg:
         log.warning(
             "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
-            " Use 'ca_certs.remove_defaults' by version 23.1."
+            " Use 'ca_certs.remove_defaults' instead."
         )
         if ca_cert_cfg.get("remove-defaults", False):
             log.debug("Removing default certificates")
