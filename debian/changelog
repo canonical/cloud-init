@@ -1,3 +1,9 @@
+cloud-init (21.4-25-g039c40f9-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
+
+  * d/cloud-init.templates: Move LXD to back of datasource_list
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 31 Jan 2022 14:06:07 -0600
+
 cloud-init (21.4-25-g039c40f9-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * New upstream snapshot.
