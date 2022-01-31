@@ -24,6 +24,7 @@ from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
@@ -890,36 +891,18 @@ class DataSourceAzure(sources.DataSource):
         )
 
     @azure_ds_telemetry_reporter
-    def _report_ready_if_needed(self):
-        """Report ready to the platform if the marker file is not present,
-        and create the marker file.
-        """
-        have_not_reported_ready = not os.path.isfile(
-            REPORTED_READY_MARKER_FILE
-        )
+    def _report_ready_for_pps(self, lease: dict) -> None:
+        """Report ready for PPS, creating the marker file upon completion.
 
-        if have_not_reported_ready:
-            report_diagnostic_event(
-                "Reporting ready before nic detach", logger_func=LOG.info
-            )
-            try:
-                with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
-                    self._report_ready(lease=lease)
-            except Exception as e:
-                report_diagnostic_event(
-                    "Exception reporting ready during "
-                    "preprovisioning before nic detach: %s" % e,
-                    logger_func=LOG.error,
-                )
-                raise
-            self._create_report_ready_marker()
-        else:
-            report_diagnostic_event(
-                "Already reported ready before nic detach."
-                " The marker file already exists: %s"
-                % REPORTED_READY_MARKER_FILE,
-                logger_func=LOG.error,
-            )
+        :raises sources.InvalidMetaDataException: On error reporting ready.
+        """
+        report_ready_succeeded = self._report_ready(lease=lease)
+        if not report_ready_succeeded:
+            msg = "Failed reporting ready while in the preprovisioning pool."
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise sources.InvalidMetaDataException(msg)
+
+        self._create_report_ready_marker()
 
     @azure_ds_telemetry_reporter
     def _check_if_nic_is_primary(self, ifname):
@@ -1113,7 +1096,20 @@ class DataSourceAzure(sources.DataSource):
             # Report ready if the marker file is not already present.
             # The nic of the preprovisioned vm gets hot-detached as soon as
             # we report ready. So no need to save the dhcp context.
-            self._report_ready_if_needed()
+            if not os.path.isfile(REPORTED_READY_MARKER_FILE):
+                try:
+                    with EphemeralDHCPv4WithReporting(
+                        azure_ds_reporter
+                    ) as lease:
+                        self._report_ready_for_pps(lease)
+                except NoDHCPLeaseError as error:
+                    report_diagnostic_event(
+                        "DHCP failed while in provisioning pool",
+                        logger_func=LOG.warning,
+                    )
+                    raise sources.InvalidMetaDataException(
+                        "Failed to report ready while in provisioning pool."
+                    ) from error
 
             has_nic_been_detached = bool(
                 os.path.isfile(REPROVISION_NIC_DETACHED_MARKER_FILE)
@@ -1159,8 +1155,7 @@ class DataSourceAzure(sources.DataSource):
         self.imds_logging_threshold = 1
         self.imds_poll_counter = 1
         dhcp_attempts = 0
-        vnet_switched = False
-        return_val = None
+        reprovision_data = None
 
         def exc_cb(msg, exception):
             if isinstance(exception, UrlError):
@@ -1201,110 +1196,107 @@ class DataSourceAzure(sources.DataSource):
         # When the interface is hot-attached, we would have already
         # done dhcp and set the dhcp context. In that case, skip
         # the attempt to do dhcp.
-        is_ephemeral_ctx_present = self._ephemeral_dhcp_ctx is not None
         msg = (
             "Unexpected error. Dhcp context is not expected to be already "
             "set when we need to wait for vnet switch"
         )
-        if is_ephemeral_ctx_present and report_ready:
+        if self._ephemeral_dhcp_ctx is not None and report_ready:
             report_diagnostic_event(msg, logger_func=LOG.error)
             raise RuntimeError(msg)
 
-        while True:
+        if report_ready:
             try:
-                # Since is_ephemeral_ctx_present is set only once, this ensures
-                # that with regular reprovisioning, dhcp is always done every
-                # time the loop runs.
-                if not is_ephemeral_ctx_present:
-                    # Save our EphemeralDHCPv4 context to avoid repeated dhcp
-                    # later when we report ready
-                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4WithReporting(
-                        azure_ds_reporter
-                    )
-                    lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                self._ephemeral_dhcp_ctx = EphemeralDHCPv4WithReporting(
+                    azure_ds_reporter
+                )
+                lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                nl_sock = netlink.create_bound_netlink_socket()
+                self._report_ready_for_pps(lease)
 
-                if vnet_switched:
-                    dhcp_attempts += 1
-                if report_ready:
+                # Networking must remain up for netlink to detect
+                # media disconnect/connect.
+                LOG.debug(
+                    "Wait for vnetswitch to happen on %s",
+                    lease["interface"],
+                )
+                with events.ReportEventStack(
+                    name="wait-for-media-disconnect-connect",
+                    description="wait for vnet switch",
+                    parent=azure_ds_reporter,
+                ):
                     try:
-                        nl_sock = netlink.create_bound_netlink_socket()
-                    except netlink.NetlinkCreateSocketError as e:
+                        netlink.wait_for_media_disconnect_connect(
+                            nl_sock, lease["interface"]
+                        )
+                    except AssertionError as e:
                         report_diagnostic_event(
-                            "Failed to create bound netlink socket: %s" % e,
-                            logger_func=LOG.warning,
+                            "Error while waiting for vnet switch: %s" % e,
+                            logger_func=LOG.error,
                         )
-                        self._ephemeral_dhcp_ctx.clean_network()
-                        break
-
-                    report_ready_succeeded = self._report_ready(lease=lease)
-                    if not report_ready_succeeded:
-                        msg = (
-                            "Failed reporting ready while in "
-                            "the preprovisioning pool."
-                        )
-                        report_diagnostic_event(msg, logger_func=LOG.error)
-                        self._ephemeral_dhcp_ctx.clean_network()
-                        raise sources.InvalidMetaDataException(msg)
-
-                    self._create_report_ready_marker()
-                    report_ready = False
-
-                    LOG.debug("Wait for vnetswitch to happen")
-                    with events.ReportEventStack(
-                        name="wait-for-media-disconnect-connect",
-                        description="wait for vnet switch",
-                        parent=azure_ds_reporter,
-                    ):
-                        try:
-                            netlink.wait_for_media_disconnect_connect(
-                                nl_sock, lease["interface"]
-                            )
-                        except AssertionError as e:
-                            report_diagnostic_event(
-                                "Error while waiting for vnet switch: %s" % e,
-                                logger_func=LOG.error,
-                            )
-                            break
-
-                    vnet_switched = True
-                    self._ephemeral_dhcp_ctx.clean_network()
-                else:
-                    with events.ReportEventStack(
-                        name="get-reprovision-data-from-imds",
-                        description="get reprovision data from imds",
-                        parent=azure_ds_reporter,
-                    ):
-                        return_val = readurl(
-                            url,
-                            timeout=IMDS_TIMEOUT_IN_SECONDS,
-                            headers=headers,
-                            exception_cb=exc_cb,
-                            infinite=True,
-                            log_req_resp=False,
-                        ).contents
-                    break
-            except UrlError:
-                # Teardown our EphemeralDHCPv4 context on failure as we retry
-                self._ephemeral_dhcp_ctx.clean_network()
-
-                # Also reset this flag which determines if we should do dhcp
-                # during retries.
-                is_ephemeral_ctx_present = False
+            except netlink.NetlinkCreateSocketError as e:
+                report_diagnostic_event(
+                    "Failed to create bound netlink socket: %s" % e,
+                    logger_func=LOG.warning,
+                )
+                raise sources.InvalidMetaDataException(
+                    "Failed to report ready while in provisioning pool."
+                ) from e
+            except NoDHCPLeaseError as e:
+                report_diagnostic_event(
+                    "DHCP failed while in provisioning pool",
+                    logger_func=LOG.warning,
+                )
+                raise sources.InvalidMetaDataException(
+                    "Failed to report ready while in provisioning pool."
+                ) from e
             finally:
                 if nl_sock:
                     nl_sock.close()
 
-        if vnet_switched:
-            report_diagnostic_event(
-                "attempted dhcp %d times after reuse" % dhcp_attempts,
-                logger_func=LOG.debug,
-            )
-            report_diagnostic_event(
-                "polled imds %d times after reuse" % self.imds_poll_counter,
-                logger_func=LOG.debug,
-            )
+            # Teardown old network configuration.
+            self._ephemeral_dhcp_ctx.clean_network()
+            self._ephemeral_dhcp_ctx = None
 
-        return return_val
+        while not reprovision_data:
+            if self._ephemeral_dhcp_ctx is None:
+                self._ephemeral_dhcp_ctx = EphemeralDHCPv4WithReporting(
+                    azure_ds_reporter
+                )
+                dhcp_attempts += 1
+                try:
+                    self._ephemeral_dhcp_ctx.obtain_lease()
+                except NoDHCPLeaseError:
+                    continue
+
+            with events.ReportEventStack(
+                name="get-reprovision-data-from-imds",
+                description="get reprovision data from imds",
+                parent=azure_ds_reporter,
+            ):
+                try:
+                    reprovision_data = readurl(
+                        url,
+                        timeout=IMDS_TIMEOUT_IN_SECONDS,
+                        headers=headers,
+                        exception_cb=exc_cb,
+                        infinite=True,
+                        log_req_resp=False,
+                    ).contents
+                except UrlError:
+                    self._ephemeral_dhcp_ctx.clean_network()
+                    self._ephemeral_dhcp_ctx = None
+                    continue
+
+        report_diagnostic_event(
+            "attempted dhcp %d times after reuse" % dhcp_attempts,
+            logger_func=LOG.debug,
+        )
+        report_diagnostic_event(
+            "polled imds %d times after reuse" % self.imds_poll_counter,
+            logger_func=LOG.debug,
+        )
+
+        return reprovision_data
 
     @azure_ds_telemetry_reporter
     def _report_failure(self, description: Optional[str] = None) -> bool:
