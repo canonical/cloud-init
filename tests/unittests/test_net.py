@@ -6093,7 +6093,7 @@ class TestRenderersSelect:
     @pytest.mark.parametrize(
         "renderer_selected,netplan,eni,sys,networkd",
         (
-            # -netplan -ifupdown -sys raises error
+            # -netplan -ifupdown -sys -networkd raises error
             (
                 net.RendererNotFoundError,
                 False,
@@ -6101,17 +6101,15 @@ class TestRenderersSelect:
                 False,
                 False,
             ),
-            # -netplan +ifupdown -sys selects eni
+            # -netplan +ifupdown -sys -networkd selects eni
             ("eni", False, True, False, False),
-            # +netplan +ifupdown -sys selects eni
+            # +netplan +ifupdown -sys -networkd selects eni
             ("eni", True, True, False, False),
-            # +netplan -ifupdown -sys selects netplan
+            # +netplan -ifupdown -sys -networkd selects netplan
             ("netplan", True, False, False, False),
-            # Ubuntu with Network-Manager installed
-            # +netplan -ifupdown -sys selects netplan
+            # +netplan -ifupdown -sys -networkd selects netplan
             ("netplan", True, False, False, False),
-            # Centos/OpenSuse with Network-Manager installed selects sysconfig
-            # -netplan -ifupdown +sys selects netplan
+            # -netplan -ifupdown +sys -networkd selects sysconfig
             ("sysconfig", False, False, True, False),
             # -netplan -ifupdown -sys +networkd selects networkd
             ("networkd", False, False, False, True),
