@@ -464,7 +464,7 @@
                   "type": ["string", "boolean", "array"],
                   "default": false,
                   "oneOf": [
-                    {"type": "string", "enum": ["auto", "remove"]},
+                    {"type": "string", "enum": ["remove"]},
                     {"type": "boolean"},
                     {
                       "type": "array",
