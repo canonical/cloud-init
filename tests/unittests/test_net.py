@@ -2419,10 +2419,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   - type: static
                     address: 2001:1::1/92
                     routes:
-                        - gateway: 2001:67c:1562:1
+                        - gateway: 2001:67c:1562::1
                           network: 2001:67c:1
                           netmask: "ffff:ffff::"
-                        - gateway: 3001:67c:1562:1
+                        - gateway: 3001:67c:1562::1
                           network: 3001:67c:1
                           netmask: "ffff:ffff::"
                           metric: 10000
@@ -2467,10 +2467,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
                      -   to: 2001:67c:1/32
-                         via: 2001:67c:1562:1
+                         via: 2001:67c:1562::1
                      -   metric: 10000
                          to: 3001:67c:1/32
-                         via: 3001:67c:1562:1
+                         via: 3001:67c:1562::1
         """
         ),
         "expected_eni": textwrap.dedent(
@@ -2530,11 +2530,11 @@ iface bond0 inet static
 # control-alias bond0
 iface bond0 inet6 static
     address 2001:1::1/92
-    post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
-    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
-    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
+    post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
+    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
+    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:1562::1 metric 10000 \
 || true
-    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
+    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:1562::1 metric 10000 \
 || true
         """
         ),
@@ -2712,8 +2712,8 @@ iface bond0 inet6 static
                 """\
         # Created by cloud-init on instance boot automatically, do not edit.
         #
-        2001:67c:1/32 via 2001:67c:1562:1  dev bond0
-        3001:67c:1/32 via 3001:67c:1562:1 metric 10000 dev bond0
+        2001:67c:1/32 via 2001:67c:1562::1  dev bond0
+        3001:67c:1/32 via 3001:67c:1562::1 metric 10000 dev bond0
             """
             ),
             "route-bond0": textwrap.dedent(
