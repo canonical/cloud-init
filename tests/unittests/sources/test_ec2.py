@@ -681,7 +681,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
         logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
         logs_with_token = [log for log in all_logs if "API-TOKEN" in log]
-        self.assertEqual(1, len(logs_with_redacted_ttl))
+        self.assertEqual(5, len(logs_with_redacted_ttl))
         self.assertEqual(81, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
