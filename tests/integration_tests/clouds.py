@@ -5,6 +5,7 @@ import os.path
 import random
 import string
 from abc import ABC, abstractmethod
+from typing import Optional, Type
 from uuid import UUID
 
 from pycloudlib import (
@@ -16,26 +17,15 @@ from pycloudlib import (
     LXDVirtualMachine,
     Openstack,
 )
+from pycloudlib.cloud import BaseCloud
+from pycloudlib.lxd.cloud import _BaseLXD
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
-from tests.integration_tests.instances import (
-    IntegrationAzureInstance,
-    IntegrationEc2Instance,
-    IntegrationGceInstance,
-    IntegrationInstance,
-    IntegrationLxdInstance,
-    IntegrationOciInstance,
-)
+from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import emit_dots_on_travis
-
-try:
-    from typing import Optional  # noqa: F401
-except ImportError:
-    pass
-
 
 log = logging.getLogger("integration_testing")
 
@@ -73,8 +63,8 @@ class ImageSpecification:
     def __init__(
         self,
         image_id: str,
-        os: "Optional[str]" = None,
-        release: "Optional[str]" = None,
+        os: Optional[str] = None,
+        release: Optional[str] = None,
     ):
         if image_id in _get_ubuntu_series():
             if os is None:
@@ -100,20 +90,18 @@ class ImageSpecification:
 
 
 class IntegrationCloud(ABC):
-    datasource = None  # type: Optional[str]
-    integration_instance_cls = IntegrationInstance
+    datasource: str
+    cloud_instance: BaseCloud
 
     def __init__(self, settings=integration_settings):
         self.settings = settings
-        self.cloud_instance = self._get_cloud_instance()
+        self.cloud_instance: BaseCloud = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
         self.snapshot_id = None
 
     @property
     def image_id(self):
-        if self.snapshot_id:
-            return self.snapshot_id
-        return self.initial_image_id
+        return self.snapshot_id or self.initial_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -147,7 +135,7 @@ class IntegrationCloud(ABC):
         launch_kwargs=None,
         settings=integration_settings,
         **kwargs
-    ):
+    ) -> IntegrationInstance:
         if launch_kwargs is None:
             launch_kwargs = {}
         if self.settings.EXISTING_INSTANCE_ID:
@@ -186,7 +174,7 @@ class IntegrationCloud(ABC):
         return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):
-        return self.integration_instance_cls(self, cloud_instance, settings)
+        return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
         pass
@@ -212,7 +200,6 @@ class IntegrationCloud(ABC):
 
 class Ec2Cloud(IntegrationCloud):
     datasource = "ec2"
-    integration_instance_cls = IntegrationEc2Instance
 
     def _get_cloud_instance(self):
         return EC2(tag="ec2-integration-test")
@@ -220,7 +207,6 @@ class Ec2Cloud(IntegrationCloud):
 
 class GceCloud(IntegrationCloud):
     datasource = "gce"
-    integration_instance_cls = IntegrationGceInstance
 
     def _get_cloud_instance(self):
         return GCE(
@@ -230,7 +216,7 @@ class GceCloud(IntegrationCloud):
 
 class AzureCloud(IntegrationCloud):
     datasource = "azure"
-    integration_instance_cls = IntegrationAzureInstance
+    cloud_instance: Azure
 
     def _get_cloud_instance(self):
         return Azure(tag="azure-integration-test")
@@ -248,7 +234,6 @@ class AzureCloud(IntegrationCloud):
 
 class OciCloud(IntegrationCloud):
     datasource = "oci"
-    integration_instance_cls = IntegrationOciInstance
 
     def _get_cloud_instance(self):
         return OCI(
@@ -257,10 +242,11 @@ class OciCloud(IntegrationCloud):
 
 
 class _LxdIntegrationCloud(IntegrationCloud):
-    integration_instance_cls = IntegrationLxdInstance
+    pycloudlib_instance_cls: Type[_BaseLXD]
+    instance_tag: str
+    cloud_instance: _BaseLXD
 
     def _get_cloud_instance(self):
-        # pylint: disable=no-member
         return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
     @staticmethod
@@ -331,12 +317,14 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
 class LxdContainerCloud(_LxdIntegrationCloud):
     datasource = "lxd_container"
+    cloud_instance: LXDContainer
     pycloudlib_instance_cls = LXDContainer
     instance_tag = "lxd-container-integration-test"
 
 
 class LxdVmCloud(_LxdIntegrationCloud):
     datasource = "lxd_vm"
+    cloud_instance: LXDVirtualMachine
     pycloudlib_instance_cls = LXDVirtualMachine
     instance_tag = "lxd-vm-integration-test"
     _profile_list = None
@@ -352,7 +340,6 @@ class LxdVmCloud(_LxdIntegrationCloud):
 
 class OpenstackCloud(IntegrationCloud):
     datasource = "openstack"
-    integration_instance_cls = IntegrationInstance
 
     def _get_cloud_instance(self):
         return Openstack(
