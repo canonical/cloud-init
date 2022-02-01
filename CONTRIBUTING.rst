@@ -206,6 +206,17 @@ for 6 years after release. After 6 years, we will stop testing upstream
 changes against the unsupported version of python and may introduce
 breaking changes. This policy may change as needed.
 
+The following table lists the cloud-init versions in which the
+minimum python version changed:
+
+================== ==================
+Cloud-init version Python version
+================== ==================
+22.1               3.6+
+20.3               3.5+
+19.4               2.7+
+================== ==================
+
 Cloud Config Modules
 --------------------
 
