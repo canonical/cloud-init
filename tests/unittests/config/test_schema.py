@@ -91,6 +91,13 @@ class TestGetSchema:
                 "cc_apt_configure",
                 "cc_apt_pipelining",
                 "cc_bootcmd",
+                "cc_byobu",
+                "cc_ca_certs",
+                "cc_chef",
+                "cc_debug",
+                "cc_disable_ec2_metadata",
+                "cc_disk_setup",
+                "cc_install_hotplug",
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
@@ -101,8 +108,6 @@ class TestGetSchema:
                 "cc_ubuntu_drivers",
                 "cc_write_files",
                 "cc_zypper_add_repo",
-                "cc_chef",
-                "cc_install_hotplug",
             ]
         ) == sorted(
             [meta["id"] for meta in get_metas().values() if meta is not None]
@@ -112,7 +117,15 @@ class TestGetSchema:
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
             {"$ref": "#/$defs/cc_apk_configure"},
+            {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
+            {"$ref": "#/$defs/cc_bootcmd"},
+            {"$ref": "#/$defs/cc_byobu"},
+            {"$ref": "#/$defs/cc_ca_certs"},
+            {"$ref": "#/$defs/cc_chef"},
+            {"$ref": "#/$defs/cc_debug"},
+            {"$ref": "#/$defs/cc_disable_ec2_metadata"},
+            {"$ref": "#/$defs/cc_disk_setup"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -125,9 +138,6 @@ class TestGetSchema:
         assert expected_subschema_defs == found_subschema_defs
         # This list will dwindle as we move legacy schema to new $defs
         assert [
-            "apt",
-            "bootcmd",
-            "chef",
             "drivers",
             "keyboard",
             "locale",
@@ -153,7 +163,7 @@ class TestLoadDoc:
         "module_name",
         (
             "cc_apt_pipelining",  # new style composite schema file
-            "cc_bootcmd",  # legacy sub-schema defined in module
+            "cc_zypper_add_repo",  # legacy sub-schema defined in module
         ),
     )
     def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):

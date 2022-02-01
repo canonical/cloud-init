@@ -3,17 +3,25 @@
 import json
 import logging
 import os
+import re
 
 import httpretty
+import pytest
 
 from cloudinit import util
 from cloudinit.config import cc_chef
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     HttprettyTestCase,
     cloud_init_project_dir,
     mock,
     skipIf,
+    skipUnlessJsonSchema,
 )
 from tests.unittests.util import get_cloud
 
@@ -287,6 +295,170 @@ class TestChef(FilesystemMockingTestCase):
         self.assertIn(v_path, content)
         util.load_file(v_path)
         self.assertEqual(expected_cert, util.load_file(v_path))
+
+
+@skipUnlessJsonSchema()
+class TestBootCMDSchema:
+    """Directly test schema rather than through handle."""
+
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas tested by meta.examples in test_schema
+            # Invalid schemas
+            (
+                {"chef": 1},
+                "chef: 1 is not of type 'object'",
+            ),
+            (
+                {"chef": {}},
+                re.escape(" chef: {} does not have enough properties"),
+            ),
+            (
+                {"chef": {"boguskey": True}},
+                re.escape(
+                    "chef: Additional properties are not allowed"
+                    " ('boguskey' was unexpected)"
+                ),
+            ),
+            (
+                {"chef": {"directories": 1}},
+                "chef.directories: 1 is not of type 'array'",
+            ),
+            (
+                {"chef": {"directories": []}},
+                re.escape("chef.directories: [] is too short"),
+            ),
+            (
+                {"chef": {"directories": [1]}},
+                "chef.directories.0: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"directories": ["a", "a"]}},
+                re.escape(
+                    "chef.directories: ['a', 'a'] has non-unique elements"
+                ),
+            ),
+            (
+                {"chef": {"validation_cert": 1}},
+                "chef.validation_cert: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"validation_key": 1}},
+                "chef.validation_key: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"firstboot_path": 1}},
+                "chef.firstboot_path: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"client_key": 1}},
+                "chef.client_key: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"encrypted_data_bag_secret": 1}},
+                "chef.encrypted_data_bag_secret: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"environment": 1}},
+                "chef.environment: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"file_backup_path": 1}},
+                "chef.file_backup_path: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"file_cache_path": 1}},
+                "chef.file_cache_path: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"json_attribs": 1}},
+                "chef.json_attribs: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"log_level": 1}},
+                "chef.log_level: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"log_location": 1}},
+                "chef.log_location: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"node_name": 1}},
+                "chef.node_name: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"omnibus_url": 1}},
+                "chef.omnibus_url: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"omnibus_url_retries": "one"}},
+                "chef.omnibus_url_retries: 'one' is not of type 'integer'",
+            ),
+            (
+                {"chef": {"omnibus_version": 1}},
+                "chef.omnibus_version: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"omnibus_version": 1}},
+                "chef.omnibus_version: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"pid_file": 1}},
+                "chef.pid_file: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"server_url": 1}},
+                "chef.server_url: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"show_time": 1}},
+                "chef.show_time: 1 is not of type 'boolean'",
+            ),
+            (
+                {"chef": {"ssl_verify_mode": 1}},
+                "chef.ssl_verify_mode: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"validation_name": 1}},
+                "chef.validation_name: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"force_install": 1}},
+                "chef.force_install: 1 is not of type 'boolean'",
+            ),
+            (
+                {"chef": {"initial_attributes": 1}},
+                "chef.initial_attributes: 1 is not of type 'object'",
+            ),
+            (
+                {"chef": {"install_type": 1}},
+                "chef.install_type: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"install_type": "bogusenum"}},
+                re.escape(
+                    "chef.install_type: 'bogusenum' is not one of"
+                    " ['packages', 'gems', 'omnibus']"
+                ),
+            ),
+            (
+                {"chef": {"run_list": 1}},
+                "chef.run_list: 1 is not of type 'array'",
+            ),
+            (
+                {"chef": {"chef_license": 1}},
+                "chef.chef_license: 1 is not of type 'string'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab

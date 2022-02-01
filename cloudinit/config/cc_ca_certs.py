@@ -2,46 +2,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-CA Certs
---------
-**Summary:** add ca certificates
-
-This module adds CA certificates to ``/etc/ca-certificates.conf`` and updates
-the ssl cert cache using ``update-ca-certificates``. The default certificates
-can be removed from the system with the configuration option
-``remove-defaults``.
-
-.. note::
-    certificates must be specified using valid yaml. in order to specify a
-    multiline certificate, the yaml multiline list syntax must be used
-
-.. note::
-    For Alpine Linux the "remove-defaults" functionality works if the
-    ca-certificates package is installed but not if the
-    ca-certificates-bundle package is installed.
-
-**Internal name:** ``cc_ca_certs``
-
-**Module frequency:** per instance
-
-**Supported distros:** alpine, debian, ubuntu, rhel
-
-**Config keys**::
-
-    ca-certs:
-        remove-defaults: <true/false>
-        trusted:
-            - <single line cert>
-            - |
-              -----BEGIN CERTIFICATE-----
-              YOUR-ORGS-TRUSTED-CA-CERT-HERE
-              -----END CERTIFICATE-----
-"""
+"""CA Certs: Add ca certificates."""
 
 import os
+from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.config.schema import get_meta_doc
+from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_CONFIG = {
     "ca_cert_path": "/usr/share/ca-certificates/",
@@ -60,8 +28,47 @@ DISTRO_OVERRIDES = {
     }
 }
 
+MODULE_DESCRIPTION = """\
+This module adds CA certificates to ``/etc/ca-certificates.conf`` and updates
+the ssl cert cache using ``update-ca-certificates``. The default certificates
+can be removed from the system with the configuration option
+``remove_defaults``.
 
+.. note::
+    certificates must be specified using valid yaml. in order to specify a
+    multiline certificate, the yaml multiline list syntax must be used
+
+.. note::
+    For Alpine Linux the "remove_defaults" functionality works if the
+    ca-certificates package is installed but not if the
+    ca-certificates-bundle package is installed.
+"""
 distros = ["alpine", "debian", "ubuntu", "rhel"]
+
+meta = {
+    "id": "cc_ca_certs",
+    "name": "CA Certificates",
+    "title": "Add ca certificates",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            ca_certs:
+              remove_defaults: true
+              trusted:
+                - single_line_cert
+                - |
+                  -----BEGIN CERTIFICATE-----
+                  YOUR-ORGS-TRUSTED-CA-CERT-HERE
+                  -----END CERTIFICATE-----
+            """
+        )
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def _distro_ca_certs_configs(distro_name):
@@ -162,20 +169,37 @@ def handle(name, cfg, cloud, log, _args):
     @param log: Pre-initialized Python logger object to use for logging.
     @param args: Any module arguments from cloud.cfg
     """
-    # If there isn't a ca-certs section in the configuration don't do anything
-    if "ca-certs" not in cfg:
+    if "ca-certs" in cfg:
+        log.warning(
+            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
+            " instead."
+        )
+    elif "ca_certs" not in cfg:
         log.debug(
-            "Skipping module named %s, no 'ca-certs' key in configuration",
+            "Skipping module named %s, no 'ca_certs' key in configuration",
             name,
         )
         return
 
-    ca_cert_cfg = cfg["ca-certs"]
+    if "ca-certs" in cfg and "ca_certs" in cfg:
+        log.warning(
+            "Found both ca-certs (deprecated) and ca_certs config keys."
+            " Ignoring ca-certs."
+        )
+    ca_cert_cfg = cfg.get("ca_certs", cfg.get("ca-certs"))
     distro_cfg = _distro_ca_certs_configs(cloud.distro.name)
 
-    # If there is a remove-defaults option set to true, remove the system
+    # If there is a remove_defaults option set to true, remove the system
     # default trusted CA certs first.
-    if ca_cert_cfg.get("remove-defaults", False):
+    if "remove-defaults" in ca_cert_cfg:
+        log.warning(
+            "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
+            " Use 'ca_certs.remove_defaults' instead."
+        )
+        if ca_cert_cfg.get("remove-defaults", False):
+            log.debug("Removing default certificates")
+            remove_default_ca_certs(cloud.distro.name, distro_cfg)
+    elif ca_cert_cfg.get("remove_defaults", False):
         log.debug("Removing default certificates")
         remove_default_ca_certs(cloud.distro.name, distro_cfg)
 

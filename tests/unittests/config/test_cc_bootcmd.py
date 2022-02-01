@@ -1,15 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 import tempfile
 
+import pytest
+
 from cloudinit import subp, util
-from cloudinit.config.cc_bootcmd import handle, schema
-from tests.unittests.helpers import (
-    CiTestCase,
-    SchemaTestCaseMixin,
-    mock,
-    skipUnlessJsonSchema,
+from cloudinit.config.cc_bootcmd import handle
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
 )
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -65,44 +68,13 @@ class TestBootcmd(CiTestCase):
             str(context_manager.exception),
         )
 
-    @skipUnlessJsonSchema()
-    def test_handler_schema_validation_warns_non_array_type(self):
-        """Schema validation warns of non-array type for bootcmd key.
-
-        Schema validation is not strict, so bootcmd attempts to shellify the
-        invalid content.
-        """
-        invalid_config = {"bootcmd": 1}
-        cc = get_cloud()
-        with self.assertRaises(TypeError):
-            handle("cc_bootcmd", invalid_config, cc, LOG, [])
-        self.assertIn(
-            "Invalid cloud-config provided:\nbootcmd: 1 is not of type"
-            " 'array'",
-            self.logs.getvalue(),
-        )
-        self.assertIn("Failed to shellify", self.logs.getvalue())
-
-    @skipUnlessJsonSchema()
-    def test_handler_schema_validation_warns_non_array_item_type(self):
-        """Schema validation warns of non-array or string bootcmd items.
-
-        Schema validation is not strict, so bootcmd attempts to shellify the
-        invalid content.
-        """
         invalid_config = {
             "bootcmd": ["ls /", 20, ["wget", "http://stuff/blah"], {"a": "n"}]
         }
         cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
             handle("cc_bootcmd", invalid_config, cc, LOG, [])
-        expected_warnings = [
-            "bootcmd.1: 20 is not valid under any of the given schemas",
-            "bootcmd.3: {'a': 'n'} is not valid under any of the given schema",
-        ]
         logs = self.logs.getvalue()
-        for warning in expected_warnings:
-            self.assertIn(warning, logs)
         self.assertIn("Failed to shellify", logs)
         self.assertEqual(
             "Unable to shellify type 'int'. Expected list, string, tuple. "
@@ -146,22 +118,48 @@ class TestBootcmd(CiTestCase):
 
 
 @skipUnlessJsonSchema()
-class TestSchema(CiTestCase, SchemaTestCaseMixin):
+class TestBootCMDSchema:
     """Directly test schema rather than through handle."""
 
-    schema = schema
-
-    def test_duplicates_are_fine_array_array(self):
-        """Duplicated commands array/array entries are allowed."""
-        self.assertSchemaValid(
-            ["byebye", "byebye"], "command entries can be duplicate"
-        )
-
-    def test_duplicates_are_fine_array_string(self):
-        """Duplicated commands array/string entries are allowed."""
-        self.assertSchemaValid(
-            ["echo bye", "echo bye"], "command entries can be duplicate."
-        )
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas tested by meta.examples in test_schema
+            # Invalid schemas
+            (
+                {"bootcmd": 1},
+                "Cloud config schema errors: bootcmd: 1 is not of type"
+                " 'array'",
+            ),
+            ({"bootcmd": []}, re.escape("bootcmd: [] is too short")),
+            (
+                {"bootcmd": []},
+                re.escape(
+                    "Cloud config schema errors: bootcmd: [] is too short"
+                ),
+            ),
+            (
+                {
+                    "bootcmd": [
+                        "ls /",
+                        20,
+                        ["wget", "http://stuff/blah"],
+                        {"a": "n"},
+                    ]
+                },
+                "Cloud config schema errors: bootcmd.1: 20 is not valid under"
+                " any of the given schemas, bootcmd.3: {'a': 'n'} is not"
+                " valid under any of the given schemas",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab
