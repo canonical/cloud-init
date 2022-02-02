@@ -2,7 +2,7 @@
 # Landscape-client configuration
 #
 # Anything under the top 'landscape: client' entry
-# will be basically rendered into a ConfigObj formated file
+# will be basically rendered into a ConfigObj formatted file
 # under the '[client]' section of /etc/landscape/client.conf
 # 
 # Note: 'tags' should be specified as a comma delimited string

@@ -21,7 +21,7 @@ Vultr's datasource can be configured as follows:
       timeout: 2
       wait: 2
 
-- *url*: The URL used to aquire the metadata configuration from
+- *url*: The URL used to acquire the metadata configuration from
 - *retries*: Determines the number of times to attempt to connect to the
   metadata service
 - *timeout*: Determines the timeout in seconds to wait for a response from the

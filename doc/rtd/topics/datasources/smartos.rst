@@ -13,7 +13,7 @@ SmartOS Platform
 The SmartOS virtualization platform uses meta-data to the instance via the
 second serial console. On Linux, this is /dev/ttyS1. The data is a provided
 via a simple protocol: something queries for the data, the console responds
-responds with the status and if "SUCCESS" returns until a single ".\n".
+with the status and if "SUCCESS" returns until a single ".\n".
 
 New versions of the SmartOS tooling will include support for base64 encoded
 data.

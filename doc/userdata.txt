@@ -1,7 +1,7 @@
 === Overview ===
 Userdata is data provided by the entity that launches an instance.
 The cloud provider makes this data available to the instance via in one
-way or anohter.  
+way or another.  
 
 In EC2, the data is provided by the user via the '--user-data' or
 'user-data-file' argument to ec2-run-instances.  The EC2 cloud makes the

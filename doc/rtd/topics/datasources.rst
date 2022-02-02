@@ -99,7 +99,7 @@ need to take care of the following items:
   your datasource module name to the end of the ``datasource_list``
   entry in ``cloudinit/settings.py``.
 
-* **Add your your cloud platform to apport collection prompts:** Update the
+* **Add your cloud platform to apport collection prompts:** Update the
   list of cloud platforms in ``cloudinit/apport.py``.  This list will be
   provided to the user who invokes ``ubuntu-bug cloud-init``.
 
