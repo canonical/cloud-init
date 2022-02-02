@@ -2422,7 +2422,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         - gateway: 2001:67c:1562::1
                           network: 2001:67c:1
                           netmask: "ffff:ffff::"
-                        - gateway: 3001:67c:1562::1
+                        - gateway: 3001:67c:15::1
                           network: 3001:67c:1
                           netmask: "ffff:ffff::"
                           metric: 10000
@@ -2470,7 +2470,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          via: 2001:67c:1562::1
                      -   metric: 10000
                          to: 3001:67c:1/32
-                         via: 3001:67c:1562::1
+                         via: 3001:67c:15::1
         """
         ),
         "expected_eni": textwrap.dedent(
@@ -2532,9 +2532,9 @@ iface bond0 inet6 static
     address 2001:1::1/92
     post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
     pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
-    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:1562::1 metric 10000 \
+    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:15::1 metric 10000 \
 || true
-    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:1562::1 metric 10000 \
+    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:15::1 metric 10000 \
 || true
         """
         ),
@@ -2577,8 +2577,8 @@ iface bond0 inet6 static
                 -   to: 2001:67c:1562:8007::1/64
                     via: 2001:67c:1562:8007::aac:40b2
                 -   metric: 10000
-                    to: 3001:67c:1562:8007::1/64
-                    via: 3001:67c:1562:8007::aac:40b2
+                    to: 3001:67c:15:8007::1/64
+                    via: 3001:67c:15:8007::aac:40b2
             """
         ),
         "expected_netplan-v2": textwrap.dedent(
@@ -2610,8 +2610,8 @@ iface bond0 inet6 static
                      -   to: 2001:67c:1562:8007::1/64
                          via: 2001:67c:1562:8007::aac:40b2
                      -   metric: 10000
-                         to: 3001:67c:1562:8007::1/64
-                         via: 3001:67c:1562:8007::aac:40b2
+                         to: 3001:67c:15:8007::1/64
+                         via: 3001:67c:15:8007::aac:40b2
              ethernets:
                  eth0:
                      match:
@@ -2713,7 +2713,7 @@ iface bond0 inet6 static
         # Created by cloud-init on instance boot automatically, do not edit.
         #
         2001:67c:1/32 via 2001:67c:1562::1  dev bond0
-        3001:67c:1/32 via 3001:67c:1562::1 metric 10000 dev bond0
+        3001:67c:1/32 via 3001:67c:15::1 metric 10000 dev bond0
             """
             ),
             "route-bond0": textwrap.dedent(
