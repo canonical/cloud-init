@@ -4,14 +4,15 @@ import copy
 import errno
 import ipaddress
 import os
+import socket
 import textwrap
 from unittest import mock
 
 import httpretty
 import pytest
-import requests
 
 import cloudinit.net as net
+from cloudinit import mureq
 from cloudinit import safeyaml as yaml
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
@@ -1155,10 +1156,14 @@ class TestHasURLConnectivity(HttprettyTestCase):
             "Expected True on url connect",
         )
 
-    @mock.patch("requests.Session.request")
+    @mock.patch("cloudinit.mureq.request")
     def test_true_on_url_connectivity_timeout(self, m_request):
         """A timeout raised accessing the url will return False."""
-        m_request.side_effect = requests.Timeout("Fake Connection Timeout")
+
+        def raise_timeout(*args, **kwargs):
+            raise mureq.HTTPException from socket.timeout()
+
+        m_request.side_effect = raise_timeout
         self.assertFalse(
             net.has_url_connectivity({"url": self.url}),
             "Expected False on url timeout",

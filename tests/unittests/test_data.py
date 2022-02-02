@@ -718,7 +718,7 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
         ci.consume_data()
 
         self.assertIn(
-            "403 Client Error: Forbidden for url: %s" % bad_url,
+            "HTTP response returned error code 403 for url: %s" % bad_url,
             log_file.getvalue(),
         )
 

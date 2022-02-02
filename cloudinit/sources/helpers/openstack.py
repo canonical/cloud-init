@@ -495,7 +495,8 @@ class MetadataReader(BaseReader):
                 if code >= 400:
                     return False
             except (TypeError, ValueError):
-                # Older versions of requests didn't have a code.
+                # Errors where we didn't get a valid status code,
+                # e.g. connection failures.
                 pass
             return True
 

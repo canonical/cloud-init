@@ -10,28 +10,11 @@ Notes:
 """
 
 import os
-import socket
 import stat
 from json.decoder import JSONDecodeError
 
-import requests
-from requests.adapters import HTTPAdapter
-
-# pylint fails to import the two modules below.
-# These are imported via requests.packages rather than urllib3 because:
-#  a.) the provider of the requests package should ensure that urllib3
-#      contained in it is consistent/correct.
-#  b.) cloud-init does not specifically have a dependency on urllib3
-#
-# For future reference, see:
-#   https://github.com/kennethreitz/requests/pull/2375
-#   https://github.com/requests/requests/issues/4104
-# pylint: disable=E0401
-from requests.packages.urllib3.connection import HTTPConnection
-from requests.packages.urllib3.connectionpool import HTTPConnectionPool
-
 from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import mureq, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -80,30 +63,6 @@ def generate_fallback_network_config() -> dict:
             else:
                 network_v1["config"][0]["name"] = "enp5s0"
     return network_v1
-
-
-class SocketHTTPConnection(HTTPConnection):
-    def __init__(self, socket_path):
-        super().__init__("localhost")
-        self.socket_path = socket_path
-
-    def connect(self):
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.connect(self.socket_path)
-
-
-class SocketConnectionPool(HTTPConnectionPool):
-    def __init__(self, socket_path):
-        self.socket_path = socket_path
-        super().__init__("localhost")
-
-    def _new_conn(self):
-        return SocketHTTPConnection(self.socket_path)
-
-
-class LXDSocketAdapter(HTTPAdapter):
-    def get_connection(self, url, proxies=None):
-        return SocketConnectionPool(LXD_SOCKET_PATH)
 
 
 def _maybe_remove_top_network(cfg):
@@ -287,87 +246,86 @@ def read_metadata(
     md = {}
     lxd_url = "http://lxd"
     version_url = lxd_url + "/" + api_version + "/"
-    with requests.Session() as session:
-        session.mount(version_url, LXDSocketAdapter())
-        # Raw meta-data as text
-        md_route = "{route}meta-data".format(route=version_url)
-        response = session.get(md_route)
-        LOG.debug("[GET] [HTTP:%d] %s", response.status_code, md_route)
-        if not response.ok:
-            raise sources.InvalidMetaDataException(
-                "Invalid HTTP response [{code}] from {route}: {resp}".format(
-                    code=response.status_code,
-                    route=md_route,
-                    resp=response.text,
-                )
+    # Raw meta-data as text
+    md_route = "{route}meta-data".format(route=version_url)
+    response = mureq.get(md_route, unix_socket=LXD_SOCKET_PATH)
+    LOG.debug("[GET] [HTTP:%d] %s", response.status_code, md_route)
+    if not response.ok:
+        raise sources.InvalidMetaDataException(
+            "Invalid HTTP response [{code}] from {route}: {resp}".format(
+                code=response.status_code,
+                route=md_route,
+                resp=response.body.decode("utf-8", "replace"),
             )
+        )
 
-        md["meta-data"] = response.text
-        if metadata_only:
-            return md  # Skip network-data, vendor-data, user-data
+    md["meta-data"] = response.body.decode("utf-8")
+    if metadata_only:
+        return md  # Skip network-data, vendor-data, user-data
 
-        md = {
-            "_metadata_api_version": api_version,  # Document API version read
-            "config": {},
-            "meta-data": md["meta-data"],
-        }
+    md = {
+        "_metadata_api_version": api_version,  # Document API version read
+        "config": {},
+        "meta-data": md["meta-data"],
+    }
 
-        config_url = version_url + "config"
-        # Represent all advertized/available config routes under
-        # the dict path {LXD_SOCKET_API_VERSION: {config: {...}}.
-        response = session.get(config_url)
-        LOG.debug("[GET] [HTTP:%d] %s", response.status_code, config_url)
-        if not response.ok:
-            raise sources.InvalidMetaDataException(
-                "Invalid HTTP response [{code}] from {route}: {resp}".format(
-                    code=response.status_code,
-                    route=config_url,
-                    resp=response.text,
-                )
+    config_url = version_url + "config"
+    # Represent all advertized/available config routes under
+    # the dict path {LXD_SOCKET_API_VERSION: {config: {...}}.
+    response = mureq.get(config_url, unix_socket=LXD_SOCKET_PATH)
+    LOG.debug("[GET] [HTTP:%d] %s", response.status_code, config_url)
+    if not response.ok:
+        raise sources.InvalidMetaDataException(
+            "Invalid HTTP response [{code}] from {route}: {resp}".format(
+                code=response.status_code,
+                route=config_url,
+                resp=response.body.decode("utf-8", "replace"),
             )
-        try:
-            config_routes = response.json()
-        except JSONDecodeError as exc:
-            raise sources.InvalidMetaDataException(
-                "Unable to determine cloud-init config from {route}."
-                " Expected JSON but found: {resp}".format(
-                    route=config_url, resp=response.text
-                )
-            ) from exc
+        )
+    try:
+        config_routes = response.json()
+    except JSONDecodeError as exc:
+        raise sources.InvalidMetaDataException(
+            "Unable to determine cloud-init config from {route}."
+            " Expected JSON but found: {resp}".format(
+                route=config_url, resp=response.body.decode("utf-8", "replace")
+            )
+        ) from exc
 
-        # Sorting keys to ensure we always process in alphabetical order.
-        # cloud-init.* keys will sort before user.* keys which is preferred
-        # precedence.
-        for config_route in sorted(config_routes):
-            url = "http://lxd{route}".format(route=config_route)
-            response = session.get(url)
-            LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
-            if response.ok:
-                cfg_key = config_route.rpartition("/")[-1]
-                # Leave raw data values/format unchanged to represent it in
-                # instance-data.json for cloud-init query or jinja template
-                # use.
-                md["config"][cfg_key] = response.text
-                # Promote common CONFIG_KEY_ALIASES to top-level keys.
-                if cfg_key in CONFIG_KEY_ALIASES:
-                    # Due to sort of config_routes, promote cloud-init.*
-                    # aliases before user.*. This allows user.* keys to act as
-                    # fallback config on old LXD, with new cloud-init images.
-                    if CONFIG_KEY_ALIASES[cfg_key] not in md:
-                        md[CONFIG_KEY_ALIASES[cfg_key]] = response.text
-                    else:
-                        LOG.warning(
-                            "Ignoring LXD config %s in favor of %s value.",
-                            cfg_key,
-                            cfg_key.replace("user", "cloud-init", 1),
-                        )
-            else:
-                LOG.debug(
-                    "Skipping %s on [HTTP:%d]:%s",
-                    url,
-                    response.status_code,
-                    response.text,
-                )
+    # Sorting keys to ensure we always process in alphabetical order.
+    # cloud-init.* keys will sort before user.* keys which is preferred
+    # precedence.
+    for config_route in sorted(config_routes):
+        url = "http://lxd{route}".format(route=config_route)
+        response = mureq.get(url, unix_socket=LXD_SOCKET_PATH)
+        LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
+        text = response.body.decode("utf-8")
+        if response.ok:
+            cfg_key = config_route.rpartition("/")[-1]
+            # Leave raw data values/format unchanged to represent it in
+            # instance-data.json for cloud-init query or jinja template
+            # use.
+            md["config"][cfg_key] = text
+            # Promote common CONFIG_KEY_ALIASES to top-level keys.
+            if cfg_key in CONFIG_KEY_ALIASES:
+                # Due to sort of config_routes, promote cloud-init.*
+                # aliases before user.*. This allows user.* keys to act as
+                # fallback config on old LXD, with new cloud-init images.
+                if CONFIG_KEY_ALIASES[cfg_key] not in md:
+                    md[CONFIG_KEY_ALIASES[cfg_key]] = text
+                else:
+                    LOG.warning(
+                        "Ignoring LXD config %s in favor of %s value.",
+                        cfg_key,
+                        cfg_key.replace("user", "cloud-init", 1),
+                    )
+        else:
+            LOG.debug(
+                "Skipping %s on [HTTP:%d]:%s",
+                url,
+                response.status_code,
+                text,
+            )
     return md
 
 

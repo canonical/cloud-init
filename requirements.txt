@@ -24,9 +24,6 @@ configobj>=5.0.2
 # All new style configurations are in the yaml format
 pyyaml
 
-# Requests handles ssl correctly!
-requests
-
 # For patching pieces of cloud-config together
 jsonpatch
 

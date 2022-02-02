@@ -1,13 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import errno
 import json
 from unittest import mock
 
 import httpretty
-import requests
 
-from cloudinit import helpers
+from cloudinit import helpers, mureq
 from cloudinit.sources import DataSourceEc2 as ec2
 from tests.unittests import helpers as test_helpers
 
@@ -610,9 +610,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
             md=None,
         )
 
-        conn_error = requests.exceptions.ConnectionError(
-            "[Errno 113] no route to host"
-        )
+        conn_error = mureq.HTTPException()
+        conn_error.__cause__ = OSError(errno.EHOSTUNREACH, "no route to host")
 
         mock_success = mock.MagicMock(contents=b"fakesuccess")
         mock_success.ok.return_value = True
@@ -639,21 +638,13 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertFalse(ds.get_data())
         # Just one /latest/api/token request
         logs = self.logs.getvalue()
-        failed_put_log = '"PUT /latest/api/token HTTP/1.1" 403 0'
         expected_logs = [
             "WARNING: Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is"
             " disabled. Aborting.",
             "WARNING: IMDS's HTTP endpoint is probably disabled",
-            failed_put_log,
         ]
         for log in expected_logs:
             self.assertIn(log, logs)
-        self.assertEqual(
-            1,
-            len(
-                [line for line in logs.splitlines() if failed_put_log in line]
-            ),
-        )
 
     def test_aws_token_redacted(self):
         """Verify that aws tokens are redacted when logged."""

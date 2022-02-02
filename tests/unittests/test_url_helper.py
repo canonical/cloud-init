@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import socket
 
 import httpretty
-import requests
 
-from cloudinit import util, version
+from cloudinit import mureq, util
 from cloudinit.url_helper import (
     NOT_FOUND,
     REDACTED,
@@ -148,26 +148,9 @@ class TestReadFileOrUrl(CiTestCase):
 
         m_response = mock.MagicMock()
 
-        class FakeSession(requests.Session):
-            @classmethod
-            def request(cls, **kwargs):
-                self.assertEqual(
-                    {
-                        "url": url,
-                        "allow_redirects": True,
-                        "method": "GET",
-                        "headers": {
-                            "User-Agent": "Cloud-Init/%s"
-                            % (version.version_string())
-                        },
-                    },
-                    kwargs,
-                )
-                return m_response
-
-        with mock.patch(M_PATH + "requests.Session") as m_session:
-            error = requests.exceptions.HTTPError("broke")
-            m_session.side_effect = [error, FakeSession()]
+        with mock.patch.object(mureq, "request") as m_request:
+            error = mureq.HTTPException("broke")
+            m_request.side_effect = [error, m_response]
             # assert no retries and check_status == True
             with self.assertRaises(UrlError) as context_manager:
                 response = read_file_or_url(url)
@@ -192,8 +175,8 @@ class TestRetryOnUrlExc(CiTestCase):
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
     def test_perform_retries_on_timeout(self):
-        """When exception is a requests.Timout return True."""
-        myerror = UrlError(cause=requests.Timeout("something timed out"))
+        """When exception is a socket.timout return True."""
+        myerror = UrlError(cause=socket.timeout("something timed out"))
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
 

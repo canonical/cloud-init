@@ -11,6 +11,8 @@
 import copy
 import json
 import os
+import socket
+import ssl
 import time
 from email.utils import parsedate
 from errno import ENOENT
@@ -19,11 +21,8 @@ from http.client import NOT_FOUND
 from itertools import count
 from urllib.parse import quote, urlparse, urlunparse
 
-import requests
-from requests import exceptions
-
 from cloudinit import log as logging
-from cloudinit import version
+from cloudinit import mureq, version
 
 LOG = logging.getLogger(__name__)
 
@@ -139,7 +138,7 @@ class UrlResponse(object):
         return self._response.status_code
 
     def __str__(self):
-        return self._response.text
+        return self._response.body.decode("utf-8", "replace")
 
 
 class UrlError(IOError):
@@ -153,22 +152,24 @@ class UrlError(IOError):
         self.url = url
 
 
-def _get_ssl_args(url, ssl_details):
-    ssl_args = {}
-    scheme = urlparse(url).scheme
-    if scheme == "https" and ssl_details:
-        if "ca_certs" in ssl_details and ssl_details["ca_certs"]:
-            ssl_args["verify"] = ssl_details["ca_certs"]
-        else:
-            ssl_args["verify"] = True
-        if "cert_file" in ssl_details and "key_file" in ssl_details:
-            ssl_args["cert"] = [
-                ssl_details["cert_file"],
-                ssl_details["key_file"],
-            ]
-        elif "cert_file" in ssl_details:
-            ssl_args["cert"] = str(ssl_details["cert_file"])
-    return ssl_args
+def _get_ssl_context(url, ssl_details):
+    if not ssl_details:
+        return None
+
+    context = None
+
+    if "ca_certs" in ssl_details:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.load_verify_locations(cadata=ssl_details["ca_certs"])
+
+    if "cert_file" in ssl_details:
+        if context is None:
+            context = ssl.create_default_context()
+        context.load_cert_chain(
+            ssl_details["cert_file"], ssl_details["key_file"]
+        )
+
+    return context
 
 
 def readurl(
@@ -184,12 +185,12 @@ def readurl(
     check_status=True,
     allow_redirects=True,
     exception_cb=None,
-    session=None,
+    source_address=None,
     infinite=False,
     log_req_resp=True,
     request_method=None,
 ):
-    """Wrapper around requests.Session to read the url and retry if necessary
+    """Wrapper around mureq to read the url and retry if necessary
 
     :param url: Mandatory url to request.
     :param data: Optional form data to post the URL. Will set request_method
@@ -212,7 +213,7 @@ def readurl(
         as 'allow_redirects'. Default: True.
     :param exception_cb: Optional callable which accepts the params
         msg and exception and returns a boolean True if retries are permitted.
-    :param session: Optional exiting requests.Session instance to reuse.
+    :param source_address: Optionally allow setting the source address
     :param infinite: Bool, set True to retry indefinitely. Default: False.
     :param log_req_resp: Set False to turn off verbose debug messages.
     :param request_method: String passed as 'method' to Session.request.
@@ -223,13 +224,17 @@ def readurl(
     req_args = {
         "url": url,
     }
-    req_args.update(_get_ssl_args(url, ssl_details))
-    req_args["allow_redirects"] = allow_redirects
+    if ssl_details:
+        req_args["ssl_context"] = _get_ssl_context(url, ssl_details)
+    if allow_redirects:
+        req_args["max_redirects"] = 10
     if not request_method:
         request_method = "POST" if data else "GET"
     req_args["method"] = request_method
     if timeout is not None:
         req_args["timeout"] = max(float(timeout), 0)
+    if source_address is not None:
+        req_args["source_address"] = source_address
     if headers_redact is None:
         headers_redact = []
     manual_tries = 1
@@ -250,7 +255,7 @@ def readurl(
 
         headers_cb = _cb
     if data:
-        req_args["data"] = data
+        req_args["form"] = data
     if sec_between is None:
         sec_between = -1
 
@@ -283,14 +288,11 @@ def readurl(
                     filtered_req_args,
                 )
 
-            if session is None:
-                session = requests.Session()
-
-            with session as sess:
-                r = sess.request(**req_args)
+            r = mureq.request(**req_args)
 
             if check_status:
                 r.raise_for_status()
+
             LOG.debug(
                 "Read from %s (%s, %sb) after %s attempts",
                 url,
@@ -302,28 +304,25 @@ def readurl(
             # subclass for responses, so add our own backward-compat
             # attrs
             return UrlResponse(r)
-        except exceptions.RequestException as e:
-            if (
-                isinstance(e, (exceptions.HTTPError))
-                and hasattr(e, "response")
-                and hasattr(  # This appeared in v 0.10.8
-                    e.response, "status_code"
-                )
-            ):
+        except mureq.HTTPException as e:
+            cause = e
+            # unwrap one level deep:
+            underlying_cause = getattr(cause, "__cause__", None)
+            if underlying_cause is not None:
+                cause = underlying_cause
+            # log the status code and headers if we actually got a response:
+            if isinstance(cause, mureq.HTTPErrorStatus):
                 excps.append(
                     UrlError(
-                        e,
-                        code=e.response.status_code,
-                        headers=e.response.headers,
-                        url=url,
+                        e, code=r.status_code, headers=dict(r.headers), url=url
                     )
                 )
             else:
-                excps.append(UrlError(e, url=url))
-                if isinstance(e, exceptions.SSLError):
-                    # ssl exceptions are not going to get fixed by waiting a
-                    # few seconds
-                    break
+                excps.append(UrlError(cause, url=url))
+            if isinstance(cause, ssl.SSLError):
+                # ssl exceptions are not going to get fixed by waiting a
+                # few seconds
+                break
             if exception_cb and not exception_cb(req_args.copy(), excps[-1]):
                 # if an exception callback was given, it should return True
                 # to continue retrying and False to break and re-raise the
@@ -649,7 +648,7 @@ def retry_on_url_exc(msg, exc):
         return False
     if exc.code == NOT_FOUND:
         return True
-    if exc.cause and isinstance(exc.cause, requests.Timeout):
+    if exc.cause and isinstance(exc.cause, socket.timeout):
         return True
     return False
 

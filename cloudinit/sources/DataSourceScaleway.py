@@ -10,21 +10,6 @@ import os
 import socket
 import time
 
-import requests
-
-# pylint fails to import the two modules below.
-# These are imported via requests.packages rather than urllib3 because:
-#  a.) the provider of the requests package should ensure that urllib3
-#      contained in it is consistent/correct.
-#  b.) cloud-init does not specifically have a dependency on urllib3
-#
-# For future reference, see:
-#   https://github.com/kennethreitz/requests/pull/2375
-#   https://github.com/requests/requests/issues/4104
-# pylint: disable=E0401
-from requests.packages.urllib3.connection import HTTPConnection
-from requests.packages.urllib3.poolmanager import PoolManager
-
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, url_helper, util
@@ -68,29 +53,22 @@ def on_scaleway():
     return False
 
 
-class SourceAddressAdapter(requests.adapters.HTTPAdapter):
-    """
-    Adapter for requests to choose the local address to bind to.
-    """
-
-    def __init__(self, source_address, **kwargs):
-        self.source_address = source_address
-        super(SourceAddressAdapter, self).__init__(**kwargs)
-
-    def init_poolmanager(self, connections, maxsize, block=False):
-        socket_options = HTTPConnection.default_socket_options + [
-            (socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        ]
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            source_address=self.source_address,
-            socket_options=socket_options,
+def _pick_unused_privileged_port():
+    for i in range(1, 1024):
+        sock = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP
         )
+        try:
+            sock.bind(("0.0.0.0", i))
+            return i
+        except OSError:
+            # most likely EADDRINUSE:
+            continue
+        finally:
+            sock.close()
 
 
-def query_data_api_once(api_address, timeout, requests_session):
+def query_data_api_once(api_address, timeout, source_address):
     """
     Retrieve user data or vendor data.
 
@@ -104,7 +82,8 @@ def query_data_api_once(api_address, timeout, requests_session):
     Also, be aware the user data/vendor API requires the source port to be
     below 1024 to ensure the client is root (since non-root users can't bind
     ports below 1024). If requests raises ConnectionError (EADDRINUSE), the
-    caller should retry to call this function on an other port.
+    caller should retry to call this function on an other port. See here:
+    https://developers.scaleway.com/en/products/instance/api/
     """
     try:
         resp = url_helper.readurl(
@@ -114,13 +93,11 @@ def query_data_api_once(api_address, timeout, requests_session):
             # It's the caller's responsability to recall this function in case
             # of exception. Don't let url_helper.readurl() retry by itself.
             retries=0,
-            session=requests_session,
+            source_address=source_address,
             # If the error is a HTTP/404 or a ConnectionError, go into raise
             # block below and don't bother retrying.
             exception_cb=lambda _, exc: exc.code != 404
-            and (
-                not isinstance(exc.cause, requests.exceptions.ConnectionError)
-            ),
+            and (not isinstance(exc.cause, IOError)),
         )
         return util.decode_binary(resp.contents)
     except url_helper.UrlError as exc:
@@ -139,20 +116,15 @@ def query_data_api(api_type, api_address, retries, timeout):
     be a privileged port (<1024).  This is done to ensure that only a
     privileged user on the system can access the metadata service.
     """
-    # Query user/vendor data. Try to make a request on the first privileged
-    # port available.
-    for port in range(1, max(retries, 2)):
+    for _ in range(max(retries, 2)):
         try:
+            port = _pick_unused_privileged_port()
             LOG.debug(
                 "Trying to get %s data (bind on port %d)...", api_type, port
             )
-            requests_session = requests.Session()
-            requests_session.mount(
-                "http://",
-                SourceAddressAdapter(source_address=("0.0.0.0", port)),
-            )
+            source_address = ("0.0.0.0", port)
             data = query_data_api_once(
-                api_address, timeout=timeout, requests_session=requests_session
+                api_address, timeout=timeout, source_address=source_address
             )
             LOG.debug("%s-data downloaded", api_type)
             return data

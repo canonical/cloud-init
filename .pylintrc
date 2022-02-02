@@ -3,6 +3,7 @@
 # --go-faster, use multiple processes to speed up Pylint
 jobs=4
 
+ignore=mureq.py
 
 [MESSAGES CONTROL]
 

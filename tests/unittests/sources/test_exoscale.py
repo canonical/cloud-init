@@ -3,9 +3,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+import socket
 
 import httpretty
-import requests
 
 from cloudinit import helpers, util
 from cloudinit.sources.DataSourceExoscale import (
@@ -206,7 +206,7 @@ class TestDatasourceExoscale(HttprettyTestCase):
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
 
-        m_password.side_effect = requests.Timeout("Fake Connection Timeout")
+        m_password.side_effect = socket.timeout("Fake Connection Timeout")
         httpretty.register_uri(
             httpretty.GET, self.userdata_url, body=expected_userdata
         )

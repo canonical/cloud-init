@@ -3,7 +3,6 @@
 import json
 
 import httpretty
-import requests
 
 from cloudinit import helpers, settings, sources
 from cloudinit.sources import DataSourceScaleway
@@ -155,7 +154,7 @@ class TestOnScaleway(CiTestCase):
         self.assertTrue(DataSourceScaleway.on_scaleway())
 
 
-def get_source_address_adapter(*args, **kwargs):
+def _mock_pick_unused_privileged_port(*args, **kwargs):
     """
     Scaleway user/vendor data API requires to be called with a privileged port.
 
@@ -165,8 +164,7 @@ def get_source_address_adapter(*args, **kwargs):
     This function removes the bind on a privileged address, since anyway the
     HTTP call is mocked by httpretty.
     """
-    kwargs.pop("source_address")
-    return requests.adapters.HTTPAdapter(*args, **kwargs)
+    return 11111
 
 
 class TestDataSourceScaleway(HttprettyTestCase):
@@ -200,8 +198,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
+        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
+        _mock_pick_unused_privileged_port,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)
@@ -330,8 +328,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
+        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
+        _mock_pick_unused_privileged_port,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)
@@ -359,8 +357,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
+        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
+        _mock_pick_unused_privileged_port,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)

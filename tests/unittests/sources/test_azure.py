@@ -2,17 +2,18 @@
 
 import copy
 import crypt
+import errno
 import json
 import os
+import socket
 import stat
 import xml.etree.ElementTree as ET
 
 import httpretty
 import pytest
-import requests
 import yaml
 
-from cloudinit import distros, helpers, url_helper
+from cloudinit import distros, helpers, mureq, url_helper
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
@@ -653,7 +654,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             self.logs.getvalue(),
         )
 
-    @mock.patch("requests.Session.request")
+    @mock.patch("cloudinit.mureq.request")
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(MOCKPATH + "net.is_up", autospec=True)
     def test_get_metadata_from_imds_retries_on_timeout(
@@ -662,11 +663,19 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         """Retry IMDS network metadata on timeout errors."""
 
         self.attempt = 0
-        m_request.side_effect = requests.Timeout("Fake Connection Timeout")
+
+        def raise_timeout(*args, **kwargs):
+            raise mureq.HTTPException from socket.timeout(
+                "Fake Connection Timeout"
+            )
+
+        m_request.side_effect = raise_timeout
 
         def retry_callback(request, uri, headers):
             self.attempt += 1
-            raise requests.Timeout("Fake connection timeout")
+            raise mureq.HTTPException from socket.timeout(
+                "Fake connection timeout"
+            )
 
         httpretty.register_uri(
             httpretty.GET,
@@ -3011,7 +3020,9 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         def network_metadata_ret(ifname, retries, type, exc_cb, infinite):
             if ifname == "eth0":
                 return md
-            raise requests.Timeout("Fake connection timeout")
+            raise mureq.HTTPException from socket.timeout(
+                "Fake connection timeout"
+            )
 
         m_isfile.return_value = True
         m_attach.side_effect = nic_attach_ret
@@ -3063,7 +3074,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             # exception callbacks so that the callback logic can be
             # validated.
             if ifname == "eth0":
-                cause = requests.HTTPError()
+                cause = mureq.HTTPException()
                 for _ in range(0, 15):
                     error = url_helper.UrlError(cause=cause, code=410)
                     eth0Retries.append(exc_cb("No goal state.", error))
@@ -3072,9 +3083,11 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
                     # We are expected to retry for a certain period for both
                     # timeout errors and network unreachable errors.
                     if _ < 5:
-                        cause = requests.Timeout("Fake connection timeout")
+                        cause = socket.timeout("Fake connection timeout")
                     else:
-                        cause = requests.ConnectionError("Network Unreachable")
+                        cause = OSError(
+                            errno.ENETUNREACH, "Network is unreachable"
+                        )
                     error = url_helper.UrlError(cause=cause)
                     eth1Retries.append(exc_cb("Connection timeout", error))
                 # Should stop retrying after 10 retries
@@ -3202,7 +3215,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
-@mock.patch("requests.Session.request")
+@mock.patch("cloudinit.mureq.request")
 @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
 class TestPreprovisioningPollIMDS(CiTestCase):
     def setUp(self):
@@ -3240,15 +3253,18 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         def fake_timeout_once(**kwargs):
             self.tries += 1
             if self.tries == 1:
-                raise requests.Timeout("Fake connection timeout")
+                raise mureq.HTTPException from socket.timeout(
+                    "Fake connection timeout"
+                )
             elif self.tries in (2, 3):
-                response = requests.Response()
-                response.status_code = 404 if self.tries == 2 else 410
-                raise requests.exceptions.HTTPError(
-                    "fake {}".format(response.status_code), response=response
+                status_code = 404 if self.tries == 2 else 410
+                return mureq.Response(
+                    url="", status_code=status_code, headers={}, body=b""
                 )
             # Third try should succeed and stop retries or redhcp
-            return mock.MagicMock(status_code=200, text="good", content="good")
+            return mureq.Response(
+                url="", status_code=200, headers={}, body=b"good"
+            )
 
         m_request.side_effect = fake_timeout_once
 
@@ -3308,8 +3324,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             nonlocal tries
             tries += 1
             if tries == 1:
-                raise requests.Timeout("Fake connection timeout")
-            return mock.MagicMock(status_code=200, text="good", content="good")
+                raise mureq.HTTPException from socket.timeout(
+                    "Fake connection timeout"
+                )
+            return mureq.Response(
+                url="", status_code=200, headers={}, body=b"good"
+            )
 
         m_request.side_effect = fake_timeout_once
         report_file = self.tmp_path("report_marker", self.tmp)
@@ -3404,7 +3424,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 )
 @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network", autospec=True)
 @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-@mock.patch("requests.Session.request")
+@mock.patch("cloudinit.mureq.request")
 class TestAzureDataSourcePreprovisioning(CiTestCase):
     def setUp(self):
         super(TestAzureDataSourcePreprovisioning, self).setUp()
@@ -3429,8 +3449,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         url = "http://{0}/metadata/reprovisiondata?api-version=2019-06-01"
         host = "169.254.169.254"
         full_url = url.format(host)
-        m_request.return_value = mock.MagicMock(
-            status_code=200, text="ovf", content="ovf"
+        m_request.return_value = mureq.Response(
+            url="", status_code=200, headers={}, body=b"ovf"
         )
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(len(dsa._poll_imds()) > 0)
@@ -3438,7 +3458,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             m_request.call_args_list,
             [
                 mock.call(
-                    allow_redirects=True,
+                    max_redirects=10,
                     headers={
                         "Metadata": "true",
                         "User-Agent": "Cloud-Init/%s" % vs(),
@@ -3481,8 +3501,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         username = "myuser"
         odata = {"HostName": hostname, "UserName": username}
         content = construct_valid_ovf_env(data=odata)
-        m_request.return_value = mock.MagicMock(
-            status_code=200, text=content, content=content
+        m_request.return_value = mureq.Response(
+            url="", status_code=200, body=content.encode("utf-8"), headers={}
         )
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         md, _ud, cfg, _d = dsa._reprovision()
@@ -3490,7 +3510,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
         self.assertIn(
             mock.call(
-                allow_redirects=True,
+                max_redirects=10,
                 headers={
                     "Metadata": "true",
                     "User-Agent": "Cloud-Init/%s" % vs(),

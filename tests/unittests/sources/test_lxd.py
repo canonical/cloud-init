@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import json
 import re
 import stat
 from collections import namedtuple
@@ -10,6 +9,7 @@ from unittest import mock
 import pytest
 import yaml
 
+from cloudinit import mureq
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
@@ -356,30 +356,24 @@ class TestReadMetadata:
             ),
         ),
     )
-    @mock.patch.object(lxd.requests.Session, "get")
+    @mock.patch.object(mureq, "get")
     def test_read_metadata_handles_unexpected_content_or_http_status(
-        self, session_get, url_responses, expected, logs, caplog
+        self, mock_request, url_responses, expected, logs, caplog
     ):
         """read_metadata handles valid and invalid content and status codes."""
 
-        def fake_get(url):
+        def fake_get(url, unix_socket=None):
             """Mock Response json, ok, status_code, text from url_responses."""
-            m_resp = mock.MagicMock()
             content = url_responses.get(url, "")
-            m_resp.json.side_effect = lambda: json.loads(content)
             if content:
-                mock_ok = mock.PropertyMock(return_value=True)
-                mock_status_code = mock.PropertyMock(return_value=200)
+                mock_status_code = 200
             else:
-                mock_ok = mock.PropertyMock(return_value=False)
-                mock_status_code = mock.PropertyMock(return_value=404)
-            type(m_resp).ok = mock_ok
-            type(m_resp).status_code = mock_status_code
-            mock_text = mock.PropertyMock(return_value=content)
-            type(m_resp).text = mock_text
-            return m_resp
+                mock_status_code = 404
+            return mureq.Response(
+                url, mock_status_code, {}, content.encode("utf-8")
+            )
 
-        session_get.side_effect = fake_get
+        mock_request.side_effect = fake_get
 
         if isinstance(expected, Exception):
             with pytest.raises(type(expected), match=re.escape(str(expected))):

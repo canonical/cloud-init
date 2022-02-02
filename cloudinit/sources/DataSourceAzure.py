@@ -17,8 +17,6 @@ from time import sleep, time
 from typing import Optional
 from xml.dom import minidom
 
-import requests
-
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
@@ -970,9 +968,7 @@ class DataSourceAzure(sources.DataSource):
 
             # Retry up to a certain limit for both timeout and network
             # unreachable errors.
-            if exc.cause and isinstance(
-                exc.cause, (requests.Timeout, requests.ConnectionError)
-            ):
+            if exc.cause and isinstance(exc.cause, IOError):
                 expected_errors_count = expected_errors_count + 1
                 return expected_errors_count <= 10
             return True

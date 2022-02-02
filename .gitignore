@@ -19,6 +19,7 @@ stage
 .mypy_cache/
 .pytest_cache/
 .vscode/
+*.swp
 htmlcov/
 tags
 
