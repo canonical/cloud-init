@@ -295,7 +295,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             cloudinit_path, "..", "config", "cloud.cfg.d"
         )
         for src_file in os.listdir(config_dir):
-            command = f"lxc file push {config_dir}/{src_file} {instance.name}/etc/cloud/cloud.cfg.d/"
+            command = (
+                f"lxc file push {config_dir}/{src_file} "
+                f"{instance.name}/etc/cloud/cloud.cfg.d/"
+            )
             subp(command.split())
 
     def _perform_launch(self, launch_kwargs, **kwargs):
