@@ -11,7 +11,6 @@ def _get_log_perms(client):
     return client.execute("stat -c %a /var/log/cloud-init.log")
 
 
-@pytest.mark.sru_2020_11
 class TestLogPermissionsNotResetOnReboot:
     def test_permissions_unchanged(self, client):
         # Confirm that the current permissions aren't 600

@@ -51,7 +51,6 @@ def _can_connect(instance):
 # run anywhere, I can only get it to run in an lxd container, and even then
 # occasionally some timing issues will crop up.
 @pytest.mark.unstable
-@pytest.mark.sru_2020_11
 @pytest.mark.ubuntu
 @pytest.mark.lxd_container
 class TestPowerChange:

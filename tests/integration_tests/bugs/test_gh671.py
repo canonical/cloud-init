@@ -23,7 +23,6 @@ def _check_password(instance, unhashed_password):
 
 
 @pytest.mark.azure
-@pytest.mark.sru_2020_11
 def test_update_default_password(setup_image, session_cloud: IntegrationCloud):
     os_profile = {
         "os_profile": {

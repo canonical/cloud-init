@@ -26,7 +26,6 @@ apt_pipelining: bogus
 """
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.user_data(VALID_USER_DATA)
 def test_valid_userdata(client: IntegrationInstance):
     """Test `cloud-init devel schema` with valid userdata.
@@ -43,7 +42,6 @@ def test_valid_userdata(client: IntegrationInstance):
         )
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.user_data(INVALID_USER_DATA_HEADER)
 def test_invalid_userdata(client: IntegrationInstance):
     """Test `cloud-init devel schema` with invalid userdata.
