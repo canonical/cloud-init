@@ -2989,16 +2989,6 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             "subnet-mask": "255.255.255.0",
             "unknown-245": "624c3620",
         }
-        m_attach_call_count = 0
-
-        def nic_attach_ret(nl_sock, nics_found):
-            nonlocal m_attach_call_count
-            m_attach_call_count = m_attach_call_count + 1
-            if m_attach_call_count == 1:
-                return "eth0"
-            elif m_attach_call_count == 2:
-                return "eth1"
-            raise RuntimeError("Must have found primary nic by now.")
 
         # Simulate two NICs by adding the same one twice.
         md = {
@@ -3008,17 +2998,15 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ]
         }
 
-        def network_metadata_ret(ifname, retries, type, exc_cb, infinite):
-            if ifname == "eth0":
-                return md
-            raise requests.Timeout("Fake connection timeout")
-
         m_isfile.return_value = True
-        m_attach.side_effect = nic_attach_ret
+        m_attach.side_effect = [
+            "eth0",
+            "eth1",
+        ]
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
         m_dhcpv4.return_value = dhcp_ctx
-        m_imds.side_effect = network_metadata_ret
+        m_imds.side_effect = [md]
         m_fallback_if.return_value = None
 
         dsa._wait_for_all_nics_ready()
@@ -3030,10 +3018,11 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(1, m_imds.call_count)
         self.assertEqual(2, m_link_up.call_count)
 
-    @mock.patch(MOCKPATH + "DataSourceAzure.get_imds_data_with_api_fallback")
+    @mock.patch("cloudinit.url_helper.time.sleep", autospec=True)
+    @mock.patch("requests.Session.request", autospec=True)
     @mock.patch(MOCKPATH + "EphemeralDHCPv4WithReporting", autospec=True)
     def test_check_if_nic_is_primary_retries_on_failures(
-        self, m_dhcpv4, m_imds
+        self, m_dhcpv4, m_request, m_sleep
     ):
         """Retry polling for network metadata on all failures except timeout
         and network unreachable errors"""
@@ -3046,8 +3035,6 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             "unknown-245": "624c3620",
         }
 
-        eth0Retries = []
-        eth1Retries = []
         # Simulate two NICs by adding the same one twice.
         md = {
             "interface": [
@@ -3056,55 +3043,33 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ]
         }
 
-        def network_metadata_ret(ifname, retries, type, exc_cb, infinite):
-            nonlocal eth0Retries, eth1Retries
-
-            # Simulate readurl functionality with retries and
-            # exception callbacks so that the callback logic can be
-            # validated.
-            if ifname == "eth0":
-                cause = requests.HTTPError()
-                for _ in range(0, 15):
-                    error = url_helper.UrlError(cause=cause, code=410)
-                    eth0Retries.append(exc_cb("No goal state.", error))
-            else:
-                for _ in range(0, 10):
-                    # We are expected to retry for a certain period for both
-                    # timeout errors and network unreachable errors.
-                    if _ < 5:
-                        cause = requests.Timeout("Fake connection timeout")
-                    else:
-                        cause = requests.ConnectionError("Network Unreachable")
-                    error = url_helper.UrlError(cause=cause)
-                    eth1Retries.append(exc_cb("Connection timeout", error))
-                # Should stop retrying after 10 retries
-                eth1Retries.append(exc_cb("Connection timeout", error))
-                raise cause
-            return md
-
-        m_imds.side_effect = network_metadata_ret
-
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
         m_dhcpv4.return_value = dhcp_ctx
 
+        m_req = mock.Mock(content=json.dumps(md))
+        m_request.side_effect = [
+            requests.Timeout("Fake connection timeout"),
+            requests.ConnectionError("Fake Network Unreachable"),
+            m_req,
+        ]
+
         is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth0")
         self.assertEqual(True, is_primary)
         self.assertEqual(2, expected_nic_count)
+        assert len(m_request.mock_calls) == 3
 
-        # All Eth0 errors are non-timeout errors. So we should have been
-        # retrying indefinitely until success.
-        for i in eth0Retries:
-            self.assertTrue(i)
+        # Re-run tests to verify max retries.
+        m_request.reset_mock()
+        m_request.side_effect = [
+            requests.Timeout("Fake connection timeout")
+        ] * 6 + [requests.ConnectionError("Fake Network Unreachable")] * 6
+
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
 
         is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
-
-        # All Eth1 errors are timeout errors. Retry happens for a max of 10 and
-        # then we should have moved on assuming it is not the primary nic.
-        for i in range(0, 10):
-            self.assertTrue(eth1Retries[i])
-        self.assertFalse(eth1Retries[10])
+        assert len(m_request.mock_calls) == 11
 
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     def test_wait_for_link_up_returns_if_already_up(self, m_is_link_up):
