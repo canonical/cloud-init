@@ -38,6 +38,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
         except (NoDHCPLeaseError, subp.ProcessExecutionError) as exc:
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
+            continue
 
         return json.loads(v1)
     raise exception
