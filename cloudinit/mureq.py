@@ -13,12 +13,28 @@ import socket
 import ssl
 import sys
 import urllib.parse
-from http.client import HTTPConnection, HTTPSConnection, HTTPMessage, HTTPException
+from http.client import (
+    HTTPConnection,
+    HTTPException,
+    HTTPMessage,
+    HTTPSConnection,
+)
 
-__version__ = '0.2.0'
+__version__ = "0.2.0"
 
-__all__ = ['HTTPException', 'TooManyRedirects', 'Response',
-           'yield_response', 'request', 'get', 'post', 'head', 'put', 'patch', 'delete']
+__all__ = [
+    "HTTPException",
+    "TooManyRedirects",
+    "Response",
+    "yield_response",
+    "request",
+    "get",
+    "post",
+    "head",
+    "put",
+    "patch",
+    "delete",
+]
 
 DEFAULT_TIMEOUT = 15.0
 
@@ -45,43 +61,61 @@ def request(method, url, *, read_limit=None, **kwargs):
             raise
         except IOError as e:
             raise HTTPException(str(e)) from e
-        return Response(response.url, response.status, _prepare_incoming_headers(response.headers), body)
+        return Response(
+            response.url,
+            response.status,
+            _prepare_incoming_headers(response.headers),
+            body,
+        )
 
 
 def get(url, **kwargs):
     """get performs an HTTP GET request."""
-    return request('GET', url=url, **kwargs)
+    return request("GET", url=url, **kwargs)
 
 
 def post(url, body=None, **kwargs):
     """post performs an HTTP POST request."""
-    return request('POST', url=url, body=body, **kwargs)
+    return request("POST", url=url, body=body, **kwargs)
 
 
 def head(url, **kwargs):
     """head performs an HTTP HEAD request."""
-    return request('HEAD', url=url, **kwargs)
+    return request("HEAD", url=url, **kwargs)
 
 
 def put(url, body=None, **kwargs):
     """put performs an HTTP PUT request."""
-    return request('PUT', url=url, body=body, **kwargs)
+    return request("PUT", url=url, body=body, **kwargs)
 
 
 def patch(url, body=None, **kwargs):
     """patch performs an HTTP PATCH request."""
-    return request('PATCH', url=url, body=body, **kwargs)
+    return request("PATCH", url=url, body=body, **kwargs)
 
 
 def delete(url, **kwargs):
     """delete performs an HTTP DELETE request."""
-    return request('DELETE', url=url, **kwargs)
+    return request("DELETE", url=url, **kwargs)
 
 
 @contextlib.contextmanager
-def yield_response(method, url, *, unix_socket=None, timeout=DEFAULT_TIMEOUT, headers=None,
-                   params=None, body=None, form=None, json=None, verify=True, source_address=None,
-                   max_redirects=None, ssl_context=None):
+def yield_response(
+    method,
+    url,
+    *,
+    unix_socket=None,
+    timeout=DEFAULT_TIMEOUT,
+    headers=None,
+    params=None,
+    body=None,
+    form=None,
+    json=None,
+    verify=True,
+    source_address=None,
+    max_redirects=None,
+    ssl_context=None,
+):
     """yield_response is a low-level API that exposes the actual
     http.client.HTTPResponse via a contextmanager.
 
@@ -122,8 +156,17 @@ def yield_response(method, url, *, unix_socket=None, timeout=DEFAULT_TIMEOUT, he
     visited_urls = []
 
     while max_redirects is None or len(visited_urls) <= max_redirects:
-        url, conn, path = _prepare_request(method, url, enc_params=enc_params, timeout=timeout, unix_socket=unix_socket, verify=verify, source_address=source_address, ssl_context=ssl_context)
-        enc_params = ''  # don't reappend enc_params if we get redirected
+        url, conn, path = _prepare_request(
+            method,
+            url,
+            enc_params=enc_params,
+            timeout=timeout,
+            unix_socket=unix_socket,
+            verify=verify,
+            source_address=source_address,
+            ssl_context=ssl_context,
+        )
+        enc_params = ""  # don't reappend enc_params if we get redirected
         visited_urls.append(url)
         try:
             try:
@@ -135,7 +178,9 @@ def yield_response(method, url, *, unix_socket=None, timeout=DEFAULT_TIMEOUT, he
                 # wrap any IOError that is not already an HTTPException
                 # in HTTPException, exposing a uniform API for remote errors
                 raise HTTPException(str(e)) from e
-            redirect_url = _check_redirect(url, response.status, response.headers)
+            redirect_url = _check_redirect(
+                url, response.status, response.headers
+            )
             if max_redirects is None or redirect_url is None:
                 response.url = url  # https://bugs.python.org/issue42062
                 yield response
@@ -144,7 +189,7 @@ def yield_response(method, url, *, unix_socket=None, timeout=DEFAULT_TIMEOUT, he
                 url = redirect_url
                 if response.status == 303:
                     # 303 See Other: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303
-                    method = 'GET'
+                    method = "GET"
         finally:
             conn.close()
 
@@ -160,10 +205,15 @@ class Response:
     :ivar bytes body: the payload body of the response
     """
 
-    __slots__ = ('url', 'status_code', 'headers', 'body')
+    __slots__ = ("url", "status_code", "headers", "body")
 
     def __init__(self, url, status_code, headers, body):
-        self.url, self.status_code, self.headers, self.body = url, status_code, headers, body
+        self.url, self.status_code, self.headers, self.body = (
+            url,
+            status_code,
+            headers,
+            body,
+        )
 
     def __repr__(self):
         return f"Response(status_code={self.status_code:d})"
@@ -189,6 +239,7 @@ class Response:
     def json(self):
         """Attempts to deserialize the response body as UTF-8 encoded JSON."""
         import json as jsonlib
+
         return jsonlib.loads(self.body)
 
     def _debugstr(self):
@@ -198,7 +249,7 @@ class Response:
             print(f"{k}: {v}", file=buf)
         print(file=buf)
         try:
-            print(self.body.decode('utf-8'), file=buf)
+            print(self.body.decode("utf-8"), file=buf)
         except UnicodeDecodeError:
             print(f"<{len(self.body)} bytes binary data>", file=buf)
         return buf.getvalue()
@@ -207,6 +258,7 @@ class Response:
 class TooManyRedirects(HTTPException):
     """TooManyRedirects is raised when automatic following of redirects was
     enabled, but the server redirected too many times without completing."""
+
     pass
 
 
@@ -226,8 +278,8 @@ class HTTPErrorStatus(HTTPException):
 
 # end public API, begin internal implementation details
 
-_JSON_CONTENTTYPE = 'application/json'
-_FORM_CONTENTTYPE = 'application/x-www-form-urlencoded'
+_JSON_CONTENTTYPE = "application/json"
+_FORM_CONTENTTYPE = "application/x-www-form-urlencoded"
 
 
 class UnixHTTPConnection(HTTPConnection):
@@ -236,7 +288,7 @@ class UnixHTTPConnection(HTTPConnection):
     """
 
     def __init__(self, path, timeout=DEFAULT_TIMEOUT):
-        super(UnixHTTPConnection, self).__init__('localhost', timeout=timeout)
+        super(UnixHTTPConnection, self).__init__("localhost", timeout=timeout)
         self._unix_path = path
 
     def connect(self):
@@ -254,7 +306,7 @@ def _check_redirect(url, status, response_headers):
     """Return the URL to redirect to, or None for no redirection."""
     if status not in (301, 302, 303, 307, 308):
         return None
-    location = response_headers.get('Location')
+    location = response_headers.get("Location")
     if not location:
         return None
     parsed_location = urllib.parse.urlparse(location)
@@ -263,18 +315,32 @@ def _check_redirect(url, status, response_headers):
         return location
 
     old_url = urllib.parse.urlparse(url)
-    if location.startswith('/'):
+    if location.startswith("/"):
         # absolute path on old hostname
-        return urllib.parse.urlunparse((old_url.scheme, old_url.netloc,
-                                        parsed_location.path, parsed_location.params,
-                                        parsed_location.query, parsed_location.fragment))
+        return urllib.parse.urlunparse(
+            (
+                old_url.scheme,
+                old_url.netloc,
+                parsed_location.path,
+                parsed_location.params,
+                parsed_location.query,
+                parsed_location.fragment,
+            )
+        )
 
     # relative path on old hostname
     old_dir, _old_file = os.path.split(old_url.path)
     new_path = os.path.join(old_dir, location)
-    return urllib.parse.urlunparse((old_url.scheme, old_url.netloc,
-                                    new_path, parsed_location.params,
-                                    parsed_location.query, parsed_location.fragment))
+    return urllib.parse.urlunparse(
+        (
+            old_url.scheme,
+            old_url.netloc,
+            new_path,
+            parsed_location.params,
+            parsed_location.query,
+            parsed_location.fragment,
+        )
+    )
 
 
 def _prepare_outgoing_headers(headers):
@@ -282,14 +348,14 @@ def _prepare_outgoing_headers(headers):
         headers = HTTPMessage()
     elif not isinstance(headers, HTTPMessage):
         new_headers = HTTPMessage()
-        if hasattr(headers, 'items'):
+        if hasattr(headers, "items"):
             iterator = headers.items()
         else:
             iterator = iter(headers)
         for k, v in iterator:
             new_headers[k] = v
         headers = new_headers
-    _setdefault_header(headers, 'User-Agent', DEFAULT_UA)
+    _setdefault_header(headers, "User-Agent", DEFAULT_UA)
     return headers
 
 
@@ -303,7 +369,7 @@ def _prepare_incoming_headers(headers):
     # note that iterating over headers_dict preserves the original
     # insertion order in all versions since Python 3.6:
     for k, vlist in headers_dict.items():
-        result[k] = ','.join(vlist)
+        result[k] = ",".join(vlist)
     return result
 
 
@@ -315,16 +381,17 @@ def _setdefault_header(headers, name, value):
 def _prepare_body(body, form, json, headers):
     if body is not None:
         if not isinstance(body, bytes):
-            raise TypeError('body must be bytes or None', type(body))
+            raise TypeError("body must be bytes or None", type(body))
         return body
 
     if json is not None:
-        _setdefault_header(headers, 'Content-Type', _JSON_CONTENTTYPE)
+        _setdefault_header(headers, "Content-Type", _JSON_CONTENTTYPE)
         import json as jsonlib
-        return jsonlib.dumps(json).encode('utf-8')
+
+        return jsonlib.dumps(json).encode("utf-8")
 
     if form is not None:
-        _setdefault_header(headers, 'Content-Type', _FORM_CONTENTTYPE)
+        _setdefault_header(headers, "Content-Type", _FORM_CONTENTTYPE)
         return urllib.parse.urlencode(form, doseq=True)
 
     return None
@@ -332,26 +399,36 @@ def _prepare_body(body, form, json, headers):
 
 def _prepare_params(params):
     if params is None:
-        return ''
+        return ""
     return urllib.parse.urlencode(params, doseq=True)
 
 
-def _prepare_request(method, url, *, enc_params='', timeout=DEFAULT_TIMEOUT, source_address=None, unix_socket=None, verify=True, ssl_context=None):
+def _prepare_request(
+    method,
+    url,
+    *,
+    enc_params="",
+    timeout=DEFAULT_TIMEOUT,
+    source_address=None,
+    unix_socket=None,
+    verify=True,
+    ssl_context=None,
+):
     """Parses the URL, returns the path and the right HTTPConnection subclass."""
     parsed_url = urllib.parse.urlparse(url)
 
-    is_unix = (unix_socket is not None)
+    is_unix = unix_socket is not None
     scheme = parsed_url.scheme.lower()
-    if scheme.endswith('+unix'):
+    if scheme.endswith("+unix"):
         scheme = scheme[:-5]
         is_unix = True
-        if scheme == 'https':
+        if scheme == "https":
             raise ValueError("https+unix is not implemented")
 
-    if scheme not in ('http', 'https'):
+    if scheme not in ("http", "https"):
         raise ValueError("unrecognized scheme", scheme)
 
-    is_https = (scheme == 'https')
+    is_https = scheme == "https"
     host = parsed_url.hostname
     port = 443 if is_https else 80
     if parsed_url.port:
@@ -363,12 +440,12 @@ def _prepare_request(method, url, *, enc_params='', timeout=DEFAULT_TIMEOUT, sou
     path = parsed_url.path
     if parsed_url.query:
         if enc_params:
-            path = f'{path}?{parsed_url.query}&{enc_params}'
+            path = f"{path}?{parsed_url.query}&{enc_params}"
         else:
-            path = f'{path}?{parsed_url.query}'
+            path = f"{path}?{parsed_url.query}"
     else:
         if enc_params:
-            path = f'{path}?{enc_params}'
+            path = f"{path}?{enc_params}"
         else:
             pass  # just parsed_url.path in this case
 
@@ -383,12 +460,26 @@ def _prepare_request(method, url, *, enc_params='', timeout=DEFAULT_TIMEOUT, sou
             if not verify:
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
-        conn = HTTPSConnection(host, port, source_address=source_address, timeout=timeout,
-                               context=ssl_context)
+        conn = HTTPSConnection(
+            host,
+            port,
+            source_address=source_address,
+            timeout=timeout,
+            context=ssl_context,
+        )
     else:
-        conn = HTTPConnection(host, port, source_address=source_address, timeout=timeout)
+        conn = HTTPConnection(
+            host, port, source_address=source_address, timeout=timeout
+        )
 
-    munged_url = urllib.parse.urlunparse((parsed_url.scheme, parsed_url.netloc,
-                                          path, parsed_url.params,
-                                          '', parsed_url.fragment))
+    munged_url = urllib.parse.urlunparse(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            path,
+            parsed_url.params,
+            "",
+            parsed_url.fragment,
+        )
+    )
     return munged_url, conn, path
