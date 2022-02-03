@@ -4,9 +4,8 @@
 import logging
 import os
 import subprocess
-from typing import Tuple, Any
-
 from errno import ENOEXEC
+from typing import Any, Tuple
 
 LOG = logging.getLogger(__name__)
 
@@ -156,10 +155,19 @@ class ProcessExecutionError(IOError):
 
 
 def subp(
-    args, data=None, rcs=None, env=None, capture=True,
-    combine_capture=False, shell=False,
-    logstring=False, decode="replace", target=None, update_env=None,
-    status_cb=None, cwd=None
+    args,
+    data=None,
+    rcs=None,
+    env=None,
+    capture=True,
+    combine_capture=False,
+    shell=False,
+    logstring=False,
+    decode="replace",
+    target=None,
+    update_env=None,
+    status_cb=None,
+    cwd=None,
 ) -> Tuple[Any, Any]:
     """Run a subprocess.
 

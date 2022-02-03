@@ -323,7 +323,7 @@ def is_encrypted(blockdev) -> bool:
     LOG.debug(
         "Determined that %s is %s encrypted",
         blockdev,
-        "" if is_encrypted else "not"
+        "" if is_encrypted else "not",
     )
     return is_encrypted
 
@@ -338,7 +338,9 @@ def get_underlying_partition(blockdev):
     except IndexError:
         raise Exception(
             "Ran `{}`, but received unexpected stdout: `{}`".format(
-                command, dep))
+                command, dep
+            )
+        )
 
 
 def resize_encrypted(blockdev, partition):
@@ -360,9 +362,9 @@ def resize_encrypted(blockdev, partition):
         ["cryptsetup", "--key-file", "-", "resize", blockdev],
         data=decoded_key,
     )
-    subp.subp([
-        "cryptsetup", "luksKillSlot", "--batch-mode", partition, str(slot)
-    ])
+    subp.subp(
+        ["cryptsetup", "luksKillSlot", "--batch-mode", partition, str(slot)]
+    )
 
 
 def resize_devices(resizer, devices):
@@ -424,18 +426,25 @@ def resize_devices(resizer, devices):
                     continue
                 resize_encrypted(blockdev, partition)
             except Exception as e:
-                info.append((
-                    devent,
-                    RESIZE.FAILED,
-                    "Resizing encrypted device ({}) failed: {}".format(
-                        blockdev, e
+                info.append(
+                    (
+                        devent,
+                        RESIZE.FAILED,
+                        "Resizing encrypted device ({}) failed: {}".format(
+                            blockdev, e
+                        ),
                     )
-                ))
+                )
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
-            info.append((devent, RESIZE.SKIPPED,
-                         "device_part_info(%s) failed: %s" % (blockdev, e),))
+            info.append(
+                (
+                    devent,
+                    RESIZE.SKIPPED,
+                    "device_part_info(%s) failed: %s" % (blockdev, e),
+                )
+            )
             continue
 
         try:
