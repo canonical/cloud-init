@@ -259,10 +259,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
         mounts = [
             (cloudinit_path, "/usr/lib/python3/dist-packages/cloudinit"),
             (
-                os.path.join(cloudinit_path, "..", "config", "cloud.cfg.d"),
-                "/var/tmp/etc/cloud/cloud.cfg.d",
-            ),
-            (
                 os.path.join(cloudinit_path, "..", "templates"),
                 "/etc/cloud/templates",
             ),
