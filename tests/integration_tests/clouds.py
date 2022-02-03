@@ -282,21 +282,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
-        # /etc/cloud/cloud.cfg.d is a directory we write to in some
-        # integration tests. We can't use lxc mount in the container
-        # as /etc/cloud/cloud.cfg.d will then be owned nobody:nogroup and be
-        # read-only for root.
-        # Instead copy static files to the instance under test.
-        config_dir = os.path.join(
-            cloudinit_path, "..", "config", "cloud.cfg.d"
-        )
-        for src_file in os.listdir(config_dir):
-            command = (
-                f"lxc file push {config_dir}/{src_file} "
-                f"{instance.name}/etc/cloud/cloud.cfg.d/"
-            )
-            subp(command.split())
-
     def _perform_launch(self, launch_kwargs, **kwargs):
         launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
         wait = launch_kwargs.pop("wait", True)
