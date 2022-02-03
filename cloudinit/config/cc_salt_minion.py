@@ -61,7 +61,7 @@ class SaltConstants(object):
 
         # constants tailored for FreeBSD
         if util.is_FreeBSD():
-            self.pkg_name = "py36-salt"
+            self.pkg_name = "py-salt"
             self.srv_name = "salt_minion"
             self.conf_dir = "/usr/local/etc/salt"
         # constants for any other OS
