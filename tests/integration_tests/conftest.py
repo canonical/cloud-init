@@ -7,8 +7,10 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
+from typing import Dict, Type
 
 import pytest
+from pycloudlib.lxd.instance import LXDInstance
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
@@ -32,7 +34,7 @@ log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
 
-platforms = {
+platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
     "gce": GceCloud,
     "azure": AzureCloud,
@@ -102,11 +104,10 @@ def session_cloud():
 
     cloud = platforms[integration_settings.PLATFORM]()
     cloud.emit_settings_to_log()
+
     yield cloud
-    try:
-        cloud.delete_snapshot()
-    finally:
-        cloud.destroy()
+
+    cloud.destroy()
 
 
 def get_validated_source(
@@ -135,7 +136,7 @@ def get_validated_source(
 
 
 @pytest.fixture(scope="session")
-def setup_image(session_cloud: IntegrationCloud):
+def setup_image(session_cloud: IntegrationCloud, request):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
@@ -151,6 +152,11 @@ def setup_image(session_cloud: IntegrationCloud):
     # one around as it was just for image creation
     client.destroy()
     log.info("Done with environment setup")
+
+    # For some reason a yield here raises a
+    # ValueError: setup_image did not yield a value
+    # during setup so use a finalizer instead.
+    request.addfinalizer(session_cloud.delete_snapshot)
 
 
 def _collect_logs(
@@ -245,10 +251,12 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
     ) as instance:
-        if lxd_use_exec is not None:
+        if lxd_use_exec is not None and isinstance(
+            instance.instance, LXDInstance
+        ):
             # Existing instances are not affected by the launch kwargs, so
             # ensure it here; we still need the launch kwarg so waiting works
-            instance.execute_via_ssh = False
+            instance.instance.execute_via_ssh = False
         previous_failures = request.session.testsfailed
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
