@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 class Distro(distros.Distro):
     locale_conf_fn = "/etc/env.d/02locale"
-    locale_gen_file = "/etc/locale.gen"
+    locale_gen_fn = "/etc/locale.gen"
     network_conf_fn = "/etc/conf.d/net"
     hostname_conf_fn = "/etc/conf.d/hostname"
     init_cmd = ["rc-service"]  # init scripts
@@ -46,9 +46,7 @@ class Distro(distros.Distro):
         Locales need to be added to /etc/locale.gen and generated prior
         to selection. Default to en_US.UTF-8 for simplicity.
         """
-        util.write_file(
-            self.locale_gen_file, "\n".join(self.locales), mode=644
-        )
+        util.write_file(self.locale_gen_fn, "\n".join(self.locales), mode=644)
 
         # generate locales
         subp.subp(["locale-gen"], capture=False)
