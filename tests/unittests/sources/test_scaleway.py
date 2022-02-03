@@ -154,7 +154,7 @@ class TestOnScaleway(CiTestCase):
         self.assertTrue(DataSourceScaleway.on_scaleway())
 
 
-def _mock_pick_unused_privileged_port(*args, **kwargs):
+def _mock_pick_bind_address(*args, **kwargs):
     """
     Scaleway user/vendor data API requires to be called with a privileged port.
 
@@ -164,7 +164,7 @@ def _mock_pick_unused_privileged_port(*args, **kwargs):
     This function removes the bind on a privileged address, since anyway the
     HTTP call is mocked by httpretty.
     """
-    return 11111
+    return None
 
 
 class TestDataSourceScaleway(HttprettyTestCase):
@@ -198,8 +198,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
-        _mock_pick_unused_privileged_port,
+        "cloudinit.sources.DataSourceScaleway._pick_bind_address",
+        _mock_pick_bind_address,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)
@@ -328,8 +328,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
-        _mock_pick_unused_privileged_port,
+        "cloudinit.sources.DataSourceScaleway._pick_bind_address",
+        _mock_pick_bind_address,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)
@@ -357,8 +357,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch(
-        "cloudinit.sources.DataSourceScaleway._pick_unused_privileged_port",
-        _mock_pick_unused_privileged_port,
+        "cloudinit.sources.DataSourceScaleway._pick_bind_address",
+        _mock_pick_bind_address,
     )
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("time.sleep", return_value=None)

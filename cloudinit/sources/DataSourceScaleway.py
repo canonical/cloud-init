@@ -68,6 +68,10 @@ def _pick_unused_privileged_port():
             sock.close()
 
 
+def _pick_bind_address():
+    return ("0.0.0.0", _pick_unused_privileged_port())
+
+
 def query_data_api_once(api_address, timeout, source_address):
     """
     Retrieve user data or vendor data.
@@ -118,11 +122,17 @@ def query_data_api(api_type, api_address, retries, timeout):
     """
     for _ in range(max(retries, 2)):
         try:
-            port = _pick_unused_privileged_port()
-            LOG.debug(
-                "Trying to get %s data (bind on port %d)...", api_type, port
-            )
-            source_address = ("0.0.0.0", port)
+            source_address = _pick_bind_address()
+            if source_address is not None:
+                LOG.debug(
+                    "Trying to get %s data (bind on port %s)...",
+                    api_type,
+                    source_address[1],
+                )
+            else:
+                LOG.debug(
+                    "Trying to get %s data (binding is mocked out)", api_type
+                )
             data = query_data_api_once(
                 api_address, timeout=timeout, source_address=source_address
             )
