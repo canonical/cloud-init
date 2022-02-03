@@ -26,13 +26,18 @@ See :ref:`Examples` section for examples.
 
 Test Execution
 ==============
-Test execution happens via pytest. To run all integration tests,
-you would run:
+Test execution happens via pytest. A tox definition exists to run integration
+tests. To run all integration tests, you would run:
 
 .. code-block:: bash
 
-    pytest tests/integration_tests/
+    $ tox -e integration-tests
 
+Pytest arguments may also be passed. For example:
+
+.. code-block:: bash
+
+    $ tox -e integration-tests tests/integration_tests/modules/test_combined.py
 
 Configuration
 =============

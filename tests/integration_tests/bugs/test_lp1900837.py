@@ -4,7 +4,6 @@ This test mirrors the reproducing steps from the reported bug: it changes the
 permissions on cloud-init.log to 600 and confirms that they remain 600 after a
 reboot.
 """
-import pytest
 
 
 def _get_log_perms(client):

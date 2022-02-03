@@ -73,7 +73,6 @@ def _check_iid_insensitive_across_kernel_upgrade(
 
 
 @pytest.mark.azure
-@pytest.mark.sru_next
 def test_azure_kernel_upgrade_case_insensitive_uuid(
     session_cloud: IntegrationCloud,
 ):
