@@ -206,7 +206,11 @@ def _collect_logs(
     os.symlink(log_dir.parent, last_symlink)
 
     tarball_path = log_dir / "cloud-init.tar.gz"
-    instance.pull_file("/var/tmp/cloud-init.tar.gz", tarball_path)
+    try:
+        instance.pull_file("/var/tmp/cloud-init.tar.gz", tarball_path)
+    except Exception as e:
+        log.error("Failed to pull logs: %s", e)
+        return
 
     tarball = TarFile.open(str(tarball_path))
     tarball.extractall(path=str(log_dir))

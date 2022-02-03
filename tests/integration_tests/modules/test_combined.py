@@ -205,24 +205,22 @@ class TestCombined:
         """Test datasource is detected at the proper boot stage."""
         client = class_client
         status_file = client.read_from_file("/run/cloud-init/status.json")
+        parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
-        platform_datasources = {
-            "azure": "DataSourceAzure [seed=/dev/sr0]",
-            "ec2": "DataSourceEc2Local",
-            "gce": "DataSourceGCELocal",
-            "oci": "DataSourceOracle",
-            "openstack": "DataSourceOpenStackLocal [net,ver=2]",
-            "lxd_container": (
-                "DataSourceNoCloud "
-                "[seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]"
-            ),
-            "lxd_vm": "DataSourceNoCloud [seed=/dev/sr0][dsmode=net]",
-        }
-
-        assert (
-            platform_datasources[client.settings.PLATFORM]
-            == json.loads(status_file)["v1"]["datasource"]
-        )
+        if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
+            assert parsed_datasource.startswith("DataSourceNoCloud")
+        else:
+            platform_datasources = {
+                "azure": "DataSourceAzure [seed=/dev/sr0]",
+                "ec2": "DataSourceEc2Local",
+                "gce": "DataSourceGCELocal",
+                "oci": "DataSourceOracle",
+                "openstack": "DataSourceOpenStackLocal [net,ver=2]",
+            }
+            assert (
+                platform_datasources[client.settings.PLATFORM]
+                == parsed_datasource
+            )
 
     def _check_common_metadata(self, data):
         assert data["base64_encoded_keys"] == []
