@@ -134,7 +134,7 @@ class IntegrationCloud(ABC):
         user_data=None,
         launch_kwargs=None,
         settings=integration_settings,
-        **kwargs
+        **kwargs,
     ) -> IntegrationInstance:
         if launch_kwargs is None:
             launch_kwargs = {}
@@ -259,10 +259,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
         mounts = [
             (cloudinit_path, "/usr/lib/python3/dist-packages/cloudinit"),
             (
-                os.path.join(cloudinit_path, "..", "config", "cloud.cfg.d"),
-                "/etc/cloud/cloud.cfg.d",
-            ),
-            (
                 os.path.join(cloudinit_path, "..", "templates"),
                 "/etc/cloud/templates",
             ),
@@ -286,6 +282,21 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
+        # /etc/cloud/cloud.cfg.d is a directory we write to in some
+        # integration tests. We can't use lxc mount in the container
+        # as /etc/cloud/cloud.cfg.d will then be owned nobody:nogroup and be
+        # read-only for root.
+        # Instead copy static files to the instance under test.
+        config_dir = os.path.join(
+            cloudinit_path, "..", "config", "cloud.cfg.d"
+        )
+        for src_file in os.listdir(config_dir):
+            command = (
+                f"lxc file push {config_dir}/{src_file} "
+                f"{instance.name}/etc/cloud/cloud.cfg.d/"
+            )
+            subp(command.split())
+
     def _perform_launch(self, launch_kwargs, **kwargs):
         launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
         wait = launch_kwargs.pop("wait", True)
@@ -304,7 +315,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             launch_kwargs.pop("name", default_name),
             release,
             profile_list=profile_list,
-            **launch_kwargs
+            **launch_kwargs,
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)

@@ -81,13 +81,13 @@ class IntegrationInstance:
         # First copy to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.execute("cp {} {}".format(str(remote_path), tmp_path))
-        self.instance.pull_file(tmp_path, str(local_path))
+        assert self.instance.pull_file(tmp_path, str(local_path)).ok
 
     def push_file(self, local_path, remote_path):
         # First push to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.push_file(str(local_path), tmp_path)
-        self.execute("mv {} {}".format(tmp_path, str(remote_path)))
+        assert self.execute("mv {} {}".format(tmp_path, str(remote_path))).ok
 
     def read_from_file(self, remote_path) -> str:
         result = self.execute("cat {}".format(remote_path))
