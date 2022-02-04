@@ -89,7 +89,7 @@ class PPSType(Enum):
     UNKNOWN = "Unknown"
 
 
-PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
+PLATFORM_ENTROPY_SOURCE: Optional[str] = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
 # stock ubuntu suported images.
@@ -161,7 +161,7 @@ def find_busdev_from_disk(camcontrol_out, disk_drv):
     return None
 
 
-def find_dev_from_busdev(camcontrol_out, busdev):
+def find_dev_from_busdev(camcontrol_out: str, busdev: str) -> Optional[str]:
     # find the daX from 'camcontrol devlist' output
     # if busdev matches the specified value, i.e. 'scbus2'
     """
@@ -178,9 +178,9 @@ def find_dev_from_busdev(camcontrol_out, busdev):
     return None
 
 
-def execute_or_debug(cmd, fail_ret=None):
+def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd)[0]
+        return subp.subp(cmd)[0]  # type: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
@@ -198,7 +198,7 @@ def get_camcontrol_dev():
     return execute_or_debug(["camcontrol", "devlist"])
 
 
-def get_resource_disk_on_freebsd(port_id):
+def get_resource_disk_on_freebsd(port_id) -> Optional[str]:
     g0 = "00000000"
     if port_id > 1:
         g0 = "00000001"
@@ -322,7 +322,9 @@ class DataSourceAzure(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.seed.startswith("/dev"):
+        if self.seed is None:
+            subplatform_type = "unknown"
+        elif self.seed.startswith("/dev"):
             subplatform_type = "config-disk"
         elif self.seed.lower() == "imds":
             subplatform_type = "imds"
@@ -547,9 +549,9 @@ class DataSourceAzure(sources.DataSource):
         if metadata_source == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
-                    username=imds_username,
-                    hostname=imds_hostname,
-                    disableSshPwd=imds_disable_password,
+                    username=imds_username,  # type: ignore
+                    hostname=imds_hostname,  # type: ignore
+                    disableSshPwd=imds_disable_password,  # type: ignore
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
@@ -762,6 +764,7 @@ class DataSourceAzure(sources.DataSource):
         ssh_keys = []
         keys_from_imds = True
         LOG.debug("Attempting to get SSH keys from IMDS")
+        log_msg = ""
         try:
             ssh_keys = [
                 public_key["keyData"]
@@ -784,7 +787,8 @@ class DataSourceAzure(sources.DataSource):
             log_msg = "Unable to get keys from IMDS, falling back to OVF"
             keys_from_imds = False
         finally:
-            report_diagnostic_event(log_msg, logger_func=LOG.debug)
+            if log_msg:
+                report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
         if not keys_from_imds:
             LOG.debug("Attempting to get SSH keys from OVF")
@@ -813,7 +817,11 @@ class DataSourceAzure(sources.DataSource):
         # We don't want Azure to react to an UPPER/lower difference as a new
         # instance id as it rewrites SSH host keys.
         # LP: #1835584
-        iid = dmi.read_dmi_data("system-uuid").lower()
+        system_uuid = dmi.read_dmi_data("system-uuid")
+        if system_uuid is None:
+            raise RuntimeError("failed to read system-uuid")
+
+        iid = system_uuid.lower()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
             if previous.lower() == iid:
@@ -876,7 +884,7 @@ class DataSourceAzure(sources.DataSource):
                 path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
             )
         except AssertionError as error:
-            report_diagnostic_event(error, logger_func=LOG.error)
+            report_diagnostic_event(str(error), logger_func=LOG.error)
             raise
 
     @azure_ds_telemetry_reporter
@@ -898,10 +906,10 @@ class DataSourceAzure(sources.DataSource):
         attempts = 0
         LOG.info("Unbinding and binding the interface %s", ifname)
         while True:
-
-            devicename = net.read_sys_net(ifname, "device/device_id").strip(
-                "{}"
-            )
+            device_id = net.read_sys_net(ifname, "device/device_id")
+            if device_id is False or not isinstance(device_id, str):
+                raise RuntimeError("Unable to read device ID: %s" % device_id)
+            devicename = device_id.strip("{}")
             util.write_file(
                 "/sys/bus/vmbus/drivers/hv_netvsc/unbind", devicename
             )
@@ -1128,7 +1136,7 @@ class DataSourceAzure(sources.DataSource):
                     break
 
         except AssertionError as error:
-            report_diagnostic_event(error, logger_func=LOG.error)
+            report_diagnostic_event(str(error), logger_func=LOG.error)
 
     @azure_ds_telemetry_reporter
     def _wait_for_all_nics_ready(self):
@@ -1178,7 +1186,7 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.info,
                 )
         except netlink.NetlinkCreateSocketError as e:
-            report_diagnostic_event(e, logger_func=LOG.warning)
+            report_diagnostic_event(str(e), logger_func=LOG.warning)
             raise
         finally:
             if nl_sock:
@@ -1244,6 +1252,11 @@ class DataSourceAzure(sources.DataSource):
                 self._setup_ephemeral_networking(timeout_minutes=20)
 
             try:
+                if (
+                    self._ephemeral_dhcp_ctx is None
+                    or self._ephemeral_dhcp_ctx.iface is None
+                ):
+                    raise RuntimeError("Missing ephemeral context")
                 iface = self._ephemeral_dhcp_ctx.iface
 
                 nl_sock = netlink.create_bound_netlink_socket()
@@ -1304,14 +1317,17 @@ class DataSourceAzure(sources.DataSource):
                 parent=azure_ds_reporter,
             ):
                 try:
-                    reprovision_data = readurl(
+                    response = readurl(
                         url,
                         timeout=IMDS_TIMEOUT_IN_SECONDS,
                         headers=headers,
                         exception_cb=exc_cb,
                         infinite=True,
                         log_req_resp=False,
-                    ).contents
+                    )
+                    if response is None:
+                        raise RuntimeError("readurl response is None")
+                    reprovision_data = response.contents
                 except UrlError:
                     self._teardown_ephemeral_networking()
                     continue
@@ -1921,7 +1937,7 @@ def read_azure_ovf(contents):
         elif name == "userpassword":
             password = value
         elif name == "hostname":
-            md["local-hostname"] = value
+            md["local-hostname"] = value  # type: ignore
         elif name == "dscfg":
             if attrs.get("encoding") in (None, "base64"):
                 dscfg = base64.b64decode("".join(value.split()))
@@ -1934,7 +1950,7 @@ def read_azure_ovf(contents):
             cfg["ssh_pwauth"] = util.is_false(value)
         elif simple:
             if name in md_props:
-                md[name] = value
+                md[name] = value  # type: ignore
             else:
                 md["azure_data"][name] = value
 
@@ -2097,9 +2113,7 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     # string. Same number of bits of entropy, just with 25% more zeroes.
     # There's no need to undo this base64-encoding when the random seed is
     # actually used in cc_seed_random.py.
-    seed = base64.b64encode(seed).decode()
-
-    return seed
+    return base64.b64encode(seed).decode()  # type: ignore
 
 
 @azure_ds_telemetry_reporter
@@ -2203,7 +2217,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                 privateIp = addr["privateIpAddress"]
                 if not dev_config.get("addresses"):
                     dev_config["addresses"] = []
-                dev_config["addresses"].append(
+                dev_config["addresses"].append(  # type: ignore
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
@@ -2216,8 +2230,8 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             # our match condition also contains the driver
             driver = device_driver(nicname)
             if driver and driver == "hv_netvsc":
-                dev_config["match"]["driver"] = driver
-            netconfig["ethernets"][nicname] = dev_config
+                dev_config["match"]["driver"] = driver  # type: ignore
+            netconfig["ethernets"][nicname] = dev_config  # type: ignore
     return netconfig
 
 
@@ -2227,9 +2241,12 @@ def _generate_network_config_from_fallback_config() -> dict:
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    return net.generate_fallback_config(
+    cfg = net.generate_fallback_config(
         blacklist_drivers=BLACKLIST_DRIVERS, config_driver=True
     )
+    if cfg is None:
+        return {}
+    return cfg
 
 
 @azure_ds_telemetry_reporter
@@ -2292,6 +2309,8 @@ def _get_metadata_from_imds(
             exception_cb=exc_cb,
             infinite=infinite,
         )
+        if response is None:
+            raise RuntimeError("readurl response is None")
     except Exception as e:
         # pylint:disable=no-member
         if isinstance(e, UrlError) and e.code == 400:

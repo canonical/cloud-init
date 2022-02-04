@@ -382,6 +382,8 @@ def http_with_retries(url, **kwargs) -> str:
                 )
             time.sleep(sleep_duration_between_retries)
 
+    if exc is None:
+        raise RuntimeError("http_with_retries exc is None")
     raise exc
 
 

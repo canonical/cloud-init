@@ -2995,7 +2995,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
     @mock.patch(MOCKPATH + "net.is_up", autospec=True)
     @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     def test_wait_for_link_up_checks_link_after_sleep(
         self, m_try_set_link_up, m_read_sys_net, m_writefile, m_is_up
@@ -3025,7 +3025,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(2, m_is_up.call_count)
 
     @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     def test_wait_for_link_up_writes_to_device_file(
         self, m_is_link_up, m_read_sys_net, m_writefile
