@@ -392,7 +392,9 @@ def handle(_name, cfg, cloud, log, _args):
     def_mnt_opts = "defaults,nobootwait"
     uses_systemd = cloud.distro.uses_systemd()
     if uses_systemd:
-        def_mnt_opts = "defaults,nofail,x-systemd.requires=cloud-init.service"
+        def_mnt_opts = (
+            "defaults,nofail, x-systemd.requires=cloud-init.service, _netdev"
+        )
 
     defvals = [None, None, "auto", def_mnt_opts, "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)
