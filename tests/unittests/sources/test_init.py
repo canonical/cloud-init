@@ -378,7 +378,11 @@ class TestDataSource(CiTestCase):
             "dist": ["ubuntu", "20.04", "focal"],
         }
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
-            datasource.get_data()
+            with mock.patch(
+                "cloudinit.sources.canonical_cloud_id",
+                return_value="canonical_cloud_id",
+            ):
+                datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         expected = {
@@ -390,6 +394,7 @@ class TestDataSource(CiTestCase):
                 "_beta_keys": ["subplatform"],
                 "availability-zone": "myaz",
                 "availability_zone": "myaz",
+                "cloud_id": "canonical_cloud_id",
                 "cloud-name": "subclasscloudname",
                 "cloud_name": "subclasscloudname",
                 "distro": "ubuntu",
@@ -562,7 +567,11 @@ class TestDataSource(CiTestCase):
             datasource.sensitive_metadata_keys,
         )
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
-            datasource.get_data()
+            with mock.patch(
+                "cloudinit.sources.canonical_cloud_id",
+                return_value="canonical-cloud-id",
+            ):
+                datasource.get_data()
         sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
         content = util.load_file(sensitive_json_file)
         expected = {
@@ -583,6 +592,7 @@ class TestDataSource(CiTestCase):
                 "_beta_keys": ["subplatform"],
                 "availability-zone": "myaz",
                 "availability_zone": "myaz",
+                "cloud_id": "canonical-cloud-id",
                 "cloud-name": "subclasscloudname",
                 "cloud_name": "subclasscloudname",
                 "distro": "ubuntu",
@@ -665,6 +675,38 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             {"ec2stuff": "is good"}, instance_data["ds"]["ec2_metadata"]
         )
+
+    def test_persist_instance_data_writes_canonical_cloud_id_and_symlink(self):
+        """canonical-cloud-id class attribute is set, persist to json."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+        )
+        cloud_id_link = os.path.join(tmp, "cloud-id")
+        cloud_id_file = os.path.join(tmp, "cloud-id-my-cloud")
+        cloud_id2_file = os.path.join(tmp, "cloud-id-my-cloud2")
+        for filename in (cloud_id_file, cloud_id_link, cloud_id2_file):
+            self.assertFalse(
+                os.path.exists(filename), "Unexpected link found {filename}"
+            )
+        with mock.patch(
+            "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
+        ):
+            datasource.get_data()
+        self.assertEqual("my-cloud", util.load_file(cloud_id_link))
+        # A symlink with the generic /run/cloud-init/cloud-id link is present
+        self.assertTrue(util.is_link(cloud_id_link))
+        # When cloud-id changes, symlink and content change
+        with mock.patch(
+            "cloudinit.sources.canonical_cloud_id", return_value="my-cloud2"
+        ):
+            datasource.persist_instance_data()
+        self.assertEqual("my-cloud2", util.load_file(cloud_id2_file))
+        # Previous cloud-id-<cloud-type> file removed
+        self.assertFalse(os.path.exists(cloud_id_file))
+        # Generic link persisted which contains canonical-cloud-id as content
+        self.assertTrue(util.is_link(cloud_id_link))
+        self.assertEqual("my-cloud2", util.load_file(cloud_id_link))
 
     def test_persist_instance_data_writes_network_json_when_set(self):
         """When network_data.json class attribute is set, persist to json."""

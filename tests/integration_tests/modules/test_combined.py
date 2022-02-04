@@ -249,6 +249,10 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "unknown"
         assert v1_data["platform"] == "lxd"
+        assert v1_data["cloud_id"] == "lxd"
+        assert f"{v1_data['cloud_id']}\n" == client.read_from_file(
+            "/run/cloud-init/cloud-id-lxd"
+        )
         assert (
             v1_data["subplatform"]
             == "seed-dir (/var/lib/cloud/seed/nocloud-net)"
@@ -270,6 +274,10 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "unknown"
         assert v1_data["platform"] == "lxd"
+        assert v1_data["cloud_id"] == "lxd"
+        assert f"{v1_data['cloud_id']}\n" == client.read_from_file(
+            "/run/cloud-init/cloud-id-lxd"
+        )
         assert any(
             [
                 "/var/lib/cloud/seed/nocloud-net" in v1_data["subplatform"],
@@ -291,6 +299,11 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "aws"
         assert v1_data["platform"] == "ec2"
+        # Different regions will show up as ec2-(gov|china)
+        assert v1_data["cloud_id"].startswith("ec2")
+        assert f"{v1_data['cloud_id']}\n" == client.read_from_file(
+            "/run/cloud-init/cloud-id-ec2"
+        )
         assert v1_data["subplatform"].startswith("metadata")
         assert (
             v1_data["availability_zone"] == client.instance.availability_zone

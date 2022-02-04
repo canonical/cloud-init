@@ -303,6 +303,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "_beta_keys": ["subplatform"],
                 "availability-zone": availability_zone,
                 "availability_zone": availability_zone,
+                "cloud_id": canonical_cloud_id(
+                    self.cloud_name, self.region, self.platform_type
+                ),
                 "cloud-name": self.cloud_name,
                 "cloud_name": self.cloud_name,
                 "distro": sysinfo["dist"][0],
@@ -408,6 +411,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         json_sensitive_file = os.path.join(
             self.paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
         )
+        cloud_id = instance_data["v1"].get("cloud_id", "none")
+        cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
+        util.write_file(f"{cloud_id_file}-{cloud_id}", cloud_id)
+        if os.path.exists(cloud_id_file):
+            prev_cloud_id_file = os.path.realpath(cloud_id_file)
+        else:
+            prev_cloud_id_file = cloud_id_file
+        util.sym_link(f"{cloud_id_file}-{cloud_id}", cloud_id_file, force=True)
+        if prev_cloud_id_file != cloud_id_file:
+            util.del_file(prev_cloud_id_file)
         write_json(json_sensitive_file, processed_data, mode=0o600)
         json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
         # World readable
