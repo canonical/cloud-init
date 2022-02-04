@@ -994,10 +994,10 @@ class DataSourceAzure(sources.DataSource):
             )
         finally:
             # If we are not the primary nic, then clean the dhcp context.
-            if imds_md is None:
+            if not imds_md:
                 dhcp_ctx.clean_network()
 
-        if imds_md is not None:
+        if imds_md:
             # Only primary NIC will get a response from IMDS.
             LOG.info("%s is the primary nic", ifname)
             is_primary = True
@@ -2291,7 +2291,7 @@ def _get_metadata_from_imds(
         json_decode_error = ValueError
 
     try:
-        return util.load_json(str(response))
+        return util.load_json(response.contents)
     except json_decode_error as e:
         report_diagnostic_event(
             "Ignoring non-json IMDS instance metadata response: %s. "
