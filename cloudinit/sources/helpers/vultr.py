@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from cloudinit import dmi
 from cloudinit import log as log
-from cloudinit import net, netinfo, subp, url_helper, util
+from cloudinit import net, subp, url_helper, util
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 # Get LOG
@@ -45,45 +45,8 @@ def get_metadata(url, timeout, retries, sec_between, agent):
 
 # Set route for metadata
 def set_route(iface):
-    # Get routes, confirm entry does not exist
-    routes = netinfo.route_info()
-
-    # If no tools exist and empty dict is returned
-    if "ipv4" not in routes:
-        return
-
-    # We only care about IPv4
-    routes = routes["ipv4"]
-
-    # Searchable list
-    dests = []
-
-    # Parse each route into a more searchable format
-    for route in routes:
-        dests.append(route["destination"])
-
-    gw_present = "100.64.0.0" in dests or "100.64.0.0/10" in dests
-    dest_present = "169.254.169.254" in dests
-
-    # If not IPv6 only (No link local)
-    # or the route is already present
-    if not gw_present or dest_present:
-        return
-
-    # Set metadata route
-    if subp.which("ip"):
-        subp.subp(
-            [
-                "ip",
-                "route",
-                "add",
-                "169.254.169.254/32",
-                "dev",
-                iface,
-            ]
-        )
-    elif subp.which("route"):
-        subp.subp(["route", "add", "-net", "169.254.169.254/32", "100.64.0.1"])
+    if subp.which("route"):
+        subp.subp(["route", "add", "169.254.169.254/32", iface])
 
 
 # Read the system information from SMBIOS
