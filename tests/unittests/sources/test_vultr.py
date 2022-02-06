@@ -8,6 +8,7 @@
 import json
 
 from cloudinit import helpers, settings
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
 from tests.unittests.helpers import CiTestCase, mock
@@ -95,7 +96,9 @@ VULTR_V1_2 = {
                 "netmask": "255.255.254.0",
             },
             "ipv6": {
-                "additional": [],
+                "additional": [
+                    {"network": "2002:19f0:5:28a7::", "prefix": "64"}
+                ],
                 "address": "2001:19f0:5:28a7:5400:03ff:fe1b:4eca",
                 "network": "2001:19f0:5:28a7::",
                 "prefix": "64",
@@ -137,6 +140,14 @@ VULTR_V1_2 = {
 }
 
 SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
+
+INTERFACES = [
+    ["lo", "56:00:03:15:c4:00", "drv", "devid0"],
+    ["dummy0", "56:00:03:15:c4:01", "drv", "devid1"],
+    ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
+    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
+    ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
+]
 
 # Expected generated objects
 
@@ -182,6 +193,11 @@ EXPECTED_VULTR_NETWORK_2 = {
             "subnets": [
                 {"type": "dhcp", "control": "auto"},
                 {"type": "ipv6_slaac", "control": "auto"},
+                {
+                    "type": "static6",
+                    "control": "auto",
+                    "address": "2002:19f0:5:28a7::/64",
+                },
             ],
         },
         {
@@ -283,6 +299,42 @@ class TestDataSourceVultr(CiTestCase):
         self.assertEqual(
             EXPECTED_VULTR_NETWORK_2, vultr.generate_network_config(interf)
         )
+
+    # Test interface seeking to ensure we are able to find the correct one
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4")
+    @mock.patch("cloudinit.sources.helpers.vultr.set_route")
+    @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
+    @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
+    @mock.patch("cloudinit.net.get_interfaces")
+    def test_interface_seek(
+        self,
+        mock_get_interfaces,
+        mock_read_metadata,
+        mock_isvultr,
+        mock_set_route,
+        mock_dhcp,
+    ):
+        mock_read_metadata.side_effect = NoDHCPLeaseError(
+            "Generic for testing"
+        )
+        mock_isvultr.return_value = True
+        mock_get_interfaces.return_value = INTERFACES
+
+        source = DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+        )
+
+        try:
+            source._get_data()
+        except Exception:
+            pass
+
+        calls = [
+            mock.call(INTERFACES[2][0]),
+            mock.call(INTERFACES[3][0]),
+            mock.call(INTERFACES[4][0]),
+        ]
+        mock_set_route.assert_has_calls(calls, any_order=False)
 
 
 # vi: ts=4 expandtab
