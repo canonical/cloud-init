@@ -584,6 +584,7 @@ def _get_variant(info):
             "eurolinux",
             "fedora",
             "miraclelinux",
+            "ol",
             "openeuler",
             "photon",
             "rhel",

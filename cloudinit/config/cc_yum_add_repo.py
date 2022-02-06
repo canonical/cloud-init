@@ -19,7 +19,7 @@ entry, the config entry will be skipped.
 **Module frequency:** always
 
 **Supported distros:** almalinux, centos, cloudlinux, eurolinux, fedora,
-                       miraclelinux, openEuler, photon, rhel, rocky, virtuozzo
+                       miraclelinux, openEuler, oraclelinux, photon, rhel, rocky, virtuozzo
 
 **Config keys**::
 
@@ -43,6 +43,7 @@ distros = [
     "cloudlinux",
     "eurolinux",
     "fedora",
+    "ol",
     "openEuler",
     "photon",
     "rhel",

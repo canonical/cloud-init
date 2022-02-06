@@ -29,6 +29,7 @@ distros = [
     "eurolinux",
     "fedora",
     "miraclelinux",
+    "ol",
     "openEuler",
     "opensuse",
     "photon",

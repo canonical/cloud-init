@@ -46,6 +46,7 @@ OSFAMILIES = {
         "eurolinux",
         "fedora",
         "miraclelinux",
+        "ol",
         "openEuler",
         "photon",
         "rhel",

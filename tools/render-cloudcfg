@@ -23,6 +23,7 @@ def main():
         "gentoo",
         "miraclelinux",
         "netbsd",
+        "ol",
         "openbsd",
         "openEuler",
         "photon",

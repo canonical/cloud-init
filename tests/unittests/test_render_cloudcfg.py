@@ -18,6 +18,7 @@ DISTRO_VARIANTS = [
     "freebsd",
     "gentoo",
     "netbsd",
+    "ol",
     "openbsd",
     "photon",
     "rhel",

@@ -29,6 +29,7 @@ DISTRO_PKG_TYPE_MAP = {
     'redhat': 'redhat',
     'debian': 'debian',
     'ubuntu': 'debian',
+    'ol': 'redhat',
     'opensuse': 'suse',
     'suse': 'suse'
 }
@@ -72,6 +73,7 @@ DRY_DISTRO_INSTALL_PKG_CMD = {
     'centos': ['yum', 'install', '--assumeyes'],
     'eurolinux': ['yum', 'install', '--assumeyes'],
     'miraclelinux': ['yum', 'install', '--assumeyes'],
+    'ol': ['yum', 'install', '--assumeyes'],
     'redhat': ['yum', 'install', '--assumeyes'],
 }
 
@@ -285,10 +287,10 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
         cmd = DRY_DISTRO_INSTALL_PKG_CMD[distro]
     install_cmd.extend(cmd)
 
-    if distro in ['centos', 'redhat', 'rocky', 'eurolinux']:
+    if distro in ['centos', 'redhat', 'rocky', 'eurolinux', 'ol']:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema
         subprocess.check_call(install_cmd + ['epel-release'])
-    if distro in ['suse', 'opensuse', 'redhat', 'rocky', 'centos', 'eurolinux']:
+    if distro in ['suse', 'opensuse', 'redhat', 'rocky', 'centos', 'eurolinux', 'ol']:
         pkg_list.append('rpm-build')
     subprocess.check_call(install_cmd + pkg_list)
 

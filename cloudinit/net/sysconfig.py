@@ -27,6 +27,7 @@ KNOWN_DISTROS = [
     "eurolinux",
     "fedora",
     "miraclelinux",
+    "ol",
     "openEuler",
     "rhel",
     "rocky",
