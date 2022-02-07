@@ -393,7 +393,7 @@ def handle(_name, cfg, cloud, log, _args):
     uses_systemd = cloud.distro.uses_systemd()
     if uses_systemd:
         def_mnt_opts = (
-            "defaults,nofail, x-systemd.requires=cloud-init.service, _netdev"
+            "defaults,nofail,x-systemd.requires=cloud-init.service,_netdev"
         )
 
     defvals = [None, None, "auto", def_mnt_opts, "0", "2"]
