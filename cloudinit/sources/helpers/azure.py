@@ -214,7 +214,6 @@ def report_diagnostic_event(
     msg: str, *, logger_func=None
 ) -> events.ReportingEvent:
     """Report a diagnostic event"""
-    print(msg)
     if callable(logger_func):
         logger_func(msg)
     evt = events.ReportingEvent(
