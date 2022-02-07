@@ -816,7 +816,7 @@ class TestGetLinuxDistro(CiTestCase):
 
     @mock.patch("cloudinit.util.load_file")
     def test_get_linux_ol_8_rhrelease(self, m_os_release, m_path_exists):
-        """Verify almalinux 8 read from redhat-release."""
+        """Verify Oracle Linux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_OL_8
         m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
@@ -824,7 +824,7 @@ class TestGetLinuxDistro(CiTestCase):
 
     @mock.patch("cloudinit.util.load_file")
     def test_get_linux_ol_8_osrelease(self, m_os_release, m_path_exists):
-        """Verify almalinux 8 read from os-release."""
+        """Verify Oracle Linux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_OL_8
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
