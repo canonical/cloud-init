@@ -629,7 +629,9 @@ class TestEphemeralIPV4Network(CiTestCase):
                 with net.EphemeralIPv4Network(**params):
                     pass
             error = context_manager.exception
-            self.assertIn("Cannot setup network: netmask", str(error))
+            self.assertIn(
+                "Cannot setup network, invalid prefix or netmask: ", str(error)
+            )
             self.assertEqual(0, m_subp.call_count)
 
     def test_ephemeral_ipv4_network_performs_teardown(self, m_subp):

@@ -6,6 +6,7 @@
 
 import copy
 import functools
+import ipaddress
 import logging
 import socket
 import struct
@@ -928,10 +929,16 @@ def _normalize_net_keys(network, address_keys=()):
         try:
             prefix = int(maybe_prefix)
         except ValueError:
-            # this supports input of <address>/255.255.255.0
-            prefix = mask_to_net_prefix(maybe_prefix)
-    elif netmask:
-        prefix = mask_to_net_prefix(netmask)
+            if ipv6:
+                # this supports input of ffff:ffff:ffff::
+                prefix = ipv6_mask_to_net_prefix(maybe_prefix)
+            else:
+                # this supports input of 255.255.255.0
+                prefix = ipv4_mask_to_net_prefix(maybe_prefix)
+    elif netmask and not ipv6:
+        prefix = ipv4_mask_to_net_prefix(netmask)
+    elif netmask and ipv6:
+        prefix = ipv6_mask_to_net_prefix(netmask)
     elif "prefix" in net:
         prefix = int(net["prefix"])
     else:
@@ -1035,88 +1042,42 @@ def ipv4_mask_to_net_prefix(mask):
        str(24)         => 24
        "24"            => 24
     """
-    if isinstance(mask, int):
-        return mask
-    if isinstance(mask, str):
-        try:
-            return int(mask)
-        except ValueError:
-            pass
-    else:
-        raise TypeError("mask '%s' is not a string or int")
-
-    if "." not in mask:
-        raise ValueError("netmask '%s' does not contain a '.'" % mask)
-
-    toks = mask.split(".")
-    if len(toks) != 4:
-        raise ValueError("netmask '%s' had only %d parts" % (mask, len(toks)))
-
-    return sum([bin(int(x)).count("1") for x in toks])
+    return ipaddress.ip_network(f"0.0.0.0/{mask}").prefixlen
 
 
 def ipv6_mask_to_net_prefix(mask):
     """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
 
-    If 'mask' is an integer or string representation of one then
-    int(mask) will be returned.
+    If the input is already an integer or a string representation of
+    an integer, then int(mask) will be returned.
+       "ffff:ffff:ffff::"  => 48
+       "48"                => 48
     """
-
-    if isinstance(mask, int):
-        return mask
-    if isinstance(mask, str):
-        try:
-            return int(mask)
-        except ValueError:
-            pass
-    else:
-        raise TypeError("mask '%s' is not a string or int")
-
-    if ":" not in mask:
-        raise ValueError("mask '%s' does not have a ':'")
-
-    bitCount = [
-        0,
-        0x8000,
-        0xC000,
-        0xE000,
-        0xF000,
-        0xF800,
-        0xFC00,
-        0xFE00,
-        0xFF00,
-        0xFF80,
-        0xFFC0,
-        0xFFE0,
-        0xFFF0,
-        0xFFF8,
-        0xFFFC,
-        0xFFFE,
-        0xFFFF,
-    ]
-    prefix = 0
-    for word in mask.split(":"):
-        if not word or int(word, 16) == 0:
-            break
-        prefix += bitCount.index(int(word, 16))
-
-    return prefix
-
-
-def mask_to_net_prefix(mask):
-    """Return the network prefix for the netmask provided.
-
-    Supports ipv4 or ipv6 netmasks."""
     try:
-        # if 'mask' is a prefix that is an integer.
-        # then just return it.
-        return int(mask)
+        # In the case the mask is already a prefix
+        prefixlen = ipaddress.ip_network(f"::/{mask}").prefixlen
+        return prefixlen
     except ValueError:
+        # ValueError means mask is an IPv6 address representation and need
+        # conversion.
         pass
-    if is_ipv6_addr(mask):
-        return ipv6_mask_to_net_prefix(mask)
-    else:
-        return ipv4_mask_to_net_prefix(mask)
+
+    netmask = ipaddress.ip_address(mask)
+    mask_int = int(netmask)
+    # If the mask is all zeroes, just return it
+    if mask_int == 0:
+        return mask_int
+
+    trailing_zeroes = min(
+        ipaddress.IPV6LENGTH, (~mask_int & (mask_int - 1)).bit_length()
+    )
+    leading_ones = mask_int >> trailing_zeroes
+    prefixlen = ipaddress.IPV6LENGTH - trailing_zeroes
+    all_ones = (1 << prefixlen) - 1
+    if leading_ones != all_ones:
+        raise ValueError("Invalid network mask '%s'" % mask)
+
+    return prefixlen
 
 
 def mask_and_ipv4_to_bcast_addr(mask, ip):
