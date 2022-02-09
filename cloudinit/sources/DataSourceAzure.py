@@ -1317,17 +1317,14 @@ class DataSourceAzure(sources.DataSource):
                 parent=azure_ds_reporter,
             ):
                 try:
-                    response = readurl(
+                    reprovision_data = readurl(
                         url,
                         timeout=IMDS_TIMEOUT_IN_SECONDS,
                         headers=headers,
                         exception_cb=exc_cb,
                         infinite=True,
                         log_req_resp=False,
-                    )
-                    if response is None:
-                        raise RuntimeError("readurl response is None")
-                    reprovision_data = response.contents
+                    ).contents
                 except UrlError:
                     self._teardown_ephemeral_networking()
                     continue
@@ -2309,8 +2306,6 @@ def _get_metadata_from_imds(
             exception_cb=exc_cb,
             infinite=infinite,
         )
-        if response is None:
-            raise RuntimeError("readurl response is None")
     except Exception as e:
         # pylint:disable=no-member
         if isinstance(e, UrlError) and e.code == 400:
