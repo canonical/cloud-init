@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Type  # noqa: F401
+from typing import Any, Mapping, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -76,7 +76,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ["service"]  # systemctl, service etc
-    renderer_configs = {}  # type: Mapping[str, Mapping[str, Any]]
+    renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
