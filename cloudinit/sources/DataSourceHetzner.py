@@ -9,8 +9,8 @@
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import net as cloudnet
-from cloudinit import sources, util
+from cloudinit import net, sources, util
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class DataSourceHetzner(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = None
+        self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
 
     def _get_data(self):
@@ -54,22 +54,28 @@ class DataSourceHetzner(sources.DataSource):
         if not on_hetzner:
             return False
 
-        nic = cloudnet.find_fallback_nic()
-        with cloudnet.EphemeralIPv4Network(
-            nic, "169.254.0.1", 16, "169.254.255.255"
-        ):
-            md = hc_helper.read_metadata(
-                self.metadata_address,
-                timeout=self.timeout,
-                sec_between=self.wait_retry,
-                retries=self.retries,
-            )
-            ud = hc_helper.read_userdata(
-                self.userdata_address,
-                timeout=self.timeout,
-                sec_between=self.wait_retry,
-                retries=self.retries,
-            )
+        try:
+            with EphemeralDHCPv4(
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": BASE_URL_V1 + "/metadata/instance-id",
+                },
+            ):
+                md = hc_helper.read_metadata(
+                    self.metadata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+                ud = hc_helper.read_userdata(
+                    self.userdata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+        except (NoDHCPLeaseError) as e:
+            LOG.error("Bailing, DHCP Exception: %s", e)
+            raise
 
         # Hetzner cloud does not support binary user-data. So here, do a
         # base64 decode of the data if we can. The end result being that a
@@ -110,7 +116,14 @@ class DataSourceHetzner(sources.DataSource):
         migration.
         """
 
-        if self._network_config:
+        if self._network_config is None:
+            LOG.warning(
+                "Found None as cached _network_config. Resetting to %s",
+                sources.UNSET,
+            )
+            self._network_config = sources.UNSET
+
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         _net_config = self.metadata["network-config"]
