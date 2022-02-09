@@ -15,7 +15,7 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from time import sleep, time
-from typing import Optional
+from typing import Any, Dict, Optional
 from xml.dom import minidom
 
 import requests
@@ -1899,7 +1899,7 @@ def read_azure_ovf(contents):
         raise BrokenAzureDataSource("no child nodes of configuration set")
 
     md_props = "seedfrom"
-    md = {"azure_data": {}}
+    md: Dict[str, Any] = {"azure_data": {}}
     cfg = {}
     ud = ""
     password = None
@@ -1934,7 +1934,7 @@ def read_azure_ovf(contents):
         elif name == "userpassword":
             password = value
         elif name == "hostname":
-            md["local-hostname"] = value  # type: ignore
+            md["local-hostname"] = value
         elif name == "dscfg":
             if attrs.get("encoding") in (None, "base64"):
                 dscfg = base64.b64decode("".join(value.split()))
@@ -1947,7 +1947,7 @@ def read_azure_ovf(contents):
             cfg["ssh_pwauth"] = util.is_false(value)
         elif simple:
             if name in md_props:
-                md[name] = value  # type: ignore
+                md[name] = value
             else:
                 md["azure_data"][name] = value
 
