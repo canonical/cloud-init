@@ -371,16 +371,18 @@ def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
             return ret
 
         except Exception as e:
-            exc = e
             if attempt % periodic_logging_attempts == 0:
                 report_diagnostic_event(
                     "Failed HTTP request with Azure endpoint %s during "
                     "attempt %d with exception: %s" % (url, attempt, e),
                     logger_func=LOG.debug,
                 )
-            time.sleep(sleep_duration_between_retries)
+            if attempt == max_readurl_attempts:
+                raise
 
-    raise exc
+        time.sleep(sleep_duration_between_retries)
+
+    raise RuntimeError("Failed to return in http_with_retries")
 
 
 def build_minimal_ovf(
