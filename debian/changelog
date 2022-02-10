@@ -1,4 +1,4 @@
-cloud-init (21.4-119-gdeb3ae82-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (21.4-119-gdeb3ae82-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/cloud-init.templates: Move LXD to back of datasource_list
   * New upstream snapshot.
