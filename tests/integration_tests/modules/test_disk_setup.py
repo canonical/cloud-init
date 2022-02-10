@@ -73,6 +73,14 @@ class TestDeviceAliases:
         assert sdb["children"][0]["mountpoint"] == "/mnt1"
         assert sdb["children"][1]["name"] == "sdb2"
         assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        result = client.execute("mount -a")
+        assert result.return_code == 0
+        assert result.stdout.strip() == ""
+        assert result.stderr.strip() == ""
+        result = client.execute("findmnt -J /mnt1")
+        assert result.return_code == 0
+        result = client.execute("findmnt -J /mnt2")
+        assert result.return_code == 0
 
 
 PARTPROBE_USERDATA = """\
