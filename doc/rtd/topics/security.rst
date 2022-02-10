@@ -2,4 +2,4 @@
 
 .. mdinclude:: ../../../SECURITY.md
 
-.. vi: textwidth=78
+.. vi: textwidth=79

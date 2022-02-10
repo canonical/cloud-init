@@ -8,10 +8,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.distros.parsers.sys_conf import SysConf
-
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.distros.parsers.sys_conf import SysConf
 
 LOG = logging.getLogger(__name__)
 
@@ -48,5 +47,6 @@ def read_sysconfig_file(fn):
     except IOError:
         contents = []
     return (exists, SysConf(contents))
+
 
 # vi: ts=4 expandtab

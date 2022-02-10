@@ -29,4 +29,4 @@ DigitalOcean's datasource can be configured as follows:
 .. _metadata service: https://developers.digitalocean.com/metadata/
 .. _Full documentation: https://developers.digitalocean.com/metadata/
 
-.. vi: textwidth=78
+.. vi: textwidth=79

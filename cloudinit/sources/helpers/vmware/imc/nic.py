@@ -20,7 +20,7 @@ class Nic(NicBase):
         self._configFile = configFile
 
     def _get(self, what):
-        return self._configFile.get(self.name + '|' + what, None)
+        return self._configFile.get(self.name + "|" + what, None)
 
     def _get_count_with_prefix(self, prefix):
         return self._configFile.get_count_with_prefix(self.name + prefix)
@@ -31,29 +31,29 @@ class Nic(NicBase):
 
     @property
     def mac(self):
-        return self._get('MACADDR').lower()
+        return self._get("MACADDR").lower()
 
     @property
     def primary(self):
-        value = self._get('PRIMARY')
+        value = self._get("PRIMARY")
         if value:
             value = value.lower()
-            return value == 'yes' or value == 'true'
+            return value == "yes" or value == "true"
         else:
             return False
 
     @property
     def onboot(self):
-        value = self._get('ONBOOT')
+        value = self._get("ONBOOT")
         if value:
             value = value.lower()
-            return value == 'yes' or value == 'true'
+            return value == "yes" or value == "true"
         else:
             return False
 
     @property
     def bootProto(self):
-        value = self._get('BOOTPROTO')
+        value = self._get("BOOTPROTO")
         if value:
             return value.lower()
         else:
@@ -61,7 +61,7 @@ class Nic(NicBase):
 
     @property
     def ipv4_mode(self):
-        value = self._get('IPv4_MODE')
+        value = self._get("IPv4_MODE")
         if value:
             return value.lower()
         else:
@@ -80,7 +80,7 @@ class Nic(NicBase):
 
     @property
     def staticIpv6(self):
-        cnt = self._get_count_with_prefix('|IPv6ADDR|')
+        cnt = self._get_count_with_prefix("|IPv6ADDR|")
 
         if not cnt:
             return None
@@ -100,17 +100,17 @@ class StaticIpv4Addr(StaticIpv4Base):
 
     @property
     def ip(self):
-        return self._nic._get('IPADDR')
+        return self._nic._get("IPADDR")
 
     @property
     def netmask(self):
-        return self._nic._get('NETMASK')
+        return self._nic._get("NETMASK")
 
     @property
     def gateways(self):
-        value = self._nic._get('GATEWAY')
+        value = self._nic._get("GATEWAY")
         if value:
-            return [x.strip() for x in value.split(',')]
+            return [x.strip() for x in value.split(",")]
         else:
             return None
 
@@ -124,14 +124,15 @@ class StaticIpv6Addr(StaticIpv6Base):
 
     @property
     def ip(self):
-        return self._nic._get('IPv6ADDR|' + str(self._index))
+        return self._nic._get("IPv6ADDR|" + str(self._index))
 
     @property
     def netmask(self):
-        return self._nic._get('IPv6NETMASK|' + str(self._index))
+        return self._nic._get("IPv6NETMASK|" + str(self._index))
 
     @property
     def gateway(self):
-        return self._nic._get('IPv6GATEWAY|' + str(self._index))
+        return self._nic._get("IPv6GATEWAY|" + str(self._index))
+
 
 # vi: ts=4 expandtab

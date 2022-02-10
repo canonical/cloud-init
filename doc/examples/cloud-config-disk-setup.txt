@@ -80,7 +80,7 @@ fs_setup:
 disk_setup:
   ephmeral0:
     table_type: 'mbr'
-    layout: 'auto'
+    layout: true
   /dev/xvdh:
     table_type: 'mbr'
     layout:
@@ -207,7 +207,7 @@ fs_setup:
 #     as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
 #
 #   <PART_VALUE>:
-#     Partition definitions are overwriten if you use the '<DEVICE>.Y' notation.
+#     Partition definitions are overwritten if you use the '<DEVICE>.Y' notation.
 #
 #     The valid options are:
 #     "auto|any": tell cloud-init not to care whether there is a partition
@@ -243,7 +243,7 @@ fs_setup:
 #
 #         In general, if you have a specific partition configuration in mind,
 #         you should define either the device or the partition number. 'auto'
-#         and 'any' are specifically intended for formating ephemeral storage or
+#         and 'any' are specifically intended for formatting ephemeral storage or
 #         for simple schemes.
 #
 #       "none": Put the file system directly on the device.

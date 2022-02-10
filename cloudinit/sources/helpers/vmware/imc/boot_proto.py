@@ -9,7 +9,8 @@
 class BootProtoEnum(object):
     """Specifies the NIC Boot Settings."""
 
-    DHCP = 'dhcp'
-    STATIC = 'static'
+    DHCP = "dhcp"
+    STATIC = "static"
+
 
 # vi: ts=4 expandtab

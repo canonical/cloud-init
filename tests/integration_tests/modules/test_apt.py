@@ -3,11 +3,10 @@ import re
 
 import pytest
 
-from cloudinit.config import cc_apt_configure
 from cloudinit import gpg
+from cloudinit.config import cc_apt_configure
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-
 
 USER_DATA = """\
 #cloud-config
@@ -104,14 +103,15 @@ class TestApt:
         """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
         in human readable format. Mimics the output of apt-key finger
         """
-        list_cmd = ' '.join(gpg.GPG_LIST) + ' '
+        list_cmd = " ".join(gpg.GPG_LIST) + " "
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         print(keys)
         files = class_client.execute(
-            'ls ' + cc_apt_configure.APT_TRUSTED_GPG_DIR)
+            "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
+        )
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
-            keys += class_client.execute(list_cmd + path) or ''
+            keys += class_client.execute(list_cmd + path) or ""
         return keys
 
     def test_sources_list(self, class_client: IntegrationInstance):
@@ -124,8 +124,8 @@ class TestApt:
         (This is ported from
         `tests/cloud_tests/testcases/modules/apt_configure_sources_list.yaml`.)
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert 6 == len(sources_list.rstrip().split('\n'))
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        assert 6 == len(sources_list.rstrip().split("\n"))
 
         for expected_re in EXPECTED_REGEXES:
             assert re.search(expected_re, sources_list) is not None
@@ -136,7 +136,7 @@ class TestApt:
         Ported from tests/cloud_tests/testcases/modules/apt_configure_conf.py
         """
         apt_config = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/94cloud-init-config'
+            "/etc/apt/apt.conf.d/94cloud-init-config"
         )
         assert 'Assume-Yes "true";' in apt_config
         assert 'Fix-Broken "true";' in apt_config
@@ -149,40 +149,43 @@ class TestApt:
         """
         release = ImageSpecification.from_os_image().release
         ppa_path_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/'
-            'simplestreams-dev-ubuntu-trunk-{}.list'.format(release)
+            "/etc/apt/sources.list.d/"
+            "simplestreams-dev-ubuntu-trunk-{}.list".format(release)
         )
 
         assert (
-            'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
-        ) in ppa_path_contents
+            "http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
+            in ppa_path_contents
+        )
 
         assert TEST_PPA_KEY in self.get_keys(class_client)
 
     def test_signed_by(self, class_client: IntegrationInstance):
-        """Test the apt signed-by functionality.
-        """
+        """Test the apt signed-by functionality."""
         release = ImageSpecification.from_os_image().release
         source = (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
             "http://ppa.launchpad.net/juju/stable/ubuntu"
-            " {} main".format(release))
+            " {} main".format(release)
+        )
         path_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/test_signed_by.list')
+            "/etc/apt/sources.list.d/test_signed_by.list"
+        )
         assert path_contents == source
 
         key = class_client.execute(
-            'gpg --no-default-keyring --with-fingerprint --list-keys '
-            '--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg')
+            "gpg --no-default-keyring --with-fingerprint --list-keys "
+            "--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg"
+        )
 
         assert TEST_SIGNED_BY_KEY in key
 
     def test_bad_key(self, class_client: IntegrationInstance):
-        """Test the apt signed-by functionality.
-        """
+        """Test the apt signed-by functionality."""
         with pytest.raises(OSError):
             class_client.read_from_file(
-                '/etc/apt/trusted.list.d/test_bad_key.gpg')
+                "/etc/apt/trusted.list.d/test_bad_key.gpg"
+            )
 
     def test_key(self, class_client: IntegrationInstance):
         """Test the apt key functionality.
@@ -191,12 +194,13 @@ class TestApt:
         tests/cloud_tests/testcases/modules/apt_configure_sources_key.py
         """
         test_archive_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/test_key.list'
+            "/etc/apt/sources.list.d/test_key.list"
         )
 
         assert (
-            'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
-        ) in test_archive_contents
+            "http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu"
+            in test_archive_contents
+        )
         assert TEST_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
@@ -206,12 +210,13 @@ class TestApt:
         tests/cloud_tests/testcases/modules/apt_configure_sources_keyserver.py
         """
         test_keyserver_contents = class_client.read_from_file(
-            '/etc/apt/sources.list.d/test_keyserver.list'
+            "/etc/apt/sources.list.d/test_keyserver.list"
         )
 
         assert (
-            'http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu'
-        ) in test_keyserver_contents
+            "http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu"
+            in test_keyserver_contents
+        )
 
         assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
@@ -221,7 +226,7 @@ class TestApt:
         Ported from tests/cloud_tests/testcases/modules/apt_pipelining_os.py
         """
         conf_exists = class_client.execute(
-            'test -f /etc/apt/apt.conf.d/90cloud-init-pipelining'
+            "test -f /etc/apt/apt.conf.d/90cloud-init-pipelining"
         ).ok
         assert conf_exists is False
 
@@ -237,7 +242,7 @@ apt:
     - arches:
       - default
 """
-DEFAULT_DATA = _DEFAULT_DATA.format(uri='')
+DEFAULT_DATA = _DEFAULT_DATA.format(uri="")
 
 
 @pytest.mark.ubuntu
@@ -249,9 +254,9 @@ class TestDefaults:
 
         When no uri is provided.
         """
-        zone = class_client.execute('cloud-init query v1.availability_zone')
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert '{}.clouds.archive.ubuntu.com'.format(zone) in sources_list
+        zone = class_client.execute("cloud-init query v1.availability_zone")
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        assert "{}.clouds.archive.ubuntu.com".format(zone) in sources_list
 
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources.
@@ -259,12 +264,12 @@ class TestDefaults:
         Ported from
         tests/cloud_tests/testcases/modules/apt_configure_security.py
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
+        sources_list = class_client.read_from_file("/etc/apt/sources.list")
 
         # 3 lines from main, universe, and multiverse
-        assert 3 == sources_list.count('deb http://security.ubuntu.com/ubuntu')
+        assert 3 == sources_list.count("deb http://security.ubuntu.com/ubuntu")
         assert 3 == sources_list.count(
-            '# deb-src http://security.ubuntu.com/ubuntu'
+            "# deb-src http://security.ubuntu.com/ubuntu"
         )
 
 
@@ -280,10 +285,10 @@ def test_default_primary_with_uri(client: IntegrationInstance):
     Ported from
     tests/cloud_tests/testcases/modules/apt_configure_primary.py
     """
-    sources_list = client.read_from_file('/etc/apt/sources.list')
-    assert 'archive.ubuntu.com' not in sources_list
+    sources_list = client.read_from_file("/etc/apt/sources.list")
+    assert "archive.ubuntu.com" not in sources_list
 
-    assert 'something.random.invalid' in sources_list
+    assert "something.random.invalid" in sources_list
 
 
 DISABLED_DATA = """\
@@ -310,7 +315,7 @@ class TestDisabled:
         sources_list = class_client.execute(
             "cat /etc/apt/sources.list | grep -v '^#'"
         ).strip()
-        assert '' == sources_list
+        assert "" == sources_list
 
     def test_disable_apt_pipelining(self, class_client: IntegrationInstance):
         """Test disabling of apt pipelining.
@@ -319,7 +324,7 @@ class TestDisabled:
         tests/cloud_tests/testcases/modules/apt_pipelining_disable.py
         """
         conf = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/90cloud-init-pipelining'
+            "/etc/apt/apt.conf.d/90cloud-init-pipelining"
         )
         assert 'Acquire::http::Pipeline-Depth "0";' in conf
 
@@ -338,8 +343,7 @@ apt:
 @pytest.mark.user_data(APT_PROXY_DATA)
 def test_apt_proxy(client: IntegrationInstance):
     """Test the apt proxy data gets written correctly."""
-    out = client.read_from_file(
-        '/etc/apt/apt.conf.d/90cloud-init-aptproxy')
+    out = client.read_from_file("/etc/apt/apt.conf.d/90cloud-init-aptproxy")
     assert 'Acquire::http::Proxy "http://proxy.internal:3128";' in out
     assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
     assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out

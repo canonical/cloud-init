@@ -2,12 +2,9 @@
 
 import copy
 
+from cloudinit import distros, helpers, sources
 from cloudinit.cs_utils import Cepko
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
-
 from tests.unittests import helpers as test_helpers
 
 SERVER_CONTEXT = {
@@ -28,10 +25,10 @@ SERVER_CONTEXT = {
     "vendor_data": {
         "location": "zrh",
         "cloudinit": "#cloud-config\n\n...",
-    }
+    },
 }
 
-DS_PATH = 'cloudinit.sources.DataSourceCloudSigma.DataSourceCloudSigma'
+DS_PATH = "cloudinit.sources.DataSourceCloudSigma.DataSourceCloudSigma"
 
 
 class CepkoMock(Cepko):
@@ -45,41 +42,48 @@ class CepkoMock(Cepko):
 class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
     def setUp(self):
         super(DataSourceCloudSigmaTest, self).setUp()
-        self.paths = helpers.Paths({'run_dir': self.tmp_dir()})
-        self.add_patch(DS_PATH + '.is_running_in_cloudsigma',
-                       "m_is_container", return_value=True)
+        self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
+        self.add_patch(
+            DS_PATH + ".is_running_in_cloudsigma",
+            "m_is_container",
+            return_value=True,
+        )
 
         distro_cls = distros.fetch("ubuntu")
         distro = distro_cls("ubuntu", cfg={}, paths=self.paths)
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
-            sys_cfg={}, distro=distro, paths=self.paths)
+            sys_cfg={}, distro=distro, paths=self.paths
+        )
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
 
     def test_get_hostname(self):
         self.datasource.get_data()
         self.assertEqual("test_server", self.datasource.get_hostname())
-        self.datasource.metadata['name'] = ''
+        self.datasource.metadata["name"] = ""
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
-        utf8_hostname = b'\xd1\x82\xd0\xb5\xd1\x81\xd1\x82'.decode('utf-8')
-        self.datasource.metadata['name'] = utf8_hostname
+        utf8_hostname = b"\xd1\x82\xd0\xb5\xd1\x81\xd1\x82".decode("utf-8")
+        self.datasource.metadata["name"] = utf8_hostname
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
 
     def test_get_public_ssh_keys(self):
         self.datasource.get_data()
-        self.assertEqual([SERVER_CONTEXT['meta']['ssh_public_key']],
-                         self.datasource.get_public_ssh_keys())
+        self.assertEqual(
+            [SERVER_CONTEXT["meta"]["ssh_public_key"]],
+            self.datasource.get_public_ssh_keys(),
+        )
 
     def test_get_instance_id(self):
         self.datasource.get_data()
-        self.assertEqual(SERVER_CONTEXT['uuid'],
-                         self.datasource.get_instance_id())
+        self.assertEqual(
+            SERVER_CONTEXT["uuid"], self.datasource.get_instance_id()
+        )
 
     def test_platform(self):
         """All platform-related attributes are set."""
         self.datasource.get_data()
-        self.assertEqual(self.datasource.cloud_name, 'cloudsigma')
-        self.assertEqual(self.datasource.platform_type, 'cloudsigma')
-        self.assertEqual(self.datasource.subplatform, 'cepko (/dev/ttyS1)')
+        self.assertEqual(self.datasource.cloud_name, "cloudsigma")
+        self.assertEqual(self.datasource.platform_type, "cloudsigma")
+        self.assertEqual(self.datasource.subplatform, "cepko (/dev/ttyS1)")
 
     def test_metadata(self):
         self.datasource.get_data()
@@ -87,22 +91,26 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
 
     def test_user_data(self):
         self.datasource.get_data()
-        self.assertEqual(self.datasource.userdata_raw,
-                         SERVER_CONTEXT['meta']['cloudinit-user-data'])
+        self.assertEqual(
+            self.datasource.userdata_raw,
+            SERVER_CONTEXT["meta"]["cloudinit-user-data"],
+        )
 
     def test_encoded_user_data(self):
         encoded_context = copy.deepcopy(SERVER_CONTEXT)
-        encoded_context['meta']['base64_fields'] = 'cloudinit-user-data'
-        encoded_context['meta']['cloudinit-user-data'] = 'aGkgd29ybGQK'
+        encoded_context["meta"]["base64_fields"] = "cloudinit-user-data"
+        encoded_context["meta"]["cloudinit-user-data"] = "aGkgd29ybGQK"
         self.datasource.cepko = CepkoMock(encoded_context)
         self.datasource.get_data()
 
-        self.assertEqual(self.datasource.userdata_raw, b'hi world\n')
+        self.assertEqual(self.datasource.userdata_raw, b"hi world\n")
 
     def test_vendor_data(self):
         self.datasource.get_data()
-        self.assertEqual(self.datasource.vendordata_raw,
-                         SERVER_CONTEXT['vendor_data']['cloudinit'])
+        self.assertEqual(
+            self.datasource.vendordata_raw,
+            SERVER_CONTEXT["vendor_data"]["cloudinit"],
+        )
 
     def test_lack_of_vendor_data(self):
         stripped_context = copy.deepcopy(SERVER_CONTEXT)
@@ -125,13 +133,13 @@ class DsLoads(test_helpers.TestCase):
     def test_get_datasource_list_returns_in_local(self):
         deps = (sources.DEP_FILESYSTEM,)
         ds_list = DataSourceCloudSigma.get_datasource_list(deps)
-        self.assertEqual(ds_list,
-                         [DataSourceCloudSigma.DataSourceCloudSigma])
+        self.assertEqual(ds_list, [DataSourceCloudSigma.DataSourceCloudSigma])
 
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ['CloudSigma'], (sources.DEP_FILESYSTEM,), ['cloudinit.sources'])
-        self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma],
-                         found)
+            ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
+        )
+        self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)
+
 
 # vi: ts=4 expandtab

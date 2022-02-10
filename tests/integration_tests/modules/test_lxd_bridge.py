@@ -8,7 +8,6 @@ import yaml
 
 from tests.integration_tests.util import verify_clean_log
 
-
 USER_DATA = """\
 #cloud-config
 lxd:
@@ -29,14 +28,11 @@ lxd:
 @pytest.mark.no_container
 @pytest.mark.user_data(USER_DATA)
 class TestLxdBridge:
-
     @pytest.mark.parametrize("binary_name", ["lxc", "lxd"])
     def test_binaries_installed(self, class_client, binary_name):
         """Check that the expected LXD binaries are installed"""
         assert class_client.execute(["which", binary_name]).ok
 
-    @pytest.mark.not_xenial
-    @pytest.mark.sru_2020_11
     def test_bridge(self, class_client):
         """Check that the given bridge is configured"""
         cloud_init_log = class_client.read_from_file("/var/log/cloud-init.log")

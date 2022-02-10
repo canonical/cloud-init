@@ -4,12 +4,14 @@ import os
 import stat
 from unittest.mock import patch
 
+from cloudinit import helpers, subp, util
 from cloudinit.config.cc_runcmd import handle, schema
-from cloudinit import (helpers, subp, util)
 from tests.unittests.helpers import (
-    CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
-    skipUnlessJsonSchema)
-
+    CiTestCase,
+    FilesystemMockingTestCase,
+    SchemaTestCaseMixin,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -24,38 +26,40 @@ class TestRuncmd(FilesystemMockingTestCase):
         self.subp = subp.subp
         self.new_root = self.tmp_dir()
         self.patchUtils(self.new_root)
-        self.paths = helpers.Paths({'scripts': self.new_root})
+        self.paths = helpers.Paths({"scripts": self.new_root})
 
     def test_handler_skip_if_no_runcmd(self):
         """When the provided config doesn't contain runcmd, skip it."""
         cfg = {}
         mycloud = get_cloud(paths=self.paths)
-        handle('notimportant', cfg, mycloud, LOG, None)
+        handle("notimportant", cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'runcmd' key",
-            self.logs.getvalue())
+            self.logs.getvalue(),
+        )
 
-    @patch('cloudinit.util.shellify')
+    @patch("cloudinit.util.shellify")
     def test_runcmd_shellify_fails(self, cls):
         """When shellify fails throw exception"""
         cls.side_effect = TypeError("patched shellify")
-        valid_config = {'runcmd': ['echo 42']}
+        valid_config = {"runcmd": ["echo 42"]}
         cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
-            with self.allow_subp(['/bin/sh']):
-                handle('cc_runcmd', valid_config, cc, LOG, None)
+            with self.allow_subp(["/bin/sh"]):
+                handle("cc_runcmd", valid_config, cc, LOG, None)
         self.assertIn("Failed to shellify", str(cm.exception))
 
     def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
-        invalid_config = {'runcmd': 1}
+        invalid_config = {"runcmd": 1}
         cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
-            handle('cc_runcmd', invalid_config, cc, LOG, [])
+            handle("cc_runcmd", invalid_config, cc, LOG, [])
         self.assertIn(
-            'Failed to shellify 1 into file'
-            ' /var/lib/cloud/instances/iid-datasource-none/scripts/runcmd',
-            str(cm.exception))
+            "Failed to shellify 1 into file"
+            " /var/lib/cloud/instances/iid-datasource-none/scripts/runcmd",
+            str(cm.exception),
+        )
 
     @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_type(self):
@@ -64,14 +68,15 @@ class TestRuncmd(FilesystemMockingTestCase):
         Schema validation is not strict, so runcmd attempts to shellify the
         invalid content.
         """
-        invalid_config = {'runcmd': 1}
+        invalid_config = {"runcmd": 1}
         cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
-            handle('cc_runcmd', invalid_config, cc, LOG, [])
+            handle("cc_runcmd", invalid_config, cc, LOG, [])
         self.assertIn(
-            'Invalid config:\nruncmd: 1 is not of type \'array\'',
-            self.logs.getvalue())
-        self.assertIn('Failed to shellify', str(cm.exception))
+            "Invalid cloud-config provided:\nruncmd: 1 is not of type 'array'",
+            self.logs.getvalue(),
+        )
+        self.assertIn("Failed to shellify", str(cm.exception))
 
     @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_item_type(self):
@@ -81,28 +86,29 @@ class TestRuncmd(FilesystemMockingTestCase):
         invalid content.
         """
         invalid_config = {
-            'runcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
+            "runcmd": ["ls /", 20, ["wget", "http://stuff/blah"], {"a": "n"}]
+        }
         cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
-            handle('cc_runcmd', invalid_config, cc, LOG, [])
+            handle("cc_runcmd", invalid_config, cc, LOG, [])
         expected_warnings = [
-            'runcmd.1: 20 is not valid under any of the given schemas',
-            'runcmd.3: {\'a\': \'n\'} is not valid under any of the given'
-            ' schema'
+            "runcmd.1: 20 is not valid under any of the given schemas",
+            "runcmd.3: {'a': 'n'} is not valid under any of the given schema",
         ]
         logs = self.logs.getvalue()
         for warning in expected_warnings:
             self.assertIn(warning, logs)
-        self.assertIn('Failed to shellify', str(cm.exception))
+        self.assertIn("Failed to shellify", str(cm.exception))
 
     def test_handler_write_valid_runcmd_schema_to_file(self):
         """Valid runcmd schema is written to a runcmd shell script."""
-        valid_config = {'runcmd': [['ls', '/']]}
+        valid_config = {"runcmd": [["ls", "/"]]}
         cc = get_cloud(paths=self.paths)
-        handle('cc_runcmd', valid_config, cc, LOG, [])
+        handle("cc_runcmd", valid_config, cc, LOG, [])
         runcmd_file = os.path.join(
             self.new_root,
-            'var/lib/cloud/instances/iid-datasource-none/scripts/runcmd')
+            "var/lib/cloud/instances/iid-datasource-none/scripts/runcmd",
+        )
         self.assertEqual("#!/bin/sh\n'ls' '/'\n", util.load_file(runcmd_file))
         file_stat = os.stat(runcmd_file)
         self.assertEqual(0o700, stat.S_IMODE(file_stat.st_mode))
@@ -118,12 +124,14 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
         """Duplicated commands array/array entries are allowed."""
         self.assertSchemaValid(
             [["echo", "bye"], ["echo", "bye"]],
-            "command entries can be duplicate.")
+            "command entries can be duplicate.",
+        )
 
     def test_duplicates_are_fine_array_string(self):
         """Duplicated commands array/string entries are allowed."""
         self.assertSchemaValid(
-            ["echo bye", "echo bye"],
-            "command entries can be duplicate.")
+            ["echo bye", "echo bye"], "command entries can be duplicate."
+        )
+
 
 # vi: ts=4 expandtab

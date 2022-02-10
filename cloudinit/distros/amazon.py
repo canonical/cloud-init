@@ -14,7 +14,6 @@ from cloudinit.distros import rhel
 
 
 class Distro(rhel.Distro):
-
     def update_package_sources(self):
         return None
 

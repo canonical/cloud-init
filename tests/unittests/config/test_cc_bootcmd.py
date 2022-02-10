@@ -1,12 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 import tempfile
 
-from cloudinit.config.cc_bootcmd import handle, schema
-from cloudinit import (subp, util)
-from tests.unittests.helpers import (
-    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
+import pytest
 
+from cloudinit import subp, util
+from cloudinit.config.cc_bootcmd import handle
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -16,7 +22,8 @@ class FakeExtendedTempFile(object):
     def __init__(self, suffix):
         self.suffix = suffix
         self.handle = tempfile.NamedTemporaryFile(
-            prefix="ci-%s." % self.__class__.__name__, delete=False)
+            prefix="ci-%s." % self.__class__.__name__, delete=False
+        )
 
     def __enter__(self):
         return self.handle
@@ -30,8 +37,9 @@ class TestBootcmd(CiTestCase):
 
     with_logs = True
 
-    _etmpfile_path = ('cloudinit.config.cc_bootcmd.temp_utils.'
-                      'ExtendedTemporaryFile')
+    _etmpfile_path = (
+        "cloudinit.config.cc_bootcmd.temp_utils.ExtendedTemporaryFile"
+    )
 
     def setUp(self):
         super(TestBootcmd, self).setUp()
@@ -42,111 +50,116 @@ class TestBootcmd(CiTestCase):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
         mycloud = get_cloud()
-        handle('notimportant', cfg, mycloud, LOG, None)
+        handle("notimportant", cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'bootcmd' key",
-            self.logs.getvalue())
+            self.logs.getvalue(),
+        )
 
     def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
-        invalid_config = {'bootcmd': 1}
+        invalid_config = {"bootcmd": 1}
         cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
-            handle('cc_bootcmd', invalid_config, cc, LOG, [])
-        self.assertIn('Failed to shellify bootcmd', self.logs.getvalue())
+            handle("cc_bootcmd", invalid_config, cc, LOG, [])
+        self.assertIn("Failed to shellify bootcmd", self.logs.getvalue())
         self.assertEqual(
             "Input to shellify was type 'int'. Expected list or tuple.",
-            str(context_manager.exception))
+            str(context_manager.exception),
+        )
 
-    @skipUnlessJsonSchema()
-    def test_handler_schema_validation_warns_non_array_type(self):
-        """Schema validation warns of non-array type for bootcmd key.
-
-        Schema validation is not strict, so bootcmd attempts to shellify the
-        invalid content.
-        """
-        invalid_config = {'bootcmd': 1}
-        cc = get_cloud()
-        with self.assertRaises(TypeError):
-            handle('cc_bootcmd', invalid_config, cc, LOG, [])
-        self.assertIn(
-            'Invalid config:\nbootcmd: 1 is not of type \'array\'',
-            self.logs.getvalue())
-        self.assertIn('Failed to shellify', self.logs.getvalue())
-
-    @skipUnlessJsonSchema()
-    def test_handler_schema_validation_warns_non_array_item_type(self):
-        """Schema validation warns of non-array or string bootcmd items.
-
-        Schema validation is not strict, so bootcmd attempts to shellify the
-        invalid content.
-        """
         invalid_config = {
-            'bootcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
+            "bootcmd": ["ls /", 20, ["wget", "http://stuff/blah"], {"a": "n"}]
+        }
         cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
-            handle('cc_bootcmd', invalid_config, cc, LOG, [])
-        expected_warnings = [
-            'bootcmd.1: 20 is not valid under any of the given schemas',
-            'bootcmd.3: {\'a\': \'n\'} is not valid under any of the given'
-            ' schema'
-        ]
+            handle("cc_bootcmd", invalid_config, cc, LOG, [])
         logs = self.logs.getvalue()
-        for warning in expected_warnings:
-            self.assertIn(warning, logs)
-        self.assertIn('Failed to shellify', logs)
+        self.assertIn("Failed to shellify", logs)
         self.assertEqual(
-            ("Unable to shellify type 'int'. Expected list, string, tuple. "
-             "Got: 20"),
-            str(context_manager.exception))
+            "Unable to shellify type 'int'. Expected list, string, tuple. "
+            "Got: 20",
+            str(context_manager.exception),
+        )
 
     def test_handler_creates_and_runs_bootcmd_script_with_instance_id(self):
         """Valid schema runs a bootcmd script with INSTANCE_ID in the env."""
         cc = get_cloud()
-        out_file = self.tmp_path('bootcmd.out', self.new_root)
+        out_file = self.tmp_path("bootcmd.out", self.new_root)
         my_id = "b6ea0f59-e27d-49c6-9f87-79f19765a425"
-        valid_config = {'bootcmd': [
-            'echo {0} $INSTANCE_ID > {1}'.format(my_id, out_file)]}
+        valid_config = {
+            "bootcmd": ["echo {0} $INSTANCE_ID > {1}".format(my_id, out_file)]
+        }
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            with self.allow_subp(['/bin/sh']):
-                handle('cc_bootcmd', valid_config, cc, LOG, [])
-        self.assertEqual(my_id + ' iid-datasource-none\n',
-                         util.load_file(out_file))
+            with self.allow_subp(["/bin/sh"]):
+                handle("cc_bootcmd", valid_config, cc, LOG, [])
+        self.assertEqual(
+            my_id + " iid-datasource-none\n", util.load_file(out_file)
+        )
 
     def test_handler_runs_bootcmd_script_with_error(self):
         """When a valid script generates an error, that error is raised."""
         cc = get_cloud()
-        valid_config = {'bootcmd': ['exit 1']}  # Script with error
+        valid_config = {"bootcmd": ["exit 1"]}  # Script with error
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            with self.allow_subp(['/bin/sh']):
+            with self.allow_subp(["/bin/sh"]):
                 with self.assertRaises(subp.ProcessExecutionError) as ctxt:
-                    handle('does-not-matter', valid_config, cc, LOG, [])
+                    handle("does-not-matter", valid_config, cc, LOG, [])
         self.assertIn(
-            'Unexpected error while running command.\n'
-            "Command: ['/bin/sh',",
-            str(ctxt.exception))
+            "Unexpected error while running command.\nCommand: ['/bin/sh',",
+            str(ctxt.exception),
+        )
         self.assertIn(
-            'Failed to run bootcmd module does-not-matter',
-            self.logs.getvalue())
+            "Failed to run bootcmd module does-not-matter",
+            self.logs.getvalue(),
+        )
 
 
 @skipUnlessJsonSchema()
-class TestSchema(CiTestCase, SchemaTestCaseMixin):
+class TestBootCMDSchema:
     """Directly test schema rather than through handle."""
 
-    schema = schema
-
-    def test_duplicates_are_fine_array_array(self):
-        """Duplicated commands array/array entries are allowed."""
-        self.assertSchemaValid(
-            ["byebye", "byebye"], 'command entries can be duplicate')
-
-    def test_duplicates_are_fine_array_string(self):
-        """Duplicated commands array/string entries are allowed."""
-        self.assertSchemaValid(
-            ["echo bye", "echo bye"], "command entries can be duplicate.")
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas tested by meta.examples in test_schema
+            # Invalid schemas
+            (
+                {"bootcmd": 1},
+                "Cloud config schema errors: bootcmd: 1 is not of type"
+                " 'array'",
+            ),
+            ({"bootcmd": []}, re.escape("bootcmd: [] is too short")),
+            (
+                {"bootcmd": []},
+                re.escape(
+                    "Cloud config schema errors: bootcmd: [] is too short"
+                ),
+            ),
+            (
+                {
+                    "bootcmd": [
+                        "ls /",
+                        20,
+                        ["wget", "http://stuff/blah"],
+                        {"a": "n"},
+                    ]
+                },
+                "Cloud config schema errors: bootcmd.1: 20 is not valid under"
+                " any of the given schemas, bootcmd.3: {'a': 'n'} is not"
+                " valid under any of the given schemas",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab

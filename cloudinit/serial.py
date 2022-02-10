@@ -16,22 +16,31 @@ except ImportError:
 
         @staticmethod
         def write(data):
-            raise IOError("Unable to perform serial `write` operation,"
-                          " pyserial not installed.")
+            raise IOError(
+                "Unable to perform serial `write` operation,"
+                " pyserial not installed."
+            )
 
         @staticmethod
         def readline():
-            raise IOError("Unable to perform serial `readline` operation,"
-                          " pyserial not installed.")
+            raise IOError(
+                "Unable to perform serial `readline` operation,"
+                " pyserial not installed."
+            )
 
         @staticmethod
         def flush():
-            raise IOError("Unable to perform serial `flush` operation,"
-                          " pyserial not installed.")
+            raise IOError(
+                "Unable to perform serial `flush` operation,"
+                " pyserial not installed."
+            )
 
         @staticmethod
         def read(size=1):
-            raise IOError("Unable to perform serial `read` operation,"
-                          " pyserial not installed.")
+            raise IOError(
+                "Unable to perform serial `read` operation,"
+                " pyserial not installed."
+            )
+
 
 # vi: ts=4 expandtab

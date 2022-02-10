@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 
-from distutils.util import strtobool
+from cloudinit.util import is_false, is_true
 
 ##################################################################
 # LAUNCH SETTINGS
@@ -22,7 +22,7 @@ RUN_UNSTABLE = False
 #  gce
 #  oci
 #  openstack
-PLATFORM = 'lxd_container'
+PLATFORM = "lxd_container"
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
 # If the pycloudlib instance provides a default, this can be left None
@@ -34,7 +34,7 @@ INSTANCE_TYPE = None
 # <image_id>[::<os>[::<release>]].  If given, os and release should describe
 # the image specified by image_id.  (Ubuntu releases are converted to this
 # format internally; in this case, to "focal::ubuntu::focal".)
-OS_IMAGE = 'focal'
+OS_IMAGE = "focal"
 
 # Populate if you want to use a pre-launched instance instead of
 # creating a new one. The exact contents will be platform dependent
@@ -66,7 +66,7 @@ EXISTING_INSTANCE_ID = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-CLOUD_INIT_SOURCE = 'NONE'
+CLOUD_INIT_SOURCE = "NONE"
 
 # Before an instance is torn down, we run `cloud-init collect-logs`
 # and transfer them locally. These settings specify when to collect these
@@ -75,34 +75,8 @@ CLOUD_INIT_SOURCE = 'NONE'
 #   'ALWAYS'
 #   'ON_ERROR'
 #   'NEVER'
-COLLECT_LOGS = 'ON_ERROR'
-LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
-
-##################################################################
-# SSH KEY SETTINGS
-##################################################################
-
-# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
-# default behaviour, using ~/.ssh/id_rsa.pub.)
-PUBLIC_SSH_KEY = None
-
-# For clouds which use named keypairs for SSH connection, the name that is used
-# for the keypair.  (Defaults to pycloudlib's default behaviour.)
-KEYPAIR_NAME = None
-
-##################################################################
-# OPENSTACK SETTINGS
-##################################################################
-# Network to use for Openstack. Should be one of the names/ids found
-# in `openstack network list`
-OPENSTACK_NETWORK = None
-
-##################################################################
-# OCI SETTINGS
-##################################################################
-# Availability domain to use for Oracle. Should be one of the namess found
-# in `oci iam availability-domain list`
-ORACLE_AVAILABILITY_DOMAIN = None
+COLLECT_LOGS = "ON_ERROR"
+LOCAL_LOG_PATH = "/tmp/cloud_init_test_logs"
 
 ##################################################################
 # USER SETTINGS OVERRIDES
@@ -124,11 +98,12 @@ except ImportError:
 current_settings = [var for var in locals() if var.isupper()]
 for setting in current_settings:
     env_setting = os.getenv(
-        'CLOUD_INIT_{}'.format(setting), globals()[setting]
+        "CLOUD_INIT_{}".format(setting), globals()[setting]
     )
     if isinstance(env_setting, str):
-        try:
-            env_setting = bool(strtobool(env_setting.strip()))
-        except ValueError:
-            pass
+        env_setting = env_setting.strip()
+        if is_true(env_setting):
+            env_setting = True
+        elif is_false(env_setting):
+            env_setting = False
     globals()[setting] = env_setting

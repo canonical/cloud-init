@@ -6,6 +6,15 @@ cloud-id \- Report the canonical cloud-id for this instance
 .SH SYNOPSIS
 .BR "cloud-id" " [-h] [-j] [-l] [-i <INSTANCE_DATA>]"
 
+.SH DESCRIPTION
+cloud-id is the lowercase name of the cloud datasource discovered.
+
+The cloud-id will be 'not run' when systemd generator has not run yet.
+The cloud-id will be 'disabled' when cloud-init is disabled or when
+ds-identify did not find a valid datasource.
+
+See cloud-init status --long for more information.
+
 .SH OPTIONS
 .TP
 .B "-h, --help"
@@ -23,6 +32,20 @@ Report extended cloud-id information as tab-delimited string
 .BR "-i <data>, --instance-data <data>"
 Path to instance-data.json file. Default is
 /run/cloud-init/instance-data.json
+
+.SH EXIT STATUS
+.TP
+0
+On success
+.TP
+1
+Due to an error
+.TP
+2
+Due to cloud-init in a disabled state. See: cloud-init status --long
+.TP
+3
+The cloud-init generator and discovery has not yet run.
 
 .SH COPYRIGHT
 Copyright (C) 2021 Canonical Ltd. License GPL-3 or Apache-2.0

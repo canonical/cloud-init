@@ -42,7 +42,7 @@ def _tempfile_dir_arg(odir=None, needs_exe=False):
     if os.getuid() == 0:
         tdir = _ROOT_TMPDIR
     else:
-        tdir = os.environ.get('TMPDIR', '/tmp')
+        tdir = os.environ.get("TMPDIR", "/tmp")
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
         os.chmod(tdir, 0o1777)
@@ -52,8 +52,9 @@ def _tempfile_dir_arg(odir=None, needs_exe=False):
 
 
 def ExtendedTemporaryFile(**kwargs):
-    kwargs['dir'] = _tempfile_dir_arg(
-        kwargs.pop('dir', None), kwargs.pop('needs_exe', False))
+    kwargs["dir"] = _tempfile_dir_arg(
+        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
+    )
     fh = tempfile.NamedTemporaryFile(**kwargs)
     # Replace its unlink with a quiet version
     # that does not raise errors when the
@@ -76,7 +77,7 @@ def ExtendedTemporaryFile(**kwargs):
     def unlink_now():
         fh.unlink(fh.name)
 
-    setattr(fh, 'unlink_now', unlink_now)
+    setattr(fh, "unlink_now", unlink_now)
     return fh
 
 
@@ -93,14 +94,17 @@ def tempdir(rmtree_ignore_errors=False, **kwargs):
 
 
 def mkdtemp(**kwargs):
-    kwargs['dir'] = _tempfile_dir_arg(
-        kwargs.pop('dir', None), kwargs.pop('needs_exe', False))
+    kwargs["dir"] = _tempfile_dir_arg(
+        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
+    )
     return tempfile.mkdtemp(**kwargs)
 
 
 def mkstemp(**kwargs):
-    kwargs['dir'] = _tempfile_dir_arg(
-        kwargs.pop('dir', None), kwargs.pop('needs_exe', False))
+    kwargs["dir"] = _tempfile_dir_arg(
+        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
+    )
     return tempfile.mkstemp(**kwargs)
+
 
 # vi: ts=4 expandtab

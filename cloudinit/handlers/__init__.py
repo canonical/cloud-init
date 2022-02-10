@@ -13,9 +13,8 @@ import os
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import type_utils
-from cloudinit import util
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
+from cloudinit import type_utils, util
+from cloudinit.settings import FREQUENCIES, PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ LOG = logging.getLogger(__name__)
 NOT_MULTIPART_TYPE = "text/x-not-multipart"
 
 # When none is assigned this gets used
-OCTET_TYPE = 'application/octet-stream'
+OCTET_TYPE = "application/octet-stream"
 
 # Special content types that signal the start and end of processing
 CONTENT_END = "__end__"
@@ -34,32 +33,39 @@ CONTENT_SIGNALS = [CONTENT_START, CONTENT_END]
 # Used when a part-handler type is encountered
 # to allow for registration of new types.
 PART_CONTENT_TYPES = ["text/part-handler"]
-PART_HANDLER_FN_TMPL = 'part-handler-%03d'
+PART_HANDLER_FN_TMPL = "part-handler-%03d"
 
 # For parts without filenames
-PART_FN_TPL = 'part-%03d'
+PART_FN_TPL = "part-%03d"
 
 # Different file beginnings to their content type
 INCLUSION_TYPES_MAP = {
-    '#include': 'text/x-include-url',
-    '#include-once': 'text/x-include-once-url',
-    '#!': 'text/x-shellscript',
-    '#cloud-config': 'text/cloud-config',
-    '#upstart-job': 'text/upstart-job',
-    '#part-handler': 'text/part-handler',
-    '#cloud-boothook': 'text/cloud-boothook',
-    '#cloud-config-archive': 'text/cloud-config-archive',
-    '#cloud-config-jsonp': 'text/cloud-config-jsonp',
-    '## template: jinja': 'text/jinja2',
+    "#include": "text/x-include-url",
+    "#include-once": "text/x-include-once-url",
+    "#!": "text/x-shellscript",
+    "#cloud-config": "text/cloud-config",
+    "#upstart-job": "text/upstart-job",
+    "#part-handler": "text/part-handler",
+    "#cloud-boothook": "text/cloud-boothook",
+    "#cloud-config-archive": "text/cloud-config-archive",
+    "#cloud-config-jsonp": "text/cloud-config-jsonp",
+    "## template: jinja": "text/jinja2",
+    # Note: for the next 3 entries, the prefix doesn't matter because these
+    # are for types that can only be used as part of a MIME message. However,
+    # including these entries supresses warnings during `cloudinit devel
+    # make-mime`, which otherwise would require `--force`.
+    "text/x-shellscript-per-boot": "text/x-shellscript-per-boot",
+    "text/x-shellscript-per-instance": "text/x-shellscript-per-instance",
+    "text/x-shellscript-per-once": "text/x-shellscript-per-once",
 }
 
 # Sorted longest first
-INCLUSION_SRCH = sorted(list(INCLUSION_TYPES_MAP.keys()),
-                        key=(lambda e: 0 - len(e)))
+INCLUSION_SRCH = sorted(
+    list(INCLUSION_TYPES_MAP.keys()), key=(lambda e: 0 - len(e))
+)
 
 
 class Handler(metaclass=abc.ABCMeta):
-
     def __init__(self, frequency, version=2):
         self.handler_version = version
         self.frequency = frequency
@@ -69,11 +75,13 @@ class Handler(metaclass=abc.ABCMeta):
 
     def list_types(self):
         # Each subclass must define the supported content prefixes it handles.
-        if not hasattr(self, 'prefixes'):
-            raise NotImplementedError('Missing prefixes subclass attribute')
+        if not hasattr(self, "prefixes"):
+            raise NotImplementedError("Missing prefixes subclass attribute")
         else:
-            return [INCLUSION_TYPES_MAP[prefix]
-                    for prefix in getattr(self, 'prefixes')]
+            return [
+                INCLUSION_TYPES_MAP[prefix]
+                for prefix in getattr(self, "prefixes")
+            ]
 
     @abc.abstractmethod
     def handle_part(self, *args, **kwargs):
@@ -82,8 +90,10 @@ class Handler(metaclass=abc.ABCMeta):
 
 def run_part(mod, data, filename, payload, frequency, headers):
     mod_freq = mod.frequency
-    if not (mod_freq == PER_ALWAYS or
-            (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)):
+    if not (
+        mod_freq == PER_ALWAYS
+        or (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)
+    ):
         return
     # Sanity checks on version (should be an int convertable)
     try:
@@ -91,33 +101,45 @@ def run_part(mod, data, filename, payload, frequency, headers):
         mod_ver = int(mod_ver)
     except (TypeError, ValueError, AttributeError):
         mod_ver = 1
-    content_type = headers['Content-Type']
+    content_type = headers["Content-Type"]
     try:
-        LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s",
-                  mod, content_type, filename, mod_ver, frequency)
+        LOG.debug(
+            "Calling handler %s (%s, %s, %s) with frequency %s",
+            mod,
+            content_type,
+            filename,
+            mod_ver,
+            frequency,
+        )
         if mod_ver == 3:
             # Treat as v. 3 which does get a frequency + headers
-            mod.handle_part(data, content_type, filename,
-                            payload, frequency, headers)
+            mod.handle_part(
+                data, content_type, filename, payload, frequency, headers
+            )
         elif mod_ver == 2:
             # Treat as v. 2 which does get a frequency
-            mod.handle_part(data, content_type, filename,
-                            payload, frequency)
+            mod.handle_part(data, content_type, filename, payload, frequency)
         elif mod_ver == 1:
             # Treat as v. 1 which gets no frequency
             mod.handle_part(data, content_type, filename, payload)
         else:
             raise ValueError("Unknown module version %s" % (mod_ver))
     except Exception:
-        util.logexc(LOG, "Failed calling handler %s (%s, %s, %s) with "
-                    "frequency %s", mod, content_type, filename, mod_ver,
-                    frequency)
+        util.logexc(
+            LOG,
+            "Failed calling handler %s (%s, %s, %s) with frequency %s",
+            mod,
+            content_type,
+            filename,
+            mod_ver,
+            frequency,
+        )
 
 
 def call_begin(mod, data, frequency):
     # Create a fake header set
     headers = {
-        'Content-Type': CONTENT_START,
+        "Content-Type": CONTENT_START,
     }
     run_part(mod, data, None, None, frequency, headers)
 
@@ -125,31 +147,35 @@ def call_begin(mod, data, frequency):
 def call_end(mod, data, frequency):
     # Create a fake header set
     headers = {
-        'Content-Type': CONTENT_END,
+        "Content-Type": CONTENT_END,
     }
     run_part(mod, data, None, None, frequency, headers)
 
 
 def walker_handle_handler(pdata, _ctype, _filename, payload):
-    curcount = pdata['handlercount']
+    curcount = pdata["handlercount"]
     modname = PART_HANDLER_FN_TMPL % (curcount)
-    frequency = pdata['frequency']
-    modfname = os.path.join(pdata['handlerdir'], "%s" % (modname))
+    frequency = pdata["frequency"]
+    modfname = os.path.join(pdata["handlerdir"], "%s" % (modname))
     if not modfname.endswith(".py"):
         modfname = "%s.py" % (modfname)
     # TODO(harlowja): Check if path exists??
     util.write_file(modfname, payload, 0o600)
-    handlers = pdata['handlers']
+    handlers = pdata["handlers"]
     try:
         mod = fixup_handler(importer.import_module(modname))
-        call_begin(mod, pdata['data'], frequency)
+        call_begin(mod, pdata["data"], frequency)
         # Only register and increment after the above have worked, so we don't
         # register if it fails starting.
         handlers.register(mod, initialized=True)
-        pdata['handlercount'] = curcount + 1
+        pdata["handlercount"] = curcount + 1
     except Exception:
-        util.logexc(LOG, "Failed at registering python file: %s (part "
-                    "handler %s)", modfname, curcount)
+        util.logexc(
+            LOG,
+            "Failed at registering python file: %s (part handler %s)",
+            modfname,
+            curcount,
+        )
 
 
 def _extract_first_or_bytes(blob, size):
@@ -161,7 +187,7 @@ def _extract_first_or_bytes(blob, size):
         else:
             # We want to avoid decoding the whole blob (it might be huge)
             # By taking 4*size bytes we guarantee to decode size utf8 chars
-            start = blob[:4 * size].decode(errors='ignore').split("\n", 1)[0]
+            start = blob[: 4 * size].decode(errors="ignore").split("\n", 1)[0]
         if len(start) >= size:
             start = start[:size]
     except UnicodeDecodeError:
@@ -176,7 +202,7 @@ def _escape_string(text):
     except (LookupError, TypeError):
         try:
             # Unicode (and Python 3's str) doesn't support string_escape...
-            return text.encode('unicode_escape')
+            return text.encode("unicode_escape")
         except TypeError:
             # Give up...
             pass
@@ -189,28 +215,40 @@ def _escape_string(text):
 
 
 def walker_callback(data, filename, payload, headers):
-    content_type = headers['Content-Type']
-    if content_type in data.get('excluded'):
+    content_type = headers["Content-Type"]
+    if content_type in data.get("excluded"):
         LOG.debug('content_type "%s" is excluded', content_type)
         return
 
     if content_type in PART_CONTENT_TYPES:
         walker_handle_handler(data, content_type, filename, payload)
         return
-    handlers = data['handlers']
+    handlers = data["handlers"]
     if content_type in handlers:
-        run_part(handlers[content_type], data['data'], filename,
-                 payload, data['frequency'], headers)
+        run_part(
+            handlers[content_type],
+            data["data"],
+            filename,
+            payload,
+            data["frequency"],
+            headers,
+        )
     elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
         details = "'%s...'" % (_escape_string(start))
         if content_type == NOT_MULTIPART_TYPE:
-            LOG.warning("Unhandled non-multipart (%s) userdata: %s",
-                        content_type, details)
+            LOG.warning(
+                "Unhandled non-multipart (%s) userdata: %s",
+                content_type,
+                details,
+            )
         else:
-            LOG.warning("Unhandled unknown content-type (%s) userdata: %s",
-                        content_type, details)
+            LOG.warning(
+                "Unhandled unknown content-type (%s) userdata: %s",
+                content_type,
+                details,
+            )
     else:
         LOG.debug("Empty payload of type %s", content_type)
 
@@ -221,7 +259,7 @@ def walk(msg, callback, data):
     partnum = 0
     for part in msg.walk():
         # multipart/* are just containers
-        if part.get_content_maintype() == 'multipart':
+        if part.get_content_maintype() == "multipart":
             continue
 
         ctype = part.get_content_type()
@@ -234,7 +272,7 @@ def walk(msg, callback, data):
 
         headers = dict(part)
         LOG.debug(headers)
-        headers['Content-Type'] = ctype
+        headers["Content-Type"] = ctype
         payload = util.fully_decoded_payload(part)
         callback(data, filename, payload, headers)
         partnum = partnum + 1
@@ -243,8 +281,8 @@ def walk(msg, callback, data):
 def fixup_handler(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, "handler_version"):
         setattr(mod, "handler_version", 1)
-    if not hasattr(mod, 'frequency'):
-        setattr(mod, 'frequency', def_freq)
+    if not hasattr(mod, "frequency"):
+        setattr(mod, "frequency", def_freq)
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
@@ -262,5 +300,6 @@ def type_from_starts_with(payload, default=None):
         if payload_lc.startswith(text):
             return INCLUSION_TYPES_MAP[text]
     return default
+
 
 # vi: ts=4 expandtab

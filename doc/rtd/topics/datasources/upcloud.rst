@@ -21,4 +21,4 @@ immutable during server's lifetime and can be removed by deleting the server.
 .. _UpCloud: https://upcloud.com/
 .. _metadata service: https://upcloud.com/community/tutorials/upcloud-metadata-service/
 
-.. vi: textwidth=78
+.. vi: textwidth=79

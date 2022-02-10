@@ -30,7 +30,7 @@ deployed with cloud-init:
 
 * simple static object to query to obtain a instance's metadata
 * speed: avoid costly network transactions for metadata that is already cached
-  on the filesytem
+  on the filesystem
 * reduce need to recrawl metadata services for static metadata that is already
   cached
 * leverage cloud-init's best practices for crawling cloud-metadata services
@@ -180,7 +180,7 @@ Example output:
 
 v1.platform
 -------------
-An attempt to identify the cloud platfrom instance that the system is running
+An attempt to identify the cloud platform instance that the system is running
 on.
 
 Examples output:
@@ -655,4 +655,4 @@ see only redacted values.
   instance booted on your favorite cloud. See :ref:`cli_devel` for more
   information.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

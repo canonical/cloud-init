@@ -8,11 +8,10 @@ import base64
 import datetime
 import json
 import os
-import time
 import sys
+import time
 
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
 
 # Example events:
@@ -35,24 +34,25 @@ from cloudinit.distros import uses_systemd
 #     }
 
 format_key = {
-    '%d': 'delta',
-    '%D': 'description',
-    '%E': 'elapsed',
-    '%e': 'event_type',
-    '%I': 'indent',
-    '%l': 'level',
-    '%n': 'name',
-    '%o': 'origin',
-    '%r': 'result',
-    '%t': 'timestamp',
-    '%T': 'total_time',
+    "%d": "delta",
+    "%D": "description",
+    "%E": "elapsed",
+    "%e": "event_type",
+    "%I": "indent",
+    "%l": "level",
+    "%n": "name",
+    "%o": "origin",
+    "%r": "result",
+    "%t": "timestamp",
+    "%T": "total_time",
 }
 
-formatting_help = " ".join(["{0}: {1}".format(k.replace('%', '%%'), v)
-                           for k, v in format_key.items()])
-SUCCESS_CODE = 'successful'
-FAIL_CODE = 'failure'
-CONTAINER_CODE = 'container'
+formatting_help = " ".join(
+    ["{0}: {1}".format(k.replace("%", "%%"), v) for k, v in format_key.items()]
+)
+SUCCESS_CODE = "successful"
+FAIL_CODE = "failure"
+CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
 
@@ -60,7 +60,7 @@ def format_record(msg, event):
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
-            if j in ['delta', 'elapsed', 'timestamp']:
+            if j in ["delta", "elapsed", "timestamp"]:
                 msg = msg.replace(i, "{%s:08.5f}" % j)
             else:
                 msg = msg.replace(i, "{%s}" % j)
@@ -68,13 +68,13 @@ def format_record(msg, event):
 
 
 def dump_event_files(event):
-    content = dict((k, v) for k, v in event.items() if k not in ['content'])
-    files = content['files']
+    content = dict((k, v) for k, v in event.items() if k not in ["content"])
+    files = content["files"]
     saved = []
     for f in files:
-        fname = f['path']
+        fname = f["path"]
         fn_local = os.path.basename(fname)
-        fcontent = base64.b64decode(f['content']).decode('ascii')
+        fcontent = base64.b64decode(f["content"]).decode("ascii")
         util.write_file(fn_local, fcontent)
         saved.append(fn_local)
 
@@ -83,13 +83,13 @@ def dump_event_files(event):
 
 def event_name(event):
     if event:
-        return event.get('name')
+        return event.get("name")
     return None
 
 
 def event_type(event):
     if event:
-        return event.get('event_type')
+        return event.get("event_type")
     return None
 
 
@@ -100,7 +100,7 @@ def event_parent(event):
 
 
 def event_timestamp(event):
-    return float(event.get('timestamp'))
+    return float(event.get("timestamp"))
 
 
 def event_datetime(event):
@@ -117,41 +117,44 @@ def event_duration(start, finish):
 
 def event_record(start_time, start, finish):
     record = finish.copy()
-    record.update({
-        'delta': event_duration(start, finish),
-        'elapsed': delta_seconds(start_time, event_datetime(start)),
-        'indent': '|' + ' ' * (event_name(start).count('/') - 1) + '`->',
-    })
+    record.update(
+        {
+            "delta": event_duration(start, finish),
+            "elapsed": delta_seconds(start_time, event_datetime(start)),
+            "indent": "|" + " " * (event_name(start).count("/") - 1) + "`->",
+        }
+    )
 
     return record
 
 
 def total_time_record(total_time):
-    return 'Total Time: %3.5f seconds\n' % total_time
+    return "Total Time: %3.5f seconds\n" % total_time
 
 
 class SystemctlReader(object):
-    '''
+    """
     Class for dealing with all systemctl subp calls in a consistent manner.
-    '''
+    """
+
     def __init__(self, property, parameter=None):
         self.epoch = None
-        self.args = ['/bin/systemctl', 'show']
+        self.args = ["/bin/systemctl", "show"]
         if parameter:
             self.args.append(parameter)
-        self.args.extend(['-p', property])
+        self.args.extend(["-p", property])
         # Don't want the init of our object to break. Instead of throwing
         # an exception, set an error code that gets checked when data is
         # requested from the object
         self.failure = self.subp()
 
     def subp(self):
-        '''
+        """
         Make a subp call based on set args and handle errors by setting
         failure code
 
         :return: whether the subp call failed or not
-        '''
+        """
         try:
             value, err = subp.subp(self.args, capture=True)
             if err:
@@ -162,41 +165,41 @@ class SystemctlReader(object):
             return systemctl_fail
 
     def parse_epoch_as_float(self):
-        '''
+        """
         If subp call succeeded, return the timestamp from subp as a float.
 
         :return: timestamp as a float
-        '''
+        """
         # subp has 2 ways to fail: it either fails and throws an exception,
         # or returns an error code. Raise an exception here in order to make
         # sure both scenarios throw exceptions
         if self.failure:
-            raise RuntimeError('Subprocess call to systemctl has failed, '
-                               'returning error code ({})'
-                               .format(self.failure))
+            raise RuntimeError(
+                "Subprocess call to systemctl has failed, "
+                "returning error code ({})".format(self.failure)
+            )
         # Output from systemctl show has the format Property=Value.
         # For example, UserspaceMonotonic=1929304
-        timestamp = self.epoch.split('=')[1]
+        timestamp = self.epoch.split("=")[1]
         # Timestamps reported by systemctl are in microseconds, converting
         return float(timestamp) / 1000000
 
 
 def dist_check_timestamp():
-    '''
+    """
     Determine which init system a particular linux distro is using.
     Each init system (systemd, upstart, etc) has a different way of
     providing timestamps.
 
     :return: timestamps of kernelboot, kernelendboot, and cloud-initstart
     or TIMESTAMP_UNKNOWN if the timestamps cannot be retrieved.
-    '''
+    """
 
     if uses_systemd():
         return gather_timestamps_using_systemd()
 
     # Use dmesg to get timestamps if the distro does not have systemd
-    if util.is_FreeBSD() or 'gentoo' in \
-            util.system_info()['system'].lower():
+    if util.is_FreeBSD() or "gentoo" in util.system_info()["system"].lower():
         return gather_timestamps_using_dmesg()
 
     # this distro doesn't fit anything that is supported by cloud-init. just
@@ -205,20 +208,20 @@ def dist_check_timestamp():
 
 
 def gather_timestamps_using_dmesg():
-    '''
+    """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization using dmesg as opposed to systemctl
 
     :return: the two timestamps plus a dummy timestamp to keep consistency
     with gather_timestamps_using_systemd
-    '''
+    """
     try:
-        data, _ = subp.subp(['dmesg'], capture=True)
+        data, _ = subp.subp(["dmesg"], capture=True)
         split_entries = data[0].splitlines()
         for i in split_entries:
-            if i.decode('UTF-8').find('user') != -1:
-                splitup = i.decode('UTF-8').split()
-                stripped = splitup[1].strip(']')
+            if i.decode("UTF-8").find("user") != -1:
+                splitup = i.decode("UTF-8").split()
+                stripped = splitup[1].strip("]")
 
                 # kernel timestamp from dmesg is equal to 0,
                 # with the userspace timestamp relative to it.
@@ -228,8 +231,7 @@ def gather_timestamps_using_dmesg():
 
                 # systemd wont start cloud-init in this case,
                 # so we cannot get that timestamp
-                return SUCCESS_CODE, kernel_start, kernel_end, \
-                    kernel_end
+                return SUCCESS_CODE, kernel_start, kernel_end, kernel_end
 
     except Exception:
         pass
@@ -237,18 +239,20 @@ def gather_timestamps_using_dmesg():
 
 
 def gather_timestamps_using_systemd():
-    '''
+    """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization. and cloud-init systemd unit activation
 
     :return: the three timestamps
-    '''
+    """
     kernel_start = float(time.time()) - float(util.uptime())
     try:
-        delta_k_end = SystemctlReader('UserspaceTimestampMonotonic')\
-            .parse_epoch_as_float()
-        delta_ci_s = SystemctlReader('InactiveExitTimestampMonotonic',
-                                     'cloud-init-local').parse_epoch_as_float()
+        delta_k_end = SystemctlReader(
+            "UserspaceTimestampMonotonic"
+        ).parse_epoch_as_float()
+        delta_ci_s = SystemctlReader(
+            "InactiveExitTimestampMonotonic", "cloud-init-local"
+        ).parse_epoch_as_float()
         base_time = kernel_start
         status = SUCCESS_CODE
         # lxc based containers do not set their monotonic zero point to be when
@@ -262,12 +266,13 @@ def gather_timestamps_using_systemd():
                 # in containers when https://github.com/lxc/lxcfs/issues/292
                 # is fixed, util.uptime() should be used instead of stat on
                 try:
-                    file_stat = os.stat('/proc/1/cmdline')
+                    file_stat = os.stat("/proc/1/cmdline")
                     kernel_start = file_stat.st_atime
                 except OSError as err:
-                    raise RuntimeError('Could not determine container boot '
-                                       'time from /proc/1/cmdline. ({})'
-                                       .format(err)) from err
+                    raise RuntimeError(
+                        "Could not determine container boot "
+                        "time from /proc/1/cmdline. ({})".format(err)
+                    ) from err
                 status = CONTAINER_CODE
             else:
                 status = FAIL_CODE
@@ -283,10 +288,14 @@ def gather_timestamps_using_systemd():
     return status, kernel_start, kernel_end, cloudinit_sysd
 
 
-def generate_records(events, blame_sort=False,
-                     print_format="(%n) %d seconds in %I%D",
-                     dump_files=False, log_datafiles=False):
-    '''
+def generate_records(
+    events,
+    blame_sort=False,
+    print_format="(%n) %d seconds in %I%D",
+    dump_files=False,
+    log_datafiles=False,
+):
+    """
     Take in raw events and create parent-child dependencies between events
     in order to order events in chronological order.
 
@@ -298,9 +307,9 @@ def generate_records(events, blame_sort=False,
     :param log_datafiles: whether or not to log events generated
 
     :return: boot records ordered chronologically
-    '''
+    """
 
-    sorted_events = sorted(events, key=lambda x: x['timestamp'])
+    sorted_events = sorted(events, key=lambda x: x["timestamp"])
     records = []
     start_time = None
     total_time = 0.0
@@ -316,8 +325,8 @@ def generate_records(events, blame_sort=False,
         except IndexError:
             next_evt = None
 
-        if event_type(event) == 'start':
-            if event.get('name') in stages_seen:
+        if event_type(event) == "start":
+            if event.get("name") in stages_seen:
                 records.append(total_time_record(total_time))
                 boot_records.append(records)
                 records = []
@@ -331,25 +340,28 @@ def generate_records(events, blame_sort=False,
 
             # see if we have a pair
             if event_name(event) == event_name(next_evt):
-                if event_type(next_evt) == 'finish':
-                    records.append(format_record(print_format,
-                                                 event_record(start_time,
-                                                              event,
-                                                              next_evt)))
+                if event_type(next_evt) == "finish":
+                    records.append(
+                        format_record(
+                            print_format,
+                            event_record(start_time, event, next_evt),
+                        )
+                    )
             else:
                 # This is a parent event
-                records.append("Starting stage: %s" % event.get('name'))
+                records.append("Starting stage: %s" % event.get("name"))
                 unprocessed.append(event)
-                stages_seen.append(event.get('name'))
+                stages_seen.append(event.get("name"))
                 continue
         else:
             prev_evt = unprocessed.pop()
             if event_name(event) == event_name(prev_evt):
                 record = event_record(start_time, prev_evt, event)
-                records.append(format_record("Finished stage: "
-                                             "(%n) %d seconds",
-                                             record) + "\n")
-                total_time += record.get('delta')
+                records.append(
+                    format_record("Finished stage: (%n) %d seconds", record)
+                    + "\n"
+                )
+                total_time += record.get("delta")
             else:
                 # not a match, put it back
                 unprocessed.append(prev_evt)
@@ -360,7 +372,7 @@ def generate_records(events, blame_sort=False,
 
 
 def show_events(events, print_format):
-    '''
+    """
     A passthrough method that makes it easier to call generate_records()
 
     :param events: JSONs from dump that represents events taken from logs
@@ -368,18 +380,18 @@ def show_events(events, print_format):
     and time taken by the event in one line
 
     :return: boot records ordered chronologically
-    '''
+    """
     return generate_records(events, print_format=print_format)
 
 
 def load_events_infile(infile):
-    '''
+    """
     Takes in a log file, read it, and convert to json.
 
     :param infile: The Log file to be read
 
     :return: json version of logfile, raw file
-    '''
+    """
     data = infile.read()
     try:
         return json.loads(data), data

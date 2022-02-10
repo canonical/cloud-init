@@ -20,11 +20,11 @@ LOG = logging.getLogger(__name__)
 
 BACK_FRAME_TRACE_DEPTH = 3
 EXIT_FOR = {
-    signal.SIGINT: ('Cloud-init %(version)s received SIGINT, exiting...', 1),
-    signal.SIGTERM: ('Cloud-init %(version)s received SIGTERM, exiting...', 1),
+    signal.SIGINT: ("Cloud-init %(version)s received SIGINT, exiting...", 1),
+    signal.SIGTERM: ("Cloud-init %(version)s received SIGTERM, exiting...", 1),
     # Can't be caught...
     # signal.SIGKILL: ('Cloud-init killed, exiting...', 1),
-    signal.SIGABRT: ('Cloud-init %(version)s received SIGABRT, exiting...', 1),
+    signal.SIGABRT: ("Cloud-init %(version)s received SIGABRT, exiting...", 1),
 }
 
 
@@ -41,12 +41,11 @@ def _pprint_frame(frame, depth, max_depth, contents):
 
 def _handle_exit(signum, frame):
     (msg, rc) = EXIT_FOR[signum]
-    msg = msg % ({'version': vr.version_string()})
+    msg = msg % ({"version": vr.version_string()})
     contents = StringIO()
     contents.write("%s\n" % (msg))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
-    util.multi_log(contents.getvalue(),
-                   console=True, stderr=False, log=LOG)
+    util.multi_log(contents.getvalue(), console=True, stderr=False, log=LOG)
     sys.exit(rc)
 
 
@@ -56,5 +55,6 @@ def attach_handlers():
         signal.signal(signum, _handle_exit)
     sigs_attached += len(EXIT_FOR)
     return sigs_attached
+
 
 # vi: ts=4 expandtab

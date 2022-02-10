@@ -121,4 +121,4 @@ Notes
    For example: the primary NIC will have a DHCP route-metric of 100,
    the next NIC will be 200.
 
-.. vi: textwidth=78
+.. vi: textwidth=79
