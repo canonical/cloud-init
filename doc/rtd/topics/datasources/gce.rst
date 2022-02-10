@@ -39,4 +39,4 @@ An example configuration with the default values is provided below:
 
 .. _GCE metadata docs: https://cloud.google.com/compute/docs/storing-retrieving-metadata#querying
 
-.. vi: textwidth=78
+.. vi: textwidth=79

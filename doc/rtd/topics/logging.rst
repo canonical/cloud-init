@@ -52,9 +52,9 @@ module using the standard python fileConfig format. Cloud-init looks for
 config for the logging module under the ``logcfg`` key.
 
 .. note::
-    the logging configuration is not yaml, it is python ``fileConfig`` format,
+    the logging configuration is not YAML, it is python ``fileConfig`` format,
     and is passed through directly to the python logging module. please use the
-    correct syntax for a multi-line string in yaml.
+    correct syntax for a multi-line string in YAML.
 
 By default, cloud-init uses the logging configuration provided in
 ``/etc/cloud/cloud.cfg.d/05_logging.cfg``. The default python logging
@@ -173,4 +173,4 @@ For more information on rsyslog configuration, see :ref:`cc_rsyslog`.
 .. _python logging config: https://docs.python.org/3/library/logging.config.html#configuration-file-format
 .. _python logging handlers: https://docs.python.org/3/library/logging.handlers.html
 .. _python logging formatters: https://docs.python.org/3/library/logging.html#formatter-objects
-.. vi: textwidth=78
+.. vi: textwidth=79

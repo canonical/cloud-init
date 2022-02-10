@@ -17,4 +17,4 @@ Please reference existing `documentation`_ for the
 
 .. _Cloud-init: https://launchpad.net/cloud-init
 .. _documentation: http://manpages.ubuntu.com/manpages/trusty/en/man5/interfaces.5.html
-.. vi: textwidth=78
+.. vi: textwidth=79

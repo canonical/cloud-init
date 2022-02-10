@@ -4,9 +4,9 @@ Datasources
 ***********
 
 Datasources are sources of configuration data for cloud-init that typically
-come from the user (e.g. userdata) or come from the cloud that created the
-configuration drive (e.g. metadata). Typical userdata would include files,
-yaml, and shell scripts while typical metadata would include server name,
+come from the user (i.e. userdata) or come from the cloud that created the
+configuration drive (i.e. metadata). Typical userdata would include files,
+YAML, and shell scripts while typical metadata would include server name,
 instance id, display name and other cloud specific details.
 
 Since there are multiple ways to provide this data (each cloud solution seems
@@ -29,13 +29,13 @@ The following is a list of documents for each supported datasource:
 
    datasources/aliyun.rst
    datasources/altcloud.rst
+   datasources/ec2.rst
    datasources/azure.rst
    datasources/cloudsigma.rst
    datasources/cloudstack.rst
    datasources/configdrive.rst
    datasources/digitalocean.rst
    datasources/e24cloud.rst
-   datasources/ec2.rst
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
@@ -49,9 +49,9 @@ The following is a list of documents for each supported datasource:
    datasources/rbxcloud.rst
    datasources/smartos.rst
    datasources/upcloud.rst
-   datasources/zstack.rst
-   datasources/vultr.rst
    datasources/vmware.rst
+   datasources/vultr.rst
+   datasources/zstack.rst
 
 Creation
 ========

@@ -139,4 +139,4 @@ this by setting the hostname in the DataSource's 'get_data' method via
 behavior can be configured or disabled in the datasource config.  See
 'Configuration' above.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

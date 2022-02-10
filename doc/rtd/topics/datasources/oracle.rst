@@ -46,4 +46,4 @@ An example configuration with the default values is provided below:
     configure_secondary_nics: false
 
 .. _Oracle Compute Infrastructure: https://cloud.oracle.com/
-.. vi: textwidth=78
+.. vi: textwidth=79

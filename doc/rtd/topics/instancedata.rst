@@ -655,4 +655,4 @@ see only redacted values.
   instance booted on your favorite cloud. See :ref:`cli_devel` for more
   information.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

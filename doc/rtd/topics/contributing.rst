@@ -1,2 +1,2 @@
 .. include:: ../../../CONTRIBUTING.rst
-.. vi: textwidth=78
+.. vi: textwidth=79
