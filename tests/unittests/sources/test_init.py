@@ -693,7 +693,7 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
         ):
             datasource.get_data()
-        self.assertEqual("my-cloud", util.load_file(cloud_id_link))
+        self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
         # A symlink with the generic /run/cloud-init/cloud-id link is present
         self.assertTrue(util.is_link(cloud_id_link))
         # When cloud-id changes, symlink and content change
@@ -701,12 +701,12 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud2"
         ):
             datasource.persist_instance_data()
-        self.assertEqual("my-cloud2", util.load_file(cloud_id2_file))
+        self.assertEqual("my-cloud2\n", util.load_file(cloud_id2_file))
         # Previous cloud-id-<cloud-type> file removed
         self.assertFalse(os.path.exists(cloud_id_file))
         # Generic link persisted which contains canonical-cloud-id as content
         self.assertTrue(util.is_link(cloud_id_link))
-        self.assertEqual("my-cloud2", util.load_file(cloud_id_link))
+        self.assertEqual("my-cloud2\n", util.load_file(cloud_id_link))
 
     def test_persist_instance_data_writes_network_json_when_set(self):
         """When network_data.json class attribute is set, persist to json."""

@@ -413,7 +413,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
         cloud_id = instance_data["v1"].get("cloud_id", "none")
         cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
-        util.write_file(f"{cloud_id_file}-{cloud_id}", cloud_id)
+        util.write_file(f"{cloud_id_file}-{cloud_id}", f"{cloud_id}\n")
         if os.path.exists(cloud_id_file):
             prev_cloud_id_file = os.path.realpath(cloud_id_file)
         else:
