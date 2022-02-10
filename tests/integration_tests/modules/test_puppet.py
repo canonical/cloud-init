@@ -15,9 +15,9 @@ puppet:
 @pytest.mark.user_data(SERVICE_DATA)
 def test_puppet_service(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
-    assert client.execute('systemctl is-active puppet').ok
+    assert client.execute("systemctl is-active puppet").ok
     assert "Running command ['puppet', 'agent'" not in log
 
 
@@ -35,5 +35,5 @@ puppet:
 @pytest.mark.user_data(EXEC_DATA)
 def test_pupet_exec(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log = client.read_from_file("/var/log/cloud-init.log")
     assert "Running command ['puppet', 'agent', '--noop']" in log

@@ -23,6 +23,7 @@ Modules
 .. automodule:: cloudinit.config.cc_growpart
 .. automodule:: cloudinit.config.cc_grub_dpkg
 .. automodule:: cloudinit.config.cc_install_hotplug
+.. automodule:: cloudinit.config.cc_keyboard
 .. automodule:: cloudinit.config.cc_keys_to_console
 .. automodule:: cloudinit.config.cc_landscape
 .. automodule:: cloudinit.config.cc_locale
@@ -63,4 +64,4 @@ Modules
 .. automodule:: cloudinit.config.cc_users_groups
 .. automodule:: cloudinit.config.cc_write_files
 .. automodule:: cloudinit.config.cc_yum_add_repo
-.. vi: textwidth=78
+.. vi: textwidth=79

@@ -16,12 +16,18 @@ class TestHandle:
     @mock.patch("cloudinit.config.cc_keys_to_console.util.multi_log")
     @mock.patch("cloudinit.config.cc_keys_to_console.os.path.exists")
     @mock.patch("cloudinit.config.cc_keys_to_console.subp.subp")
-    @pytest.mark.parametrize("cfg,subp_called", [
-        ({}, True),  # Default to emitting keys
-        ({"ssh": {}}, True),  # Default even if we have the parent key
-        ({"ssh": {"emit_keys_to_console": True}}, True),  # Explicitly enabled
-        ({"ssh": {"emit_keys_to_console": False}}, False),  # Disabled
-    ])
+    @pytest.mark.parametrize(
+        "cfg,subp_called",
+        [
+            ({}, True),  # Default to emitting keys
+            ({"ssh": {}}, True),  # Default even if we have the parent key
+            (
+                {"ssh": {"emit_keys_to_console": True}},
+                True,
+            ),  # Explicitly enabled
+            ({"ssh": {"emit_keys_to_console": False}}, False),  # Disabled
+        ],
+    )
     def test_emit_keys_to_console_config(
         self, m_subp, m_path_exists, _m_multi_log, cfg, subp_called
     ):

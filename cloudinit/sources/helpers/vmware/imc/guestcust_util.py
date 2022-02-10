@@ -73,7 +73,7 @@ def get_nics_to_enable(nicsfilepath):
     if not os.path.exists(nicsfilepath):
         return None
 
-    with open(nicsfilepath, 'r') as fp:
+    with open(nicsfilepath, "r") as fp:
         nics = fp.read(NICS_SIZE)
 
     return nics
@@ -95,7 +95,8 @@ def enable_nics(nics):
         (out, _err) = set_customization_status(
             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
             GuestCustEventEnum.GUESTCUST_EVENT_ENABLE_NICS,
-            nics)
+            nics,
+        )
         if not out:
             time.sleep(enableNicsWaitCount * enableNicsWaitSeconds)
             continue
@@ -108,32 +109,36 @@ def enable_nics(nics):
             (out, _err) = set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                 GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
-                nics)
+                nics,
+            )
             if out and out == NICS_STATUS_CONNECTED:
                 logger.info("NICS are connected on %d second", count)
                 return
 
             time.sleep(enableNicsWaitSeconds)
 
-    logger.warning("Can't connect network interfaces after %d attempts",
-                   enableNicsWaitRetries)
+    logger.warning(
+        "Can't connect network interfaces after %d attempts",
+        enableNicsWaitRetries,
+    )
 
 
 def get_tools_config(section, key, defaultVal):
-    """ Return the value of [section] key from VMTools configuration.
+    """Return the value of [section] key from VMTools configuration.
 
-        @param section: String of section to read from VMTools config
-        @returns: String value from key in [section] or defaultVal if
-                  [section] is not present or vmware-toolbox-cmd is
-                  not installed.
+    @param section: String of section to read from VMTools config
+    @returns: String value from key in [section] or defaultVal if
+              [section] is not present or vmware-toolbox-cmd is
+              not installed.
     """
 
-    if not subp.which('vmware-toolbox-cmd'):
+    if not subp.which("vmware-toolbox-cmd"):
         logger.debug(
-            'vmware-toolbox-cmd not installed, returning default value')
+            "vmware-toolbox-cmd not installed, returning default value"
+        )
         return defaultVal
 
-    cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
+    cmd = ["vmware-toolbox-cmd", "config", "get", section, key]
 
     try:
         (outText, _) = subp.subp(cmd)
@@ -141,22 +146,27 @@ def get_tools_config(section, key, defaultVal):
         if e.exit_code == 69:
             logger.debug(
                 "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."
-                " Return default value: %s", " ".join(cmd), defaultVal)
+                " Return default value: %s",
+                " ".join(cmd),
+                defaultVal,
+            )
         else:
             logger.error("Failed running %s[%s]", cmd, e.exit_code)
             logger.exception(e)
         return defaultVal
 
     retValue = defaultVal
-    m = re.match(r'([^=]+)=(.*)', outText)
+    m = re.match(r"([^=]+)=(.*)", outText)
     if m:
         retValue = m.group(2).strip()
-        logger.debug("Get tools config: [%s] %s = %s",
-                     section, key, retValue)
+        logger.debug("Get tools config: [%s] %s = %s", section, key, retValue)
     else:
         logger.debug(
             "Tools config: [%s] %s is not found, return default value: %s",
-            section, key, retValue)
+            section,
+            key,
+            retValue,
+        )
 
     return retValue
 

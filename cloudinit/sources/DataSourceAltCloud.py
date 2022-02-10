@@ -7,10 +7,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-'''
+"""
 This file contains code used to gather the user data passed to an
 instance on RHEVm and vSphere.
-'''
+"""
 
 import errno
 import os
@@ -18,29 +18,26 @@ import os.path
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import subp
-from cloudinit import util
-
+from cloudinit import sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
 # Needed file paths
-CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
+CLOUD_INFO_FILE = "/etc/sysconfig/cloud-info"
 
 # Shell command lists
-CMD_PROBE_FLOPPY = ['modprobe', 'floppy']
+CMD_PROBE_FLOPPY = ["modprobe", "floppy"]
 
 META_DATA_NOT_SUPPORTED = {
-    'block-device-mapping': {},
-    'instance-id': 455,
-    'local-hostname': 'localhost',
-    'placement': {},
+    "block-device-mapping": {},
+    "instance-id": 455,
+    "local-hostname": "localhost",
+    "placement": {},
 }
 
 
 def read_user_data_callback(mount_dir):
-    '''
+    """
     Description:
         This callback will be applied by util.mount_cb() on the mounted
         file.
@@ -55,10 +52,10 @@ def read_user_data_callback(mount_dir):
     Returns:
         User Data
 
-    '''
+    """
 
-    deltacloud_user_data_file = mount_dir + '/deltacloud-user-data.txt'
-    user_data_file = mount_dir + '/user-data.txt'
+    deltacloud_user_data_file = mount_dir + "/deltacloud-user-data.txt"
+    user_data_file = mount_dir + "/user-data.txt"
 
     # First try deltacloud_user_data_file. On failure try user_data_file.
     try:
@@ -67,7 +64,7 @@ def read_user_data_callback(mount_dir):
         try:
             user_data = util.load_file(user_data_file).strip()
         except IOError:
-            util.logexc(LOG, 'Failed accessing user data file.')
+            util.logexc(LOG, "Failed accessing user data file.")
             return None
 
     return user_data
@@ -75,7 +72,7 @@ def read_user_data_callback(mount_dir):
 
 class DataSourceAltCloud(sources.DataSource):
 
-    dsname = 'AltCloud'
+    dsname = "AltCloud"
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -87,7 +84,7 @@ class DataSourceAltCloud(sources.DataSource):
         return "%s [seed=%s]" % (root, self.seed)
 
     def get_cloud_type(self):
-        '''
+        """
         Description:
             Get the type for the cloud back end this instance is running on
             by examining the string returned by reading either:
@@ -101,31 +98,34 @@ class DataSourceAltCloud(sources.DataSource):
             One of the following strings:
             'RHEV', 'VSPHERE' or 'UNKNOWN'
 
-        '''
+        """
         if os.path.exists(CLOUD_INFO_FILE):
             try:
                 cloud_type = util.load_file(CLOUD_INFO_FILE).strip().upper()
             except IOError:
-                util.logexc(LOG, 'Unable to access cloud info file at %s.',
-                            CLOUD_INFO_FILE)
-                return 'UNKNOWN'
+                util.logexc(
+                    LOG,
+                    "Unable to access cloud info file at %s.",
+                    CLOUD_INFO_FILE,
+                )
+                return "UNKNOWN"
             return cloud_type
         system_name = dmi.read_dmi_data("system-product-name")
         if not system_name:
-            return 'UNKNOWN'
+            return "UNKNOWN"
 
         sys_name = system_name.upper()
 
-        if sys_name.startswith('RHEV'):
-            return 'RHEV'
+        if sys_name.startswith("RHEV"):
+            return "RHEV"
 
-        if sys_name.startswith('VMWARE'):
-            return 'VSPHERE'
+        if sys_name.startswith("VMWARE"):
+            return "VSPHERE"
 
-        return 'UNKNOWN'
+        return "UNKNOWN"
 
     def _get_data(self):
-        '''
+        """
         Description:
             User Data is passed to the launching instance which
             is used to perform instance configuration.
@@ -140,18 +140,18 @@ class DataSourceAltCloud(sources.DataSource):
             Images not built with Imagefactory will try to
             determine what the cloud provider is based on system
             information.
-        '''
+        """
 
-        LOG.debug('Invoked get_data()')
+        LOG.debug("Invoked get_data()")
 
         cloud_type = self.get_cloud_type()
 
-        LOG.debug('cloud_type: %s', str(cloud_type))
+        LOG.debug("cloud_type: %s", str(cloud_type))
 
-        if 'RHEV' in cloud_type:
+        if "RHEV" in cloud_type:
             if self.user_data_rhevm():
                 return True
-        elif 'VSPHERE' in cloud_type:
+        elif "VSPHERE" in cloud_type:
             if self.user_data_vsphere():
                 return True
         else:
@@ -160,20 +160,20 @@ class DataSourceAltCloud(sources.DataSource):
             return False
 
         # No user data found
-        util.logexc(LOG, 'Failed accessing user data.')
+        util.logexc(LOG, "Failed accessing user data.")
         return False
 
     def _get_subplatform(self):
         """Return the subplatform metadata details."""
         cloud_type = self.get_cloud_type()
-        if not hasattr(self, 'source'):
+        if not hasattr(self, "source"):
             self.source = sources.METADATA_UNKNOWN
-        if cloud_type == 'RHEV':
-            self.source = '/dev/fd0'
-        return '%s (%s)' % (cloud_type.lower(), self.source)
+        if cloud_type == "RHEV":
+            self.source = "/dev/fd0"
+        return "%s (%s)" % (cloud_type.lower(), self.source)
 
     def user_data_rhevm(self):
-        '''
+        """
         RHEVM specific userdata read
 
          If on RHEV-M the user data will be contained on the
@@ -186,7 +186,7 @@ class DataSourceAltCloud(sources.DataSource):
                mount /dev/fd0 <tmp mount dir>
                The call back passed to util.mount_cb will do:
                    read <tmp mount dir>/<user_data_file>
-        '''
+        """
 
         return_str = None
 
@@ -194,16 +194,16 @@ class DataSourceAltCloud(sources.DataSource):
         try:
             modprobe_floppy()
         except subp.ProcessExecutionError as e:
-            util.logexc(LOG, 'Failed modprobe: %s', e)
+            util.logexc(LOG, "Failed modprobe: %s", e)
             return False
 
-        floppy_dev = '/dev/fd0'
+        floppy_dev = "/dev/fd0"
 
         # udevadm settle for floppy device
         try:
             util.udevadm_settle(exists=floppy_dev, timeout=5)
         except (subp.ProcessExecutionError, OSError) as e:
-            util.logexc(LOG, 'Failed udevadm_settle: %s\n', e)
+            util.logexc(LOG, "Failed udevadm_settle: %s\n", e)
             return False
 
         try:
@@ -212,8 +212,11 @@ class DataSourceAltCloud(sources.DataSource):
             if err.errno != errno.ENOENT:
                 raise
         except util.MountFailedError:
-            util.logexc(LOG, "Failed to mount %s when looking for user data",
-                        floppy_dev)
+            util.logexc(
+                LOG,
+                "Failed to mount %s when looking for user data",
+                floppy_dev,
+            )
 
         self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
@@ -224,7 +227,7 @@ class DataSourceAltCloud(sources.DataSource):
             return False
 
     def user_data_vsphere(self):
-        '''
+        """
         vSphere specific userdata read
 
         If on vSphere the user data will be contained on the
@@ -235,10 +238,10 @@ class DataSourceAltCloud(sources.DataSource):
                mount /dev/fd0 <tmp mount dir>
                The call back passed to util.mount_cb will do:
                    read <tmp mount dir>/<user_data_file>
-        '''
+        """
 
         return_str = None
-        cdrom_list = util.find_devs_with('LABEL=CDROM')
+        cdrom_list = util.find_devs_with("LABEL=CDROM")
         for cdrom_dev in cdrom_list:
             try:
                 return_str = util.mount_cb(cdrom_dev, read_user_data_callback)
@@ -249,8 +252,11 @@ class DataSourceAltCloud(sources.DataSource):
                 if err.errno != errno.ENOENT:
                     raise
             except util.MountFailedError:
-                util.logexc(LOG, "Failed to mount %s when looking for user "
-                            "data", cdrom_dev)
+                util.logexc(
+                    LOG,
+                    "Failed to mount %s when looking for user data",
+                    cdrom_dev,
+                )
 
         self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
@@ -263,7 +269,7 @@ class DataSourceAltCloud(sources.DataSource):
 
 def modprobe_floppy():
     out, _err = subp.subp(CMD_PROBE_FLOPPY)
-    LOG.debug('Command: %s\nOutput%s', ' '.join(CMD_PROBE_FLOPPY), out)
+    LOG.debug("Command: %s\nOutput%s", " ".join(CMD_PROBE_FLOPPY), out)
 
 
 # Used to match classes to dependencies
@@ -278,5 +284,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

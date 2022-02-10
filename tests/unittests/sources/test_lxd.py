@@ -1,18 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
-from copy import deepcopy
 import json
 import re
 import stat
+from collections import namedtuple
+from copy import deepcopy
 from unittest import mock
-import yaml
 
 import pytest
+import yaml
 
-from cloudinit.sources import (
-    DataSourceLXD as lxd, InvalidMetaDataException, UNSET
-)
+from cloudinit.sources import UNSET
+from cloudinit.sources import DataSourceLXD as lxd
+from cloudinit.sources import InvalidMetaDataException
+
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
 
@@ -23,10 +24,11 @@ NETWORK_V1 = {
     "version": 1,
     "config": [
         {
-            "type": "physical", "name": "eth0",
-            "subnets": [{"type": "dhcp", "control": "auto"}]
+            "type": "physical",
+            "name": "eth0",
+            "subnets": [{"type": "dhcp", "control": "auto"}],
         }
-    ]
+    ],
 }
 
 
@@ -43,12 +45,10 @@ LXD_V1_METADATA = {
     "user-data": "#cloud-config\npackages: [sl]\n",
     "vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
     "config": {
-        "user.user-data":
-            "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
-        "user.vendor-data":
-            "#cloud-config\nruncmd: ['echo vendor-data']\n",
+        "user.user-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
+        "user.vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
         "user.network-config": yaml.safe_dump(NETWORK_V1),
-    }
+    },
 }
 
 
@@ -57,7 +57,7 @@ def lxd_metadata():
     return LXD_V1_METADATA
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def lxd_ds(request, paths, lxd_metadata):
     """
     Return an instantiated DataSourceLXD.
@@ -76,9 +76,9 @@ def lxd_ds(request, paths, lxd_metadata):
 
 
 class TestGenerateFallbackNetworkConfig:
-
     @pytest.mark.parametrize(
-        "uname_machine,systemd_detect_virt,expected", (
+        "uname_machine,systemd_detect_virt,expected",
+        (
             # None for systemd_detect_virt returns None from which
             ({}, None, NETWORK_V1),
             ({}, None, NETWORK_V1),
@@ -86,8 +86,8 @@ class TestGenerateFallbackNetworkConfig:
             # `uname -m` on kvm determines devname
             ("x86_64", "kvm\n", _add_network_v1_device("enp5s0")),
             ("ppc64le", "kvm\n", _add_network_v1_device("enp0s5")),
-            ("s390x", "kvm\n", _add_network_v1_device("enc9"))
-        )
+            ("s390x", "kvm\n", _add_network_v1_device("enc9")),
+        ),
     )
     @mock.patch(DS_PATH + "util.system_info")
     @mock.patch(DS_PATH + "subp.subp")
@@ -145,11 +145,12 @@ class TestDataSourceLXD:
 
 class TestIsPlatformViable:
     @pytest.mark.parametrize(
-        "exists,lstat_mode,expected", (
+        "exists,lstat_mode,expected",
+        (
             (False, None, False),
             (True, stat.S_IFREG, False),
             (True, stat.S_IFSOCK, True),
-        )
+        ),
     )
     @mock.patch(DS_PATH + "os.lstat")
     @mock.patch(DS_PATH + "os.path.exists")
@@ -169,7 +170,8 @@ class TestIsPlatformViable:
 
 class TestReadMetadata:
     @pytest.mark.parametrize(
-        "url_responses,expected,logs", (
+        "url_responses,expected,logs",
+        (
             (  # Assert non-JSON format from config route
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
@@ -178,31 +180,38 @@ class TestReadMetadata:
                 InvalidMetaDataException(
                     "Unable to determine cloud-init config from"
                     " http://lxd/1.0/config. Expected JSON but found:"
-                    " [NOT_JSON"),
-                ["[GET] [HTTP:200] http://lxd/1.0/meta-data",
-                 "[GET] [HTTP:200] http://lxd/1.0/config"],
+                    " [NOT_JSON"
+                ),
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
             ),
-            (   # Assert success on just meta-data
+            (  # Assert success on just meta-data
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
                 },
                 {
                     "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
-                    "config": {}, "meta-data": "local-hostname: md\n"
+                    "config": {},
+                    "meta-data": "local-hostname: md\n",
                 },
-                ["[GET] [HTTP:200] http://lxd/1.0/meta-data",
-                 "[GET] [HTTP:200] http://lxd/1.0/config"],
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
             ),
-            (   # Assert 404s for config routes log skipping
+            (  # Assert 404s for config routes log skipping
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
-                    "http://lxd/1.0/config":
+                    "http://lxd/1.0/config": (
                         '["/1.0/config/user.custom1",'
                         ' "/1.0/config/user.meta-data",'
                         ' "/1.0/config/user.network-config",'
                         ' "/1.0/config/user.user-data",'
-                        ' "/1.0/config/user.vendor-data"]',
+                        ' "/1.0/config/user.vendor-data"]'
+                    ),
                     "http://lxd/1.0/config/user.custom1": "custom1",
                     "http://lxd/1.0/config/user.meta-data": "",  # 404
                     "http://lxd/1.0/config/user.network-config": "net-config",
@@ -212,7 +221,7 @@ class TestReadMetadata:
                 {
                     "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
                     "config": {
-                        "user.custom1": "custom1",   # Not promoted
+                        "user.custom1": "custom1",  # Not promoted
                         "user.network-config": "net-config",
                     },
                     "meta-data": "local-hostname: md\n",
@@ -231,15 +240,16 @@ class TestReadMetadata:
                     " http://lxd/1.0/config/user.network-config",
                 ],
             ),
-            (   # Assert all CONFIG_KEY_ALIASES promoted to top-level keys
+            (  # Assert all CONFIG_KEY_ALIASES promoted to top-level keys
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
-                    "http://lxd/1.0/config":
+                    "http://lxd/1.0/config": (
                         '["/1.0/config/user.custom1",'
                         ' "/1.0/config/user.meta-data",'
                         ' "/1.0/config/user.network-config",'
                         ' "/1.0/config/user.user-data",'
-                        ' "/1.0/config/user.vendor-data"]',
+                        ' "/1.0/config/user.vendor-data"]'
+                    ),
                     "http://lxd/1.0/config/user.custom1": "custom1",
                     "http://lxd/1.0/config/user.meta-data": "meta-data",
                     "http://lxd/1.0/config/user.network-config": "net-config",
@@ -249,7 +259,7 @@ class TestReadMetadata:
                 {
                     "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
                     "config": {
-                        "user.custom1": "custom1",   # Not promoted
+                        "user.custom1": "custom1",  # Not promoted
                         "user.meta-data": "meta-data",
                         "user.network-config": "net-config",
                         "user.user-data": "user-data",
@@ -271,31 +281,38 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.vendor-data",
                 ],
             ),
-            (   # Assert cloud-init.* config key values prefered over user.*
+            (  # Assert cloud-init.* config key values prefered over user.*
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
-                    "http://lxd/1.0/config":
+                    "http://lxd/1.0/config": (
                         '["/1.0/config/user.meta-data",'
                         ' "/1.0/config/user.network-config",'
                         ' "/1.0/config/user.user-data",'
                         ' "/1.0/config/user.vendor-data",'
                         ' "/1.0/config/cloud-init.network-config",'
                         ' "/1.0/config/cloud-init.user-data",'
-                        ' "/1.0/config/cloud-init.vendor-data"]',
+                        ' "/1.0/config/cloud-init.vendor-data"]'
+                    ),
                     "http://lxd/1.0/config/user.meta-data": "user.meta-data",
-                    "http://lxd/1.0/config/user.network-config":
-                        "user.network-config",
+                    "http://lxd/1.0/config/user.network-config": (
+                        "user.network-config"
+                    ),
                     "http://lxd/1.0/config/user.user-data": "user.user-data",
-                    "http://lxd/1.0/config/user.vendor-data":
-                        "user.vendor-data",
-                    "http://lxd/1.0/config/cloud-init.meta-data":
-                        "cloud-init.meta-data",
-                    "http://lxd/1.0/config/cloud-init.network-config":
-                        "cloud-init.network-config",
-                    "http://lxd/1.0/config/cloud-init.user-data":
-                        "cloud-init.user-data",
-                    "http://lxd/1.0/config/cloud-init.vendor-data":
-                        "cloud-init.vendor-data",
+                    "http://lxd/1.0/config/user.vendor-data": (
+                        "user.vendor-data"
+                    ),
+                    "http://lxd/1.0/config/cloud-init.meta-data": (
+                        "cloud-init.meta-data"
+                    ),
+                    "http://lxd/1.0/config/cloud-init.network-config": (
+                        "cloud-init.network-config"
+                    ),
+                    "http://lxd/1.0/config/cloud-init.user-data": (
+                        "cloud-init.user-data"
+                    ),
+                    "http://lxd/1.0/config/cloud-init.vendor-data": (
+                        "cloud-init.vendor-data"
+                    ),
                 },
                 {
                     "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
@@ -304,11 +321,11 @@ class TestReadMetadata:
                         "user.network-config": "user.network-config",
                         "user.user-data": "user.user-data",
                         "user.vendor-data": "user.vendor-data",
-                        "cloud-init.network-config":
-                            "cloud-init.network-config",
+                        "cloud-init.network-config": (
+                            "cloud-init.network-config"
+                        ),
                         "cloud-init.user-data": "cloud-init.user-data",
-                        "cloud-init.vendor-data":
-                            "cloud-init.vendor-data",
+                        "cloud-init.vendor-data": "cloud-init.vendor-data",
                     },
                     "meta-data": "local-hostname: md\n",
                     "network-config": "cloud-init.network-config",
@@ -337,9 +354,9 @@ class TestReadMetadata:
                     " cloud-init.vendor-data value.",
                 ],
             ),
-        )
+        ),
     )
-    @mock.patch.object(lxd.requests.Session, 'get')
+    @mock.patch.object(lxd.requests.Session, "get")
     def test_read_metadata_handles_unexpected_content_or_http_status(
         self, session_get, url_responses, expected, logs, caplog
     ):
@@ -348,7 +365,7 @@ class TestReadMetadata:
         def fake_get(url):
             """Mock Response json, ok, status_code, text from url_responses."""
             m_resp = mock.MagicMock()
-            content = url_responses.get(url, '')
+            content = url_responses.get(url, "")
             m_resp.json.side_effect = lambda: json.loads(content)
             if content:
                 mock_ok = mock.PropertyMock(return_value=True)
@@ -372,5 +389,6 @@ class TestReadMetadata:
         caplogs = caplog.text
         for log in logs:
             assert log in caplogs
+
 
 # vi: ts=4 expandtab

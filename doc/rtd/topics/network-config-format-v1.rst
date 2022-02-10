@@ -48,7 +48,7 @@ the key ``subnets``.
 Physical
 ~~~~~~~~
 The ``physical`` type configuration represents a "physical" network device,
-typically Ethernet-based.  At least one of of these entries is required for
+typically Ethernet-based.  At least one of these entries is required for
 external network connectivity.  Type ``physical`` requires only one key:
 ``name``.  A ``physical`` device may contain some or all of the following
 keys:
@@ -62,7 +62,8 @@ structure.
 **mac_address**: *<MAC Address>*
 
 The MAC Address is a device unique identifier that most Ethernet-based network
-devices possess.  Specifying a MAC Address is optional.
+devices possess. Specifying a MAC Address is optional.
+Letters must be lowercase.
 
 .. note::
 
@@ -334,7 +335,7 @@ Users can specify a ``nameserver`` type.  Nameserver dictionaries include
 the following keys:
 
 - ``address``: List of IPv4 or IPv6 address of nameservers.
-- ``search``: List of of hostnames to include in the resolv.conf search path.
+- ``search``: List of hostnames to include in the resolv.conf search path.
 - ``interface``: Optional. Ties the nameserver definition to the specified
   interface. The value specified here must match the `name` of an interface
   defined in this config. If unspecified, this nameserver will be considered
@@ -620,4 +621,4 @@ Some more examples to explore the various options available.
 
 .. _SLAAC: https://tools.ietf.org/html/rfc4862
 
-.. vi: textwidth=78
+.. vi: textwidth=79

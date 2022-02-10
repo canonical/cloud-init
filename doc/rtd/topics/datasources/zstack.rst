@@ -34,4 +34,4 @@ Same as EC2, instance userdata can be queried at
     user_data
     password
 
-.. vi: textwidth=78
+.. vi: textwidth=79

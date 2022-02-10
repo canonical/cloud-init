@@ -10,7 +10,6 @@ keys were created.
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 ssh_genkeytypes:
@@ -23,28 +22,27 @@ authkey_hash: sha512
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestSshKeysGenerate:
-
     @pytest.mark.parametrize(
-        "ssh_key_path", (
+        "ssh_key_path",
+        (
             "/etc/ssh/ssh_host_dsa_key.pub",
             "/etc/ssh/ssh_host_dsa_key",
             "/etc/ssh/ssh_host_rsa_key.pub",
             "/etc/ssh/ssh_host_rsa_key",
-        )
+        ),
     )
     def test_ssh_keys_not_generated(self, ssh_key_path, class_client):
-        out = class_client.execute(
-            "test -e {}".format(ssh_key_path)
-        )
+        out = class_client.execute("test -e {}".format(ssh_key_path))
         assert out.failed
 
     @pytest.mark.parametrize(
-        "ssh_key_path", (
+        "ssh_key_path",
+        (
             "/etc/ssh/ssh_host_ecdsa_key.pub",
             "/etc/ssh/ssh_host_ecdsa_key",
             "/etc/ssh/ssh_host_ed25519_key.pub",
             "/etc/ssh/ssh_host_ed25519_key",
-        )
+        ),
     )
     def test_ssh_keys_generated(self, ssh_key_path, class_client):
         out = class_client.read_from_file(ssh_key_path)

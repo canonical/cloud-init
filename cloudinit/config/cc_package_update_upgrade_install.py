@@ -43,8 +43,7 @@ import os
 import time
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 REBOOT_FILE = "/var/run/reboot-required"
 REBOOT_CMD = ["/sbin/reboot"]
@@ -68,17 +67,19 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
         log.debug("Rebooted, but still running after %s seconds", int(elapsed))
     # If we got here, not good
     elapsed = time.time() - start
-    raise RuntimeError(("Reboot did not happen"
-                        " after %s seconds!") % (int(elapsed)))
+    raise RuntimeError(
+        "Reboot did not happen after %s seconds!" % (int(elapsed))
+    )
 
 
 def handle(_name, cfg, cloud, log, _args):
     # Handle the old style + new config names
-    update = _multi_cfg_bool_get(cfg, 'apt_update', 'package_update')
-    upgrade = _multi_cfg_bool_get(cfg, 'package_upgrade', 'apt_upgrade')
-    reboot_if_required = _multi_cfg_bool_get(cfg, 'apt_reboot_if_required',
-                                             'package_reboot_if_required')
-    pkglist = util.get_cfg_option_list(cfg, 'packages', [])
+    update = _multi_cfg_bool_get(cfg, "apt_update", "package_update")
+    upgrade = _multi_cfg_bool_get(cfg, "package_upgrade", "apt_upgrade")
+    reboot_if_required = _multi_cfg_bool_get(
+        cfg, "apt_reboot_if_required", "package_reboot_if_required"
+    )
+    pkglist = util.get_cfg_option_list(cfg, "packages", [])
 
     errors = []
     if update or len(pkglist) or upgrade:
@@ -109,8 +110,9 @@ def handle(_name, cfg, cloud, log, _args):
     reboot_fn_exists = os.path.isfile(REBOOT_FILE)
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            log.warning("Rebooting after upgrade or install per "
-                        "%s", REBOOT_FILE)
+            log.warning(
+                "Rebooting after upgrade or install per %s", REBOOT_FILE
+            )
             # Flush the above warning + anything else out...
             logging.flushLoggers(log)
             _fire_reboot(log)
@@ -119,8 +121,10 @@ def handle(_name, cfg, cloud, log, _args):
             errors.append(e)
 
     if len(errors):
-        log.warning("%s failed with exceptions, re-raising the last one",
-                    len(errors))
+        log.warning(
+            "%s failed with exceptions, re-raising the last one", len(errors)
+        )
         raise errors[-1]
+
 
 # vi: ts=4 expandtab

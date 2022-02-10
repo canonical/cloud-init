@@ -35,7 +35,8 @@ class Cloud(object):
             reporter = events.ReportEventStack(
                 name="unnamed-cloud-reporter",
                 description="unnamed-cloud-reporter",
-                reporting_enabled=False)
+                reporting_enabled=False,
+            )
         self.reporter = reporter
 
     # If a 'user' manipulates logging or logging services
@@ -56,8 +57,11 @@ class Cloud(object):
     def get_template_filename(self, name):
         fn = self.paths.template_tpl % (name)
         if not os.path.isfile(fn):
-            LOG.warning("No template found in %s for template named %s",
-                        os.path.dirname(fn), name)
+            LOG.warning(
+                "No template found in %s for template named %s",
+                os.path.dirname(fn),
+                name,
+            )
             return None
         return fn
 
@@ -80,7 +84,8 @@ class Cloud(object):
 
     def get_hostname(self, fqdn=False, metadata_only=False):
         return self.datasource.get_hostname(
-            fqdn=fqdn, metadata_only=metadata_only)
+            fqdn=fqdn, metadata_only=metadata_only
+        )
 
     def device_name_to_device(self, name):
         return self.datasource.device_name_to_device(name)
@@ -93,5 +98,6 @@ class Cloud(object):
 
     def get_ipath(self, name=None):
         return self.paths.get_ipath(name)
+
 
 # vi: ts=4 expandtab

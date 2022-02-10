@@ -7,7 +7,6 @@ https://bugs.launchpad.net/cloud-init/+bug/1897099
 
 import pytest
 
-
 USER_DATA = """\
 #cloud-config
 bootcmd:
@@ -19,13 +18,12 @@ swap:
 """
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.no_container('Containers cannot configure swap')
+@pytest.mark.no_container("Containers cannot configure swap")
 def test_fallocate_fallback(client):
-    log = client.read_from_file('/var/log/cloud-init.log')
-    assert '/swap.img' in client.execute('cat /proc/swaps')
-    assert '/swap.img' in client.execute('cat /etc/fstab')
-    assert 'fallocate swap creation failed, will attempt with dd' in log
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert "/swap.img" in client.execute("cat /proc/swaps")
+    assert "/swap.img" in client.execute("cat /etc/fstab")
+    assert "fallocate swap creation failed, will attempt with dd" in log
     assert "Running command ['dd', 'if=/dev/zero', 'of=/swap.img'" in log
-    assert 'SUCCESS: config-mounts ran successfully' in log
+    assert "SUCCESS: config-mounts ran successfully" in log

@@ -12,10 +12,10 @@ Discovery
 To determine whether a platform looks like it may be OpenStack, cloud-init
 checks the following environment attributes as a potential OpenStack platform:
 
- * Maybe OpenStack if
+ * Maybe OpenStack if:
 
    * **non-x86 cpu architecture**: because DMI data is buggy on some arches
- * Is OpenStack **if x86 architecture and ANY** of the following
+ * Is OpenStack **if x86 architecture and ANY** of the following:
 
    * **/proc/1/environ**: Nova-lxd contains *product_name=OpenStack Nova*
    * **DMI product_name**: Either *Openstack Nova* or *OpenStack Compute*
@@ -32,7 +32,7 @@ The settings that may be configured are:
 
  * **metadata_urls**: This list of urls will be searched for an OpenStack
    metadata service. The first entry that successfully returns a 200 response
-   for <url>/openstack will be selected. (default: ['http://169.254.169.254']).
+   for <url>/openstack will be selected. (default: ['http://169.254.169.254'])
  * **max_wait**:  the maximum amount of clock time in seconds that should be
    spent searching metadata_urls.  A value less than zero will result in only
    one request being made, to the first in the list. (default: -1)
@@ -90,4 +90,4 @@ Cloud-init will look for a ``cloud-init`` at the vendor_data2 path; if found,
 settings are applied after (and, hence, overriding) the settings from static
 vendor data. Both sets of vendor data can be overridden by user data.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

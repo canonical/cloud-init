@@ -8,7 +8,6 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
-
 USER_DATA = """\
 #cloud-config
 apt:
@@ -20,10 +19,9 @@ apt:
 """  # noqa: E501
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.user_data(USER_DATA)
 def test_gpg_no_tty(client: IntegrationInstance):
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log = client.read_from_file("/var/log/cloud-init.log")
     to_verify = [
         "Running command ['gpg', '--no-tty', "
         "'--keyserver=keyserver.ubuntu.com', '--recv-keys', 'E4D304DF'] "

@@ -10,8 +10,7 @@ import functools
 import json
 
 from cloudinit import log as logging
-from cloudinit import url_helper
-from cloudinit import util
+from cloudinit import url_helper, util
 
 LOG = logging.getLogger(__name__)
 SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])
@@ -30,7 +29,7 @@ class MetadataLeafDecoder(object):
 
     def __call__(self, field, blob):
         if not blob:
-            return ''
+            return ""
         try:
             blob = util.decode_binary(blob)
         except UnicodeDecodeError:
@@ -40,8 +39,11 @@ class MetadataLeafDecoder(object):
                 # Assume it's json, unless it fails parsing...
                 return json.loads(blob)
             except (ValueError, TypeError) as e:
-                LOG.warning("Field %s looked like a json object, but it"
-                            " was not: %s", field, e)
+                LOG.warning(
+                    "Field %s looked like a json object, but it was not: %s",
+                    field,
+                    e,
+                )
         if blob.find("\n") != -1:
             return blob.splitlines()
         return blob
@@ -85,7 +87,7 @@ class MetadataMaterializer(object):
             if not field or not field_name:
                 continue
             # Don't materialize credentials
-            if field_name == 'security-credentials':
+            if field_name == "security-credentials":
                 continue
             if has_children(field):
                 if field_name not in children:
@@ -127,8 +129,7 @@ class MetadataMaterializer(object):
         joined.update(child_contents)
         for field in leaf_contents.keys():
             if field in joined:
-                LOG.warning("Duplicate key found in results from %s",
-                            base_url)
+                LOG.warning("Duplicate key found in results from %s", base_url)
             else:
                 joined[field] = leaf_contents[field]
         return joined
@@ -139,25 +140,36 @@ def skip_retry_on_codes(status_codes, _request_args, cause):
     return cause.code not in status_codes
 
 
-def get_instance_userdata(api_version='latest',
-                          metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5,
-                          headers_cb=None, headers_redact=None,
-                          exception_cb=None):
+def get_instance_userdata(
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
     ud_url = url_helper.combine_url(metadata_address, api_version)
-    ud_url = url_helper.combine_url(ud_url, 'user-data')
-    user_data = ''
+    ud_url = url_helper.combine_url(ud_url, "user-data")
+    user_data = ""
     try:
         if not exception_cb:
             # It is ok for userdata to not exist (thats why we are stopping if
             # NOT_FOUND occurs) and just in that case returning an empty
             # string.
-            exception_cb = functools.partial(skip_retry_on_codes,
-                                             SKIP_USERDATA_CODES)
+            exception_cb = functools.partial(
+                skip_retry_on_codes, SKIP_USERDATA_CODES
+            )
         response = url_helper.read_file_or_url(
-            ud_url, ssl_details=ssl_details, timeout=timeout,
-            retries=retries, exception_cb=exception_cb, headers_cb=headers_cb,
-            headers_redact=headers_redact)
+            ud_url,
+            ssl_details=ssl_details,
+            timeout=timeout,
+            retries=retries,
+            exception_cb=exception_cb,
+            headers_cb=headers_cb,
+            headers_redact=headers_redact,
+        )
         user_data = response.contents
     except url_helper.UrlError as e:
         if e.code not in SKIP_USERDATA_CODES:
@@ -167,27 +179,37 @@ def get_instance_userdata(api_version='latest',
     return user_data
 
 
-def _get_instance_metadata(tree, api_version='latest',
-                           metadata_address='http://169.254.169.254',
-                           ssl_details=None, timeout=5, retries=5,
-                           leaf_decoder=None, headers_cb=None,
-                           headers_redact=None,
-                           exception_cb=None):
+def _get_instance_metadata(
+    tree,
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    leaf_decoder=None,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
     md_url = url_helper.combine_url(metadata_address, api_version, tree)
     caller = functools.partial(
-        url_helper.read_file_or_url, ssl_details=ssl_details,
-        timeout=timeout, retries=retries, headers_cb=headers_cb,
+        url_helper.read_file_or_url,
+        ssl_details=ssl_details,
+        timeout=timeout,
+        retries=retries,
+        headers_cb=headers_cb,
         headers_redact=headers_redact,
-        exception_cb=exception_cb)
+        exception_cb=exception_cb,
+    )
 
     def mcaller(url):
         return caller(url).contents
 
     try:
         response = caller(md_url)
-        materializer = MetadataMaterializer(response.contents,
-                                            md_url, mcaller,
-                                            leaf_decoder=leaf_decoder)
+        materializer = MetadataMaterializer(
+            response.contents, md_url, mcaller, leaf_decoder=leaf_decoder
+        )
         md = materializer.materialize()
         if not isinstance(md, (dict)):
             md = {}
@@ -197,35 +219,56 @@ def _get_instance_metadata(tree, api_version='latest',
         return {}
 
 
-def get_instance_metadata(api_version='latest',
-                          metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5,
-                          leaf_decoder=None, headers_cb=None,
-                          headers_redact=None,
-                          exception_cb=None):
+def get_instance_metadata(
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    leaf_decoder=None,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
-    return _get_instance_metadata(tree='meta-data/', api_version=api_version,
-                                  metadata_address=metadata_address,
-                                  ssl_details=ssl_details, timeout=timeout,
-                                  retries=retries, leaf_decoder=leaf_decoder,
-                                  headers_redact=headers_redact,
-                                  headers_cb=headers_cb,
-                                  exception_cb=exception_cb)
+    return _get_instance_metadata(
+        tree="meta-data/",
+        api_version=api_version,
+        metadata_address=metadata_address,
+        ssl_details=ssl_details,
+        timeout=timeout,
+        retries=retries,
+        leaf_decoder=leaf_decoder,
+        headers_redact=headers_redact,
+        headers_cb=headers_cb,
+        exception_cb=exception_cb,
+    )
 
 
-def get_instance_identity(api_version='latest',
-                          metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5,
-                          leaf_decoder=None, headers_cb=None,
-                          headers_redact=None,
-                          exception_cb=None):
-    return _get_instance_metadata(tree='dynamic/instance-identity',
-                                  api_version=api_version,
-                                  metadata_address=metadata_address,
-                                  ssl_details=ssl_details, timeout=timeout,
-                                  retries=retries, leaf_decoder=leaf_decoder,
-                                  headers_redact=headers_redact,
-                                  headers_cb=headers_cb,
-                                  exception_cb=exception_cb)
+def get_instance_identity(
+    api_version="latest",
+    metadata_address="http://169.254.169.254",
+    ssl_details=None,
+    timeout=5,
+    retries=5,
+    leaf_decoder=None,
+    headers_cb=None,
+    headers_redact=None,
+    exception_cb=None,
+):
+    return _get_instance_metadata(
+        tree="dynamic/instance-identity",
+        api_version=api_version,
+        metadata_address=metadata_address,
+        ssl_details=ssl_details,
+        timeout=timeout,
+        retries=retries,
+        leaf_decoder=leaf_decoder,
+        headers_redact=headers_redact,
+        headers_cb=headers_cb,
+        exception_cb=exception_cb,
+    )
+
+
 # vi: ts=4 expandtab

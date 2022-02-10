@@ -1,3 +1,6 @@
+# See https://docs.pytest.org/en/stable/example
+# /parametrize.html#parametrizing-conditional-raising
+from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import pytest
@@ -9,12 +12,8 @@ from cloudinit.distros.networking import (
     Networking,
 )
 
-# See https://docs.pytest.org/en/stable/example
-# /parametrize.html#parametrizing-conditional-raising
-from contextlib import ExitStack as does_not_raise
 
-
-@pytest.yield_fixture
+@pytest.fixture
 def generic_networking_cls():
     """Returns a direct Networking subclass which errors on /sys usage.
 
@@ -35,12 +34,13 @@ def generic_networking_cls():
 
     error = AssertionError("Unexpectedly used /sys in generic networking code")
     with mock.patch(
-        "cloudinit.net.get_sys_class_path", side_effect=error,
+        "cloudinit.net.get_sys_class_path",
+        side_effect=error,
     ):
         yield TestNetworking
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def sys_class_net(tmpdir):
     sys_class_net_path = tmpdir.join("sys/class/net")
     sys_class_net_path.ensure_dir()
@@ -91,8 +91,10 @@ class TestLinuxNetworkingTrySetLinkUp:
         m_is_up.return_value = True
         is_success = LinuxNetworking().try_set_link_up(devname)
 
-        assert (mock.call(['ip', 'link', 'set', devname, 'up']) ==
-                m_subp.call_args_list[-1])
+        assert (
+            mock.call(["ip", "link", "set", devname, "up"])
+            == m_subp.call_args_list[-1]
+        )
         assert is_success
 
     def test_calls_subp_return_false(self, m_subp, m_is_up):
@@ -100,8 +102,10 @@ class TestLinuxNetworkingTrySetLinkUp:
         m_is_up.return_value = False
         is_success = LinuxNetworking().try_set_link_up(devname)
 
-        assert (mock.call(['ip', 'link', 'set', devname, 'up']) ==
-                m_subp.call_args_list[-1])
+        assert (
+            mock.call(["ip", "link", "set", devname, "up"])
+            == m_subp.call_args_list[-1]
+        )
         assert not is_success
 
 
@@ -153,7 +157,9 @@ class TestNetworkingWaitForPhysDevs:
         return netcfg
 
     def test_skips_settle_if_all_present(
-        self, generic_networking_cls, wait_for_physdevs_netcfg,
+        self,
+        generic_networking_cls,
+        wait_for_physdevs_netcfg,
     ):
         networking = generic_networking_cls()
         with mock.patch.object(
@@ -169,7 +175,9 @@ class TestNetworkingWaitForPhysDevs:
             assert 0 == m_settle.call_count
 
     def test_calls_udev_settle_on_missing(
-        self, generic_networking_cls, wait_for_physdevs_netcfg,
+        self,
+        generic_networking_cls,
+        wait_for_physdevs_netcfg,
     ):
         networking = generic_networking_cls()
         with mock.patch.object(

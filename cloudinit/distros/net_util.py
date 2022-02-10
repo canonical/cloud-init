@@ -68,7 +68,9 @@
 # }
 
 from cloudinit.net.network_state import (
-    net_prefix_to_ipv4_mask, mask_and_ipv4_to_bcast_addr)
+    mask_and_ipv4_to_bcast_addr,
+    net_prefix_to_ipv4_mask,
+)
 
 
 def translate_network(settings):
@@ -86,7 +88,7 @@ def translate_network(settings):
     ifaces = []
     consume = {}
     for (cmd, args) in entries:
-        if cmd == 'iface':
+        if cmd == "iface":
             if consume:
                 ifaces.append(consume)
                 consume = {}
@@ -96,19 +98,19 @@ def translate_network(settings):
     # Check if anything left over to consume
     absorb = False
     for (cmd, args) in consume.items():
-        if cmd == 'iface':
+        if cmd == "iface":
             absorb = True
     if absorb:
         ifaces.append(consume)
     # Now translate
     real_ifaces = {}
     for info in ifaces:
-        if 'iface' not in info:
+        if "iface" not in info:
             continue
-        iface_details = info['iface'].split(None)
+        iface_details = info["iface"].split(None)
         # Check if current device *may* have an ipv6 IP
         use_ipv6 = False
-        if 'inet6' in iface_details:
+        if "inet6" in iface_details:
             use_ipv6 = True
         dev_name = None
         if len(iface_details) >= 1:
@@ -118,55 +120,54 @@ def translate_network(settings):
         if not dev_name:
             continue
         iface_info = {}
-        iface_info['ipv6'] = {}
+        iface_info["ipv6"] = {}
         if len(iface_details) >= 3:
             proto_type = iface_details[2].strip().lower()
             # Seems like this can be 'loopback' which we don't
             # really care about
-            if proto_type in ['dhcp', 'static']:
-                iface_info['bootproto'] = proto_type
+            if proto_type in ["dhcp", "static"]:
+                iface_info["bootproto"] = proto_type
         # These can just be copied over
         if use_ipv6:
-            for k in ['address', 'gateway']:
+            for k in ["address", "gateway"]:
                 if k in info:
                     val = info[k].strip().lower()
                     if val:
-                        iface_info['ipv6'][k] = val
+                        iface_info["ipv6"][k] = val
         else:
-            for k in ['netmask', 'address', 'gateway', 'broadcast']:
+            for k in ["netmask", "address", "gateway", "broadcast"]:
                 if k in info:
                     val = info[k].strip().lower()
                     if val:
                         iface_info[k] = val
             # handle static ip configurations using
             # ipaddress/prefix-length format
-            if 'address' in iface_info:
-                if 'netmask' not in iface_info:
+            if "address" in iface_info:
+                if "netmask" not in iface_info:
                     # check if the address has a network prefix
-                    addr, _, prefix = iface_info['address'].partition('/')
+                    addr, _, prefix = iface_info["address"].partition("/")
                     if prefix:
-                        iface_info['netmask'] = (
-                            net_prefix_to_ipv4_mask(prefix))
-                        iface_info['address'] = addr
+                        iface_info["netmask"] = net_prefix_to_ipv4_mask(prefix)
+                        iface_info["address"] = addr
                         # if we set the netmask, we also can set the broadcast
-                        iface_info['broadcast'] = (
-                            mask_and_ipv4_to_bcast_addr(
-                                iface_info['netmask'], addr))
+                        iface_info["broadcast"] = mask_and_ipv4_to_bcast_addr(
+                            iface_info["netmask"], addr
+                        )
 
             # Name server info provided??
-            if 'dns-nameservers' in info:
-                iface_info['dns-nameservers'] = info['dns-nameservers'].split()
+            if "dns-nameservers" in info:
+                iface_info["dns-nameservers"] = info["dns-nameservers"].split()
             # Name server search info provided??
-            if 'dns-search' in info:
-                iface_info['dns-search'] = info['dns-search'].split()
+            if "dns-search" in info:
+                iface_info["dns-search"] = info["dns-search"].split()
             # Is any mac address spoofing going on??
-            if 'hwaddress' in info:
-                hw_info = info['hwaddress'].lower().strip()
+            if "hwaddress" in info:
+                hw_info = info["hwaddress"].lower().strip()
                 hw_split = hw_info.split(None, 1)
-                if len(hw_split) == 2 and hw_split[0].startswith('ether'):
+                if len(hw_split) == 2 and hw_split[0].startswith("ether"):
                     hw_addr = hw_split[1]
                     if hw_addr:
-                        iface_info['hwaddress'] = hw_addr
+                        iface_info["hwaddress"] = hw_addr
         # If ipv6 is enabled, device will have multiple IPs, so we need to
         # update the dictionary instead of overwriting it...
         if dev_name in real_ifaces:
@@ -179,13 +180,14 @@ def translate_network(settings):
         if not args:
             continue
         dev_name = args[0].strip().lower()
-        if cmd == 'auto':
+        if cmd == "auto":
             # Seems like auto can be like 'auto eth0 eth0:1' so just get the
             # first part out as the device name
             if dev_name in real_ifaces:
-                real_ifaces[dev_name]['auto'] = True
-        if cmd == 'iface' and 'inet6' in args:
-            real_ifaces[dev_name]['inet6'] = True
+                real_ifaces[dev_name]["auto"] = True
+        if cmd == "iface" and "inet6" in args:
+            real_ifaces[dev_name]["inet6"] = True
     return real_ifaces
+
 
 # vi: ts=4 expandtab

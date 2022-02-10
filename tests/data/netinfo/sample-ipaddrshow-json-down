@@ -1,0 +1,57 @@
+[
+    {
+        "ifindex": 1,
+        "ifname": "lo",
+        "flags": [
+            "LOOPBACK",
+            "UP",
+            "LOWER_UP"
+        ],
+        "mtu": 65536,
+        "qdisc": "noqueue",
+        "operstate": "UNKNOWN",
+        "group": "default",
+        "txqlen": 1000,
+        "link_type": "loopback",
+        "address": "00:00:00:00:00:00",
+        "broadcast": "00:00:00:00:00:00",
+        "addr_info": [
+            {
+                "family": "inet",
+                "local": "127.0.0.1",
+                "prefixlen": 8,
+                "scope": "host",
+                "label": "lo",
+                "valid_life_time": 4294967295,
+                "preferred_life_time": 4294967295
+            },
+            {
+                "family": "inet6",
+                "local": "::1",
+                "prefixlen": 128,
+                "scope": "host",
+                "valid_life_time": 4294967295,
+                "preferred_life_time": 4294967295
+            }
+        ]
+    },
+    {
+        "ifindex": 23,
+        "link_index": 24,
+        "ifname": "eth0",
+        "flags": [
+            "BROADCAST",
+            "MULTICAST"
+        ],
+        "mtu": 1500,
+        "qdisc": "noqueue",
+        "operstate": "DOWN",
+        "group": "default",
+        "txqlen": 1000,
+        "link_type": "ether",
+        "address": "00:16:3e:de:51:a6",
+        "broadcast": "ff:ff:ff:ff:ff:ff",
+        "link_netnsid": 0,
+        "addr_info": []
+    }
+]

@@ -10,16 +10,14 @@ import os
 
 import pytest
 
-from cloudinit import dmi, helpers, safeyaml
-from cloudinit import settings
+from cloudinit import dmi, helpers, safeyaml, settings
 from cloudinit.sources import DataSourceVMware
 from tests.unittests.helpers import (
-    mock,
     CiTestCase,
     FilesystemMockingTestCase,
+    mock,
     populate_dir,
 )
-
 
 PRODUCT_NAME_FILE_PATH = "/sys/class/dmi/id/product_name"
 PRODUCT_NAME = "VMware7,1"
@@ -59,13 +57,13 @@ runcmd:
 """
 
 
-@pytest.yield_fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def common_patches():
-    with mock.patch('cloudinit.util.platform.platform', return_value='Linux'):
+    with mock.patch("cloudinit.util.platform.platform", return_value="Linux"):
         with mock.patch.multiple(
-            'cloudinit.dmi',
+            "cloudinit.dmi",
             is_container=mock.Mock(return_value=False),
-            is_FreeBSD=mock.Mock(return_value=False)
+            is_FreeBSD=mock.Mock(return_value=False),
         ):
             yield
 

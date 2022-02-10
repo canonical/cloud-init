@@ -95,7 +95,6 @@ users:
 #       provided public-keys. An error will be raised if ssh_authorized_keys
 #       or ssh_import_id is provided for the same user.
 #
-#       ssh_authorized_keys.
 #   sudo: Defaults to none. Accepts a sudo rule string, a list of sudo rule
 #         strings or False to explicitly deny sudo usage. Examples:
 #
@@ -118,14 +117,14 @@ users:
 #             command available on Ubuntu systems.  If the user has an account
 #             on the Ubuntu SSO, specifying the email will allow snap to
 #             request a username and any public ssh keys and will import
-#             these into the system with username specifed by SSO account.
+#             these into the system with username specified by SSO account.
 #             If 'username' is not set in SSO, then username will be the
 #             shortname before the email domain.
 #
 
 # Default user creation:
 #
-# Unless you define users, you will get a 'ubuntu' user on ubuntu systems with the
+# Unless you define users, you will get a 'ubuntu' user on Ubuntu systems with the
 # legacy permission (no password sudo, locked user, etc). If however, you want
 # to have the 'ubuntu' user in addition to other users, you need to instruct
 # cloud-init that you also want the default user. To do this use the following

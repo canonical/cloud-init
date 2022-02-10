@@ -18,31 +18,31 @@ def _unquote(value):
     return value
 
 
-def get_rc_config_value(key, fn='/etc/rc.conf'):
-    key_prefix = '{}='.format(key)
+def get_rc_config_value(key, fn="/etc/rc.conf"):
+    key_prefix = "{}=".format(key)
     for line in util.load_file(fn).splitlines():
         if line.startswith(key_prefix):
-            value = line.replace(key_prefix, '')
+            value = line.replace(key_prefix, "")
             return _unquote(value)
 
 
-def set_rc_config_value(key, value, fn='/etc/rc.conf'):
+def set_rc_config_value(key, value, fn="/etc/rc.conf"):
     lines = []
     done = False
     value = shlex.quote(value)
     original_content = util.load_file(fn)
     for line in original_content.splitlines():
-        if '=' in line:
-            k, v = line.split('=', 1)
+        if "=" in line:
+            k, v = line.split("=", 1)
             if k == key:
                 v = value
                 done = True
-            lines.append('='.join([k, v]))
+            lines.append("=".join([k, v]))
         else:
             lines.append(line)
     if not done:
-        lines.append('='.join([key, value]))
-    new_content = '\n'.join(lines) + '\n'
+        lines.append("=".join([key, value]))
+    new_content = "\n".join(lines) + "\n"
     if new_content != original_content:
         util.write_file(fn, new_content)
 

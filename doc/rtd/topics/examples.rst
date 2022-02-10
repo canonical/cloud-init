@@ -179,4 +179,4 @@ Grow partitions
 
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
-.. vi: textwidth=78
+.. vi: textwidth=79

@@ -12,10 +12,8 @@ import os
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
-
-from cloudinit.settings import (PER_ALWAYS)
+from cloudinit import subp, util
+from cloudinit.settings import PER_ALWAYS
 
 LOG = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ LOG = logging.getLogger(__name__)
 class BootHookPartHandler(handlers.Handler):
 
     # The content prefixes this handler understands.
-    prefixes = ['#cloud-boothook']
+    prefixes = ["#cloud-boothook"]
 
     def __init__(self, paths, datasource, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
@@ -35,8 +33,9 @@ class BootHookPartHandler(handlers.Handler):
     def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
         filepath = os.path.join(self.boothook_dir, filename)
-        contents = util.strip_prefix_suffix(util.dos2unix(payload),
-                                            prefix=self.prefixes[0])
+        contents = util.strip_prefix_suffix(
+            util.dos2unix(payload), prefix=self.prefixes[0]
+        )
         util.write_file(filepath, contents.lstrip(), 0o700)
         return filepath
 
@@ -48,12 +47,14 @@ class BootHookPartHandler(handlers.Handler):
         try:
             env = os.environ.copy()
             if self.instance_id is not None:
-                env['INSTANCE_ID'] = str(self.instance_id)
+                env["INSTANCE_ID"] = str(self.instance_id)
             subp.subp([filepath], env=env)
         except subp.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception:
-            util.logexc(LOG, "Boothooks unknown error when running %s",
-                        filepath)
+            util.logexc(
+                LOG, "Boothooks unknown error when running %s", filepath
+            )
+
 
 # vi: ts=4 expandtab

@@ -19,14 +19,12 @@ will match.
 """
 import pytest
 
-
 USER_DATA_TMPL = """\
 #cloud-config
 ssh_authorized_keys:
     - {}"""
 
 
-@pytest.mark.sru_2021_01
 @pytest.mark.azure
 def test_crlf_in_azure_metadata_ssh_keys(session_cloud, setup_image):
     authorized_keys_path = "/home/{}/.ssh/authorized_keys".format(
