@@ -89,7 +89,7 @@ Include File
 This content is a ``include`` file.
 
 The file contains a list of urls, one per line. Each of the URLs will be read,
-and their content will be passed through this same set of rules. Ie, the
+and their content will be passed through this same set of rules. I.e., the
 content read from the URL can be gzipped, mime-multi-part, or plain text. If
 an error occurs reading a file the remaining files will not be read.
 
@@ -112,7 +112,7 @@ These things include:
 - *and many more...*
 
 .. note::
-   This file must be valid yaml syntax.
+   This file must be valid YAML syntax.
 
 See the :ref:`yaml_examples` section for a commented set of examples of
 supported cloud config formats.
@@ -209,4 +209,4 @@ cloud-init from processing user-data.
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _blog: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
 
-.. vi: textwidth=78
+.. vi: textwidth=79

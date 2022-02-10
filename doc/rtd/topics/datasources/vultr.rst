@@ -5,7 +5,7 @@ Vultr
 
 The `Vultr`_ datasource retrieves basic configuration values from the locally
 accessible `metadata service`_. All data is served over HTTP from the address
-169.254.169.254. The endpoints are documented in,
+169.254.169.254. The endpoints are documented in
 `https://www.vultr.com/metadata/
 <https://www.vultr.com/metadata/>`_
 
@@ -32,4 +32,4 @@ Vultr's datasource can be configured as follows:
 .. _Vultr: https://www.vultr.com/
 .. _metadata service: https://www.vultr.com/metadata/
 
-.. vi: textwidth=78
+.. vi: textwidth=79

@@ -65,10 +65,10 @@ If this is an instance's first boot, then the selected network configuration
 is rendered.  This includes clearing of all previous (stale) configuration
 including persistent device naming with old mac addresses.
 
-This stage must block network bring-up or any stale configuration might
-already have been applied.  That could have negative effects such as DHCP
-hooks or broadcast of an old hostname.  It would also put the system in
-an odd state to recover from as it may then have to restart network
+This stage must block network bring-up or any stale configuration that might
+have already been applied.  Otherwise, that could have negative effects such
+as DHCP hooks or broadcast of an old hostname.  It would also put the system
+in an odd state to recover from, as it may then have to restart network
 devices.
 
 Cloud-init then exits and expects for the continued boot of the operating
@@ -93,7 +93,7 @@ Network
 +---------+--------+----------------------------------------------------------+
 
 This stage requires all configured networking to be online, as it will fully
-process any user-data that is found.  Here, processing means:
+process any user-data that is found.  Here processing means:
 
  * retrieve any ``#include`` or ``#include-once`` (recursively) including http
  * decompress any compressed content
@@ -106,7 +106,7 @@ from sources only available via network.  For example, a user may have
 provided user-data in a network resource that describes how local mounts
 should be done.
 
-On some clouds such as Azure, this stage will create filesystems to be
+On some clouds, such as Azure, this stage will create filesystems to be
 mounted, including ones that have stale (previous instance) references in
 ``/etc/fstab``. As such, entries ``/etc/fstab`` other than those necessary for
 cloud-init to run should not be done until after this stage.
@@ -146,7 +146,7 @@ Final
 
 This stage runs as late in boot as possible.  Any scripts that a user is
 accustomed to running after logging into a system should run correctly here.
-Things that run here include
+Things that run here include:
 
  * package installations
  * configuration management plugins (puppet, chef, salt-minion)

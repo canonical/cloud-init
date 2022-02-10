@@ -64,4 +64,4 @@ Modules
 .. automodule:: cloudinit.config.cc_users_groups
 .. automodule:: cloudinit.config.cc_write_files
 .. automodule:: cloudinit.config.cc_yum_add_repo
-.. vi: textwidth=78
+.. vi: textwidth=79

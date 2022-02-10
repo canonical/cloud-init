@@ -91,7 +91,7 @@ tests against the image in question.  If it's a RHEL8 image, then we
 would expect Ubuntu-specific tests to fail (and vice versa).
 
 To address this, a full image specification can be given.  This is of
-the form: ``<image_id>[::<os>[::<release]]`` where ``image_id`` is a
+the form: ``<image_id>[::<os>[::<release>]]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
 release name.  So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
 ``ubuntu:bionic::ubuntu::bionic`` or RHEL 8 on Amazon is

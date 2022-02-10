@@ -84,4 +84,4 @@ application::
   semaphore `files` which are only supposed to run `per-once` (not tied to the
   instance id).
 
-.. vi: textwidth=78
+.. vi: textwidth=79

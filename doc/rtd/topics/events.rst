@@ -92,4 +92,4 @@ On every boot, apply network configuration found in the datasource.
 
 .. _Cloud-init: https://launchpad.net/cloud-init
 .. _on Launchpad: https://bugs.launchpad.net/cloud-init/+bug/1936229
-.. vi: textwidth=78
+.. vi: textwidth=79

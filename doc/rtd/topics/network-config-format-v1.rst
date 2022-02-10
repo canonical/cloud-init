@@ -621,4 +621,4 @@ Some more examples to explore the various options available.
 
 .. _SLAAC: https://tools.ietf.org/html/rfc4862
 
-.. vi: textwidth=78
+.. vi: textwidth=79

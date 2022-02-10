@@ -165,4 +165,4 @@ You can control the disk_setup then in 2 ways:
 
 See doc/examples/cloud-config-disk-setup.txt for information on disk_setup.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

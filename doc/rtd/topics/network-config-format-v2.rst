@@ -527,4 +527,4 @@ This is a complex example which shows most available features: ::
         dhcp4: yes
 
 .. _netplan: https://netplan.io
-.. vi: textwidth=78
+.. vi: textwidth=79
