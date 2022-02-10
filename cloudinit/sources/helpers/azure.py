@@ -12,6 +12,7 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
+from typing import List, Optional
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -1004,7 +1005,7 @@ class WALinuxAgentShim:
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
         self, pubkey_info=None, iso_dev=None
-    ) -> dict:
+    ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -1037,7 +1038,7 @@ class WALinuxAgentShim:
             self.eject_iso(iso_dev)
 
         health_reporter.send_ready_signal()
-        return {"public-keys": ssh_keys}
+        return ssh_keys
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_report_failure(self, description: str) -> None:

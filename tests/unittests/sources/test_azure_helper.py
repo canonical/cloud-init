@@ -1204,16 +1204,16 @@ class TestWALinuxAgentShim(CiTestCase):
             [mock.call(self.GoalState.return_value.certificates_xml)],
             sslmgr.parse_certificates.call_args_list,
         )
-        self.assertIn("expected-key", data["public-keys"])
-        self.assertIn("expected-no-value-key", data["public-keys"])
-        self.assertNotIn("should-not-be-found", data["public-keys"])
+        self.assertIn("expected-key", data)
+        self.assertIn("expected-no-value-key", data)
+        self.assertNotIn("should-not-be-found", data)
 
     def test_absent_certificates_produces_empty_public_keys(self):
         mypk = [{"fingerprint": "fp1", "path": "path1"}]
         self.GoalState.return_value.certificates_xml = None
         shim = wa_shim()
         data = shim.register_with_azure_and_fetch_data(pubkey_info=mypk)
-        self.assertEqual([], data["public-keys"])
+        self.assertEqual([], data)
 
     def test_correct_url_used_for_report_ready(self):
         self.find_endpoint.return_value = "test_endpoint"
