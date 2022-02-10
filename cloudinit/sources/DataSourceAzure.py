@@ -2175,7 +2175,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     @param: imds_metadata: Dict of content read from IMDS network service.
     @return: Dictionary containing network version 2 standard configuration.
     """
-    netconfig = {"version": 2, "ethernets": {}}
+    netconfig: Dict[str, Any] = {"version": 2, "ethernets": {}}
     network_metadata = imds_metadata["network"]
     for idx, intf in enumerate(network_metadata["interface"]):
         has_ip_address = False
@@ -2184,7 +2184,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
-        dev_config = {
+        dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,
             "dhcp6": False,
@@ -2214,7 +2214,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                 privateIp = addr["privateIpAddress"]
                 if not dev_config.get("addresses"):
                     dev_config["addresses"] = []
-                dev_config["addresses"].append(  # type: ignore
+                dev_config["addresses"].append(
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
@@ -2227,8 +2227,8 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             # our match condition also contains the driver
             driver = device_driver(nicname)
             if driver and driver == "hv_netvsc":
-                dev_config["match"]["driver"] = driver  # type: ignore
-            netconfig["ethernets"][nicname] = dev_config  # type: ignore
+                dev_config["match"]["driver"] = driver
+            netconfig["ethernets"][nicname] = dev_config
     return netconfig
 
 
