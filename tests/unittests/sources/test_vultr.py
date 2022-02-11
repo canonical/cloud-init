@@ -145,8 +145,8 @@ INTERFACES = [
     ["lo", "56:00:03:15:c4:00", "drv", "devid0"],
     ["dummy0", "56:00:03:15:c4:01", "drv", "devid1"],
     ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
-    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
     ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
+    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
 ]
 
 # Expected generated objects
@@ -222,6 +222,9 @@ INTERFACE_MAP = {
     "56:00:03:1b:4e:ca": "eth0",
     "5a:00:03:1b:4e:ca": "eth1",
 }
+
+
+EPHERMERAL_USED = ""
 
 
 class TestDataSourceVultr(CiTestCase):
@@ -300,19 +303,20 @@ class TestDataSourceVultr(CiTestCase):
             EXPECTED_VULTR_NETWORK_2, vultr.generate_network_config(interf)
         )
 
+    def ephemeral_init(self, iface="", connectivity_url_data=None):
+        global EPHERMERAL_USED
+        EPHERMERAL_USED = iface
+        if iface == "eth0":
+            return
+        raise NoDHCPLeaseError("Generic for testing")
+
     # Test interface seeking to ensure we are able to find the correct one
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4")
-    @mock.patch("cloudinit.sources.helpers.vultr.set_route")
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__init__", ephemeral_init)
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
     @mock.patch("cloudinit.net.get_interfaces")
     def test_interface_seek(
-        self,
-        mock_get_interfaces,
-        mock_read_metadata,
-        mock_isvultr,
-        mock_set_route,
-        mock_dhcp,
+        self, mock_get_interfaces, mock_read_metadata, mock_isvultr
     ):
         mock_read_metadata.side_effect = NoDHCPLeaseError(
             "Generic for testing"
@@ -329,12 +333,7 @@ class TestDataSourceVultr(CiTestCase):
         except Exception:
             pass
 
-        calls = [
-            mock.call(INTERFACES[2][0]),
-            mock.call(INTERFACES[3][0]),
-            mock.call(INTERFACES[4][0]),
-        ]
-        mock_set_route.assert_has_calls(calls, any_order=False)
+        self.assertEqual(EPHERMERAL_USED, INTERFACES[3][0])
 
 
 # vi: ts=4 expandtab

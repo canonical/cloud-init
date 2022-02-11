@@ -30,9 +30,6 @@ def get_metadata(url, timeout, retries, sec_between, agent):
             with EphemeralDHCPv4(
                 iface=iface[0], connectivity_url_data={"url": url}
             ):
-                # Set metadata route
-                set_route(iface[0])
-
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
@@ -41,12 +38,6 @@ def get_metadata(url, timeout, retries, sec_between, agent):
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
     raise exception
-
-
-# Set route for metadata
-def set_route(iface):
-    if subp.which("route"):
-        subp.subp(["route", "add", "169.254.169.254/32", iface])
 
 
 # Read the system information from SMBIOS
