@@ -267,10 +267,14 @@ class TestDefaults:
         sources_list = class_client.read_from_file("/etc/apt/sources.list")
 
         # 3 lines from main, universe, and multiverse
-        assert 3 == sources_list.count("deb http://security.ubuntu.com/ubuntu")
-        assert 3 == sources_list.count(
-            "# deb-src http://security.ubuntu.com/ubuntu"
-        )
+        sec_url = "deb http://security.ubuntu.com/ubuntu"
+        if class_client.settings.PLATFORM == "azure":
+            sec_url = (
+                "deb http://azure.archive.ubuntu.com/ubuntu/ jammy-security"
+            )
+        sec_src_url = sec_url.replace("deb ", "# deb-src ")
+        assert 3 == sources_list.count(sec_url)
+        assert 3 == sources_list.count(sec_src_url)
 
 
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
