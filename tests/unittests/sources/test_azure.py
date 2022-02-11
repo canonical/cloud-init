@@ -762,9 +762,7 @@ scbus-1 on xpt0 bus 0
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
         self.m_is_platform_viable = mock.MagicMock(autospec=True)
-        self.m_get_metadata_from_fabric = mock.MagicMock(
-            return_value={"public-keys": []}
-        )
+        self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
         self.m_list_possible_azure_ds = mock.MagicMock(
             side_effect=_load_possible_azure_ds
@@ -1725,10 +1723,10 @@ scbus-1 on xpt0 bus 0
 
     def test_fabric_data_included_in_metadata(self):
         dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
-        self.m_get_metadata_from_fabric.return_value = {"test": "value"}
+        self.m_get_metadata_from_fabric.return_value = ["ssh-key-value"]
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
-        self.assertEqual("value", dsrc.metadata["test"])
+        self.assertEqual(["ssh-key-value"], dsrc.metadata["public-keys"])
 
     def test_instance_id_case_insensitive(self):
         """Return the previous iid when current is a case-insensitive match."""
@@ -2008,7 +2006,7 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
-        dsaz.get_metadata_from_fabric.return_value = {"public-keys": ["key2"]}
+        dsaz.get_metadata_from_fabric.return_value = ["key2"]
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()

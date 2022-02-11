@@ -14,7 +14,7 @@ import re
 from typing import Any, Dict
 
 from cloudinit import subp, util
-from cloudinit.net.network_state import mask_to_net_prefix
+from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
@@ -1125,9 +1125,12 @@ class EphemeralIPv4Network(object):
                 )
             )
         try:
-            self.prefix = mask_to_net_prefix(prefix_or_mask)
+            self.prefix = ipv4_mask_to_net_prefix(prefix_or_mask)
         except ValueError as e:
-            raise ValueError("Cannot setup network: {0}".format(e)) from e
+            raise ValueError(
+                "Cannot setup network, invalid prefix or "
+                "netmask: {0}".format(e)
+            ) from e
 
         self.connectivity_url_data = connectivity_url_data
         self.interface = interface

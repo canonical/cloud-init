@@ -39,4 +39,4 @@ value.  If this field does not exist the default value is "net".
 .. _server context: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 .. _meta field: http://cloudsigma-docs.readthedocs.org/en/latest/meta.html
 .. _config formats: http://cloudinit.readthedocs.org/en/latest/topics/format.html
-.. vi: textwidth=78
+.. vi: textwidth=79

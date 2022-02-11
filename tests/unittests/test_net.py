@@ -2421,10 +2421,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                     routes:
                         - gateway: 2001:67c:1562:1
                           network: 2001:67c:1
-                          netmask: ffff:ffff:0
+                          netmask: "ffff:ffff::"
                         - gateway: 3001:67c:1562:1
                           network: 3001:67c:1
-                          netmask: ffff:ffff:0
+                          netmask: "ffff:ffff::"
                           metric: 10000
             """
         ),
@@ -2712,8 +2712,8 @@ iface bond0 inet6 static
                 """\
         # Created by cloud-init on instance boot automatically, do not edit.
         #
-        2001:67c:1/ffff:ffff:0 via 2001:67c:1562:1  dev bond0
-        3001:67c:1/ffff:ffff:0 via 3001:67c:1562:1 metric 10000 dev bond0
+        2001:67c:1/32 via 2001:67c:1562:1  dev bond0
+        3001:67c:1/32 via 3001:67c:1562:1 metric 10000 dev bond0
             """
             ),
             "route-bond0": textwrap.dedent(
@@ -3728,6 +3728,76 @@ USERCTL=no
         with self.assertRaises(ValueError):
             renderer.render_network_state(ns, target=render_dir)
         self.assertEqual([], os.listdir(render_dir))
+
+    def test_invalid_network_mask_ipv6(self):
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [
+                {
+                    "network_id": "public-ipv6",
+                    "type": "ipv6",
+                    "netmask": "",
+                    "link": "tap1a81968a-79",
+                    "routes": [
+                        {
+                            "gateway": "2001:DB8::1",
+                            "netmask": "ff:ff:ff:ff::",
+                            "network": "2001:DB8:1::1",
+                        },
+                    ],
+                    "ip_address": "2001:DB8::10",
+                    "id": "network1",
+                }
+            ],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None,
+                    "type": "bridge",
+                    "id": "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f",
+                },
+            ],
+        }
+        macs = {"fa:16:3e:ed:9a:59": "eth0"}
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        with self.assertRaises(ValueError):
+            network_state.parse_net_config_data(network_cfg, skip_broken=False)
+
+    def test_invalid_network_mask_ipv4(self):
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [
+                {
+                    "network_id": "public-ipv4",
+                    "type": "ipv4",
+                    "netmask": "",
+                    "link": "tap1a81968a-79",
+                    "routes": [
+                        {
+                            "gateway": "172.20.0.1",
+                            "netmask": "255.234.255.0",
+                            "network": "172.19.0.0",
+                        },
+                    ],
+                    "ip_address": "172.20.0.10",
+                    "id": "network1",
+                }
+            ],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None,
+                    "type": "bridge",
+                    "id": "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f",
+                },
+            ],
+        }
+        macs = {"fa:16:3e:ed:9a:59": "eth0"}
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        with self.assertRaises(ValueError):
+            network_state.parse_net_config_data(network_cfg, skip_broken=False)
 
     def test_openstack_rendering_samples(self):
         for os_sample in OS_SAMPLES:

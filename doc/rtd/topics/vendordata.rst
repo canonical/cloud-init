@@ -68,4 +68,4 @@ of input files.  That data can then be given to an instance.
 
 See 'write-mime-multipart --help' for usage.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

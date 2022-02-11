@@ -17,10 +17,10 @@ option. This can be used against cloud-init itself or any of its subcommands.
     -h, --help            show this help message and exit
     --version, -v         show program's version number and exit
     --file FILES, -f FILES
-                            additional yaml configuration files to use
+                          additional yaml configuration files to use
     --debug, -d           show additional pre-action logging (default: False)
     --force               force running even if no datasource is found (use at
-                            your own risk)
+                          your own risk)
 
     Subcommands:
     {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
@@ -115,7 +115,7 @@ Current subcommands:
    containing  the jinja template header ``## template: jinja`` and renders
    that content with any instance-data.json variables present.
  * ``schema``: a **#cloud-config** format and schema
-   validator. It accepts a cloud-config yaml file and annotates potential
+   validator. It accepts a cloud-config YAML file and annotates potential
    schema errors locally without the need for deployment. Schema
    validation is work in progress and supports a subset of cloud-config
    modules.
