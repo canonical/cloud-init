@@ -1259,7 +1259,10 @@ scbus-1 on xpt0 bus 0
 
         dsrc.crawl_metadata()
 
-        assert m_report_ready.mock_calls == [mock.call(), mock.call()]
+        assert m_report_ready.mock_calls == [
+            mock.call(),
+            mock.call(pubkey_info=None),
+        ]
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -1637,12 +1640,23 @@ scbus-1 on xpt0 bus 0
 
     def test_dsaz_report_ready_returns_true_when_report_succeeds(self):
         dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
-        self.assertTrue(dsrc._report_ready())
+        assert dsrc._report_ready() == []
 
-    def test_dsaz_report_ready_returns_false_and_does_not_propagate_exc(self):
+    @mock.patch(MOCKPATH + "report_diagnostic_event")
+    def test_dsaz_report_ready_failure_reports_telemetry(self, m_report_diag):
         dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
-        self.m_get_metadata_from_fabric.side_effect = Exception
-        self.assertFalse(dsrc._report_ready())
+        self.m_get_metadata_from_fabric.side_effect = Exception("foo")
+
+        with pytest.raises(Exception):
+            dsrc._report_ready()
+
+        assert m_report_diag.mock_calls == [
+            mock.call(
+                "Error communicating with Azure fabric; "
+                "You may experience connectivity issues: foo",
+                logger_func=dsaz.LOG.warning,
+            )
+        ]
 
     def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
         dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
@@ -3316,7 +3330,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             }
         ]
         m_media_switch.return_value = None
-        m_report_ready.return_value = False
+        m_report_ready.side_effect = [Exception("fail")]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
