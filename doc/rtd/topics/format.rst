@@ -38,6 +38,9 @@ Supported content-types are listed from the cloud-init subcommand make-mime:
     x-include-once-url
     x-include-url
     x-shellscript
+    x-shellscript-per-boot
+    x-shellscript-per-instance
+    x-shellscript-per-once
 
 
 Helper subcommand to generate mime messages
@@ -47,13 +50,26 @@ The cloud-init subcommand can generate MIME multi-part files: `make-mime`_.
 
 ``make-mime`` subcommand takes pairs of (filename, "text/" mime subtype)
 separated by a colon (e.g. ``config.yaml:cloud-config``) and emits a MIME
-multipart message to stdout.  An example invocation, assuming you have your
-cloud config in ``config.yaml`` and a shell script in ``script.sh`` and want
-to store the multipart message in ``user-data``:
+multipart message to stdout.
+
+Examples
+--------
+Create userdata containing both a cloud-config (``config.yaml``)
+and a shell script (``script.sh``)
 
 .. code-block:: shell-session
 
-    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
+    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > userdata
+
+Create userdata containing 3 shell scripts:
+
+- ``always.sh`` - Run every boot
+- ``instance.sh`` - Run once per instance
+- ``once.sh`` - Run once
+
+.. code-block:: shell-session
+
+    $ cloud-init devel make-mime -a always.sh:x-shellscript-per-boot -a instance.sh:x-shellscript-per-instance -a once.sh:x-shellscript-per-once
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 
