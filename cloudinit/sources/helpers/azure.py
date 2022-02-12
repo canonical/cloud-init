@@ -334,12 +334,10 @@ def _get_dhcp_endpoint_option_name():
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(url, **kwargs) -> str:
+def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
     """Wrapper around url_helper.readurl() with custom telemetry logging
     that url_helper.readurl() does not provide.
     """
-    exc = None
-
     max_readurl_attempts = 240
     default_readurl_timeout = 5
     sleep_duration_between_retries = 5
@@ -374,16 +372,18 @@ def http_with_retries(url, **kwargs) -> str:
             return ret
 
         except Exception as e:
-            exc = e
             if attempt % periodic_logging_attempts == 0:
                 report_diagnostic_event(
                     "Failed HTTP request with Azure endpoint %s during "
                     "attempt %d with exception: %s" % (url, attempt, e),
                     logger_func=LOG.debug,
                 )
-            time.sleep(sleep_duration_between_retries)
+            if attempt == max_readurl_attempts:
+                raise
 
-    raise exc
+        time.sleep(sleep_duration_between_retries)
+
+    raise RuntimeError("Failed to return in http_with_retries")
 
 
 def build_minimal_ovf(
@@ -433,14 +433,16 @@ class AzureEndpointHttpClient:
             "x-ms-guest-agent-public-x509-cert": certificate,
         }
 
-    def get(self, url, secure=False):
+    def get(self, url, secure=False) -> url_helper.UrlResponse:
         headers = self.headers
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
         return http_with_retries(url, headers=headers)
 
-    def post(self, url, data=None, extra_headers=None):
+    def post(
+        self, url, data=None, extra_headers=None
+    ) -> url_helper.UrlResponse:
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
