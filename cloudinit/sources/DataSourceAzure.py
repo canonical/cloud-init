@@ -317,17 +317,16 @@ class DataSourceAzure(sources.DataSource):
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
         self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
+        self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
-        self.iso_dev = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
 
         self._ephemeral_dhcp_ctx = None
-        if not hasattr(self, "iso_dev"):
-            self.iso_dev = None
+        self._iso_dev = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def __str__(self):
@@ -441,7 +440,6 @@ class DataSourceAzure(sources.DataSource):
         cfg = {}
         files = {}
 
-        iso_dev = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
             metadata_source = "IMDS"
             report_diagnostic_event(
@@ -462,7 +460,7 @@ class DataSourceAzure(sources.DataSource):
                                 src, load_azure_ds_dir
                             )
                         # save the device for ejection later
-                        iso_dev = src
+                        self._iso_dev = src
                     else:
                         md, userdata_raw, cfg, files = load_azure_ds_dir(src)
                     ovf_is_accessible = True
@@ -497,7 +495,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(iso_dev) or not ovf_is_accessible
+        requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
         timeout_minutes = 5 if requires_imds_metadata else 20
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -513,8 +511,6 @@ class DataSourceAzure(sources.DataSource):
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
-
-        self.iso_dev = iso_dev
 
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
@@ -1410,10 +1406,10 @@ class DataSourceAzure(sources.DataSource):
         :returns: List of SSH keys, if requested.
         """
         try:
-            return get_metadata_from_fabric(
+            data = get_metadata_from_fabric(
                 fallback_lease_file=None,
                 dhcp_opts=self._wireserver_endpoint,
-                iso_dev=self.iso_dev,
+                iso_dev=self._iso_dev,
                 pubkey_info=pubkey_info,
             )
         except Exception as e:
@@ -1423,6 +1419,10 @@ class DataSourceAzure(sources.DataSource):
                 logger_func=LOG.warning,
             )
             raise
+
+        # Reporting ready ejected OVF media, no need to do so again.
+        self._iso_dev = None
+        return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
         try:
