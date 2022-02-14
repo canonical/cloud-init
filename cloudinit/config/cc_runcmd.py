@@ -38,7 +38,7 @@ meta = {
 
         Note that the ``runcmd`` module only writes the script to be run
         later. The module that actually runs the script is ``scripts-user``
-        in the ref:`Final` boot stage.
+        in the :ref:`Final` boot stage.
 
         .. note::
 
