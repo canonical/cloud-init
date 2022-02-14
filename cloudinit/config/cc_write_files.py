@@ -12,7 +12,11 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
@@ -43,7 +47,7 @@ supported_encoding_types = [
     "base64",
 ]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_write_files",
     "name": "Write Files",
     "title": "write arbitrary files",

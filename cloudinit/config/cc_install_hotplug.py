@@ -4,7 +4,11 @@ import os
 from textwrap import dedent
 
 from cloudinit import stages, subp, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
@@ -12,7 +16,7 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 distros = [ALL_DISTROS]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_install_hotplug",
     "name": "Install Hotplug",
     "title": "Install hotplug if supported and enabled",

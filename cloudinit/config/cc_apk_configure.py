@@ -10,7 +10,7 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import temp_utils, templater, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ REPOSITORIES_TEMPLATE = """\
 
 frequency = PER_INSTANCE
 distros = ["alpine"]
-meta = {
+meta: MetaSchema = {
     "id": "cc_apk_configure",
     "name": "APK Configure",
     "title": "Configure apk repositories file",

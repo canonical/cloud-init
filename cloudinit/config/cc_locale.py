@@ -11,12 +11,16 @@
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 distros = ["all"]
-meta = {
+meta: MetaSchema = {
     "id": "cc_locale",
     "name": "Locale",
     "title": "Set system locale",

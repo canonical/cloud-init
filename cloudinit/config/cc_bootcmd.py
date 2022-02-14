@@ -13,14 +13,14 @@ import os
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
 distros = ["all"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_bootcmd",
     "name": "Bootcmd",
     "title": "Run arbitrary commands early in the boot process",

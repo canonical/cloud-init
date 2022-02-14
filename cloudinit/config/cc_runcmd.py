@@ -12,7 +12,11 @@ import os
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -24,7 +28,7 @@ from cloudinit.settings import PER_INSTANCE
 
 distros = [ALL_DISTROS]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_runcmd",
     "name": "Runcmd",
     "title": "Run arbitrary commands",
