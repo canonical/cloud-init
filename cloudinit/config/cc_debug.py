@@ -9,7 +9,7 @@ from io import StringIO
 from textwrap import dedent
 
 from cloudinit import safeyaml, type_utils, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -24,7 +24,7 @@ location that this cloud-init has been configured with when running.
     Log configurations are not output.
 """
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_debug",
     "name": "Debug",
     "title": "Helper to debug cloud-init *internal* datastructures",

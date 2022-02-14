@@ -8,7 +8,7 @@ import os
 from textwrap import dedent
 
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_CONFIG = {
@@ -45,7 +45,7 @@ can be removed from the system with the configuration option
 """
 distros = ["alpine", "debian", "ubuntu", "rhel"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_ca_certs",
     "name": "CA Certificates",
     "title": "Add ca certificates",

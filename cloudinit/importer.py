@@ -16,7 +16,7 @@ import typing
 # pylint: disable=E1101
 if sys.version_info >= (3, 8):
 
-    class MetaSchema:
+    class MetaSchema(typing.TypedDict):
         name: str
         id: str
         title: str

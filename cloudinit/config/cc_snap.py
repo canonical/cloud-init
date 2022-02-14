@@ -9,7 +9,11 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
 
@@ -18,7 +22,7 @@ frequency = PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_snap",
     "name": "Snap",
     "title": "Install, configure and manage snapd and snap packages",

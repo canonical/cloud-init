@@ -12,12 +12,12 @@ import configobj
 
 from cloudinit import log as logging
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
 distros = ["opensuse", "sles"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_zypper_add_repo",
     "name": "ZypperAddRepo",
     "title": "Configure zypper behavior and add zypper repositories",

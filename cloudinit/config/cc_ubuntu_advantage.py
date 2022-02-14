@@ -6,14 +6,18 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 UA_URL = "https://ubuntu.com/advantage"
 
 distros = ["ubuntu"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_ubuntu_advantage",
     "name": "Ubuntu Advantage",
     "title": "Configure Ubuntu Advantage support services",
