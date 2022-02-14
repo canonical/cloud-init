@@ -37,12 +37,30 @@ from tests.unittests.helpers import (
     wrap_and_call,
 )
 
+MOCKPATH = "cloudinit.sources.DataSourceAzure."
+
 
 @pytest.fixture
 def azure_ds(request, paths):
     """Provide DataSourceAzure instance with mocks for minimal test case."""
     with mock.patch(MOCKPATH + "_is_platform_viable", return_value=True):
         yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
+
+
+@pytest.fixture
+def mock_get_interfaces():
+    """Mock for net.get_interfaces()."""
+    with mock.patch(MOCKPATH + "net.get_interfaces", return_value=[]) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_get_interface_mac():
+    """Mock for net.get_interface_mac()."""
+    with mock.patch(
+        MOCKPATH + "net.get_interface_mac", return_value="001122334455"
+    ) as m:
+        yield m
 
 
 def construct_valid_ovf_env(
@@ -196,7 +214,6 @@ IMDS_NETWORK_METADATA = {
     ]
 }
 
-MOCKPATH = "cloudinit.sources.DataSourceAzure."
 EXAMPLE_UUID = "d0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8"
 
 
@@ -764,6 +781,13 @@ scbus-1 on xpt0 bus 0
         self.m_is_platform_viable = mock.MagicMock(autospec=True)
         self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
+        self.m_get_interfaces = mock.MagicMock(
+            return_value=[
+                ("dummy0", "9e:65:d6:19:19:01", None, None),
+                ("eth0", "00:15:5d:69:63:ba", "hv_netvsc", "0x3"),
+                ("lo", "00:00:00:00:00:00", None, None),
+            ]
+        )
         self.m_list_possible_azure_ds = mock.MagicMock(
             side_effect=_load_possible_azure_ds
         )
@@ -799,6 +823,16 @@ scbus-1 on xpt0 bus 0
                 ),
                 (dsaz, "get_boot_telemetry", mock.MagicMock()),
                 (dsaz, "get_system_info", mock.MagicMock()),
+                (
+                    dsaz.net,
+                    "get_interface_mac",
+                    mock.MagicMock(return_value="00:15:5d:69:63:ba"),
+                ),
+                (
+                    dsaz.net,
+                    "get_interfaces",
+                    self.m_get_interfaces,
+                ),
                 (dsaz.subp, "which", lambda x: True),
                 (
                     dsaz.dmi,
@@ -1940,7 +1974,7 @@ scbus-1 on xpt0 bus 0
         )
 
         distro.networking.get_interfaces_by_mac()
-        m_net_get_interfaces.assert_called_with(
+        self.m_get_interfaces.assert_called_with(
             blacklist_drivers=dsaz.BLACKLIST_DRIVERS
         )
 
@@ -3532,6 +3566,228 @@ class TestRandomSeed(CiTestCase):
             self.fail("Non-serializable random seed returned")
 
         self.assertEqual(deserialized["seed"], result)
+
+
+class TestValidateIMDSMetadata:
+    @pytest.mark.parametrize(
+        "mac,expected",
+        [
+            ("001122aabbcc", "00:11:22:aa:bb:cc"),
+            ("001122AABBCC", "00:11:22:aa:bb:cc"),
+            ("00:11:22:aa:bb:cc", "00:11:22:aa:bb:cc"),
+            ("00:11:22:AA:BB:CC", "00:11:22:aa:bb:cc"),
+            ("pass-through-the-unexpected", "pass-through-the-unexpected"),
+            ("", ""),
+        ],
+    )
+    def test_normalize_scenarios(self, mac, expected):
+        normalized = dsaz.normalize_mac_address(mac)
+        assert normalized == expected
+
+    def test_empty(
+        self, azure_ds, caplog, mock_get_interfaces, mock_get_interface_mac
+    ):
+        imds_md = {}
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is False
+        assert (
+            "cloudinit.sources.DataSourceAzure",
+            30,
+            "IMDS network metadata has incomplete configuration: None",
+        ) in caplog.record_tuples
+
+    def test_validates_one_nic(
+        self, azure_ds, mock_get_interfaces, mock_get_interface_mac
+    ):
+
+        mock_get_interfaces.return_value = [
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("test0", "00:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ]
+        azure_ds._ephemeral_dhcp_ctx = mock.Mock(iface="test0")
+
+        imds_md = {
+            "network": {
+                "interface": [
+                    {
+                        "ipv4": {
+                            "ipAddress": [
+                                {
+                                    "privateIpAddress": "10.0.0.22",
+                                    "publicIpAddress": "",
+                                }
+                            ],
+                            "subnet": [
+                                {"address": "10.0.0.0", "prefix": "24"}
+                            ],
+                        },
+                        "ipv6": {"ipAddress": []},
+                        "macAddress": "001122334455",
+                    }
+                ]
+            }
+        }
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is True
+
+    def test_validates_multiple_nic(
+        self, azure_ds, mock_get_interfaces, mock_get_interface_mac
+    ):
+
+        mock_get_interfaces.return_value = [
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("test0", "00:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("test1", "01:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ]
+        azure_ds._ephemeral_dhcp_ctx = mock.Mock(iface="test0")
+
+        imds_md = {
+            "network": {
+                "interface": [
+                    {
+                        "ipv4": {
+                            "ipAddress": [
+                                {
+                                    "privateIpAddress": "10.0.0.22",
+                                    "publicIpAddress": "",
+                                }
+                            ],
+                            "subnet": [
+                                {"address": "10.0.0.0", "prefix": "24"}
+                            ],
+                        },
+                        "ipv6": {"ipAddress": []},
+                        "macAddress": "001122334455",
+                    },
+                    {
+                        "ipv4": {
+                            "ipAddress": [
+                                {
+                                    "privateIpAddress": "10.0.0.22",
+                                    "publicIpAddress": "",
+                                }
+                            ],
+                            "subnet": [
+                                {"address": "10.0.0.0", "prefix": "24"}
+                            ],
+                        },
+                        "ipv6": {"ipAddress": []},
+                        "macAddress": "011122334455",
+                    },
+                ]
+            }
+        }
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is True
+
+    def test_missing_all(
+        self, azure_ds, caplog, mock_get_interfaces, mock_get_interface_mac
+    ):
+
+        mock_get_interfaces.return_value = [
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("test0", "00:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("test1", "01:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ]
+        azure_ds._ephemeral_dhcp_ctx = mock.Mock(iface="test0")
+
+        imds_md = {"network": {"interface": []}}
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is False
+        assert (
+            "cloudinit.sources.DataSourceAzure",
+            30,
+            "IMDS network metadata is missing configuration for NICs "
+            "['00:11:22:33:44:55', '01:11:22:33:44:55']: "
+            f"{imds_md['network']!r}",
+        ) in caplog.record_tuples
+
+    def test_missing_primary(
+        self, azure_ds, caplog, mock_get_interfaces, mock_get_interface_mac
+    ):
+
+        mock_get_interfaces.return_value = [
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("test0", "00:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("test1", "01:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ]
+        azure_ds._ephemeral_dhcp_ctx = mock.Mock(iface="test0")
+
+        imds_md = {
+            "network": {
+                "interface": [
+                    {
+                        "ipv4": {
+                            "ipAddress": [
+                                {
+                                    "privateIpAddress": "10.0.0.22",
+                                    "publicIpAddress": "",
+                                }
+                            ],
+                            "subnet": [
+                                {"address": "10.0.0.0", "prefix": "24"}
+                            ],
+                        },
+                        "ipv6": {"ipAddress": []},
+                        "macAddress": "011122334455",
+                    },
+                ]
+            }
+        }
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is False
+        assert (
+            "cloudinit.sources.DataSourceAzure",
+            30,
+            "IMDS network metadata is missing configuration for NICs "
+            f"['00:11:22:33:44:55']: {imds_md['network']!r}",
+        ) in caplog.record_tuples
+        assert (
+            "cloudinit.sources.DataSourceAzure",
+            30,
+            "IMDS network metadata is missing primary NIC "
+            f"'00:11:22:33:44:55': {imds_md['network']!r}",
+        ) in caplog.record_tuples
+
+    def test_missing_secondary(
+        self, azure_ds, mock_get_interfaces, mock_get_interface_mac
+    ):
+
+        mock_get_interfaces.return_value = [
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("test0", "00:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("test1", "01:11:22:33:44:55", "hv_netvsc", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ]
+        azure_ds._ephemeral_dhcp_ctx = mock.Mock(iface="test0")
+
+        imds_md = {
+            "network": {
+                "interface": [
+                    {
+                        "ipv4": {
+                            "ipAddress": [
+                                {
+                                    "privateIpAddress": "10.0.0.22",
+                                    "publicIpAddress": "",
+                                }
+                            ],
+                            "subnet": [
+                                {"address": "10.0.0.0", "prefix": "24"}
+                            ],
+                        },
+                        "ipv6": {"ipAddress": []},
+                        "macAddress": "001122334455",
+                    },
+                ]
+            }
+        }
+
+        assert azure_ds.validate_imds_network_metadata(imds_md) is False
 
 
 # vi: ts=4 expandtab

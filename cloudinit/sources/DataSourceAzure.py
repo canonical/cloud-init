@@ -172,6 +172,26 @@ def find_dev_from_busdev(camcontrol_out: str, busdev: str) -> Optional[str]:
     return None
 
 
+def normalize_mac_address(mac: str) -> str:
+    """Normalize mac address with colons and lower-case."""
+    if len(mac) == 12:
+        mac = ":".join(
+            [mac[0:2], mac[2:4], mac[4:6], mac[6:8], mac[8:10], mac[10:12]]
+        )
+
+    return mac.lower()
+
+
+@azure_ds_telemetry_reporter
+def get_hv_netvsc_macs_normalized() -> List[str]:
+    """Get Hyper-V NICs as normalized MAC addresses."""
+    return [
+        normalize_mac_address(n[1])
+        for n in net.get_interfaces()
+        if n[2] == "hv_netvsc"
+    ]
+
+
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
         return subp.subp(cmd)[0]  # type: ignore
@@ -512,6 +532,9 @@ class DataSourceAzure(sources.DataSource):
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_imds_data_with_api_fallback(retries=10)
+
+        # Report errors if IMDS network configuration is missing data.
+        self.validate_imds_network_metadata(imds_md=imds_md)
 
         self.seed = metadata_source
         crawled_data.update(
@@ -1532,6 +1555,54 @@ class DataSourceAzure(sources.DataSource):
     def region(self):
         return self.metadata.get("imds", {}).get("compute", {}).get("location")
 
+    @azure_ds_telemetry_reporter
+    def validate_imds_network_metadata(self, imds_md: dict) -> bool:
+        """Validate IMDS network config and report telemetry for errors."""
+        local_macs = get_hv_netvsc_macs_normalized()
+
+        try:
+            network_config = imds_md["network"]
+            imds_macs = [
+                normalize_mac_address(i["macAddress"])
+                for i in network_config["interface"]
+            ]
+        except KeyError:
+            report_diagnostic_event(
+                "IMDS network metadata has incomplete configuration: %r"
+                % imds_md.get("network"),
+                logger_func=LOG.warning,
+            )
+            return False
+
+        missing_macs = [m for m in local_macs if m not in imds_macs]
+        if not missing_macs:
+            return True
+
+        report_diagnostic_event(
+            "IMDS network metadata is missing configuration for NICs %r: %r"
+            % (missing_macs, network_config),
+            logger_func=LOG.warning,
+        )
+
+        if not self._ephemeral_dhcp_ctx or not self._ephemeral_dhcp_ctx.iface:
+            # No primary interface to check against.
+            return False
+
+        primary_mac = net.get_interface_mac(self._ephemeral_dhcp_ctx.iface)
+        if not primary_mac or not isinstance(primary_mac, str):
+            # Unexpected data for primary interface.
+            return False
+
+        primary_mac = normalize_mac_address(primary_mac)
+        if primary_mac in missing_macs:
+            report_diagnostic_event(
+                "IMDS network metadata is missing primary NIC %r: %r"
+                % (primary_mac, network_config),
+                logger_func=LOG.warning,
+            )
+
+        return False
+
 
 def _username_from_imds(imds_data):
     try:
@@ -2179,6 +2250,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             # If there are no available IP addresses, then we don't
             # want to add this interface to the generated config.
             if not addresses:
+                LOG.debug("No %s addresses found for: %r", addr_type, intf)
                 continue
             has_ip_address = True
             if addr_type == "ipv4":
@@ -2203,7 +2275,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
-            mac = ":".join(re.findall(r"..", intf["macAddress"]))
+            mac = normalize_mac_address(intf["macAddress"])
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
@@ -2214,6 +2286,14 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             if driver and driver == "hv_netvsc":
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
+            continue
+
+        LOG.debug(
+            "No configuration for: %s (dev_config=%r) (has_ip_address=%r)",
+            nicname,
+            dev_config,
+            has_ip_address,
+        )
     return netconfig
 
 
