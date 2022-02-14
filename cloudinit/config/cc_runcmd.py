@@ -32,10 +32,12 @@ meta = {
         """\
         Run arbitrary commands at a rc.local like level with output to the
         console. Each item can be either a list or a string. If the item is a
-        list, it will be properly executed as if passed to ``execve()`` (with
-        the first arg as the command). If the item is a string, it will be
-        written to a file and interpreted
-        using ``sh``.
+        list, it will be properly quoted. Each item is written to
+        ``/var/lib/cloud/instance/runcmd`` to be later interpreted using
+        ``sh``.
+
+        Note that the ``runcmd`` module only writes the script to be run
+        later. The module that actually runs the script is ``scripts-user``.
 
         .. note::
 
