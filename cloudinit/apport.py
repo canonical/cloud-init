@@ -23,6 +23,7 @@ KNOWN_CLOUD_NAMES = [
     "Azure",
     "Bigstep",
     "Brightbox",
+    "CloudCIX",
     "CloudSigma",
     "CloudStack",
     "DigitalOcean",

@@ -33,6 +33,7 @@ CFG_BUILTIN = {
         "AliYun",
         "Vultr",
         "Ec2",
+        "CloudCIX",
         "CloudSigma",
         "CloudStack",
         "SmartOS",

@@ -123,7 +123,7 @@ DS_MAYBE=2
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
-DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
+DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep CloudCIX \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
 LXD"
@@ -729,6 +729,11 @@ probe_floppy() {
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
+    return $DS_NOT_FOUND
+}
+
+dscheck_CloudCIX() {
+    dmi_product_name_matches "CloudCIX" && return $DS_FOUND
     return $DS_NOT_FOUND
 }
 
