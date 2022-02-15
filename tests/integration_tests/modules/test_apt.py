@@ -269,9 +269,7 @@ class TestDefaults:
         # 3 lines from main, universe, and multiverse
         sec_url = "deb http://security.ubuntu.com/ubuntu"
         if class_client.settings.PLATFORM == "azure":
-            sec_url = (
-                "deb http://azure.archive.ubuntu.com/ubuntu/ jammy-security"
-            )
+            sec_url = "deb http://azure.archive.ubuntu.com/ubuntu/"
         sec_src_url = sec_url.replace("deb ", "# deb-src ")
         assert 3 == sources_list.count(sec_url)
         assert 3 == sources_list.count(sec_src_url)
