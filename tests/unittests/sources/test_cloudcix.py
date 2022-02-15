@@ -7,18 +7,10 @@ from tests.unittests.helpers import CiTestCase, mock
 METADATA = util.load_yaml(
     """
     instance-id: 123456
-    network-config:
-      config:
-      - name: eth0
-        subnets:
-        - dns_nameservers:
-          - 213.133.99.99
-          - 213.133.100.100
-          - 213.133.98.98
-          ipv4: true
-          type: dhcp
-        type: physical
-      version: 1
+    ip_addresses:
+      - private_ip: 10.0.0.2
+        public_ip: 185.1.2.3
+        subnet: 185.1.2.0/24
 """
 )
 
