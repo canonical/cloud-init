@@ -11,20 +11,6 @@ CD formatted in UDF.  That CD contains a 'ovf-env.xml' file that provides some
 information.  Additional information is obtained via interaction with the
 "endpoint".
 
-To find the endpoint, we now leverage the dhcp client's ability to log its
-known values on exit.  The endpoint server is special DHCP option 245.
-Depending on your networking stack, this can be done
-by calling a script in /etc/dhcp/dhclient-exit-hooks or a file in
-/etc/NetworkManager/dispatcher.d.  Both of these call a sub-command
-'dhclient_hook' of cloud-init itself. This sub-command will write the client
-information in json format to /run/cloud-init/dhclient.hook/<interface>.json.
-
-If those files are not available, the fallback is to check the leases file
-for the endpoint server (again option 245).
-
-You can define the path to the lease file with the 'dhclient_lease_file'
-configuration.
-
 
 IMDS
 ----
@@ -56,8 +42,6 @@ The settings that may be configured are:
    dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is
    False.
  * **data_dir**: Path used to read metadata files and write crawled data.
- * **dhclient_lease_file**: The fallback lease file to source when looking for
-   custom DHCP option 245 from Azure fabric.
  * **disk_aliases**: A dictionary defining which device paths should be
    interpreted as ephemeral images. See cc_disk_setup module for more info.
 
@@ -74,7 +58,6 @@ An example configuration with the default values is provided below:
     Azure:
       apply_network_config: true
       data_dir: /var/lib/waagent
-      dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
       disk_aliases:
         ephemeral0: /dev/disk/cloud/azure_resource
 
