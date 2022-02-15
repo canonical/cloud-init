@@ -317,17 +317,16 @@ class DataSourceAzure(sources.DataSource):
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
         self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
+        self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
-        self.iso_dev = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
 
         self._ephemeral_dhcp_ctx = None
-        if not hasattr(self, "iso_dev"):
-            self.iso_dev = None
+        self._iso_dev = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def __str__(self):
@@ -441,7 +440,6 @@ class DataSourceAzure(sources.DataSource):
         cfg = {}
         files = {}
 
-        iso_dev = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
             metadata_source = "IMDS"
             report_diagnostic_event(
@@ -462,7 +460,7 @@ class DataSourceAzure(sources.DataSource):
                                 src, load_azure_ds_dir
                             )
                         # save the device for ejection later
-                        iso_dev = src
+                        self._iso_dev = src
                     else:
                         md, userdata_raw, cfg, files = load_azure_ds_dir(src)
                     ovf_is_accessible = True
@@ -497,7 +495,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(iso_dev) or not ovf_is_accessible
+        requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
         timeout_minutes = 5 if requires_imds_metadata else 20
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -513,8 +511,6 @@ class DataSourceAzure(sources.DataSource):
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
-
-        self.iso_dev = iso_dev
 
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
@@ -612,9 +608,23 @@ class DataSourceAzure(sources.DataSource):
             crawled_data["metadata"]["random_seed"] = seed
         crawled_data["metadata"]["instance-id"] = self._iid()
 
-        if pps_type != PPSType.NONE:
-            LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            self._report_ready()
+        if self._negotiated is False and self._is_ephemeral_networking_up():
+            # Report ready and fetch public-keys from Wireserver, if required.
+            pubkey_info = self._determine_wireserver_pubkey_info(
+                cfg=cfg, imds_md=imds_md
+            )
+            try:
+                ssh_keys = self._report_ready(pubkey_info=pubkey_info)
+            except Exception:
+                # Failed to report ready, but continue with best effort.
+                pass
+            else:
+                LOG.debug("negotiating returned %s", ssh_keys)
+                if ssh_keys:
+                    crawled_data["metadata"]["public-keys"] = ssh_keys
+
+                self._cleanup_markers()
+                self._negotiated = True
 
         return crawled_data
 
@@ -844,24 +854,6 @@ class DataSourceAzure(sources.DataSource):
         return iid
 
     @azure_ds_telemetry_reporter
-    def setup(self, is_new_instance):
-        if self._negotiated is False:
-            LOG.debug(
-                "negotiating for %s (new_instance=%s)",
-                self.get_instance_id(),
-                is_new_instance,
-            )
-            ssh_keys = self._negotiate()
-            LOG.debug("negotiating returned %s", ssh_keys)
-            if ssh_keys:
-                self.metadata["public-keys"] = ssh_keys
-            self._negotiated = True
-        else:
-            LOG.debug(
-                "negotiating already done for %s", self.get_instance_id()
-            )
-
-    @azure_ds_telemetry_reporter
     def _wait_for_nic_detach(self, nl_sock):
         """Use the netlink socket provided to wait for nic detach event.
         NOTE: The function doesn't close the socket. The caller owns closing
@@ -983,11 +975,12 @@ class DataSourceAzure(sources.DataSource):
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
         """
-        report_ready_succeeded = self._report_ready()
-        if not report_ready_succeeded:
+        try:
+            self._report_ready()
+        except Exception as error:
             msg = "Failed reporting ready while in the preprovisioning pool."
             report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg)
+            raise sources.InvalidMetaDataException(msg) from error
 
         self._create_report_ready_marker()
 
@@ -1400,25 +1393,36 @@ class DataSourceAzure(sources.DataSource):
 
         return False
 
-    def _report_ready(self) -> bool:
+    @azure_ds_telemetry_reporter
+    def _report_ready(
+        self, *, pubkey_info: Optional[List[str]] = None
+    ) -> Optional[List[str]]:
         """Tells the fabric provisioning has completed.
 
-        @return: The success status of sending the ready signal.
+        :param pubkey_info: Fingerprints of keys to request from Wireserver.
+
+        :raises Exception: if failed to report.
+
+        :returns: List of SSH keys, if requested.
         """
         try:
-            get_metadata_from_fabric(
+            data = get_metadata_from_fabric(
                 fallback_lease_file=None,
                 dhcp_opts=self._wireserver_endpoint,
-                iso_dev=self.iso_dev,
+                iso_dev=self._iso_dev,
+                pubkey_info=pubkey_info,
             )
-            return True
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
                 "connectivity issues: %s" % e,
                 logger_func=LOG.warning,
             )
-            return False
+            raise
+
+        # Reporting ready ejected OVF media, no need to do so again.
+        self._iso_dev = None
+        return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
         try:
@@ -1464,6 +1468,7 @@ class DataSourceAzure(sources.DataSource):
             "{pid}: {time}\n".format(pid=os.getpid(), time=time()),
         )
 
+    @azure_ds_telemetry_reporter
     def _reprovision(self):
         """Initiate the reprovisioning workflow.
 
@@ -1479,40 +1484,29 @@ class DataSourceAzure(sources.DataSource):
             return (md, ud, cfg, {"ovf-env.xml": contents})
 
     @azure_ds_telemetry_reporter
-    def _negotiate(self):
-        """Negotiate with fabric and return data from it.
+    def _determine_wireserver_pubkey_info(
+        self, *, cfg: dict, imds_md: dict
+    ) -> Optional[List[str]]:
+        """Determine the fingerprints we need to retrieve from Wireserver.
 
-        On success, returns a dictionary including 'public_keys'.
-        On failure, returns False.
+        :return: List of keys to request from Wireserver, if any, else None.
         """
-        pubkey_info = None
+        pubkey_info: Optional[List[str]] = None
         try:
-            self._get_public_keys_from_imds(self.metadata["imds"])
+            self._get_public_keys_from_imds(imds_md)
         except (KeyError, ValueError):
-            pubkey_info = self.cfg.get("_pubkeys", None)
+            pubkey_info = cfg.get("_pubkeys", None)
             log_msg = "Retrieved {} fingerprints from OVF".format(
                 len(pubkey_info) if pubkey_info is not None else 0
             )
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
+        return pubkey_info
 
-        LOG.debug("negotiating with fabric")
-        try:
-            ssh_keys = get_metadata_from_fabric(
-                fallback_lease_file=self.dhclient_lease_file,
-                pubkey_info=pubkey_info,
-            )
-        except Exception as e:
-            report_diagnostic_event(
-                "Error communicating with Azure fabric; You may experience "
-                "connectivity issues: %s" % e,
-                logger_func=LOG.warning,
-            )
-            return False
-
+    def _cleanup_markers(self):
+        """Cleanup any marker files."""
         util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
         util.del_file(REPROVISION_NIC_DETACHED_MARKER_FILE)
-        return ssh_keys
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
