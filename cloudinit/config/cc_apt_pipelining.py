@@ -9,7 +9,7 @@
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
@@ -24,7 +24,7 @@ APT_PIPE_TPL = (
 # A value of zero MUST be specified if the remote host does not properly linger
 # on TCP connections - otherwise data corruption will occur.
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_apt_pipelining",
     "name": "Apt Pipelining",
     "title": "Configure apt pipelining",

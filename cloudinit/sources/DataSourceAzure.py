@@ -13,7 +13,7 @@ import re
 import xml.etree.ElementTree as ET
 from enum import Enum
 from time import sleep, time
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from xml.dom import minidom
 
 import requests
@@ -83,7 +83,7 @@ class PPSType(Enum):
     UNKNOWN = "Unknown"
 
 
-PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
+PLATFORM_ENTROPY_SOURCE: Optional[str] = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
 # stock ubuntu suported images.
@@ -155,7 +155,7 @@ def find_busdev_from_disk(camcontrol_out, disk_drv):
     return None
 
 
-def find_dev_from_busdev(camcontrol_out, busdev):
+def find_dev_from_busdev(camcontrol_out: str, busdev: str) -> Optional[str]:
     # find the daX from 'camcontrol devlist' output
     # if busdev matches the specified value, i.e. 'scbus2'
     """
@@ -172,9 +172,29 @@ def find_dev_from_busdev(camcontrol_out, busdev):
     return None
 
 
-def execute_or_debug(cmd, fail_ret=None):
+def normalize_mac_address(mac: str) -> str:
+    """Normalize mac address with colons and lower-case."""
+    if len(mac) == 12:
+        mac = ":".join(
+            [mac[0:2], mac[2:4], mac[4:6], mac[6:8], mac[8:10], mac[10:12]]
+        )
+
+    return mac.lower()
+
+
+@azure_ds_telemetry_reporter
+def get_hv_netvsc_macs_normalized() -> List[str]:
+    """Get Hyper-V NICs as normalized MAC addresses."""
+    return [
+        normalize_mac_address(n[1])
+        for n in net.get_interfaces()
+        if n[2] == "hv_netvsc"
+    ]
+
+
+def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd)[0]
+        return subp.subp(cmd)[0]  # type: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
@@ -192,7 +212,7 @@ def get_camcontrol_dev():
     return execute_or_debug(["camcontrol", "devlist"])
 
 
-def get_resource_disk_on_freebsd(port_id):
+def get_resource_disk_on_freebsd(port_id) -> Optional[str]:
     g0 = "00000000"
     if port_id > 1:
         g0 = "00000001"
@@ -297,17 +317,16 @@ class DataSourceAzure(sources.DataSource):
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
         self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
+        self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
-        self.iso_dev = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
 
         self._ephemeral_dhcp_ctx = None
-        if not hasattr(self, "iso_dev"):
-            self.iso_dev = None
+        self._iso_dev = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def __str__(self):
@@ -316,7 +335,9 @@ class DataSourceAzure(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.seed.startswith("/dev"):
+        if self.seed is None:
+            subplatform_type = "unknown"
+        elif self.seed.startswith("/dev"):
             subplatform_type = "config-disk"
         elif self.seed.lower() == "imds":
             subplatform_type = "imds"
@@ -419,7 +440,6 @@ class DataSourceAzure(sources.DataSource):
         cfg = {}
         files = {}
 
-        iso_dev = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
             metadata_source = "IMDS"
             report_diagnostic_event(
@@ -440,7 +460,7 @@ class DataSourceAzure(sources.DataSource):
                                 src, load_azure_ds_dir
                             )
                         # save the device for ejection later
-                        iso_dev = src
+                        self._iso_dev = src
                     else:
                         md, userdata_raw, cfg, files = load_azure_ds_dir(src)
                     ovf_is_accessible = True
@@ -475,7 +495,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(iso_dev) or not ovf_is_accessible
+        requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
         timeout_minutes = 5 if requires_imds_metadata else 20
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -491,8 +511,6 @@ class DataSourceAzure(sources.DataSource):
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
-
-        self.iso_dev = iso_dev
 
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
@@ -510,6 +528,9 @@ class DataSourceAzure(sources.DataSource):
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_imds_data_with_api_fallback(retries=10)
+
+        # Report errors if IMDS network configuration is missing data.
+        self.validate_imds_network_metadata(imds_md=imds_md)
 
         self.seed = metadata_source
         crawled_data.update(
@@ -541,9 +562,9 @@ class DataSourceAzure(sources.DataSource):
         if metadata_source == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
-                    username=imds_username,
-                    hostname=imds_hostname,
-                    disableSshPwd=imds_disable_password,
+                    username=imds_username,  # type: ignore
+                    hostname=imds_hostname,  # type: ignore
+                    disableSshPwd=imds_disable_password,  # type: ignore
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
@@ -587,9 +608,23 @@ class DataSourceAzure(sources.DataSource):
             crawled_data["metadata"]["random_seed"] = seed
         crawled_data["metadata"]["instance-id"] = self._iid()
 
-        if pps_type != PPSType.NONE:
-            LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            self._report_ready()
+        if self._negotiated is False and self._is_ephemeral_networking_up():
+            # Report ready and fetch public-keys from Wireserver, if required.
+            pubkey_info = self._determine_wireserver_pubkey_info(
+                cfg=cfg, imds_md=imds_md
+            )
+            try:
+                ssh_keys = self._report_ready(pubkey_info=pubkey_info)
+            except Exception:
+                # Failed to report ready, but continue with best effort.
+                pass
+            else:
+                LOG.debug("negotiating returned %s", ssh_keys)
+                if ssh_keys:
+                    crawled_data["metadata"]["public-keys"] = ssh_keys
+
+                self._cleanup_markers()
+                self._negotiated = True
 
         return crawled_data
 
@@ -803,7 +838,11 @@ class DataSourceAzure(sources.DataSource):
         # We don't want Azure to react to an UPPER/lower difference as a new
         # instance id as it rewrites SSH host keys.
         # LP: #1835584
-        iid = dmi.read_dmi_data("system-uuid").lower()
+        system_uuid = dmi.read_dmi_data("system-uuid")
+        if system_uuid is None:
+            raise RuntimeError("failed to read system-uuid")
+
+        iid = system_uuid.lower()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
             if previous.lower() == iid:
@@ -813,24 +852,6 @@ class DataSourceAzure(sources.DataSource):
             if is_byte_swapped(previous.lower(), iid):
                 return previous
         return iid
-
-    @azure_ds_telemetry_reporter
-    def setup(self, is_new_instance):
-        if self._negotiated is False:
-            LOG.debug(
-                "negotiating for %s (new_instance=%s)",
-                self.get_instance_id(),
-                is_new_instance,
-            )
-            ssh_keys = self._negotiate()
-            LOG.debug("negotiating returned %s", ssh_keys)
-            if ssh_keys:
-                self.metadata["public-keys"] = ssh_keys
-            self._negotiated = True
-        else:
-            LOG.debug(
-                "negotiating already done for %s", self.get_instance_id()
-            )
 
     @azure_ds_telemetry_reporter
     def _wait_for_nic_detach(self, nl_sock):
@@ -866,7 +887,7 @@ class DataSourceAzure(sources.DataSource):
                 path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
             )
         except AssertionError as error:
-            report_diagnostic_event(error, logger_func=LOG.error)
+            report_diagnostic_event(str(error), logger_func=LOG.error)
             raise
 
     @azure_ds_telemetry_reporter
@@ -888,10 +909,10 @@ class DataSourceAzure(sources.DataSource):
         attempts = 0
         LOG.info("Unbinding and binding the interface %s", ifname)
         while True:
-
-            devicename = net.read_sys_net(ifname, "device/device_id").strip(
-                "{}"
-            )
+            device_id = net.read_sys_net(ifname, "device/device_id")
+            if device_id is False or not isinstance(device_id, str):
+                raise RuntimeError("Unable to read device ID: %s" % device_id)
+            devicename = device_id.strip("{}")
             util.write_file(
                 "/sys/bus/vmbus/drivers/hv_netvsc/unbind", devicename
             )
@@ -954,11 +975,12 @@ class DataSourceAzure(sources.DataSource):
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
         """
-        report_ready_succeeded = self._report_ready()
-        if not report_ready_succeeded:
+        try:
+            self._report_ready()
+        except Exception as error:
             msg = "Failed reporting ready while in the preprovisioning pool."
             report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg)
+            raise sources.InvalidMetaDataException(msg) from error
 
         self._create_report_ready_marker()
 
@@ -1118,7 +1140,7 @@ class DataSourceAzure(sources.DataSource):
                     break
 
         except AssertionError as error:
-            report_diagnostic_event(error, logger_func=LOG.error)
+            report_diagnostic_event(str(error), logger_func=LOG.error)
 
     @azure_ds_telemetry_reporter
     def _wait_for_all_nics_ready(self):
@@ -1168,7 +1190,7 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.info,
                 )
         except netlink.NetlinkCreateSocketError as e:
-            report_diagnostic_event(e, logger_func=LOG.warning)
+            report_diagnostic_event(str(e), logger_func=LOG.warning)
             raise
         finally:
             if nl_sock:
@@ -1234,6 +1256,11 @@ class DataSourceAzure(sources.DataSource):
                 self._setup_ephemeral_networking(timeout_minutes=20)
 
             try:
+                if (
+                    self._ephemeral_dhcp_ctx is None
+                    or self._ephemeral_dhcp_ctx.iface is None
+                ):
+                    raise RuntimeError("Missing ephemeral context")
                 iface = self._ephemeral_dhcp_ctx.iface
 
                 nl_sock = netlink.create_bound_netlink_socket()
@@ -1366,25 +1393,36 @@ class DataSourceAzure(sources.DataSource):
 
         return False
 
-    def _report_ready(self) -> bool:
+    @azure_ds_telemetry_reporter
+    def _report_ready(
+        self, *, pubkey_info: Optional[List[str]] = None
+    ) -> Optional[List[str]]:
         """Tells the fabric provisioning has completed.
 
-        @return: The success status of sending the ready signal.
+        :param pubkey_info: Fingerprints of keys to request from Wireserver.
+
+        :raises Exception: if failed to report.
+
+        :returns: List of SSH keys, if requested.
         """
         try:
-            get_metadata_from_fabric(
+            data = get_metadata_from_fabric(
                 fallback_lease_file=None,
                 dhcp_opts=self._wireserver_endpoint,
-                iso_dev=self.iso_dev,
+                iso_dev=self._iso_dev,
+                pubkey_info=pubkey_info,
             )
-            return True
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
                 "connectivity issues: %s" % e,
                 logger_func=LOG.warning,
             )
-            return False
+            raise
+
+        # Reporting ready ejected OVF media, no need to do so again.
+        self._iso_dev = None
+        return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
         try:
@@ -1430,6 +1468,7 @@ class DataSourceAzure(sources.DataSource):
             "{pid}: {time}\n".format(pid=os.getpid(), time=time()),
         )
 
+    @azure_ds_telemetry_reporter
     def _reprovision(self):
         """Initiate the reprovisioning workflow.
 
@@ -1445,40 +1484,29 @@ class DataSourceAzure(sources.DataSource):
             return (md, ud, cfg, {"ovf-env.xml": contents})
 
     @azure_ds_telemetry_reporter
-    def _negotiate(self):
-        """Negotiate with fabric and return data from it.
+    def _determine_wireserver_pubkey_info(
+        self, *, cfg: dict, imds_md: dict
+    ) -> Optional[List[str]]:
+        """Determine the fingerprints we need to retrieve from Wireserver.
 
-        On success, returns a dictionary including 'public_keys'.
-        On failure, returns False.
+        :return: List of keys to request from Wireserver, if any, else None.
         """
-        pubkey_info = None
+        pubkey_info: Optional[List[str]] = None
         try:
-            self._get_public_keys_from_imds(self.metadata["imds"])
+            self._get_public_keys_from_imds(imds_md)
         except (KeyError, ValueError):
-            pubkey_info = self.cfg.get("_pubkeys", None)
+            pubkey_info = cfg.get("_pubkeys", None)
             log_msg = "Retrieved {} fingerprints from OVF".format(
                 len(pubkey_info) if pubkey_info is not None else 0
             )
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
+        return pubkey_info
 
-        LOG.debug("negotiating with fabric")
-        try:
-            ssh_keys = get_metadata_from_fabric(
-                fallback_lease_file=self.dhclient_lease_file,
-                pubkey_info=pubkey_info,
-            )
-        except Exception as e:
-            report_diagnostic_event(
-                "Error communicating with Azure fabric; You may experience "
-                "connectivity issues: %s" % e,
-                logger_func=LOG.warning,
-            )
-            return False
-
+    def _cleanup_markers(self):
+        """Cleanup any marker files."""
         util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
         util.del_file(REPROVISION_NIC_DETACHED_MARKER_FILE)
-        return ssh_keys
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
@@ -1520,6 +1548,54 @@ class DataSourceAzure(sources.DataSource):
     @property
     def region(self):
         return self.metadata.get("imds", {}).get("compute", {}).get("location")
+
+    @azure_ds_telemetry_reporter
+    def validate_imds_network_metadata(self, imds_md: dict) -> bool:
+        """Validate IMDS network config and report telemetry for errors."""
+        local_macs = get_hv_netvsc_macs_normalized()
+
+        try:
+            network_config = imds_md["network"]
+            imds_macs = [
+                normalize_mac_address(i["macAddress"])
+                for i in network_config["interface"]
+            ]
+        except KeyError:
+            report_diagnostic_event(
+                "IMDS network metadata has incomplete configuration: %r"
+                % imds_md.get("network"),
+                logger_func=LOG.warning,
+            )
+            return False
+
+        missing_macs = [m for m in local_macs if m not in imds_macs]
+        if not missing_macs:
+            return True
+
+        report_diagnostic_event(
+            "IMDS network metadata is missing configuration for NICs %r: %r"
+            % (missing_macs, network_config),
+            logger_func=LOG.warning,
+        )
+
+        if not self._ephemeral_dhcp_ctx or not self._ephemeral_dhcp_ctx.iface:
+            # No primary interface to check against.
+            return False
+
+        primary_mac = net.get_interface_mac(self._ephemeral_dhcp_ctx.iface)
+        if not primary_mac or not isinstance(primary_mac, str):
+            # Unexpected data for primary interface.
+            return False
+
+        primary_mac = normalize_mac_address(primary_mac)
+        if primary_mac in missing_macs:
+            report_diagnostic_event(
+                "IMDS network metadata is missing primary NIC %r: %r"
+                % (primary_mac, network_config),
+                logger_func=LOG.warning,
+            )
+
+        return False
 
 
 def _username_from_imds(imds_data):
@@ -1873,7 +1949,7 @@ def read_azure_ovf(contents):
         raise BrokenAzureDataSource("no child nodes of configuration set")
 
     md_props = "seedfrom"
-    md = {"azure_data": {}}
+    md: Dict[str, Any] = {"azure_data": {}}
     cfg = {}
     ud = ""
     password = None
@@ -2084,9 +2160,7 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     # string. Same number of bits of entropy, just with 25% more zeroes.
     # There's no need to undo this base64-encoding when the random seed is
     # actually used in cc_seed_random.py.
-    seed = base64.b64encode(seed).decode()
-
-    return seed
+    return base64.b64encode(seed).decode()  # type: ignore
 
 
 @azure_ds_telemetry_reporter
@@ -2151,7 +2225,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     @param: imds_metadata: Dict of content read from IMDS network service.
     @return: Dictionary containing network version 2 standard configuration.
     """
-    netconfig = {"version": 2, "ethernets": {}}
+    netconfig: Dict[str, Any] = {"version": 2, "ethernets": {}}
     network_metadata = imds_metadata["network"]
     for idx, intf in enumerate(network_metadata["interface"]):
         has_ip_address = False
@@ -2160,7 +2234,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
-        dev_config = {
+        dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,
             "dhcp6": False,
@@ -2170,6 +2244,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             # If there are no available IP addresses, then we don't
             # want to add this interface to the generated config.
             if not addresses:
+                LOG.debug("No %s addresses found for: %r", addr_type, intf)
                 continue
             has_ip_address = True
             if addr_type == "ipv4":
@@ -2194,7 +2269,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
-            mac = ":".join(re.findall(r"..", intf["macAddress"]))
+            mac = normalize_mac_address(intf["macAddress"])
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
@@ -2205,6 +2280,14 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             if driver and driver == "hv_netvsc":
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
+            continue
+
+        LOG.debug(
+            "No configuration for: %s (dev_config=%r) (has_ip_address=%r)",
+            nicname,
+            dev_config,
+            has_ip_address,
+        )
     return netconfig
 
 
@@ -2214,9 +2297,12 @@ def _generate_network_config_from_fallback_config() -> dict:
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    return net.generate_fallback_config(
+    cfg = net.generate_fallback_config(
         blacklist_drivers=BLACKLIST_DRIVERS, config_driver=True
     )
+    if cfg is None:
+        return {}
+    return cfg
 
 
 @azure_ds_telemetry_reporter

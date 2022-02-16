@@ -17,7 +17,7 @@ from textwrap import dedent
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp, templater, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_apt_configure",
     "name": "Apt Configure",
     "title": "Configure apt for the user",

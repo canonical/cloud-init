@@ -7,14 +7,18 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 distros = ["ubuntu"]
-meta = {
+meta: MetaSchema = {
     "id": "cc_ubuntu_drivers",
     "name": "Ubuntu Drivers",
     "title": "Interact with third party drivers in Ubuntu.",

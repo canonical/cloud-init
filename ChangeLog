@@ -1,3 +1,176 @@
+22.1
+ - sources/azure: report ready in local phase (#1265) [Chris Patterson]
+ - sources/azure: validate IMDS network configuration metadata (#1257)
+   [Chris Patterson]
+ - docs: Add more details to runcmd docs (#1266)
+ - use PEP 589 syntax for TypeDict (#1253)
+ - mypy: introduce type checking (#1254) [Chris Patterson]
+ - Fix extra ipv6 issues, code reduction and simplification (#1243) [eb3095]
+ - tests: when generating crypted password, generate in target env (#1252)
+ - sources/azure: address mypy/pyright typing complaints (#1245)
+   [Chris Patterson]
+ - Docs for x-shellscript* userdata (#1260)
+ - test_apt_security: azure platform has specific security URL overrides
+   (#1263)
+ - tests: lsblk --json output changes mountpoint key to mountpoinst []
+   (#1261)
+ - mounts: fix mount opts string for ephemeral disk (#1250)
+   [Chris Patterson]
+ - Shell script handlers by freq (#1166) [Chris Lalos]
+ - minor improvements to documentation (#1259) [Mark Esler]
+ - cloud-id: publish /run/cloud-init/cloud-id-<cloud-type> files (#1244)
+ - add "eslerm" as contributor (#1258) [Mark Esler]
+ - sources/azure: refactor ssh key handling (#1248) [Chris Patterson]
+ - bump pycloudlib (#1256)
+ - sources/hetzner: Use EphemeralDHCPv4 instead of static configuration
+   (#1251) [Markus Schade]
+ - bump pycloudlib version (#1255)
+ - Fix IPv6 netmask format for sysconfig (#1215) [Harald] (LP: #1959148)
+ - sources/azure: drop debug print (#1249) [Chris Patterson]
+ - tests: do not check instance.pull_file().ok() (#1246)
+ - sources/azure: consolidate ephemeral DHCP configuration (#1229)
+   [Chris Patterson]
+ - cc_salt_minion freebsd fix for rc.conf (#1236)
+ - sources/azure: fix metadata check in _check_if_nic_is_primary() (#1232)
+   [Chris Patterson]
+ - Add _netdev option to mount Azure ephemeral disk (#1213) [Eduardo Otubo]
+ - testing: stop universally overwriting /etc/cloud/cloud.cfg.d (#1237)
+ - Integration test changes (#1240)
+ - Fix Gentoo Locales (#1205)
+ - Add "slingamn" as contributor (#1235) [Shivaram Lingamneni]
+ - integration: do not LXD bind mount /etc/cloud/cloud.cfg.d (#1234)
+ - Integration testing docs and refactor (#1231)
+ - vultr: Return metadata immediately when found (#1233) [eb3095]
+ - spell check docs with spellintian (#1223)
+ - docs: include upstream python version info (#1230)
+ - Schema a d (#1211)
+ - Move LXD to end ds-identify DSLIST (#1228) (LP: #1959118)
+ - fix parallel tox execution (#1214)
+ - sources/azure: refactor _report_ready_if_needed and _poll_imds (#1222)
+   [Chris Patterson]
+ - Do not support setting up archive.canonical.com as a source (#1219)
+   [Steve Langasek] (LP: #1959343)
+ - Vultr: Fix lo being used for DHCP, try next on cmd fail (#1208) [eb3095]
+ - sources/azure: refactor _should_reprovision[_after_nic_attach]() logic
+   (#1206) [Chris Patterson]
+ - update ssh logs to show ssh private key gens pub and simplify code
+   (#1221) [Steve Weber]
+ - Remove mitechie from stale PR github action (#1217)
+ - Include POST format in cc_phone_home docs (#1218) (LP: #1959149)
+ - Add json parsing of ip addr show (SC-723) (#1210)
+ - cc_rsyslog: fix typo in docstring (#1207) [Louis Sautier]
+ - Update .github-cla-signers (#1204) [Chris Lalos]
+ - sources/azure: drop unused case in _report_failure() (#1200)
+   [Chris Patterson]
+ - sources/azure: always initialize _ephemeral_dhcp_ctx on unpickle (#1199)
+   [Chris Patterson]
+ - Add support for gentoo templates and cloud.cfg (#1179) [vteratipally]
+ - sources/azure: unpack ret tuple in crawl_metadata() (#1194)
+   [Chris Patterson]
+ - tests: focal caplog has whitespace indentation for multi-line logs
+   (#1201)
+ - Seek interfaces, skip dummy interface, fix region codes (#1192) [eb3095]
+ - integration: test against the Ubuntu daily images (#1198)
+   [Paride Legovini]
+ - cmd: status and cloud-id avoid change in behavior for 'not run' (#1197)
+ - tox: pass PYCLOUDLIB_* env vars into integration tests when present
+   (#1196)
+ - sources/azure: set ovf_is_accessible when OVF is read successfully
+   (#1193) [Chris Patterson]
+ - Enable OVF environment transport via ISO in example (#1195) [Megian]
+ - sources/azure: consolidate DHCP variants to EphemeralDHCPv4WithReporting
+   (#1190) [Chris Patterson]
+ - Single JSON schema validation in early boot (#1175)
+ - Add DatasourceOVF network-config propery to Ubuntu OVF example (#1184)
+   [Megian]
+ - testing: support pycloudlib config file (#1189)
+ - Ensure system_cfg read before ds net config on Oracle (SC-720) (#1174)
+   (LP: #1956788)
+ - Test Optimization Proposal (SC-736) (#1188)
+ - cli: cloud-id report not-run or disabled state as cloud-id (#1162)
+ - Remove distutils usage (#1177) [Shreenidhi Shedi]
+ - add .python-version to gitignore (#1186)
+ - print error if datasource import fails (#1170)
+   [Emanuele Giuseppe Esposito]
+ - Add new config module to set keyboard layout (#1176)
+   [maxnet] (LP: #1951593)
+ - sources/azure: rename metadata_type -> MetadataType (#1181)
+   [Chris Patterson]
+ - Remove 3.5 and xenial support (SC-711) (#1167)
+ - tests: mock LXD datasource detection in ds-identify on LXD containers
+   (#1178)
+ - pylint: silence errors on compat code for old jsonschema (#1172)
+   [Paride Legovini]
+ - testing: Add 3.10 Test Coverage (#1173)
+ - Remove unittests from integration test job in travis (#1141)
+ - Don't throw exceptions for empty cloud config (#1130)
+ - bsd/resolv.d/ avoid duplicated entries (#1163) [Gonéri Le Bouder]
+ - sources/azure: do not persist failed_desired_api_version flag (#1159)
+   [Chris Patterson]
+ - Update cc_ubuntu_advantage calls to assume-yes (#1158)
+   [John Chittum] (LP: #1954842)
+ - openbsd: properly restart the network on 7.0 (#1150) [Gonéri Le Bouder]
+ - Add .git-blame-ignore-revs (#1161)
+ - Adopt Black and isort (SC-700) (#1157)
+ - Include dpkg frontend lock in APT_LOCK_FILES (#1153)
+ - tests/cmd/query: fix test run as root and add coverage for defaults
+   (#1156) [Chris Patterson] (LP: #1825027)
+ - Schema processing changes (SC-676) (#1144)
+ - Add dependency workaround for impish in bddeb (#1148)
+ - netbsd: install new dep packages (#1151) [Gonéri Le Bouder]
+ - find_devs_with_openbsd: ensure we return the last entry (#1149)
+   [Gonéri Le Bouder]
+ - sources/azure: remove unnecessary hostname bounce (#1143)
+   [Chris Patterson]
+ - find_devs/openbsd: accept ISO on disk (#1132)
+   [Gonéri Le Bouder] (GH:
+   https://github.com/ContainerCraft/kmi/issues/12)
+ - Improve error log message when mount failed (#1140) [Ksenija Stanojevic]
+ - add KsenijaS as a contributor (#1145) [Ksenija Stanojevic]
+ - travis - don't run integration tests if no deb (#1139)
+ - factor out function for getting top level directory of cloudinit (#1136)
+ - testing: Add deterministic test id (#1138)
+ - mock sleep() in azure test (#1137)
+ - Add miraclelinux support (#1128) [Haruki TSURUMOTO]
+ - docs: Make MACs lowercase in network config (#1135) (GH: #1876941)
+ - Add Strict Metaschema Validation (#1101)
+ - update dead link (#1133)
+ - cloudinit/net: handle two different routes for the same ip (#1124)
+   [Emanuele Giuseppe Esposito]
+ - docs: pin mistune dependency (#1134)
+ - Reorganize unit test locations under tests/unittests (#1126)
+ - Fix exception when no activator found (#1129) (GH: #1948681)
+ - jinja: provide and document jinja-safe key aliases in instance-data
+   (SC-622) (#1123)
+ - testing: Remove date from final_message test (SC-638) (#1127)
+ - Move GCE metadata fetch to init-local (SC-502) (#1122)
+ - Fix missing metadata routes for vultr (#1125) [eb3095]
+ - cc_ssh_authkey_fingerprints.py: prevent duplicate messages on console
+   (#1081) [dermotbradley]
+ - sources/azure: remove unused remnants related to agent command (#1119)
+   [Chris Patterson]
+ - github: update PR template's contributing URL (#1120) [Chris Patterson]
+ - docs: Rename HACKING.rst to CONTRIBUTING.rst (#1118)
+ - testing: monkeypatch system_info call in unit tests (SC-533) (#1117)
+ - Fix Vultr timeout and wait values (#1113) [eb3095]
+ - lxd: add preference for LXD cloud-init.* config keys over user keys
+   (#1108)
+ - VMware: source /etc/network/interfaces.d/* on Debian
+   [chengcheng-chcheng] (GH: #1950136)
+ - Add cjp256 as contributor (#1109) [Chris Patterson]
+ - integration_tests: Ensure log directory exists before symlinking to it
+   (#1110)
+ - testing: add growpart integration test (#1104)
+ - integration_test: Speed up CI run time (#1111)
+ - Some miscellaneous integration test fixes (SC-606) (#1103)
+ - tests: specialize lxd_discovery test for lxd_vm vendordata (#1106)
+ - Add convenience symlink to integration test output (#1105)
+ - Fix for set-name bug in networkd renderer (#1100)
+   [Andrew Kutz] (GH: #1949407)
+ - Wait for apt lock (#1034) (GH: #1944611)
+ - testing: stop chef test from running on openstack (#1102)
+ - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
+
 21.4
  - Azure: fallback nic needs to be reevaluated during reprovisioning
    (#1094) [Anh Vo]

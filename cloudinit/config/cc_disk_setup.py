@@ -13,7 +13,7 @@ import shlex
 from textwrap import dedent
 
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -50,7 +50,7 @@ the ``fs_setup`` directive. This config directive accepts a list of
 filesystem configs.
 """
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_disk_setup",
     "name": "Disk Setup",
     "title": "Configure partitions and filesystems",

@@ -9,7 +9,7 @@
 """Byobu: Enable/disable byobu system wide and for default user."""
 
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
@@ -32,7 +32,7 @@ Valid configuration options for this module are:
 """
 distros = ["ubuntu", "debian"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_byobu",
     "name": "Byobu",
     "title": "Enable/disable byobu system wide and for default user",

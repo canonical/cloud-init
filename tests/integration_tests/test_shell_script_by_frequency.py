@@ -22,7 +22,7 @@ FILES = [
     (PER_ONCE_FILE, "once.sh", "x-shellscript-per-once"),
 ]
 
-USER_DATA, errors = create_mime_message(FILES)
+USER_DATA = create_mime_message(FILES)[0].as_string()
 
 
 @pytest.mark.ci
