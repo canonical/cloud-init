@@ -1,3 +1,24 @@
+cloud-init (22.1-1-gb3d9acdd-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - integration tests: fix Azure failures (#1269)
+    - Release 22.1 (#1267) (LP: #1960939)
+    - sources/azure: report ready in local phase (#1265) [Chris Patterson]
+    - sources/azure: validate IMDS network configuration metadata (#1257)
+      [Chris Patterson]
+    - docs: Add more details to runcmd docs (#1266)
+    - use PEP 589 syntax for TypeDict (#1253)
+    - mypy: introduce type checking (#1254) [Chris Patterson]
+    - Fix extra ipv6 issues, code reduction and simplification (#1243) [eb3095]
+    - tests: when generating crypted password, generate in target env (#1252)
+    - sources/azure: address mypy/pyright typing complaints (#1245)
+      [Chris Patterson]
+    - Docs for x-shellscript* userdata (#1260)
+    - test_apt_security: azure platform has specific security URL overrides
+      (#1263)
+
+ -- Brett Holman <brett.holman@canonical.com>  Wed, 16 Feb 2022 13:39:11 -0700
+
 cloud-init (21.4-119-gdeb3ae82-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/cloud-init.templates: Move LXD to back of datasource_list
