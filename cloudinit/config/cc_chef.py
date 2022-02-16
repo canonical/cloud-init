@@ -14,7 +14,7 @@ import os
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
@@ -92,7 +92,7 @@ CHEF_EXEC_DEF_ARGS = tuple(["-d", "-i", "1800", "-s", "20"])
 frequency = PER_ALWAYS
 distros = ["all"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_chef",
     "name": "Chef",
     "title": "module that configures, starts and installs chef",

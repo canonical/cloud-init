@@ -11,14 +11,14 @@
 from textwrap import dedent
 
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
 REJECT_CMD_IF = ["route", "add", "-host", "169.254.169.254", "reject"]
 REJECT_CMD_IP = ["ip", "route", "add", "prohibit", "169.254.169.254"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_disable_ec2_metadata",
     "name": "Disable EC2 Metadata",
     "title": "Disable AWS EC2 Metadata",

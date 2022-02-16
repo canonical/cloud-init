@@ -8,8 +8,6 @@ other tests chpasswd's list being a string.  Both expect the same results, so
 they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
-import crypt
-
 import pytest
 import yaml
 
@@ -162,9 +160,13 @@ class Mixin:
         shadow_users, _ = self._fetch_and_parse_etc_shadow(class_client)
 
         fmt_and_salt = shadow_users["tom"].rsplit("$", 1)[0]
-        expected_value = crypt.crypt("mypassword123!", fmt_and_salt)
-
-        assert expected_value == shadow_users["tom"]
+        GEN_CRYPT_CONTENT = (
+            "import crypt\n"
+            f"print(crypt.crypt('mypassword123!', '{fmt_and_salt}'))\n"
+        )
+        class_client.write_to_file("/gen_crypt.py", GEN_CRYPT_CONTENT)
+        result = class_client.execute("python3 /gen_crypt.py")
+        assert result.stdout == shadow_users["tom"]
 
     def test_shadow_expected_users(self, class_client):
         """Test that the right set of users is in /etc/shadow."""

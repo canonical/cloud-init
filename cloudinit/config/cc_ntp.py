@@ -12,7 +12,11 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -148,7 +152,7 @@ DISTRO_CLIENT_CONFIG = {
 # configuration options before actually attempting to deploy with said
 # configuration.
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_ntp",
     "name": "NTP",
     "title": "enable and configure ntp",

@@ -10,7 +10,11 @@ from textwrap import dedent
 
 from cloudinit import distros
 from cloudinit import log as logging
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
@@ -22,7 +26,7 @@ distros = distros.Distro.expand_osfamily(osfamilies)
 
 DEFAULT_KEYBOARD_MODEL = "pc105"
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_keyboard",
     "name": "Keyboard",
     "title": "Set keyboard layout",

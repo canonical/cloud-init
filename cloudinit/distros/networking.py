@@ -1,6 +1,7 @@
 import abc
 import logging
 import os
+from typing import List, Optional
 
 from cloudinit import net, subp, util
 
@@ -22,7 +23,7 @@ class Networking(metaclass=abc.ABCMeta):
     """
 
     def __init__(self):
-        self.blacklist_drivers = None
+        self.blacklist_drivers: Optional[List[str]] = None
 
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
