@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
@@ -15,7 +16,6 @@ import yaml
 
 from cloudinit import importer
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.importer import MetaSchema
 from cloudinit.util import error, find_modules, load_file
 
 error = partial(error, sys_exit=True)
@@ -46,6 +46,25 @@ SCHEMA_LIST_ITEM_TMPL = (
 )
 SCHEMA_EXAMPLES_HEADER = "\n**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
+
+
+# annotations add value for development, but don't break old versions
+# pyver: 3.6 -> 3.8
+# pylint: disable=E1101
+if sys.version_info >= (3, 8):
+
+    class MetaSchema(typing.TypedDict):
+        name: str
+        id: str
+        title: str
+        description: str
+        distros: typing.List[str]
+        examples: typing.List[str]
+        frequency: str
+
+else:
+    MetaSchema = dict
+# pylint: enable=E1101
 
 
 class SchemaValidationError(ValueError):
