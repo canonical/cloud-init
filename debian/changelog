@@ -1,4 +1,4 @@
-cloud-init (22.1-1-gb3d9acdd-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.1-1-gb3d9acdd-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * New upstream snapshot.
     - integration tests: fix Azure failures (#1269)
