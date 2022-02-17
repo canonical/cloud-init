@@ -2942,126 +2942,32 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
         self.paths = helpers.Paths({"cloud_dir": self.tmp})
 
-    @mock.patch(
-        "cloudinit.sources.helpers.netlink.wait_for_nic_detach_event",
-        autospec=True,
-    )
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
-    def test_nic_detach_writes_marker(self, m_writefile, m_detach):
-        """When we detect that a nic gets detached, we write a marker for it"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        nl_sock = mock.MagicMock()
-        dsa._wait_for_nic_detach(nl_sock)
-        m_detach.assert_called_with(nl_sock)
-        self.assertEqual(1, m_detach.call_count)
-        m_writefile.assert_called_with(
-            dsaz.REPROVISION_NIC_DETACHED_MARKER_FILE, mock.ANY
-        )
-
-    @mock.patch(MOCKPATH + "util.write_file", autospec=True)
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
+    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_hot_attached_nics")
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     def test_detect_nic_attach_reports_ready_and_waits_for_detach(
-        self, m_detach, m_report_ready, m_fallback_if, m_writefile
+        self,
+        m_detach,
+        m_wait_for_hot_attached_nics,
+        m_report_ready,
+        m_writefile,
     ):
         """Report ready first and then wait for nic detach"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
         self.assertEqual(1, m_report_ready.call_count)
+        self.assertEqual(1, m_wait_for_hot_attached_nics.call_count)
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
             dsaz.REPORTED_READY_MARKER_FILE, mock.ANY
         )
 
-    @mock.patch("os.path.isfile")
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
+    @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    def test_detect_nic_attach_skips_report_ready_when_marker_present(
-        self, m_detach, m_report_ready, m_dhcp, m_fallback_if, m_isfile
-    ):
-        """Skip reporting ready if we already have a marker file."""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-
-        def isfile(key):
-            return key == dsaz.REPORTED_READY_MARKER_FILE
-
-        m_isfile.side_effect = isfile
-        dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
-        self.assertEqual(0, m_report_ready.call_count)
-        self.assertEqual(0, m_dhcp.call_count)
-        self.assertEqual(1, m_detach.call_count)
-
-    @mock.patch("os.path.isfile")
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4")
-    @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    def test_detect_nic_attach_skips_nic_detach_when_marker_present(
-        self, m_detach, m_report_ready, m_dhcp, m_fallback_if, m_isfile
-    ):
-        """Skip wait for nic detach if it already happened."""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-
-        m_isfile.return_value = True
-        dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
-        self.assertEqual(0, m_report_ready.call_count)
-        self.assertEqual(0, m_dhcp.call_count)
-        self.assertEqual(0, m_detach.call_count)
-
-    @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up", autospec=True)
-    @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    @mock.patch("os.path.isfile")
-    def test_wait_for_nic_attach_if_no_fallback_interface(
-        self,
-        m_isfile,
-        m_detach,
-        m_dhcpv4,
-        m_imds,
-        m_fallback_if,
-        m_attach,
-        m_link_up,
-    ):
-        """Wait for nic attach if we do not have a fallback interface"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        lease = {
-            "interface": "eth9",
-            "fixed-address": "192.168.2.9",
-            "routers": "192.168.2.1",
-            "subnet-mask": "255.255.255.0",
-            "unknown-245": "624c3620",
-        }
-
-        m_isfile.return_value = True
-        m_attach.return_value = "eth0"
-        dhcp_ctx = mock.MagicMock(lease=lease)
-        dhcp_ctx.obtain_lease.return_value = lease
-        m_dhcpv4.return_value = dhcp_ctx
-        m_imds.return_value = IMDS_NETWORK_METADATA
-        m_fallback_if.return_value = None
-
-        dsa._wait_for_all_nics_ready()
-
-        self.assertEqual(0, m_detach.call_count)
-        self.assertEqual(1, m_attach.call_count)
-        self.assertEqual(1, m_dhcpv4.call_count)
-        self.assertEqual(1, m_imds.call_count)
-        self.assertEqual(1, m_link_up.call_count)
-        m_link_up.assert_called_with(mock.ANY, "eth0")
-
     @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up")
     @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch(MOCKPATH + "DataSourceAzure.get_imds_data_with_api_fallback")
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
@@ -3072,9 +2978,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_detach,
         m_dhcpv4,
         m_imds,
-        m_fallback_if,
         m_attach,
         m_link_up,
+        m_report_ready,
+        m_writefile,
     ):
         """Wait for nic attach if we do not have a fallback interface"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
@@ -3103,11 +3010,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dhcp_ctx.obtain_lease.return_value = lease
         m_dhcpv4.return_value = dhcp_ctx
         m_imds.side_effect = [md]
-        m_fallback_if.return_value = None
 
         dsa._wait_for_all_nics_ready()
 
-        self.assertEqual(0, m_detach.call_count)
+        self.assertEqual(1, m_detach.call_count)
         self.assertEqual(2, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
         self.assertEqual(1, m_dhcpv4.call_count)
@@ -3976,12 +3882,8 @@ class TestProvisioning:
             False,  # /var/lib/cloud/data/poll_imds
             False,  # seed/azure/ovf-env.xml
             False,  # /var/lib/cloud/data/poll_imds
-            False,  # /var/lib/cloud/data/reported_ready
-            False,  # /var/lib/cloud/data/reported_ready
-            False,  # /var/lib/cloud/data/nic_detached
             True,  # /var/lib/cloud/data/reported_ready
         ]
-        self.azure_ds._fallback_interface = False
 
         self.azure_ds._get_data()
 
@@ -3993,9 +3895,6 @@ class TestProvisioning:
                 )
             ),
             mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-            mock.call("/var/lib/cloud/data/nic_detached"),
             mock.call("/var/lib/cloud/data/reported_ready"),
         ]
 

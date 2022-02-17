@@ -56,7 +56,6 @@ DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
-REPROVISION_NIC_DETACHED_MARKER_FILE = "/var/lib/cloud/data/nic_detached"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
@@ -881,11 +880,6 @@ class DataSourceAzure(sources.DataSource):
                     "The preprovisioned nic %s is detached" % ifname,
                     logger_func=LOG.warning,
                 )
-            path = REPROVISION_NIC_DETACHED_MARKER_FILE
-            LOG.info("Creating a marker file for nic detached: %s", path)
-            util.write_file(
-                path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
-            )
         except AssertionError as error:
             report_diagnostic_event(str(error), logger_func=LOG.error)
             raise
@@ -1153,42 +1147,10 @@ class DataSourceAzure(sources.DataSource):
         nl_sock = None
         try:
             nl_sock = netlink.create_bound_netlink_socket()
-
-            report_ready_marker_present = bool(
-                os.path.isfile(REPORTED_READY_MARKER_FILE)
-            )
-
-            # Report ready if the marker file is not already present.
-            # The nic of the preprovisioned vm gets hot-detached as soon as
-            # we report ready. So no need to save the dhcp context.
-            if not os.path.isfile(REPORTED_READY_MARKER_FILE):
-                self._report_ready_for_pps()
-
-            has_nic_been_detached = bool(
-                os.path.isfile(REPROVISION_NIC_DETACHED_MARKER_FILE)
-            )
-
-            if not has_nic_been_detached:
-                LOG.info("NIC has not been detached yet.")
-                self._teardown_ephemeral_networking()
-                self._wait_for_nic_detach(nl_sock)
-
-            # If we know that the preprovisioned nic has been detached, and we
-            # still have a fallback nic, then it means the VM must have
-            # rebooted as part of customer assignment, and all the nics have
-            # already been attached by the Azure platform. So there is no need
-            # to wait for nics to be hot-attached.
-            if not self.fallback_interface:
-                self._wait_for_hot_attached_nics(nl_sock)
-            else:
-                report_diagnostic_event(
-                    "Skipping waiting for nic attach "
-                    "because we already have a fallback "
-                    "interface. Report Ready marker "
-                    "present before detaching nics: %s"
-                    % report_ready_marker_present,
-                    logger_func=LOG.info,
-                )
+            self._report_ready_for_pps()
+            self._teardown_ephemeral_networking()
+            self._wait_for_nic_detach(nl_sock)
+            self._wait_for_hot_attached_nics(nl_sock)
         except netlink.NetlinkCreateSocketError as e:
             report_diagnostic_event(str(e), logger_func=LOG.warning)
             raise
@@ -1506,7 +1468,6 @@ class DataSourceAzure(sources.DataSource):
         """Cleanup any marker files."""
         util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
-        util.del_file(REPROVISION_NIC_DETACHED_MARKER_FILE)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
