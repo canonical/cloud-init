@@ -142,9 +142,9 @@ def _autostart_puppet(log):
             ],
             capture=False,
         )
-    elif os.path.exists("/bin/systemctl"):
+    elif subp.which("systemctl"):
         subp.subp(
-            ["/bin/systemctl", "enable", "puppet.service"], capture=False
+            ["systemctl", "enable", "puppet.service"], capture=False
         )
     elif os.path.exists("/sbin/chkconfig"):
         subp.subp(["/sbin/chkconfig", "puppet", "on"], capture=False)

@@ -115,7 +115,7 @@ def get_boot_telemetry():
 
     try:
         out, _ = subp.subp(
-            ["/bin/systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
+            ["systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
             capture=True,
         )
         tsm = None
@@ -140,7 +140,7 @@ def get_boot_telemetry():
     try:
         out, _ = subp.subp(
             [
-                "/bin/systemctl",
+                "systemctl",
                 "show",
                 "cloud-init-local",
                 "-p",

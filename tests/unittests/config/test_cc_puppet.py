@@ -40,14 +40,11 @@ class TestAutostartPuppet(CiTestCase):
     def test_wb_autostart_pupppet_enables_puppet_systemctl(self, m_os, m_subp):
         """If systemctl is present, enable puppet via systemctl."""
 
-        def _fake_exists(path):
-            return path == "/bin/systemctl"
-
-        m_os.path.exists.side_effect = _fake_exists
+        m_subp.which.side_effect = '/usr/bin/systemctl'
         cc_puppet._autostart_puppet(LOG)
         expected_calls = [
             mock.call(
-                ["/bin/systemctl", "enable", "puppet.service"], capture=False
+                ["systemctl", "enable", "puppet.service"], capture=False
             )
         ]
         self.assertEqual(expected_calls, m_subp.call_args_list)
@@ -58,6 +55,7 @@ class TestAutostartPuppet(CiTestCase):
         def _fake_exists(path):
             return path == "/sbin/chkconfig"
 
+        m_subp.which.side_effect = None
         m_os.path.exists.side_effect = _fake_exists
         cc_puppet._autostart_puppet(LOG)
         expected_calls = [
