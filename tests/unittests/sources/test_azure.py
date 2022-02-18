@@ -3,6 +3,7 @@
 import copy
 import crypt
 import json
+import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
@@ -152,8 +153,20 @@ def mock_readurl():
 
 
 @pytest.fixture
+def mock_requests_session_request():
+    with mock.patch("requests.Session.request", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_subp_subp():
     with mock.patch(MOCKPATH + "subp.subp", side_effect=[]) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_url_helper_time_sleep():
+    with mock.patch("cloudinit.url_helper.time.sleep", autospec=True) as m:
         yield m
 
 
@@ -2220,10 +2233,11 @@ scbus-1 on xpt0 bus 0
 
         assert m_get_metadata_from_imds.mock_calls == [
             mock.call(
-                retries=0,
+                retries=10,
                 md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
+                infinite=False,
             ),
             mock.call(
                 retries=10,
@@ -2250,10 +2264,11 @@ scbus-1 on xpt0 bus 0
 
         assert m_get_metadata_from_imds.mock_calls == [
             mock.call(
-                retries=0,
+                retries=10,
                 md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
+                infinite=False,
             )
         ]
 
@@ -3626,6 +3641,195 @@ class TestRandomSeed(CiTestCase):
         self.assertEqual(deserialized["seed"], result)
 
 
+def fake_http_error_for_code(status_code: int):
+    response_failure = requests.Response()
+    response_failure.status_code = status_code
+    return requests.exceptions.HTTPError(
+        "fake error",
+        response=response_failure,
+    )
+
+
+@pytest.mark.parametrize(
+    "md_type,expected_url",
+    [
+        (
+            dsaz.MetadataType.ALL,
+            "http://169.254.169.254/metadata/instance?"
+            "api-version=2021-08-01&extended=true",
+        ),
+        (
+            dsaz.MetadataType.NETWORK,
+            "http://169.254.169.254/metadata/instance/network?"
+            "api-version=2021-08-01",
+        ),
+        (
+            dsaz.MetadataType.REPROVISION_DATA,
+            "http://169.254.169.254/metadata/reprovisiondata?"
+            "api-version=2021-08-01",
+        ),
+    ],
+)
+class TestIMDS:
+    def test_basic_scenarios(
+        self, azure_ds, caplog, mock_readurl, md_type, expected_url
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(fake_md).encode()),
+        ]
+
+        md = azure_ds.get_imds_data_with_api_fallback(
+            retries=5,
+            md_type=md_type,
+        )
+
+        assert md == fake_md
+        assert mock_readurl.mock_calls == [
+            mock.call(
+                expected_url,
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=5,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+        ]
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == []
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(404),
+            fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
+            fake_http_error_for_code(500),
+            requests.Timeout("Fake connection timeout"),
+        ],
+    )
+    def test_will_retry_errors(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_requests_session_request.side_effect = [
+            error,
+            mock.Mock(content=json.dumps(fake_md)),
+        ]
+
+        md = azure_ds.get_imds_data_with_api_fallback(
+            retries=5,
+            md_type=md_type,
+        )
+
+        assert md == fake_md
+        assert len(mock_requests_session_request.mock_calls) == 2
+        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == []
+
+    @pytest.mark.parametrize("retries", [0, 1, 5, 10])
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(404),
+            fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
+            fake_http_error_for_code(500),
+            requests.Timeout("Fake connection timeout"),
+        ],
+    )
+    def test_retry_until_failure(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+        retries,
+    ):
+        mock_requests_session_request.side_effect = [error] * (retries + 1)
+
+        assert (
+            azure_ds.get_imds_data_with_api_fallback(
+                retries=retries,
+                md_type=md_type,
+            )
+            == {}
+        )
+
+        assert len(mock_requests_session_request.mock_calls) == (retries + 1)
+        assert (
+            mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * retries
+        )
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == [
+            "Ignoring IMDS instance metadata. "
+            "Get metadata from IMDS failed: %s" % error
+        ]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(403),
+            fake_http_error_for_code(501),
+            requests.ConnectionError("Fake Network Unreachable"),
+        ],
+    )
+    def test_will_not_retry_errors(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_requests_session_request.side_effect = [
+            error,
+            mock.Mock(content=json.dumps(fake_md)),
+        ]
+
+        assert (
+            azure_ds.get_imds_data_with_api_fallback(
+                retries=5,
+                md_type=md_type,
+            )
+            == {}
+        )
+
+        assert len(mock_requests_session_request.mock_calls) == 1
+        assert mock_url_helper_time_sleep.mock_calls == []
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == [
+            "Ignoring IMDS instance metadata. "
+            "Get metadata from IMDS failed: %s" % error
+        ]
+
+
 class TestProvisioning:
     @pytest.fixture(autouse=True)
     def provisioning_setup(
@@ -3722,8 +3926,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]
@@ -3792,8 +3996,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
             mock.call(
@@ -3810,8 +4014,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]
@@ -3904,13 +4108,13 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance/network?"
-                "api-version=2019-06-01",
+                "api-version=2021-08-01",
                 timeout=2,
                 headers={"Metadata": "true"},
                 retries=0,
@@ -3931,8 +4135,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]

@@ -7,6 +7,7 @@
 import base64
 import crypt
 import datetime
+import functools
 import os
 import os.path
 import re
@@ -67,6 +68,17 @@ IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
 IMDS_VER_WANT = "2021-08-01"
 IMDS_EXTENDED_VER_MIN = "2021-03-01"
+IMDS_RETRY_CODES = (
+    404,  # not found (yet)
+    410,  # gone / unavailable (yet)
+    429,  # rate-limited/throttled
+    500,  # server error
+)
+imds_readurl_exception_callback = functools.partial(
+    retry_on_url_exc,
+    retry_codes=IMDS_RETRY_CODES,
+    retry_instances=(requests.Timeout,),
+)
 
 
 class MetadataType(Enum):
@@ -725,44 +737,49 @@ class DataSourceAzure(sources.DataSource):
     def get_imds_data_with_api_fallback(
         self,
         *,
-        retries,
-        md_type=MetadataType.ALL,
-        exc_cb=retry_on_url_exc,
-        infinite=False,
-    ):
-        """
-        Wrapper for get_metadata_from_imds so that we can have flexibility
-        in which IMDS api-version we use. If a particular instance of IMDS
-        does not have the api version that is desired, we want to make
-        this fault tolerant and fall back to a good known minimum api
-        version.
-        """
-        for _ in range(retries):
-            try:
-                LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
-                return get_metadata_from_imds(
-                    retries=0,
-                    md_type=md_type,
-                    api_version=IMDS_VER_WANT,
-                    exc_cb=exc_cb,
-                )
-            except UrlError as err:
-                LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
-                if err.code == 400:
-                    log_msg = "Fall back to IMDS api-version: {}".format(
-                        IMDS_VER_MIN
-                    )
-                    report_diagnostic_event(log_msg, logger_func=LOG.info)
-                    break
+        retries: int,
+        md_type: MetadataType = MetadataType.ALL,
+        exc_cb=imds_readurl_exception_callback,
+        infinite: bool = False,
+    ) -> dict:
+        """Fetch metadata from IMDS using IMDS_VER_WANT API version.
 
-        LOG.info("Using IMDS api-version: %s", IMDS_VER_MIN)
-        return get_metadata_from_imds(
-            retries=retries,
-            md_type=md_type,
-            api_version=IMDS_VER_MIN,
-            exc_cb=exc_cb,
-            infinite=infinite,
-        )
+        Falls back to IMDS_VER_MIN version if IMDS returns a 400 error code,
+        indicating that IMDS_VER_WANT is unsupported.
+
+        :return: Parsed metadata dictionary or empty dict on error.
+        """
+        LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
+        try:
+            return get_metadata_from_imds(
+                retries=retries,
+                md_type=md_type,
+                api_version=IMDS_VER_WANT,
+                exc_cb=exc_cb,
+                infinite=infinite,
+            )
+        except UrlError as error:
+            LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
+            # Fall back if HTTP code is 400, otherwise return empty dict.
+            if error.code != 400:
+                return {}
+
+        log_msg = "Fall back to IMDS api-version: {}".format(IMDS_VER_MIN)
+        report_diagnostic_event(log_msg, logger_func=LOG.info)
+        try:
+            return get_metadata_from_imds(
+                retries=retries,
+                md_type=md_type,
+                api_version=IMDS_VER_MIN,
+                exc_cb=exc_cb,
+                infinite=infinite,
+            )
+        except UrlError as error:
+            report_diagnostic_event(
+                "Failed to fetch IMDS metadata: %s" % error,
+                logger_func=LOG.error,
+            )
+            return {}
 
     def device_name_to_device(self, name):
         return self.ds_cfg["disk_aliases"].get(name)
@@ -2271,7 +2288,7 @@ def get_metadata_from_imds(
     retries,
     md_type=MetadataType.ALL,
     api_version=IMDS_VER_MIN,
-    exc_cb=retry_on_url_exc,
+    exc_cb=imds_readurl_exception_callback,
     infinite=False,
 ):
     """Query Azure's instance metadata service, returning a dictionary.
