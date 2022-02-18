@@ -4,7 +4,8 @@
 cloud-init \- Cloud instance initialization
 
 .SH SYNOPSIS
-.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v] {init,modules,single,query,dhclient-hook,features,analyze,collect-logs,clean,status}"
+.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v]
+{init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}"
 
 .SH DESCRIPTION
 Cloud-init provides a mechanism for cloud instance initialization.
@@ -52,6 +53,10 @@ Collect and tar all cloud-init debug info.
 .TP
 .B "clean"
 Remove logs and artifacts so cloud-init can re-run.
+
+.TP
+.B "devel"
+Run development tools. See help output for subcommand details.
 
 .TP
 .B "dhclient-hook"
