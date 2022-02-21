@@ -155,6 +155,8 @@ class TestApt:
 
         assert (
             "http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
+            in ppa_path_contents or
+            "https://ppa.launchpadcontent.net/simplestreams-dev/trunk/ubuntu/"
             in ppa_path_contents
         )
 
