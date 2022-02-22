@@ -154,7 +154,7 @@ class TestApt:
         )
         host = "launchpad" if release == "jammy" else "launchpadcontent"
         assert (
-            f"http://ppa.{host}.net/simplestreams-dev/trunk/ubuntu"
+            f"://ppa.{host}.net/simplestreams-dev/trunk/ubuntu"
             in ppa_path_contents
         )
 
