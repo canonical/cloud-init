@@ -5,7 +5,8 @@ cloud-init (21.4-82-g0d364a29-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
    + debian/patches/renderer-do-not-prefer-netplan.patch
-  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+  * refresh patches:
+   + debian/patches/openstack-no-network-config.patch
     - cc_rsyslog: fix typo in docstring (#1207) [Louis Sautier]
     - Update .github-cla-signers (#1204) [Chris Lalos]
     - sources/azure: drop unused case in _report_failure() (#1200)
@@ -115,7 +116,7 @@ cloud-init (21.4-82-g0d364a29-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     - testing: stop chef test from running on openstack (#1102)
     - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Jan 2022 09:05:03 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 22 Feb 2022 16:38:26 -0700
 
 cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
