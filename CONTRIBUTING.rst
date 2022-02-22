@@ -19,7 +19,7 @@ Before any pull request can be accepted, you must do the following:
   `tools/.github-cla-signers`_
 * Add or update any `unit tests`_ accordingly
 * Add or update any `integration tests`_ (if applicable)
-* Format code (using black and isort) with `tox -e format`
+* Format code (using black and isort) with `tox -e do_format`
 * Ensure unit tests and linting pass using `tox`_
 * Submit a PR against the `main` branch of the `cloud-init` repository
 
@@ -197,6 +197,26 @@ Design
 This section captures design decisions that are helpful to know when
 hacking on cloud-init.
 
+Python Support
+--------------
+Cloud-init upstream currently supports Python 3.6 and above.
+
+Cloud-init upstream will stay compatible with a particular python version
+for 6 years after release. After 6 years, we will stop testing upstream
+changes against the unsupported version of python and may introduce
+breaking changes. This policy may change as needed.
+
+The following table lists the cloud-init versions in which the
+minimum python version changed:
+
+================== ==================
+Cloud-init version Python version
+================== ==================
+22.1               3.6+
+20.3               3.5+
+19.4               2.7+
+================== ==================
+
 Cloud Config Modules
 --------------------
 
@@ -213,11 +233,8 @@ Type Annotations
 ----------------
 
 The cloud-init codebase uses Python's annotation support for storing
-type annotations in the style specified by `PEP-484`_. Their use in
-the codebase is encouraged but with one important caveat: only
-function annotations or comment annotations are supported, as the
-variable annotations specified in `PEP-526`_ were introduced in Python
-3.6.
+type annotations in the style specified by `PEP-484`_ and `PEP-526`_.
+Their use in the codebase is encouraged.
 
 .. _PEP-484: https://www.python.org/dev/peps/pep-0484/
 .. _PEP-526: https://www.python.org/dev/peps/pep-0526/

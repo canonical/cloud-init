@@ -10,7 +10,7 @@ import os
 import re
 
 from cloudinit import subp, util
-from cloudinit.net.network_state import mask_to_net_prefix
+from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,7 @@ class NicConfigurator(object):
         """
         route_list = []
 
-        cidr = mask_to_net_prefix(netmask)
+        cidr = ipv4_mask_to_net_prefix(netmask)
 
         for gateway in gateways:
             destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)

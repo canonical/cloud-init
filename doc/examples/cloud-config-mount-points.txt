@@ -19,7 +19,7 @@
 #
 # - if a device does not exist at the time, an entry will still be
 #   written to /etc/fstab.
-# - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
+# - '/dev' can be omitted for device names that begin with: xvd, sd, hd, vd
 # - if an entry does not have all 6 fields, they will be filled in
 #   with values from 'mount_default_fields' below.
 #

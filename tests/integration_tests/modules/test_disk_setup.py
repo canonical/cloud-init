@@ -70,9 +70,21 @@ class TestDeviceAliases:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 2
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt1"
         assert sdb["children"][1]["name"] == "sdb2"
-        assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt1"
+            assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt1"]
+            assert sdb["children"][1]["mountpoints"] == ["/mnt2"]
+        result = client.execute("mount -a")
+        assert result.return_code == 0
+        assert result.stdout.strip() == ""
+        assert result.stderr.strip() == ""
+        result = client.execute("findmnt -J /mnt1")
+        assert result.return_code == 0
+        result = client.execute("findmnt -J /mnt2")
+        assert result.return_code == 0
 
 
 PARTPROBE_USERDATA = """\
@@ -129,9 +141,13 @@ class TestPartProbeAvailability:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 2
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt1"
         assert sdb["children"][1]["name"] == "sdb2"
-        assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt1"
+            assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt1"]
+            assert sdb["children"][1]["mountpoints"] == ["/mnt2"]
 
     # Not bionic because the LXD agent gets in the way of us
     # changing the userdata
@@ -175,7 +191,10 @@ class TestPartProbeAvailability:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 1
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt3"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt3"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt3"]
 
     def test_disk_setup_no_partprobe(
         self, create_disk, client: IntegrationInstance

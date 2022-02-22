@@ -188,7 +188,7 @@ def readurl(
     infinite=False,
     log_req_resp=True,
     request_method=None,
-):
+) -> UrlResponse:
     """Wrapper around requests.Session to read the url and retry if necessary
 
     :param url: Mandatory url to request.
@@ -339,9 +339,8 @@ def readurl(
                         sec_between,
                     )
                 time.sleep(sec_between)
-    if excps:
-        raise excps[-1]
-    return None  # Should throw before this...
+
+    raise excps[-1]
 
 
 def wait_for_url(

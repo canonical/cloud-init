@@ -15,4 +15,4 @@ will be so that the user is not left with an inaccessible instance.
 **Note:** the instance id that this datasource provides is
 ``iid-datasource-none``.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

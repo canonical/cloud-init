@@ -53,7 +53,7 @@ box, follow the steps below.
   You can change that at the grub prompt if you'd like by editing the
   kernel entry.  Otherwise, to see progress you'll need to switch
   to the serial console.  In kvm graphic mode, you do that by clicking
-  in the window and then pressing pressing 'ctrl-alt-3'.  For information
+  in the window and then pressing 'ctrl-alt-3'.  For information
   on how to do that in virtualbox or kvm curses, see the relevant
   documentation.
 

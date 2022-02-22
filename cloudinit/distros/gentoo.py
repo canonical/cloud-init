@@ -17,10 +17,16 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
-    locale_conf_fn = "/etc/locale.gen"
+    locale_conf_fn = "/etc/env.d/02locale"
+    locale_gen_fn = "/etc/locale.gen"
     network_conf_fn = "/etc/conf.d/net"
     hostname_conf_fn = "/etc/conf.d/hostname"
     init_cmd = ["rc-service"]  # init scripts
+    default_locale = "en_US.UTF-8"
+
+    # C.UTF8 makes sense to generate, but is not selected
+    # Add /etc/locale.gen entries to this list to support more locales
+    locales = ["C.UTF8 UTF-8", "en_US.UTF-8 UTF-8"]
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -31,18 +37,24 @@ class Distro(distros.Distro):
         self.osfamily = "gentoo"
         # Fix sshd restarts
         cfg["ssh_svcname"] = "/etc/init.d/sshd"
+        if distros.uses_systemd():
+            LOG.error("Cloud-init does not support systemd with gentoo")
 
-    def apply_locale(self, locale, out_fn=None):
-        if not out_fn:
-            out_fn = self.locale_conf_fn
-        subp.subp(["locale-gen", "-G", locale], capture=False)
-        # "" provides trailing newline during join
-        lines = [
-            util.make_header(),
-            'LANG="%s"' % locale,
-            "",
-        ]
-        util.write_file(out_fn, "\n".join(lines))
+    def apply_locale(self, _, out_fn=None):
+        """rc-only - not compatible with systemd
+
+        Locales need to be added to /etc/locale.gen and generated prior
+        to selection. Default to en_US.UTF-8 for simplicity.
+        """
+        util.write_file(self.locale_gen_fn, "\n".join(self.locales), mode=644)
+
+        # generate locales
+        subp.subp(["locale-gen"], capture=False)
+
+        # select locale
+        subp.subp(
+            ["eselect", "locale", "set", self.default_locale], capture=False
+        )
 
     def install_packages(self, pkglist):
         self.update_package_sources()

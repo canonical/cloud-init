@@ -205,23 +205,31 @@ class TestCombined:
         """Test datasource is detected at the proper boot stage."""
         client = class_client
         status_file = client.read_from_file("/run/cloud-init/status.json")
+        parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
-        platform_datasources = {
-            "azure": "DataSourceAzure [seed=/dev/sr0]",
-            "ec2": "DataSourceEc2Local",
-            "gce": "DataSourceGCELocal",
-            "oci": "DataSourceOracle",
-            "openstack": "DataSourceOpenStackLocal [net,ver=2]",
-            "lxd_container": (
-                "DataSourceNoCloud "
-                "[seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]"
-            ),
-            "lxd_vm": "DataSourceNoCloud [seed=/dev/sr0][dsmode=net]",
-        }
+        if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
+            assert parsed_datasource.startswith("DataSourceNoCloud")
+        else:
+            platform_datasources = {
+                "azure": "DataSourceAzure [seed=/dev/sr0]",
+                "ec2": "DataSourceEc2Local",
+                "gce": "DataSourceGCELocal",
+                "oci": "DataSourceOracle",
+                "openstack": "DataSourceOpenStackLocal [net,ver=2]",
+            }
+            assert (
+                platform_datasources[client.settings.PLATFORM]
+                == parsed_datasource
+            )
 
-        assert (
-            platform_datasources[client.settings.PLATFORM]
-            == json.loads(status_file)["v1"]["datasource"]
+    def test_cloud_id_file_symlink(self, class_client: IntegrationInstance):
+        cloud_id = class_client.execute("cloud-id").stdout
+        expected_link_output = (
+            "'/run/cloud-init/cloud-id' -> "
+            f"'/run/cloud-init/cloud-id-{cloud_id}'"
+        )
+        assert expected_link_output == str(
+            class_client.execute("stat -c %N /run/cloud-init/cloud-id")
         )
 
     def _check_common_metadata(self, data):
@@ -251,6 +259,10 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "unknown"
         assert v1_data["platform"] == "lxd"
+        assert v1_data["cloud_id"] == "lxd"
+        assert f"{v1_data['cloud_id']}" == client.read_from_file(
+            "/run/cloud-init/cloud-id-lxd"
+        )
         assert (
             v1_data["subplatform"]
             == "seed-dir (/var/lib/cloud/seed/nocloud-net)"
@@ -272,6 +284,10 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "unknown"
         assert v1_data["platform"] == "lxd"
+        assert v1_data["cloud_id"] == "lxd"
+        assert f"{v1_data['cloud_id']}" == client.read_from_file(
+            "/run/cloud-init/cloud-id-lxd"
+        )
         assert any(
             [
                 "/var/lib/cloud/seed/nocloud-net" in v1_data["subplatform"],
@@ -293,6 +309,11 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "aws"
         assert v1_data["platform"] == "ec2"
+        # Different regions will show up as ec2-(gov|china)
+        assert v1_data["cloud_id"].startswith("ec2")
+        assert f"{v1_data['cloud_id']}" == client.read_from_file(
+            "/run/cloud-init/cloud-id-ec2"
+        )
         assert v1_data["subplatform"].startswith("metadata")
         assert (
             v1_data["availability_zone"] == client.instance.availability_zone
@@ -312,6 +333,9 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "gce"
         assert v1_data["platform"] == "gce"
+        assert f"{v1_data['cloud_id']}" == client.read_from_file(
+            "/run/cloud-init/cloud-id-gce"
+        )
         assert v1_data["subplatform"].startswith("metadata")
         assert v1_data["availability_zone"] == client.instance.zone
         assert v1_data["instance_id"] == client.instance.instance_id

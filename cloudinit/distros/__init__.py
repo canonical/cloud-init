@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping  # noqa: F401
+from typing import Any, Mapping, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -26,7 +26,7 @@ from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 
-from .networking import LinuxNetworking
+from .networking import LinuxNetworking, Networking
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.
@@ -76,9 +76,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ["service"]  # systemctl, service etc
-    renderer_configs = {}  # type: Mapping[str, Mapping[str, Any]]
+    renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None
-    networking_cls = LinuxNetworking
+    networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
@@ -91,7 +91,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._paths = paths
         self._cfg = cfg
         self.name = name
-        self.networking = self.networking_cls()
+        self.networking: Networking = self.networking_cls()
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""

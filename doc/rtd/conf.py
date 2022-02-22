@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(0, os.path.abspath("."))
 
 
-# Supress warnings for docs that aren't used yet
+# Suppress warnings for docs that aren't used yet
 # unused_docs = [
 # ]
 

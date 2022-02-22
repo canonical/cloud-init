@@ -18,7 +18,7 @@ GuestInfo Keys
 ^^^^^^^^^^^^^^
 
 One method of providing meta, user, and vendor data is by setting the following
-key/value pairs on a VM's ``extraConfig`` `property <https://vdc-repo.vmware.com/vmwb-repository/dcr-public/723e7f8b-4f21-448b-a830-5f22fd931b01/5a8257bd-7f41-4423-9a73-03307535bd42/doc/vim.vm.ConfigInfo.html>`_ :
+key/value pairs on a VM's ``extraConfig`` `property <https://vdc-repo.vmware.com/vmwb-repository/dcr-public/723e7f8b-4f21-448b-a830-5f22fd931b01/5a8257bd-7f41-4423-9a73-03307535bd42/doc/vim.vm.ConfigInfo.html>`_:
 
 .. list-table::
    :header-rows: 1
@@ -333,7 +333,7 @@ Setting the instance ID
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The instance ID may be set by way of the metadata key ``instance-id``. However,
-if this value is absent then then the instance ID is read from the file
+if this value is absent then the instance ID is read from the file
 ``/sys/class/dmi/id/product_uuid``.
 
 Providing public SSH keys

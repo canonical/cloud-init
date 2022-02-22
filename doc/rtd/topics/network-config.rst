@@ -286,4 +286,4 @@ Example output converting V2 to sysconfig:
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
 .. _Vultr JSON metadata: https://www.vultr.com/metadata/
 
-.. vi: textwidth=78
+.. vi: textwidth=79

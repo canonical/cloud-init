@@ -12,6 +12,7 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
+from typing import List, Optional
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -25,7 +26,6 @@ from cloudinit import (
     version,
 )
 from cloudinit.net import dhcp
-from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
 
@@ -334,12 +334,10 @@ def _get_dhcp_endpoint_option_name():
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(url, **kwargs) -> str:
+def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
     """Wrapper around url_helper.readurl() with custom telemetry logging
     that url_helper.readurl() does not provide.
     """
-    exc = None
-
     max_readurl_attempts = 240
     default_readurl_timeout = 5
     sleep_duration_between_retries = 5
@@ -374,16 +372,18 @@ def http_with_retries(url, **kwargs) -> str:
             return ret
 
         except Exception as e:
-            exc = e
             if attempt % periodic_logging_attempts == 0:
                 report_diagnostic_event(
                     "Failed HTTP request with Azure endpoint %s during "
                     "attempt %d with exception: %s" % (url, attempt, e),
                     logger_func=LOG.debug,
                 )
-            time.sleep(sleep_duration_between_retries)
+            if attempt == max_readurl_attempts:
+                raise
 
-    raise exc
+        time.sleep(sleep_duration_between_retries)
+
+    raise RuntimeError("Failed to return in http_with_retries")
 
 
 def build_minimal_ovf(
@@ -433,14 +433,16 @@ class AzureEndpointHttpClient:
             "x-ms-guest-agent-public-x509-cert": certificate,
         }
 
-    def get(self, url, secure=False):
+    def get(self, url, secure=False) -> url_helper.UrlResponse:
         headers = self.headers
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
         return http_with_retries(url, headers=headers)
 
-    def post(self, url, data=None, extra_headers=None):
+    def post(
+        self, url, data=None, extra_headers=None
+    ) -> url_helper.UrlResponse:
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
@@ -1005,7 +1007,7 @@ class WALinuxAgentShim:
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
         self, pubkey_info=None, iso_dev=None
-    ) -> dict:
+    ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -1038,7 +1040,7 @@ class WALinuxAgentShim:
             self.eject_iso(iso_dev)
 
         health_reporter.send_ready_signal()
-        return {"public-keys": ssh_keys}
+        return ssh_keys
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_report_failure(self, description: str) -> None:
@@ -1241,23 +1243,6 @@ def dhcp_log_cb(out, err):
     report_diagnostic_event(
         "dhclient error stream: %s" % err, logger_func=LOG.debug
     )
-
-
-class EphemeralDHCPv4WithReporting(EphemeralDHCPv4):
-    def __init__(self, reporter, iface=None):
-        self.reporter = reporter
-
-        super(EphemeralDHCPv4WithReporting, self).__init__(
-            iface=iface, dhcp_log_func=dhcp_log_cb
-        )
-
-    def __enter__(self):
-        with events.ReportEventStack(
-            name="obtain-dhcp-lease",
-            description="obtain dhcp lease",
-            parent=self.reporter,
-        ):
-            return super(EphemeralDHCPv4WithReporting, self).__enter__()
 
 
 # vi: ts=4 expandtab

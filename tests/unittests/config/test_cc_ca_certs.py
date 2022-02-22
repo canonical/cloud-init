@@ -1,14 +1,22 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 import shutil
 import tempfile
 import unittest
 from contextlib import ExitStack
 from unittest import mock
 
+import pytest
+
 from cloudinit import distros, helpers, subp, util
 from cloudinit.config import cc_ca_certs
-from tests.unittests.helpers import TestCase
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
@@ -128,7 +136,7 @@ class TestConfig(TestCase):
 
     def test_remove_default_ca_certs(self):
         """Test remove_defaults works as expected."""
-        config = {"ca-certs": {"remove-defaults": True}}
+        config = {"ca_certs": {"remove_defaults": True}}
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
@@ -141,7 +149,7 @@ class TestConfig(TestCase):
 
     def test_no_remove_defaults_if_false(self):
         """Test remove_defaults is not called when config value is False."""
-        config = {"ca-certs": {"remove-defaults": False}}
+        config = {"ca_certs": {"remove_defaults": False}}
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
@@ -154,7 +162,7 @@ class TestConfig(TestCase):
 
     def test_correct_order_for_remove_then_add(self):
         """Test remove_defaults is not called when config value is False."""
-        config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
+        config = {"ca_certs": {"remove_defaults": True, "trusted": ["CERT1"]}}
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
@@ -404,6 +412,96 @@ class TestRemoveDefaultCaCerts(TestCase):
                         "ca-certificates ca-certificates/trust_new_crts"
                         " select no",
                     )
+
+
+class TestCACertsSchema:
+    """Directly test schema rather than through handle."""
+
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid, yet deprecated schemas
+            ({"ca-certs": {"remove-defaults": True}}, None),
+            # Invalid schemas
+            (
+                {"ca_certs": 1},
+                "ca_certs: 1 is not of type 'object'",
+            ),
+            (
+                {"ca_certs": {}},
+                re.escape("ca_certs: {} does not have enough properties"),
+            ),
+            (
+                {"ca_certs": {"boguskey": 1}},
+                re.escape(
+                    "ca_certs: Additional properties are not allowed"
+                    " ('boguskey' was unexpected)"
+                ),
+            ),
+            (
+                {"ca_certs": {"remove_defaults": 1}},
+                "ca_certs.remove_defaults: 1 is not of type 'boolean'",
+            ),
+            (
+                {"ca_certs": {"trusted": [1]}},
+                "ca_certs.trusted.0: 1 is not of type 'string'",
+            ),
+            (
+                {"ca_certs": {"trusted": []}},
+                re.escape("ca_certs.trusted: [] is too short"),
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
+        schema = get_schema()
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)
+
+    @mock.patch.object(cc_ca_certs, "update_ca_certs")
+    def test_deprecate_key_warnings(self, update_ca_certs, caplog):
+        """Assert warnings are logged for deprecated keys."""
+        log = logging.getLogger("CALogTest")
+        cloud = get_cloud("ubuntu")
+        cc_ca_certs.handle(
+            "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, log, []
+        )
+        expected_warnings = [
+            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
+            " instead.",
+            "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
+            " Use 'ca_certs.remove_defaults' instead.",
+        ]
+        for warning in expected_warnings:
+            assert warning in caplog.text
+        assert 1 == update_ca_certs.call_count
+
+    @mock.patch.object(cc_ca_certs, "update_ca_certs")
+    def test_duplicate_keys(self, update_ca_certs, caplog):
+        """Assert warnings are logged for deprecated keys."""
+        log = logging.getLogger("CALogTest")
+        cloud = get_cloud("ubuntu")
+        cc_ca_certs.handle(
+            "IGNORE",
+            {
+                "ca-certs": {"remove-defaults": True},
+                "ca_certs": {"remove_defaults": False},
+            },
+            cloud,
+            log,
+            [],
+        )
+        expected_warning = (
+            "Found both ca-certs (deprecated) and ca_certs config keys."
+            " Ignoring ca-certs."
+        )
+        assert expected_warning in caplog.text
+        assert 1 == update_ca_certs.call_count
 
 
 # vi: ts=4 expandtab

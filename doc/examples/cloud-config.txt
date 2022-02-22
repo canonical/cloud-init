@@ -42,7 +42,7 @@ packages:
 #
 # - if a device does not exist at the time, an entry will still be
 #   written to /etc/fstab.
-# - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
+# - '/dev' can be omitted for device names that begin with: xvd, sd, hd, vd
 # - if an entry does not have all 6 fields, they will be filled in
 #   with values from 'mount_default_fields' below.
 #
@@ -258,7 +258,7 @@ locale: en_US.UTF-8
 locale_configfile: /etc/default/locale
 
 # add entries to rsyslog configuration
-# The first occurance of a given filename will truncate. 
+# The first occurrence of a given filename will truncate. 
 # subsequent entries will append.
 # if value is a scalar, its content is assumed to be 'content', and the
 # default filename is used.
@@ -272,7 +272,7 @@ rsyslog:
  - filename: 01-examplecom.conf
    content: "*.*   @@syslogd.example.com"
 
-# resize_rootfs should the / filesytem be resized on first boot
+# resize_rootfs should the / filesystem be resized on first boot
 # this allows you to launch an instance with a larger disk / partition
 # and have the instance automatically grow / to accomoddate it
 # set to 'False' to disable
@@ -339,7 +339,7 @@ resize_rootfs: True
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
 #      with the appropriate values.
-#      To make modifications persistant across a reboot, you must make 
+#      To make modifications persistent across a reboot, you must make 
 #      modificatoins to /etc/cloud/templates/hosts.tmpl
 #
 #    localhost:
@@ -509,7 +509,7 @@ manual_cache_clean: False
 # default: none
 #
 # power_state can be used to make the system shutdown, reboot or
-# halt after boot is finished.  This same thing can be acheived by
+# halt after boot is finished.  This same thing can be achieved by
 # user-data scripts or by runcmd by simply invoking 'shutdown'.
 #
 # Doing it this way ensures that cloud-init is entirely finished with

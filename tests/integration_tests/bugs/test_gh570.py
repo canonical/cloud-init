@@ -16,7 +16,6 @@ runcmd:
 
 
 # Only running on LXD because we need NoCloud for this test
-@pytest.mark.sru_2020_11
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):

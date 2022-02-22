@@ -14,7 +14,11 @@ import stat
 from textwrap import dedent
 
 from cloudinit import subp, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_ALWAYS
 
 NOBLOCK = "noblock"
@@ -22,7 +26,7 @@ NOBLOCK = "noblock"
 frequency = PER_ALWAYS
 distros = ["all"]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_resizefs",
     "name": "Resizefs",
     "title": "Resize filesystem",

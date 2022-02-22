@@ -47,9 +47,7 @@ class CloudInitSource(Enum):
     UPGRADE = 6
 
     def installs_new_version(self):
-        if self.name in [self.NONE.name, self.IN_PLACE.name]:
-            return False
-        return True
+        return self.name not in [self.NONE.name, self.IN_PLACE.name]
 
 
 class IntegrationInstance:
@@ -89,7 +87,7 @@ class IntegrationInstance:
         # First push to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.push_file(str(local_path), tmp_path)
-        self.execute("mv {} {}".format(tmp_path, str(remote_path)))
+        assert self.execute("mv {} {}".format(tmp_path, str(remote_path))).ok
 
     def read_from_file(self, remote_path) -> str:
         result = self.execute("cat {}".format(remote_path))
@@ -201,23 +199,3 @@ class IntegrationInstance:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
-
-
-class IntegrationEc2Instance(IntegrationInstance):
-    pass
-
-
-class IntegrationGceInstance(IntegrationInstance):
-    pass
-
-
-class IntegrationAzureInstance(IntegrationInstance):
-    pass
-
-
-class IntegrationOciInstance(IntegrationInstance):
-    pass
-
-
-class IntegrationLxdInstance(IntegrationInstance):
-    pass

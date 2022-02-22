@@ -12,7 +12,11 @@ import os
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -24,7 +28,7 @@ from cloudinit.settings import PER_INSTANCE
 
 distros = [ALL_DISTROS]
 
-meta = {
+meta: MetaSchema = {
     "id": "cc_runcmd",
     "name": "Runcmd",
     "title": "Run arbitrary commands",
@@ -32,10 +36,13 @@ meta = {
         """\
         Run arbitrary commands at a rc.local like level with output to the
         console. Each item can be either a list or a string. If the item is a
-        list, it will be properly executed as if passed to ``execve()`` (with
-        the first arg as the command). If the item is a string, it will be
-        written to a file and interpreted
-        using ``sh``.
+        list, it will be properly quoted. Each item is written to
+        ``/var/lib/cloud/instance/runcmd`` to be later interpreted using
+        ``sh``.
+
+        Note that the ``runcmd`` module only writes the script to be run
+        later. The module that actually runs the script is ``scripts-user``
+        in the :ref:`Final` boot stage.
 
         .. note::
 

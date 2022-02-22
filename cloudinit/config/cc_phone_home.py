@@ -24,6 +24,19 @@ keys to post. Available keys are:
     - ``hostname``
     - ``fdqn``
 
+Data is sent as ``x-www-form-urlencoded`` arguments.
+
+**Example HTTP POST**::
+
+    POST / HTTP/1.1
+    Content-Length: 1337
+    User-Agent: Cloud-Init/21.4
+    Accept-Encoding: gzip, deflate
+    Accept: */*
+    Content-Type: application/x-www-form-urlencoded
+
+    pub_key_dsa=dsa_contents&pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+
 **Internal name:** ``cc_phone_home``
 
 **Module frequency:** per instance
