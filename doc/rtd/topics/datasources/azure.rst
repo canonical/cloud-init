@@ -60,20 +60,6 @@ The settings that may be configured are:
    custom DHCP option 245 from Azure fabric.
  * **disk_aliases**: A dictionary defining which device paths should be
    interpreted as ephemeral images. See cc_disk_setup module for more info.
- * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
-   metadata changes.  The '``hostname_bounce: command``' entry can be either
-   the literal string 'builtin' or a command to execute.  The command will be
-   invoked after the hostname is set, and will have the 'interface' in its
-   environment.  If ``set_hostname`` is not true, then ``hostname_bounce``
-   will be ignored.  An example might be:
-
-     ``command:  ["sh", "-c", "killall dhclient; dhclient $interface"]``
-
- * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
-   metadata changes. Azure will throttle ifup/down in some cases after metadata
-   has been updated to inform dhcp server about updated hostnames.
- * **set_hostname**: Boolean set to True when we want Azure to set the hostname
-   based on metadata.
 
 Configuration for the datasource can also be read from a
 ``dscfg`` entry in the ``LinuxProvisioningConfigurationSet``.  Content in
@@ -91,12 +77,6 @@ An example configuration with the default values is provided below:
       dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
       disk_aliases:
         ephemeral0: /dev/disk/cloud/azure_resource
-      hostname_bounce:
-        interface: eth0
-        command: builtin
-        policy: true
-        hostname_command: hostname
-      set_hostname: true
 
 
 Userdata
@@ -159,4 +139,4 @@ this by setting the hostname in the DataSource's 'get_data' method via
 behavior can be configured or disabled in the datasource config.  See
 'Configuration' above.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

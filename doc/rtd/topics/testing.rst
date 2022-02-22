@@ -3,8 +3,7 @@ Testing
 *******
 
 cloud-init has both unit tests and integration tests. Unit tests can
-be found in-tree alongside the source code, as well as
-at ``tests/unittests``. Integration tests can be found at
+be found at ``tests/unittests``. Integration tests can be found at
 ``tests/integration_tests``. Documentation specifically for integration
 tests can be found on the :ref:`integration_tests` page, but
 the guidelines specified below apply to both types of tests.
@@ -36,6 +35,16 @@ Test Layout
     subclass (indirectly) from ``TestCase`` (e.g.
     `TestPrependBaseCommands`_)
 
+* Unit tests and integration tests are located under cloud-init/tests
+
+  * For consistency, unit test files should have a matching name and
+    directory location under `tests/unittests`
+
+  * For example: the expected test file for code in
+    `cloudinit/path/to/file.py` is
+    `tests/unittests/path/to/test_file.py`
+
+
 ``pytest`` Tests
 ----------------
 
@@ -45,50 +54,28 @@ Test Layout
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
 
-  * For ``==`` and other commutative assertions, the expected value
-    should be placed before the value under test:
-    ``assert expected_value == function_under_test()``
-
-
 ``pytest`` Version Gotchas
 --------------------------
 
-As we still support Ubuntu 16.04 (Xenial Xerus), we can only use pytest
-features that are available in v2.8.7.  This is an inexhaustive list of
+As we still support Ubuntu 18.04 (Bionic Beaver), we can only use pytest
+features that are available in v3.3.2.  This is an inexhaustive list of
 ways in which this may catch you out:
-
-* Support for using ``yield`` in ``pytest.fixture`` functions was only
-  introduced in `pytest 3.0`_.  Such functions must instead use the
-  ``pytest.yield_fixture`` decorator.
 
 * Only the following built-in fixtures are available [#fixture-list]_:
 
   * ``cache``
   * ``capfd``
-  * ``caplog`` (provided by ``python3-pytest-catchlog`` on xenial)
+  * ``capfdbinary``
+  * ``caplog``
   * ``capsys``
+  * ``capsysbinary``
+  * ``doctest_namespace``
   * ``monkeypatch``
   * ``pytestconfig``
   * ``record_xml_property``
   * ``recwarn``
   * ``tmpdir_factory``
   * ``tmpdir``
-
-* On xenial, the objects returned by the ``tmpdir`` fixture cannot be
-  used where paths are required; they are rejected as invalid paths.
-  You must instead use their ``.strpath`` attribute.
-
-  * For example, instead of ``util.write_file(tmpdir.join("some_file"),
-    ...)``, you should write
-    ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
-
-* The `pytest.param`_ function cannot be used. It was introduced in
-  pytest 3.1, which means it is not available on xenial.  The more
-  limited mechanism it replaced was removed in pytest 4.0, so is not
-  available in focal or later.  The only available alternatives are to
-  write mark-requiring test instances as completely separate tests,
-  without utilising parameterisation, or to apply the mark to the
-  entire parameterized test (and therefore every test instance).
 
 Mocking and Assertions
 ----------------------
@@ -159,9 +146,9 @@ Test Argument Ordering
 .. [#fixture-list] This list of fixtures (with markup) can be
    reproduced by running::
 
-     py.test-3 --fixtures -q | grep "^[^ -]" | grep -v '\(no\|capturelog\)' | sort | sed 's/.*/* ``\0``/'
+     python3 -m pytest  --fixtures -q | grep "^[^ -]" | grep -v 'no tests ran in' | sort | sed 's/ \[session scope\]//g;s/.*/* ``\0``/g'
 
-   in a xenial lxd container with python3-pytest-catchlog installed.
+   in an ubuntu lxd container with python3-pytest installed.
 
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html

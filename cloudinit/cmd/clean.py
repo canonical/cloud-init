@@ -10,12 +10,14 @@ import os
 import sys
 
 from cloudinit.stages import Init
-from cloudinit.subp import (ProcessExecutionError, subp)
-from cloudinit.util import (del_dir, del_file, get_config_logfiles, is_link)
-
-
-def error(msg):
-    sys.stderr.write("ERROR: " + msg + "\n")
+from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.util import (
+    del_dir,
+    del_file,
+    error,
+    get_config_logfiles,
+    is_link,
+)
 
 
 def get_parser(parser=None):
@@ -29,18 +31,35 @@ def get_parser(parser=None):
     """
     if not parser:
         parser = argparse.ArgumentParser(
-            prog='clean',
-            description=('Remove logs and artifacts so cloud-init re-runs on '
-                         'a clean system'))
+            prog="clean",
+            description=(
+                "Remove logs and artifacts so cloud-init re-runs on "
+                "a clean system"
+            ),
+        )
     parser.add_argument(
-        '-l', '--logs', action='store_true', default=False, dest='remove_logs',
-        help='Remove cloud-init logs.')
+        "-l",
+        "--logs",
+        action="store_true",
+        default=False,
+        dest="remove_logs",
+        help="Remove cloud-init logs.",
+    )
     parser.add_argument(
-        '-r', '--reboot', action='store_true', default=False,
-        help='Reboot system after logs are cleaned so cloud-init re-runs.')
+        "-r",
+        "--reboot",
+        action="store_true",
+        default=False,
+        help="Reboot system after logs are cleaned so cloud-init re-runs.",
+    )
     parser.add_argument(
-        '-s', '--seed', action='store_true', default=False, dest='remove_seed',
-        help='Remove cloud-init seed directory /var/lib/cloud/seed.')
+        "-s",
+        "--seed",
+        action="store_true",
+        default=False,
+        dest="remove_seed",
+        help="Remove cloud-init seed directory /var/lib/cloud/seed.",
+    )
     return parser
 
 
@@ -61,8 +80,8 @@ def remove_artifacts(remove_logs, remove_seed=False):
 
     if not os.path.isdir(init.paths.cloud_dir):
         return 0  # Artifacts dir already cleaned
-    seed_path = os.path.join(init.paths.cloud_dir, 'seed')
-    for path in glob.glob('%s/*' % init.paths.cloud_dir):
+    seed_path = os.path.join(init.paths.cloud_dir, "seed")
+    for path in glob.glob("%s/*" % init.paths.cloud_dir):
         if path == seed_path and not remove_seed:
             continue
         try:
@@ -71,7 +90,7 @@ def remove_artifacts(remove_logs, remove_seed=False):
             else:
                 del_file(path)
         except OSError as e:
-            error('Could not remove {0}: {1}'.format(path, str(e)))
+            error("Could not remove {0}: {1}".format(path, str(e)))
             return 1
     return 0
 
@@ -80,13 +99,15 @@ def handle_clean_args(name, args):
     """Handle calls to 'cloud-init clean' as a subcommand."""
     exit_code = remove_artifacts(args.remove_logs, args.remove_seed)
     if exit_code == 0 and args.reboot:
-        cmd = ['shutdown', '-r', 'now']
+        cmd = ["shutdown", "-r", "now"]
         try:
             subp(cmd, capture=False)
         except ProcessExecutionError as e:
             error(
                 'Could not reboot this system using "{0}": {1}'.format(
-                    cmd, str(e)))
+                    cmd, str(e)
+                )
+            )
             exit_code = 1
     return exit_code
 
@@ -94,10 +115,10 @@ def handle_clean_args(name, args):
 def main():
     """Tool to collect and tar all cloud-init related logs."""
     parser = get_parser()
-    sys.exit(handle_clean_args('clean', parser.parse_args()))
+    sys.exit(handle_clean_args("clean", parser.parse_args()))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 # vi: ts=4 expandtab

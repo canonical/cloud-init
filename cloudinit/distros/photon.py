@@ -5,28 +5,25 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import net
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import distros
-from cloudinit import helpers
+from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit.settings import PER_INSTANCE
+from cloudinit import net, subp, util
 from cloudinit.distros import rhel_util as rhutil
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
-    systemd_hostname_conf_fn = '/etc/hostname'
-    network_conf_dir = '/etc/systemd/network/'
-    systemd_locale_conf_fn = '/etc/locale.conf'
-    resolve_conf_fn = '/etc/systemd/resolved.conf'
+    systemd_hostname_conf_fn = "/etc/hostname"
+    network_conf_dir = "/etc/systemd/network/"
+    systemd_locale_conf_fn = "/etc/locale.conf"
+    resolve_conf_fn = "/etc/systemd/resolved.conf"
 
     renderer_configs = {
-        'networkd': {
-            'resolv_conf_fn': resolve_conf_fn,
-            'network_conf_dir': network_conf_dir,
+        "networkd": {
+            "resolv_conf_fn": resolve_conf_fn,
+            "network_conf_dir": network_conf_dir,
         }
     }
 
@@ -39,33 +36,34 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-        self.osfamily = 'photon'
-        self.init_cmd = ['systemctl']
+        self.osfamily = "photon"
+        self.init_cmd = ["systemctl"]
 
     def exec_cmd(self, cmd, capture=True):
-        LOG.debug('Attempting to run: %s', cmd)
+        LOG.debug("Attempting to run: %s", cmd)
         try:
             (out, err) = subp.subp(cmd, capture=capture)
             if err:
-                LOG.warning('Running %s resulted in stderr output: %s',
-                            cmd, err)
+                LOG.warning(
+                    "Running %s resulted in stderr output: %s", cmd, err
+                )
                 return True, out, err
             return False, out, err
         except subp.ProcessExecutionError:
-            util.logexc(LOG, 'Command %s failed', cmd)
+            util.logexc(LOG, "Command %s failed", cmd)
             return True, None, None
 
     def generate_fallback_config(self):
-        key = 'disable_fallback_netcfg'
+        key = "disable_fallback_netcfg"
         disable_fallback_netcfg = self._cfg.get(key, True)
-        LOG.debug('%s value is: %s', key, disable_fallback_netcfg)
+        LOG.debug("%s value is: %s", key, disable_fallback_netcfg)
 
         if not disable_fallback_netcfg:
             return net.generate_fallback_config()
 
         LOG.info(
-            'Skipping generate_fallback_config. Rely on PhotonOS default '
-            'network config'
+            "Skipping generate_fallback_config. Rely on PhotonOS default "
+            "network config"
         )
         return None
 
@@ -76,7 +74,7 @@ class Distro(distros.Distro):
             out_fn = self.systemd_locale_conf_fn
 
         locale_cfg = {
-            'LANG': locale,
+            "LANG": locale,
         }
 
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
@@ -84,36 +82,42 @@ class Distro(distros.Distro):
         # rhutil will modify /etc/locale.conf
         # For locale change to take effect, reboot is needed or we can restart
         # systemd-localed. This is equivalent of localectl
-        cmd = ['systemctl', 'restart', 'systemd-localed']
+        cmd = ["systemctl", "restart", "systemd-localed"]
         self.exec_cmd(cmd)
 
     def install_packages(self, pkglist):
         # self.update_package_sources()
-        self.package_command('install', pkgs=pkglist)
+        self.package_command("install", pkgs=pkglist)
 
     def _write_hostname(self, hostname, filename):
-        if filename and filename.endswith('/previous-hostname'):
+        if filename and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         else:
-            ret, _out, err = self.exec_cmd(['hostnamectl', 'set-hostname',
-                                            str(hostname)])
+            ret, _out, err = self.exec_cmd(
+                ["hostnamectl", "set-hostname", str(hostname)]
+            )
             if ret:
-                LOG.warning(('Error while setting hostname: %s\n'
-                             'Given hostname: %s', err, hostname))
+                LOG.warning(
+                    (
+                        "Error while setting hostname: %s\nGiven hostname: %s",
+                        err,
+                        hostname,
+                    )
+                )
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.systemd_hostname_conf_fn)
         return (self.systemd_hostname_conf_fn, sys_hostname)
 
     def _read_hostname(self, filename, default=None):
-        if filename and filename.endswith('/previous-hostname'):
+        if filename and filename.endswith("/previous-hostname"):
             return util.load_file(filename).strip()
 
-        _ret, out, _err = self.exec_cmd(['hostname', '-f'])
+        _ret, out, _err = self.exec_cmd(["hostname", "-f"])
         return out.strip() if out else default
 
     def _get_localhost_ip(self):
-        return '127.0.1.1'
+        return "127.0.1.1"
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
@@ -122,7 +126,7 @@ class Distro(distros.Distro):
         if not pkgs:
             pkgs = []
 
-        cmd = ['tdnf', '-y']
+        cmd = ["tdnf", "-y"]
         if args and isinstance(args, str):
             cmd.append(args)
         elif args and isinstance(args, list):
@@ -130,13 +134,17 @@ class Distro(distros.Distro):
 
         cmd.append(command)
 
-        pkglist = util.expand_package_list('%s-%s', pkgs)
+        pkglist = util.expand_package_list("%s-%s", pkgs)
         cmd.extend(pkglist)
 
         ret, _out, err = self.exec_cmd(cmd)
         if ret:
-            LOG.error('Error while installing packages: %s', err)
+            LOG.error("Error while installing packages: %s", err)
 
     def update_package_sources(self):
-        self._runner.run('update-sources', self.package_command,
-                         ['makecache'], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["makecache"],
+            freq=PER_INSTANCE,
+        )

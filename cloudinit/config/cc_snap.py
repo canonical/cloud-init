@@ -8,24 +8,26 @@ import sys
 from textwrap import dedent
 
 from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
-from cloudinit import subp
-from cloudinit import util
 
-
-distros = ['ubuntu']
+distros = ["ubuntu"]
 frequency = PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-schema = {
-    'id': 'cc_snap',
-    'name': 'Snap',
-    'title': 'Install, configure and manage snapd and snap packages',
-    'description': dedent("""\
+meta: MetaSchema = {
+    "id": "cc_snap",
+    "name": "Snap",
+    "title": "Install, configure and manage snapd and snap packages",
+    "description": dedent(
+        """\
         This module provides a simple configuration namespace in cloud-init to
         both setup snapd and install snaps.
 
@@ -56,9 +58,12 @@ schema = {
         **Development only**: The ``squashfuse_in_container`` boolean can be
         set true to install squashfuse package when in a container to enable
         snap installs. Default is false.
-        """),
-    'distros': distros,
-    'examples': [dedent("""\
+        """
+    ),
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
         snap:
             assertions:
               00: |
@@ -69,14 +74,20 @@ schema = {
               00: snap create-user --sudoer --known <snap-user>@mydomain.com
               01: snap install canonical-livepatch
               02: canonical-livepatch enable <AUTH_TOKEN>
-    """), dedent("""\
+    """
+        ),
+        dedent(
+            """\
         # LXC-based containers require squashfuse before snaps can be installed
         snap:
             commands:
                 00: apt-get install squashfuse -y
                 11: snap install emoj
 
-    """), dedent("""\
+    """
+        ),
+        dedent(
+            """\
         # Convenience: the snap command can be omitted when specifying commands
         # as a list and 'snap' will automatically be prepended.
         # The following commands are equivalent:
@@ -86,7 +97,10 @@ schema = {
                 01: ['snap', 'install', 'vlc']
                 02: snap install vlc
                 03: 'snap install vlc'
-    """), dedent("""\
+    """
+        ),
+        dedent(
+            """\
         # You can use a list of commands
         snap:
             commands:
@@ -94,58 +108,64 @@ schema = {
                 - ['snap', 'install', 'vlc']
                 - snap install vlc
                 - 'snap install vlc'
-    """), dedent("""\
+    """
+        ),
+        dedent(
+            """\
         # You can use a list of assertions
         snap:
             assertions:
                 - signed_assertion_blob_here
                 - |
                     signed_assertion_blob_here
-    """)],
-    'frequency': PER_INSTANCE,
-    'type': 'object',
-    'properties': {
-        'snap': {
-            'type': 'object',
-            'properties': {
-                'assertions': {
-                    'type': ['object', 'array'],  # Array of strings or dict
-                    'items': {'type': 'string'},
-                    'additionalItems': False,  # Reject items non-string
-                    'minItems': 1,
-                    'minProperties': 1,
-                    'uniqueItems': True,
-                    'additionalProperties': {'type': 'string'},
+    """
+        ),
+    ],
+    "frequency": PER_INSTANCE,
+}
+
+schema = {
+    "type": "object",
+    "properties": {
+        "snap": {
+            "type": "object",
+            "properties": {
+                "assertions": {
+                    "type": ["object", "array"],  # Array of strings or dict
+                    "items": {"type": "string"},
+                    "additionalItems": False,  # Reject items non-string
+                    "minItems": 1,
+                    "minProperties": 1,
+                    "uniqueItems": True,
+                    "additionalProperties": {"type": "string"},
                 },
-                'commands': {
-                    'type': ['object', 'array'],  # Array of strings or dict
-                    'items': {
-                        'oneOf': [
-                            {'type': 'array', 'items': {'type': 'string'}},
-                            {'type': 'string'}]
+                "commands": {
+                    "type": ["object", "array"],  # Array of strings or dict
+                    "items": {
+                        "oneOf": [
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "string"},
+                        ]
                     },
-                    'additionalItems': False,  # Reject non-string & non-list
-                    'minItems': 1,
-                    'minProperties': 1,
-                    'additionalProperties': {
-                        'oneOf': [
-                            {'type': 'string'},
-                            {'type': 'array', 'items': {'type': 'string'}},
+                    "additionalItems": False,  # Reject non-string & non-list
+                    "minItems": 1,
+                    "minProperties": 1,
+                    "additionalProperties": {
+                        "oneOf": [
+                            {"type": "string"},
+                            {"type": "array", "items": {"type": "string"}},
                         ],
                     },
                 },
-                'squashfuse_in_container': {
-                    'type': 'boolean'
-                }
+                "squashfuse_in_container": {"type": "boolean"},
             },
-            'additionalProperties': False,  # Reject keys not in schema
-            'required': [],
-            'minProperties': 1
+            "additionalProperties": False,  # Reject keys not in schema
+            "minProperties": 1,
         }
-    }
+    },
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 SNAP_CMD = "snap"
 ASSERTIONS_FILE = "/var/lib/cloud/instance/snapd.assertions"
@@ -161,45 +181,49 @@ def add_assertions(assertions):
     """
     if not assertions:
         return
-    LOG.debug('Importing user-provided snap assertions')
+    LOG.debug("Importing user-provided snap assertions")
     if isinstance(assertions, dict):
         assertions = assertions.values()
     elif not isinstance(assertions, list):
         raise TypeError(
-            'assertion parameter was not a list or dict: {assertions}'.format(
-                assertions=assertions))
+            "assertion parameter was not a list or dict: {assertions}".format(
+                assertions=assertions
+            )
+        )
 
-    snap_cmd = [SNAP_CMD, 'ack']
+    snap_cmd = [SNAP_CMD, "ack"]
     combined = "\n".join(assertions)
 
     for asrt in assertions:
-        LOG.debug('Snap acking: %s', asrt.split('\n')[0:2])
+        LOG.debug("Snap acking: %s", asrt.split("\n")[0:2])
 
-    util.write_file(ASSERTIONS_FILE, combined.encode('utf-8'))
+    util.write_file(ASSERTIONS_FILE, combined.encode("utf-8"))
     subp.subp(snap_cmd + [ASSERTIONS_FILE], capture=True)
 
 
 def run_commands(commands):
     """Run the provided commands provided in snap:commands configuration.
 
-     Commands are run individually. Any errors are collected and reported
-     after attempting all commands.
+    Commands are run individually. Any errors are collected and reported
+    after attempting all commands.
 
-     @param commands: A list or dict containing commands to run. Keys of a
-         dict will be used to order the commands provided as dict values.
-     """
+    @param commands: A list or dict containing commands to run. Keys of a
+        dict will be used to order the commands provided as dict values.
+    """
     if not commands:
         return
-    LOG.debug('Running user-provided snap commands')
+    LOG.debug("Running user-provided snap commands")
     if isinstance(commands, dict):
         # Sort commands based on dictionary key
         commands = [v for _, v in sorted(commands.items())]
     elif not isinstance(commands, list):
         raise TypeError(
-            'commands parameter was not a list or dict: {commands}'.format(
-                commands=commands))
+            "commands parameter was not a list or dict: {commands}".format(
+                commands=commands
+            )
+        )
 
-    fixed_snap_commands = prepend_base_command('snap', commands)
+    fixed_snap_commands = prepend_base_command("snap", commands)
 
     cmd_failures = []
     for command in fixed_snap_commands:
@@ -209,8 +233,9 @@ def run_commands(commands):
         except subp.ProcessExecutionError as e:
             cmd_failures.append(str(e))
     if cmd_failures:
-        msg = 'Failures running snap commands:\n{cmd_failures}'.format(
-            cmd_failures=cmd_failures)
+        msg = "Failures running snap commands:\n{cmd_failures}".format(
+            cmd_failures=cmd_failures
+        )
         util.logexc(LOG, msg)
         raise RuntimeError(msg)
 
@@ -226,23 +251,25 @@ def maybe_install_squashfuse(cloud):
         util.logexc(LOG, "Package update failed")
         raise
     try:
-        cloud.distro.install_packages(['squashfuse'])
+        cloud.distro.install_packages(["squashfuse"])
     except Exception:
         util.logexc(LOG, "Failed to install squashfuse")
         raise
 
 
 def handle(name, cfg, cloud, log, args):
-    cfgin = cfg.get('snap', {})
+    cfgin = cfg.get("snap", {})
     if not cfgin:
-        LOG.debug(("Skipping module named %s,"
-                   " no 'snap' key in configuration"), name)
+        LOG.debug(
+            "Skipping module named %s, no 'snap' key in configuration", name
+        )
         return
 
     validate_cloudconfig_schema(cfg, schema)
-    if util.is_true(cfgin.get('squashfuse_in_container', False)):
+    if util.is_true(cfgin.get("squashfuse_in_container", False)):
         maybe_install_squashfuse(cloud)
-    add_assertions(cfgin.get('assertions', []))
-    run_commands(cfgin.get('commands', []))
+    add_assertions(cfgin.get("assertions", []))
+    run_commands(cfgin.get("commands", []))
+
 
 # vi: ts=4 expandtab

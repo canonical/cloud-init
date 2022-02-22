@@ -1,4 +1,4 @@
-# this is yaml formated data
+# this is yaml formatted data
 # it is expected to be roughly what you would get from running the following
 # on an ec2 instance:
 # python -c 'import boto.utils, yaml; print(yaml.dump(boto.utils.get_instance_metadata()))'

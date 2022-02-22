@@ -13,9 +13,9 @@ import configobj
 
 class NetworkManagerConf(configobj.ConfigObj):
     def __init__(self, contents):
-        configobj.ConfigObj.__init__(self, contents,
-                                     interpolation=False,
-                                     write_empty_values=False)
+        configobj.ConfigObj.__init__(
+            self, contents, interpolation=False, write_empty_values=False
+        )
 
     def set_section_keypair(self, section_name, key, value):
         if section_name not in self.sections:

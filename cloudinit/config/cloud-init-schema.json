@@ -1,0 +1,560 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$defs": {
+    "apt_configure.mirror": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["arches"],
+        "properties": {
+          "arches": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1
+          },
+          "uri": {"type": "string", "format": "uri"},
+          "search": {
+            "type": "array",
+            "items": {"type": "string", "format": "uri"},
+            "minItems": 1
+          },
+          "search_dns": {
+            "type": "boolean"
+          },
+          "keyid": {"type": "string"},
+          "key": {"type": "string"},
+          "keyserver": {"type": "string"}
+        }
+      },
+      "minItems": 1
+    },
+    "ca_certs.properties": {
+      "type": "object",
+      "properties": {
+        "remove-defaults": {
+          "description": "Deprecated key name. Use remove_defaults instead.",
+          "type": "boolean",
+          "default": false
+        },
+        "remove_defaults": {
+          "description": "Remove default CA certificates if true. Default: false",
+          "type": "boolean",
+          "default": false
+        },
+        "trusted": {
+          "description": "List of trusted CA certificates to add.",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "cc_apk_configure": {
+      "type": "object",
+      "properties": {
+        "apk_repos": {
+          "type": "object",
+          "properties": {
+            "preserve_repositories": {
+              "type": "boolean",
+              "default": false,
+              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\n\n The ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
+            },
+            "alpine_repo": {
+              "type": ["object", "null"],
+              "properties": {
+                "base_url": {
+                  "type": "string",
+                  "default": "https://alpine.global.ssl.fastly.net/alpine",
+                  "description": "The base URL of an Alpine repository, or mirror, to download official packages from. If not specified then it defaults to ``https://alpine.global.ssl.fastly.net/alpine``"
+                },
+                "community_enabled": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to add the Community repo to the repositories file. By default the Community repo is not included."
+                },
+                "testing_enabled": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to add the Testing repo to the repositories file. By default the Testing repo is not included. It is only recommended to use the Testing repo on a machine running the ``Edge`` version of Alpine as packages installed from Testing may have dependencies that conflict with those in non-Edge Main or Community repos."
+                },
+                "version": {
+                  "type": "string",
+                  "description": "The Alpine version to use (e.g. ``v3.12`` or ``edge``)"
+                }
+              },
+              "required": ["version"],
+              "minProperties": 1,
+              "additionalProperties": false
+            },
+            "local_repo_base_url": {
+              "type": "string",
+                "description": "The base URL of an Alpine repository containing unofficial packages"
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_apt_configure": {
+      "properties": {
+        "apt": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "preserve_sources_list": {
+              "type": "boolean",
+              "default": false,
+              "description": "By default, cloud-init will generate a new sources list in ``/etc/apt/sources.list.d`` based on any changes specified in cloud config. To disable this behavior and preserve the sources list from the pristine image, set ``preserve_sources_list`` to ``true``.\n\nThe ``preserve_sources_list`` option overrides all other config keys that would alter ``sources.list`` or ``sources.list.d``, **except** for additional sources to be added to ``sources.list.d``."
+            },
+            "disable_suites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "Entries in the sources list can be disabled using ``disable_suites``, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the ``disable_suites`` list, it will be replaced with the release name. If a suite specified in ``disable_suites`` is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for`` disable_suites``:\n\n - ``updates`` => ``$RELEASE-updates``\n - ``backports`` => ``$RELEASE-backports``\n - ``security`` => ``$RELEASE-security``\n - ``proposed`` => ``$RELEASE-proposed``\n - ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using ``disable_suites``, its entry in ``sources.list`` is not deleted; it is just commented out."
+            },
+            "primary": {
+              "$ref": "#/$defs/apt_configure.mirror",
+              "description": "The primary and security archive mirrors can be specified using the ``primary`` and ``security`` keys, respectively. Both the ``primary`` and ``security`` keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for ``arches``, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the ``uri`` key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by ``uri`` or ``search``, ``search_dns`` may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n\n - fqdn of this host per cloud metadata,\n - localdomain,\n - domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the ``primary`` key is defined, but not the ``security`` key, then then configuration for ``primary`` is also used for ``security``. If ``search_dns`` is used for the ``security`` key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n\n - ``primary`` => ``http://archive.ubuntu.com/ubuntu``.\n - ``security`` => ``http://security.ubuntu.com/ubuntu``"
+                    },
+            "security": {
+              "$ref": "#/$defs/apt_configure.mirror",
+              "description": "Please refer to the primary config documentation"
+            },
+            "add_apt_repo_match": {
+              "type": "string",
+              "default": "^[\\w-]+:\\w",
+              "description": "All source entries in ``apt-sources`` that match regex in ``add_apt_repo_match`` will be added to the system using ``add-apt-repository``. If ``add_apt_repo_match`` is not specified, it defaults to ``^[\\w-]+:\\w``"
+            },
+            "debconf_selections": {
+              "type": "object",
+              "minProperties": 1,
+              "patternProperties": {
+                "^.+$": {
+                  "type": "string"
+                }
+              },
+              "description": "Debconf additional configurations can be specified as a dictionary under the ``debconf_selections`` config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to ``debconf-set-selections``. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n\n - ``pkgname`` is the name of the package.\n - ``question`` the name of the questions.\n - ``type`` is the type of question.\n - ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``"
+            },
+            "sources_list": {
+              "type": "string",
+              "description": "Specifies a custom template for rendering ``sources.list`` . If no ``sources_list`` template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n\n - ``$MIRROR``\n - ``$RELEASE``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$KEY_FILE``"
+            },
+            "conf": {
+              "type": "string",
+              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multiline APT configuration, make sure to follow yaml syntax."
+            },
+            "https_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify https APT proxy. https proxy url is specified in the format ``https://[[user][:pass]@]host[:port]/``."
+            },
+            "http_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify http APT proxy. http proxy url is specified in the format ``http://[[user][:pass]@]host[:port]/``."
+            },
+            "proxy": {
+              "type": "string",
+              "description": "Alias for defining a http APT proxy."
+            },
+            "ftp_proxy": {
+              "type": "string",
+              "description": "More convenient way to specify ftp APT proxy. ftp proxy url is specified in the format ``ftp://[[user][:pass]@]host[:port]/``."
+            },
+            "sources": {
+              "type": "object",
+              "patternProperties": {
+                "^.+$": {
+                  "type": "object",
+                  "properties": {
+                      "source": {
+                          "type": "string"
+                      },
+                      "keyid": {
+                          "type": "string"
+                      },
+                      "key": {
+                          "type": "string"
+                      },
+                      "keyserver": {
+                          "type": "string"
+                      },
+                      "filename": {
+                          "type": "string"
+                      }
+                  },
+                  "additionalProperties": false,
+                  "minProperties": 1
+                }
+              },
+              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
+            }
+          }
+        }
+      }
+    },
+    "cc_apt_pipelining": {
+      "type": "object",
+      "properties": {
+        "apt_pipelining": {
+          "oneOf": [
+            {"type": "integer"},
+            {"type": "boolean"},
+            {"type": "string", "enum": ["none", "unchanged", "os"]}
+          ]
+        }
+      }
+    },
+    "cc_bootcmd": {
+      "type": "object",
+      "properties": {
+        "bootcmd": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "string"}
+            ]
+          },
+          "additionalItems": false,
+          "minItems": 1
+        }
+      }
+    },
+    "cc_byobu": {
+      "type": "object",
+      "properties": {
+        "byobu_by_default": {
+          "type": "string",
+          "enum": [
+            "enable-system",
+            "enable-user",
+            "disable-system",
+            "disable-user",
+            "enable",
+            "disable",
+            "user",
+            "system"
+          ]
+        }
+      }
+    },
+    "cc_ca_certs": {
+      "type": "object",
+      "properties": {
+        "ca_certs": {
+            "$ref": "#/$defs/ca_certs.properties"
+        },
+        "ca-certs": {
+            "$ref": "#/$defs/ca_certs.properties"
+        }
+      }
+    },
+    "cc_chef": {
+      "type": "object",
+      "properties": {
+        "chef": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "directories": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n\n - ``/etc/chef``\n - ``/var/log/chef``\n - ``/var/lib/chef``\n - ``/var/cache/chef``\n - ``/var/backups/chef``\n - ``/var/run/chef``"
+            },
+            "validation_cert": {
+              "type": "string",
+              "description": "Optional string to be written to file validation_key. Special value ``system`` means set use existing file."
+            },
+            "validation_key": {
+              "type": "string",
+              "default": "/etc/chef/validation.pem",
+              "description": "Optional path for validation_cert. default to ``/etc/chef/validation.pem``"
+            },
+            "firstboot_path": {
+              "type": "string",
+              "default": "/etc/chef/firstboot.json",
+              "description": "Path to write run_list and initial_attributes keys that should also be present in this configuration, defaults to ``/etc/chef/firstboot.json``"
+            },
+            "exec": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set true if we should run or not run chef (defaults to false, unless a gem installed is requested where this will then default to true)."
+            },
+            "client_key": {
+              "type": "string",
+              "default": "/etc/chef/client.pem",
+              "description": "Optional path for client_cert. Default to ``/etc/chef/client.pem``."
+            },
+            "encrypted_data_bag_secret": {
+              "type": "string",
+              "default": null,
+              "description": "Specifies the location of the secret key used by chef to encrypt data items. By default, this path is set to null, meaning that chef will have to look at the path ``/etc/chef/encrypted_data_bag_secret`` for it."
+            },
+            "environment": {
+              "type": "string",
+              "default": "_default",
+              "description": "Specifies which environment chef will use. By default, it will use the ``_default`` configuration."
+            },
+            "file_backup_path": {
+              "type": "string",
+              "default": "/var/backups/chef",
+              "description": "Specifies the location in which backup files are stored. By default, it uses the ``/var/backups/chef`` location."
+            },
+            "file_cache_path": {
+              "type": "string",
+              "default": "/var/cache/chef",
+              "description": "Specifies the location in which chef cache files will be saved. By default, it uses the ``/var/cache/chef`` location."
+            },
+            "json_attribs": {
+              "type": "string",
+              "default": "/etc/chef/firstboot.json",
+              "description": "Specifies the location in which some chef json data is stored. By default, it uses the ``/etc/chef/firstboot.json`` location."
+            },
+            "log_level": {
+              "type": "string",
+              "default": ":info",
+              "description": "Defines the level of logging to be stored in the log file. By default this value is set to ``:info``."
+            },
+            "log_location": {
+              "type": "string",
+              "default": "/var/log/chef/client.log",
+              "description": "Specifies the location of the chef lof file. By default, the location is specified at ``/var/log/chef/client.log``."
+            },
+            "node_name": {
+              "type": "string",
+              "description": "The name of the node to run. By default, we will use th instance id as the node name."
+            },
+            "omnibus_url": {
+              "type": "string",
+              "default": "https://www.chef.io/chef/install.sh",
+              "description": "Omnibus URL if chef should be installed through Omnibus. By default, it uses the ``https://www.chef.io/chef/install.sh``."
+            },
+            "omnibus_url_retries": {
+              "type": "integer",
+              "default": 5,
+              "description": "The number of retries that will be attempted to reach the Omnibus URL. Default is 5."
+            },
+            "omnibus_version": {
+              "type": "string",
+              "description": "Optional version string to require for omnibus install."
+            },
+            "pid_file": {
+              "type": "string",
+              "default": "/var/run/chef/client.pid",
+              "description": "The location in which a process identification number (pid) is saved. By default, it saves in the ``/var/run/chef/client.pid`` location."
+            },
+            "server_url": {
+              "type": "string",
+              "description": "The URL for the chef server"
+            },
+            "show_time": {
+              "type": "boolean",
+              "default": true,
+              "description": "Show time in chef logs"
+            },
+            "ssl_verify_mode": {
+              "type": "string",
+              "default": ":verify_none",
+              "description": "Set the verify mode for HTTPS requests. We can have two possible values for this parameter:\n\n - ``:verify_none``: No validation of SSL certificates.\n - ``:verify_peer``: Validate all SSL certificates.\n\nBy default, the parameter is set as ``:verify_none``."
+            },
+            "validation_name": {
+              "type": "string",
+              "description": "The name of the chef-validator key that Chef Infra Client uses to access the Chef Infra Server during the initial Chef Infra Client run."
+            },
+            "force_install": {
+              "type": "boolean",
+              "default": false,
+              "description": "If set to ``true``, forces chef installation, even if it is already installed."
+            },
+            "initial_attributes": {
+              "type": "object",
+              "items": {"type": "string"},
+              "description": "Specify a list of initial attributes used by the cookbooks."
+            },
+            "install_type": {
+              "type": "string",
+              "default": "packages",
+              "enum": [
+                "packages",
+                "gems",
+                "omnibus"
+              ],
+              "description": "The type of installation for chef. It can be one of the following values:\n\n - ``packages``\n - ``gems``\n - ``omnibus``"
+            },
+            "run_list": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "A run list for a first boot json."
+            },
+            "chef_license": {
+              "type": "string",
+              "description": "string that indicates if user accepts or not license related to some of chef products"
+            }
+          }
+        }
+      }
+    },
+    "cc_debug": {
+      "type": "object",
+      "properties": {
+        "debug": {
+          "additionalProperties": false,
+          "minProperties": 1,
+          "type": "object",
+          "properties": {
+            "verbose": {
+              "description": "Should always be true for this module",
+              "type": "boolean"
+            },
+            "output": {
+              "description": "Location to write output. Defaults to console + log",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "cc_disable_ec2_metadata": {
+      "type": "object",
+      "properties": {
+        "disable_ec2_metadata": {
+          "default": false,
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: false.",
+          "type": "boolean"
+        }
+      }
+    },
+    "cc_disk_setup": {
+      "type": "object",
+      "properties": {
+        "device_aliases": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "label": "<alias_name>",
+              "type": "string",
+              "description": "Path to disk to be aliased by this name."
+            }
+          }
+        },
+        "disk_setup": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "label": "<alias name/path>",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "table_type": {
+                  "type": "string",
+                  "default": "mbr",
+                  "enum": ["mbr", "gpt"],
+                  "description": "Specifies the partition table type, either ``mbr`` or ``gpt``. Default: ``mbr``."
+                },
+                "layout": {
+                  "type": ["string", "boolean", "array"],
+                  "default": false,
+                  "oneOf": [
+                    {"type": "string", "enum": ["remove"]},
+                    {"type": "boolean"},
+                    {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {"type": "integer"},
+                          {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "description": "If set to ``true``, a single partition using all the space on the device will be created. If set to ``false``, no partitions will be created. If set to ``remove``, any existing partition table will be purged. Partitions can be specified by providing a list to ``layout``, where each entry in the list is either a size or a list containing a size and the numerical value for a partition type. The size for partitions is specified in **percentage** of disk space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space). Default: ``false``."
+                },
+                "overwrite": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Controls whether this module tries to be safe about writing partition tables or not. If ``overwrite: false`` is set, the device will be checked for a partition table and for a file system and if either is found, the operation will be skipped. If ``overwrite: true`` is set, no checks will be performed. Using ``overwrite: true`` is **dangerous** and can lead to data loss, so double check that the correct device has been specified if using this option. Default: ``false``"
+                }
+              }
+            }
+          }
+        },
+        "fs_setup": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Label for the filesystem."
+              },
+              "filesystem": {
+                "type": "string",
+                "description": "Filesystem type to create. E.g., ``ext4`` or ``btrfs``"
+              },
+              "device": {
+                "type": "string",
+                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<device name>.<partition number>`` format, the value of ``partition`` will be overwritten."
+              },
+              "partition": {
+                "type": ["string", "integer"],
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": ["auto", "any", "none"]
+                  },
+                  {"type": "integer"}
+                ],
+                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
+              },
+              "overwrite": {
+                "type": "boolean",
+                "description": "If ``true``, overwrite any existing filesystem. Using ``overwrite: true`` for filesystems is **dangerous** and can lead to data loss, so double check the entry in ``fs_setup``. Default: ``false``"
+              },
+              "replace_fs": {
+                "type": "string",
+                "description": "Ignored unless ``partition`` is ``auto`` or ``any``. Default ``false``."
+              },
+              "extra_opts": {
+                "type": ["array", "string"],
+                "items": {"type": "string"},
+                "description": "Optional options to pass to the filesystem creation command. Ignored if you using ``cmd`` directly."
+              },
+              "cmd": {
+                "type": ["array", "string"],
+                "items": {"type": "string"},
+                "description": "Optional command to run to create the filesystem. Can include string substitutions of the other ``fs_setup`` config keys. This is only necessary if you need to override the default command."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/cc_apk_configure" },
+    { "$ref": "#/$defs/cc_apt_configure" },
+    { "$ref": "#/$defs/cc_apt_pipelining" },
+    { "$ref": "#/$defs/cc_bootcmd" },
+    { "$ref": "#/$defs/cc_byobu" },
+    { "$ref": "#/$defs/cc_ca_certs" },
+    { "$ref": "#/$defs/cc_chef" },
+    { "$ref": "#/$defs/cc_debug" },
+    { "$ref": "#/$defs/cc_disable_ec2_metadata" },
+    { "$ref": "#/$defs/cc_disk_setup" }
+  ]
+}

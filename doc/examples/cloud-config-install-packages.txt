@@ -7,7 +7,7 @@
 # if packages are specified, this apt_update will be set to true
 #
 # packages may be supplied as a single package name or as a list
-# with the format [<package>, <version>] wherein the specifc
+# with the format [<package>, <version>] wherein the specific
 # package version will be installed.
 packages:
  - pwgen

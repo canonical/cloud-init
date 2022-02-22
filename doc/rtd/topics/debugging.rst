@@ -88,7 +88,7 @@ To quickly obtain a cloud-init log try using lxc on any ubuntu system:
 
 .. code-block:: shell-session
 
-    $ lxc init ubuntu-daily:xenial x1
+    $ lxc init ubuntu-daily:focal x1
     $ lxc start x1
     $ # Take lxc's cloud-init.log and pipe it to the analyzer
     $ lxc file pull x1/var/log/cloud-init.log - | cloud-init analyze dump -i -
@@ -104,13 +104,13 @@ To quickly analyze a KVM a cloud-init log:
 
 .. code-block:: shell-session
 
-    $ wget https://cloud-images.ubuntu.com/daily/server/xenial/current/xenial-server-cloudimg-amd64.img
+    $ wget https://cloud-images.ubuntu.com/daily/server/focal/current/focal-server-cloudimg-amd64.img
 
 2. Create a snapshot image to preserve the original cloud-image
 
 .. code-block:: shell-session
 
-    $ qemu-img create -b xenial-server-cloudimg-amd64.img -f qcow2 \
+    $ qemu-img create -b focal-server-cloudimg-amd64.img -f qcow2 \
     test-cloudinit.qcow2
 
 3. Create a seed image with metadata using `cloud-localds`

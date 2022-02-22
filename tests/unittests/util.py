@@ -15,7 +15,7 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
     """
     paths = paths or helpers.Paths({})
     sys_cfg = sys_cfg or {}
-    cls = distros.fetch(distro) if distro else TestingDistro
+    cls = distros.fetch(distro) if distro else MockDistro
     mydist = cls(distro, sys_cfg, paths)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
@@ -27,15 +27,17 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
 
 def abstract_to_concrete(abclass):
     """Takes an abstract class and returns a concrete version of it."""
+
     class concreteCls(abclass):
         pass
+
     concreteCls.__abstractmethods__ = frozenset()
-    return type('DummyConcrete' + abclass.__name__, (concreteCls,), {})
+    return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
 class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return 'hostname'
+        return "hostname"
 
     def persist_instance_data(self):
         return True
@@ -46,17 +48,17 @@ class DataSourceTesting(DataSourceNone):
 
     @property
     def cloud_name(self):
-        return 'testing'
+        return "testing"
 
 
-class TestingDistro(distros.Distro):
-    # TestingDistro is here to test base Distro class implementations
+class MockDistro(distros.Distro):
+    # MockDistro is here to test base Distro class implementations
     def __init__(self, name="testingdistro", cfg=None, paths=None):
         if not cfg:
             cfg = {}
         if not paths:
             paths = {}
-        super(TestingDistro, self).__init__(name, cfg, paths)
+        super(MockDistro, self).__init__(name, cfg, paths)
 
     def install_packages(self, pkglist):
         pass
@@ -68,7 +70,7 @@ class TestingDistro(distros.Distro):
         return True
 
     def get_primary_arch(self):
-        return 'i386'
+        return "i386"
 
     def get_package_mirror_info(self, arch=None, data_source=None):
         pass
@@ -110,7 +112,7 @@ class TestingDistro(distros.Distro):
         pass
 
     def add_snap_user(self, name, **kwargs):
-        return 'snap_user'
+        return "snap_user"
 
     def create_user(self, name, **kwargs):
         return True
@@ -124,7 +126,7 @@ class TestingDistro(distros.Distro):
     def set_passwd(self, user, passwd, hashed=False):
         return True
 
-    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+    def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         pass
 
     def write_sudo_rules(self, user, rules, sudo_file=None):

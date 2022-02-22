@@ -9,9 +9,8 @@ import logging
 import os
 import re
 
-from cloudinit.net.network_state import mask_to_net_prefix
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
+from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +62,10 @@ class NicConfigurator(object):
         if not primary_nics:
             return None
         elif len(primary_nics) > 1:
-            raise Exception('There can only be one primary nic',
-                            [nic.mac for nic in primary_nics])
+            raise Exception(
+                "There can only be one primary nic",
+                [nic.mac for nic in primary_nics],
+            )
         else:
             return primary_nics[0]
 
@@ -73,17 +74,17 @@ class NicConfigurator(object):
         Create the mac2Name dictionary
         The mac address(es) are in the lower case
         """
-        cmd = ['ip', 'addr', 'show']
+        cmd = ["ip", "addr", "show"]
         output, _err = subp.subp(cmd)
-        sections = re.split(r'\n\d+: ', '\n' + output)[1:]
+        sections = re.split(r"\n\d+: ", "\n" + output)[1:]
 
-        macPat = r'link/ether (([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}))'
+        macPat = r"link/ether (([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}))"
         for section in sections:
             match = re.search(macPat, section)
             if not match:  # Only keep info about nics
                 continue
             mac = match.group(1).lower()
-            name = section.split(':', 1)[0]
+            name = section.split(":", 1)[0]
             self.mac2Name[mac] = name
 
     def gen_one_nic(self, nic):
@@ -95,11 +96,11 @@ class NicConfigurator(object):
         mac = nic.mac.lower()
         name = self.mac2Name.get(mac)
         if not name:
-            raise ValueError('No known device has MACADDR: %s' % nic.mac)
+            raise ValueError("No known device has MACADDR: %s" % nic.mac)
 
         nics_cfg_list = []
 
-        cfg = {'type': 'physical', 'name': name, 'mac_address': mac}
+        cfg = {"type": "physical", "name": name, "mac_address": mac}
 
         subnet_list = []
         route_list = []
@@ -114,7 +115,7 @@ class NicConfigurator(object):
         subnet_list.extend(subnets)
         route_list.extend(routes)
 
-        cfg.update({'subnets': subnet_list})
+        cfg.update({"subnets": subnet_list})
 
         nics_cfg_list.append(cfg)
         if route_list:
@@ -135,17 +136,17 @@ class NicConfigurator(object):
         route_list = []
 
         if nic.onboot:
-            subnet.update({'control': 'auto'})
+            subnet.update({"control": "auto"})
 
         bootproto = nic.bootProto.lower()
-        if nic.ipv4_mode.lower() == 'disabled':
-            bootproto = 'manual'
+        if nic.ipv4_mode.lower() == "disabled":
+            bootproto = "manual"
 
-        if bootproto != 'static':
-            subnet.update({'type': 'dhcp'})
+        if bootproto != "static":
+            subnet.update({"type": "dhcp"})
             return ([subnet], route_list)
         else:
-            subnet.update({'type': 'static'})
+            subnet.update({"type": "static"})
 
         # Static Ipv4
         addrs = nic.staticIpv4
@@ -154,20 +155,21 @@ class NicConfigurator(object):
 
         v4 = addrs[0]
         if v4.ip:
-            subnet.update({'address': v4.ip})
+            subnet.update({"address": v4.ip})
         if v4.netmask:
-            subnet.update({'netmask': v4.netmask})
+            subnet.update({"netmask": v4.netmask})
 
         # Add the primary gateway
         if nic.primary and v4.gateways:
             self.ipv4PrimaryGateway = v4.gateways[0]
-            subnet.update({'gateway': self.ipv4PrimaryGateway})
+            subnet.update({"gateway": self.ipv4PrimaryGateway})
             return ([subnet], route_list)
 
         # Add routes if there is no primary nic
         if not self._primaryNic and v4.gateways:
             subnet.update(
-                {'routes': self.gen_ipv4_route(nic, v4.gateways, v4.netmask)})
+                {"routes": self.gen_ipv4_route(nic, v4.gateways, v4.netmask)}
+            )
 
         return ([subnet], route_list)
 
@@ -180,14 +182,18 @@ class NicConfigurator(object):
         """
         route_list = []
 
-        cidr = mask_to_net_prefix(netmask)
+        cidr = ipv4_mask_to_net_prefix(netmask)
 
         for gateway in gateways:
             destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)
-            route_list.append({'destination': destination,
-                               'type': 'route',
-                               'gateway': gateway,
-                               'metric': 10000})
+            route_list.append(
+                {
+                    "destination": destination,
+                    "type": "route",
+                    "gateway": gateway,
+                    "metric": 10000,
+                }
+            )
 
         return route_list
 
@@ -208,9 +214,11 @@ class NicConfigurator(object):
         addrs = nic.staticIpv6
 
         for addr in addrs:
-            subnet = {'type': 'static6',
-                      'address': addr.ip,
-                      'netmask': addr.netmask}
+            subnet = {
+                "type": "static6",
+                "address": addr.ip,
+                "netmask": addr.netmask,
+            }
             subnet_list.append(subnet)
 
         # TODO: Add the primary gateway
@@ -226,9 +234,9 @@ class NicConfigurator(object):
         route_list = []
 
         for addr in addrs:
-            route_list.append({'type': 'route',
-                               'gateway': addr.gateway,
-                               'metric': 10000})
+            route_list.append(
+                {"type": "route", "gateway": addr.gateway, "metric": 10000}
+            )
 
         return route_list
 
@@ -246,7 +254,7 @@ class NicConfigurator(object):
         return nics_cfg_list
 
     def clear_dhcp(self):
-        logger.info('Clearing DHCP leases')
+        logger.info("Clearing DHCP leases")
 
         # Ignore the return code 1.
         subp.subp(["pkill", "dhclient"], rcs=[0, 1])
@@ -262,11 +270,12 @@ class NicConfigurator(object):
             logger.info("Debian OS not detected. Skipping the configure step")
             return
 
-        containingDir = '/etc/network'
+        containingDir = "/etc/network"
 
-        interfaceFile = os.path.join(containingDir, 'interfaces')
-        originalFile = os.path.join(containingDir,
-                                    'interfaces.before_vmware_customization')
+        interfaceFile = os.path.join(containingDir, "interfaces")
+        originalFile = os.path.join(
+            containingDir, "interfaces.before_vmware_customization"
+        )
 
         if not os.path.exists(originalFile) and os.path.exists(interfaceFile):
             os.rename(interfaceFile, originalFile)
@@ -274,12 +283,13 @@ class NicConfigurator(object):
         lines = [
             "# DO NOT EDIT THIS FILE BY HAND --"
             " AUTOMATICALLY GENERATED BY cloud-init",
-            "source /etc/network/interfaces.d/*.cfg",
+            "source /etc/network/interfaces.d/*",
             "source-directory /etc/network/interfaces.d",
         ]
 
-        util.write_file(interfaceFile, content='\n'.join(lines))
+        util.write_file(interfaceFile, content="\n".join(lines))
 
         self.clear_dhcp()
+
 
 # vi: ts=4 expandtab

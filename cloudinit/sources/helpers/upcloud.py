@@ -169,7 +169,7 @@ def convert_to_network_config_v1(config):
         interface = {
             "type": "physical",
             "name": sysfs_name,
-            "mac_address": mac_address
+            "mac_address": mac_address,
         }
 
         subnets = []
@@ -182,10 +182,9 @@ def convert_to_network_config_v1(config):
 
     if config.get("dns"):
         LOG.debug("Setting DNS nameservers to %s", config.get("dns"))
-        nic_configs.append({
-            "type": "nameserver",
-            "address": config.get("dns")
-        })
+        nic_configs.append(
+            {"type": "nameserver", "address": config.get("dns")}
+        )
 
     return {"version": 1, "config": nic_configs}
 
@@ -216,8 +215,7 @@ def read_sysinfo():
     server_uuid = dmi.read_dmi_data("system-uuid")
     if server_uuid:
         LOG.debug(
-            "system identified via SMBIOS as UpCloud server: %s",
-            server_uuid
+            "system identified via SMBIOS as UpCloud server: %s", server_uuid
         )
     else:
         msg = (

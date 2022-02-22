@@ -7,10 +7,10 @@
 
 class Merger(object):
     def __init__(self, _merger, opts):
-        self._append = 'append' in opts
+        self._append = "append" in opts
 
     def __str__(self):
-        return 'StringMerger: (append=%s)' % (self._append)
+        return "StringMerger: (append=%s)" % (self._append)
 
     # On encountering a unicode object to merge value with
     # we will for now just proxy into the string method to let it handle it.
@@ -26,5 +26,6 @@ class Merger(object):
         if not self._append:
             return merge_with
         return value + merge_with
+
 
 # vi: ts=4 expandtab

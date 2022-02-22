@@ -10,8 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import log as logging
-from cloudinit import type_utils
-from cloudinit import util
+from cloudinit import type_utils, util
 
 LOG = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ LOG = logging.getLogger(__name__)
 # standard form used in the rest of cloud-init
 def _normalize_groups(grp_cfg):
     if isinstance(grp_cfg, str):
-        grp_cfg = grp_cfg.strip().split(',')
+        grp_cfg = grp_cfg.strip().split(",")
 
     if isinstance(grp_cfg, list):
         c_grp_cfg = {}
@@ -31,8 +30,10 @@ def _normalize_groups(grp_cfg):
             if isinstance(i, dict):
                 for k, v in i.items():
                     if not isinstance(v, (list, str)):
-                        raise TypeError('Bad group member type %s'
-                                        % (type_utils.obj_name(v)))
+                        raise TypeError(
+                            "Bad group member type %s"
+                            % (type_utils.obj_name(v))
+                        )
 
                     if isinstance(v, list):
                         c_grp_cfg.setdefault(k, []).extend(v)
@@ -42,8 +43,9 @@ def _normalize_groups(grp_cfg):
                 if i not in c_grp_cfg:
                     c_grp_cfg[i] = []
             else:
-                raise TypeError('Unknown group name type %s'
-                                % (type_utils.obj_name(i)))
+                raise TypeError(
+                    "Unknown group name type %s" % (type_utils.obj_name(i))
+                )
         grp_cfg = c_grp_cfg
 
     groups = {}
@@ -51,8 +53,10 @@ def _normalize_groups(grp_cfg):
         for grp_name, grp_members in grp_cfg.items():
             groups[grp_name] = util.uniq_merge_sorted(grp_members)
     else:
-        raise TypeError(('Group config must be list, dict or string type only '
-                         'but found %s') % (type_utils.obj_name(grp_cfg)))
+        raise TypeError(
+            "Group config must be list, dict or string type only but found %s"
+            % (type_utils.obj_name(grp_cfg))
+        )
     return groups
 
 
@@ -73,11 +77,13 @@ def _normalize_users(u_cfg, def_user_cfg=None):
                 if util.is_true(v):
                     ad_ucfg.append(str(k))
             elif isinstance(v, dict):
-                v['name'] = k
+                v["name"] = k
                 ad_ucfg.append(v)
             else:
-                raise TypeError(('Unmappable user value type %s for key %s')
-                                % (type_utils.obj_name(v), k))
+                raise TypeError(
+                    "Unmappable user value type %s for key %s"
+                    % (type_utils.obj_name(v), k)
+                )
         u_cfg = ad_ucfg
     elif isinstance(u_cfg, str):
         u_cfg = util.uniq_merge_sorted(u_cfg)
@@ -89,13 +95,14 @@ def _normalize_users(u_cfg, def_user_cfg=None):
                 if u and u not in users:
                     users[u] = {}
         elif isinstance(user_config, dict):
-            n = user_config.pop('name', 'default')
+            n = user_config.pop("name", "default")
             prev_config = users.get(n) or {}
             users[n] = util.mergemanydict([prev_config, user_config])
         else:
-            raise TypeError(('User config must be dictionary/list or string '
-                             ' types only and not %s')
-                            % (type_utils.obj_name(user_config)))
+            raise TypeError(
+                "User config must be dictionary/list or string "
+                " types only and not %s" % (type_utils.obj_name(user_config))
+            )
 
     # Ensure user options are in the right python friendly format
     if users:
@@ -103,7 +110,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
         for uname, uconfig in users.items():
             c_uconfig = {}
             for k, v in uconfig.items():
-                k = k.replace('-', '_').strip()
+                k = k.replace("-", "_").strip()
                 if k:
                     c_uconfig[k] = v
             c_users[uname] = c_uconfig
@@ -111,33 +118,34 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 
     # Fix the default user into the actual default user name and replace it.
     def_user = None
-    if users and 'default' in users:
-        def_config = users.pop('default')
+    if users and "default" in users:
+        def_config = users.pop("default")
         if def_user_cfg:
             # Pickup what the default 'real name' is and any groups that are
             # provided by the default config
             def_user_cfg = def_user_cfg.copy()
-            def_user = def_user_cfg.pop('name')
-            def_groups = def_user_cfg.pop('groups', [])
+            def_user = def_user_cfg.pop("name")
+            def_groups = def_user_cfg.pop("groups", [])
             # Pick any config + groups for the user name that we may have
             # extracted previously
             parsed_config = users.pop(def_user, {})
-            parsed_groups = parsed_config.get('groups', [])
+            parsed_groups = parsed_config.get("groups", [])
             # Now merge the extracted groups with the default config provided
             users_groups = util.uniq_merge_sorted(parsed_groups, def_groups)
-            parsed_config['groups'] = ','.join(users_groups)
+            parsed_config["groups"] = ",".join(users_groups)
             # The real config for the default user is the combination of the
             # default user config provided by the distro, the default user
             # config provided by the above merging for the user 'default' and
             # then the parsed config from the user's 'real name' which does not
             # have to be 'default' (but could be)
-            users[def_user] = util.mergemanydict([def_user_cfg, def_config,
-                                                  parsed_config])
+            users[def_user] = util.mergemanydict(
+                [def_user_cfg, def_config, parsed_config]
+            )
 
     # Ensure that only the default user that we found (if any) is actually
     # marked as the default user
     for uname, uconfig in users.items():
-        uconfig['default'] = (uname == def_user if def_user else False)
+        uconfig["default"] = uname == def_user if def_user else False
 
     return users
 
@@ -161,14 +169,17 @@ def normalize_users_groups(cfg, distro):
     # overrides the concept of the default user if provided in the user: XYZ
     # format.
     old_user = {}
-    if 'user' in cfg and cfg['user']:
-        old_user = cfg['user']
+    if "user" in cfg and cfg["user"]:
+        old_user = cfg["user"]
         # Translate it into a format that will be more useful going forward
         if isinstance(old_user, str):
-            old_user = {'name': old_user}
+            old_user = {"name": old_user}
         elif not isinstance(old_user, dict):
-            LOG.warning(("Format for 'user' key must be a string or dictionary"
-                         " and not %s"), type_utils.obj_name(old_user))
+            LOG.warning(
+                "Format for 'user' key must be a string or dictionary"
+                " and not %s",
+                type_utils.obj_name(old_user),
+            )
             old_user = {}
 
     # If no old user format, then assume the distro provides what the 'default'
@@ -179,33 +190,37 @@ def normalize_users_groups(cfg, distro):
     try:
         distro_user_config = distro.get_default_user()
     except NotImplementedError:
-        LOG.warning(('Distro has not implemented default user access. No '
-                     'distribution provided default user will be normalized.'))
+        LOG.warning(
+            "Distro has not implemented default user access. No "
+            "distribution provided default user will be normalized."
+        )
 
     # Merge the old user (which may just be an empty dict when not present)
     # with the distro provided default user configuration so that the old user
     # style picks up all the distribution specific attributes (if any)
     default_user_config = util.mergemanydict([old_user, distro_user_config])
 
-    base_users = cfg.get('users', [])
+    base_users = cfg.get("users", [])
     if not isinstance(base_users, (list, dict, str)):
-        LOG.warning(("Format for 'users' key must be a comma separated string"
-                     " or a dictionary or a list but found %s"),
-                    type_utils.obj_name(base_users))
+        LOG.warning(
+            "Format for 'users' key must be a comma separated string"
+            " or a dictionary or a list but found %s",
+            type_utils.obj_name(base_users),
+        )
         base_users = []
 
     if old_user:
         # When 'user:' is provided, it should be made as the default user
         if isinstance(base_users, list):
-            base_users.append({'name': 'default'})
+            base_users.append({"name": "default"})
         elif isinstance(base_users, dict):
-            base_users['default'] = dict(base_users).get('default', True)
+            base_users["default"] = dict(base_users).get("default", True)
         elif isinstance(base_users, str):
-            base_users += ',default'
+            base_users += ",default"
 
     groups = {}
-    if 'groups' in cfg:
-        groups = _normalize_groups(cfg['groups'])
+    if "groups" in cfg:
+        groups = _normalize_groups(cfg["groups"])
 
     users = _normalize_users(base_users, default_user_config)
     return (users, groups)
@@ -219,9 +234,9 @@ def extract_default(users, default_name=None, default_config=None):
 
     def safe_find(entry):
         config = entry[1]
-        if not config or 'default' not in config:
+        if not config or "default" not in config:
             return False
-        return config['default']
+        return config["default"]
 
     tmp_users = dict(filter(safe_find, users.items()))
     if not tmp_users:
@@ -229,7 +244,8 @@ def extract_default(users, default_name=None, default_config=None):
 
     name = list(tmp_users)[0]
     config = tmp_users[name]
-    config.pop('default', None)
+    config.pop("default", None)
     return (name, config)
+
 
 # vi: ts=4 expandtab

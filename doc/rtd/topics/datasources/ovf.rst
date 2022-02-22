@@ -41,6 +41,6 @@ The following VMTools configuration options affect cloud-init's behavior on a bo
 
 VMWare admin can refer to (https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py) and set the customization specification settings.
 
-For more information, see [VMware vSphere Product Documentation](https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html) and specific VMTools parameters consumed.
+For more information, see `VMware vSphere Product Documentation <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html>`_ and specific VMTools parameters consumed.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

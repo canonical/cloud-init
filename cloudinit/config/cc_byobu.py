@@ -6,11 +6,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Byobu
------
-**Summary:** enable/disable byobu system wide and for default user
+"""Byobu: Enable/disable byobu system wide and for default user."""
 
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ug_util
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module controls whether byobu is enabled or disabled system wide and for
 the default system user. If byobu is to be enabled, this module will ensure it
 is installed. Likewise, if it is to be disabled, it will be removed if
@@ -26,23 +29,23 @@ Valid configuration options for this module are:
   - ``disable``: disable byobu for all users
   - ``user``: alias for ``enable-user``
   - ``system``: alias for ``enable-system``
-
-**Internal name:** ``cc_byobu``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu, debian
-
-**Config keys**::
-
-    byobu_by_default: <user/system>
 """
+distros = ["ubuntu", "debian"]
 
-from cloudinit.distros import ug_util
-from cloudinit import subp
-from cloudinit import util
+meta: MetaSchema = {
+    "id": "cc_byobu",
+    "name": "Byobu",
+    "title": "Enable/disable byobu system wide and for default user",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        "byobu_by_default: enable-user",
+        "byobu_by_default: disable-system",
+    ],
+}
 
-distros = ['ubuntu', 'debian']
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, args):
@@ -58,8 +61,14 @@ def handle(name, cfg, cloud, log, args):
     if value == "user" or value == "system":
         value = "enable-%s" % value
 
-    valid = ("enable-user", "enable-system", "enable",
-             "disable-user", "disable-system", "disable")
+    valid = (
+        "enable-user",
+        "enable-system",
+        "enable",
+        "disable-user",
+        "disable-system",
+        "disable",
+    )
     if value not in valid:
         log.warning("Unknown value %s for byobu_by_default", value)
 
@@ -81,13 +90,16 @@ def handle(name, cfg, cloud, log, args):
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if not user:
-            log.warning(("No default byobu user provided, "
-                         "can not launch %s for the default user"), bl_inst)
+            log.warning(
+                "No default byobu user provided, "
+                "can not launch %s for the default user",
+                bl_inst,
+            )
         else:
-            shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
+            shcmd += ' sudo -Hu "%s" byobu-launcher-%s' % (user, bl_inst)
             shcmd += " || X=$(($X+1)); "
     if mod_sys:
-        shcmd += "echo \"%s\" | debconf-set-selections" % dc_val
+        shcmd += 'echo "%s" | debconf-set-selections' % dc_val
         shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
         shcmd += " || X=$(($X+1)); "
 
@@ -95,5 +107,6 @@ def handle(name, cfg, cloud, log, args):
         cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
         log.debug("Setting byobu to %s", value)
         subp.subp(cmd, capture=False)
+
 
 # vi: ts=4 expandtab

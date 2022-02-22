@@ -3,23 +3,25 @@
 import os
 from textwrap import dedent
 
-from cloudinit import util
-from cloudinit import subp
-from cloudinit import stages
-from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
+from cloudinit import stages, subp, util
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.event import EventType, EventScope
+from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
-
 
 frequency = PER_INSTANCE
 distros = [ALL_DISTROS]
 
-schema = {
+meta: MetaSchema = {
     "id": "cc_install_hotplug",
     "name": "Install Hotplug",
     "title": "Install hotplug if supported and enabled",
-    "description": dedent("""\
+    "description": dedent(
+        """\
         This module will install the udev rules to enable hotplug if
         supported by the datasource and enabled in the userdata. The udev
         rules will be installed as
@@ -32,23 +34,31 @@ schema = {
         network configuration.
 
         Currently supported datasources: Openstack, EC2
-    """),
+    """
+    ),
     "distros": distros,
     "examples": [
-        dedent("""\
+        dedent(
+            """\
             # Enable hotplug of network devices
             updates:
               network:
                 when: ["hotplug"]
-        """),
-        dedent("""\
+        """
+        ),
+        dedent(
+            """\
             # Enable network hotplug alongside boot event
             updates:
               network:
                 when: ["boot", "hotplug"]
-        """),
+        """
+        ),
     ],
     "frequency": frequency,
+}
+
+schema = {
     "type": "object",
     "properties": {
         "updates": {
@@ -71,17 +81,17 @@ schema = {
                                     "boot-legacy",
                                     "boot",
                                     "hotplug",
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    }
+                    },
                 }
-            }
+            },
         }
-    }
+    },
 }
 
-__doc__ = get_schema_doc(schema)
+__doc__ = get_meta_doc(meta, schema)
 
 
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
@@ -97,14 +107,15 @@ LABEL="cloudinit_end"
 def handle(_name, cfg, cloud, log, _args):
     validate_cloudconfig_schema(cfg, schema)
     network_hotplug_enabled = (
-        'updates' in cfg and
-        'network' in cfg['updates'] and
-        'when' in cfg['updates']['network'] and
-        'hotplug' in cfg['updates']['network']['when']
+        "updates" in cfg
+        and "network" in cfg["updates"]
+        and "when" in cfg["updates"]["network"]
+        and "hotplug" in cfg["updates"]["network"]["when"]
     )
     hotplug_supported = EventType.HOTPLUG in (
-        cloud.datasource.get_supported_events(
-            [EventType.HOTPLUG]).get(EventScope.NETWORK, set())
+        cloud.datasource.get_supported_events([EventType.HOTPLUG]).get(
+            EventScope.NETWORK, set()
+        )
     )
     hotplug_enabled = stages.update_event_enabled(
         datasource=cloud.datasource,

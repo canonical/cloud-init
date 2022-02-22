@@ -1,10 +1,9 @@
 import abc
 import logging
 import os
+from typing import List, Optional
 
-from cloudinit import subp
-from cloudinit import net, util
-
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class Networking(metaclass=abc.ABCMeta):
     """
 
     def __init__(self):
-        self.blacklist_drivers = None
+        self.blacklist_drivers: Optional[List[str]] = None
 
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
@@ -73,7 +72,8 @@ class Networking(metaclass=abc.ABCMeta):
 
     def get_interfaces_by_mac(self) -> dict:
         return net.get_interfaces_by_mac(
-            blacklist_drivers=self.blacklist_drivers)
+            blacklist_drivers=self.blacklist_drivers
+        )
 
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
@@ -225,7 +225,7 @@ class LinuxNetworking(Networking):
 
     def try_set_link_up(self, devname: DeviceName) -> bool:
         """Try setting the link to up explicitly and return if it is up.
-           Not guaranteed to bring the interface up. The caller is expected to
-           add wait times before retrying."""
-        subp.subp(['ip', 'link', 'set', devname, 'up'])
+        Not guaranteed to bring the interface up. The caller is expected to
+        add wait times before retrying."""
+        subp.subp(["ip", "link", "set", devname, "up"])
         return self.is_up(devname)

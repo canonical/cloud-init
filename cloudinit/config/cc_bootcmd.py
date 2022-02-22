@@ -12,28 +12,20 @@
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+from cloudinit import subp, temp_utils, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
-from cloudinit import temp_utils
-from cloudinit import subp
-from cloudinit import util
 
 frequency = PER_ALWAYS
 
-# The schema definition for each cloud-config module is a strict contract for
-# describing supported configuration parameters for each cloud-config section.
-# It allows cloud-config to validate and alert users to invalid or ignored
-# configuration options before actually attempting to deploy with said
-# configuration.
+distros = ["all"]
 
-distros = ['all']
-
-schema = {
-    'id': 'cc_bootcmd',
-    'name': 'Bootcmd',
-    'title': 'Run arbitrary commands early in the boot process',
-    'description': dedent("""\
+meta: MetaSchema = {
+    "id": "cc_bootcmd",
+    "name": "Bootcmd",
+    "title": "Run arbitrary commands early in the boot process",
+    "description": dedent(
+        """\
         This module runs arbitrary commands very early in the boot process,
         only slightly after a boothook would run. This is very similar to a
         boothook, but more user friendly. The environment variable
@@ -49,42 +41,32 @@ schema = {
 
           when writing files, do not use /tmp dir as it races with
           systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
-    """),
-    'distros': distros,
-    'examples': [dedent("""\
+    """
+    ),
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
         bootcmd:
             - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
             - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
-    """)],
-    'frequency': PER_ALWAYS,
-    'type': 'object',
-    'properties': {
-        'bootcmd': {
-            'type': 'array',
-            'items': {
-                'oneOf': [
-                    {'type': 'array', 'items': {'type': 'string'}},
-                    {'type': 'string'}]
-            },
-            'additionalItems': False,  # Reject items of non-string non-list
-            'additionalProperties': False,
-            'minItems': 1,
-            'required': [],
-        }
-    }
+    """
+        )
+    ],
+    "frequency": PER_ALWAYS,
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, _args):
 
     if "bootcmd" not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'bootcmd' key in configuration"), name)
+        log.debug(
+            "Skipping module named %s, no 'bootcmd' key in configuration", name
+        )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
     with temp_utils.ExtendedTemporaryFile(suffix=".sh") as tmpf:
         try:
             content = util.shellify(cfg["bootcmd"])
@@ -98,11 +80,12 @@ def handle(name, cfg, cloud, log, _args):
             env = os.environ.copy()
             iid = cloud.get_instance_id()
             if iid:
-                env['INSTANCE_ID'] = str(iid)
-            cmd = ['/bin/sh', tmpf.name]
+                env["INSTANCE_ID"] = str(iid)
+            cmd = ["/bin/sh", tmpf.name]
             subp.subp(cmd, env=env, capture=False)
         except Exception:
             util.logexc(log, "Failed to run bootcmd module %s", name)
             raise
+
 
 # vi: ts=4 expandtab

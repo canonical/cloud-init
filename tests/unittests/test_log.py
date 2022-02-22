@@ -9,11 +9,10 @@ import time
 
 from cloudinit import log as ci_logging
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 
 class TestCloudInitLogger(CiTestCase):
-
     def setUp(self):
         # set up a logger like cloud-init does in setupLogging, but instead
         # of sys.stderr, we'll plug in a StringIO() object so we can see
@@ -26,7 +25,7 @@ class TestCloudInitLogger(CiTestCase):
         console.setLevel(ci_logging.DEBUG)
         self.ci_root.addHandler(console)
         self.ci_root.setLevel(ci_logging.DEBUG)
-        self.LOG = logging.getLogger('test_cloudinit_logger')
+        self.LOG = logging.getLogger("test_cloudinit_logger")
 
     def test_logger_uses_gmtime(self):
         """Test that log message have timestamp in UTC (gmtime)"""
@@ -43,15 +42,16 @@ class TestCloudInitLogger(CiTestCase):
         # utc_after : 2017-08-23 14:19:43.570064
 
         utc_before = datetime.datetime.utcnow() - datetime.timedelta(0, 0.5)
-        self.LOG.error('Test message')
+        self.LOG.error("Test message")
         utc_after = datetime.datetime.utcnow() + datetime.timedelta(0, 0.5)
 
         # extract timestamp from log:
         # 2017-08-23 14:19:43,069 - test_log.py[ERROR]: Test message
         logstr = self.ci_logs.getvalue().splitlines()[0]
-        timestampstr = logstr.split(' - ')[0]
-        parsed_dt = datetime.datetime.strptime(timestampstr,
-                                               CLOUD_INIT_ASCTIME_FMT)
+        timestampstr = logstr.split(" - ")[0]
+        parsed_dt = datetime.datetime.strptime(
+            timestampstr, CLOUD_INIT_ASCTIME_FMT
+        )
 
         self.assertLess(utc_before, parsed_dt)
         self.assertLess(parsed_dt, utc_after)
