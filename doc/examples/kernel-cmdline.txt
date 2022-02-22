@@ -7,7 +7,7 @@ The format is:
 
 cloud-config will consider any content after 'cc:' to be cloud-config
 data.  If an 'end_cc' string is present, then it will stop reading there.
-otherwise it considers everthing after 'cc:' to be cloud-config content.
+otherwise it considers everything after 'cc:' to be cloud-config content.
 
 In order to allow carriage returns, you must enter '\\n', literally,
 on the command line two backslashes followed by a letter 'n'.

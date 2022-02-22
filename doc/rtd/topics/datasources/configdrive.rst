@@ -128,4 +128,4 @@ what all can be present here.
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
 .. _the config drive extension: https://docs.openstack.org/nova/latest/admin/config-drive.html
-.. vi: textwidth=78
+.. vi: textwidth=79

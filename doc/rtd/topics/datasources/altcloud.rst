@@ -91,4 +91,4 @@ For more information on Delta Cloud see: http://deltacloud.apache.org
 
 .. _RHEVm: https://www.redhat.com/virtualization/rhev/desktop/rhevm/
 .. _vSphere: https://www.vmware.com/products/datacenter-virtualization/vsphere/overview.html
-.. vi: textwidth=78
+.. vi: textwidth=79

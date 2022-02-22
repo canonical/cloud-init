@@ -6,8 +6,8 @@ Overview
 ========
 
 This was implemented because it has been a common feature request that there be
-a way to specify how cloud-config yaml "dictionaries" provided as user-data are
-merged together when there are multiple yaml files to merge together (say when
+a way to specify how cloud-config YAML "dictionaries" provided as user-data are
+merged together when there are multiple YAML files to merge together (say when
 performing an #include).
 
 Since previously the merging algorithm was very simple and would only overwrite
@@ -236,7 +236,7 @@ Other uses
 ==========
 
 In addition to being used for merging user-data sections, the default merging
-algorithm for merging 'conf.d' yaml files (which form an initial yaml config
+algorithm for merging 'conf.d' YAML files (which form an initial YAML config
 for cloud-init) was also changed to use this mechanism so its full
 benefits (and customization) can also be used there as well. Other places that
 used the previous merging are also, similarly, now extensible (metadata
@@ -285,4 +285,4 @@ The second config
      - bash4
 
 
-.. vi: textwidth=78
+.. vi: textwidth=79

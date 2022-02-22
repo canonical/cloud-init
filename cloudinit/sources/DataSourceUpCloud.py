@@ -6,12 +6,9 @@
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
 from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import util
 from cloudinit import net as cloudnet
+from cloudinit import sources, util
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-
-
 from cloudinit.sources.helpers import upcloud as uc_helper
 
 LOG = logging.getLogger(__name__)
@@ -152,7 +149,7 @@ class DataSourceUpCloudLocal(DataSourceUpCloud):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceUpCloudLocal, (sources.DEP_FILESYSTEM, )),
+    (DataSourceUpCloudLocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceUpCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

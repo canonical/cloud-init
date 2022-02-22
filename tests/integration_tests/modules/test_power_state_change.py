@@ -30,7 +30,7 @@ def _detect_reboot(instance: IntegrationInstance):
     instance.instance.wait()
     for _ in range(600):
         try:
-            log = instance.read_from_file('/var/log/cloud-init.log')
+            log = instance.read_from_file("/var/log/cloud-init.log")
             boot_count = log.count("running 'init-local'")
             if boot_count == 1:
                 instance.instance.wait()
@@ -40,51 +40,58 @@ def _detect_reboot(instance: IntegrationInstance):
             pass
         time.sleep(1)
     else:
-        raise Exception('Could not detect reboot')
+        raise Exception("Could not detect reboot")
 
 
 def _can_connect(instance):
-    return instance.execute('true').ok
+    return instance.execute("true").ok
 
 
 # This test is marked unstable because even though it should be able to
 # run anywhere, I can only get it to run in an lxd container, and even then
 # occasionally some timing issues will crop up.
 @pytest.mark.unstable
-@pytest.mark.sru_2020_11
 @pytest.mark.ubuntu
 @pytest.mark.lxd_container
 class TestPowerChange:
-    @pytest.mark.parametrize('mode,delay,timeout,expected', [
-        ('poweroff', 'now', '10', 'will execute: shutdown -P now msg'),
-        ('reboot', 'now', '0', 'will execute: shutdown -r now msg'),
-        ('halt', '+1', '0', 'will execute: shutdown -H +1 msg'),
-    ])
-    def test_poweroff(self, session_cloud: IntegrationCloud,
-                      mode, delay, timeout, expected):
+    @pytest.mark.parametrize(
+        "mode,delay,timeout,expected",
+        [
+            ("poweroff", "now", "10", "will execute: shutdown -P now msg"),
+            ("reboot", "now", "0", "will execute: shutdown -r now msg"),
+            ("halt", "+1", "0", "will execute: shutdown -H +1 msg"),
+        ],
+    )
+    def test_poweroff(
+        self, session_cloud: IntegrationCloud, mode, delay, timeout, expected
+    ):
         with session_cloud.launch(
             user_data=USER_DATA.format(
-                delay=delay, mode=mode, timeout=timeout, condition='true'),
-            launch_kwargs={'wait': False},
+                delay=delay, mode=mode, timeout=timeout, condition="true"
+            ),
+            launch_kwargs={"wait": False},
         ) as instance:
-            if mode == 'reboot':
+            if mode == "reboot":
                 _detect_reboot(instance)
             else:
                 instance.instance.wait_for_stop()
                 instance.instance.start(wait=True)
-            log = instance.read_from_file('/var/log/cloud-init.log')
+            log = instance.read_from_file("/var/log/cloud-init.log")
             assert _can_connect(instance)
         lines_to_check = [
-            'Running module power-state-change',
+            "Running module power-state-change",
             expected,
             "running 'init-local'",
-            'config-power-state-change already ran',
+            "config-power-state-change already ran",
         ]
         verify_ordered_items_in_text(lines_to_check, log)
 
-    @pytest.mark.user_data(USER_DATA.format(delay='0', mode='poweroff',
-                                            timeout='0', condition='false'))
+    @pytest.mark.user_data(
+        USER_DATA.format(
+            delay="0", mode="poweroff", timeout="0", condition="false"
+        )
+    )
     def test_poweroff_false_condition(self, client: IntegrationInstance):
-        log = client.read_from_file('/var/log/cloud-init.log')
+        log = client.read_from_file("/var/log/cloud-init.log")
         assert _can_connect(client)
-        assert 'Condition was false. Will not perform state change' in log
+        assert "Condition was false. Will not perform state change" in log

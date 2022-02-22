@@ -23,11 +23,11 @@ class HostnameConf(object):
         self.parse()
         contents = StringIO()
         for (line_type, components) in self._contents:
-            if line_type == 'blank':
+            if line_type == "blank":
                 contents.write("%s\n" % (components[0]))
-            elif line_type == 'all_comment':
+            elif line_type == "all_comment":
                 contents.write("%s\n" % (components[0]))
-            elif line_type == 'hostname':
+            elif line_type == "hostname":
                 (hostname, tail) = components
                 contents.write("%s%s\n" % (hostname, tail))
         # Ensure trailing newline
@@ -40,7 +40,7 @@ class HostnameConf(object):
     def hostname(self):
         self.parse()
         for (line_type, components) in self._contents:
-            if line_type == 'hostname':
+            if line_type == "hostname":
                 return components[0]
         return None
 
@@ -51,28 +51,28 @@ class HostnameConf(object):
         self.parse()
         replaced = False
         for (line_type, components) in self._contents:
-            if line_type == 'hostname':
+            if line_type == "hostname":
                 components[0] = str(your_hostname)
                 replaced = True
         if not replaced:
-            self._contents.append(('hostname', [str(your_hostname), '']))
+            self._contents.append(("hostname", [str(your_hostname), ""]))
 
     def _parse(self, contents):
         entries = []
         hostnames_found = set()
         for line in contents.splitlines():
             if not len(line.strip()):
-                entries.append(('blank', [line]))
+                entries.append(("blank", [line]))
                 continue
-            (head, tail) = chop_comment(line.strip(), '#')
+            (head, tail) = chop_comment(line.strip(), "#")
             if not len(head):
-                entries.append(('all_comment', [line]))
+                entries.append(("all_comment", [line]))
                 continue
-            entries.append(('hostname', [head, tail]))
+            entries.append(("hostname", [head, tail]))
             hostnames_found.add(head)
         if len(hostnames_found) > 1:
-            raise IOError("Multiple hostnames (%s) found!"
-                          % (hostnames_found))
+            raise IOError("Multiple hostnames (%s) found!" % (hostnames_found))
         return entries
+
 
 # vi: ts=4 expandtab

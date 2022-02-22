@@ -9,8 +9,8 @@ and ``tests/cloud_tests/testcases/modules/ntp_chrony.yaml``)
 """
 import re
 
-import yaml
 import pytest
+import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
 
@@ -31,16 +31,15 @@ EXPECTED_SERVERS = yaml.safe_load(USER_DATA)["ntp"]["servers"]
 EXPECTED_POOLS = yaml.safe_load(USER_DATA)["ntp"]["pools"]
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestNtpServers:
-
     def test_ntp_installed(self, class_client: IntegrationInstance):
         """Test that `ntpd --version` succeeds, indicating installation."""
         assert class_client.execute("ntpd --version").ok
 
-    def test_dist_config_file_is_empty(self,
-                                       class_client: IntegrationInstance):
+    def test_dist_config_file_is_empty(
+        self, class_client: IntegrationInstance
+    ):
         """Test that the distributed config file is empty.
 
         (This test is skipped on all currently supported Ubuntu releases, so
@@ -57,13 +56,13 @@ class TestNtpServers:
             assert re.search(
                 r"^server {} iburst".format(expected_server),
                 ntp_conf,
-                re.MULTILINE
+                re.MULTILINE,
             )
         for expected_pool in EXPECTED_POOLS:
             assert re.search(
                 r"^pool {} iburst".format(expected_pool),
                 ntp_conf,
-                re.MULTILINE
+                re.MULTILINE,
             )
 
     def test_ntpq_servers(self, class_client: IntegrationInstance):
@@ -83,15 +82,14 @@ ntp:
 """
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(CHRONY_DATA)
 def test_chrony(client: IntegrationInstance):
-    if client.execute('test -f /etc/chrony.conf').ok:
-        chrony_conf = '/etc/chrony.conf'
+    if client.execute("test -f /etc/chrony.conf").ok:
+        chrony_conf = "/etc/chrony.conf"
     else:
-        chrony_conf = '/etc/chrony/chrony.conf'
+        chrony_conf = "/etc/chrony/chrony.conf"
     contents = client.read_from_file(chrony_conf)
-    assert 'server 172.16.15.14' in contents
+    assert "server 172.16.15.14" in contents
 
 
 TIMESYNCD_DATA = """\
@@ -104,13 +102,12 @@ ntp:
 """
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(TIMESYNCD_DATA)
 def test_timesyncd(client: IntegrationInstance):
     contents = client.read_from_file(
-        '/etc/systemd/timesyncd.conf.d/cloud-init.conf'
+        "/etc/systemd/timesyncd.conf.d/cloud-init.conf"
     )
-    assert 'NTP=172.16.15.14' in contents
+    assert "NTP=172.16.15.14" in contents
 
 
 EMPTY_NTP = """\
@@ -124,8 +121,8 @@ ntp:
 
 @pytest.mark.user_data(EMPTY_NTP)
 def test_empty_ntp(client: IntegrationInstance):
-    assert client.execute('ntpd --version').ok
-    assert client.execute('test -f /etc/ntp.conf.dist').failed
-    assert 'pool.ntp.org iburst' in client.execute(
+    assert client.execute("ntpd --version").ok
+    assert client.execute("test -f /etc/ntp.conf.dist").failed
+    assert "pool.ntp.org iburst" in client.execute(
         'grep -v "^#" /etc/ntp.conf'
     )

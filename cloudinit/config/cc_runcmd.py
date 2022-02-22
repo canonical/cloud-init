@@ -8,15 +8,17 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
-from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
-
 import os
 from textwrap import dedent
 
+from cloudinit import util
+from cloudinit.config.schema import (
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.
@@ -26,17 +28,21 @@ from textwrap import dedent
 
 distros = [ALL_DISTROS]
 
-schema = {
-    'id': 'cc_runcmd',
-    'name': 'Runcmd',
-    'title': 'Run arbitrary commands',
-    'description': dedent("""\
+meta: MetaSchema = {
+    "id": "cc_runcmd",
+    "name": "Runcmd",
+    "title": "Run arbitrary commands",
+    "description": dedent(
+        """\
         Run arbitrary commands at a rc.local like level with output to the
         console. Each item can be either a list or a string. If the item is a
-        list, it will be properly executed as if passed to ``execve()`` (with
-        the first arg as the command). If the item is a string, it will be
-        written to a file and interpreted
-        using ``sh``.
+        list, it will be properly quoted. Each item is written to
+        ``/var/lib/cloud/instance/runcmd`` to be later interpreted using
+        ``sh``.
+
+        Note that the ``runcmd`` module only writes the script to be run
+        later. The module that actually runs the script is ``scripts-user``
+        in the :ref:`Final` boot stage.
 
         .. note::
 
@@ -47,51 +53,61 @@ schema = {
 
           when writing files, do not use /tmp dir as it races with
           systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
-    """),
-    'distros': distros,
-    'examples': [dedent("""\
+    """
+    ),
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
         runcmd:
             - [ ls, -l, / ]
             - [ sh, -xc, "echo $(date) ': hello world!'" ]
             - [ sh, -c, echo "=========hello world'=========" ]
             - ls -l /root
             - [ wget, "http://example.org", -O, /tmp/index.html ]
-    """)],
-    'frequency': PER_INSTANCE,
-    'type': 'object',
-    'properties': {
-        'runcmd': {
-            'type': 'array',
-            'items': {
-                'oneOf': [
-                    {'type': 'array', 'items': {'type': 'string'}},
-                    {'type': 'string'},
-                    {'type': 'null'}]
-            },
-            'additionalItems': False,  # Reject items of non-string non-list
-            'additionalProperties': False,
-            'minItems': 1,
-            'required': [],
-        }
-    }
+    """
+        )
+    ],
+    "frequency": PER_INSTANCE,
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+schema = {
+    "type": "object",
+    "properties": {
+        "runcmd": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {"type": "array", "items": {"type": "string"}},
+                    {"type": "string"},
+                    {"type": "null"},
+                ]
+            },
+            "additionalItems": False,  # Reject items of non-string non-list
+            "additionalProperties": False,
+            "minItems": 1,
+        }
+    },
+}
+
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, _args):
     if "runcmd" not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'runcmd' key in configuration"), name)
+        log.debug(
+            "Skipping module named %s, no 'runcmd' key in configuration", name
+        )
         return
 
     validate_cloudconfig_schema(cfg, schema)
-    out_fn = os.path.join(cloud.get_ipath('scripts'), "runcmd")
+    out_fn = os.path.join(cloud.get_ipath("scripts"), "runcmd")
     cmd = cfg["runcmd"]
     try:
         content = util.shellify(cmd)
         util.write_file(out_fn, content, 0o700)
     except Exception as e:
-        raise type(e)('Failed to shellify {} into file {}'.format(cmd, out_fn))
+        raise type(e)("Failed to shellify {} into file {}".format(cmd, out_fn))
+
 
 # vi: ts=4 expandtab

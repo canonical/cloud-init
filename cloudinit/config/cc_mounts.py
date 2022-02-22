@@ -62,15 +62,12 @@ swap file is created.
         maxsize: <size in bytes>
 """
 
-from string import whitespace
-
 import logging
 import os
 import re
+from string import whitespace
 
-from cloudinit import type_utils
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, type_utils, util
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
@@ -105,21 +102,25 @@ def is_network_device(name):
 
 
 def _get_nth_partition_for_device(device_path, partition_number):
-    potential_suffixes = [str(partition_number), 'p%s' % (partition_number,),
-                          '-part%s' % (partition_number,)]
+    potential_suffixes = [
+        str(partition_number),
+        "p%s" % (partition_number,),
+        "-part%s" % (partition_number,),
+    ]
     for suffix in potential_suffixes:
-        potential_partition_device = '%s%s' % (device_path, suffix)
+        potential_partition_device = "%s%s" % (device_path, suffix)
         if os.path.exists(potential_partition_device):
             return potential_partition_device
     return None
 
 
 def _is_block_device(device_path, partition_path=None):
-    device_name = os.path.realpath(device_path).split('/')[-1]
-    sys_path = os.path.join('/sys/block/', device_name)
+    device_name = os.path.realpath(device_path).split("/")[-1]
+    sys_path = os.path.join("/sys/block/", device_name)
     if partition_path is not None:
         sys_path = os.path.join(
-            sys_path, os.path.realpath(partition_path).split('/')[-1])
+            sys_path, os.path.realpath(partition_path).split("/")[-1]
+        )
     return os.path.exists(sys_path)
 
 
@@ -159,8 +160,9 @@ def sanitize_devname(startname, transformer, log, aliases=None):
     if partition_number is None:
         partition_path = _get_nth_partition_for_device(device_path, 1)
     else:
-        partition_path = _get_nth_partition_for_device(device_path,
-                                                       partition_number)
+        partition_path = _get_nth_partition_for_device(
+            device_path, partition_number
+        )
         if partition_path is None:
             return None
 
@@ -174,12 +176,12 @@ def sanitize_devname(startname, transformer, log, aliases=None):
 def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     # make a suggestion on the size of swap for this system.
     if memsize is None:
-        memsize = util.read_meminfo()['total']
+        memsize = util.read_meminfo()["total"]
 
     GB = 2 ** 30
     sugg_max = 8 * GB
 
-    info = {'avail': 'na', 'max_in': maxsize, 'mem': memsize}
+    info = {"avail": "na", "max_in": maxsize, "mem": memsize}
 
     if fsys is None and maxsize is None:
         # set max to 8GB default if no filesystem given
@@ -187,18 +189,18 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     elif fsys:
         statvfs = os.statvfs(fsys)
         avail = statvfs.f_frsize * statvfs.f_bfree
-        info['avail'] = avail
+        info["avail"] = avail
 
         if maxsize is None:
             # set to 25% of filesystem space
             maxsize = min(int(avail / 4), sugg_max)
-        elif maxsize > ((avail * .9)):
+        elif maxsize > ((avail * 0.9)):
             # set to 90% of available disk space
-            maxsize = int(avail * .9)
+            maxsize = int(avail * 0.9)
     elif maxsize is None:
         maxsize = sugg_max
 
-    info['max'] = maxsize
+    info["max"] = maxsize
 
     formulas = [
         # < 1G: swap = double memory
@@ -226,7 +228,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     if size is not None:
         size = maxsize
 
-    info['size'] = size
+    info["size"] = size
 
     MB = 2 ** 20
     pinfo = {}
@@ -236,9 +238,14 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
         else:
             pinfo[k] = v
 
-    LOG.debug("suggest %s swap for %s memory with '%s'"
-              " disk given max=%s [max=%s]'", pinfo['size'], pinfo['mem'],
-              pinfo['avail'], pinfo['max_in'], pinfo['max'])
+    LOG.debug(
+        "suggest %s swap for %s memory with '%s' disk given max=%s [max=%s]'",
+        pinfo["size"],
+        pinfo["mem"],
+        pinfo["avail"],
+        pinfo["max_in"],
+        pinfo["max"],
+    )
     return size
 
 
@@ -248,14 +255,23 @@ def create_swapfile(fname: str, size: str) -> None:
     errmsg = "Failed to create swapfile '%s' of size %sMB via %s: %s"
 
     def create_swap(fname, size, method):
-        LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
-                  fname, fstype, method)
+        LOG.debug(
+            "Creating swapfile in '%s' on fstype '%s' using '%s'",
+            fname,
+            fstype,
+            method,
+        )
 
         if method == "fallocate":
-            cmd = ['fallocate', '-l', '%sM' % size, fname]
+            cmd = ["fallocate", "-l", "%sM" % size, fname]
         elif method == "dd":
-            cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
-                   'count=%s' % size]
+            cmd = [
+                "dd",
+                "if=/dev/zero",
+                "of=%s" % fname,
+                "bs=1M",
+                "count=%s" % size,
+            ]
 
         try:
             subp.subp(cmd, capture=True)
@@ -269,8 +285,9 @@ def create_swapfile(fname: str, size: str) -> None:
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if (fstype == "xfs" and
-            util.kernel_version() < (4, 18)) or fstype == "btrfs":
+    if (
+        fstype == "xfs" and util.kernel_version() < (4, 18)
+    ) or fstype == "btrfs":
         create_swap(fname, size, "dd")
     else:
         try:
@@ -282,7 +299,7 @@ def create_swapfile(fname: str, size: str) -> None:
     if os.path.exists(fname):
         util.chmod(fname, 0o600)
     try:
-        subp.subp(['mkswap', fname])
+        subp.subp(["mkswap", fname])
     except subp.ProcessExecutionError:
         util.del_file(fname)
         raise
@@ -297,37 +314,42 @@ def setup_swapfile(fname, size=None, maxsize=None):
     swap_dir = os.path.dirname(fname)
     if str(size).lower() == "auto":
         try:
-            memsize = util.read_meminfo()['total']
+            memsize = util.read_meminfo()["total"]
         except IOError:
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 
         util.ensure_dir(swap_dir)
-        size = suggested_swapsize(fsys=swap_dir, maxsize=maxsize,
-                                  memsize=memsize)
+        size = suggested_swapsize(
+            fsys=swap_dir, maxsize=maxsize, memsize=memsize
+        )
 
     mibsize = str(int(size / (2 ** 20)))
     if not size:
         LOG.debug("Not creating swap: suggested size was 0")
         return
 
-    util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
-                  args=[fname, mibsize])
+    util.log_time(
+        LOG.debug,
+        msg="Setting up swap file",
+        func=create_swapfile,
+        args=[fname, mibsize],
+    )
 
     return fname
 
 
 def handle_swapcfg(swapcfg):
     """handle the swap config, calling setup_swap if necessary.
-       return None or (filename, size)
+    return None or (filename, size)
     """
     if not isinstance(swapcfg, dict):
         LOG.warning("input for swap config was not a dict.")
         return None
 
-    fname = swapcfg.get('filename', '/swap.img')
-    size = swapcfg.get('size', 0)
-    maxsize = swapcfg.get('maxsize', None)
+    fname = swapcfg.get("filename", "/swap.img")
+    size = swapcfg.get("size", 0)
+    maxsize = swapcfg.get("maxsize", None)
 
     if not (size and fname):
         LOG.debug("no need to setup swap")
@@ -335,8 +357,10 @@ def handle_swapcfg(swapcfg):
 
     if os.path.exists(fname):
         if not os.path.exists("/proc/swaps"):
-            LOG.debug("swap file %s exists, but no /proc/swaps exists, "
-                      "being safe", fname)
+            LOG.debug(
+                "swap file %s exists, but no /proc/swaps exists, being safe",
+                fname,
+            )
             return fname
         try:
             for line in util.load_file("/proc/swaps").splitlines():
@@ -345,8 +369,9 @@ def handle_swapcfg(swapcfg):
                     return fname
             LOG.debug("swap file %s exists, but not in /proc/swaps", fname)
         except Exception:
-            LOG.warning("swap file %s exists. Error reading /proc/swaps",
-                        fname)
+            LOG.warning(
+                "swap file %s exists. Error reading /proc/swaps", fname
+            )
             return fname
 
     try:
@@ -367,14 +392,18 @@ def handle(_name, cfg, cloud, log, _args):
     def_mnt_opts = "defaults,nobootwait"
     uses_systemd = cloud.distro.uses_systemd()
     if uses_systemd:
-        def_mnt_opts = "defaults,nofail,x-systemd.requires=cloud-init.service"
+        def_mnt_opts = (
+            "defaults,nofail,x-systemd.requires=cloud-init.service,_netdev"
+        )
 
     defvals = [None, None, "auto", def_mnt_opts, "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
-    defmnts = [["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
-               ["swap", "none", "swap", "sw", "0", "0"]]
+    defmnts = [
+        ["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
+        ["swap", "none", "swap", "sw", "0", "0"],
+    ]
 
     cfgmnt = []
     if "mounts" in cfg:
@@ -404,13 +433,17 @@ def handle(_name, cfg, cloud, log, _args):
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
-            log.warning("Mount option %s not a list, got a %s instead",
-                        (i + 1), type_utils.obj_name(cfgmnt[i]))
+            log.warning(
+                "Mount option %s not a list, got a %s instead",
+                (i + 1),
+                type_utils.obj_name(cfgmnt[i]),
+            )
             continue
 
         start = str(cfgmnt[i][0])
-        sanitized = sanitize_devname(start, cloud.device_name_to_device, log,
-                                     aliases=device_aliases)
+        sanitized = sanitize_devname(
+            start, cloud.device_name_to_device, log, aliases=device_aliases
+        )
         if sanitized != start:
             log.debug("changed %s => %s" % (start, sanitized))
 
@@ -418,8 +451,11 @@ def handle(_name, cfg, cloud, log, _args):
             log.debug("Ignoring nonexistent named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.info("Device %s already defined in fstab: %s",
-                     sanitized, fstab_devs[sanitized])
+            log.info(
+                "Device %s already defined in fstab: %s",
+                sanitized,
+                fstab_devs[sanitized],
+            )
             continue
 
         cfgmnt[i][0] = sanitized
@@ -452,8 +488,9 @@ def handle(_name, cfg, cloud, log, _args):
     # entry has the same device name
     for defmnt in defmnts:
         start = defmnt[0]
-        sanitized = sanitize_devname(start, cloud.device_name_to_device, log,
-                                     aliases=device_aliases)
+        sanitized = sanitize_devname(
+            start, cloud.device_name_to_device, log, aliases=device_aliases
+        )
         if sanitized != start:
             log.debug("changed default device %s => %s" % (start, sanitized))
 
@@ -461,8 +498,11 @@ def handle(_name, cfg, cloud, log, _args):
             log.debug("Ignoring nonexistent default named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.debug("Device %s already defined in fstab: %s",
-                      sanitized, fstab_devs[sanitized])
+            log.debug(
+                "Device %s already defined in fstab: %s",
+                sanitized,
+                fstab_devs[sanitized],
+            )
             continue
 
         defmnt[0] = sanitized
@@ -474,8 +514,7 @@ def handle(_name, cfg, cloud, log, _args):
                 break
 
         if cfgmnt_has:
-            log.debug(("Not including %s, already"
-                       " previously included"), start)
+            log.debug("Not including %s, already previously included", start)
             continue
         cfgmnt.append(defmnt)
 
@@ -488,7 +527,7 @@ def handle(_name, cfg, cloud, log, _args):
         else:
             actlist.append(x)
 
-    swapret = handle_swapcfg(cfg.get('swap', {}))
+    swapret = handle_swapcfg(cfg.get("swap", {}))
     if swapret:
         actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
@@ -507,10 +546,11 @@ def handle(_name, cfg, cloud, log, _args):
             needswap = True
         if line[1].startswith("/"):
             dirs.append(line[1])
-        cc_lines.append('\t'.join(line))
+        cc_lines.append("\t".join(line))
 
-    mount_points = [v['mountpoint'] for k, v in util.mounts().items()
-                    if 'mountpoint' in v]
+    mount_points = [
+        v["mountpoint"] for k, v in util.mounts().items() if "mountpoint" in v
+    ]
     for d in dirs:
         try:
             util.ensure_dir(d)
@@ -525,11 +565,12 @@ def handle(_name, cfg, cloud, log, _args):
     sadds = [WS.sub(" ", n) for n in cc_lines]
     sdrops = [WS.sub(" ", n) for n in fstab_removed]
 
-    sops = (["- " + drop for drop in sdrops if drop not in sadds] +
-            ["+ " + add for add in sadds if add not in sdrops])
+    sops = ["- " + drop for drop in sdrops if drop not in sadds] + [
+        "+ " + add for add in sadds if add not in sdrops
+    ]
 
     fstab_lines.extend(cc_lines)
-    contents = "%s\n" % ('\n'.join(fstab_lines))
+    contents = "%s\n" % "\n".join(fstab_lines)
     util.write_file(FSTAB_PATH, contents)
 
     activate_cmds = []
@@ -549,12 +590,13 @@ def handle(_name, cfg, cloud, log, _args):
 
     fmt = "Activating swap and mounts with: %s"
     for cmd in activate_cmds:
-        fmt = "Activate mounts: %s:" + ' '.join(cmd)
+        fmt = "Activate mounts: %s:" + " ".join(cmd)
         try:
             subp.subp(cmd)
             log.debug(fmt, "PASS")
         except subp.ProcessExecutionError:
             log.warning(fmt, "FAIL")
             util.logexc(log, fmt, "FAIL")
+
 
 # vi: ts=4 expandtab

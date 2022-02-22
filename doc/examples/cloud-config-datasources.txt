@@ -45,13 +45,6 @@ datasource:
       instance-id: i-87018aed
       local-hostname: myhost.internal
 
-  Azure:
-    agent_command: [service, walinuxagent, start]
-    set_hostname: True
-    hostname_bounce:
-      interface: eth0
-      policy: on # [can be 'on', 'off' or 'force']
-
   SmartOS:
     # For KVM guests:
     # Smart OS datasource works over a serial console interacting with

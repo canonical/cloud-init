@@ -12,17 +12,19 @@
 
 import collections
 import re
-
+import sys
 
 try:
     from Cheetah.Template import Template as CTemplate
+
     CHEETAH_AVAILABLE = True
 except (ImportError, AttributeError):
     CHEETAH_AVAILABLE = False
 
 try:
-    from jinja2 import Template as JTemplate
     from jinja2 import DebugUndefined as JUndefined
+    from jinja2 import Template as JTemplate
+
     JINJA_AVAILABLE = True
 except (ImportError, AttributeError):
     JINJA_AVAILABLE = False
@@ -31,26 +33,28 @@ except (ImportError, AttributeError):
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
-
+from cloudinit.atomic_helper import write_file
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
-BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)')
-MISSING_JINJA_PREFIX = 'CI_MISSING_JINJA_VAR/'
+BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
+MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 
 class UndefinedJinjaVariable(JUndefined):
     """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):
-        return '%s%s' % (MISSING_JINJA_PREFIX, self._undefined_name)
+        return "%s%s" % (MISSING_JINJA_PREFIX, self._undefined_name)
 
     def __sub__(self, other):
-        other = str(other).replace(MISSING_JINJA_PREFIX, '')
+        other = str(other).replace(MISSING_JINJA_PREFIX, "")
         raise TypeError(
             'Undefined jinja variable: "{this}-{other}". Jinja tried'
             ' subtraction. Perhaps you meant "{this}_{other}"?'.format(
-                this=self._undefined_name, other=other))
+                this=self._undefined_name, other=other
+            )
+        )
 
 
 def basic_render(content, params):
@@ -73,67 +77,75 @@ def basic_render(content, params):
         while len(path) > 1:
             key = path.popleft()
             if not isinstance(selected_params, dict):
-                raise TypeError("Can not traverse into"
-                                " non-dictionary '%s' of type %s while"
-                                " looking for subkey '%s'"
-                                % (selected_params,
-                                   tu.obj_name(selected_params),
-                                   key))
+                raise TypeError(
+                    "Can not traverse into"
+                    " non-dictionary '%s' of type %s while"
+                    " looking for subkey '%s'"
+                    % (selected_params, tu.obj_name(selected_params), key)
+                )
             selected_params = selected_params[key]
         key = path.popleft()
         if not isinstance(selected_params, dict):
-            raise TypeError("Can not extract key '%s' from non-dictionary"
-                            " '%s' of type %s"
-                            % (key, selected_params,
-                               tu.obj_name(selected_params)))
+            raise TypeError(
+                "Can not extract key '%s' from non-dictionary '%s' of type %s"
+                % (key, selected_params, tu.obj_name(selected_params))
+            )
         return str(selected_params[key])
 
     return BASIC_MATCHER.sub(replacer, content)
 
 
 def detect_template(text):
-
     def cheetah_render(content, params):
         return CTemplate(content, searchList=[params]).respond()
 
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
-        return JTemplate(content,
-                         undefined=UndefinedJinjaVariable,
-                         trim_blocks=True).render(**params) + add
+        return (
+            JTemplate(
+                content, undefined=UndefinedJinjaVariable, trim_blocks=True
+            ).render(**params)
+            + add
+        )
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)
     else:
         ident = text
-        rest = ''
+        rest = ""
     type_match = TYPE_MATCHER.match(ident)
     if not type_match:
         if CHEETAH_AVAILABLE:
             LOG.debug("Using Cheetah as the renderer for unknown template.")
-            return ('cheetah', cheetah_render, text)
+            return ("cheetah", cheetah_render, text)
         else:
-            return ('basic', basic_render, text)
+            return ("basic", basic_render, text)
     else:
         template_type = type_match.group(1).lower().strip()
-        if template_type not in ('jinja', 'cheetah', 'basic'):
-            raise ValueError("Unknown template rendering type '%s' requested"
-                             % template_type)
-        if template_type == 'jinja' and not JINJA_AVAILABLE:
-            LOG.warning("Jinja not available as the selected renderer for"
-                        " desired template, reverting to the basic renderer.")
-            return ('basic', basic_render, rest)
-        elif template_type == 'jinja' and JINJA_AVAILABLE:
-            return ('jinja', jinja_render, rest)
-        if template_type == 'cheetah' and not CHEETAH_AVAILABLE:
-            LOG.warning("Cheetah not available as the selected renderer for"
-                        " desired template, reverting to the basic renderer.")
-            return ('basic', basic_render, rest)
-        elif template_type == 'cheetah' and CHEETAH_AVAILABLE:
-            return ('cheetah', cheetah_render, rest)
+        if template_type not in ("jinja", "cheetah", "basic"):
+            raise ValueError(
+                "Unknown template rendering type '%s' requested"
+                % template_type
+            )
+        if template_type == "jinja" and not JINJA_AVAILABLE:
+            LOG.warning(
+                "Jinja not available as the selected renderer for"
+                " desired template, reverting to the basic renderer."
+            )
+            return ("basic", basic_render, rest)
+        elif template_type == "jinja" and JINJA_AVAILABLE:
+            return ("jinja", jinja_render, rest)
+        if template_type == "cheetah" and not CHEETAH_AVAILABLE:
+            LOG.warning(
+                "Cheetah not available as the selected renderer for"
+                " desired template, reverting to the basic renderer."
+            )
+            return ("basic", basic_render, rest)
+        elif template_type == "cheetah" and CHEETAH_AVAILABLE:
+            return ("cheetah", cheetah_render, rest)
         # Only thing left over is the basic renderer (it is always available).
-        return ('basic', basic_render, rest)
+        return ("basic", basic_render, rest)
 
 
 def render_from_file(fn, params):
@@ -143,7 +155,8 @@ def render_from_file(fn, params):
     # If it is given a str that has non-ascii then it will raise a
     # UnicodeDecodeError.  So we explicitly convert to unicode type here.
     template_type, renderer, content = detect_template(
-        util.load_file(fn, decode=False).decode('utf-8'))
+        util.load_file(fn, decode=False).decode("utf-8")
+    )
     LOG.debug("Rendering content of '%s' using renderer %s", fn, template_type)
     return renderer(content, params)
 
@@ -167,5 +180,19 @@ def render_string(content, params):
         params = {}
     _template_type, renderer, content = detect_template(content)
     return renderer(content, params)
+
+
+def render_cloudcfg(variant, template, output):
+
+    with open(template, "r") as fh:
+        contents = fh.read()
+    tpl_params = {"variant": variant}
+    contents = (render_string(contents, tpl_params)).rstrip() + "\n"
+    util.load_yaml(contents)
+    if output == "-":
+        sys.stdout.write(contents)
+    else:
+        write_file(output, contents, omode="w")
+
 
 # vi: ts=4 expandtab

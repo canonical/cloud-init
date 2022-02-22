@@ -30,7 +30,7 @@ deployed with cloud-init:
 
 * simple static object to query to obtain a instance's metadata
 * speed: avoid costly network transactions for metadata that is already cached
-  on the filesytem
+  on the filesystem
 * reduce need to recrawl metadata services for static metadata that is already
   cached
 * leverage cloud-init's best practices for crawling cloud-metadata services
@@ -180,7 +180,7 @@ Example output:
 
 v1.platform
 -------------
-An attempt to identify the cloud platfrom instance that the system is running
+An attempt to identify the cloud platform instance that the system is running
 on.
 
 Examples output:
@@ -530,12 +530,18 @@ Both user-data scripts and **#cloud-config** data support jinja template
 rendering.
 When the first line of the provided user-data begins with,
 **## template: jinja** cloud-init will use jinja to render that file.
-Any instance-data-sensitive.json variables are surfaced as dot-delimited
-jinja template variables because cloud-config modules are run as 'root'
-user.
+Any instance-data-sensitive.json variables are surfaced as jinja template
+variables because cloud-config modules are run as 'root' user.
 
+.. note::
+  cloud-init also provides jinja-safe key aliases for any instance-data.json
+  keys which contain jinja operator characters such as +, -, ., /, etc. Any
+  jinja operator will be replaced with underscores in the jinja-safe key
+  alias. This allows for cloud-init templates to use aliased variable
+  references which allow for jinja's dot-notation reference such as
+  ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Below are some examples of providing these types of user-data:
+Below are some other examples of using jinja templates in user-data:
 
 * Cloud config calling home with the ec2 public hostname and availability-zone
 
@@ -649,4 +655,4 @@ see only redacted values.
   instance booted on your favorite cloud. See :ref:`cli_devel` for more
   information.
 
-.. vi: textwidth=78
+.. vi: textwidth=79

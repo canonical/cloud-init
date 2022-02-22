@@ -48,8 +48,12 @@
           <Label>Default User's password</Label>
           <Description>If set, the default user's password will be set to this value to allow password based login.  The password will be good for only a single login.  If set to the string 'RANDOM' then a random password will be generated, and written to the console.</Description>
       </Property>
+      <Property ovf:key="network-config" ovf:type="string" ovf:userConfigurable="true">
+          <Label>Encoded network-config</Label>
+          <Description>This field is optional. The value for network-config has to be base64 encoded.</Description>
+      </Property>
     </ProductSection>
-    <VirtualHardwareSection>
+    <VirtualHardwareSection ovf:transport="iso">
       <Info>Virtual hardware requirements</Info>
       <System>
         <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>

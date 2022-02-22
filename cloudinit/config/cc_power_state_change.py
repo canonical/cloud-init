@@ -58,9 +58,8 @@ import re
 import subprocess
 import time
 
+from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import subp
-from cloudinit import util
 
 frequency = PER_INSTANCE
 
@@ -75,9 +74,9 @@ def givecmdline(pid):
         #   PID COMM             ARGS
         #     1 init             /bin/init --
         if util.is_FreeBSD():
-            (output, _err) = subp.subp(['procstat', '-c', str(pid)])
+            (output, _err) = subp.subp(["procstat", "-c", str(pid)])
             line = output.splitlines()[1]
-            m = re.search(r'\d+ (\w|\.|-)+\s+(/\w.+)', line)
+            m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
             return m.group(2)
         else:
             return util.load_file("/proc/%s/cmdline" % pid)
@@ -106,8 +105,9 @@ def check_condition(cond, log=None):
             return False
         else:
             if log:
-                log.warning(pre + "unexpected exit %s. " % ret +
-                            "do not apply change.")
+                log.warning(
+                    pre + "unexpected exit %s. " % ret + "do not apply change."
+                )
             return False
     except Exception as e:
         if log:
@@ -138,16 +138,24 @@ def handle(_name, cfg, cloud, log, _args):
 
     devnull_fp = open(os.devnull, "w")
 
-    log.debug("After pid %s ends, will execute: %s" % (mypid, ' '.join(args)))
+    log.debug("After pid %s ends, will execute: %s" % (mypid, " ".join(args)))
 
-    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log,
-                 condition, execmd, [args, devnull_fp])
+    util.fork_cb(
+        run_after_pid_gone,
+        mypid,
+        cmdline,
+        timeout,
+        log,
+        condition,
+        execmd,
+        [args, devnull_fp],
+    )
 
 
 def load_power_state(cfg, distro):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
-    pstate = cfg.get('power_state')
+    pstate = cfg.get("power_state")
 
     if pstate is None:
         return (None, None, None)
@@ -155,22 +163,25 @@ def load_power_state(cfg, distro):
     if not isinstance(pstate, dict):
         raise TypeError("power_state is not a dict.")
 
-    modes_ok = ['halt', 'poweroff', 'reboot']
+    modes_ok = ["halt", "poweroff", "reboot"]
     mode = pstate.get("mode")
     if mode not in distro.shutdown_options_map:
         raise TypeError(
-            "power_state[mode] required, must be one of: %s. found: '%s'." %
-            (','.join(modes_ok), mode))
+            "power_state[mode] required, must be one of: %s. found: '%s'."
+            % (",".join(modes_ok), mode)
+        )
 
-    args = distro.shutdown_command(mode=mode,
-                                   delay=pstate.get("delay", "now"),
-                                   message=pstate.get("message"))
+    args = distro.shutdown_command(
+        mode=mode,
+        delay=pstate.get("delay", "now"),
+        message=pstate.get("message"),
+    )
 
     try:
-        timeout = float(pstate.get('timeout', 30.0))
+        timeout = float(pstate.get("timeout", 30.0))
     except ValueError as e:
         raise ValueError(
-            "failed to convert timeout '%s' to float." % pstate['timeout']
+            "failed to convert timeout '%s' to float." % pstate["timeout"]
         ) from e
 
     condition = pstate.get("condition", True)
@@ -186,8 +197,12 @@ def doexit(sysexit):
 def execmd(exe_args, output=None, data_in=None):
     ret = 1
     try:
-        proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
-                                stdout=output, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(
+            exe_args,
+            stdin=subprocess.PIPE,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        )
         proc.communicate(data_in)
         ret = proc.returncode
     except Exception:
@@ -230,7 +245,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
         except Exception as e:
             fatal("Unexpected Exception: %s" % e)
 
-        time.sleep(.25)
+        time.sleep(0.25)
 
     if not msg:
         fatal("Unexpected error in run_after_pid_gone")
@@ -245,5 +260,6 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
         fatal("Unexpected Exception when checking condition: %s" % e)
 
     func(*args)
+
 
 # vi: ts=4 expandtab

@@ -3,16 +3,15 @@ import logging
 import multiprocessing
 import os
 import time
-from contextlib import contextmanager
 from collections import namedtuple
+from contextlib import contextmanager
 from pathlib import Path
 
+log = logging.getLogger("integration_testing")
+key_pair = namedtuple("key_pair", "public_key private_key")
 
-log = logging.getLogger('integration_testing')
-key_pair = namedtuple('key_pair', 'public_key private_key')
-
-ASSETS_DIR = Path('tests/integration_tests/assets')
-KEY_PATH = ASSETS_DIR / 'keys'
+ASSETS_DIR = Path("tests/integration_tests/assets")
+KEY_PATH = ASSETS_DIR / "keys"
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):
@@ -30,28 +29,38 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
 
 def verify_clean_log(log):
     """Assert no unexpected tracebacks or warnings in logs"""
-    warning_count = log.count('WARN')
+    warning_count = log.count("WARN")
     expected_warnings = 0
-    traceback_count = log.count('Traceback')
+    traceback_count = log.count("Traceback")
     expected_tracebacks = 0
 
     warning_texts = [
         # Consistently on all Azure launches:
         # azure.py[WARNING]: No lease found; using default endpoint
-        'No lease found; using default endpoint'
+        "No lease found; using default endpoint"
     ]
     traceback_texts = []
-    if 'oracle' in log:
+    if "oracle" in log:
         # LP: #1842752
-        lease_exists_text = 'Stderr: RTNETLINK answers: File exists'
+        lease_exists_text = "Stderr: RTNETLINK answers: File exists"
         warning_texts.append(lease_exists_text)
         traceback_texts.append(lease_exists_text)
         # LP: #1833446
         fetch_error_text = (
-            'UrlError: 404 Client Error: Not Found for url: '
-            'http://169.254.169.254/latest/meta-data/')
+            "UrlError: 404 Client Error: Not Found for url: "
+            "http://169.254.169.254/latest/meta-data/"
+        )
         warning_texts.append(fetch_error_text)
         traceback_texts.append(fetch_error_text)
+        # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
+        # users:
+        # - default
+        # - name: opc
+        #   ssh_redirect_user: true
+        # This can trigger a warning about opc having no public key
+        warning_texts.append(
+            "Unable to disable SSH logins for opc given ssh_redirect_user"
+        )
 
     for warning_text in warning_texts:
         expected_warnings += log.count(warning_text)
@@ -73,7 +82,7 @@ def emit_dots_on_travis():
     It should be wrapped selectively around operations that are known to take a
     long time.
     """
-    if os.environ.get('TRAVIS') != "true":
+    if os.environ.get("TRAVIS") != "true":
         # If we aren't on Travis, don't do anything.
         yield
         return
@@ -91,9 +100,9 @@ def emit_dots_on_travis():
         dot_process.terminate()
 
 
-def get_test_rsa_keypair(key_name: str = 'test1') -> key_pair:
-    private_key_path = KEY_PATH / 'id_rsa.{}'.format(key_name)
-    public_key_path = KEY_PATH / 'id_rsa.{}.pub'.format(key_name)
+def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
+    private_key_path = KEY_PATH / "id_rsa.{}".format(key_name)
+    public_key_path = KEY_PATH / "id_rsa.{}.pub".format(key_name)
     with public_key_path.open() as public_file:
         public_key = public_file.read()
     with private_key_path.open() as private_file:
@@ -112,6 +121,7 @@ def retry(*, tries: int = 30, delay: int = 1):
       def try_something_that_may_not_be_ready():
           ...
     """
+
     def _retry(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -126,5 +136,7 @@ def retry(*, tries: int = 30, delay: int = 1):
             else:
                 if last_error:
                     raise last_error
+
         return wrapper
+
     return _retry

@@ -2,12 +2,15 @@
 import datetime
 import functools
 import logging
-import pytest
 import os
 import sys
-from tarfile import TarFile
 from contextlib import contextmanager
 from pathlib import Path
+from tarfile import TarFile
+from typing import Dict, Type
+
+import pytest
+from pycloudlib.lxd.instance import LXDInstance
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
@@ -19,42 +22,30 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
-    _LxdIntegrationCloud,
     OpenstackCloud,
+    _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
     IntegrationInstance,
 )
 
-
-log = logging.getLogger('integration_testing')
+log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
 
-platforms = {
-    'ec2': Ec2Cloud,
-    'gce': GceCloud,
-    'azure': AzureCloud,
-    'oci': OciCloud,
-    'lxd_container': LxdContainerCloud,
-    'lxd_vm': LxdVmCloud,
-    'openstack': OpenstackCloud,
+platforms: Dict[str, Type[IntegrationCloud]] = {
+    "ec2": Ec2Cloud,
+    "gce": GceCloud,
+    "azure": AzureCloud,
+    "oci": OciCloud,
+    "lxd_container": LxdContainerCloud,
+    "lxd_vm": LxdVmCloud,
+    "openstack": OpenstackCloud,
 }
 os_list = ["ubuntu"]
 
-session_start_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
-
-XENIAL_LXD_VM_EXEC_MSG = """\
-The default xenial images do not support `exec` for LXD VMs.
-
-Specify an image known to work using:
-
-    OS_IMAGE=<image id>::ubuntu::xenial
-
-You can re-run specifically tests that require this by passing `-m
-lxd_use_exec` to pytest.
-"""
+session_start_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
 
 
 def pytest_runtest_setup(item):
@@ -69,14 +60,14 @@ def pytest_runtest_setup(item):
     test_marks = [mark.name for mark in item.iter_markers()]
     supported_platforms = set(all_platforms).intersection(test_marks)
     current_platform = integration_settings.PLATFORM
-    unsupported_message = 'Cannot run on platform {}'.format(current_platform)
-    if 'no_container' in test_marks:
-        if 'lxd_container' in test_marks:
+    unsupported_message = "Cannot run on platform {}".format(current_platform)
+    if "no_container" in test_marks:
+        if "lxd_container" in test_marks:
             raise Exception(
-                'lxd_container and no_container marks simultaneously set '
-                'on test'
+                "lxd_container and no_container marks simultaneously set "
+                "on test"
             )
-        if current_platform == 'lxd_container':
+        if current_platform == "lxd_container":
             pytest.skip(unsupported_message)
     if supported_platforms and current_platform not in supported_platforms:
         pytest.skip(unsupported_message)
@@ -86,8 +77,8 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
-    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
-        pytest.skip('Test marked unstable. Manually remove mark to run it')
+    if "unstable" in test_marks and not integration_settings.RUN_UNSTABLE:
+        pytest.skip("Test marked unstable. Manually remove mark to run it")
 
     current_release = image.release
     if "not_{}".format(current_release) in test_marks:
@@ -101,7 +92,7 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope="session")
 def session_cloud():
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
@@ -113,38 +104,39 @@ def session_cloud():
 
     cloud = platforms[integration_settings.PLATFORM]()
     cloud.emit_settings_to_log()
+
     yield cloud
-    try:
-        cloud.delete_snapshot()
-    finally:
-        cloud.destroy()
+
+    cloud.destroy()
 
 
 def get_validated_source(
     session_cloud: IntegrationCloud,
-    source=integration_settings.CLOUD_INIT_SOURCE
+    source=integration_settings.CLOUD_INIT_SOURCE,
 ) -> CloudInitSource:
-    if source == 'NONE':
+    if source == "NONE":
         return CloudInitSource.NONE
-    elif source == 'IN_PLACE':
-        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
+    elif source == "IN_PLACE":
+        if session_cloud.datasource not in ["lxd_container", "lxd_vm"]:
             raise ValueError(
-                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
+                "IN_PLACE as CLOUD_INIT_SOURCE only works for LXD"
+            )
         return CloudInitSource.IN_PLACE
-    elif source == 'PROPOSED':
+    elif source == "PROPOSED":
         return CloudInitSource.PROPOSED
-    elif source.startswith('ppa:'):
+    elif source.startswith("ppa:"):
         return CloudInitSource.PPA
     elif os.path.isfile(str(source)):
         return CloudInitSource.DEB_PACKAGE
     elif source == "UPGRADE":
         return CloudInitSource.UPGRADE
     raise ValueError(
-        'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
+        "Invalid value for CLOUD_INIT_SOURCE setting: {}".format(source)
+    )
 
 
-@pytest.fixture(scope='session')
-def setup_image(session_cloud: IntegrationCloud):
+@pytest.fixture(scope="session")
+def setup_image(session_cloud: IntegrationCloud, request):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
@@ -153,17 +145,23 @@ def setup_image(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         return
-    log.info('Setting up environment for %s', session_cloud.datasource)
+    log.info("Setting up environment for %s", session_cloud.datasource)
     client = session_cloud.launch()
     client.install_new_cloud_init(source)
     # Even if we're keeping instances, we don't want to keep this
     # one around as it was just for image creation
     client.destroy()
-    log.info('Done with environment setup')
+    log.info("Done with environment setup")
+
+    # For some reason a yield here raises a
+    # ValueError: setup_image did not yield a value
+    # during setup so use a finalizer instead.
+    request.addfinalizer(session_cloud.delete_snapshot)
 
 
-def _collect_logs(instance: IntegrationInstance, node_id: str,
-                  test_failed: bool):
+def _collect_logs(
+    instance: IntegrationInstance, node_id: str, test_failed: bool
+):
     """Collect logs from remote instance.
 
     Args:
@@ -172,28 +170,47 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
             tests/integration_tests/test_example.py::TestExample.test_example
         test_failed: If test failed or not
     """
-    if any([
-        integration_settings.COLLECT_LOGS == 'NEVER',
-        integration_settings.COLLECT_LOGS == 'ON_ERROR' and not test_failed
-    ]):
+    if any(
+        [
+            integration_settings.COLLECT_LOGS == "NEVER",
+            integration_settings.COLLECT_LOGS == "ON_ERROR"
+            and not test_failed,
+        ]
+    ):
         return
     instance.execute(
-        'cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz')
-    node_id_path = Path(
-        node_id
-        .replace('.py', '')  # Having a directory with '.py' would be weird
-        .replace('::', os.path.sep)  # Turn classes/tests into paths
-        .replace('[', '-')  # For parametrized names
-        .replace(']', '')  # For parameterized names
+        "cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz"
     )
-    log_dir = Path(
-        integration_settings.LOCAL_LOG_PATH
-    ) / session_start_time / node_id_path
+    node_id_path = Path(
+        node_id.replace(
+            ".py", ""
+        )  # Having a directory with '.py' would be weird
+        .replace("::", os.path.sep)  # Turn classes/tests into paths
+        .replace("[", "-")  # For parametrized names
+        .replace("]", "")  # For parameterized names
+    )
+    log_dir = (
+        Path(integration_settings.LOCAL_LOG_PATH)
+        / session_start_time
+        / node_id_path
+    )
     log.info("Writing logs to %s", log_dir)
+
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
-    tarball_path = log_dir / 'cloud-init.tar.gz'
-    instance.pull_file('/var/tmp/cloud-init.tar.gz', tarball_path)
+
+    # Add a symlink to the latest log output directory
+    last_symlink = Path(integration_settings.LOCAL_LOG_PATH) / "last"
+    if os.path.islink(last_symlink):
+        os.unlink(last_symlink)
+    os.symlink(log_dir.parent, last_symlink)
+
+    tarball_path = log_dir / "cloud-init.tar.gz"
+    try:
+        instance.pull_file("/var/tmp/cloud-init.tar.gz", tarball_path)
+    except Exception as e:
+        log.error("Failed to pull logs: %s", e)
+        return
 
     tarball = TarFile.open(str(tarball_path))
     tarball.extractall(path=str(log_dir))
@@ -210,12 +227,12 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     getter = functools.partial(
         fixture_utils.closest_marker_first_arg_or, request, default=None
     )
-    user_data = getter('user_data')
-    name = getter('instance_name')
-    lxd_config_dict = getter('lxd_config_dict')
-    lxd_setup = getter('lxd_setup')
+    user_data = getter("user_data")
+    name = getter("instance_name")
+    lxd_config_dict = getter("lxd_config_dict")
+    lxd_setup = getter("lxd_setup")
     lxd_use_exec = fixture_utils.closest_marker_args_or(
-        request, 'lxd_use_exec', None
+        request, "lxd_use_exec", None
     )
 
     launch_kwargs = {}
@@ -228,51 +245,43 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     if lxd_use_exec is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_use_exec requires LXD")
-        if isinstance(session_cloud, LxdVmCloud):
-            image_spec = ImageSpecification.from_os_image()
-            if image_spec.release == image_spec.image_id == "xenial":
-                # Why fail instead of skip?  We expect that skipped tests will
-                # be run in a different one of our usual battery of test runs
-                # (e.g. LXD-only tests are skipped on EC2 but will run in our
-                # normal LXD test runs).  This is not true of this test: it
-                # can't run in our usual xenial LXD VM test run, and it may not
-                # run anywhere else.  A failure flags up this discrepancy.
-                pytest.fail(XENIAL_LXD_VM_EXEC_MSG)
         launch_kwargs["execute_via_ssh"] = False
     local_launch_kwargs = {}
     if lxd_setup is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
-            pytest.skip('lxd_setup requres LXD')
-        local_launch_kwargs['lxd_setup'] = lxd_setup
+            pytest.skip("lxd_setup requires LXD")
+        local_launch_kwargs["lxd_setup"] = lxd_setup
 
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
     ) as instance:
-        if lxd_use_exec is not None:
+        if lxd_use_exec is not None and isinstance(
+            instance.instance, LXDInstance
+        ):
             # Existing instances are not affected by the launch kwargs, so
             # ensure it here; we still need the launch kwarg so waiting works
-            instance.execute_via_ssh = False
+            instance.instance.execute_via_ssh = False
         previous_failures = request.session.testsfailed
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_logs(instance, request.node.nodeid, test_failed)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope='module')
+@pytest.fixture(scope="module")
 def module_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
-@pytest.yield_fixture(scope='class')
+@pytest.fixture(scope="class")
 def class_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:

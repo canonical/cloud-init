@@ -25,7 +25,7 @@ class HostsConf(object):
         self.parse()
         options = []
         for (line_type, components) in self._contents:
-            if line_type == 'option':
+            if line_type == "option":
                 (pieces, _tail) = components
                 if len(pieces) and pieces[0] == ip:
                     options.append(pieces[1:])
@@ -35,7 +35,7 @@ class HostsConf(object):
         self.parse()
         n_entries = []
         for (line_type, components) in self._contents:
-            if line_type != 'option':
+            if line_type != "option":
                 n_entries.append((line_type, components))
                 continue
             else:
@@ -48,35 +48,37 @@ class HostsConf(object):
 
     def add_entry(self, ip, canonical_hostname, *aliases):
         self.parse()
-        self._contents.append(('option',
-                              ([ip, canonical_hostname] + list(aliases), '')))
+        self._contents.append(
+            ("option", ([ip, canonical_hostname] + list(aliases), ""))
+        )
 
     def _parse(self, contents):
         entries = []
         for line in contents.splitlines():
             if not len(line.strip()):
-                entries.append(('blank', [line]))
+                entries.append(("blank", [line]))
                 continue
-            (head, tail) = chop_comment(line.strip(), '#')
+            (head, tail) = chop_comment(line.strip(), "#")
             if not len(head):
-                entries.append(('all_comment', [line]))
+                entries.append(("all_comment", [line]))
                 continue
-            entries.append(('option', [head.split(None), tail]))
+            entries.append(("option", [head.split(None), tail]))
         return entries
 
     def __str__(self):
         self.parse()
         contents = StringIO()
         for (line_type, components) in self._contents:
-            if line_type == 'blank':
+            if line_type == "blank":
                 contents.write("%s\n" % (components[0]))
-            elif line_type == 'all_comment':
+            elif line_type == "all_comment":
                 contents.write("%s\n" % (components[0]))
-            elif line_type == 'option':
+            elif line_type == "option":
                 (pieces, tail) = components
                 pieces = [str(p) for p in pieces]
                 pieces = "\t".join(pieces)
                 contents.write("%s%s\n" % (pieces, tail))
         return contents.getvalue()
+
 
 # vi: ts=4 expandtab

@@ -162,27 +162,26 @@ import glob
 import os
 import sys
 
+from cloudinit import ssh_util, subp, util
 from cloudinit.distros import ug_util
-from cloudinit import ssh_util
-from cloudinit import subp
-from cloudinit import util
 
-
-GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
-KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
+GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
+KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
 PUBLISH_HOST_KEYS = True
 # Don't publish the dsa hostkey by default since OpenSSH recommends not using
 # it.
-HOST_KEY_PUBLISH_BLACKLIST = ['dsa']
+HOST_KEY_PUBLISH_BLACKLIST = ["dsa"]
 
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
 for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
     CONFIG_KEY_TO_FILE.update(
-        {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+        {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)}
+    )
     CONFIG_KEY_TO_FILE.update(
-        {"%s_certificate" % k: (KEY_FILE_TPL % k + "-cert.pub", 0o600)})
+        {"%s_certificate" % k: (KEY_FILE_TPL % k + "-cert.pub", 0o600)}
+    )
     PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
@@ -209,43 +208,55 @@ def handle(_name, cfg, cloud, log, _args):
             tgt_perms = CONFIG_KEY_TO_FILE[key][1]
             util.write_file(tgt_fn, val, tgt_perms)
             # set server to present the most recently identified certificate
-            if '_certificate' in key:
-                cert_config = {'HostCertificate': tgt_fn}
+            if "_certificate" in key:
+                cert_config = {"HostCertificate": tgt_fn}
                 ssh_util.update_ssh_config(cert_config)
 
-        for (priv, pub) in PRIV_TO_PUB.items():
-            if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:
+        for private_type, public_type in PRIV_TO_PUB.items():
+            if (
+                public_type in cfg["ssh_keys"]
+                or private_type not in cfg["ssh_keys"]
+            ):
                 continue
-            pair = (CONFIG_KEY_TO_FILE[priv][0], CONFIG_KEY_TO_FILE[pub][0])
-            cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
+            private_file, public_file = (
+                CONFIG_KEY_TO_FILE[private_type][0],
+                CONFIG_KEY_TO_FILE[public_type][0],
+            )
+            cmd = ["sh", "-xc", KEY_GEN_TPL % (private_file, public_file)]
             try:
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     subp.subp(cmd, capture=False)
-                log.debug("Generated a key for %s from %s", pair[0], pair[1])
+                log.debug(
+                    f"Generated a key for {public_file} from {private_file}"
+                )
             except Exception:
-                util.logexc(log, "Failed generated a key for %s from %s",
-                            pair[0], pair[1])
+                util.logexc(
+                    log,
+                    "Failed generating a key for "
+                    f"{public_file} from {private_file}",
+                )
     else:
         # if not, generate them
-        genkeys = util.get_cfg_option_list(cfg,
-                                           'ssh_genkeytypes',
-                                           GENERATE_KEY_NAMES)
+        genkeys = util.get_cfg_option_list(
+            cfg, "ssh_genkeytypes", GENERATE_KEY_NAMES
+        )
         lang_c = os.environ.copy()
-        lang_c['LANG'] = 'C'
+        lang_c["LANG"] = "C"
         for keytype in genkeys:
             keyfile = KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
                 continue
             util.ensure_dir(os.path.dirname(keyfile))
-            cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
+            cmd = ["ssh-keygen", "-t", keytype, "-N", "", "-f", keyfile]
 
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
                     out, err = subp.subp(cmd, capture=True, env=lang_c)
-                    if not util.get_cfg_option_bool(cfg, 'ssh_quiet_keygen',
-                                                    False):
+                    if not util.get_cfg_option_bool(
+                        cfg, "ssh_quiet_keygen", False
+                    ):
                         sys.stdout.write(util.decode_binary(out))
 
                     gid = util.get_group_id("ssh_keys")
@@ -256,19 +267,27 @@ def handle(_name, cfg, cloud, log, _args):
                         os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
-                    if (e.exit_code == 1 and
-                            err.lower().startswith("unknown key")):
+                    if e.exit_code == 1 and err.lower().startswith(
+                        "unknown key"
+                    ):
                         log.debug("ssh-keygen: unknown key type '%s'", keytype)
                     else:
-                        util.logexc(log, "Failed generating key type %s to "
-                                    "file %s", keytype, keyfile)
+                        util.logexc(
+                            log,
+                            "Failed generating key type %s to file %s",
+                            keytype,
+                            keyfile,
+                        )
 
     if "ssh_publish_hostkeys" in cfg:
         host_key_blacklist = util.get_cfg_option_list(
-            cfg["ssh_publish_hostkeys"], "blacklist",
-            HOST_KEY_PUBLISH_BLACKLIST)
+            cfg["ssh_publish_hostkeys"],
+            "blacklist",
+            HOST_KEY_PUBLISH_BLACKLIST,
+        )
         publish_hostkeys = util.get_cfg_option_bool(
-            cfg["ssh_publish_hostkeys"], "enabled", PUBLISH_HOST_KEYS)
+            cfg["ssh_publish_hostkeys"], "enabled", PUBLISH_HOST_KEYS
+        )
     else:
         host_key_blacklist = HOST_KEY_PUBLISH_BLACKLIST
         publish_hostkeys = PUBLISH_HOST_KEYS
@@ -284,15 +303,18 @@ def handle(_name, cfg, cloud, log, _args):
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
-        disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
-                                                    ssh_util.DISABLE_USER_OPTS)
+        disable_root_opts = util.get_cfg_option_str(
+            cfg, "disable_root_opts", ssh_util.DISABLE_USER_OPTS
+        )
 
         keys = []
-        if util.get_cfg_option_bool(cfg, 'allow_public_ssh_keys', True):
+        if util.get_cfg_option_bool(cfg, "allow_public_ssh_keys", True):
             keys = cloud.get_public_ssh_keys() or []
         else:
-            log.debug('Skipping import of publish SSH keys per '
-                      'config setting: allow_public_ssh_keys=False')
+            log.debug(
+                "Skipping import of publish SSH keys per "
+                "config setting: allow_public_ssh_keys=False"
+            )
 
         if "ssh_authorized_keys" in cfg:
             cfgkeys = cfg["ssh_authorized_keys"]
@@ -312,12 +334,12 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
     if disable_root:
         if not user:
             user = "NONE"
-        key_prefix = disable_root_opts.replace('$USER', user)
-        key_prefix = key_prefix.replace('$DISABLE_USER', 'root')
+        key_prefix = disable_root_opts.replace("$USER", user)
+        key_prefix = key_prefix.replace("$DISABLE_USER", "root")
     else:
-        key_prefix = ''
+        key_prefix = ""
 
-    ssh_util.setup_user_keys(keys, 'root', options=key_prefix)
+    ssh_util.setup_user_keys(keys, "root", options=key_prefix)
 
 
 def get_public_host_keys(blacklist=None):
@@ -327,18 +349,21 @@ def get_public_host_keys(blacklist=None):
     @returns: List of keys, each formatted as a two-element tuple.
         e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
     """
-    public_key_file_tmpl = '%s.pub' % (KEY_FILE_TPL,)
+    public_key_file_tmpl = "%s.pub" % (KEY_FILE_TPL,)
     key_list = []
     blacklist_files = []
     if blacklist:
         # Convert blacklist to filenames:
         # 'dsa' -> '/etc/ssh/ssh_host_dsa_key.pub'
-        blacklist_files = [public_key_file_tmpl % (key_type,)
-                           for key_type in blacklist]
+        blacklist_files = [
+            public_key_file_tmpl % (key_type,) for key_type in blacklist
+        ]
     # Get list of public key files and filter out blacklisted files.
-    file_list = [hostfile for hostfile
-                 in glob.glob(public_key_file_tmpl % ('*',))
-                 if hostfile not in blacklist_files]
+    file_list = [
+        hostfile
+        for hostfile in glob.glob(public_key_file_tmpl % ("*",))
+        if hostfile not in blacklist_files
+    ]
 
     # Read host key files, retrieve first two fields as a tuple and
     # append that tuple to key_list.

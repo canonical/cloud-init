@@ -17,7 +17,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from urllib.parse import urlparse, urlunparse, quote
+from urllib.parse import quote, urlparse, urlunparse
 
 import requests
 from requests import exceptions
@@ -27,37 +27,20 @@ from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
-
-# Check if requests has ssl support (added in requests >= 0.8.8)
-SSL_ENABLED = False
-CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
-_REQ_VER = None
-REDACTED = 'REDACTED'
-try:
-    from distutils.version import LooseVersion
-    import pkg_resources
-    _REQ = pkg_resources.get_distribution('requests')
-    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=no-member
-    if _REQ_VER >= LooseVersion('0.8.8'):
-        SSL_ENABLED = True
-    if LooseVersion('0.7.0') <= _REQ_VER < LooseVersion('1.0.0'):
-        CONFIG_ENABLED = True
-except ImportError:
-    pass
+REDACTED = "REDACTED"
 
 
 def _cleanurl(url):
-    parsed_url = list(urlparse(url, scheme='http'))
+    parsed_url = list(urlparse(url, scheme="http"))
     if not parsed_url[1] and parsed_url[2]:
         # Swap these since this seems to be a common
         # occurrence when given urls like 'www.google.com'
         parsed_url[1] = parsed_url[2]
-        parsed_url[2] = ''
+        parsed_url[2] = ""
     return urlunparse(parsed_url)
 
 
 def combine_url(base, *add_ons):
-
     def combine_single(url, add_on):
         url_parsed = list(urlparse(url))
         path = url_parsed[2]
@@ -87,7 +70,7 @@ def read_file_or_url(url, **kwargs):
     if url.lower().startswith("file://"):
         if kwargs.get("data"):
             LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://"):]
+        file_path = url[len("file://") :]
         try:
             with open(file_path, "rb") as fp:
                 contents = fp.read()
@@ -117,7 +100,7 @@ class StringResponse(object):
         return True
 
     def __str__(self):
-        return self.contents.decode('utf-8')
+        return self.contents.decode("utf-8")
 
 
 class FileResponse(StringResponse):
@@ -173,28 +156,39 @@ class UrlError(IOError):
 def _get_ssl_args(url, ssl_details):
     ssl_args = {}
     scheme = urlparse(url).scheme
-    if scheme == 'https' and ssl_details:
-        if not SSL_ENABLED:
-            LOG.warning("SSL is not supported in requests v%s, "
-                        "cert. verification can not occur!", _REQ_VER)
+    if scheme == "https" and ssl_details:
+        if "ca_certs" in ssl_details and ssl_details["ca_certs"]:
+            ssl_args["verify"] = ssl_details["ca_certs"]
         else:
-            if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
-                ssl_args['verify'] = ssl_details['ca_certs']
-            else:
-                ssl_args['verify'] = True
-            if 'cert_file' in ssl_details and 'key_file' in ssl_details:
-                ssl_args['cert'] = [ssl_details['cert_file'],
-                                    ssl_details['key_file']]
-            elif 'cert_file' in ssl_details:
-                ssl_args['cert'] = str(ssl_details['cert_file'])
+            ssl_args["verify"] = True
+        if "cert_file" in ssl_details and "key_file" in ssl_details:
+            ssl_args["cert"] = [
+                ssl_details["cert_file"],
+                ssl_details["key_file"],
+            ]
+        elif "cert_file" in ssl_details:
+            ssl_args["cert"] = str(ssl_details["cert_file"])
     return ssl_args
 
 
-def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, headers_cb=None, headers_redact=None,
-            ssl_details=None, check_status=True, allow_redirects=True,
-            exception_cb=None, session=None, infinite=False, log_req_resp=True,
-            request_method=None):
+def readurl(
+    url,
+    data=None,
+    timeout=None,
+    retries=0,
+    sec_between=1,
+    headers=None,
+    headers_cb=None,
+    headers_redact=None,
+    ssl_details=None,
+    check_status=True,
+    allow_redirects=True,
+    exception_cb=None,
+    session=None,
+    infinite=False,
+    log_req_resp=True,
+    request_method=None,
+) -> UrlResponse:
     """Wrapper around requests.Session to read the url and retry if necessary
 
     :param url: Mandatory url to request.
@@ -227,47 +221,36 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     """
     url = _cleanurl(url)
     req_args = {
-        'url': url,
+        "url": url,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
-    req_args['allow_redirects'] = allow_redirects
+    req_args["allow_redirects"] = allow_redirects
     if not request_method:
-        request_method = 'POST' if data else 'GET'
-    req_args['method'] = request_method
+        request_method = "POST" if data else "GET"
+    req_args["method"] = request_method
     if timeout is not None:
-        req_args['timeout'] = max(float(timeout), 0)
+        req_args["timeout"] = max(float(timeout), 0)
     if headers_redact is None:
         headers_redact = []
-    # It doesn't seem like config
-    # was added in older library versions (or newer ones either), thus we
-    # need to manually do the retries if it wasn't...
-    if CONFIG_ENABLED:
-        req_config = {
-            'store_cookies': False,
-        }
-        # Don't use the retry support built-in
-        # since it doesn't allow for 'sleep_times'
-        # in between tries....
-        # if retries:
-        #     req_config['max_retries'] = max(int(retries), 0)
-        req_args['config'] = req_config
     manual_tries = 1
     if retries:
         manual_tries = max(int(retries) + 1, 1)
 
     def_headers = {
-        'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+        "User-Agent": "Cloud-Init/%s" % (version.version_string()),
     }
     if headers:
         def_headers.update(headers)
     headers = def_headers
 
     if not headers_cb:
+
         def _cb(url):
             return headers
+
         headers_cb = _cb
     if data:
-        req_args['data'] = data
+        req_args["data"] = data
     if sec_between is None:
         sec_between = -1
 
@@ -276,12 +259,12 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     # doesn't handle sleeping between tries...
     # Infinitely retry if infinite is True
     for i in count() if infinite else range(0, manual_tries):
-        req_args['headers'] = headers_cb(url)
+        req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
-            if k == 'data':
+            if k == "data":
                 continue
-            if k == 'headers' and headers_redact:
+            if k == "headers" and headers_redact:
                 matched_headers = [k for k in headers_redact if v.get(k)]
                 if matched_headers:
                     filtered_req_args[k] = copy.deepcopy(v)
@@ -292,9 +275,13 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         try:
 
             if log_req_resp:
-                LOG.debug("[%s/%s] open '%s' with %s configuration", i,
-                          "infinite" if infinite else manual_tries, url,
-                          filtered_req_args)
+                LOG.debug(
+                    "[%s/%s] open '%s' with %s configuration",
+                    i,
+                    "infinite" if infinite else manual_tries,
+                    url,
+                    filtered_req_args,
+                )
 
             if session is None:
                 session = requests.Session()
@@ -304,22 +291,36 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
 
             if check_status:
                 r.raise_for_status()
-            LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
-                      r.status_code, len(r.content), (i + 1))
+            LOG.debug(
+                "Read from %s (%s, %sb) after %s attempts",
+                url,
+                r.status_code,
+                len(r.content),
+                (i + 1),
+            )
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
             return UrlResponse(r)
         except exceptions.RequestException as e:
-            if (isinstance(e, (exceptions.HTTPError)) and
-               hasattr(e, 'response') and  # This appeared in v 0.10.8
-               hasattr(e.response, 'status_code')):
-                excps.append(UrlError(e, code=e.response.status_code,
-                                      headers=e.response.headers,
-                                      url=url))
+            if (
+                isinstance(e, (exceptions.HTTPError))
+                and hasattr(e, "response")
+                and hasattr(  # This appeared in v 0.10.8
+                    e.response, "status_code"
+                )
+            ):
+                excps.append(
+                    UrlError(
+                        e,
+                        code=e.response.status_code,
+                        headers=e.response.headers,
+                        url=url,
+                    )
+                )
             else:
                 excps.append(UrlError(e, url=url))
-                if SSL_ENABLED and isinstance(e, exceptions.SSLError):
+                if isinstance(e, exceptions.SSLError):
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break
@@ -328,22 +329,32 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                 # to continue retrying and False to break and re-raise the
                 # exception
                 break
-            if (infinite and sec_between > 0) or \
-               (i + 1 < manual_tries and sec_between > 0):
+            if (infinite and sec_between > 0) or (
+                i + 1 < manual_tries and sec_between > 0
+            ):
 
                 if log_req_resp:
                     LOG.debug(
                         "Please wait %s seconds while we wait to try again",
-                        sec_between)
+                        sec_between,
+                    )
                 time.sleep(sec_between)
-    if excps:
-        raise excps[-1]
-    return None  # Should throw before this...
+
+    raise excps[-1]
 
 
-def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
-                 headers_cb=None, headers_redact=None, sleep_time=1,
-                 exception_cb=None, sleep_time_cb=None, request_method=None):
+def wait_for_url(
+    urls,
+    max_wait=None,
+    timeout=None,
+    status_cb=None,
+    headers_cb=None,
+    headers_redact=None,
+    sleep_time=1,
+    exception_cb=None,
+    sleep_time_cb=None,
+    request_method=None,
+):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -388,9 +399,9 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
         status_cb = log_status_cb
 
     def timeup(max_wait, start_time):
-        if (max_wait is None):
+        if max_wait is None:
             return False
-        return ((max_wait <= 0) or (time.time() - start_time > max_wait))
+        return (max_wait <= 0) or (time.time() - start_time > max_wait)
 
     loop_n = 0
     response = None
@@ -404,8 +415,11 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             if loop_n != 0:
                 if timeup(max_wait, start_time):
                     break
-                if (max_wait is not None and
-                        timeout and (now + timeout > (start_time + max_wait))):
+                if (
+                    max_wait is not None
+                    and timeout
+                    and (now + timeout > (start_time + max_wait))
+                ):
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
@@ -418,17 +432,29 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
                     headers = {}
 
                 response = readurl(
-                    url, headers=headers, headers_redact=headers_redact,
-                    timeout=timeout, check_status=False,
-                    request_method=request_method)
+                    url,
+                    headers=headers,
+                    headers_redact=headers_redact,
+                    timeout=timeout,
+                    check_status=False,
+                    request_method=request_method,
+                )
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
-                    url_exc = UrlError(ValueError(reason), code=response.code,
-                                       headers=response.headers, url=url)
+                    url_exc = UrlError(
+                        ValueError(reason),
+                        code=response.code,
+                        headers=response.headers,
+                        url=url,
+                    )
                 elif not response.ok():
                     reason = "bad status code [%s]" % (response.code)
-                    url_exc = UrlError(ValueError(reason), code=response.code,
-                                       headers=response.headers, url=url)
+                    url_exc = UrlError(
+                        ValueError(reason),
+                        code=response.code,
+                        headers=response.headers,
+                        url=url,
+                    )
                 else:
                     return url, response.contents
             except UrlError as e:
@@ -440,10 +466,12 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
 
             time_taken = int(time.time() - start_time)
             max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
-            status_msg = "Calling '%s' failed [%s/%s]: %s" % (url,
-                                                              time_taken,
-                                                              max_wait_str,
-                                                              reason)
+            status_msg = "Calling '%s' failed [%s/%s]: %s" % (
+                url,
+                time_taken,
+                max_wait_str,
+                reason,
+            )
             status_cb(status_msg)
             if exception_cb:
                 # This can be used to alter the headers that will be sent
@@ -455,17 +483,23 @@ def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
             break
 
         loop_n = loop_n + 1
-        LOG.debug("Please wait %s seconds while we wait to try again",
-                  sleep_time)
+        LOG.debug(
+            "Please wait %s seconds while we wait to try again", sleep_time
+        )
         time.sleep(sleep_time)
 
     return False, None
 
 
 class OauthUrlHelper(object):
-    def __init__(self, consumer_key=None, token_key=None,
-                 token_secret=None, consumer_secret=None,
-                 skew_data_file="/run/oauth_skew.json"):
+    def __init__(
+        self,
+        consumer_key=None,
+        token_key=None,
+        token_secret=None,
+        consumer_secret=None,
+        skew_data_file="/run/oauth_skew.json",
+    ):
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret or ""
         self.token_key = token_key
@@ -477,8 +511,10 @@ class OauthUrlHelper(object):
         if not any(required):
             self._do_oauth = False
         elif not all(required):
-            raise ValueError("all or none of token_key, token_secret, or "
-                             "consumer_key can be set")
+            raise ValueError(
+                "all or none of token_key, token_secret, or "
+                "consumer_key can be set"
+            )
 
         old = self.read_skew_file()
         self.skew_data = old or {}
@@ -501,16 +537,17 @@ class OauthUrlHelper(object):
             fp.write(json.dumps(cur))
 
     def exception_cb(self, msg, exception):
-        if not (isinstance(exception, UrlError) and
-                (exception.code == 403 or exception.code == 401)):
+        if not (
+            isinstance(exception, UrlError)
+            and (exception.code == 403 or exception.code == 401)
+        ):
             return
 
-        if 'date' not in exception.headers:
-            LOG.warning("Missing header 'date' in %s response",
-                        exception.code)
+        if "date" not in exception.headers:
+            LOG.warning("Missing header 'date' in %s response", exception.code)
             return
 
-        date = exception.headers['date']
+        date = exception.headers["date"]
         try:
             remote_time = time.mktime(parsedate(date))
         except Exception as e:
@@ -537,15 +574,21 @@ class OauthUrlHelper(object):
             timestamp = int(time.time()) + self.skew_data[host]
 
         return oauth_headers(
-            url=url, consumer_key=self.consumer_key,
-            token_key=self.token_key, token_secret=self.token_secret,
-            consumer_secret=self.consumer_secret, timestamp=timestamp)
+            url=url,
+            consumer_key=self.consumer_key,
+            token_key=self.token_key,
+            token_secret=self.token_secret,
+            consumer_secret=self.consumer_secret,
+            timestamp=timestamp,
+        )
 
     def _wrapped(self, wrapped_func, args, kwargs):
-        kwargs['headers_cb'] = partial(
-            self._headers_cb, kwargs.get('headers_cb'))
-        kwargs['exception_cb'] = partial(
-            self._exception_cb, kwargs.get('exception_cb'))
+        kwargs["headers_cb"] = partial(
+            self._headers_cb, kwargs.get("headers_cb")
+        )
+        kwargs["exception_cb"] = partial(
+            self._exception_cb, kwargs.get("exception_cb")
+        )
         return wrapped_func(*args, **kwargs)
 
     def wait_for_url(self, *args, **kwargs):
@@ -571,12 +614,13 @@ class OauthUrlHelper(object):
         return headers
 
 
-def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
-                  timestamp=None):
+def oauth_headers(
+    url, consumer_key, token_key, token_secret, consumer_secret, timestamp=None
+):
     try:
         import oauthlib.oauth1 as oauth1
     except ImportError as e:
-        raise NotImplementedError('oauth support is not available') from e
+        raise NotImplementedError("oauth support is not available") from e
 
     if timestamp:
         timestamp = str(timestamp)
@@ -589,7 +633,8 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
         resource_owner_key=token_key,
         resource_owner_secret=token_secret,
         signature_method=oauth1.SIGNATURE_PLAINTEXT,
-        timestamp=timestamp)
+        timestamp=timestamp,
+    )
     _uri, signed_headers, _body = client.sign(url)
     return signed_headers
 
@@ -606,5 +651,6 @@ def retry_on_url_exc(msg, exc):
     if exc.cause and isinstance(exc.cause, requests.Timeout):
         return True
     return False
+
 
 # vi: ts=4 expandtab

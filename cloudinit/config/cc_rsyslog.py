@@ -11,7 +11,7 @@
 
 Rsyslog
 -------
-**Summary:** configure system loggig via rsyslog
+**Summary:** configure system logging via rsyslog
 
 This module configures remote system logging using rsyslog.
 
@@ -182,45 +182,45 @@ import os
 import re
 
 from cloudinit import log as logging
-from cloudinit import subp
-from cloudinit import util
+from cloudinit import subp, util
 
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 DEF_RELOAD = "auto"
 DEF_REMOTES = {}
 
-KEYNAME_CONFIGS = 'configs'
-KEYNAME_FILENAME = 'config_filename'
-KEYNAME_DIR = 'config_dir'
-KEYNAME_RELOAD = 'service_reload_command'
-KEYNAME_LEGACY_FILENAME = 'rsyslog_filename'
-KEYNAME_LEGACY_DIR = 'rsyslog_dir'
-KEYNAME_REMOTES = 'remotes'
+KEYNAME_CONFIGS = "configs"
+KEYNAME_FILENAME = "config_filename"
+KEYNAME_DIR = "config_dir"
+KEYNAME_RELOAD = "service_reload_command"
+KEYNAME_LEGACY_FILENAME = "rsyslog_filename"
+KEYNAME_LEGACY_DIR = "rsyslog_dir"
+KEYNAME_REMOTES = "remotes"
 
 LOG = logging.getLogger(__name__)
 
-COMMENT_RE = re.compile(r'[ ]*[#]+[ ]*')
+COMMENT_RE = re.compile(r"[ ]*[#]+[ ]*")
 HOST_PORT_RE = re.compile(
-    r'^(?P<proto>[@]{0,2})'
-    r'(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
-    r'([:](?P<port>[0-9]+))?$')
+    r"^(?P<proto>[@]{0,2})"
+    r"(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))"
+    r"([:](?P<port>[0-9]+))?$"
+)
 
 
 def reload_syslog(distro, command=DEF_RELOAD):
     if command == DEF_RELOAD:
-        service = distro.get_option('rsyslog_svcname', 'rsyslog')
-        return distro.manage_service('try-reload', service)
+        service = distro.get_option("rsyslog_svcname", "rsyslog")
+        return distro.manage_service("try-reload", service)
     return subp.subp(command, capture=True)
 
 
 def load_config(cfg):
     # return an updated config with entries of the correct type
     # support converting the old top level format into new format
-    mycfg = cfg.get('rsyslog', {})
+    mycfg = cfg.get("rsyslog", {})
 
-    if isinstance(cfg.get('rsyslog'), list):
-        mycfg = {KEYNAME_CONFIGS: cfg.get('rsyslog')}
+    if isinstance(cfg.get("rsyslog"), list):
+        mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
         if KEYNAME_LEGACY_FILENAME in cfg:
             mycfg[KEYNAME_FILENAME] = cfg[KEYNAME_LEGACY_FILENAME]
         if KEYNAME_LEGACY_DIR in cfg:
@@ -231,7 +231,8 @@ def load_config(cfg):
         (KEYNAME_DIR, DEF_DIR, str),
         (KEYNAME_FILENAME, DEF_FILENAME, str),
         (KEYNAME_RELOAD, DEF_RELOAD, (str, list)),
-        (KEYNAME_REMOTES, DEF_REMOTES, dict))
+        (KEYNAME_REMOTES, DEF_REMOTES, dict),
+    )
 
     for key, default, vtypes in fillup:
         if key not in mycfg or not isinstance(mycfg[key], vtypes):
@@ -247,10 +248,11 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
     for cur_pos, ent in enumerate(configs):
         if isinstance(ent, dict):
             if "content" not in ent:
-                LOG.warning("No 'content' entry in config entry %s",
-                            cur_pos + 1)
+                LOG.warning(
+                    "No 'content' entry in config entry %s", cur_pos + 1
+                )
                 continue
-            content = ent['content']
+            content = ent["content"]
             filename = ent.get("filename", def_fname)
         else:
             content = ent
@@ -301,9 +303,9 @@ def parse_remotes_line(line, name=None):
     if not toks:
         raise ValueError("Invalid host specification '%s'" % host_port)
 
-    proto = toks.group('proto')
-    addr = toks.group('addr') or toks.group('bracket_addr')
-    port = toks.group('port')
+    proto = toks.group("proto")
+    addr = toks.group("addr") or toks.group("bracket_addr")
+    port = toks.group("port")
 
     if addr.startswith("[") and not addr.endswith("]"):
         raise ValueError("host spec had invalid brackets: %s" % addr)
@@ -311,15 +313,17 @@ def parse_remotes_line(line, name=None):
     if comment and not name:
         name = comment
 
-    t = SyslogRemotesLine(name=name, match=match, proto=proto,
-                          addr=addr, port=port)
+    t = SyslogRemotesLine(
+        name=name, match=match, proto=proto, addr=addr, port=port
+    )
     t.validate()
     return t
 
 
 class SyslogRemotesLine(object):
-    def __init__(self, name=None, match=None, proto=None, addr=None,
-                 port=None):
+    def __init__(
+        self, name=None, match=None, proto=None, addr=None, port=None
+    ):
         if not match:
             match = "*.*"
         self.name = name
@@ -352,7 +356,11 @@ class SyslogRemotesLine(object):
 
     def __repr__(self):
         return "[name=%s match=%s proto=%s address=%s port=%s]" % (
-            self.name, self.match, self.proto, self.addr, self.port
+            self.name,
+            self.match,
+            self.proto,
+            self.addr,
+            self.port,
         )
 
     def __str__(self):
@@ -390,13 +398,14 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
             LOG.warning("failed loading remote %s: %s [%s]", name, line, e)
     if footer is not None:
         lines.append(footer)
-    return '\n'.join(lines) + "\n"
+    return "\n".join(lines) + "\n"
 
 
 def handle(name, cfg, cloud, log, _args):
-    if 'rsyslog' not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'rsyslog' key in configuration"), name)
+    if "rsyslog" not in cfg:
+        log.debug(
+            "Skipping module named %s, no 'rsyslog' key in configuration", name
+        )
         return
 
     mycfg = load_config(cfg)
@@ -408,16 +417,18 @@ def handle(name, cfg, cloud, log, _args):
                 mycfg[KEYNAME_REMOTES],
                 header="# begin remotes",
                 footer="# end remotes",
-            ))
+            )
+        )
 
-    if not mycfg['configs']:
+    if not mycfg["configs"]:
         log.debug("Empty config rsyslog['configs'], nothing to do")
         return
 
     changes = apply_rsyslog_changes(
         configs=mycfg[KEYNAME_CONFIGS],
         def_fname=mycfg[KEYNAME_FILENAME],
-        cfg_dir=mycfg[KEYNAME_DIR])
+        cfg_dir=mycfg[KEYNAME_DIR],
+    )
 
     if not changes:
         log.debug("restart of syslog not necessary, no changes made")
@@ -436,5 +447,6 @@ def handle(name, cfg, cloud, log, _args):
         # This should now use rsyslog if
         # the logging was setup to use it...
         log.debug("%s configured %s files", name, changes)
+
 
 # vi: ts=4 expandtab syntax=python

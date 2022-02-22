@@ -12,8 +12,8 @@ if __name__ == "__main__":
     for fn in sys.argv[1:]:
         sys.stdout.write("%s" % (fn))
         try:
-            fh = open(fn, 'rb')
-            yaml.safe_load(fh.read().decode('utf-8'))
+            fh = open(fn, "rb")
+            yaml.safe_load(fh.read().decode("utf-8"))
             fh.close()
             sys.stdout.write(" - ok\n")
         except Exception as e:

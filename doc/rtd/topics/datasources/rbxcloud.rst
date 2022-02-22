@@ -22,4 +22,4 @@ is restarted, if the partition exists. For more information see
 .. _HyperOne Virtual Machine docs: http://www.hyperone.com/
 .. _FAT: https://en.wikipedia.org/wiki/File_Allocation_Table
 
-.. vi: textwidth=78
+.. vi: textwidth=79

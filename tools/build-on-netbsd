@@ -19,7 +19,9 @@ pkgs="
    ${py_prefix}-oauthlib
    ${py_prefix}-requests
    ${py_prefix}-setuptools
+   ${py_prefix}-netifaces
    ${py_prefix}-yaml
+   ${py_prefix}-jsonschema
    sudo
 "
 [ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"

@@ -62,4 +62,4 @@ datasource for LXD instances with a more direct support for LXD APIs instead
 of static NoCloud seed files.
 
 .. _LXD socket device: https://linuxcontainers.org/lxd/docs/master/dev-lxd
-.. vi: textwidth=78
+.. vi: textwidth=79

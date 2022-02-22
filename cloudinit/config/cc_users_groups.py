@@ -127,12 +127,12 @@ config keys for an entry in ``users`` are as follows:
           uid: <user id>
 """
 
+from cloudinit import log as logging
+
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
 # is a list of distros that are supported, not a sub-module
 from cloudinit.distros import ug_util
-from cloudinit import log as logging
-
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -149,26 +149,31 @@ def handle(name, cfg, cloud, _log, _args):
     for (user, config) in users.items():
         ssh_redirect_user = config.pop("ssh_redirect_user", False)
         if ssh_redirect_user:
-            if 'ssh_authorized_keys' in config or 'ssh_import_id' in config:
+            if "ssh_authorized_keys" in config or "ssh_import_id" in config:
                 raise ValueError(
-                    'Not creating user %s. ssh_redirect_user cannot be'
-                    ' provided with ssh_import_id or ssh_authorized_keys' %
-                    user)
-            if ssh_redirect_user not in (True, 'default'):
+                    "Not creating user %s. ssh_redirect_user cannot be"
+                    " provided with ssh_import_id or ssh_authorized_keys"
+                    % user
+                )
+            if ssh_redirect_user not in (True, "default"):
                 raise ValueError(
-                    'Not creating user %s. Invalid value of'
-                    ' ssh_redirect_user: %s. Expected values: true, default'
-                    ' or false.' % (user, ssh_redirect_user))
+                    "Not creating user %s. Invalid value of"
+                    " ssh_redirect_user: %s. Expected values: true, default"
+                    " or false." % (user, ssh_redirect_user)
+                )
             if default_user is None:
                 LOG.warning(
-                    'Ignoring ssh_redirect_user: %s for %s.'
-                    ' No default_user defined.'
-                    ' Perhaps missing cloud configuration users: '
-                    ' [default, ..].',
-                    ssh_redirect_user, user)
+                    "Ignoring ssh_redirect_user: %s for %s."
+                    " No default_user defined."
+                    " Perhaps missing cloud configuration users: "
+                    " [default, ..].",
+                    ssh_redirect_user,
+                    user,
+                )
             else:
-                config['ssh_redirect_user'] = default_user
-                config['cloud_public_ssh_keys'] = cloud_keys
+                config["ssh_redirect_user"] = default_user
+                config["cloud_public_ssh_keys"] = cloud_keys
         cloud.distro.create_user(user, **config)
+
 
 # vi: ts=4 expandtab

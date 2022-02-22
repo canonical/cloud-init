@@ -9,7 +9,7 @@ as it requires knowing in advance the correct command line or modifying
 the boot loader to append data.
 
 For example, when 'cloud-init start' runs, it will check to
-see if if one of 'cloud-config-url' or 'url' appear in key/value fashion
+see if one of 'cloud-config-url' or 'url' appear in key/value fashion
 in the kernel command line as in:
    root=/dev/sda ro url=http://foo.bar.zee/abcde
 

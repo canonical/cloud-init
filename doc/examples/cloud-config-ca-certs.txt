@@ -7,13 +7,13 @@
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
 
-ca-certs:
-  # If present and set to True, the 'remove-defaults' parameter will remove
+ca_certs:
+  # If present and set to True, the 'remove_defaults' parameter will remove
   # all the default trusted CA certificates that are normally shipped with
   # Ubuntu.
   # This is mainly for paranoid admins - most users will not need this
   # functionality.
-  remove-defaults: true
+  remove_defaults: true
 
   # If present, the 'trusted' parameter should contain a certificate (or list
   # of certificates) to add to the system as trusted CA certificates.

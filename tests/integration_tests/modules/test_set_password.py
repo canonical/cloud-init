@@ -8,13 +8,10 @@ other tests chpasswd's list being a string.  Both expect the same results, so
 they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
-import crypt
-
 import pytest
 import yaml
 
 from tests.integration_tests.util import retry
-
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -42,7 +39,9 @@ Uh69tP4GSrGW5XKHxMLiKowJgm/"
     lock_passwd: false
 """
 
-LIST_USER_DATA = COMMON_USER_DATA + """
+LIST_USER_DATA = (
+    COMMON_USER_DATA
+    + """
 chpasswd:
   list:
     - tom:mypassword123!
@@ -50,8 +49,11 @@ chpasswd:
     - harry:RANDOM
     - mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
+)
 
-STRING_USER_DATA = COMMON_USER_DATA + """
+STRING_USER_DATA = (
+    COMMON_USER_DATA
+    + """
 chpasswd:
     list: |
       tom:mypassword123!
@@ -59,6 +61,7 @@ chpasswd:
       harry:RANDOM
       mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
+)
 
 USERS_DICTS = yaml.safe_load(COMMON_USER_DATA)["users"]
 USERS_PASSWD_VALUES = {
@@ -141,13 +144,13 @@ class Mixin:
             # log
             pytest.skip("NotImplementedError when requesting console log")
             return
-        if console_log.lower() == 'no console output':
+        if console_log.lower() == "no console output":
             # This test retries because we might not have the full console log
             # on the first fetch. However, if we have no console output
             # at all, we don't want to keep retrying as that would trigger
             # another 5 minute wait on the pycloudlib side, which could
             # leave us waiting for a couple hours
-            pytest.fail('no console output')
+            pytest.fail("no console output")
             return
         assert "dick:" in console_log
         assert "harry:" in console_log
@@ -157,9 +160,13 @@ class Mixin:
         shadow_users, _ = self._fetch_and_parse_etc_shadow(class_client)
 
         fmt_and_salt = shadow_users["tom"].rsplit("$", 1)[0]
-        expected_value = crypt.crypt("mypassword123!", fmt_and_salt)
-
-        assert expected_value == shadow_users["tom"]
+        GEN_CRYPT_CONTENT = (
+            "import crypt\n"
+            f"print(crypt.crypt('mypassword123!', '{fmt_and_salt}'))\n"
+        )
+        class_client.write_to_file("/gen_crypt.py", GEN_CRYPT_CONTENT)
+        result = class_client.execute("python3 /gen_crypt.py")
+        assert result.stdout == shadow_users["tom"]
 
     def test_shadow_expected_users(self, class_client):
         """Test that the right set of users is in /etc/shadow."""

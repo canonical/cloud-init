@@ -13,22 +13,25 @@ import os
 import stat
 from textwrap import dedent
 
+from cloudinit import subp, util
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    MetaSchema,
+    get_meta_doc,
+    validate_cloudconfig_schema,
+)
 from cloudinit.settings import PER_ALWAYS
-from cloudinit import subp
-from cloudinit import util
 
 NOBLOCK = "noblock"
 
 frequency = PER_ALWAYS
-distros = ['all']
+distros = ["all"]
 
-schema = {
-    'id': 'cc_resizefs',
-    'name': 'Resizefs',
-    'title': 'Resize filesystem',
-    'description': dedent("""\
+meta: MetaSchema = {
+    "id": "cc_resizefs",
+    "name": "Resizefs",
+    "title": "Resize filesystem",
+    "description": dedent(
+        """\
         Resize a filesystem to use all avaliable space on partition. This
         module is useful along with ``cc_growpart`` and will ensure that if the
         root partition has been resized the root filesystem will be resized
@@ -37,22 +40,29 @@ schema = {
         running. Optionally, the resize operation can be performed in the
         background while cloud-init continues running modules. This can be
         enabled by setting ``resize_rootfs`` to ``true``. This module can be
-        disabled altogether by setting ``resize_rootfs`` to ``false``."""),
-    'distros': distros,
-    'examples': [
-        'resize_rootfs: false  # disable root filesystem resize operation'],
-    'frequency': PER_ALWAYS,
-    'type': 'object',
-    'properties': {
-        'resize_rootfs': {
-            'enum': [True, False, NOBLOCK],
-            'description': dedent("""\
-                Whether to resize the root partition. Default: 'true'""")
-        }
-    }
+        disabled altogether by setting ``resize_rootfs`` to ``false``."""
+    ),
+    "distros": distros,
+    "examples": [
+        "resize_rootfs: false  # disable root filesystem resize operation"
+    ],
+    "frequency": PER_ALWAYS,
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+schema = {
+    "type": "object",
+    "properties": {
+        "resize_rootfs": {
+            "enum": [True, False, NOBLOCK],
+            "description": dedent(
+                """\
+                Whether to resize the root partition. Default: 'true'"""
+            ),
+        }
+    },
+}
+
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def _resize_btrfs(mount_point, devpth):
@@ -61,32 +71,38 @@ def _resize_btrfs(mount_point, devpth):
     # Use a subvolume that is not ro to trick the resize operation to do the
     # "right" thing. The use of ".snapshot" is specific to "snapper" a generic
     # solution would be walk the subvolumes and find a rw mounted subvolume.
-    if (not util.mount_is_read_write(mount_point) and
-            os.path.isdir("%s/.snapshots" % mount_point)):
-        return ('btrfs', 'filesystem', 'resize', 'max',
-                '%s/.snapshots' % mount_point)
+    if not util.mount_is_read_write(mount_point) and os.path.isdir(
+        "%s/.snapshots" % mount_point
+    ):
+        return (
+            "btrfs",
+            "filesystem",
+            "resize",
+            "max",
+            "%s/.snapshots" % mount_point,
+        )
     else:
-        return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
+        return ("btrfs", "filesystem", "resize", "max", mount_point)
 
 
 def _resize_ext(mount_point, devpth):
-    return ('resize2fs', devpth)
+    return ("resize2fs", devpth)
 
 
 def _resize_xfs(mount_point, devpth):
-    return ('xfs_growfs', mount_point)
+    return ("xfs_growfs", mount_point)
 
 
 def _resize_ufs(mount_point, devpth):
-    return ('growfs', '-y', mount_point)
+    return ("growfs", "-y", mount_point)
 
 
 def _resize_zfs(mount_point, devpth):
-    return ('zpool', 'online', '-e', mount_point, devpth)
+    return ("zpool", "online", "-e", mount_point, devpth)
 
 
 def _resize_hammer2(mount_point, devpth):
-    return ('hammer2', 'growfs', mount_point)
+    return ("hammer2", "growfs", mount_point)
 
 
 def _can_skip_resize_ufs(mount_point, devpth):
@@ -98,7 +114,7 @@ def _can_skip_resize_ufs(mount_point, devpth):
     # growfs exits with 1 for almost all cases up to this one.
     # This means we can't just use rcs=[0, 1] as subp parameter:
     try:
-        subp.subp(['growfs', '-N', devpth])
+        subp.subp(["growfs", "-N", devpth])
     except subp.ProcessExecutionError as e:
         if e.stderr.startswith(skip_start) and skip_contain in e.stderr:
             # This FS is already at the desired size
@@ -112,17 +128,15 @@ def _can_skip_resize_ufs(mount_point, devpth):
 # for multiple filesystem types if possible, e.g. one command for
 # ext2, ext3 and ext4.
 RESIZE_FS_PREFIXES_CMDS = [
-    ('btrfs', _resize_btrfs),
-    ('ext', _resize_ext),
-    ('xfs', _resize_xfs),
-    ('ufs', _resize_ufs),
-    ('zfs', _resize_zfs),
-    ('hammer2', _resize_hammer2),
+    ("btrfs", _resize_btrfs),
+    ("ext", _resize_ext),
+    ("xfs", _resize_xfs),
+    ("ufs", _resize_ufs),
+    ("zfs", _resize_zfs),
+    ("hammer2", _resize_hammer2),
 ]
 
-RESIZE_FS_PRECHECK_CMDS = {
-    'ufs': _can_skip_resize_ufs
-}
+RESIZE_FS_PRECHECK_CMDS = {"ufs": _can_skip_resize_ufs}
 
 
 def can_skip_resize(fs_type, resize_what, devpth):
@@ -146,52 +160,66 @@ def maybe_get_writable_device_path(devpath, info, log):
     container = util.is_container()
 
     # Ensure the path is a block device.
-    if (devpath == "/dev/root" and not os.path.exists(devpath) and
-            not container):
+    if (
+        devpath == "/dev/root"
+        and not os.path.exists(devpath)
+        and not container
+    ):
         devpath = util.rootdev_from_cmdline(util.get_cmdline())
         if devpath is None:
             log.warning("Unable to find device '/dev/root'")
             return None
         log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
-    if devpath == 'overlayroot':
+    if devpath == "overlayroot":
         log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
         return None
 
     # FreeBSD zpool can also just use gpt/<label>
     # with that in mind we can not do an os.stat on "gpt/whatever"
     # therefore return the devpath already here.
-    if devpath.startswith('gpt/'):
-        log.debug('We have a gpt label - just go ahead')
+    if devpath.startswith("gpt/"):
+        log.debug("We have a gpt label - just go ahead")
         return devpath
     # Alternatively, our device could simply be a name as returned by gpart,
     # such as da0p3
-    if not devpath.startswith('/dev/') and not os.path.exists(devpath):
-        fulldevpath = '/dev/' + devpath.lstrip('/')
-        log.debug("'%s' doesn't appear to be a valid device path. Trying '%s'",
-                  devpath, fulldevpath)
+    if not devpath.startswith("/dev/") and not os.path.exists(devpath):
+        fulldevpath = "/dev/" + devpath.lstrip("/")
+        log.debug(
+            "'%s' doesn't appear to be a valid device path. Trying '%s'",
+            devpath,
+            fulldevpath,
+        )
         devpath = fulldevpath
 
     try:
         statret = os.stat(devpath)
     except OSError as exc:
         if container and exc.errno == errno.ENOENT:
-            log.debug("Device '%s' did not exist in container. "
-                      "cannot resize: %s", devpath, info)
+            log.debug(
+                "Device '%s' did not exist in container. cannot resize: %s",
+                devpath,
+                info,
+            )
         elif exc.errno == errno.ENOENT:
-            log.warning("Device '%s' did not exist. cannot resize: %s",
-                        devpath, info)
+            log.warning(
+                "Device '%s' did not exist. cannot resize: %s", devpath, info
+            )
         else:
             raise exc
         return None
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
-            log.debug("device '%s' not a block device in container."
-                      " cannot resize: %s" % (devpath, info))
+            log.debug(
+                "device '%s' not a block device in container."
+                " cannot resize: %s" % (devpath, info)
+            )
         else:
-            log.warning("device '%s' not a block device. cannot resize: %s" %
-                        (devpath, info))
+            log.warning(
+                "device '%s' not a block device. cannot resize: %s"
+                % (devpath, info)
+            )
         return None
     return devpath  # The writable block devpath
 
@@ -220,8 +248,8 @@ def handle(name, cfg, _cloud, log, args):
     # we will have to get the zpool name out of this
     # and set the resize_what variable to the zpool
     # so the _resize_zfs function gets the right attribute.
-    if fs_type == 'zfs':
-        zpool = devpth.split('/')[0]
+    if fs_type == "zfs":
+        zpool = devpth.split("/")[0]
         devpth = util.get_device_info_from_zpool(zpool)
         if not devpth:
             return  # could not find device from zpool
@@ -236,8 +264,9 @@ def handle(name, cfg, _cloud, log, args):
 
     resizer = None
     if can_skip_resize(fs_type, resize_what, devpth):
-        log.debug("Skip resize filesystem type %s for %s",
-                  fs_type, resize_what)
+        log.debug(
+            "Skip resize filesystem type %s for %s", fs_type, resize_what
+        )
         return
 
     fstype_lc = fs_type.lower()
@@ -247,29 +276,42 @@ def handle(name, cfg, _cloud, log, args):
             break
 
     if not resizer:
-        log.warning("Not resizing unknown filesystem type %s for %s",
-                    fs_type, resize_what)
+        log.warning(
+            "Not resizing unknown filesystem type %s for %s",
+            fs_type,
+            resize_what,
+        )
         return
 
     resize_cmd = resizer(resize_what, devpth)
-    log.debug("Resizing %s (%s) using %s", resize_what, fs_type,
-              ' '.join(resize_cmd))
+    log.debug(
+        "Resizing %s (%s) using %s", resize_what, fs_type, " ".join(resize_cmd)
+    )
 
     if resize_root == NOBLOCK:
         # Fork to a child that will run
         # the resize command
         util.fork_cb(
-            util.log_time, logfunc=log.debug, msg="backgrounded Resizing",
-            func=do_resize, args=(resize_cmd, log))
+            util.log_time,
+            logfunc=log.debug,
+            msg="backgrounded Resizing",
+            func=do_resize,
+            args=(resize_cmd, log),
+        )
     else:
-        util.log_time(logfunc=log.debug, msg="Resizing",
-                      func=do_resize, args=(resize_cmd, log))
+        util.log_time(
+            logfunc=log.debug,
+            msg="Resizing",
+            func=do_resize,
+            args=(resize_cmd, log),
+        )
 
-    action = 'Resized'
+    action = "Resized"
     if resize_root == NOBLOCK:
-        action = 'Resizing (via forking)'
-    log.debug("%s root filesystem (type=%s, val=%s)", action, fs_type,
-              resize_root)
+        action = "Resizing (via forking)"
+    log.debug(
+        "%s root filesystem (type=%s, val=%s)", action, fs_type, resize_root
+    )
 
 
 def do_resize(resize_cmd, log):
@@ -280,5 +322,6 @@ def do_resize(resize_cmd, log):
         raise
     # TODO(harlowja): Should we add a fsck check after this to make
     # sure we didn't corrupt anything?
+
 
 # vi: ts=4 expandtab
