@@ -1,5 +1,6 @@
-cloud-init (22.1-1-gb3d9acdd-0ubuntu1~21.10.1) UNRELEASED; urgency=medium
+cloud-init (22.1-1-gb3d9acdd-0ubuntu1~21.10.1) impish; urgency=medium
 
+  * d/apport-launcher.py fix format for unittests
   * d/cloud-init.templates: Move LXD to back of datasource_list
   * New upstream snapshot. (LP: #1961446)
     - integration tests: fix Azure failures (#1269)
