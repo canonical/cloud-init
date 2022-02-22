@@ -1,5 +1,6 @@
-cloud-init (22.1-1-gb3d9acdd-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
+cloud-init (22.1-1-gb3d9acdd-0ubuntu1~20.04.1) focal; urgency=medium
 
+  * d/apport-launcher.py fix format for unittests
   * d/cloud-init.templates: Move LXD to back of datasource_list
   * New upstream snapshot. (LP: #1961446)
     - integration tests: fix Azure failures (#1269)
@@ -86,7 +87,7 @@ cloud-init (22.1-1-gb3d9acdd-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
     - sources/azure: consolidate DHCP variants to EphemeralDHCPv4WithReporting
       (#1190) [Chris Patterson]
     - Single JSON schema validation in early boot (#1175)
-    - Add DatasourceOVF network-config propery to Ubuntu OVF example (#1184)
+    - Add DatasourceOVF network-config properly to Ubuntu OVF example (#1184)
       [Megian]
     - testing: support pycloudlib config file (#1189)
     - Ensure system_cfg read before ds net config on Oracle (SC-720) (#1174)
