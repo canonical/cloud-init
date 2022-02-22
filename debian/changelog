@@ -1,12 +1,72 @@
-cloud-init (21.4-82-g0d364a29-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (22.1-1-gb3d9acdd-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * d/cloud-init.templates: Move LXD to back of datasource_list
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
    + debian/patches/renderer-do-not-prefer-netplan.patch
-  * refresh patches:
-   + debian/patches/openstack-no-network-config.patch
+  * New upstream snapshot. (LP: #1961446)
+    - integration tests: fix Azure failures (#1269)
+    - Release 22.1 (#1267)
+    - sources/azure: report ready in local phase (#1265) [Chris Patterson]
+    - sources/azure: validate IMDS network configuration metadata (#1257)
+      [Chris Patterson]
+    - docs: Add more details to runcmd docs (#1266)
+    - use PEP 589 syntax for TypeDict (#1253)
+    - mypy: introduce type checking (#1254) [Chris Patterson]
+    - Fix extra ipv6 issues, code reduction and simplification (#1243) [eb3095]
+    - tests: when generating crypted password, generate in target env (#1252)
+    - sources/azure: address mypy/pyright typing complaints (#1245)
+      [Chris Patterson]
+    - Docs for x-shellscript* userdata (#1260)
+    - test_apt_security: azure platform has specific security URL overrides
+      (#1263)
+    - tests: lsblk --json output changes mountpoint key to mountpoinst []
+      (#1261)
+    - mounts: fix mount opts string for ephemeral disk (#1250)
+      [Chris Patterson]
+    - Shell script handlers by freq (#1166) [Chris Lalos]
+    - minor improvements to documentation (#1259) [Mark Esler]
+    - cloud-id: publish /run/cloud-init/cloud-id-<cloud-type> files (#1244)
+    - add "eslerm" as contributor (#1258) [Mark Esler]
+    - sources/azure: refactor ssh key handling (#1248) [Chris Patterson]
+    - bump pycloudlib (#1256)
+    - sources/hetzner: Use EphemeralDHCPv4 instead of static configuration
+      (#1251) [Markus Schade]
+    - bump pycloudlib version (#1255)
+    - Fix IPv6 netmask format for sysconfig (#1215) [Harald]
+    - sources/azure: drop debug print (#1249) [Chris Patterson]
+    - tests: do not check instance.pull_file().ok() (#1246)
+    - sources/azure: consolidate ephemeral DHCP configuration (#1229)
+      [Chris Patterson]
+    - cc_salt_minion freebsd fix for rc.conf (#1236)
+    - sources/azure: fix metadata check in _check_if_nic_is_primary() (#1232)
+      [Chris Patterson]
+    - Add _netdev option to mount Azure ephemeral disk (#1213) [Eduardo Otubo]
+    - testing: stop universally overwriting /etc/cloud/cloud.cfg.d (#1237)
+    - Integration test changes (#1240)
+    - Fix Gentoo Locales (#1205)
+    - Add "slingamn" as contributor (#1235) [Shivaram Lingamneni]
+    - integration: do not LXD bind mount /etc/cloud/cloud.cfg.d (#1234)
+    - Integration testing docs and refactor (#1231)
+    - vultr: Return metadata immediately when found (#1233) [eb3095]
+    - spell check docs with spellintian (#1223)
+    - docs: include upstream python version info (#1230)
+    - Schema a d (#1211)
+    - Move LXD to end ds-identify DSLIST (#1228)
+    - fix parallel tox execution (#1214)
+    - sources/azure: refactor _report_ready_if_needed and _poll_imds (#1222)
+      [Chris Patterson]
+    - Do not support setting up archive.canonical.com as a source (#1219)
+      [Steve Langasek]
+    - Vultr: Fix lo being used for DHCP, try next on cmd fail (#1208) [eb3095]
+    - sources/azure: refactor _should_reprovision[_after_nic_attach]() logic
+      (#1206) [Chris Patterson]
+    - update ssh logs to show ssh private key gens pub and simplify code
+      (#1221) [Steve Weber]
+    - Remove mitechie from stale PR github action (#1217)
+    - Include POST format in cc_phone_home docs (#1218)
+    - Add json parsing of ip addr show (SC-723) (#1210)
     - cc_rsyslog: fix typo in docstring (#1207) [Louis Sautier]
     - Update .github-cla-signers (#1204) [Chris Lalos]
     - sources/azure: drop unused case in _report_failure() (#1200)
