@@ -204,6 +204,14 @@ class Ec2Cloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return EC2(tag="ec2-integration-test")
 
+    def _perform_launch(self, launch_kwargs, **kwargs):
+        """Use a dual-stack VPC for cloud-init integration testing."""
+        launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
+            name="ec2-cloud-init-integration"
+        )
+        pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        return pycloudlib_instance
+
 
 class GceCloud(IntegrationCloud):
     datasource = "gce"
