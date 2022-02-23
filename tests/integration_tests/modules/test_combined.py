@@ -309,10 +309,10 @@ class TestCombined:
         v1_data = data["v1"]
         assert v1_data["cloud_name"] == "aws"
         assert v1_data["platform"] == "ec2"
-        # Different regions will show up as ec2-(gov|china)
-        assert v1_data["cloud_id"].startswith("ec2")
+        # Different regions will show up as aws-(gov|china)
+        assert v1_data["cloud_id"].startswith("aws")
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
-            "/run/cloud-init/cloud-id-ec2"
+            "/run/cloud-init/cloud-id-aws"
         )
         assert v1_data["subplatform"].startswith("metadata")
         assert (
