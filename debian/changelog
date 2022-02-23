@@ -1,5 +1,8 @@
 cloud-init (22.1-1-gb3d9acdd-0ubuntu1~21.10.1) impish; urgency=medium
 
+  * d/patches/retain-apt-partner-pocket.patch:
+    - Jammy dropped commented APT partner pocket. Retain this comment on
+      stable releases.
   * d/apport-launcher.py fix format for unittests
   * d/cloud-init.templates: Move LXD to back of datasource_list
   * New upstream snapshot. (LP: #1961446)
@@ -54,8 +57,6 @@ cloud-init (22.1-1-gb3d9acdd-0ubuntu1~21.10.1) impish; urgency=medium
     - fix parallel tox execution (#1214)
     - sources/azure: refactor _report_ready_if_needed and _poll_imds (#1222)
       [Chris Patterson]
-    - Do not support setting up archive.canonical.com as a source (#1219)
-      [Steve Langasek]
     - Vultr: Fix lo being used for DHCP, try next on cmd fail (#1208) [eb3095]
     - sources/azure: refactor _should_reprovision[_after_nic_attach]() logic
       (#1206) [Chris Patterson]
