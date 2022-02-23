@@ -152,7 +152,7 @@ class TestApt:
             "/etc/apt/sources.list.d/"
             "simplestreams-dev-ubuntu-trunk-{}.list".format(release)
         )
-        host = "launchpad" if release == "jammy" else "launchpadcontent"
+        host = "launchpadcontent" if release == "jammy" else "launchpad"
         assert (
             f"://ppa.{host}.net/simplestreams-dev/trunk/ubuntu"
             in ppa_path_contents
