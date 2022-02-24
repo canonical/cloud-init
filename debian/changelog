@@ -1,4 +1,4 @@
-cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * debian/apport-launcher.py: Fix string and whitespace formatting
   * New upstream snapshot.
