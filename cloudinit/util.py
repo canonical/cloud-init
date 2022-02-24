@@ -1886,7 +1886,7 @@ def is_link(path):
 
 def sym_link(source, link, force=False):
     LOG.debug("Creating symbolic link from %r => %r", link, source)
-    if force and os.path.exists(link):
+    if force and os.path.lexists(link):
         del_file(link)
     os.symlink(source, link)
 
