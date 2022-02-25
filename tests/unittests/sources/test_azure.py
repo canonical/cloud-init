@@ -3,6 +3,7 @@
 import copy
 import crypt
 import json
+import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
@@ -152,8 +153,20 @@ def mock_readurl():
 
 
 @pytest.fixture
+def mock_requests_session_request():
+    with mock.patch("requests.Session.request", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_subp_subp():
     with mock.patch(MOCKPATH + "subp.subp", side_effect=[]) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_url_helper_time_sleep():
+    with mock.patch("cloudinit.url_helper.time.sleep", autospec=True) as m:
         yield m
 
 
@@ -2220,10 +2233,11 @@ scbus-1 on xpt0 bus 0
 
         assert m_get_metadata_from_imds.mock_calls == [
             mock.call(
-                retries=0,
+                retries=10,
                 md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
+                infinite=False,
             ),
             mock.call(
                 retries=10,
@@ -2250,10 +2264,11 @@ scbus-1 on xpt0 bus 0
 
         assert m_get_metadata_from_imds.mock_calls == [
             mock.call(
-                retries=0,
+                retries=10,
                 md_type=dsaz.MetadataType.ALL,
                 api_version="2021-08-01",
                 exc_cb=mock.ANY,
+                infinite=False,
             )
         ]
 
@@ -2942,126 +2957,32 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
         self.paths = helpers.Paths({"cloud_dir": self.tmp})
 
-    @mock.patch(
-        "cloudinit.sources.helpers.netlink.wait_for_nic_detach_event",
-        autospec=True,
-    )
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
-    def test_nic_detach_writes_marker(self, m_writefile, m_detach):
-        """When we detect that a nic gets detached, we write a marker for it"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        nl_sock = mock.MagicMock()
-        dsa._wait_for_nic_detach(nl_sock)
-        m_detach.assert_called_with(nl_sock)
-        self.assertEqual(1, m_detach.call_count)
-        m_writefile.assert_called_with(
-            dsaz.REPROVISION_NIC_DETACHED_MARKER_FILE, mock.ANY
-        )
-
-    @mock.patch(MOCKPATH + "util.write_file", autospec=True)
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
+    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_hot_attached_nics")
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     def test_detect_nic_attach_reports_ready_and_waits_for_detach(
-        self, m_detach, m_report_ready, m_fallback_if, m_writefile
+        self,
+        m_detach,
+        m_wait_for_hot_attached_nics,
+        m_report_ready,
+        m_writefile,
     ):
         """Report ready first and then wait for nic detach"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
         self.assertEqual(1, m_report_ready.call_count)
+        self.assertEqual(1, m_wait_for_hot_attached_nics.call_count)
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
             dsaz.REPORTED_READY_MARKER_FILE, mock.ANY
         )
 
-    @mock.patch("os.path.isfile")
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
+    @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    def test_detect_nic_attach_skips_report_ready_when_marker_present(
-        self, m_detach, m_report_ready, m_dhcp, m_fallback_if, m_isfile
-    ):
-        """Skip reporting ready if we already have a marker file."""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-
-        def isfile(key):
-            return key == dsaz.REPORTED_READY_MARKER_FILE
-
-        m_isfile.side_effect = isfile
-        dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
-        self.assertEqual(0, m_report_ready.call_count)
-        self.assertEqual(0, m_dhcp.call_count)
-        self.assertEqual(1, m_detach.call_count)
-
-    @mock.patch("os.path.isfile")
-    @mock.patch(MOCKPATH + "DataSourceAzure.fallback_interface")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4")
-    @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    def test_detect_nic_attach_skips_nic_detach_when_marker_present(
-        self, m_detach, m_report_ready, m_dhcp, m_fallback_if, m_isfile
-    ):
-        """Skip wait for nic detach if it already happened."""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-
-        m_isfile.return_value = True
-        dsa._wait_for_all_nics_ready()
-        m_fallback_if.return_value = "Dummy interface"
-        self.assertEqual(0, m_report_ready.call_count)
-        self.assertEqual(0, m_dhcp.call_count)
-        self.assertEqual(0, m_detach.call_count)
-
-    @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up", autospec=True)
-    @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
-    @mock.patch("os.path.isfile")
-    def test_wait_for_nic_attach_if_no_fallback_interface(
-        self,
-        m_isfile,
-        m_detach,
-        m_dhcpv4,
-        m_imds,
-        m_fallback_if,
-        m_attach,
-        m_link_up,
-    ):
-        """Wait for nic attach if we do not have a fallback interface"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        lease = {
-            "interface": "eth9",
-            "fixed-address": "192.168.2.9",
-            "routers": "192.168.2.1",
-            "subnet-mask": "255.255.255.0",
-            "unknown-245": "624c3620",
-        }
-
-        m_isfile.return_value = True
-        m_attach.return_value = "eth0"
-        dhcp_ctx = mock.MagicMock(lease=lease)
-        dhcp_ctx.obtain_lease.return_value = lease
-        m_dhcpv4.return_value = dhcp_ctx
-        m_imds.return_value = IMDS_NETWORK_METADATA
-        m_fallback_if.return_value = None
-
-        dsa._wait_for_all_nics_ready()
-
-        self.assertEqual(0, m_detach.call_count)
-        self.assertEqual(1, m_attach.call_count)
-        self.assertEqual(1, m_dhcpv4.call_count)
-        self.assertEqual(1, m_imds.call_count)
-        self.assertEqual(1, m_link_up.call_count)
-        m_link_up.assert_called_with(mock.ANY, "eth0")
-
     @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up")
     @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch(MOCKPATH + "DataSourceAzure.get_imds_data_with_api_fallback")
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
@@ -3072,9 +2993,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_detach,
         m_dhcpv4,
         m_imds,
-        m_fallback_if,
         m_attach,
         m_link_up,
+        m_report_ready,
+        m_writefile,
     ):
         """Wait for nic attach if we do not have a fallback interface"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
@@ -3103,11 +3025,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dhcp_ctx.obtain_lease.return_value = lease
         m_dhcpv4.return_value = dhcp_ctx
         m_imds.side_effect = [md]
-        m_fallback_if.return_value = None
 
         dsa._wait_for_all_nics_ready()
 
-        self.assertEqual(0, m_detach.call_count)
+        self.assertEqual(1, m_detach.call_count)
         self.assertEqual(2, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
         self.assertEqual(1, m_dhcpv4.call_count)
@@ -3720,6 +3641,195 @@ class TestRandomSeed(CiTestCase):
         self.assertEqual(deserialized["seed"], result)
 
 
+def fake_http_error_for_code(status_code: int):
+    response_failure = requests.Response()
+    response_failure.status_code = status_code
+    return requests.exceptions.HTTPError(
+        "fake error",
+        response=response_failure,
+    )
+
+
+@pytest.mark.parametrize(
+    "md_type,expected_url",
+    [
+        (
+            dsaz.MetadataType.ALL,
+            "http://169.254.169.254/metadata/instance?"
+            "api-version=2021-08-01&extended=true",
+        ),
+        (
+            dsaz.MetadataType.NETWORK,
+            "http://169.254.169.254/metadata/instance/network?"
+            "api-version=2021-08-01",
+        ),
+        (
+            dsaz.MetadataType.REPROVISION_DATA,
+            "http://169.254.169.254/metadata/reprovisiondata?"
+            "api-version=2021-08-01",
+        ),
+    ],
+)
+class TestIMDS:
+    def test_basic_scenarios(
+        self, azure_ds, caplog, mock_readurl, md_type, expected_url
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(fake_md).encode()),
+        ]
+
+        md = azure_ds.get_imds_data_with_api_fallback(
+            retries=5,
+            md_type=md_type,
+        )
+
+        assert md == fake_md
+        assert mock_readurl.mock_calls == [
+            mock.call(
+                expected_url,
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=5,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+        ]
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == []
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(404),
+            fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
+            fake_http_error_for_code(500),
+            requests.Timeout("Fake connection timeout"),
+        ],
+    )
+    def test_will_retry_errors(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_requests_session_request.side_effect = [
+            error,
+            mock.Mock(content=json.dumps(fake_md)),
+        ]
+
+        md = azure_ds.get_imds_data_with_api_fallback(
+            retries=5,
+            md_type=md_type,
+        )
+
+        assert md == fake_md
+        assert len(mock_requests_session_request.mock_calls) == 2
+        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == []
+
+    @pytest.mark.parametrize("retries", [0, 1, 5, 10])
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(404),
+            fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
+            fake_http_error_for_code(500),
+            requests.Timeout("Fake connection timeout"),
+        ],
+    )
+    def test_retry_until_failure(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+        retries,
+    ):
+        mock_requests_session_request.side_effect = [error] * (retries + 1)
+
+        assert (
+            azure_ds.get_imds_data_with_api_fallback(
+                retries=retries,
+                md_type=md_type,
+            )
+            == {}
+        )
+
+        assert len(mock_requests_session_request.mock_calls) == (retries + 1)
+        assert (
+            mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * retries
+        )
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == [
+            "Ignoring IMDS instance metadata. "
+            "Get metadata from IMDS failed: %s" % error
+        ]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            fake_http_error_for_code(403),
+            fake_http_error_for_code(501),
+            requests.ConnectionError("Fake Network Unreachable"),
+        ],
+    )
+    def test_will_not_retry_errors(
+        self,
+        azure_ds,
+        caplog,
+        md_type,
+        expected_url,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+        error,
+    ):
+        fake_md = {"foo": {"bar": []}}
+        mock_requests_session_request.side_effect = [
+            error,
+            mock.Mock(content=json.dumps(fake_md)),
+        ]
+
+        assert (
+            azure_ds.get_imds_data_with_api_fallback(
+                retries=5,
+                md_type=md_type,
+            )
+            == {}
+        )
+
+        assert len(mock_requests_session_request.mock_calls) == 1
+        assert mock_url_helper_time_sleep.mock_calls == []
+
+        warnings = [
+            x.message for x in caplog.records if x.levelno == logging.WARNING
+        ]
+        assert warnings == [
+            "Ignoring IMDS instance metadata. "
+            "Get metadata from IMDS failed: %s" % error
+        ]
+
+
 class TestProvisioning:
     @pytest.fixture(autouse=True)
     def provisioning_setup(
@@ -3816,8 +3926,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]
@@ -3886,8 +3996,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
             mock.call(
@@ -3904,8 +4014,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]
@@ -3976,12 +4086,8 @@ class TestProvisioning:
             False,  # /var/lib/cloud/data/poll_imds
             False,  # seed/azure/ovf-env.xml
             False,  # /var/lib/cloud/data/poll_imds
-            False,  # /var/lib/cloud/data/reported_ready
-            False,  # /var/lib/cloud/data/reported_ready
-            False,  # /var/lib/cloud/data/nic_detached
             True,  # /var/lib/cloud/data/reported_ready
         ]
-        self.azure_ds._fallback_interface = False
 
         self.azure_ds._get_data()
 
@@ -3994,9 +4100,6 @@ class TestProvisioning:
             ),
             mock.call("/var/lib/cloud/data/poll_imds"),
             mock.call("/var/lib/cloud/data/reported_ready"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-            mock.call("/var/lib/cloud/data/nic_detached"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
         ]
 
         assert self.mock_readurl.mock_calls == [
@@ -4005,13 +4108,13 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance/network?"
-                "api-version=2019-06-01",
+                "api-version=2021-08-01",
                 timeout=2,
                 headers={"Metadata": "true"},
                 retries=0,
@@ -4032,8 +4135,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=dsaz.retry_on_url_exc,
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
             ),
         ]

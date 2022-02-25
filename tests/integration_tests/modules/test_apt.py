@@ -152,9 +152,10 @@ class TestApt:
             "/etc/apt/sources.list.d/"
             "simplestreams-dev-ubuntu-trunk-{}.list".format(release)
         )
-
         assert (
-            "http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
+            "://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
+            in ppa_path_contents
+            or "://ppa.launchpadcontent.net/simplestreams-dev/trunk/ubuntu"
             in ppa_path_contents
         )
 
@@ -267,9 +268,13 @@ class TestDefaults:
         sources_list = class_client.read_from_file("/etc/apt/sources.list")
 
         # 3 lines from main, universe, and multiverse
-        sec_url = "deb http://security.ubuntu.com/ubuntu"
+        release = ImageSpecification.from_os_image().release
+        sec_url = f"deb http://security.ubuntu.com/ubuntu {release}-security"
         if class_client.settings.PLATFORM == "azure":
-            sec_url = "deb http://azure.archive.ubuntu.com/ubuntu/"
+            sec_url = (
+                f"deb http://azure.archive.ubuntu.com/ubuntu/"
+                f" {release}-security"
+            )
         sec_src_url = sec_url.replace("deb ", "# deb-src ")
         assert 3 == sources_list.count(sec_url)
         assert 3 == sources_list.count(sec_src_url)

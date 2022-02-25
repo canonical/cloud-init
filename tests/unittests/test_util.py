@@ -361,6 +361,52 @@ class TestUtil(CiTestCase):
         self.assertEqual(is_rw, False)
 
 
+class TestSymlink(CiTestCase):
+    def test_sym_link_simple(self):
+        tmpd = self.tmp_dir()
+        link = self.tmp_path("link", tmpd)
+        target = self.tmp_path("target", tmpd)
+        util.write_file(target, "hello")
+
+        util.sym_link(target, link)
+        self.assertTrue(os.path.exists(link))
+        self.assertTrue(os.path.islink(link))
+
+    def test_sym_link_source_exists(self):
+        tmpd = self.tmp_dir()
+        link = self.tmp_path("link", tmpd)
+        target = self.tmp_path("target", tmpd)
+        util.write_file(target, "hello")
+
+        util.sym_link(target, link)
+        self.assertTrue(os.path.exists(link))
+
+        util.sym_link(target, link, force=True)
+        self.assertTrue(os.path.exists(link))
+
+    def test_sym_link_dangling_link(self):
+        tmpd = self.tmp_dir()
+        link = self.tmp_path("link", tmpd)
+        target = self.tmp_path("target", tmpd)
+
+        util.sym_link(target, link)
+        self.assertTrue(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+        util.sym_link(target, link, force=True)
+        self.assertTrue(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+    def test_sym_link_create_dangling(self):
+        tmpd = self.tmp_dir()
+        link = self.tmp_path("link", tmpd)
+        target = self.tmp_path("target", tmpd)
+
+        util.sym_link(target, link)
+        self.assertTrue(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+
 class TestUptime(CiTestCase):
     @mock.patch("cloudinit.util.boottime")
     @mock.patch("cloudinit.util.os.path.exists")

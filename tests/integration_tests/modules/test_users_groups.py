@@ -38,6 +38,10 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     gecos: Magic Cloud App Daemon User
     inactive: true
     system: true
+  - name: eric
+    uid: 1742
+  - name: archivist
+    uid: '1743'
 """
 
 
@@ -75,6 +79,10 @@ class TestUsersGroups:
             ),
             # Test the cloudy user
             (["passwd", "cloudy"], r"cloudy:x:[0-9]{3,4}:"),
+            # Test str uid
+            (["passwd", "eric"], r"eric:x:1742:"),
+            # Test int uid
+            (["passwd", "archivist"], r"archivist:x:1743:"),
         ],
     )
     def test_users_groups(self, regex, getent_args, class_client):

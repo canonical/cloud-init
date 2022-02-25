@@ -529,6 +529,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 if not util.is_group(group):
                     self.create_group(group)
                     LOG.debug("created group '%s' for user '%s'", group, name)
+        if "uid" in kwargs.keys():
+            kwargs["uid"] = str(kwargs["uid"])
 
         # Check the values and create the command
         for key, val in sorted(kwargs.items()):
