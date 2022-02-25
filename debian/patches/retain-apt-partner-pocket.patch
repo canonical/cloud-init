@@ -5,10 +5,8 @@ Forwarded: not-needed
 Last-Update: 2022-02-22
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: cloud-init/templates/sources.list.ubuntu.tmpl
-===================================================================
---- cloud-init.orig/templates/sources.list.ubuntu.tmpl
-+++ cloud-init/templates/sources.list.ubuntu.tmpl
+--- a/templates/sources.list.ubuntu.tmpl
++++ b/templates/sources.list.ubuntu.tmpl
 @@ -43,6 +43,13 @@ deb {{mirror}} {{codename}}-updates mult
  deb {{mirror}} {{codename}}-backports main restricted universe multiverse
  # deb-src {{mirror}} {{codename}}-backports main restricted universe multiverse
