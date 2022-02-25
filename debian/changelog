@@ -1,4 +1,4 @@
-cloud-init (22.1-14-g2e17a0d6-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~20.04.1) focal; urgency=medium
 
   * d/patches/retain-apt-partner-pocket.patch:
     - Jammy dropped commented APT partner pocket. Retain this comment on
