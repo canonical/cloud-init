@@ -639,16 +639,22 @@ def oauth_headers(
     return signed_headers
 
 
-def retry_on_url_exc(msg, exc):
-    """readurl exception_cb that will retry on NOT_FOUND and Timeout.
+def retry_on_url_exc(
+    msg, exc, *, retry_codes=(NOT_FOUND,), retry_instances=(requests.Timeout,)
+):
+    """Configurable retry exception callback for readurl().
 
-    Returns False to raise the exception from readurl, True to retry.
+    :param retry_codes: Codes to retry on. Defaults to 404.
+    :param retry_instances: Exception types to retry on. Defaults to
+      requests.Timeout.
+
+    :returns: False to raise the exception from readurl(), True to retry.
     """
     if not isinstance(exc, UrlError):
         return False
-    if exc.code == NOT_FOUND:
+    if exc.code in retry_codes:
         return True
-    if exc.cause and isinstance(exc.cause, requests.Timeout):
+    if exc.cause and isinstance(exc.cause, retry_instances):
         return True
     return False
 
