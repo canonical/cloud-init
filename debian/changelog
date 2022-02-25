@@ -1,11 +1,4 @@
-cloud-init (22.1-1-gb3d9acdd-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
-
-  * refresh patches:
-   + debian/patches/retain-apt-partner-pocket.patch
-
- -- Brett Holman <brett.holman@canonical.com>  Fri, 25 Feb 2022 11:15:45 -0700
-
-cloud-init (22.1-1-gb3d9acdd-0ubuntu1~18.04.1) bionic; urgency=medium
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * d/patches/retain-apt-partner-pocket.patch:
     - Jammy dropped commented APT partner pocket. Retain this comment on
@@ -17,6 +10,24 @@ cloud-init (22.1-1-gb3d9acdd-0ubuntu1~18.04.1) bionic; urgency=medium
    + debian/patches/openstack-no-network-config.patch
    + debian/patches/renderer-do-not-prefer-netplan.patch
   * New upstream snapshot. (LP: #1961446)
+    - check for existing symlink while force creating symlink (#1281)
+      [Shreenidhi Shedi]
+    - Do not silently ignore integer uid (#1280)
+    - tests: create a IPv4/IPv6 VPC in Ec2 integration tests (#1291)
+    - Integration test fix ppa  (#1296)
+    - tests: on official EC2. cloud-id actually startswith aws not ec2 (#1289)
+    - test_ppa_source: accept both http and https URLs (#1292)
+      [Paride Legovini]
+    - Fix apt test on azure
+    - add "lkundrak" as contributor [Lubomir Rintel]
+    - Holmanb/integration test fix ppa (#1287)
+    - Include missing subcommand in manpage (#1279)
+    - Clean up artifacts from pytest, packaging, release with make clean
+      (#1277)
+    - sources/azure: ensure retries on IMDS request failure (#1271)
+      [Chris Patterson]
+    - sources/azure: removed unused saveable PPS paths (#1268)
+      [Chris Patterson]
     - integration tests: fix Azure failures (#1269)
     - Release 22.1 (#1267)
     - sources/azure: report ready in local phase (#1265) [Chris Patterson]
@@ -185,7 +196,7 @@ cloud-init (22.1-1-gb3d9acdd-0ubuntu1~18.04.1) bionic; urgency=medium
     - testing: stop chef test from running on openstack (#1102)
     - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
 
- -- Brett Holman <brett.holman@canonical.com>  Tue, 22 Feb 2022 16:38:26 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Fri, 25 Feb 2022 11:15:45 -0700
 
 cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
