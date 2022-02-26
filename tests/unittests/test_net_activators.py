@@ -41,18 +41,20 @@ NETPLAN_CALL_LIST = [
 
 @pytest.fixture
 def available_mocks():
-    mocks = namedtuple("Mocks", "m_which, m_file")
+    mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
     with patch("cloudinit.subp.which", return_value=True) as m_which:
         with patch("os.path.isfile", return_value=True) as m_file:
-            yield mocks(m_which, m_file)
+            with patch("os.path.exists", return_value=True) as m_exists:
+                yield mocks(m_which, m_file, m_exists)
 
 
 @pytest.fixture
 def unavailable_mocks():
-    mocks = namedtuple("Mocks", "m_which, m_file")
+    mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
     with patch("cloudinit.subp.which", return_value=False) as m_which:
         with patch("os.path.isfile", return_value=False) as m_file:
-            yield mocks(m_which, m_file)
+            with patch("os.path.exists", return_value=False) as m_exists:
+                yield mocks(m_which, m_file, m_exists)
 
 
 class TestSearchAndSelect:
@@ -113,10 +115,6 @@ NETPLAN_AVAILABLE_CALLS = [
     (("netplan",), {"search": ["/usr/sbin", "/sbin"], "target": None}),
 ]
 
-NETWORK_MANAGER_AVAILABLE_CALLS = [
-    (("nmcli",), {"target": None}),
-]
-
 NETWORKD_AVAILABLE_CALLS = [
     (("ip",), {"search": ["/usr/sbin", "/bin"], "target": None}),
     (("systemctl",), {"search": ["/usr/sbin", "/bin"], "target": None}),
@@ -128,7 +126,6 @@ NETWORKD_AVAILABLE_CALLS = [
     [
         (IfUpDownActivator, IF_UP_DOWN_AVAILABLE_CALLS),
         (NetplanActivator, NETPLAN_AVAILABLE_CALLS),
-        (NetworkManagerActivator, NETWORK_MANAGER_AVAILABLE_CALLS),
         (NetworkdActivator, NETWORKD_AVAILABLE_CALLS),
     ],
 )
@@ -144,8 +141,72 @@ IF_UP_DOWN_BRING_UP_CALL_LIST = [
 ]
 
 NETWORK_MANAGER_BRING_UP_CALL_LIST = [
-    ((["nmcli", "connection", "up", "ifname", "eth0"],), {}),
-    ((["nmcli", "connection", "up", "ifname", "eth1"],), {}),
+    (
+        (
+            [
+                "nmcli",
+                "connection",
+                "load",
+                "".join(
+                    [
+                        "/etc/NetworkManager/system-connections",
+                        "/cloud-init-eth0.nmconnection",
+                    ]
+                ),
+            ],
+        ),
+        {},
+    ),
+    (
+        (
+            [
+                "nmcli",
+                "connection",
+                "up",
+                "filename",
+                "".join(
+                    [
+                        "/etc/NetworkManager/system-connections",
+                        "/cloud-init-eth0.nmconnection",
+                    ]
+                ),
+            ],
+        ),
+        {},
+    ),
+    (
+        (
+            [
+                "nmcli",
+                "connection",
+                "load",
+                "".join(
+                    [
+                        "/etc/NetworkManager/system-connections",
+                        "/cloud-init-eth1.nmconnection",
+                    ]
+                ),
+            ],
+        ),
+        {},
+    ),
+    (
+        (
+            [
+                "nmcli",
+                "connection",
+                "up",
+                "filename",
+                "".join(
+                    [
+                        "/etc/NetworkManager/system-connections",
+                        "/cloud-init-eth1.nmconnection",
+                    ]
+                ),
+            ],
+        ),
+        {},
+    ),
 ]
 
 NETWORKD_BRING_UP_CALL_LIST = [
@@ -169,9 +230,11 @@ class TestActivatorsBringUp:
     def test_bring_up_interface(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
+        index = 0
         activator.bring_up_interface("eth0")
-        assert len(m_subp.call_args_list) == 1
-        assert m_subp.call_args_list[0] == expected_call_list[0]
+        for call in m_subp.call_args_list:
+            assert call == expected_call_list[index]
+            index += 1
 
     @patch("cloudinit.subp.subp", return_value=("", ""))
     def test_bring_up_interfaces(
@@ -208,8 +271,8 @@ IF_UP_DOWN_BRING_DOWN_CALL_LIST = [
 ]
 
 NETWORK_MANAGER_BRING_DOWN_CALL_LIST = [
-    ((["nmcli", "connection", "down", "eth0"],), {}),
-    ((["nmcli", "connection", "down", "eth1"],), {}),
+    ((["nmcli", "device", "disconnect", "eth0"],), {}),
+    ((["nmcli", "device", "disconnect", "eth1"],), {}),
 ]
 
 NETWORKD_BRING_DOWN_CALL_LIST = [
