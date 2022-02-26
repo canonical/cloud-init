@@ -44,6 +44,10 @@ relative ease (newer versions have more data exposed, while maintaining
 backward compatibility with the previous versions).
 Version **2016-09-02** is required for secondary IP address support.
 
+For instance tags support, version **2021-03-23** is required, and the feature
+must be enabled individually on each instance — more information on the `EC2
+user guide <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#work-with-tags-in-IMDS>`_.
+
 To see which versions are supported from your cloud provider use the following
 URL:
 
