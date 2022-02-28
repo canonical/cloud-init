@@ -33,6 +33,6 @@ def handle_part(data, ctype, filename, payload, frequency):
        print(f"my handler is ending, frequency={frequency}")
        return
 
-    print(f"==== received ctype={filename} filename={filename} ====")
+    print(f"==== received ctype={ctype} filename={filename} ====")
     print(payload)
     print(f"==== end ctype={ctype} filename={filename}")
