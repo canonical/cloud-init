@@ -27,12 +27,12 @@ def handle_part(data, ctype, filename, payload, frequency):
     #            will be invoked only on the first boot.  'always' will
     #            will be called on subsequent boots.
     if ctype == "__begin__":
-       print("my handler is beginning, frequency={frequency}")
+       print(f"my handler is beginning, frequency={frequency}")
        return
     if ctype == "__end__":
-       print("my handler is ending, frequency={frequency}")
+       print(f"my handler is ending, frequency={frequency}")
        return
 
-    print("==== received ctype={filename} filename={filename} ====")
+    print(f"==== received ctype={filename} filename={filename} ====")
     print(payload)
     print(f"==== end ctype={ctype} filename={filename}")

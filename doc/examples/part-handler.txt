@@ -17,6 +17,6 @@ def handle_part(data, ctype, filename, payload):
        print("my handler is ending")
        return
 
-    print("==== received ctype=%s filename=%s ====" % (ctype, filename))
+    print(f"==== received ctype={ctype} filename={filename} ====")
     print(payload)
-    print("==== end ctype=%s filename=%s" % (ctype, filename))
+    print(f"==== end ctype={ctype} filename={filename}")
