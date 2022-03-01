@@ -34,12 +34,12 @@ from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
-    WALinuxAgentShim,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     build_minimal_ovf,
     dhcp_log_cb,
     get_boot_telemetry,
+    get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
     is_byte_swapped,
@@ -429,10 +429,8 @@ class DataSourceAzure(sources.DataSource):
 
                 # Update wireserver IP from DHCP options.
                 if "unknown-245" in lease:
-                    self._wireserver_endpoint = (
-                        WALinuxAgentShim.get_ip_from_lease_value(
-                            lease["unknown-245"]
-                        )
+                    self._wireserver_endpoint = get_ip_from_lease_value(
+                        lease["unknown-245"]
                     )
 
     @azure_ds_telemetry_reporter

@@ -315,6 +315,20 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
+def get_ip_from_lease_value(fallback_lease_value):
+    unescaped_value = fallback_lease_value.replace("\\", "")
+    if len(unescaped_value) > 4:
+        hex_string = ""
+        for hex_pair in unescaped_value.split(":"):
+            if len(hex_pair) == 1:
+                hex_pair = "0" + hex_pair
+            hex_string += hex_pair
+        packed_bytes = struct.pack(">L", int(hex_string.replace(":", ""), 16))
+    else:
+        packed_bytes = unescaped_value.encode("utf-8")
+    return socket.inet_ntoa(packed_bytes)
+
+
 @azure_ds_telemetry_reporter
 def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
     """Wrapper around url_helper.readurl() with custom telemetry logging
@@ -798,22 +812,6 @@ class WALinuxAgentShim:
     def clean_up(self):
         if self.openssl_manager is not None:
             self.openssl_manager.clean_up()
-
-    @staticmethod
-    def get_ip_from_lease_value(fallback_lease_value):
-        unescaped_value = fallback_lease_value.replace("\\", "")
-        if len(unescaped_value) > 4:
-            hex_string = ""
-            for hex_pair in unescaped_value.split(":"):
-                if len(hex_pair) == 1:
-                    hex_pair = "0" + hex_pair
-                hex_string += hex_pair
-            packed_bytes = struct.pack(
-                ">L", int(hex_string.replace(":", ""), 16)
-            )
-        else:
-            packed_bytes = unescaped_value.encode("utf-8")
-        return socket.inet_ntoa(packed_bytes)
 
     @azure_ds_telemetry_reporter
     def eject_iso(self, iso_dev) -> None:
