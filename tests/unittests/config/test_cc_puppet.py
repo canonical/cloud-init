@@ -10,10 +10,13 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 
+@mock.patch("cloudinit.config.cc_puppet.subp.which")
 @mock.patch("cloudinit.config.cc_puppet.subp.subp")
 @mock.patch("cloudinit.config.cc_puppet.os")
 class TestAutostartPuppet(CiTestCase):
-    def test_wb_autostart_puppet_updates_puppet_default(self, m_os, m_subp):
+    def test_wb_autostart_puppet_updates_puppet_default(
+        self, m_os, m_subp, m_subpw
+    ):
         """Update /etc/default/puppet to autostart if it exists."""
 
         def _fake_exists(path):
@@ -37,27 +40,28 @@ class TestAutostartPuppet(CiTestCase):
             m_subp.call_args_list,
         )
 
-    def test_wb_autostart_pupppet_enables_puppet_systemctl(self, m_os, m_subp):
+    def test_wb_autostart_pupppet_enables_puppet_systemctl(
+        self, m_os, m_subp, m_subpw
+    ):
         """If systemctl is present, enable puppet via systemctl."""
 
-        def _fake_exists(path):
-            return path == "/bin/systemctl"
-
-        m_os.path.exists.side_effect = _fake_exists
+        m_os.path.exists.return_value = False
+        m_subpw.return_value = "/usr/bin/systemctl"
         cc_puppet._autostart_puppet(LOG)
         expected_calls = [
-            mock.call(
-                ["/bin/systemctl", "enable", "puppet.service"], capture=False
-            )
+            mock.call(["systemctl", "enable", "puppet.service"], capture=False)
         ]
         self.assertEqual(expected_calls, m_subp.call_args_list)
 
-    def test_wb_autostart_pupppet_enables_puppet_chkconfig(self, m_os, m_subp):
+    def test_wb_autostart_pupppet_enables_puppet_chkconfig(
+        self, m_os, m_subp, m_subpw
+    ):
         """If chkconfig is present, enable puppet via checkcfg."""
 
         def _fake_exists(path):
             return path == "/sbin/chkconfig"
 
+        m_subpw.return_value = None
         m_os.path.exists.side_effect = _fake_exists
         cc_puppet._autostart_puppet(LOG)
         expected_calls = [
