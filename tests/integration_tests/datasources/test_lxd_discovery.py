@@ -9,9 +9,34 @@ from tests.integration_tests.util import verify_clean_log
 
 
 def _customize_envionment(client: IntegrationInstance):
+    # Assert our platform can detect LXD during sytemd generator timeframe.
+    ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
+    assert "check for 'LXD' returned found" in ds_id_log
+
+    # At some point Jammy will fail this test. We want to be informed
+    # when Jammy images no longer ship NoCloud template files (LP: #1958460).
+    assert "check for 'NoCloud' returned found" in ds_id_log
+    if client.settings.PLATFORM == "lxd_vm":
+        # ds-identify runs at systemd generator time before /dev/lxd/sock.
+        # Assert we can expected artifact which indicates LXD is viable.
+        result = client.execute("cat /sys/class/dmi/id/board_name")
+        if not result.ok:
+            raise AssertionError(
+                "Missing expected /sys/class/dmi/id/board_name"
+            )
+        if "LXD" != result.stdout:
+            raise AssertionError(f"DMI board_name is not LXD: {result.stdout}")
+
+    # Having multiple datasources prevents ds-identify from short-circuiting
+    # detection logic with a log like:
+    #     single entry in datasource_list (LXD) use that.
+    # Also, NoCloud is detected during init-local timeframe.
+
+    # If there is a race on VMs where /dev/lxd/sock is not setup in init-local
+    # cloud-init will fallback to NoCloud and fail this test.
     client.write_to_file(
-        "/etc/cloud/cloud.cfg.d/99-detect-lxd.cfg",
-        "datasource_list: [LXD]\n",
+        "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
+        "datasource_list: [LXD, NoCloud]\n",
     )
     client.execute("cloud-init clean --logs")
     client.restart()
@@ -24,9 +49,9 @@ def _customize_envionment(client: IntegrationInstance):
 @pytest.mark.ubuntu  # Because netplan
 def test_lxd_datasource_discovery(client: IntegrationInstance):
     """Test that DataSourceLXD is detected instead of NoCloud."""
+
     _customize_envionment(client)
-    nic_dev = "enp5s0" if client.settings.PLATFORM == "lxd_vm" else "eth0"
-    result = client.execute("cloud-init status --long")
+    result = client.execute("cloud-init status --wait --long")
     if not result.ok:
         raise AssertionError("cloud-init failed:\n%s", result.stderr)
     if "DataSourceLXD" not in result.stdout:
@@ -35,6 +60,9 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
         )
     netplan_yaml = client.execute("cat /etc/netplan/50-cloud-init.yaml")
     netplan_cfg = yaml.safe_load(netplan_yaml)
+
+    platform = client.settings.PLATFORM
+    nic_dev = "eth0" if platform == "lxd_container" else "enp5s0"
     assert {
         "network": {"ethernets": {nic_dev: {"dhcp4": True}}, "version": 2}
     } == netplan_cfg

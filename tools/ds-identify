@@ -806,7 +806,15 @@ dscheck_MAAS() {
 # LXD datasource requires active /dev/lxd/sock
 # https://linuxcontainers.org/lxd/docs/master/dev-lxd
 dscheck_LXD() {
-    [ -S /dev/lxd/sock ] && return ${DS_FOUND} || return ${DS_NOT_FOUND}
+    [ -S /dev/lxd/sock ] && return ${DS_FOUND}
+    # On LXD KVM instances, /dev/lxd/sock is not yet setup by
+    # lxd-agent-loader's systemd lxd-agent.service.
+    # Rely on DMI product information that is present on all LXD images.
+    if [ "$DI_VIRT" = "kvm" ]; then
+        get_dmi_field board_name
+        [ "$_RET" = "LXD" ] && return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
 }
 
 dscheck_NoCloud() {
