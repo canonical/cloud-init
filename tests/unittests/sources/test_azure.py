@@ -14,6 +14,7 @@ import requests
 import yaml
 
 from cloudinit import distros, helpers, url_helper
+from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
@@ -75,6 +76,15 @@ def mock_azure_report_failure_to_fabric():
 
 
 @pytest.fixture
+def mock_time():
+    with mock.patch(
+        MOCKPATH + "time",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
@@ -84,6 +94,15 @@ def mock_dmi_read_dmi_data():
     with mock.patch(
         MOCKPATH + "dmi.read_dmi_data",
         side_effect=fake_read,
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_ephemeral_dhcp_v4():
+    with mock.patch(
+        MOCKPATH + "EphemeralDHCPv4",
         autospec=True,
     ) as m:
         yield m
@@ -155,6 +174,15 @@ def mock_readurl():
 @pytest.fixture
 def mock_requests_session_request():
     with mock.patch("requests.Session.request", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_sleep():
+    with mock.patch(
+        MOCKPATH + "sleep",
+        autospec=True,
+    ) as m:
         yield m
 
 
@@ -3639,6 +3667,147 @@ class TestRandomSeed(CiTestCase):
             self.fail("Non-serializable random seed returned")
 
         self.assertEqual(deserialized["seed"], result)
+
+
+class TestEphemeralNetworking:
+    @pytest.mark.parametrize("iface", [None, "fakeEth0"])
+    @pytest.mark.parametrize(
+        "lease",
+        [
+            {
+                "interface": "fakeEth0",
+                "unknown-245": "00:11:22:33",
+            },
+            {"interface": "fakeEth0"},
+        ],
+    )
+    def test_basic_setup(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        iface,
+        lease,
+    ):
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
+
+        azure_ds._setup_ephemeral_networking(iface=iface)
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=iface, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == []
+        assert azure_ds._wireserver_endpoint == lease.get(
+            "unknown-245", "a8:3f:81:10"
+        )
+        assert azure_ds._ephemeral_dhcp_ctx.iface == lease["interface"]
+
+    def test_no_retry_missing_dhclient_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+    ):
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseMissingDhclientError
+        ]
+
+        with pytest.raises(dhcp.NoDHCPLeaseMissingDhclientError):
+            azure_ds._setup_ephemeral_networking()
+
+        assert azure_ds._ephemeral_dhcp_ctx is None
+
+    def test_retry_interface_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseInterfaceError,
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == [mock.call(1)]
+        assert azure_ds._wireserver_endpoint == "a8:3f:81:10"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+    @pytest.mark.parametrize(
+        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+    )
+    def test_retry_sleeps(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        error_class,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            error_class()
+        ] * 10 + [lease]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert (
+            mock_ephemeral_dhcp_v4.mock_calls
+            == [
+                mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            ]
+            + [mock.call().obtain_lease()] * 11
+        )
+        assert mock_sleep.mock_calls == [mock.call(1)] * 10
+        assert azure_ds._wireserver_endpoint == "a8:3f:81:10"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+    @pytest.mark.parametrize(
+        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+    )
+    def test_retry_times_out(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        mock_time,
+        error_class,
+    ):
+        mock_time.side_effect = [
+            0.0,  # start
+            60.1,  # first
+            120.1,  # third
+            180.1,  # timeout
+        ]
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            error_class()
+        ] * 10 + [
+            {
+                "interface": "fakeEth0",
+            }
+        ]
+
+        with pytest.raises(dhcp.NoDHCPLeaseError):
+            azure_ds._setup_ephemeral_networking(timeout_minutes=3)
+
+        assert (
+            mock_ephemeral_dhcp_v4.return_value.mock_calls
+            == [mock.call.obtain_lease()] * 3
+        )
+        assert mock_sleep.mock_calls == [mock.call(1)] * 2
+        assert azure_ds._wireserver_endpoint == "a8:3f:81:10"
+        assert azure_ds._ephemeral_dhcp_ctx is None
 
 
 def fake_http_error_for_code(status_code: int):

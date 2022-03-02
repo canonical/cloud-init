@@ -6,7 +6,6 @@
 
 import base64
 import crypt
-import datetime
 import functools
 import os
 import os.path
@@ -24,7 +23,12 @@ from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import (
+    EphemeralDHCPv4,
+    NoDHCPLeaseError,
+    NoDHCPLeaseInterfaceError,
+    NoDHCPLeaseMissingDhclientError,
+)
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
@@ -358,7 +362,11 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def _setup_ephemeral_networking(
-        self, *, iface: Optional[str] = None, timeout_minutes: int = 5
+        self,
+        *,
+        iface: Optional[str] = None,
+        retry_sleep: int = 1,
+        timeout_minutes: int = 5,
     ) -> None:
         """Setup ephemeral networking.
 
@@ -376,30 +384,46 @@ class DataSourceAzure(sources.DataSource):
             )
 
         LOG.debug("Requested ephemeral networking (iface=%s)", iface)
-
-        start = datetime.datetime.utcnow()
-        timeout = start + datetime.timedelta(minutes=timeout_minutes)
-
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             iface=iface, dhcp_log_func=dhcp_log_cb
         )
 
         lease = None
+        timeout = timeout_minutes * 60 + time()
         with events.ReportEventStack(
             name="obtain-dhcp-lease",
             description="obtain dhcp lease",
             parent=azure_ds_reporter,
         ):
-            while datetime.datetime.utcnow() < timeout:
+            while lease is None:
                 try:
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
-                    break
+                except NoDHCPLeaseInterfaceError:
+                    # Interface not found, continue after sleeping 1 second.
+                    report_diagnostic_event(
+                        "Interface not found for DHCP", logger_func=LOG.warning
+                    )
+                except NoDHCPLeaseMissingDhclientError:
+                    # No dhclient, no point in retrying.
+                    report_diagnostic_event(
+                        "dhclient executable not found", logger_func=LOG.error
+                    )
+                    self._ephemeral_dhcp_ctx = None
+                    raise
                 except NoDHCPLeaseError:
-                    continue
+                    # Typical DHCP failure, continue after sleeping 1 second.
+                    report_diagnostic_event(
+                        "Failed to obtain DHCP lease (iface=%s)" % iface,
+                        logger_func=LOG.error,
+                    )
+
+                # Sleep before retrying, otherwise break if we're past timeout.
+                if lease is None and time() + retry_sleep < timeout:
+                    sleep(retry_sleep)
+                else:
+                    break
 
             if lease is None:
-                msg = "Failed to obtain DHCP lease (iface=%s)" % iface
-                report_diagnostic_event(msg, logger_func=LOG.error)
                 self._ephemeral_dhcp_ctx = None
                 raise NoDHCPLeaseError()
             else:
