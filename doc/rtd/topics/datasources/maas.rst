@@ -3,8 +3,4 @@
 MAAS
 ====
 
-*TODO*
-
 For now see: https://maas.io/docs
-
-
