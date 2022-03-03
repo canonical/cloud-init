@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 from errno import ENOEXEC
-from typing import Any, Tuple
 
 LOG = logging.getLogger(__name__)
 
@@ -168,7 +167,7 @@ def subp(
     update_env=None,
     status_cb=None,
     cwd=None,
-) -> Tuple[Any, Any]:
+):
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
