@@ -38,6 +38,8 @@ application::
   It is typically located at ``/var/lib`` but there are certain configuration
   scenarios where this can be altered.
 
+.. TODO: expand this section
+
 ``data/``
 
   Contains information related to instance ids, datasources and hostnames of
