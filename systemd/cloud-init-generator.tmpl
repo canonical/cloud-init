@@ -101,11 +101,9 @@ check_for_datasource() {
     debug 1 "ds-identify rc=$ds_rc"
     if [ "$ds_rc" = "0" ]; then
         _RET="$FOUND"
-        debug 1 "ds-identify _RET=$_RET"
         return 0
     fi
     _RET="$NOTFOUND"
-    debug 1 "ds-identify _RET=$_RET"
     return 1
 }
 
