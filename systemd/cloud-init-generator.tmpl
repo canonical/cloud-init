@@ -10,14 +10,23 @@ DISABLE="disabled"
 FOUND="found"
 NOTFOUND="notfound"
 RUN_ENABLED_FILE="$LOG_D/$ENABLE"
+CLOUD_TARGET_NAME="cloud-init.target"
+# lxc sets 'container', but lets make that explicitly a global
+CONTAINER="${container}"
+
+# start: template section
 {% if variant in ["suse"] %}
 CLOUD_SYSTEM_TARGET="/usr/lib/systemd/system/cloud-init.target"
 {% else %}
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 {% endif %}
-CLOUD_TARGET_NAME="cloud-init.target"
-# lxc sets 'container', but lets make that explicitly a global
-CONTAINER="${container}"
+{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
+                  "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+    dsidentify="/usr/libexec/cloud-init/ds-identify"
+{% else %}
+    dsidentify="/usr/lib/cloud-init/ds-identify"
+{% endif %}
+# end: template section
 
 debug() {
     local lvl="$1"
@@ -83,12 +92,6 @@ default() {
 
 check_for_datasource() {
     local ds_rc=""
-{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora", 
-                  "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
-    local dsidentify="/usr/libexec/cloud-init/ds-identify"
-{% else %}
-    local dsidentify="/usr/lib/cloud-init/ds-identify"
-{% endif %}
     if [ ! -x "$dsidentify" ]; then
         debug 1 "no ds-identify in $dsidentify. _RET=$FOUND"
         return 0
