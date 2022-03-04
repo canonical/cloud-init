@@ -241,7 +241,7 @@ FINAL_INTERFACE_USED = ""
 
 # Static override, pylint doesnt like this in
 # classes without self
-def check_route():
+def check_route(url):
     if FINAL_INTERFACE_USED == "eth0":
         return True
     return False

@@ -28,7 +28,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
                 iface=iface[0], connectivity_url_data={"url": url}
             ):
                 # Check for the metadata route, skip if not there
-                if not check_route():
+                if not check_route(url):
                     continue
 
                 # Fetch the metadata
@@ -65,7 +65,7 @@ def get_interface_list():
 
 # Check for /32 route that our dhcp servers inject
 # in order to determine if this a customer-run dhcp server
-def check_route():
+def check_route(url):
     # Get routes, confirm entry exists
     routes = netinfo.route_info()
 
@@ -75,7 +75,7 @@ def check_route():
 
     # Parse each route into a more searchable format
     for route in routes["ipv4"]:
-        if "169.254.169.254" in route["destination"]:
+        if route.get("destination", None) in url:
             return True
 
     return False
@@ -168,7 +168,7 @@ def generate_network_config(interfaces):
         interface = interfaces[i]
 
         # Skip interfaces set not to be configured
-        if "unconfigured" in interface and interface["unconfigured"]:
+        if interface.get("unconfigured"):
             continue
 
         private = generate_interface(interface)
