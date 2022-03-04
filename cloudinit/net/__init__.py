@@ -389,7 +389,9 @@ def is_disabled_cfg(cfg):
     return cfg.get("config") == "disabled"
 
 
-def find_candidate_nics(blacklist_drivers: Optional[List] = None) -> List[str]:
+def find_candidate_nics(
+    blacklist_drivers: Optional[List[str]] = None,
+) -> List[str]:
     """Get the list of network interfaces viable for networking.
 
     @return List of interfaces, sorted naturally.
@@ -403,7 +405,7 @@ def find_candidate_nics(blacklist_drivers: Optional[List] = None) -> List[str]:
 
 
 def find_fallback_nic(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Get the name of the 'fallback' network device."""
     if util.is_FreeBSD() or util.is_DragonFlyBSD():
@@ -415,7 +417,7 @@ def find_fallback_nic(
 
 
 def find_candidate_nics_on_netbsd_or_openbsd(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> List[str]:
     """Get the names of the candidate network devices on NetBSD/OpenBSD.
 
@@ -426,7 +428,7 @@ def find_candidate_nics_on_netbsd_or_openbsd(
 
 
 def find_fallback_nic_on_netbsd_or_openbsd(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Get the 'fallback' network device name on NetBSD/OpenBSD.
 
@@ -441,7 +443,7 @@ def find_fallback_nic_on_netbsd_or_openbsd(
 
 
 def find_candidate_nics_on_freebsd(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> List[str]:
     """Get the names of the candidate network devices on FreeBSD.
 
@@ -459,7 +461,7 @@ def find_candidate_nics_on_freebsd(
 
 
 def find_fallback_nic_on_freebsd(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Get the 'fallback' network device name on FreeBSD.
 
@@ -474,7 +476,7 @@ def find_fallback_nic_on_freebsd(
 
 
 def find_candidate_nics_on_linux(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> List[str]:
     """Get the names of the candidate network devices on Linux.
 
@@ -564,7 +566,7 @@ def find_candidate_nics_on_linux(
 
 
 def find_fallback_nic_on_linux(
-    blacklist_drivers: Optional[List] = None,
+    blacklist_drivers: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Get the 'fallback' network device name on Linux.
 
