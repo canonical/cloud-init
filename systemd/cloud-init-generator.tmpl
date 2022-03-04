@@ -5,6 +5,7 @@ set -f
 LOG=""
 DEBUG_LEVEL=1
 LOG_D="/run/cloud-init"
+LOG_F="/run/cloud-init/cloud-init-generator.log"
 ENABLE="enabled"
 DISABLE="disabled"
 FOUND="found"
@@ -33,9 +34,8 @@ debug() {
     shift
     [ "$lvl" -gt "$DEBUG_LEVEL" ] && return
     if [ -z "$LOG" ]; then
-        local log="$LOG_D/${0##*/}.log"
         { [ -d "$LOG_D" ] || mkdir -p "$LOG_D"; } &&
-            { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
+            { : > "$LOG_F"; } >/dev/null 2>&1 && LOG="$LOG_F" ||
             LOG="/dev/kmsg"
     fi
     echo "$@" >> "$LOG"
