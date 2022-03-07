@@ -12,7 +12,7 @@ import copy
 import json
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, wait, ALL_COMPLETED
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
@@ -404,9 +404,9 @@ def dual_stack(
 
         # handle the first function to complete from the threadpool executor
         future = next(as_completed(futures, timeout=timeout))
+        wait(futures, return_when=ALL_COMPLETED)
 
         returned_address = futures[future]
-        return_result = future.result()
         return_exception = future.exception()
         if return_exception:
             LOG.warning(
@@ -415,7 +415,8 @@ def dual_stack(
                 returned_address,
             )
             raise return_exception
-        elif not return_result:
+        return_result = future.result()
+        if not return_result:
             LOG.warning("Empty result for address %s", returned_address)
 
     # when max_wait expires
@@ -432,6 +433,7 @@ def dual_stack(
             )
         except TypeError:  # no cancel_futures support
             executor.shutdown(wait=False)
+
     return (returned_address, return_result)
 
 

@@ -3,12 +3,13 @@
 import logging
 from functools import partial
 from threading import Event
-from time import process_time
+from time import process_time, sleep
 from unittest.mock import call
 
 import httpretty
 import pytest
 import requests
+import responses
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -385,11 +386,13 @@ class TestUrlHelper:
     event = Event()
 
     @classmethod
-    def response(cls, _, uri, response_headers):
-        if uri in (SLEEP1, SLEEP2):
-            cls.event.wait(1)
-            return [500, response_headers, cls.fail]
-        return [200, response_headers, cls.success]
+    def response_wait(cls, _request):
+        cls.event.wait(0.1)
+        return (500, {'request-id': '1'}, cls.fail)
+
+    @classmethod
+    def response_nowait(cls, _request):
+        return (200, {'request-id': '0'}, cls.success)
 
     @pytest.mark.parametrize(
         "addresses," "expected_address_index," "response,",
@@ -401,7 +404,7 @@ class TestUrlHelper:
             ((ADDR1, SLEEP1, SLEEP2), 0, "SUCCESS"),
         ],
     )
-    @httpretty.activate
+    @responses.activate
     def test_order(self, addresses, expected_address_index, response):
         """Check that the first response gets returned. Simulate a
         non-responding endpoint with a response that has a one second wait.
@@ -414,7 +417,14 @@ class TestUrlHelper:
         received.
         """
         for address in set(addresses):
-            httpretty.register_uri(httpretty.GET, address, body=self.response)
+            responses.add_callback(
+                responses.GET,
+                address,
+                callback=(
+                    self.response_wait if "sleep" in address else
+                    self.response_nowait),
+                content_type='application/json'
+            )
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
         # In practice a value such as 0.150 is used
@@ -432,19 +442,26 @@ class TestUrlHelper:
         assert addresses[expected_address_index] == url
         assert response.encode() == response_contents
 
-    @httpretty.activate
+    @responses.activate
     def test_timeout(self):
         """If no endpoint responds in time, expect no response"""
 
         addresses = [SLEEP1, SLEEP2]
         for address in set(addresses):
-            httpretty.register_uri(httpretty.GET, address, body=self.response)
+            responses.add_callback(
+                responses.GET,
+                address,
+                callback=(
+                    self.response_wait if "sleep" in address else
+                    self.response_nowait),
+                content_type='application/json'
+            )
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
         url, response_contents = wait_for_url(
             urls=addresses,
-            max_wait=0,
-            timeout=0,
+            max_wait=1,
+            timeout=1,
             connect_synchronously=False,
             async_delay=0,
         )
