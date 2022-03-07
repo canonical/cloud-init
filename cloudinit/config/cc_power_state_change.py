@@ -29,9 +29,7 @@ package installation/upgrade requires a system reboot (e.g. installing a new
 kernel) and ``package_reboot_if_required`` is true.
 
 Using this module ensures that cloud-init is entirely finished with
-modules that would be executed, and avoids any error/log messages
-that may go to the console as a result of system services like
-syslog being taken down while cloud-init is running.
+modules that would be executed.
 
 An example to distinguish delay from timeout:
 

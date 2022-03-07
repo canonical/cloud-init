@@ -176,8 +176,18 @@ class TestPowerStateChangeSchema:
             ({"power_state": {"mode": "halt", "delay": "5"}}, None),
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
             ({"power_state": {"mode": "halt", "delay": "+5"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "++5"}}, ""),
             ({"power_state": {"mode": "halt", "delay": "-5"}}, ""),
             ({"power_state": {"mode": "halt", "delay": "test"}}, ""),
+            # Condition
+            ({"power_state": {"mode": "halt", "condition": False}}, None),
+            ({"power_state": {"mode": "halt", "condition": "ls /tmp"}}, None),
+            (
+                {"power_state": {"mode": "halt", "condition": ["ls", "/tmp"]}},
+                None,
+            ),
+            ({"power_state": {"mode": "halt", "condition": 5}}, ""),
         ],
     )
     def test_schema_validation(self, config, error_msg):
