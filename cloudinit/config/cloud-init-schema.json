@@ -571,7 +571,7 @@
             "package_reboot_if_required": {
                 "type": "boolean",
                 "default": false,
-                "description": "Set ``true`` to reboot the system if required. Default: ``false``"
+                "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
             },
             "apt_update": {
                 "type": "boolean",
