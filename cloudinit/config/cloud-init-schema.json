@@ -644,7 +644,7 @@
               "description": "Time in minutes to delay after cloud-init has finished. Can be ``now`` or an integer specifying the number of minutes to delay. Default: ``now``",
               "default": "now",
               "oneOf": [
-                {"type": "integer"},
+                {"type": "integer", "minimum": 0},
                 {"type": "string", "pattern": "^\\+*[0-9]+$"},
                 {"enum": ["now"]}
               ]
