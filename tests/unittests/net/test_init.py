@@ -5,6 +5,7 @@ import errno
 import ipaddress
 import os
 import textwrap
+from pathlib import Path
 from typing import Optional
 from unittest import mock
 
@@ -441,8 +442,8 @@ class TestNetFindCandidateNics:
             (device_path / "driver").symlink_to(driver)
 
     @pytest.fixture(autouse=True)
-    def setup(self, monkeypatch, tmp_path):
-        self.sys_path = tmp_path / "sys"
+    def setup(self, monkeypatch, tmpdir):
+        self.sys_path = Path(tmpdir) / "sys"
         monkeypatch.setattr(
             net, "get_sys_class_path", lambda: str(self.sys_path) + "/"
         )
