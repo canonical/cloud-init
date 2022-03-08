@@ -6,17 +6,38 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Landscape
----------
-**Summary:** install and configure landscape client
+"""install and configure landscape client"""
 
+import os
+from io import BytesIO
+from textwrap import dedent
+
+from configobj import ConfigObj
+
+from cloudinit import subp, type_utils, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+LSC_CLIENT_CFG_FILE = "/etc/landscape/client.conf"
+LS_DEFAULT_FILE = "/etc/default/landscape-client"
+
+# defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
+LSC_BUILTIN_CFG = {
+    "client": {
+        "log_level": "info",
+        "url": "https://landscape.canonical.com/message-system",
+        "ping_url": "http://landscape.canonical.com/ping",
+        "data_path": "/var/lib/landscape/client",
+    }
+}
+
+MODULE_DESCRIPTION = """\
 This module installs and configures ``landscape-client``. The landscape client
 will only be installed if the key ``landscape`` is present in config. Landscape
 client configuration is given under the ``client`` key under the main
 ``landscape`` config key. The config parameters are not interpreted by
 cloud-init, but rather are converted into a ConfigObj formatted file and
-written out to ``/etc/landscape/client.conf``.
+written out to the `[client]` section in ``/etc/landscape/client.conf``.
 
 The following default client config is provided, but can be overridden::
 
@@ -33,52 +54,46 @@ The following default client config is provided, but can be overridden::
 .. note::
     if ``tags`` is defined, its contents should be a string delimited with
     ``,`` rather than a list
-
-**Internal name:** ``cc_landscape``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu
-
-**Config keys**::
-
-    landscape:
-        client:
-            url: "https://landscape.canonical.com/message-system"
-            ping_url: "http://landscape.canonical.com/ping"
-            data_path: "/var/lib/landscape/client"
-            http_proxy: "http://my.proxy.com/foobar"
-            https_proxy: "https://my.proxy.com/foobar"
-            tags: "server,cloud"
-            computer_title: "footitle"
-            registration_key: "fookey"
-            account_name: "fooaccount"
 """
-
-import os
-from io import BytesIO
-
-from configobj import ConfigObj
-
-from cloudinit import subp, type_utils, util
-from cloudinit.settings import PER_INSTANCE
-
-frequency = PER_INSTANCE
-
-LSC_CLIENT_CFG_FILE = "/etc/landscape/client.conf"
-LS_DEFAULT_FILE = "/etc/default/landscape-client"
-
 distros = ["ubuntu"]
 
-# defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
-LSC_BUILTIN_CFG = {
-    "client": {
-        "log_level": "info",
-        "url": "https://landscape.canonical.com/message-system",
-        "ping_url": "http://landscape.canonical.com/ping",
-        "data_path": "/var/lib/landscape/client",
-    }
+meta: MetaSchema = {
+    "id": "cc_landscape",
+    "name": "Landscape",
+    "title": "Install and configure landscape client",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
+            # To discover additional supported client keys, run
+            # man landscape-config.
+            landscape:
+                client:
+                    url: "https://landscape.canonical.com/message-system"
+                    ping_url: "http://landscape.canonical.com/ping"
+                    data_path: "/var/lib/landscape/client"
+                    http_proxy: "http://my.proxy.com/foobar"
+                    https_proxy: "https://my.proxy.com/foobar"
+                    tags: "server,cloud"
+                    computer_title: "footitle"
+                    registration_key: "fookey"
+                    account_name: "fooaccount"
+            """
+        ),
+        dedent(
+            """\
+            # Any keys below `client` are optional and the default values will
+            # be used.
+            landscape:
+                client: {}
+            """
+        ),
+    ],
+    "frequency": PER_INSTANCE,
 }
+
+__doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -102,6 +117,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     cloud.distro.install_packages(("landscape-client",))
 
+    # Later order config values override earlier values
     merge_data = [
         LSC_BUILTIN_CFG,
         LSC_CLIENT_CFG_FILE,

@@ -1067,8 +1067,69 @@
         }
       }
     },
-    "cc_locale": {
+    "cc_landscape": {
       "type": "object",
+      "properties": {
+        "landscape": {
+          "type": "object",
+          "required": ["client"],
+          "properties": {
+            "client": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/message-system",
+                  "description": "The Landscape server URL to connect to. Default: ``https://landscape.canonical.com/message-system``."
+                },
+                "ping_url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/ping",
+                  "description": "The URL to perform lightweight exchange initiation with. Default: ``https://landscape.canonical.com/ping``."
+                },
+                "data_path": {
+                  "type": "string",
+                  "default": "/var/lib/landscape/client",
+                  "description": "The directory to store data files in. Default: ``/var/lib/land‐scape/client/``."
+                },
+                "log_level": {
+                  "type": "string",
+                  "default": "info",
+                  "enum": ["debug", "info", "warning", "error", "critical"],
+                  "description": "The log level for the client. Default: ``info``."
+                },
+                "computer_tite": {
+                  "type": "string",
+                  "description": "The title of this computer."
+                },
+                "account_name": {
+                  "type": "string",
+                  "description": "The account this computer belongs to."
+                },
+                "registration_key": {
+                  "type": "string",
+                  "description": "The account-wide key used for registering clients."
+                },
+                "tags": {
+                  "type": "string",
+                  "pattern": "^[-_0-9a-zA-Z]+(,[-_0-9a-zA-Z]+)*$",
+                  "description": "Comma separated list of tag names to be sent to the server."
+                },
+                "http_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTP proxy, if one is needed."
+                },
+                "https_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTPS proxy, if one is needed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_locale": {
       "properties": {
         "locale": {
           "type": "string",
@@ -1199,6 +1260,7 @@
     { "$ref": "#/$defs/cc_disk_setup" },
     { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_keys_to_console" },
+    { "$ref": "#/$defs/cc_landscape" },
     { "$ref": "#/$defs/cc_locale" },
     { "$ref": "#/$defs/cc_lxd" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
