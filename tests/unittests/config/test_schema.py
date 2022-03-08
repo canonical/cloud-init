@@ -101,6 +101,10 @@ class TestGetSchema:
                 "cc_keyboard",
                 "cc_locale",
                 "cc_ntp",
+                "cc_package_update_upgrade_install",
+                "cc_phone_home",
+                "cc_power_state_change",
+                "cc_puppet",
                 "cc_resizefs",
                 "cc_runcmd",
                 "cc_snap",
@@ -126,6 +130,10 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
+            {"$ref": "#/$defs/cc_package_update_upgrade_install"},
+            {"$ref": "#/$defs/cc_phone_home"},
+            {"$ref": "#/$defs/cc_power_state_change"},
+            {"$ref": "#/$defs/cc_puppet"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []

@@ -33,7 +33,8 @@
       "type": "object",
       "properties": {
         "remove-defaults": {
-          "description": "Deprecated key name. Use remove_defaults instead.",
+          "description": "DEPRECATED. Use ``remove_defaults``. ",
+          "deprecated": true,
           "type": "boolean",
           "default": false
         },
@@ -543,6 +544,249 @@
           }
         }
       }
+    },
+    "cc_package_update_upgrade_install": {
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "description": "A list of packages to install. Each entry in the list can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
+              "items": {
+                "oneOf": [
+                  {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2},
+                  {"type": "string"}
+                ]
+              },
+              "minItems": 1
+            },
+            "package_update": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to update packages. Happens before upgrade or install. Default: ``false``"
+            },
+            "package_upgrade": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to upgrade packages. Happens before install. Default: ``false``"
+            },
+            "package_reboot_if_required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
+            },
+            "apt_update": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_update``. Default: ``false``",
+                "deprecated": true
+            },
+            "apt_upgrade": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_upgrade``. Default: ``false``",
+                "deprecated": true
+            },
+            "apt_reboot_if_required": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_reboot_if_required``. Default: ``false``",
+                "deprecated": true
+            }
+        }
+    },
+    "cc_phone_home": {
+      "type": "object",
+      "properties": {
+        "phone_home": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "The URL to send the phone home data to."
+            },
+            "post": {
+              "description": "A list of keys to post or ``all``. Default: ``all``",
+              "oneOf": [
+                {"enum": ["all"]},
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "pub_key_dsa",
+                      "pub_key_rsa",
+                      "pub_key_ecdsa",
+                      "pub_key_ed25519",
+                      "instance_id",
+                      "hostname",
+                      "fqdn"
+                    ]
+                  }
+                }
+              ]
+            },
+            "tries": {
+              "type": "integer",
+              "description": "The number of times to try sending the phone home data. Default: ``10``",
+              "default": 10
+            }
+          }
+        }
+      }
+    },
+    "cc_power_state_change": {
+      "type": "object",
+      "properties": {
+        "power_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "delay": {
+              "description": "Time in minutes to delay after cloud-init has finished. Can be ``now`` or an integer specifying the number of minutes to delay. Default: ``now``",
+              "default": "now",
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^\\+?[0-9]+$"},
+                {"enum": ["now"]}
+              ]
+            },
+            "mode": {
+              "description": "Must be one of ``poweroff``, ``halt``, or ``reboot``.",
+              "type": "string",
+              "enum": ["poweroff", "reboot", "halt"]
+            },
+            "message": {
+              "description": "Optional message to display to the user when the system is powering off or rebooting.",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "Time in seconds to wait for the cloud-init process to finish before executing shutdown. Default: ``30``",
+              "type": "integer",
+              "default": 30
+            },
+            "condition": {
+              "description": "Apply state change only if condition is met. May be boolean true (always met), false (never met), or a command string or list to be executed. For command formatting, see the documentation for ``cc_runcmd``. If exit code is 0, condition is met, otherwise not. Default: ``true``",
+              "default": true,
+              "oneOf": [
+                {"type": "string"},
+                {"type": "boolean"},
+                {"type": "array"}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cc_puppet": {
+      "type": "object",
+      "properties": {
+        "puppet": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether or not to install puppet. Setting to ``false`` will result in an error if puppet is not already present on the system. Default: ``true``"
+            },
+            "version": {
+              "type": "string",
+              "description": "Optional version to pass to the installer script or package manager. If unset, the latest version from the repos will be installed."
+            },
+            "install_type": {
+              "type": "string",
+              "description": "Valid values are ``packages`` and ``aio``. Agent packages from the puppetlabs repositories can be installed by setting ``aio``. Based on this setting, the default config/SSL/CSR paths will be adjusted accordingly. Default: ``packages``",
+              "enum": ["packages", "aio"],
+              "default": "packages"
+            },
+            "collection": {
+              "type": "string",
+              "description": "Puppet collection to install if ``install_type`` is ``aio``. This can be set to one of ``puppet`` (rolling release), ``puppet6``, ``puppet7`` (or their nightly counterparts) in order to install specific release streams."
+            },
+            "aio_install_url": {
+              "type": "string",
+              "description": "If ``install_type`` is ``aio``, change the url of the install script."
+            },
+            "cleanup": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to remove the puppetlabs repo after installation if ``install_type`` is ``aio`` Default: ``true``"
+            },
+            "conf_file": {
+              "type": "string",
+              "description": "The path to the puppet config file. Default depends on ``install_type``"
+            },
+            "ssl_dir": {
+              "type": "string",
+              "description": "The path to the puppet SSL directory. Default depends on ``install_type``"
+            },
+            "csr_attributes_path": {
+              "type": "string",
+              "description": "The path to the puppet csr attributes file. Default depends on ``install_type``"
+            },
+            "package_name": {
+              "type": "string",
+              "description": "Name of the package to install if ``install_type`` is ``packages``. Default: ``puppet``"
+            },
+            "exec": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether or not to run puppet after configuration finishes. A single manual run can be triggered by setting ``exec`` to ``true``, and additional arguments can be passed to ``puppet agent`` via the ``exec_args`` key (by default the agent will execute with the ``--test`` flag). Default: ``false``"
+            },
+            "exec_args": {
+              "type": "array",
+              "description": "A list of arguments to pass to 'puppet agent' if 'exec' is true Default: ``['--test']``",
+              "items": {
+                "type": "string"
+              }
+            },
+            "start_service": {
+              "type": "boolean",
+              "default": true,
+              "description": "By default, the puppet service will be automatically enabled after installation and set to automatically start on boot. To override this in favor of manual puppet execution set ``start_service`` to ``false``"
+            },
+            "conf": {
+              "type": "object",
+              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | yaml notation for multi-line strings).",
+              "additionalProperties": false,
+              "properties": {
+                "main": {
+                  "type": "object"
+                },
+                "server": {
+                  "type": "object"
+                },
+                "agent": {
+                  "type": "object"
+                },
+                "user": {
+                  "type": "object"
+                },
+                "ca_cert": {
+                  "type": "string"
+                }
+              }
+            },
+            "csr_attributes": {
+              "type": "object",
+              "description": "create a ``csr_attributes.yaml`` file for CSR attributes and certificate extension requests. See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html",
+              "additionalProperties": false,
+              "properties": {
+                "custom_attributes": {
+                  "type": "object"
+                },
+                "extension_requests": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -555,6 +799,10 @@
     { "$ref": "#/$defs/cc_chef" },
     { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
-    { "$ref": "#/$defs/cc_disk_setup" }
+    { "$ref": "#/$defs/cc_disk_setup" },
+    { "$ref": "#/$defs/cc_package_update_upgrade_install" },
+    { "$ref": "#/$defs/cc_phone_home" },
+    { "$ref": "#/$defs/cc_power_state_change"},
+    { "$ref": "#/$defs/cc_puppet"}
   ]
 }
