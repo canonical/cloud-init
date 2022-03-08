@@ -5,6 +5,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 class TestPhoneHomeSchema:
@@ -19,6 +20,7 @@ class TestPhoneHomeSchema:
             {"phone_home": {"url": "test_url", "post": ["pub_kye_dsa"]}},
         ],
     )
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config):
         with pytest.raises(SchemaValidationError):
             validate_cloudconfig_schema(config, get_schema(), strict=True)

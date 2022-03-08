@@ -5,6 +5,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 class TestPackageUpdateUpgradeSchema:
@@ -19,6 +20,7 @@ class TestPackageUpdateUpgradeSchema:
             ({"packages": []}, "is too short"),
         ],
     )
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, get_schema(), strict=True)

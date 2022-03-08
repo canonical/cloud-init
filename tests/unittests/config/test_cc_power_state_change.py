@@ -12,7 +12,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests import helpers as t_help
-from tests.unittests.helpers import mock
+from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 
 class TestLoadPowerState(t_help.TestCase):
@@ -190,6 +190,7 @@ class TestPowerStateChangeSchema:
             ({"power_state": {"mode": "halt", "condition": 5}}, ""),
         ],
     )
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)

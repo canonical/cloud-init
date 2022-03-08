@@ -11,7 +11,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
+from tests.unittests.helpers import (
+    CiTestCase,
+    HttprettyTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -523,6 +528,7 @@ class TestPuppetSchema:
             ),
         ],
     )
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
