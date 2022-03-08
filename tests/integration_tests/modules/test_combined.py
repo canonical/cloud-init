@@ -145,23 +145,6 @@ class TestCombined:
         client = class_client
         assert "hello world" == client.read_from_file("/var/tmp/runcmd_output")
 
-    @retry(tries=30, delay=1)
-    def test_ssh_import_id(self, class_client: IntegrationInstance):
-        """Integration test for the ssh_import_id module.
-
-        This test specifies ssh keys to be imported by the ``ssh_import_id``
-        module and then checks that if the ssh keys were successfully imported.
-
-        TODO:
-        * This test assumes that SSH keys will be imported into the
-        /home/ubuntu; this will need modification to run on other OSes.
-        """
-        client = class_client
-        ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
-
-        assert "# ssh-import-id gh:powersj" in ssh_output
-        assert "# ssh-import-id lp:smoser" in ssh_output
-
     def test_snap(self, class_client: IntegrationInstance):
         """Integration test for the snap module.
 
@@ -340,3 +323,23 @@ class TestCombined:
         assert v1_data["availability_zone"] == client.instance.zone
         assert v1_data["instance_id"] == client.instance.instance_id
         assert v1_data["local_hostname"] == client.instance.name
+
+
+@pytest.mark.user_data(USER_DATA)
+class TestCombinedNoCI:
+    @retry(tries=30, delay=1)
+    def test_ssh_import_id(self, class_client: IntegrationInstance):
+        """Integration test for the ssh_import_id module.
+
+        This test specifies ssh keys to be imported by the ``ssh_import_id``
+        module and then checks that if the ssh keys were successfully imported.
+
+        TODO:
+        * This test assumes that SSH keys will be imported into the
+        /home/ubuntu; this will need modification to run on other OSes.
+        """
+        client = class_client
+        ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
+
+        assert "# ssh-import-id gh:powersj" in ssh_output
+        assert "# ssh-import-id lp:smoser" in ssh_output

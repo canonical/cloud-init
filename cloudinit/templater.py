@@ -104,7 +104,10 @@ def detect_template(text):
         add = "\n" if content.endswith("\n") else ""
         return (
             JTemplate(
-                content, undefined=UndefinedJinjaVariable, trim_blocks=True
+                content,
+                undefined=UndefinedJinjaVariable,
+                trim_blocks=True,
+                extensions=["jinja2.ext.do"],
             ).render(**params)
             + add
         )
