@@ -104,9 +104,9 @@ class DataSourceOracle(sources.DataSource):
     vendordata_pure = None
     network_config_sources = (
         sources.NetworkConfigSource.cmdline,
-        sources.NetworkConfigSource.system_cfg,
         sources.NetworkConfigSource.ds,
         sources.NetworkConfigSource.initramfs,
+        sources.NetworkConfigSource.system_cfg,
     )
 
     _network_config = sources.UNSET
