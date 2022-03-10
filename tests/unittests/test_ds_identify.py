@@ -77,6 +77,7 @@ RC_FOUND = 0
 RC_NOT_FOUND = 1
 DS_NONE = "None"
 
+P_BOARD_NAME = "sys/class/dmi/id/board_name"
 P_CHASSIS_ASSET_TAG = "sys/class/dmi/id/chassis_asset_tag"
 P_PRODUCT_NAME = "sys/class/dmi/id/product_name"
 P_PRODUCT_SERIAL = "sys/class/dmi/id/product_serial"
@@ -101,8 +102,6 @@ MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
 
-DEFAULT_MOCKS = [MOCK_NOT_LXD_DATASOURCE]
-
 shell_true = 0
 shell_false = 1
 
@@ -119,6 +118,7 @@ class DsIdentifyBase(CiTestCase):
         self,
         rootd=None,
         mocks=None,
+        no_mocks=None,
         func="main",
         args=None,
         files=None,
@@ -165,7 +165,8 @@ class DsIdentifyBase(CiTestCase):
             return SHELL_MOCK_TMPL % ddata
 
         mocklines = []
-        defaults = [
+        default_mocks = [
+            MOCK_NOT_LXD_DATASOURCE,
             {"name": "detect_virt", "RET": "none", "ret": 1},
             {"name": "uname", "out": UNAME_MYSYS},
             {"name": "blkid", "out": BLKID_EFI_ROOT},
@@ -189,7 +190,9 @@ class DsIdentifyBase(CiTestCase):
         written = [d["name"] for d in mocks]
         for data in mocks:
             mocklines.append(write_mock(data))
-        for d in defaults:
+        for d in default_mocks:
+            if no_mocks and d["name"] in no_mocks:
+                continue
             if d["name"] not in written:
                 mocklines.append(write_mock(d))
 
@@ -221,6 +224,7 @@ class DsIdentifyBase(CiTestCase):
         # return output of self.call with a dict input like VALID_CFG[item]
         xwargs = {"rootd": rootd}
         passthrough = (
+            "no_mocks",  # named mocks to ignore
             "mocks",
             "func",
             "args",
@@ -233,14 +237,6 @@ class DsIdentifyBase(CiTestCase):
                 xwargs[k] = data[k]
             if k in kwargs:
                 xwargs[k] = kwargs[k]
-        if "mocks" not in xwargs:
-            xwargs["mocks"] = DEFAULT_MOCKS
-        else:
-            mocked_funcs = [m["name"] for m in xwargs["mocks"]]
-            for default_mock in DEFAULT_MOCKS:
-                if default_mock["name"] not in mocked_funcs:
-                    xwargs["mocks"].append(default_mock)
-
         return self.call(**xwargs)
 
     def _test_ds_found(self, name):
@@ -337,6 +333,14 @@ class TestDsIdentify(DsIdentifyBase):
     def test_gce_by_serial(self):
         """Older gce compute instances must be identified by serial."""
         self._test_ds_found("GCE-serial")
+
+    def test_lxd_kvm(self):
+        """LXD KVM has race on absent /dev/lxd/socket. Use DMI board_name."""
+        self._test_ds_found("LXD-kvm")
+
+    def test_lxd_containers(self):
+        """LXD containers will have /dev/lxd/socket at generator time."""
+        self._test_ds_found("LXD")
 
     def test_config_drive(self):
         """ConfigDrive datasource has a disk with LABEL=config-2."""
@@ -1019,6 +1023,19 @@ VALID_CFG = {
         "ds": "GCE",
         "files": {P_PRODUCT_SERIAL: "GoogleCloud-8f2e88f\n"},
         "mocks": [MOCK_VIRT_IS_KVM],
+    },
+    "LXD-kvm": {
+        "ds": "LXD",
+        "files": {P_BOARD_NAME: "LXD\n"},
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD": {
+        "ds": "LXD",
+        # /dev/lxd/sock exists
+        "mocks": [{"name": "is_socket_file", "ret": 0}],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "NoCloud": {
         "ds": "NoCloud",
