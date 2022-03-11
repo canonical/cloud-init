@@ -3,6 +3,7 @@ m2r2
 sphinx
 sphinx_rtd_theme
 pyyaml
+sphinx-panels
 
 # Indirect dependencies
 docutils<0.18
