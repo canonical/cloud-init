@@ -194,7 +194,8 @@ def readurl(
     :param url: Mandatory url to request.
     :param data: Optional form data to post the URL. Will set request_method
         to 'POST' if present.
-    :param timeout: Timeout in seconds to wait for a response
+    :param timeout: Timeout in seconds to wait for a response. May be a tuple
+        if specifying (connection timeout, read timeout).
     :param retries: Number of times to retry on exception if exception_cb is
         None or exception_cb returns True for the exception caught. Default is
         to fail with 0 retries on exception.
@@ -229,7 +230,10 @@ def readurl(
         request_method = "POST" if data else "GET"
     req_args["method"] = request_method
     if timeout is not None:
-        req_args["timeout"] = max(float(timeout), 0)
+        if isinstance(timeout, tuple):
+            req_args["timeout"] = timeout
+        else:
+            req_args["timeout"] = max(float(timeout), 0)
     if headers_redact is None:
         headers_redact = []
     manual_tries = 1
