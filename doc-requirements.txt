@@ -1,9 +1,8 @@
 doc8
-m2r
-sphinx<2
+m2r2
+sphinx
 sphinx_rtd_theme
 pyyaml
 
 # Indirect dependencies
 docutils<0.18
-mistune<2.0.0  # https://github.com/miyakogi/m2r/issues/66
