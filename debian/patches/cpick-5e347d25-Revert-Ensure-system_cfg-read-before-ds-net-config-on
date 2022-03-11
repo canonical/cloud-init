@@ -1,0 +1,82 @@
+From 5e347d2506aea32b528c480e8dcd981183548ee4 Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Fri, 11 Mar 2022 11:02:16 -0600
+Subject: [PATCH] Revert "Ensure system_cfg read before ds net config on Oracle
+ (#1174)" (#1326)
+
+This reverts commit b306633fd17e5ba0173ad3c41add59cb11884757.
+
+While this ultimately seems like a better solution, currently the
+file /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg exists on
+all Oracle launched instances which will prevent networking from
+being properly initialized.
+---
+ cloudinit/sources/DataSourceOracle.py         |  2 +-
+ .../network/test_net_config_load.py           | 27 -------------------
+ tests/unittests/sources/test_oracle.py        |  8 +++---
+ 3 files changed, 4 insertions(+), 33 deletions(-)
+ delete mode 100644 tests/integration_tests/network/test_net_config_load.py
+
+--- a/cloudinit/sources/DataSourceOracle.py
++++ b/cloudinit/sources/DataSourceOracle.py
+@@ -104,9 +104,9 @@ class DataSourceOracle(sources.DataSourc
+     vendordata_pure = None
+     network_config_sources = (
+         sources.NetworkConfigSource.cmdline,
+-        sources.NetworkConfigSource.system_cfg,
+         sources.NetworkConfigSource.ds,
+         sources.NetworkConfigSource.initramfs,
++        sources.NetworkConfigSource.system_cfg,
+     )
+ 
+     _network_config = sources.UNSET
+--- a/tests/integration_tests/network/test_net_config_load.py
++++ /dev/null
+@@ -1,27 +0,0 @@
+-"""Test loading the network config"""
+-import pytest
+-
+-from tests.integration_tests.instances import IntegrationInstance
+-
+-
+-def _customize_envionment(client: IntegrationInstance):
+-    # Insert our "disable_network_config" file here
+-    client.write_to_file(
+-        "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg",
+-        "network: {config: disabled}\n",
+-    )
+-    client.execute("cloud-init clean --logs")
+-    client.restart()
+-
+-
+-def test_network_disabled_via_etc_cloud(client: IntegrationInstance):
+-    """Test that network can be disabled via config file in /etc/cloud"""
+-    if client.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
+-        pytest.skip(
+-            "IN_PLACE not supported as we mount /etc/cloud contents into the "
+-            "container"
+-        )
+-    _customize_envionment(client)
+-
+-    log = client.read_from_file("/var/log/cloud-init.log")
+-    assert "network config is disabled by system_cfg" in log
+--- a/tests/unittests/sources/test_oracle.py
++++ b/tests/unittests/sources/test_oracle.py
+@@ -920,14 +920,12 @@ class TestNetworkConfig:
+         assert network_config == m_read_initramfs_config.return_value
+         assert "Failed to parse secondary network configuration" in caplog.text
+ 
+-    def test_ds_network_cfg_order(self, _m):
+-        """Ensure that DS net config is preferred over initramfs config
+-        but less than system config."""
++    def test_ds_network_cfg_preferred_over_initramfs(self, _m):
++        """Ensure that DS net config is preferred over initramfs config"""
+         config_sources = oracle.DataSourceOracle.network_config_sources
+-        system_idx = config_sources.index(NetworkConfigSource.system_cfg)
+         ds_idx = config_sources.index(NetworkConfigSource.ds)
+         initramfs_idx = config_sources.index(NetworkConfigSource.initramfs)
+-        assert system_idx < ds_idx < initramfs_idx
++        assert ds_idx < initramfs_idx
+ 
+ 
+ # vi: ts=4 expandtab

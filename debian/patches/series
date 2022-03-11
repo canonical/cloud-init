@@ -2,3 +2,4 @@ openstack-no-network-config.patch
 ec2-dont-apply-full-imds-network-config.patch
 renderer-do-not-prefer-netplan.patch
 retain-apt-partner-pocket.patch
+cpick-5e347d25-Revert-Ensure-system_cfg-read-before-ds-net-config-on
