@@ -53,13 +53,6 @@ Install and run `chef`_ recipes
    :language: yaml
    :linenos:
 
-Setup and run `puppet`_
-=======================
-
-.. literalinclude:: ../../examples/cloud-config-puppet.txt
-   :language: yaml
-   :linenos:
-
 Add primary apt repositories
 ============================
 
@@ -111,20 +104,6 @@ Adjust mount points mounted
 ===========================
 
 .. literalinclude:: ../../examples/cloud-config-mount-points.txt
-   :language: yaml
-   :linenos:
-
-Call a url when finished
-========================
-
-.. literalinclude:: ../../examples/cloud-config-phone-home.txt
-   :language: yaml
-   :linenos:
-
-Reboot/poweroff when finished
-=============================
-
-.. literalinclude:: ../../examples/cloud-config-power-state.txt
    :language: yaml
    :linenos:
 
