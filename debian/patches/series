@@ -1,1 +1,2 @@
 retain-apt-partner-pocket.patch
+cpick-5e347d25-Revert-Ensure-system_cfg-read-before-ds-net-config-on
