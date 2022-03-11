@@ -1,3 +1,10 @@
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~18.04.2) bionic; urgency=medium
+
+  * cherry-pick 5e347d25: Revert "Ensure system_cfg read before ds net
+    config on Oracle
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 11 Mar 2022 14:47:10 -0700
+
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/patches/retain-apt-partner-pocket.patch:
