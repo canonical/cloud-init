@@ -1,3 +1,10 @@
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.2) jammy; urgency=medium
+
+  * cherry-pick 156b927e: Revert "Ensure system_cfg read before ds
+    net config on Oracle (#1174)" (#1326)
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 11 Mar 2022 11:55:37 -0600
+
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * debian/apport-launcher.py: Fix string and whitespace formatting
