@@ -884,7 +884,7 @@ dscheck_DigitalOcean() {
 
 dscheck_OpenNebula() {
     check_seed_dir opennebula && return ${DS_FOUND}
-    has_fs_with_label "CONTEXT" && return ${DS_FOUND}
+    has_fs_with_label "CONTEXT" "CDROM" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
