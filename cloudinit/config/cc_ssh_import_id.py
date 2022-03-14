@@ -100,7 +100,7 @@ def import_ssh_ids(ids, user, log):
     except KeyError as exc:
         raise exc
 
-    cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
+    cmd = ["sudo", "--preserve-env=https_proxy -Hu", user, "ssh-import-id"] + ids
     log.debug("Importing SSH ids for user %s.", user)
 
     try:
