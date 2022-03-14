@@ -925,70 +925,24 @@ class DataSourceAzure(sources.DataSource):
             raise
 
     @azure_ds_telemetry_reporter
-    def wait_for_link_up(self, ifname):
-        """In cases where the link state is still showing down after a nic is
-        hot-attached, we can attempt to bring it up by forcing the hv_netvsc
-        drivers to query the link state by unbinding and then binding the
-        device. This function attempts infinitely until the link is up,
-        because we cannot proceed further until we have a stable link."""
-
-        if self.distro.networking.try_set_link_up(ifname):
-            report_diagnostic_event(
-                "The link %s is already up." % ifname, logger_func=LOG.info
-            )
-            return
-
-        LOG.debug("Attempting to bring %s up", ifname)
-
-        attempts = 0
-        LOG.info("Unbinding and binding the interface %s", ifname)
-        while True:
-            device_id = net.read_sys_net(ifname, "device/device_id")
-            if device_id is False or not isinstance(device_id, str):
-                raise RuntimeError("Unable to read device ID: %s" % device_id)
-            devicename = device_id.strip("{}")
-            util.write_file(
-                "/sys/bus/vmbus/drivers/hv_netvsc/unbind", devicename
-            )
-            util.write_file(
-                "/sys/bus/vmbus/drivers/hv_netvsc/bind", devicename
-            )
-
-            attempts = attempts + 1
+    def wait_for_link_up(
+        self, ifname: str, retries: int = 100, retry_sleep: float = 0.1
+    ):
+        for i in range(retries):
             if self.distro.networking.try_set_link_up(ifname):
-                msg = "The link %s is up after %s attempts" % (
-                    ifname,
-                    attempts,
+                report_diagnostic_event(
+                    "The link %s is up." % ifname, logger_func=LOG.info
                 )
-                report_diagnostic_event(msg, logger_func=LOG.info)
-                return
+                break
 
-            if attempts % 10 == 0:
-                msg = "Link is not up after %d attempts to rebind" % attempts
-                report_diagnostic_event(msg, logger_func=LOG.info)
-                LOG.info(msg)
-
-            # It could take some time after rebind for the interface to be up.
-            # So poll for the status for some time before attempting to rebind
-            # again.
-            sleep_duration = 0.5
-            max_status_polls = 20
-            LOG.debug(
-                "Polling %d seconds for primary NIC link up after rebind.",
-                sleep_duration * max_status_polls,
+            if (i + 1) < retries:
+                sleep(retry_sleep)
+        else:
+            report_diagnostic_event(
+                "The link %s is not up after %f seconds, continuing anyways."
+                % (ifname, retries * retry_sleep),
+                logger_func=LOG.info,
             )
-
-            for i in range(0, max_status_polls):
-                if self.distro.networking.is_up(ifname):
-                    msg = (
-                        "After %d attempts to rebind, link is up after "
-                        "polling the link status %d times" % (attempts, i)
-                    )
-                    report_diagnostic_event(msg, logger_func=LOG.info)
-                    LOG.debug(msg)
-                    return
-                else:
-                    sleep(sleep_duration)
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
