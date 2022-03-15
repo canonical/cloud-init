@@ -21,7 +21,7 @@ from cloudinit.net import (
     get_devicelist,
     has_url_connectivity,
 )
-from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
+from cloudinit.net import mask_and_ipv4_to_bcast_addr as bcip
 
 LOG = logging.getLogger(__name__)
 

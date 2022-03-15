@@ -14,9 +14,9 @@ import uuid
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.net import is_ipv6_addr, subnet_is_ipv6
 
 from . import renderer
-from .network_state import is_ipv6_addr, subnet_is_ipv6
 
 NM_RUN_DIR = "/etc/NetworkManager"
 NM_LIB_DIR = "/usr/lib/NetworkManager"
