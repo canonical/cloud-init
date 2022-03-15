@@ -19,6 +19,7 @@ from cloudinit.net import (
     cmdline,
     eni,
     interface_has_own_mac,
+    mask_and_ipv4_to_bcast_addr,
     natural_sort_key,
     netplan,
     network_manager,
@@ -8076,7 +8077,7 @@ class TestRenameInterfaces(CiTestCase):
 class TestNetworkState(CiTestCase):
     def test_bcast_addr(self):
         """Test mask_and_ipv4_to_bcast_addr proper execution."""
-        bcast_addr = network_state.mask_and_ipv4_to_bcast_addr
+        bcast_addr = mask_and_ipv4_to_bcast_addr
         self.assertEqual(
             "192.168.1.255", bcast_addr("255.255.255.0", "192.168.1.1")
         )

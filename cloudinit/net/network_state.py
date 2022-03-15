@@ -6,22 +6,19 @@
 
 import copy
 import functools
-import ipaddress
 import logging
-import socket
-import struct
 
 from cloudinit import safeyaml, util
+from cloudinit.net import (
+    ipv4_mask_to_net_prefix,
+    ipv6_mask_to_net_prefix,
+    is_ipv6_addr,
+    net_prefix_to_ipv4_mask,
+)
 
 LOG = logging.getLogger(__name__)
 
 NETWORK_STATE_VERSION = 1
-IPV6_DYNAMIC_TYPES = [
-    "dhcp6",
-    "ipv6_slaac",
-    "ipv6_dhcpv6-stateless",
-    "ipv6_dhcpv6-stateful",
-]
 NETWORK_STATE_REQUIRED_KEYS = {
     1: ["version", "config", "network_state"],
 }
@@ -1001,96 +998,6 @@ def _normalize_subnets(subnets):
     if not subnets:
         subnets = []
     return [_normalize_subnet(s) for s in subnets]
-
-
-def is_ipv6_addr(address):
-    if not address:
-        return False
-    return ":" in str(address)
-
-
-def subnet_is_ipv6(subnet):
-    """Common helper for checking network_state subnets for ipv6."""
-    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
-    # 'ipv6_slaac'
-    if subnet["type"].endswith("6") or subnet["type"] in IPV6_DYNAMIC_TYPES:
-        # This is a request either static6 type or DHCPv6.
-        return True
-    elif subnet["type"] == "static" and is_ipv6_addr(subnet.get("address")):
-        return True
-    return False
-
-
-def net_prefix_to_ipv4_mask(prefix):
-    """Convert a network prefix to an ipv4 netmask.
-
-    This is the inverse of ipv4_mask_to_net_prefix.
-        24 -> "255.255.255.0"
-    Also supports input as a string."""
-    mask = socket.inet_ntoa(
-        struct.pack(">I", (0xFFFFFFFF << (32 - int(prefix)) & 0xFFFFFFFF))
-    )
-    return mask
-
-
-def ipv4_mask_to_net_prefix(mask):
-    """Convert an ipv4 netmask into a network prefix length.
-
-    If the input is already an integer or a string representation of
-    an integer, then int(mask) will be returned.
-       "255.255.255.0" => 24
-       str(24)         => 24
-       "24"            => 24
-    """
-    return ipaddress.ip_network(f"0.0.0.0/{mask}").prefixlen
-
-
-def ipv6_mask_to_net_prefix(mask):
-    """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
-
-    If the input is already an integer or a string representation of
-    an integer, then int(mask) will be returned.
-       "ffff:ffff:ffff::"  => 48
-       "48"                => 48
-    """
-    try:
-        # In the case the mask is already a prefix
-        prefixlen = ipaddress.ip_network(f"::/{mask}").prefixlen
-        return prefixlen
-    except ValueError:
-        # ValueError means mask is an IPv6 address representation and need
-        # conversion.
-        pass
-
-    netmask = ipaddress.ip_address(mask)
-    mask_int = int(netmask)
-    # If the mask is all zeroes, just return it
-    if mask_int == 0:
-        return mask_int
-
-    trailing_zeroes = min(
-        ipaddress.IPV6LENGTH, (~mask_int & (mask_int - 1)).bit_length()
-    )
-    leading_ones = mask_int >> trailing_zeroes
-    prefixlen = ipaddress.IPV6LENGTH - trailing_zeroes
-    all_ones = (1 << prefixlen) - 1
-    if leading_ones != all_ones:
-        raise ValueError("Invalid network mask '%s'" % mask)
-
-    return prefixlen
-
-
-def mask_and_ipv4_to_bcast_addr(mask, ip):
-    """Calculate the broadcast address from the subnet mask and ip addr.
-
-    Supports ipv4 only."""
-    ip_bin = int("".join([bin(int(x) + 256)[3:] for x in ip.split(".")]), 2)
-    mask_dec = ipv4_mask_to_net_prefix(mask)
-    bcast_bin = ip_bin | (2 ** (32 - mask_dec) - 1)
-    bcast_str = ".".join(
-        [str(bcast_bin >> (i << 3) & 0xFF) for i in range(4)[::-1]]
-    )
-    return bcast_str
 
 
 def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
