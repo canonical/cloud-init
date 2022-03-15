@@ -10,6 +10,7 @@ import logging
 
 from cloudinit import safeyaml, util
 from cloudinit.net import (
+    get_interfaces_by_mac,
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ipv6_addr,
@@ -665,10 +666,18 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
              ]
         }
         """
+
+        # Get the interfaces by MAC address to update an interface's
+        # device name to the name of the device that matches a provided
+        # MAC address when the set-name directive is not present.
+        #
+        # Please see https://bugs.launchpad.net/cloud-init/+bug/1855945
+        # for more information.
+        ifaces_by_mac = get_interfaces_by_mac()
+
         for eth, cfg in command.items():
             phy_cmd = {
                 "type": "physical",
-                "name": cfg.get("set-name", eth),
             }
             match = cfg.get("match", {})
             mac_address = match.get("macaddress", None)
@@ -680,6 +689,24 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     str(cfg),
                 )
             phy_cmd["mac_address"] = mac_address
+
+            # Determine the name of the interface by using one of the
+            # following in the order they are listed:
+            #   * set-name
+            #   * interface name looked up by mac
+            #   * value of "eth" key from this loop
+            name = eth
+            set_name = cfg.get("set-name", None)
+            if set_name:
+                name = set_name
+            elif mac_address and ifaces_by_mac:
+                lcase_mac_address = mac_address.lower()
+                for iface_mac, iface_name in ifaces_by_mac.items():
+                    if lcase_mac_address == iface_mac.lower():
+                        name = iface_name
+                        break
+            phy_cmd["name"] = name
+
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}

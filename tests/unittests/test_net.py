@@ -3871,6 +3871,29 @@ iface bond0 inet6 static
             ),
         },
     },
+    "v2-dev-name-via-mac-lookup": {
+        "expected_sysconfig_rhel": {
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEVICE=eth0
+                HWADDR=cf:d6:af:48:e8:80
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              nic0:
+                match:
+                  macaddress: 'cf:d6:af:48:e8:80'
+            """
+        ),
+    },
 }
 
 
@@ -3954,6 +3977,9 @@ DEFAULT_DEV_ATTRS = {
         "device/driver": None,
         "device/device": None,
         "name_assign_type": "4",
+        "addr_assign_type": "0",
+        "uevent": "",
+        "type": "32",
     }
 }
 
@@ -4080,16 +4106,22 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "device/driver": "hv_netsvc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
+                "addr_assign_type": "0",
+                "uevent": "",
+                "type": "32",
             },
             "eth1": {
                 "bridge": False,
                 "carrier": False,
                 "dormant": False,
                 "operstate": "down",
-                "address": "00:11:22:33:44:55",
+                "address": "00:11:22:33:44:56",
                 "device/driver": "mlx4_core",
                 "device/device": "0x7",
                 "name_assign_type": "4",
+                "addr_assign_type": "0",
+                "uevent": "",
+                "type": "32",
             },
         }
 
@@ -4158,16 +4190,22 @@ iface eth0 inet dhcp
                 "device/driver": "hv_netsvc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
+                "addr_assign_type": "0",
+                "uevent": "",
+                "type": "32",
             },
             "eth0": {
                 "bridge": False,
                 "carrier": False,
                 "dormant": False,
                 "operstate": "down",
-                "address": "00:11:22:33:44:55",
+                "address": "00:11:22:33:44:56",
                 "device/driver": "mlx4_core",
                 "device/device": "0x7",
                 "name_assign_type": "4",
+                "addr_assign_type": "0",
+                "uevent": "",
+                "type": "32",
             },
         }
 
@@ -5098,6 +5136,45 @@ USERCTL=no
             self._compare_files_to_expected(
                 expected, self._render_and_read(network_config=v2data)
             )
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_iface_name_from_device_with_matching_mac_address(
+        self,
+        mock_get_devicelist,
+        mock_read_sys_net,
+        mock_sys_dev_path,
+    ):
+        devices = {
+            "eth0": {
+                "bridge": False,
+                "carrier": False,
+                "dormant": False,
+                "operstate": "down",
+                "address": "CF:D6:AF:48:E8:80",
+                "device/driver": "hv_netsvc",
+                "device/device": "0x3",
+                "name_assign_type": "4",
+                "addr_assign_type": "0",
+                "uevent": "",
+                "type": "32",
+            },
+        }
+
+        tmp_dir = self.tmp_dir()
+        _setup_test(
+            tmp_dir,
+            mock_get_devicelist,
+            mock_read_sys_net,
+            mock_sys_dev_path,
+            dev_attrs=devices,
+        )
+
+        entry = NETWORK_CONFIGS["v2-dev-name-via-mac-lookup"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
 
 
 @mock.patch(
