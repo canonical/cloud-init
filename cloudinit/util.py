@@ -29,7 +29,7 @@ import socket
 import stat
 import string
 import subprocess
-import sys
+import 
 import time
 from base64 import b64decode, b64encode
 from errno import ENOENT
@@ -393,14 +393,23 @@ def multi_log(
         sys.stderr.write(text)
     if console:
         conpath = "/dev/console"
+        writing_to_console_failed = False
         if os.path.exists(conpath):
-            with open(conpath, "w") as wfh:
-                wfh.write(text)
-                wfh.flush()
-        elif fallback_to_stdout:
-            # A container may lack /dev/console (arguably a container bug).  If
-            # it does not exist, then write output to stdout.  this will result
-            # in duplicate stderr and stdout messages if stderr was True.
+            try:
+                with open(conpath, "w") as wfh:
+                    wfh.write(text)
+                    wfh.flush()
+            except OSError:
+                writing_to_console_failed = True
+    
+        if fallback_to_stdout or writing_to_console_failed:
+            # A container may lack /dev/console (arguably a container bug).
+            # Additionally, /dev/console may not be writable to on a VM (again
+            # likely a VM bug).
+            #
+            # If either of these is the case, then write output to stdout.
+            # This will result in duplicate stderr and stdout messages if
+            # stderr was True.
             #
             # even though upstart or systemd might have set up output to go to
             # /dev/console, the user may have configured elsewhere via
