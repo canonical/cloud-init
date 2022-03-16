@@ -64,7 +64,7 @@ users:
 #   lock_passwd: Defaults to true. Lock the password to disable password login
 #   inactive: Number of days after password expires until account is disabled
 #   passwd: The hash -- not the password itself -- of the password you want
-#           to use for this user. You can generate a safe hash via:
+#           to use for this user. You can generate a hash via:
 #               mkpasswd --method=SHA-512 --rounds=4096
 #           (the above command would create from stdin an SHA-512 password hash
 #           with 4096 salt rounds)
@@ -81,9 +81,8 @@ users:
 #               In other words, this feature is a potential security risk and is
 #               provided for your convenience only. If you do not fully trust the
 #               medium over which your cloud-config will be transmitted, then you
-#               should use SSH authentication only.
+#               should not use this feature.
 #
-#               You have thus been warned.
 #   no_create_home: When set to true, do not create home directory.
 #   no_user_group: When set to true, do not create a group named after the user.
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
