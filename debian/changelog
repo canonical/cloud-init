@@ -1,7 +1,44 @@
-cloud-init (22.1-14-g2e17a0d6-0ubuntu1~20.04.2) UNRELEASED; urgency=medium
+cloud-init (22.1-43-gbf94945f-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/retain-apt-partner-pocket.patch
+  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+    - Fix sysconfig render when set-name is missing (#1327) [Andrew Kutz]
+    - Refactoring helper funcs out of NetworkState (#1336) [Andrew Kutz]
+    - url_helper: add tuple support for readurl timeout (#1328)
+      [Chris Patterson]
+    - Make fs labels match for ds-identify and docs (#1329) [Brett Holman]
+    - Work around bug in LXD VM detection (#1325) [Brett Holman]
+    - Remove redundant generator logs (#1318) [Brett Holman]
+    - tox: set verbose flags for integration tests (#1323) [Chris Patterson]
+    - net: introduce find_candidate_nics() (#1313) [Chris Patterson]
+    - Revert "Ensure system_cfg read before ds net config on Oracle (#1174)"
+      (#1326)
+    - Add vendor_data2 support for ConfigDrive source (#1307) [cvstealth]
+    - Make VMWare data source test host independent and expand testing (#1308)
+      [Robert Schweikert]
+    - Add json schemas for modules starting with P
+    - sources/azure: remove lease file parsing (#1302) [Chris Patterson]
+    - remove flaky test from ci (#1322) [Brett Holman]
+    - ci: Switch to python 3.10 in Travis CI (#1320) [Brett Holman]
+    - Better interface handling for Vultr, expect unexpected DHCP servers
+      (#1297) [eb3095]
+    - Remove unused init local artifact (#1315) [Brett Holman]
+    - Doc cleanups (#1317) [Brett Holman]
+    - docs improvements (#1312) [Brett Holman]
+    - add support for jinja do statements, add unit test (#1314) [Paul Bruno]
+    - sources/azure: prevent tight loops for DHCP retries (#1285)
+      [Chris Patterson]
+    - net/dhcp: surface type of DHCP lease failure to caller (#1276)
+      [Chris Patterson]
+    - Stop hardcoding systemctl location (#1278) [Robert Schweikert]
+    - Remove python2 syntax from docs (#1310) [Brett Holman]
+    - [tools/migrate-lp-user-to-github] Rename master branch to main (#1301)
+      [Adam Collard]
+    - redhat: Depend on "hostname" package (#1288) [Lubomir Rintel]
+    - Add native NetworkManager support (#1224) [Lubomir Rintel]
+    - Fix link in CLA check to point to contribution guide. (#1299)
+      [Adam Collard]
 
  -- James Falcon <james.falcon@canonical.com>  Thu, 17 Mar 2022 11:25:28 -0500
 
