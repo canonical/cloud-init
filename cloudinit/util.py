@@ -29,7 +29,7 @@ import socket
 import stat
 import string
 import subprocess
-import 
+import sys
 import time
 from base64 import b64decode, b64encode
 from errno import ENOENT
@@ -393,16 +393,17 @@ def multi_log(
         sys.stderr.write(text)
     if console:
         conpath = "/dev/console"
-        writing_to_console_failed = False
+        writing_to_console_worked = False
         if os.path.exists(conpath):
             try:
                 with open(conpath, "w") as wfh:
                     wfh.write(text)
                     wfh.flush()
+                writing_to_console_worked = True
             except OSError:
-                writing_to_console_failed = True
-    
-        if fallback_to_stdout or writing_to_console_failed:
+                pass
+
+        if fallback_to_stdout and not writing_to_console_worked:
             # A container may lack /dev/console (arguably a container bug).
             # Additionally, /dev/console may not be writable to on a VM (again
             # likely a VM bug).
