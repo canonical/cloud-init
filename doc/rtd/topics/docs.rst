@@ -58,14 +58,6 @@ other pages. For example for the FAQ page this would be:
 
     .. _faq:
 
-Footer
-------
-The footer should include the textwidth
-
-.. code-block:: rst
-
-    .. vi: textwidth=79
-
 Vertical Whitespace
 -------------------
 One newline between each section helps ensure readability of the documentation

@@ -38,7 +38,7 @@ application::
   It is typically located at ``/var/lib`` but there are certain configuration
   scenarios where this can be altered.
 
-  TBD, describe this overriding more.
+.. TODO: expand this section
 
 ``data/``
 
@@ -74,7 +74,7 @@ application::
 
 ``seed/``
 
-  TBD
+  Contains seeded data files: meta-data, network-config, user-data, vendor-data
 
 ``sem/``
 
@@ -83,5 +83,3 @@ application::
   is only ran `per-once`, `per-instance`, `per-always`. This folder contains
   semaphore `files` which are only supposed to run `per-once` (not tied to the
   instance id).
-
-.. vi: textwidth=79

@@ -5,9 +5,11 @@
 import json
 from functools import lru_cache
 
+from requests import exceptions
+
 from cloudinit import dmi
 from cloudinit import log as log
-from cloudinit import net, subp, url_helper, util
+from cloudinit import net, netinfo, subp, url_helper, util
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 # Get LOG
@@ -20,24 +22,63 @@ def get_metadata(url, timeout, retries, sec_between, agent):
     exception = RuntimeError("Failed to DHCP")
 
     # Seek iface with DHCP
+    for iface in get_interface_list():
+        try:
+            with EphemeralDHCPv4(
+                iface=iface[0], connectivity_url_data={"url": url}
+            ):
+                # Check for the metadata route, skip if not there
+                if not check_route(url):
+                    continue
+
+                # Fetch the metadata
+                v1 = read_metadata(url, timeout, retries, sec_between, agent)
+
+                return json.loads(v1)
+        except (
+            NoDHCPLeaseError,
+            subp.ProcessExecutionError,
+            RuntimeError,
+            exceptions.RequestException,
+        ) as exc:
+            LOG.error("DHCP Exception: %s", exc)
+            exception = exc
+    raise exception
+
+
+# Get interface list, sort, and clean
+# Should be replaced with find_candidate_nics
+# Dummy and lo will remain to need to be removed
+def get_interface_list():
+    ifaces = []
     for iface in net.get_interfaces():
         # Skip dummy, lo interfaces
         if "dummy" in iface[0]:
             continue
         if "lo" == iface[0]:
             continue
-        try:
-            with EphemeralDHCPv4(
-                iface=iface[0], connectivity_url_data={"url": url}
-            ):
-                # Fetch the metadata
-                v1 = read_metadata(url, timeout, retries, sec_between, agent)
+        ifaces.append(iface)
 
-                return json.loads(v1)
-        except (NoDHCPLeaseError, subp.ProcessExecutionError) as exc:
-            LOG.error("DHCP Exception: %s", exc)
-            exception = exc
-    raise exception
+    # Sort alphabetically
+    return sorted(ifaces, key=lambda i: i[0])
+
+
+# Check for /32 route that our dhcp servers inject
+# in order to determine if this a customer-run dhcp server
+def check_route(url):
+    # Get routes, confirm entry exists
+    routes = netinfo.route_info()
+
+    # If no tools exist and empty dict is returned
+    if "ipv4" not in routes:
+        return False
+
+    # Parse each route into a more searchable format
+    for route in routes["ipv4"]:
+        if route.get("destination", None) in url:
+            return True
+
+    return False
 
 
 # Read the system information from SMBIOS
@@ -124,7 +165,13 @@ def generate_network_config(interfaces):
 
     # Prepare additional interfaces, private
     for i in range(1, len(interfaces)):
-        private = generate_interface(interfaces[i])
+        interface = interfaces[i]
+
+        # Skip interfaces set not to be configured
+        if interface.get("unconfigured"):
+            continue
+
+        private = generate_interface(interface)
         network["config"].append(private)
 
     return network

@@ -6,7 +6,6 @@
 
 import base64
 import crypt
-import datetime
 import functools
 import os
 import os.path
@@ -24,12 +23,18 @@ from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import (
+    EphemeralDHCPv4,
+    NoDHCPLeaseError,
+    NoDHCPLeaseInterfaceError,
+    NoDHCPLeaseMissingDhclientError,
+)
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
+    WALinuxAgentShim,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     build_minimal_ovf,
@@ -52,7 +57,6 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 # azure systems will always have a resource disk, and 66-azure-ephemeral.rules
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
-LEASE_FILE = "/var/lib/dhcp/dhclient.eth0.leases"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
@@ -267,7 +271,6 @@ def get_resource_disk_on_freebsd(port_id) -> Optional[str]:
 
 # update the FreeBSD specific information
 if util.is_FreeBSD():
-    LEASE_FILE = "/var/db/dhclient.leases.hn0"
     DEFAULT_FS = "freebsd-ufs"
     res_disk = get_resource_disk_on_freebsd(1)
     if res_disk is not None:
@@ -281,7 +284,6 @@ if util.is_FreeBSD():
 BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
-    "dhclient_lease_file": LEASE_FILE,
     "apply_network_config": True,  # Use IMDS published network configuration
 }
 # RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
@@ -327,7 +329,6 @@ class DataSourceAzure(sources.DataSource):
         self.ds_cfg = util.mergemanydict(
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
-        self.dhclient_lease_file = self.ds_cfg.get("dhclient_lease_file")
         self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
@@ -358,7 +359,11 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def _setup_ephemeral_networking(
-        self, *, iface: Optional[str] = None, timeout_minutes: int = 5
+        self,
+        *,
+        iface: Optional[str] = None,
+        retry_sleep: int = 1,
+        timeout_minutes: int = 5,
     ) -> None:
         """Setup ephemeral networking.
 
@@ -376,30 +381,46 @@ class DataSourceAzure(sources.DataSource):
             )
 
         LOG.debug("Requested ephemeral networking (iface=%s)", iface)
-
-        start = datetime.datetime.utcnow()
-        timeout = start + datetime.timedelta(minutes=timeout_minutes)
-
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             iface=iface, dhcp_log_func=dhcp_log_cb
         )
 
         lease = None
+        timeout = timeout_minutes * 60 + time()
         with events.ReportEventStack(
             name="obtain-dhcp-lease",
             description="obtain dhcp lease",
             parent=azure_ds_reporter,
         ):
-            while datetime.datetime.utcnow() < timeout:
+            while lease is None:
                 try:
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
-                    break
+                except NoDHCPLeaseInterfaceError:
+                    # Interface not found, continue after sleeping 1 second.
+                    report_diagnostic_event(
+                        "Interface not found for DHCP", logger_func=LOG.warning
+                    )
+                except NoDHCPLeaseMissingDhclientError:
+                    # No dhclient, no point in retrying.
+                    report_diagnostic_event(
+                        "dhclient executable not found", logger_func=LOG.error
+                    )
+                    self._ephemeral_dhcp_ctx = None
+                    raise
                 except NoDHCPLeaseError:
-                    continue
+                    # Typical DHCP failure, continue after sleeping 1 second.
+                    report_diagnostic_event(
+                        "Failed to obtain DHCP lease (iface=%s)" % iface,
+                        logger_func=LOG.error,
+                    )
+
+                # Sleep before retrying, otherwise break if we're past timeout.
+                if lease is None and time() + retry_sleep < timeout:
+                    sleep(retry_sleep)
+                else:
+                    break
 
             if lease is None:
-                msg = "Failed to obtain DHCP lease (iface=%s)" % iface
-                report_diagnostic_event(msg, logger_func=LOG.error)
                 self._ephemeral_dhcp_ctx = None
                 raise NoDHCPLeaseError()
             else:
@@ -408,7 +429,11 @@ class DataSourceAzure(sources.DataSource):
 
                 # Update wireserver IP from DHCP options.
                 if "unknown-245" in lease:
-                    self._wireserver_endpoint = lease["unknown-245"]
+                    self._wireserver_endpoint = (
+                        WALinuxAgentShim.get_ip_from_lease_value(
+                            lease["unknown-245"]
+                        )
+                    )
 
     @azure_ds_telemetry_reporter
     def _teardown_ephemeral_networking(self) -> None:
@@ -1338,7 +1363,7 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
                 report_failure_to_fabric(
-                    dhcp_opts=self._wireserver_endpoint,
+                    endpoint=self._wireserver_endpoint,
                     description=description,
                 )
                 return True
@@ -1361,7 +1386,7 @@ class DataSourceAzure(sources.DataSource):
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
             report_failure_to_fabric(
-                dhcp_opts=self._wireserver_endpoint, description=description
+                endpoint=self._wireserver_endpoint, description=description
             )
             return True
         except Exception as e:
@@ -1386,8 +1411,7 @@ class DataSourceAzure(sources.DataSource):
         """
         try:
             data = get_metadata_from_fabric(
-                fallback_lease_file=None,
-                dhcp_opts=self._wireserver_endpoint,
+                endpoint=self._wireserver_endpoint,
                 iso_dev=self._iso_dev,
                 pubkey_info=pubkey_info,
             )

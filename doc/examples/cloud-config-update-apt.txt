@@ -4,5 +4,4 @@
 # update will be done independent of this setting.
 #
 # Default: false
-# Aliases: apt_update
 package_update: true

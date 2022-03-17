@@ -184,5 +184,19 @@ $a,$b"""
             self.logs.getvalue(),
         )
 
+    def test_jinja_do_extension_render_to_string(self):
+        """Test jinja render_to_string using do extension."""
+        expected_result = "[1, 2, 3]"
+        jinja_template = (
+            "{% set r = [] %} {% set input = [1,2,3] %} "
+            "{% for i in input %} {% do r.append(i) %} {% endfor %} {{r}}"
+        )
+        self.assertEqual(
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            ).strip(),
+            expected_result,
+        )
+
 
 # vi: ts=4 expandtab

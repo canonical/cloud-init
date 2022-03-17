@@ -11,7 +11,7 @@ from xml.sax.saxutils import escape, unescape
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
@@ -85,70 +85,6 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
 class SentinelException(Exception):
     pass
-
-
-class TestFindEndpoint(CiTestCase):
-    def setUp(self):
-        super(TestFindEndpoint, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.load_file = patches.enter_context(
-            mock.patch.object(azure_helper.util, "load_file")
-        )
-
-        self.dhcp_options = patches.enter_context(
-            mock.patch.object(wa_shim, "_load_dhclient_json")
-        )
-
-        self.networkd_leases = patches.enter_context(
-            mock.patch.object(wa_shim, "_networkd_get_value_from_leases")
-        )
-        self.networkd_leases.return_value = None
-
-    def test_missing_file(self):
-        """wa_shim find_endpoint uses default endpoint if
-        leasefile not found
-        """
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    def test_missing_special_azure_line(self):
-        """wa_shim find_endpoint uses default endpoint if leasefile is found
-        but does not contain DHCP Option 245 (whose value is the endpoint)
-        """
-        self.load_file.return_value = ""
-        self.dhcp_options.return_value = {"eth0": {"key": "value"}}
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    @staticmethod
-    def _build_lease_content(encoded_address):
-        endpoint = azure_helper._get_dhcp_endpoint_option_name()
-        return "\n".join(
-            [
-                "lease {",
-                ' interface "eth0";',
-                " option {0} {1};".format(endpoint, encoded_address),
-                "}",
-            ]
-        )
-
-    def test_from_dhcp_client(self):
-        self.dhcp_options.return_value = {"eth0": {"unknown_245": "5:4:3:2"}}
-        self.assertEqual("5.4.3.2", wa_shim.find_endpoint(None))
-
-    def test_latest_lease_used(self):
-        encoded_addresses = ["5:4:3:2", "4:3:2:1"]
-        file_content = "\n".join(
-            [
-                self._build_lease_content(encoded_address)
-                for encoded_address in encoded_addresses
-            ]
-        )
-        self.load_file.return_value = file_content
-        self.assertEqual(
-            encoded_addresses[-1].replace(":", "."),
-            wa_shim.find_endpoint("foobar"),
-        )
 
 
 class TestExtractIpAddressFromLeaseValue(CiTestCase):
@@ -1101,9 +1037,6 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient = patches.enter_context(
             mock.patch.object(azure_helper, "AzureEndpointHttpClient")
         )
-        self.find_endpoint = patches.enter_context(
-            mock.patch.object(wa_shim, "find_endpoint")
-        )
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, "GoalState")
         )
@@ -1122,7 +1055,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.instance_id = self.test_instance_id
 
     def test_eject_iso_is_called(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         with mock.patch.object(
             shim, "eject_iso", autospec=True
         ) as m_eject_iso:
@@ -1130,22 +1063,21 @@ class TestWALinuxAgentShim(CiTestCase):
             m_eject_iso.assert_called_once_with("/dev/sr0")
 
     def test_http_client_does_not_use_certificate_for_report_ready(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
             [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
         )
 
     def test_http_client_does_not_use_certificate_for_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         self.assertEqual(
             [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
         )
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
@@ -1164,8 +1096,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_goalstate_during_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
@@ -1187,7 +1118,7 @@ class TestWALinuxAgentShim(CiTestCase):
         # if register_with_azure_and_fetch_data() isn't passed some info about
         # the user's public keys, there's no point in even trying to parse the
         # certificates
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         mypk = [
             {"fingerprint": "fp1", "path": "path1"},
             {"fingerprint": "fp3", "path": "path3", "value": ""},
@@ -1211,13 +1142,12 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_absent_certificates_produces_empty_public_keys(self):
         mypk = [{"fingerprint": "fp1", "path": "path1"}]
         self.GoalState.return_value.certificates_xml = None
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         data = shim.register_with_azure_and_fetch_data(pubkey_info=mypk)
         self.assertEqual([], data)
 
     def test_correct_url_used_for_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
@@ -1226,8 +1156,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
@@ -1236,7 +1165,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_goal_state_values_used_for_report_ready(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
@@ -1246,7 +1175,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertIn(self.test_instance_id, posted_document)
 
     def test_goal_state_values_used_for_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
@@ -1256,7 +1185,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertIn(self.test_instance_id, posted_document)
 
     def test_xml_elems_in_report_ready_post(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         health_document = HEALTH_REPORT_XML_TEMPLATE.format(
             incarnation=escape(self.test_incarnation),
@@ -1271,7 +1200,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertEqual(health_document, posted_document)
 
     def test_xml_elems_in_report_failure_post(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         health_document = HEALTH_REPORT_XML_TEMPLATE.format(
             incarnation=escape(self.test_incarnation),
@@ -1294,7 +1223,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_fetch_data_calls_send_ready_signal(
         self, m_goal_state_health_reporter
     ):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
             1,
@@ -1305,7 +1234,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_report_failure_calls_send_failure_signal(
         self, m_goal_state_health_reporter
     ):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_goal_state_health_reporter.return_value.send_failure_signal.assert_called_once_with(  # noqa: E501
             description="TestDesc"
@@ -1314,7 +1243,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_report_failure_does_not_need_certificates(
         self,
     ):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         with mock.patch.object(
             shim, "_fetch_goal_state_from_azure", autospec=True
         ) as m_fetch_goal_state_from_azure:
@@ -1324,24 +1253,24 @@ class TestWALinuxAgentShim(CiTestCase):
             )
 
     def test_clean_up_can_be_called_at_any_time(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.clean_up()
 
     def test_openssl_manager_not_instantiated_by_shim_report_status(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         shim.register_with_azure_and_report_failure(description="TestDesc")
         shim.clean_up()
         self.OpenSSLManager.assert_not_called()
 
     def test_clean_up_after_report_ready(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
         shim.clean_up()
         self.OpenSSLManager.return_value.clean_up.assert_not_called()
 
     def test_clean_up_after_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         shim.clean_up()
         self.OpenSSLManager.return_value.clean_up.assert_not_called()
@@ -1350,7 +1279,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
             SentinelException
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException, shim.register_with_azure_and_fetch_data
         )
@@ -1359,7 +1288,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
             SentinelException
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException,
             shim.register_with_azure_and_report_failure,
@@ -1368,7 +1297,7 @@ class TestWALinuxAgentShim(CiTestCase):
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
         self.GoalState.side_effect = SentinelException
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException, shim.register_with_azure_and_fetch_data
         )
@@ -1377,7 +1306,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self,
     ):
         self.GoalState.side_effect = SentinelException
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException,
             shim.register_with_azure_and_report_failure,
@@ -1388,7 +1317,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
             SentinelException
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException, shim.register_with_azure_and_fetch_data
         )
@@ -1397,7 +1326,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
             SentinelException
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
             SentinelException,
             shim.register_with_azure_and_report_failure,
@@ -1416,14 +1345,14 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         )
 
     def test_data_from_shim_returned(self):
-        ret = azure_helper.get_metadata_from_fabric()
+        ret = azure_helper.get_metadata_from_fabric(endpoint="test_endpoint")
         self.assertEqual(
             self.m_shim.return_value.register_with_azure_and_fetch_data.return_value,  # noqa: E501
             ret,
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.get_metadata_from_fabric()
+        azure_helper.get_metadata_from_fabric(endpoint="test_endpoint")
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
@@ -1431,14 +1360,18 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
             SentinelException
         )
         self.assertRaises(
-            SentinelException, azure_helper.get_metadata_from_fabric
+            SentinelException,
+            azure_helper.get_metadata_from_fabric,
+            "test_endpoint",
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
-            pubkey_info=m_pubkey_info, iso_dev="/dev/sr0"
+            endpoint="test_endpoint",
+            pubkey_info=m_pubkey_info,
+            iso_dev="/dev/sr0",
         )
         self.assertEqual(
             1,
@@ -1450,17 +1383,10 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
-        azure_helper.get_metadata_from_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
-        )
+        azure_helper.get_metadata_from_fabric(endpoint="test_endpoint")
         self.assertEqual(1, self.m_shim.call_count)
         self.assertEqual(
-            mock.call(
-                fallback_lease_file=m_fallback_lease_file,
-                dhcp_options=m_dhcp_options,
-            ),
+            mock.call(endpoint="test_endpoint"),
             self.m_shim.call_args,
         )
 
@@ -1478,7 +1404,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.report_failure_to_fabric()
+        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
@@ -1488,14 +1414,18 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             SentinelException
         )
         self.assertRaises(
-            SentinelException, azure_helper.report_failure_to_fabric
+            SentinelException,
+            azure_helper.report_failure_to_fabric,
+            "test_endpoint",
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric(description="TestDesc")
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint", description="TestDesc"
+        )
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
             description="TestDesc"
         )
@@ -1503,7 +1433,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric()
+        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
         # default err message description should be shown to the user
         # if no description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
@@ -1515,7 +1445,9 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric(description="")
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint", description=""
+        )
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
@@ -1525,84 +1457,11 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
         azure_helper.report_failure_to_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
+            endpoint="test_endpoint",
         )
         self.m_shim.assert_called_once_with(
-            fallback_lease_file=m_fallback_lease_file,
-            dhcp_options=m_dhcp_options,
-        )
-
-
-class TestExtractIpAddressFromNetworkd(CiTestCase):
-
-    azure_lease = dedent(
-        """\
-    # This is private data. Do not parse.
-    ADDRESS=10.132.0.5
-    NETMASK=255.255.255.255
-    ROUTER=10.132.0.1
-    SERVER_ADDRESS=169.254.169.254
-    NEXT_SERVER=10.132.0.1
-    MTU=1460
-    T1=43200
-    T2=75600
-    LIFETIME=86400
-    DNS=169.254.169.254
-    NTP=169.254.169.254
-    DOMAINNAME=c.ubuntu-foundations.internal
-    DOMAIN_SEARCH_LIST=c.ubuntu-foundations.internal google.internal
-    HOSTNAME=tribaal-test-171002-1349.c.ubuntu-foundations.internal
-    ROUTES=10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1
-    CLIENTID=ff405663a200020000ab11332859494d7a8b4c
-    OPTION_245=624c3620
-    """
-    )
-
-    def setUp(self):
-        super(TestExtractIpAddressFromNetworkd, self).setUp()
-        self.lease_d = self.tmp_dir()
-
-    def test_no_valid_leases_is_none(self):
-        """No valid leases should return None."""
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_option_245_is_found_in_single(self):
-        """A single valid lease with 245 option should return it."""
-        populate_dir(self.lease_d, {"9": self.azure_lease})
-        self.assertEqual(
-            "624c3620", wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_option_245_not_found_returns_None(self):
-        """A valid lease, but no option 245 should return None."""
-        populate_dir(
-            self.lease_d,
-            {"9": self.azure_lease.replace("OPTION_245", "OPTION_999")},
-        )
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
-
-    def test_multiple_returns_first(self):
-        """Somewhat arbitrarily return the first address when multiple.
-
-        Most important at the moment is that this is consistent behavior
-        rather than changing randomly as in order of a dictionary."""
-        myval = "624c3601"
-        populate_dir(
-            self.lease_d,
-            {
-                "9": self.azure_lease,
-                "2": self.azure_lease.replace("624c3620", myval),
-            },
-        )
-        self.assertEqual(
-            myval, wa_shim._networkd_get_value_from_leases(self.lease_d)
+            endpoint="test_endpoint",
         )
 
 
