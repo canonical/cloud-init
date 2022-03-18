@@ -12,11 +12,7 @@ import os
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import (
-    MetaSchema,
-    get_meta_doc,
-    validate_cloudconfig_schema,
-)
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -26,36 +22,36 @@ from cloudinit.settings import PER_INSTANCE
 # configuration options before actually attempting to deploy with said
 # configuration.
 
-distros = [ALL_DISTROS]
+
+MODULE_DESCRIPTION = """\
+Run arbitrary commands at a rc.local like level with output to the
+console. Each item can be either a list or a string. If the item is a
+list, it will be properly quoted. Each item is written to
+``/var/lib/cloud/instance/runcmd`` to be later interpreted using
+``sh``.
+
+Note that the ``runcmd`` module only writes the script to be run
+later. The module that actually runs the script is ``scripts-user``
+in the :ref:`Final` boot stage.
+
+.. note::
+
+    all commands must be proper yaml, so you have to quote any characters
+    yaml would eat (':' can be problematic)
+
+.. note::
+
+    when writing files, do not use /tmp dir as it races with
+    systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
+"""
 
 meta: MetaSchema = {
     "id": "cc_runcmd",
     "name": "Runcmd",
     "title": "Run arbitrary commands",
-    "description": dedent(
-        """\
-        Run arbitrary commands at a rc.local like level with output to the
-        console. Each item can be either a list or a string. If the item is a
-        list, it will be properly quoted. Each item is written to
-        ``/var/lib/cloud/instance/runcmd`` to be later interpreted using
-        ``sh``.
-
-        Note that the ``runcmd`` module only writes the script to be run
-        later. The module that actually runs the script is ``scripts-user``
-        in the :ref:`Final` boot stage.
-
-        .. note::
-
-          all commands must be proper yaml, so you have to quote any characters
-          yaml would eat (':' can be problematic)
-
-        .. note::
-
-          when writing files, do not use /tmp dir as it races with
-          systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
-    """
-    ),
-    "distros": distros,
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
     "examples": [
         dedent(
             """\
@@ -68,29 +64,9 @@ meta: MetaSchema = {
     """
         )
     ],
-    "frequency": PER_INSTANCE,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "runcmd": {
-            "type": "array",
-            "items": {
-                "oneOf": [
-                    {"type": "array", "items": {"type": "string"}},
-                    {"type": "string"},
-                    {"type": "null"},
-                ]
-            },
-            "additionalItems": False,  # Reject items of non-string non-list
-            "additionalProperties": False,
-            "minItems": 1,
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -100,7 +76,6 @@ def handle(name, cfg, cloud, log, _args):
         )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
     out_fn = os.path.join(cloud.get_ipath("scripts"), "runcmd")
     cmd = cfg["runcmd"]
     try:

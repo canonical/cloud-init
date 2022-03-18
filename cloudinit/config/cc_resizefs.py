@@ -14,17 +14,11 @@ import stat
 from textwrap import dedent
 
 from cloudinit import subp, util
-from cloudinit.config.schema import (
-    MetaSchema,
-    get_meta_doc,
-    validate_cloudconfig_schema,
-)
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
 NOBLOCK = "noblock"
-
-frequency = PER_ALWAYS
-distros = ["all"]
 
 meta: MetaSchema = {
     "id": "cc_resizefs",
@@ -39,30 +33,18 @@ meta: MetaSchema = {
         partition and will block the boot process while the resize command is
         running. Optionally, the resize operation can be performed in the
         background while cloud-init continues running modules. This can be
-        enabled by setting ``resize_rootfs`` to ``true``. This module can be
+        enabled by setting ``resize_rootfs`` to ``noblock``. This module can be
         disabled altogether by setting ``resize_rootfs`` to ``false``."""
     ),
-    "distros": distros,
+    "distros": [ALL_DISTROS],
     "examples": [
-        "resize_rootfs: false  # disable root filesystem resize operation"
+        "resize_rootfs: false  # disable root filesystem resize operation",
+        "resize_rootfs: noblock  # runs resize operation in the background",
     ],
     "frequency": PER_ALWAYS,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "resize_rootfs": {
-            "enum": [True, False, NOBLOCK],
-            "description": dedent(
-                """\
-                Whether to resize the root partition. Default: 'true'"""
-            ),
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 
 def _resize_btrfs(mount_point, devpth):
@@ -229,7 +211,6 @@ def handle(name, cfg, _cloud, log, args):
         resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
-    validate_cloudconfig_schema(cfg, schema)
     if not util.translate_bool(resize_root, addons=[NOBLOCK]):
         log.debug("Skipping module named %s, resizing disabled", name)
         return
