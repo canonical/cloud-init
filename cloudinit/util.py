@@ -401,12 +401,15 @@ def multi_log(
                     wfh.flush()
                 writing_to_console_worked = True
             except OSError:
-                pass
+                console_error = "Failed to write to /dev/console"
+                sys.stdout.write(console_error)
+                if log:
+                    log.log(logging.WARNING, console_error)
 
         if fallback_to_stdout and not writing_to_console_worked:
             # A container may lack /dev/console (arguably a container bug).
             # Additionally, /dev/console may not be writable to on a VM (again
-            # likely a VM bug).
+            # likely a VM bug or virtualization bug).
             #
             # If either of these is the case, then write output to stdout.
             # This will result in duplicate stderr and stdout messages if
