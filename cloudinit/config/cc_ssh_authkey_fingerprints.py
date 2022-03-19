@@ -119,7 +119,7 @@ def handle(name, cfg, cloud, log, _args):
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "sha256")
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
-        if _cfg.get('no_create_home') or _cfg.get('system'):
+        if _cfg.get("no_create_home") or _cfg.get("system"):
             continue
 
         (key_fn, key_entries) = ssh_util.extract_authorized_keys(user_name)
