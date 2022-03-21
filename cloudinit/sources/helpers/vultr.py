@@ -25,7 +25,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
     for iface in get_interface_list():
         try:
             with EphemeralDHCPv4(
-                iface=iface[0], connectivity_url_data={"url": url}
+                iface=iface, connectivity_url_data={"url": url}
             ):
                 # Check for the metadata route, skip if not there
                 if not check_route(url):
@@ -47,20 +47,15 @@ def get_metadata(url, timeout, retries, sec_between, agent):
 
 
 # Get interface list, sort, and clean
-# Should be replaced with find_candidate_nics
-# Dummy and lo will remain to need to be removed
 def get_interface_list():
     ifaces = []
-    for iface in net.get_interfaces():
-        # Skip dummy, lo interfaces
-        if "dummy" in iface[0]:
-            continue
-        if "lo" == iface[0]:
+    for iface in net.find_candidate_nics():
+        # Skip dummy
+        if "dummy" in iface:
             continue
         ifaces.append(iface)
 
-    # Sort alphabetically
-    return sorted(ifaces, key=lambda i: i[0])
+    return ifaces
 
 
 # Check for /32 route that our dhcp servers inject
@@ -155,7 +150,12 @@ def get_interface_name(mac):
 def generate_network_config(interfaces):
     network = {
         "version": 1,
-        "config": [{"type": "nameserver", "address": ["108.61.10.10"]}],
+        "config": [
+            {
+                "type": "nameserver",
+                "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+            }
+        ],
     }
 
     # Prepare interface 0, public
