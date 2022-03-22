@@ -62,7 +62,7 @@ class DataSourceEc2(sources.DataSource):
 
     # Priority ordered list of additional metadata versions which will be tried
     # for extended metadata content. IPv6 support comes in 2016-09-02
-    extended_metadata_versions = ["2018-09-24", "2016-09-02"]
+    extended_metadata_versions = ["2021-07-15", "2018-09-24", "2016-09-02"]
 
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
