@@ -12,7 +12,13 @@ import copy
 import json
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, wait, ALL_COMPLETED
+from concurrent.futures import (
+    ALL_COMPLETED,
+    ThreadPoolExecutor,
+    TimeoutError,
+    as_completed,
+    wait,
+)
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial

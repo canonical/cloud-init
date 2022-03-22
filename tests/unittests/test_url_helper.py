@@ -388,11 +388,11 @@ class TestUrlHelper:
     @classmethod
     def response_wait(cls, _request):
         cls.event.wait(0.1)
-        return (500, {'request-id': '1'}, cls.fail)
+        return (500, {"request-id": "1"}, cls.fail)
 
     @classmethod
     def response_nowait(cls, _request):
-        return (200, {'request-id': '0'}, cls.success)
+        return (200, {"request-id": "0"}, cls.success)
 
     @pytest.mark.parametrize(
         "addresses," "expected_address_index," "response,",
@@ -421,9 +421,11 @@ class TestUrlHelper:
                 responses.GET,
                 address,
                 callback=(
-                    self.response_wait if "sleep" in address else
-                    self.response_nowait),
-                content_type='application/json'
+                    self.response_wait
+                    if "sleep" in address
+                    else self.response_nowait
+                ),
+                content_type="application/json",
             )
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests
@@ -452,9 +454,11 @@ class TestUrlHelper:
                 responses.GET,
                 address,
                 callback=(
-                    self.response_wait if "sleep" in address else
-                    self.response_nowait),
-                content_type='application/json'
+                    self.response_wait
+                    if "sleep" in address
+                    else self.response_nowait
+                ),
+                content_type="application/json",
             )
 
         # Use async_delay=0.0 to avoid adding unnecessary time to tests

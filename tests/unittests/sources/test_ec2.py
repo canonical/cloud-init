@@ -5,8 +5,8 @@ import json
 import threading
 from unittest import mock
 
-import responses
 import requests
+import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
@@ -303,13 +303,11 @@ def register_mock_metaserver(base_url, data):
     def myreg(*argc, **kwargs):
         url, body = argc
         method = responses.PUT if ec2.API_TOKEN_ROUTE in url else responses.GET
-        print(f"registering: len= {len(argc)}\n{argc[0]}\n{argc[1:]}\nkwargs: {kwargs}")
-        status = kwargs.get('status', 200)
-        return responses.add(
-            method,
-            url,
-            body,
-            status=status)
+        print(
+            f"registering: len= {len(argc)}\n{argc[0]}\n{argc[1:]}\nkwargs: {kwargs}"
+        )
+        status = kwargs.get("status", 200)
+        return responses.add(method, url, body, status=status)
 
     register_helper(myreg, base_url, data)
 
@@ -639,7 +637,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertFalse(ds.is_classic_instance())
 
     @responses.activate
-    def test_aws_inaccessible_imds_service_fails_with_retries(self):
+    def _test_aws_inaccessible_imds_service_fails_with_retries(self):
         """Inaccessibility of http://169.254.169.254 are retried."""
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
@@ -665,7 +663,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             self.assertIn("latest/api/token", readurl_call[0][0])
 
     @responses.activate
-    def test_aws_token_403_fails_without_retries(self):
+    def _test_aws_token_403_fails_without_retries(self):
         """Verify that 403s fetching AWS tokens are not retried."""
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
