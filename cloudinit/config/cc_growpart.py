@@ -298,6 +298,8 @@ def devent2dev(devent):
 def get_mapped_device(blockdev):
     """Returns underlying block device for a mapped device.
 
+    blockdev will usually take the form of /dev/mapper/some_name
+
     If blockdev is a symlink pointing to a /dev/dm-* device, return
     the device pointed to. Otherwise, return None.
     """
@@ -330,17 +332,19 @@ def is_encrypted(blockdev) -> bool:
 
 def get_underlying_partition(blockdev):
     command = ["dmsetup", "deps", "--options=devname", blockdev]
-    dep = subp.subp(command)[0]
-    try:
-        # Returned result should look something like:
-        # 1 dependencies : (vdb1)
-        return "/dev/{}".format(dep.split(": (")[1].split(")")[0])
-    except IndexError:
-        raise Exception(
-            "Ran `{}`, but received unexpected stdout: `{}`".format(
-                command, dep
-            )
+    dep: str = subp.subp(command)[0]  # type: ignore
+    # Returned result should look something like:
+    # 1 dependencies : (vdb1)
+    if not dep.startswith("1 depend"):
+        raise RuntimeError(
+            f"Expecting 1 dependencies from 'dmsetup'. Received: {dep}"
         )
+    try:
+        return f'/dev/{dep.split(": (")[1].split(")")[0]}'
+    except IndexError as e:
+        raise Exception(
+            f"Ran `{command}`, but received unexpected stdout: `{dep}`"
+        ) from e
 
 
 def resize_encrypted(blockdev, partition):
@@ -358,10 +362,20 @@ def resize_encrypted(blockdev, partition):
         slot = keydata["slot"]
     except Exception as e:
         raise Exception("Could not load encryption key") from e
-    subp.subp(
-        ["cryptsetup", "--key-file", "-", "resize", blockdev],
-        data=decoded_key,
-    )
+    try:
+        subp.subp(
+            ["cryptsetup", "--key-file", "-", "resize", blockdev],
+            data=decoded_key,
+        )
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 2:
+            raise RuntimeError(
+                "Resize of encrypted volume failed because no key is "
+                "available for the provided passphrase. This is expected if "
+                "the volume has been previously resized."
+            ) from e
+        raise
+
     subp.subp(
         ["cryptsetup", "luksKillSlot", "--batch-mode", partition, str(slot)]
     )
@@ -435,6 +449,9 @@ def resize_devices(resizer, devices):
                         ),
                     )
                 )
+            # At this point, we WON'T resize a non-encrypted mapped device
+            # though we should probably grow the ability to
+            continue
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
