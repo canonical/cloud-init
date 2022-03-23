@@ -8,15 +8,15 @@ import re
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
-from cloudinit.net import network_state
-
-from . import renderer
-from .network_state import (
+from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
+    ipv6_mask_to_net_prefix,
     is_ipv6_addr,
     net_prefix_to_ipv4_mask,
     subnet_is_ipv6,
 )
+
+from . import renderer
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
@@ -208,9 +208,7 @@ class Route(ConfigMap):
                         % ("METRIC" + str(reindex), _quote_value(metric_value))
                     )
             elif proto == "ipv6" and self.is_ipv6_route(address_value):
-                prefix_value = network_state.ipv6_mask_to_net_prefix(
-                    netmask_value
-                )
+                prefix_value = ipv6_mask_to_net_prefix(netmask_value)
                 metric_value = (
                     "metric " + str(self._conf["METRIC" + index])
                     if "METRIC" + index in self._conf

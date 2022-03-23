@@ -12,6 +12,7 @@
 [Unit]
 Description=cloud-init hotplug hook daemon
 After=cloud-init-hotplugd.socket
+Requires=cloud-init-hotplugd.socket
 
 [Service]
 Type=simple

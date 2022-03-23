@@ -4,6 +4,8 @@ import os
 import shutil
 import tempfile
 
+import pytest
+
 from cloudinit import util
 from cloudinit.config.cc_rsyslog import (
     DEF_DIR,
@@ -14,10 +16,15 @@ from cloudinit.config.cc_rsyslog import (
     parse_remotes_line,
     remotes_to_rsyslog_cfg,
 )
-from tests.unittests import helpers as t_help
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 
 
-class TestLoadConfig(t_help.TestCase):
+class TestLoadConfig(TestCase):
     def setUp(self):
         super(TestLoadConfig, self).setUp()
         self.basecfg = {
@@ -63,7 +70,7 @@ class TestLoadConfig(t_help.TestCase):
         )
 
 
-class TestApplyChanges(t_help.TestCase):
+class TestApplyChanges(TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
@@ -136,7 +143,7 @@ class TestApplyChanges(t_help.TestCase):
         self.assertEqual(expected_content, found_content)
 
 
-class TestParseRemotesLine(t_help.TestCase):
+class TestParseRemotesLine(TestCase):
     def test_valid_port(self):
         r = parse_remotes_line("foo:9")
         self.assertEqual(9, r.port)
@@ -164,7 +171,7 @@ class TestParseRemotesLine(t_help.TestCase):
         self.assertEqual("*.* @syslog.host # foobar", str(r))
 
 
-class TestRemotesToSyslog(t_help.TestCase):
+class TestRemotesToSyslog(TestCase):
     def test_simple(self):
         # str rendered line must appear in remotes_to_ryslog_cfg return
         mycfg = "*.* myhost"
@@ -193,6 +200,43 @@ class TestRemotesToSyslog(t_help.TestCase):
         lines = r.splitlines()
         self.assertEqual(1, len(lines))
         self.assertTrue(myline in r.splitlines())
+
+
+class TestRsyslogSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"rsyslog": {"remotes": {"any": "string"}}}, None),
+            (
+                {"rsyslog": {"unknown": "a"}},
+                "Additional properties are not allowed",
+            ),
+            ({"rsyslog": {"configs": [{"filename": "a"}]}}, ""),
+            (
+                {
+                    "rsyslog": {
+                        "configs": [
+                            {"filename": "a", "content": "a", "a": "a"}
+                        ]
+                    }
+                },
+                "",
+            ),
+            (
+                {"rsyslog": {"remotes": ["a"]}},
+                r"\['a'\] is not of type 'object'",
+            ),
+            ({"rsyslog": {"remotes": "a"}}, "'a' is not of type 'object"),
+            ({"rsyslog": {"service_reload_command": "a"}}, ""),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

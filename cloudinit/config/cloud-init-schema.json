@@ -787,6 +787,226 @@
           }
         }
       }
+    },
+    "cc_resizefs": {
+      "type": "object",
+      "properties": {
+        "resize_rootfs": {
+          "enum": [true, false, "noblock"],
+          "description": "Whether to resize the root partition. ``noblock`` will resize in the background. Default: ``true``"
+        }
+      }
+    },
+    "cc_resolv_conf": {
+      "type": "object",
+      "properties": {
+        "manage_resolv_conf": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to manage the resolv.conf file. ``resolv_conf`` block will be ignored unless this is set to ``true``. Default: ``false``"
+        },
+        "resolv_conf": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nameservers": {
+              "type": "array",
+              "description": "A list of nameservers to use to be added as ``nameserver`` lines"
+            },
+            "searchdomains": {
+              "type": "array",
+              "description": "A list of domains to be added ``search`` line"
+            },
+            "domain": {
+              "type": "string",
+              "description": "The domain to be added as ``domain`` line"
+            },
+            "sortlist": {
+              "type": "array",
+              "description": "A list of IP addresses to be added to ``sortlist`` line"
+            },
+            "options": {
+              "type": "object",
+              "description": "Key/value pairs of options to go under ``options`` heading. A unary option should be specified as ``true``"
+            }
+          }
+        }
+      }
+    },
+    "cc_rh_subscription": {
+      "type": "object",
+      "properties": {
+        "rh_subscription": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "username": {
+              "type": "string",
+              "description": "The username to use. Must be used with password. Should not be used with ``activation-key`` or ``org``"
+            },
+            "password": {
+              "type": "string",
+              "description": "The password to use. Must be used with username. Should not be used with ``activation-key`` or ``org``"
+            },
+            "activation-key": {
+              "type": "string",
+              "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
+            },
+            "org": {
+              "type": "integer",
+              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
+            },
+            "auto-attach": {
+              "type": "boolean",
+              "description": "Whether to attach subscriptions automatically"
+            },
+            "service-level": {
+              "type": "string",
+              "description": "The service level to use when subscribing to RH repositories. ``auto-attach`` must be true for this to be used"
+            },
+            "add-pool": {
+              "type": "array",
+              "description": "A list of pools ids add to the subscription",
+              "items": {
+                "type": "string"
+              }
+            },
+            "enable-repo": {
+              "type": "array",
+              "description": "A list of repositories to enable",
+              "items": {
+                "type": "string"
+              }
+            },
+            "disable-repo": {
+              "type": "array",
+              "description": "A list of repositories to disable",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rhsm-baseurl": {
+              "type": "string",
+              "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``"
+            },
+            "server-hostname": {
+              "type": "string",
+              "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``"
+            }
+          }
+        }
+      }
+    },
+    "cc_rsyslog": {
+      "type": "object",
+      "properties": {
+        "rsyslog": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config_dir": {
+              "type": "string",
+              "description": "The directory where rsyslog configuration files will be written. Default: ``/etc/rsyslog.d``"
+            },
+            "config_filename": {
+              "type": "string",
+              "description": "The name of the rsyslog configuration file. Default: ``20-cloud-config.conf``"
+            },
+            "configs": {
+              "type": "array",
+              "description": "Each entry in ``configs`` is either a string or an object. Each config entry contains a configuration string and a file to write it to. For config entries that are an object, ``filename`` sets the target filename and ``content`` specifies the config string to write. For config entries that are only a string, the string is used as the config string to write. If the filename to write the config to is not specified, the value of the ``config_filename`` key is used. A file with the selected filename will be written inside the directory specified by ``config_dir``.",
+              "items": {
+                "oneOf": [
+                  {"type": "string"},
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["content"],
+                    "properties": {
+                      "filename": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "remotes": {
+              "type": "object",
+              "description": "Each key is the name for an rsyslog remote entry. Each value holds the contents of the remote config for rsyslog. The config consists of the following parts:\n\n- filter for log messages (defaults to ``*.*``)\n\n- optional leading ``@`` or ``@@``, indicating udp and tcp respectively (defaults to ``@``, for udp)\n\n- ipv4 or ipv6 hostname or address. ipv6 addresses must be in ``[::1]`` format, (e.g. ``@[fd00::1]:514``)\n\n- optional port number (defaults to ``514``)\n\nThis module will provide sane defaults for any part of the remote entry that is not specified, so in most cases remote hosts can be specified just using ``<name>: <address>``."
+            },
+            "service_reload_command": {
+              "description": "The command to use to reload the rsyslog service after the config has been updated. If this is set to ``auto``, then an appropriate command for the distro will be used. This is the default behavior. To manually set the command, use a list of command args (e.g. ``[systemctl, restart, rsyslog]``).",
+              "oneOf": [
+                {"enum": ["auto"]},
+                {"type": "array", "items": {"type": "string"}}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cc_runcmd": {
+      "type": "object",
+      "properties": {
+        "runcmd": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "string"},
+              {"type": "null"}
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "cc_salt_minion": {
+      "type": "object",
+      "properties": {
+        "salt_minion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pkg_name": {
+              "type": "string",
+              "description": "Package name to install. Default: ``salt-minion``"
+            },
+            "service_name": {
+              "type": "string",
+              "description": "Service name to enable. Default: ``salt-minion``"
+            },
+            "config_dir": {
+              "type": "string",
+              "description": "Directory to write config files to. Default: ``/etc/salt``"
+            },
+            "conf": {
+              "type": "object",
+              "description": "Configuration to be written to `config_dir`/minion"
+            },
+            "grains": {
+              "type": "object",
+              "description": "Configuration to be written to `config_dir`/grains"
+            },
+            "public_key": {
+              "type": "string",
+              "description": "Public key to be used by the salt minion"
+            },
+            "private_key": {
+              "type": "string",
+              "description": "Private key to be used by salt minion"
+            },
+            "pki_dir": {
+              "type": "string",
+              "description": "Directory to write key files. Default: `config_dir`/pki/minion"
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -803,6 +1023,12 @@
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
-    { "$ref": "#/$defs/cc_puppet"}
+    { "$ref": "#/$defs/cc_puppet"},
+    { "$ref": "#/$defs/cc_resizefs"},
+    { "$ref": "#/$defs/cc_resolv_conf"},
+    { "$ref": "#/$defs/cc_rh_subscription"},
+    { "$ref": "#/$defs/cc_rsyslog"},
+    { "$ref": "#/$defs/cc_runcmd"},
+    { "$ref": "#/$defs/cc_salt_minion"}
   ]
 }

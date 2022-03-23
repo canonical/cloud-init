@@ -920,14 +920,12 @@ class TestNetworkConfig:
         assert network_config == m_read_initramfs_config.return_value
         assert "Failed to parse secondary network configuration" in caplog.text
 
-    def test_ds_network_cfg_order(self, _m):
-        """Ensure that DS net config is preferred over initramfs config
-        but less than system config."""
+    def test_ds_network_cfg_preferred_over_initramfs(self, _m):
+        """Ensure that DS net config is preferred over initramfs config"""
         config_sources = oracle.DataSourceOracle.network_config_sources
-        system_idx = config_sources.index(NetworkConfigSource.system_cfg)
         ds_idx = config_sources.index(NetworkConfigSource.ds)
         initramfs_idx = config_sources.index(NetworkConfigSource.initramfs)
-        assert system_idx < ds_idx < initramfs_idx
+        assert ds_idx < initramfs_idx
 
 
 # vi: ts=4 expandtab

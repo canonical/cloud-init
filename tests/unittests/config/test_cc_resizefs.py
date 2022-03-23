@@ -3,6 +3,8 @@
 import logging
 from collections import namedtuple
 
+import pytest
+
 from cloudinit.config.cc_resizefs import (
     _resize_btrfs,
     _resize_ext,
@@ -12,6 +14,11 @@ from cloudinit.config.cc_resizefs import (
     can_skip_resize,
     handle,
     maybe_get_writable_device_path,
+)
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
@@ -80,25 +87,6 @@ class TestResizefs(CiTestCase):
         self.assertIn(
             "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
             self.logs.getvalue(),
-        )
-
-    @skipUnlessJsonSchema()
-    def test_handle_schema_validation_logs_invalid_resize_rootfs_value(self):
-        """The handle reports json schema violations as a warning.
-
-        Invalid values for resize_rootfs result in disabling the module.
-        """
-        cfg = {"resize_rootfs": "junk"}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
-        logs = self.logs.getvalue()
-        self.assertIn(
-            "WARNING: Invalid cloud-config provided:\nresize_rootfs: 'junk' is"
-            " not one of [True, False, 'noblock']",
-            logs,
-        )
-        self.assertIn(
-            "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
-            logs,
         )
 
     @mock.patch("cloudinit.config.cc_resizefs.util.get_mount_info")
@@ -485,6 +473,26 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
         info = "dev=gpt/system mnt_point=/ path=/"
         devpth = maybe_get_writable_device_path("gpt/system", info, LOG)
         self.assertEqual("gpt/system", devpth)
+
+
+class TestResizefsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"resize_rootfs": True}, None),
+            (
+                {"resize_rootfs": "wrong"},
+                r"'wrong' is not one of \[True, False, 'noblock'\]",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

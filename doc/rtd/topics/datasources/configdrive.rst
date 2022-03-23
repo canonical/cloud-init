@@ -58,7 +58,7 @@ Version 2
 The following criteria are required to as a config drive:
 
 1. Must be formatted with `vfat`_ or `iso9660`_ filesystem
-   or have a *filesystem* label of **config-2**
+   or have a *filesystem* label of **config-2** or **CONFIG-2**
 2. The files that will typically be present in the config drive are:
 
 ::
