@@ -24,7 +24,7 @@ users:
       - lp:falcojr
       - gh:TheRealFalcon
     lock_passwd: false
-    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+    hashed_passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: barfoo
     gecos: Bar B. Foo
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -63,7 +63,7 @@ users:
 #           SELinux user.
 #   lock_passwd: Defaults to true. Lock the password to disable password login
 #   inactive: Number of days after password expires until account is disabled
-#   passwd: The hash -- not the password itself -- of the password you want
+#   hashed_passwd: The hash -- not the password itself -- of the password you want
 #           to use for this user. You can generate a safe hash via:
 #               mkpasswd --method=SHA-512 --rounds=4096
 #           (the above command would create from stdin an SHA-512 password hash
