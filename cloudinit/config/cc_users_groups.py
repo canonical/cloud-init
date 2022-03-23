@@ -186,6 +186,15 @@ def handle(name, cfg, cloud, _log, _args):
             else:
                 config["ssh_redirect_user"] = default_user
                 config["cloud_public_ssh_keys"] = cloud_keys
+
+        if (
+            config.get("no_create_home") or config.get("system")
+        ) and config.get("ssh_authorized_keys"):
+            raise ValueError(
+                "Not creating user %s. ssh_authorized_keys cannot be"
+                " provided with no_create_home: true or system: true" % user
+            )
+
         cloud.distro.create_user(user, **config)
 
 

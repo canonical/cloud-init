@@ -87,6 +87,8 @@ users:
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
 #   ssh_import_id: Optional. Import SSH ids
 #   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
+#                        An error will be raised if no_create_home or system is
+#                        also set.
 #   ssh_redirect_user: Optional. [bool] Set true to block ssh logins for cloud
 #       ssh public keys and emit a message redirecting logins to
 #       use <default_username> instead. This option only disables cloud
