@@ -5,6 +5,7 @@ import os.path
 import random
 import string
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Optional, Type
 from uuid import UUID
 
@@ -290,7 +291,8 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
+    def _perform_launch(self, original_kwargs, **kwargs):
+        launch_kwargs = deepcopy(original_kwargs)
         launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
         wait = launch_kwargs.pop("wait", True)
         release = launch_kwargs.pop("image_id")
