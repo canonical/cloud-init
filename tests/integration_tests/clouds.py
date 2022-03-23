@@ -5,6 +5,7 @@ import os.path
 import random
 import string
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Optional, Type
 from uuid import UUID
 
@@ -291,12 +292,15 @@ class _LxdIntegrationCloud(IntegrationCloud):
             subp(command.split())
 
     def _perform_launch(self, launch_kwargs, **kwargs):
-        launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
-        wait = launch_kwargs.pop("wait", True)
-        release = launch_kwargs.pop("image_id")
+        instance_kwargs = deepcopy(launch_kwargs)
+        instance_kwargs["inst_type"] = instance_kwargs.pop(
+            "instance_type", None
+        )
+        wait = instance_kwargs.pop("wait", True)
+        release = instance_kwargs.pop("image_id")
 
         try:
-            profile_list = launch_kwargs["profile_list"]
+            profile_list = instance_kwargs["profile_list"]
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
@@ -305,10 +309,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )
         pycloudlib_instance = self.cloud_instance.init(
-            launch_kwargs.pop("name", default_name),
+            instance_kwargs.pop("name", default_name),
             release,
             profile_list=profile_list,
-            **launch_kwargs,
+            **instance_kwargs,
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)
