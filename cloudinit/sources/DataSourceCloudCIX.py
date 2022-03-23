@@ -32,11 +32,13 @@ class DataSourceCloudCIX(sources.DataSource):
 
     def read_metadata(self):
         metadata_url = url_helper.combine_url(self.base_url, "metadata")
-        return self.read_url(metadata_url)
+        response = self.read_url(metadata_url)
+        return json.loads(response.contents.decode())
 
     def read_userdata(self):
         userdata_url = url_helper.combine_url(self.base_url, "userdata")
-        return self.read_url(userdata_url)
+        response = self.read_url(userdata_url)
+        return response.contents.decode()
 
     def read_url(self, url):
         response = url_helper.readurl(
@@ -46,8 +48,8 @@ class DataSourceCloudCIX(sources.DataSource):
             retries=self.url_retries,
         )
         if not response.ok():
-            raise RuntimeError("unable to read metadata at %s" % url)
-        return json.loads(response.contents.decode())
+            raise RuntimeError("Unable to read data at %s" % url)
+        return response
 
 
 # Used to match classes to dependencies
