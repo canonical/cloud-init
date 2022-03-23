@@ -14,9 +14,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import (
-    CiTestCase,
     FilesystemMockingTestCase,
-    SchemaTestCaseMixin,
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import get_cloud
