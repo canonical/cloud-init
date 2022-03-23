@@ -13,7 +13,7 @@ def _wait_for_cloud_init(client: IntegrationInstance):
     last_exception = None
     for _ in range(30):
         try:
-            result = client.execute("cloud-init status")
+            result = client.execute("cloud-init status --long")
             if result and result.ok:
                 return result
         except Exception as e:
@@ -59,6 +59,7 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
             "impish",
         ]:
             _remove_nocloud_dir_and_reboot(client)
-        status = _wait_for_cloud_init(client)
-        assert status.stdout.strip() == "status: disabled"
+        status_out = _wait_for_cloud_init(client).stdout.strip()
+        assert "status: disabled" in status_out
+        assert "Cloud-init disabled by cloud-init-generator" in status_out
         assert client.execute("cloud-init status --wait").ok
