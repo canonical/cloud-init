@@ -85,7 +85,7 @@ DEFAULT_CONFIG = {
     "ignore_growroot_disabled": False,
 }
 
-KEYDATA_PATH = "/cc_growpart_keydata"
+KEYDATA_PATH = Path("/cc_growpart_keydata")
 
 
 class RESIZE(object):
@@ -355,13 +355,16 @@ def resize_encrypted(blockdev, partition):
     {"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=","slot":5}
     """
     try:
-        with open(KEYDATA_PATH) as f:
+        with KEYDATA_PATH.open() as f:
             keydata = json.load(f)
         key = keydata["key"]
         decoded_key = base64.b64decode(key)
         slot = keydata["slot"]
     except Exception as e:
-        raise Exception("Could not load encryption key") from e
+        raise RuntimeError(
+            "Could not load encryption key. This is expected if "
+            "the volume has been previously resized."
+        ) from e
     try:
         subp.subp(
             ["cryptsetup", "--key-file", "-", "resize", blockdev],
@@ -375,10 +378,22 @@ def resize_encrypted(blockdev, partition):
                 "the volume has been previously resized."
             ) from e
         raise
-
-    subp.subp(
-        ["cryptsetup", "luksKillSlot", "--batch-mode", partition, str(slot)]
-    )
+    else:
+        try:
+            subp.subp(
+                [
+                    "cryptsetup",
+                    "luksKillSlot",
+                    "--batch-mode",
+                    partition,
+                    str(slot),
+                ]
+            )
+            KEYDATA_PATH.unlink()
+        except Exception:
+            util.logexc(
+                LOG, "Failed to cleanup after resizing encrypted volume"
+            )
 
 
 def resize_devices(resizer, devices):
