@@ -38,9 +38,9 @@ meta: MetaSchema = {
         dedent(
             """\
             salt_minion:
-                pkg_name: 'salt-minion'
-                service_name: 'salt-minion'
-                config_dir: '/etc/salt'
+                pkg_name: salt-minion
+                service_name: salt-minion
+                config_dir: /etc/salt
                 conf:
                     master: salt.example.com
                 grains:
@@ -54,7 +54,7 @@ meta: MetaSchema = {
                     ------BEGIN PRIVATE KEY------
                     <key data>
                     ------END PRIVATE KEY-------
-                pki_dir: '/etc/salt/pki/minion'
+                pki_dir: /etc/salt/pki/minion
             """
         )
     ],

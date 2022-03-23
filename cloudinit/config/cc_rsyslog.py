@@ -37,8 +37,8 @@ meta: MetaSchema = {
             """\
             rsyslog:
                 remotes:
-                    maas: "192.168.1.1"
-                    juju: "10.0.4.1"
+                    maas: 192.168.1.1
+                    juju: 10.0.4.1
                 service_reload_command: auto
             """
         ),
@@ -54,8 +54,8 @@ meta: MetaSchema = {
                     - content: |
                         *.*   @@syslogd.example.com
                 remotes:
-                    maas: "192.168.1.1"
-                    juju: "10.0.4.1"
+                    maas: 192.168.1.1
+                    juju: 10.0.4.1
                 service_reload_command: [your, syslog, restart, command]
             """
         ),
@@ -101,8 +101,8 @@ def load_config(cfg):
 
     if isinstance(cfg.get("rsyslog"), list):
         LOG.warning(
-            "This rsyslog config format is deprecated and will be removed "
-            "in a future version of cloud-init"
+            "DEPRECATION: This rsyslog list format is deprecated and will be "
+            "removed in a future version of cloud-init. Use documented keys."
         )
         mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
         if KEYNAME_LEGACY_FILENAME in cfg:

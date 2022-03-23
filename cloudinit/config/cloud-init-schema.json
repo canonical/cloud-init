@@ -802,8 +802,8 @@
       "properties": {
         "manage_resolv_conf": {
           "type": "boolean",
-          "default": true,
-          "description": "Whether to manage the resolv.conf file. Default: ``true``"
+          "default": false,
+          "description": "Whether to manage the resolv.conf file. ``resolv_conf`` block will be ignored unless this is set to ``true``. Default: ``false``"
         },
         "resolv_conf": {
           "type": "object",
@@ -842,19 +842,19 @@
           "properties": {
             "username": {
               "type": "string",
-              "description": "The username to use. Must be used with password. Should not be used with activation-key or org"
+              "description": "The username to use. Must be used with password. Should not be used with ``activation-key`` or ``org``"
             },
             "password": {
               "type": "string",
-              "description": "The password to use. Must be used with username. Should not be used with activation-key or org"
+              "description": "The password to use. Must be used with username. Should not be used with ``activation-key`` or ``org``"
             },
             "activation-key": {
               "type": "string",
-              "description": "The activation key to use. Must be used with org. Should not be used with username or password"
+              "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
             },
             "org": {
               "type": "integer",
-              "description": "The organization number to use. Must be used with activation-key. Should not be used with username or password"
+              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
             },
             "auto-attach": {
               "type": "boolean",
@@ -862,7 +862,7 @@
             },
             "service-level": {
               "type": "string",
-              "description": "The service level to use when subscribing to RH repositories. auto-attach must be true for this to be used"
+              "description": "The service level to use when subscribing to RH repositories. ``auto-attach`` must be true for this to be used"
             },
             "add-pool": {
               "type": "array",
@@ -887,11 +887,11 @@
             },
             "rhsm-baseurl": {
               "type": "string",
-              "description": "Sets the baseurl in /etc/rhsm/rhsm.conf"
+              "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``"
             },
             "server-hostname": {
               "type": "string",
-              "description": "Sets the serverurl in /etc/rhsm/rhsm.conf"
+              "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``"
             }
           }
         }

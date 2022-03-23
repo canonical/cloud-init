@@ -22,7 +22,7 @@ MY_HOOKNAME = "CLOUD_INIT_REMOTE_HOOK"
 
 MODULE_DESCRIPTION = """\
 This module adds support for RightScale configuration hooks to cloud-init.
-RightScale adds a entry in the format ``CLOUD_INIT_REMOTE_HOOK=http://...`` to
+RightScale adds an entry in the format ``CLOUD_INIT_REMOTE_HOOK=http://...`` to
 ec2 user-data. This module checks for this line in the raw userdata and
 retrieves any scripts linked by the RightScale user data and places them in the
 user scripts configuration directory, to be run later by ``cc_scripts_user``.
@@ -31,7 +31,7 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
     the ``CLOUD_INIT_REMOTE_HOOK`` config variable is present in the raw ec2
     user data only, not in any cloud-config parts
 
-**Config keys**::
+**Raw user data schema**::
 
     CLOUD_INIT_REMOTE_HOOK=<url>
 """

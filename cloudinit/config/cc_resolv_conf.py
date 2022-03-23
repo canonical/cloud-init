@@ -25,15 +25,18 @@ RESOLVE_CONFIG_TEMPLATE_MAP = {
 MODULE_DESCRIPTION = """\
 This module is intended to manage resolv.conf in environments where early
 configuration of resolv.conf is necessary for further bootstrapping and/or
-where configuration management such as puppet or chef own dns configuration.
+where configuration management such as puppet or chef own DNS configuration.
 As Debian/Ubuntu will, by default, utilize resolvconf, and similarly Red Hat
 will use sysconfig, this module is likely to be of little use unless those
 are configured correctly.
 
-When using a config drive and a RHEL-like system, resolv.conf will also be
-managed automatically due to the available information provided for dns
-servers in the config drive network format. For those that with to have
-different settings, use this module.
+When using a :ref:`datasource_config_drive` and a RHEL-like system,
+resolv.conf will also be managed automatically due to the available
+information provided for DNS servers in the :ref:`network_config_v2` format.
+For those that with to have different settings, use this module.
+
+In order for the ``resolv_conf`` section to be applied, ``manage_resolv_conf``
+must be set ``true``.
 
 .. note::
     For Red Hat with sysconfig, be sure to set PEERDNS=no for all DHCP
