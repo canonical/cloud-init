@@ -1,18 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers, util
+from cloudinit import distros, helpers
 from cloudinit.sources.DataSourceCloudCIX import DataSourceCloudCIX
 from tests.unittests.helpers import CiTestCase, mock
 
-METADATA = util.load_yaml(
-    """
-    instance-id: 123456
-    ip_addresses:
-      - private_ip: 10.0.0.2
-        public_ip: 185.1.2.3
-        subnet: 185.1.2.0/24
-"""
-)
+METADATA = {
+    "instance_id": "12_34",
+    "ip_addresses": [
+        {
+            "private_ip": "10.0.0.2",
+            "public_ip": "185.1.2.3",
+            "subnet": "10.0.0.1/24",
+        }
+    ],
+}
 
 USERDATA = b"""#cloud-config
 runcmd:
@@ -47,17 +48,25 @@ class TestDataSourceCloudCIX(CiTestCase):
         self.assertFalse(self.datasource.is_running_in_cloudcix())
 
     @mock.patch(
-        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_url"
+        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_metadata"
     )
-    def test_reading_data(self, m_read_url):
-        def m_responses(url):
-            if url.endswith("metadata"):
-                return METADATA
-            elif url.endswith("userdata"):
-                return USERDATA
-
-        m_read_url.side_effect = m_responses
+    @mock.patch(
+        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_userdata"
+    )
+    def test_reading_metadata_on_cloudcix(
+        self, m_read_userdata, m_read_metadata
+    ):
+        m_read_userdata.return_value = USERDATA
+        m_read_metadata.return_value = METADATA
 
         self.datasource.get_data()
         self.assertEqual(self.datasource.metadata, METADATA)
         self.assertEqual(self.datasource.userdata_raw, USERDATA)
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_metadata"
+    )
+    def test_not_on_cloudcix_returns_false(self, m_read_metadata):
+        self.m_read_dmi_data.return_value = "WrongCloud"
+        self.assertFalse(self.datasource.get_data())
+        m_read_metadata.assert_not_called()
