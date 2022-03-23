@@ -100,7 +100,7 @@ class TestGetIpFromLeaseValue:
             ("dH:l", "100.72.58.108"),
         ],
     )
-    def test_get_ip_from_lease_value(encoded_address, ip_address):
+    def test_get_ip_from_lease_value(self, encoded_address, ip_address):
         assert (
             azure_helper.get_ip_from_lease_value(encoded_address) == ip_address
         )
