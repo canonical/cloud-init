@@ -25,6 +25,8 @@ def _wait_for_cloud_init(client: IntegrationInstance):
 
 
 def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
+    # On Impish and below, NoCloud will be detected on an LXD container.
+    # If we remove this directory, it will no longer be detected.
     client.execute("rm -rf /var/lib/cloud/seed/nocloud-net")
     client.execute("cloud-init clean --logs --reboot")
 
@@ -38,8 +40,12 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
     """
     with session_cloud.launch(
         launch_kwargs={
+            # On Jammy and above, we detect the LXD datasource using a
+            # socket available to the container. This prevents the socket
+            # from being exposed in the container, causing datasource detection
+            # to fail. ds-identify will then have failed to detect a datasource
             "config_dict": {"security.devlxd": False},
-            "wait": False,
+            "wait": False,  # to prevent cloud-init status --wait
         }
     ) as client:
         # We know this will be an LXD instance due to our pytest mark
