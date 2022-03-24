@@ -3,8 +3,6 @@ import logging
 
 from cloudinit import dmi, sources, url_helper
 
-LOG = logging.getLogger(__name__)
-
 
 class DataSourceCloudCIX(sources.DataSource):
 
@@ -12,19 +10,11 @@ class DataSourceCloudCIX(sources.DataSource):
     base_url = "http://169.254.169.254"
 
     def _get_data(self):
-        """
-        Datasources implement _get_data to setup metadata and userdata_raw.
-
-        Minimally, the datasource should return a boolean True on success.
-        Subclasses of DataSource must implement _get_data which sets self.metadata,
-        vendordata_raw and userdata_raw.
-        """
         if not self.is_running_in_cloudcix():
             return False
 
         self.metadata = self.read_metadata()
         self.userdata_raw = self.read_userdata()
-
         return True
 
     def is_running_in_cloudcix(self):
