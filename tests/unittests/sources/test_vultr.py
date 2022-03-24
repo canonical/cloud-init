@@ -141,25 +141,11 @@ VULTR_V1_2 = {
 
 SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
 
-INTERFACES = [
-    ["lo", "56:00:03:15:c4:00", "drv", "devid0"],
-    ["dummy0", "56:00:03:15:c4:01", "drv", "devid1"],
-    ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
-    ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
-    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
-]
+INTERFACES = ["lo", "dummy0", "eth1", "eth0", "eth2"]
 
-ORDERED_INTERFACES = [
-    ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
-    ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
-    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
-]
+ORDERED_INTERFACES = ["eth0", "eth1", "eth2"]
 
-FILTERED_INTERFACES = [
-    ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
-    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
-    ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
-]
+FILTERED_INTERFACES = ["eth1", "eth2", "eth0"]
 
 # Expected generated objects
 
@@ -179,7 +165,10 @@ EXPECTED_VULTR_CONFIG = {
 EXPECTED_VULTR_NETWORK_1 = {
     "version": 1,
     "config": [
-        {"type": "nameserver", "address": ["108.61.10.10"]},
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
         {
             "name": "eth0",
             "type": "physical",
@@ -196,7 +185,10 @@ EXPECTED_VULTR_NETWORK_1 = {
 EXPECTED_VULTR_NETWORK_2 = {
     "version": 1,
     "config": [
-        {"type": "nameserver", "address": ["108.61.10.10"]},
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
         {
             "name": "eth0",
             "type": "physical",
@@ -380,7 +372,7 @@ class TestDataSourceVultr(CiTestCase):
         except Exception:
             pass
 
-        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3][0])
+        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
 
     # Test route checking sucessful DHCPs
     @mock.patch("cloudinit.sources.helpers.vultr.check_route", check_route)
@@ -408,13 +400,7 @@ class TestDataSourceVultr(CiTestCase):
         except Exception:
             pass
 
-        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3][0])
-
-    # Test interface list to ensure alphabetical and cleaned
-    @mock.patch("cloudinit.net.get_interfaces")
-    def test_interface_list(self, mock_get_interfaces):
-        mock_get_interfaces.return_value = INTERFACES
-        self.assertEqual(ORDERED_INTERFACES, vultr.get_interface_list())
+        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
 
 
 # vi: ts=4 expandtab
