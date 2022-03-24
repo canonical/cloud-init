@@ -8,6 +8,8 @@ from textwrap import dedent
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
+import pytest
+
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
@@ -87,35 +89,20 @@ class SentinelException(Exception):
     pass
 
 
-class TestExtractIpAddressFromLeaseValue(CiTestCase):
-    def test_hex_string(self):
-        ip_address, encoded_address = "98.76.54.32", "62:4c:36:20"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_hex_string_with_single_character_part(self):
-        ip_address, encoded_address = "4.3.2.1", "4:3:2:1"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string(self):
-        ip_address, encoded_address = "98.76.54.32", "bL6 "
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string_with_escaped_quote(self):
-        ip_address, encoded_address = "100.72.34.108", 'dH\\"l'
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string_containing_a_colon(self):
-        ip_address, encoded_address = "100.72.58.108", "dH:l"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
+class TestGetIpFromLeaseValue:
+    @pytest.mark.parametrize(
+        "encoded_address,ip_address",
+        [
+            ("62:4c:36:20", "98.76.54.32"),
+            ("4:3:2:1", "4.3.2.1"),
+            ("bL6 ", "98.76.54.32"),
+            ('dH\\"l', "100.72.34.108"),
+            ("dH:l", "100.72.58.108"),
+        ],
+    )
+    def test_get_ip_from_lease_value(self, encoded_address, ip_address):
+        assert (
+            azure_helper.get_ip_from_lease_value(encoded_address) == ip_address
         )
 
 
