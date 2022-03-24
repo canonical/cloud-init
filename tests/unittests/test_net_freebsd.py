@@ -60,8 +60,9 @@ class TestFreeBSDRoundTrip(CiTestCase):
         renderer.render_network_state(ns, target=target)
         return dir2dict(target)
 
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.subp.subp")
-    def test_render_output_has_yaml(self, mock_subp):
+    def test_render_output_has_yaml(self, m_get_interfaces, m_subp):
 
         entry = {
             "yaml": V1,
