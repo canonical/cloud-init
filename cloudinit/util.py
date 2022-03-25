@@ -381,6 +381,12 @@ def find_modules(root_dir) -> dict:
     return entries
 
 
+def write_to_console(conpath, text):
+    with open(conpath, "w") as wfh:
+        wfh.write(text)
+        wfh.flush()
+
+
 def multi_log(
     text,
     console=True,
@@ -396,9 +402,7 @@ def multi_log(
         writing_to_console_worked = False
         if os.path.exists(conpath):
             try:
-                with open(conpath, "w") as wfh:
-                    wfh.write(text)
-                    wfh.flush()
+                write_to_console(conpath, text)
                 writing_to_console_worked = True
             except OSError:
                 console_error = "Failed to write to /dev/console"
