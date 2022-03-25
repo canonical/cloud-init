@@ -1986,7 +1986,9 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         "cloudinit.util.write_to_console",
         mock.Mock(side_effect=OSError("Failed to write to console")),
     )
-    def test_logs_do_go_to_stdout_if_writing_to_console_fails_and_fallback_true(self):
+    def test_logs_do_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
+        self,
+    ):
         self._createConsole(self.root)
         util.multi_log("something", fallback_to_stdout=True)
         self.assertEqual(
