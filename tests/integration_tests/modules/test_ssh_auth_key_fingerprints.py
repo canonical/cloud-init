@@ -13,6 +13,7 @@ import re
 import pytest
 
 from tests.integration_tests.util import retry
+from tests.integration_tests.instances import IntegrationInstance
 
 USER_DATA_SSH_AUTHKEY_DISABLE = """\
 #cloud-config
