@@ -574,6 +574,215 @@
         }
       }
     },
+    "cc_keys_to_console": {
+      "type": "object",
+      "properties": {
+        "ssh": {
+          "type": "object",
+          "properties": {
+            "emit_keys_to_console": {
+              "type": "boolean",
+              "default": true,
+              "description": "Set false to avoid printing SSH keys to system console. Default: ``true``."
+            }
+           },
+           "additionalProperties": false,
+           "required": ["emit_keys_to_console"]
+        },
+        "ssh_key_console_blacklist": {
+          "type": "array",
+          "default": ["ssh-dss"],
+          "description": "Avoid printing matching SSH key types to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "ssh_fp_console_blacklist": {
+          "type": "array",
+          "description": "Avoid printing matching SSH fingerprints to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "cc_landscape": {
+      "type": "object",
+      "properties": {
+        "landscape": {
+          "type": "object",
+          "required": ["client"],
+          "properties": {
+            "client": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/message-system",
+                  "description": "The Landscape server URL to connect to. Default: ``https://landscape.canonical.com/message-system``."
+                },
+                "ping_url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/ping",
+                  "description": "The URL to perform lightweight exchange initiation with. Default: ``https://landscape.canonical.com/ping``."
+                },
+                "data_path": {
+                  "type": "string",
+                  "default": "/var/lib/landscape/client",
+                  "description": "The directory to store data files in. Default: ``/var/lib/land‐scape/client/``."
+                },
+                "log_level": {
+                  "type": "string",
+                  "default": "info",
+                  "enum": ["debug", "info", "warning", "error", "critical"],
+                  "description": "The log level for the client. Default: ``info``."
+                },
+                "computer_tite": {
+                  "type": "string",
+                  "description": "The title of this computer."
+                },
+                "account_name": {
+                  "type": "string",
+                  "description": "The account this computer belongs to."
+                },
+                "registration_key": {
+                  "type": "string",
+                  "description": "The account-wide key used for registering clients."
+                },
+                "tags": {
+                  "type": "string",
+                  "pattern": "^[-_0-9a-zA-Z]+(,[-_0-9a-zA-Z]+)*$",
+                  "description": "Comma separated list of tag names to be sent to the server."
+                },
+                "http_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTP proxy, if one is needed."
+                },
+                "https_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTPS proxy, if one is needed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_locale": {
+      "properties": {
+        "locale": {
+          "type": "string",
+          "description": "The locale to set as the system's locale (e.g. ar_PS)"
+        },
+        "locale_configfile": {
+          "type": "string",
+          "description": "The file in which to write the locale configuration (defaults to the distro's default location)"
+        }
+      }
+    },
+    "cc_lxd": {
+      "type": "object",
+      "properties": {
+        "lxd": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "init": {
+              "type": "object",
+              "properties": {
+                "network_address": {
+                  "type": "string",
+                  "description": "IP address for LXD to listen on"
+                },
+                "network_port": {
+                  "type": "integer",
+                  "description": "Network port to bind LXD to."
+                },
+                "storage_backend": {
+                  "type": "string",
+                  "enum": ["zfs", "dir"],
+                  "default": "dir",
+                  "description": "Storage backend to use. Default: ``dir``."
+                },
+                "storage_create_device": {
+                  "type": "string",
+                  "description": "Setup device based storage using DEVICE"
+                },
+                "storage_create_loop": {
+                  "type": "integer",
+                  "description": "Setup loop based storage with SIZE in GB"
+                },
+                "storage_pool": {
+                  "type": "string",
+                  "description": "Name of storage pool to use or create"
+                },
+                "trust_password": {
+                  "type": "string",
+                  "description": "The password required to add new clients"
+                }
+              }
+            },
+            "bridge": {
+              "type": "object",
+              "required": ["mode"],
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "Whether to setup LXD bridge, use an existing bridge by ``name`` or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching ``name`` and `new` will create a new bridge.",
+                  "enum": ["none", "existing", "new"]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
+                  "default": "lxdbr0"
+                },
+                "ipv4_address": {
+                  "type": "string",
+                  "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
+                },
+                "ipv4_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for the ``ipv4_address`` key. Required when ``ipv4_address`` is set."
+                },
+                "ipv4_dhcp_first": {
+                  "type": "string",
+                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_last`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_last": {
+                  "type": "string",
+                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_first`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_leases": {
+                  "type": "integer",
+                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dchp_last` when unset."
+                },
+                "ipv4_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Set ``true`` to NAT the IPv4 traffic allowing for a routed IPv4 network. Default: ``false``."
+                },
+                "ipv6_address": {
+                  "type": "string",
+                  "description": "IPv6 address for the bridge (CIDR notation). When set, ``ipv6_netmask`` key is required. When absent, no IPv6 will be configured."
+                },
+                "ipv6_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for ``ipv6_address`` provided. Required when ``ipv6_address`` is set."
+                },
+                "ipv6_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to NAT. Default: ``false``."
+                },
+                "domain": {
+                  "type": "string",
+                  "description": "Domain to advertise to DHCP clients and use for DNS resolution."
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "cc_package_update_upgrade_install": {
         "type": "object",
         "properties": {
@@ -1034,215 +1243,6 @@
               "description": "Directory to write key files. Default: `config_dir`/pki/minion"
             }
           }
-        }
-      }
-    },
-    "cc_keys_to_console": {
-      "type": "object",
-      "properties": {
-        "ssh": {
-          "type": "object",
-          "properties": {
-            "emit_keys_to_console": {
-              "type": "boolean",
-              "default": true,
-              "description": "Set false to avoid printing SSH keys to system console. Default: ``true``."
-            }
-           },
-           "additionalProperties": false,
-           "required": ["emit_keys_to_console"]
-        },
-        "ssh_key_console_blacklist": {
-          "type": "array",
-          "default": ["ssh-dss"],
-          "description": "Avoid printing matching SSH key types to the system console.",
-          "items": {"type": "string"},
-          "uniqueItems": true
-        },
-        "ssh_fp_console_blacklist": {
-          "type": "array",
-          "description": "Avoid printing matching SSH fingerprints to the system console.",
-          "items": {"type": "string"},
-          "uniqueItems": true
-        }
-      }
-    },
-    "cc_landscape": {
-      "type": "object",
-      "properties": {
-        "landscape": {
-          "type": "object",
-          "required": ["client"],
-          "properties": {
-            "client": {
-              "type": "object",
-              "properties": {
-                "url": {
-                  "type": "string",
-                  "default": "https://landscape.canonical.com/message-system",
-                  "description": "The Landscape server URL to connect to. Default: ``https://landscape.canonical.com/message-system``."
-                },
-                "ping_url": {
-                  "type": "string",
-                  "default": "https://landscape.canonical.com/ping",
-                  "description": "The URL to perform lightweight exchange initiation with. Default: ``https://landscape.canonical.com/ping``."
-                },
-                "data_path": {
-                  "type": "string",
-                  "default": "/var/lib/landscape/client",
-                  "description": "The directory to store data files in. Default: ``/var/lib/land‐scape/client/``."
-                },
-                "log_level": {
-                  "type": "string",
-                  "default": "info",
-                  "enum": ["debug", "info", "warning", "error", "critical"],
-                  "description": "The log level for the client. Default: ``info``."
-                },
-                "computer_tite": {
-                  "type": "string",
-                  "description": "The title of this computer."
-                },
-                "account_name": {
-                  "type": "string",
-                  "description": "The account this computer belongs to."
-                },
-                "registration_key": {
-                  "type": "string",
-                  "description": "The account-wide key used for registering clients."
-                },
-                "tags": {
-                  "type": "string",
-                  "pattern": "^[-_0-9a-zA-Z]+(,[-_0-9a-zA-Z]+)*$",
-                  "description": "Comma separated list of tag names to be sent to the server."
-                },
-                "http_proxy": {
-                  "type": "string",
-                  "description": "The URL of the HTTP proxy, if one is needed."
-                },
-                "https_proxy": {
-                  "type": "string",
-                  "description": "The URL of the HTTPS proxy, if one is needed."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "cc_locale": {
-      "properties": {
-        "locale": {
-          "type": "string",
-          "description": "The locale to set as the system's locale (e.g. ar_PS)"
-        },
-        "locale_configfile": {
-          "type": "string",
-          "description": "The file in which to write the locale configuration (defaults to the distro's default location)"
-        }
-      }
-    },
-    "cc_lxd": {
-      "type": "object",
-      "properties": {
-        "lxd": {
-          "type": "object",
-          "minProperties": 1,
-          "properties": {
-            "init": {
-              "type": "object",
-              "properties": {
-                "network_address": {
-                  "type": "string",
-                  "description": "IP address for LXD to listen on"
-                },
-                "network_port": {
-                  "type": "integer",
-                  "description": "Network port to bind LXD to."
-                },
-                "storage_backend": {
-                  "type": "string",
-                  "enum": ["zfs", "dir"],
-                  "default": "dir",
-                  "description": "Storage backend to use. Default: ``dir``."
-                },
-                "storage_create_device": {
-                  "type": "string",
-                  "description": "Setup device based storage using DEVICE"
-                },
-                "storage_create_loop": {
-                  "type": "integer",
-                  "description": "Setup loop based storage with SIZE in GB"
-                },
-                "storage_pool": {
-                  "type": "string",
-                  "description": "Name of storage pool to use or create"
-                },
-                "trust_password": {
-                  "type": "string",
-                  "description": "The password required to add new clients"
-                }
-              }
-            },
-            "bridge": {
-              "type": "object",
-              "required": ["mode"],
-              "properties": {
-                "mode": {
-                  "type": "string",
-                  "description": "Whether to setup LXD bridge, use an existing bridge by ``name`` or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching ``name`` and `new` will create a new bridge.",
-                  "enum": ["none", "existing", "new"]
-                },
-                "name": {
-                  "type": "string",
-                  "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
-                  "default": "lxdbr0"
-                },
-                "ipv4_address": {
-                  "type": "string",
-                  "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
-                },
-                "ipv4_netmask": {
-                  "type": "integer",
-                  "description": "Prefix length for the ``ipv4_address`` key. Required when ``ipv4_address`` is set."
-                },
-                "ipv4_dhcp_first": {
-                  "type": "string",
-                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_last`` key to set LXC ``ipv4.dhcp.ranges``."
-                },
-                "ipv4_dhcp_last": {
-                  "type": "string",
-                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_first`` key to set LXC ``ipv4.dhcp.ranges``."
-                },
-                "ipv4_dhcp_leases": {
-                  "type": "integer",
-                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dchp_last` when unset."
-                },
-                "ipv4_nat": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Set ``true`` to NAT the IPv4 traffic allowing for a routed IPv4 network. Default: ``false``."
-                },
-                "ipv6_address": {
-                  "type": "string",
-                  "description": "IPv6 address for the bridge (CIDR notation). When set, ``ipv6_netmask`` key is required. When absent, no IPv6 will be configured."
-                },
-                "ipv6_netmask": {
-                  "type": "integer",
-                  "description": "Prefix length for ``ipv6_address`` provided. Required when ``ipv6_address`` is set."
-                },
-                "ipv6_nat": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Whether to NAT. Default: ``false``."
-                },
-                "domain": {
-                  "type": "string",
-                  "description": "Domain to advertise to DHCP clients and use for DNS resolution."
-                }
-              }
-            }
-          },
-          "additionalProperties": false
         }
       }
     }
