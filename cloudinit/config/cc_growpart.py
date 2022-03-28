@@ -298,7 +298,8 @@ def devent2dev(devent):
 def get_mapped_device(blockdev):
     """Returns underlying block device for a mapped device.
 
-    blockdev will usually take the form of /dev/mapper/some_name
+    If it is mapped, blockdev will usually take the form of
+    /dev/mapper/some_name
 
     If blockdev is a symlink pointing to a /dev/dm-* device, return
     the device pointed to. Otherwise, return None.
@@ -323,7 +324,7 @@ def is_encrypted(blockdev) -> bool:
         subp.subp(["cryptsetup", "status", blockdev])
         is_encrypted = True
     LOG.debug(
-        "Determined that %s is %s encrypted",
+        "Determined that %s is %sencrypted",
         blockdev,
         "" if is_encrypted else "not",
     )
@@ -337,12 +338,12 @@ def get_underlying_partition(blockdev):
     # 1 dependencies : (vdb1)
     if not dep.startswith("1 depend"):
         raise RuntimeError(
-            f"Expecting 1 dependencies from 'dmsetup'. Received: {dep}"
+            f"Expecting '1 dependencies' from 'dmsetup'. Received: {dep}"
         )
     try:
         return f'/dev/{dep.split(": (")[1].split(")")[0]}'
     except IndexError as e:
-        raise Exception(
+        raise RuntimeError(
             f"Ran `{command}`, but received unexpected stdout: `{dep}`"
         ) from e
 
@@ -365,35 +366,31 @@ def resize_encrypted(blockdev, partition):
             "Could not load encryption key. This is expected if "
             "the volume has been previously resized."
         ) from e
+    subp.subp(
+        ["cryptsetup", "--key-file", "-", "resize", blockdev],
+        data=decoded_key,
+    )
+
     try:
         subp.subp(
-            ["cryptsetup", "--key-file", "-", "resize", blockdev],
-            data=decoded_key,
+            [
+                "cryptsetup",
+                "luksKillSlot",
+                "--batch-mode",
+                partition,
+                str(slot),
+            ]
         )
-    except subp.ProcessExecutionError as e:
-        if e.exit_code == 2:
-            raise RuntimeError(
-                "Resize of encrypted volume failed because no key is "
-                "available for the provided passphrase. This is expected if "
-                "the volume has been previously resized."
-            ) from e
-        raise
-    else:
-        try:
-            subp.subp(
-                [
-                    "cryptsetup",
-                    "luksKillSlot",
-                    "--batch-mode",
-                    partition,
-                    str(slot),
-                ]
-            )
-            KEYDATA_PATH.unlink()
-        except Exception:
-            util.logexc(
-                LOG, "Failed to cleanup after resizing encrypted volume"
-            )
+    except Exception:
+        util.logexc(
+            LOG, "Failed to kill luks slot after resizing encrypted volume"
+        )
+    try:
+        KEYDATA_PATH.unlink()
+    except Exception:
+        util.logexc(
+            LOG, "Failed to remove keyfile after resizing encrypted volume"
+        )
 
 
 def resize_devices(resizer, devices):
@@ -454,6 +451,13 @@ def resize_devices(resizer, devices):
                     devices.insert(0, partition)
                     continue
                 resize_encrypted(blockdev, partition)
+                info.append(
+                    (
+                        devent,
+                        RESIZE.CHANGED,
+                        f"Successfully resized encrypted volume '{blockdev}'",
+                    )
+                )
             except Exception as e:
                 info.append(
                     (
