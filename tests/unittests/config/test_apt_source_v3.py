@@ -601,7 +601,12 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                 cfg, TARGET, template_params=params, aa_repo_match=self.matcher
             )
         mockobj.assert_any_call(
-            ["add-apt-repository", "ppa:smoser/cloud-init-test"], target=TARGET
+            [
+                "add-apt-repository",
+                "--no-update",
+                "ppa:smoser/cloud-init-test",
+            ],
+            target=TARGET,
         )
 
         # adding ppa should ignore filename (uses add-apt-repository)
@@ -622,15 +627,27 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             )
         calls = [
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test",
+                ],
                 target=TARGET,
             ),
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test2"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test2",
+                ],
                 target=TARGET,
             ),
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test3"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test3",
+                ],
                 target=TARGET,
             ),
         ]
