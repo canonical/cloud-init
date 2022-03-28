@@ -1,5 +1,4 @@
 import json
-import logging
 
 from cloudinit import dmi, sources, url_helper
 
