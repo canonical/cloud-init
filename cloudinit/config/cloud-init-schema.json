@@ -783,6 +783,40 @@
         }
       }
     },
+    "cc_mcollective": {
+      "type": "object",
+      "properties": {
+        "mcollective": {
+          "type": "object",
+          "properties": {
+            "conf": {
+              "type": "object",
+              "properties": {
+                "public-cert": {
+                  "type": "string",
+                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``"
+                },
+                "private-cert": {
+                  "type": "string",
+                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``"
+                }
+              },
+              "patternProperties": {
+                "^.+$": {
+                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                  "oneOf": [
+                    {"type": "boolean"},
+                    {"type": "integer"},
+                    {"type": "string"}
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "cc_package_update_upgrade_install": {
         "type": "object",
         "properties": {
@@ -1263,6 +1297,7 @@
     { "$ref": "#/$defs/cc_landscape" },
     { "$ref": "#/$defs/cc_locale" },
     { "$ref": "#/$defs/cc_lxd" },
+    { "$ref": "#/$defs/cc_mcollective" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
