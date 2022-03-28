@@ -56,10 +56,20 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
-            # Provide server private and public key and set loglevel to debug
+            # Provide server private and public key and provide the following
+            # config settings in /etc/mcollective/server.cfg:
+            # loglevel: debug
+            # plugin.stomp.host: dbhost
+
+            # WARNING WARNING WARNING
+            # The ec2 metadata service is a network service, and thus is
+            # readable by non-root users on the system
+            # (ie: 'ec2metadata --user-data')
+            # If you want security for this, please use include-once + SSL urls
             mcollective:
               conf:
                 loglevel: debug
+                plugin.stomp.host: dbhost
                 public-cert: |
                     -------BEGIN CERTIFICATE--------
                     <cert data>
