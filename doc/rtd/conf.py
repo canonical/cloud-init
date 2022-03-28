@@ -1,6 +1,8 @@
 import os
 import sys
 
+import sphinx_rtd_theme
+
 from cloudinit import version
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -29,6 +31,7 @@ needs_sphinx = "4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "m2r2",
+    "sphinx_rtd_theme",
     "sphinx_panels",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
