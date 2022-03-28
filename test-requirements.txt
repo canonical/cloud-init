@@ -2,6 +2,7 @@
 httpretty>=0.7.1
 pytest
 pytest-cov
+pytest-mock
 
 # Only really needed on older versions of python
 setuptools
