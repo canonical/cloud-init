@@ -8,7 +8,6 @@ import shutil
 import stat
 import unittest
 from contextlib import ExitStack
-from copy import deepcopy
 from itertools import chain
 from unittest import mock
 
