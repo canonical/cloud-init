@@ -7394,7 +7394,7 @@ class TestNetRenderers(CiTestCase):
 )
 class TestGetInterfaces(CiTestCase):
     _data = {
-        "bonds": ["bond1"],
+        "bonds": ["bond1", "bond0"],
         "bridges": ["bridge1"],
         "vlans": ["bond1.101"],
         "own_macs": [
@@ -7417,6 +7417,7 @@ class TestGetInterfaces(CiTestCase):
             "greptap0": "00:00:00:00:00:00",
             "eth1": "aa:aa:aa:aa:aa:01",
             "tun0": None,
+            "bond0": None,
         },
         "drivers": {
             "enp0s1": "virtio_net",
@@ -7429,6 +7430,7 @@ class TestGetInterfaces(CiTestCase):
             "greptap0": None,
             "eth1": "mlx4_core",
             "tun0": None,
+            "bond0": None,
         },
     }
     data = {}
@@ -7498,11 +7500,11 @@ class TestGetInterfaces(CiTestCase):
             [mock.call("enp0s1"), mock.call("bond1")], any_order=True
         )
         expected = [
-            ("enp0s2", "aa:aa:aa:aa:aa:02", "e1000", "0x5"),
-            ("enp0s1", "aa:aa:aa:aa:aa:01", "virtio_net", "0x4"),
-            ("eth1", "aa:aa:aa:aa:aa:01", "mlx4_core", "0x6"),
-            ("lo", "00:00:00:00:00:00", None, "0x8"),
-            ("bridge1-nic", "aa:aa:aa:aa:aa:03", None, "0x3"),
+            ("enp0s2", "aa:aa:aa:aa:aa:02", "e1000", "0x6"),
+            ("enp0s1", "aa:aa:aa:aa:aa:01", "virtio_net", "0x5"),
+            ("eth1", "aa:aa:aa:aa:aa:01", "mlx4_core", "0x7"),
+            ("lo", "00:00:00:00:00:00", None, "0x9"),
+            ("bridge1-nic", "aa:aa:aa:aa:aa:03", None, "0x4"),
         ]
         self.assertEqual(sorted(expected), sorted(ret))
 
