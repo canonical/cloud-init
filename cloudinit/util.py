@@ -2664,7 +2664,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
 def read_meminfo(meminfo="/proc/meminfo", raw=False):
     # read a /proc/meminfo style file and return
     # a dict with 'total', 'free', and 'available'
-    mpliers = {"kB": 2 ** 10, "mB": 2 ** 20, "B": 1, "gB": 2 ** 30}
+    mpliers = {"kB": 2**10, "mB": 2**20, "B": 1, "gB": 2**30}
     kmap = {
         "MemTotal:": "total",
         "MemFree:": "free",
@@ -2694,7 +2694,7 @@ def human2bytes(size):
     if size.endswith("B"):
         size = size[:-1]
 
-    mpliers = {"B": 1, "K": 2 ** 10, "M": 2 ** 20, "G": 2 ** 30, "T": 2 ** 40}
+    mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}
 
     num = size
     mplier = "B"

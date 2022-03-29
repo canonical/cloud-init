@@ -178,7 +178,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     if memsize is None:
         memsize = util.read_meminfo()["total"]
 
-    GB = 2 ** 30
+    GB = 2**30
     sugg_max = 8 * GB
 
     info = {"avail": "na", "max_in": maxsize, "mem": memsize}
@@ -230,7 +230,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     info["size"] = size
 
-    MB = 2 ** 20
+    MB = 2**20
     pinfo = {}
     for k, v in info.items():
         if isinstance(v, int):
@@ -324,7 +324,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
             fsys=swap_dir, maxsize=maxsize, memsize=memsize
         )
 
-    mibsize = str(int(size / (2 ** 20)))
+    mibsize = str(int(size / (2**20)))
     if not size:
         LOG.debug("Not creating swap: suggested size was 0")
         return
