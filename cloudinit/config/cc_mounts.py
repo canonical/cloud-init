@@ -30,10 +30,11 @@ device name starts with one of ``xvd``, ``sd``, ``hd``, or ``vd``, the leading
 Any mounts that do not appear to either an attached block device or network
 resource will be skipped with a log like "Ignoring nonexistent mount ...".
 
-Cloud-init will attempt to add the following mount directives if available yet
+Cloud-init will attempt to add the following mount directives if available and
 unconfigured in `/etc/fstab`:
     mounts:
-    - ["ephemeral0", "/mnt", "auto", "defaults,nobootwait", "0", "2"]
+    - ["ephemeral0", "/mnt", "auto",
+       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
     - ["swap", "none", "swap", "sw", "0", "0"]
 
 In order to remove a previously listed mount, an entry can be added to
@@ -45,15 +46,10 @@ for the values in a ``mounts`` entry that are not specified, aside from the
 ``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
 values. It defaults to::
 
-    mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
-
-On a systemd booted system that default is the mostly equivalent::
-
     mount_default_fields: [none, none, "auto",
-       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+        "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
 
-Note that `nobootwait` is an upstart specific boot option that somewhat
-equates to the more standard `nofail`.
+Other init systems will vary in ``mount_default_fields``.
 
 Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
@@ -63,11 +59,15 @@ swap file is created.
 
 example = dedent(
     """\
+    # Mount ephemeral0 with "noexec" flag, /dev/sdc with mount_default_fields,
+    # and /dev/xvdh with custom fs_passno "0" to avoid fsck on the mount.
+    # Also provide an automatically sized swap with a max size of 10485760
+    # bytes.
     mounts:
         - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
         - [ sdc, /opt/data ]
-        - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
-    mount_default_fields: [None, None, "auto", "defaults,nofail", "0", "2"]
+        - [ xvdh, /opt/data, auto, "defaults,nofail", "0", "0" ]
+    mount_default_fields: [None, None, auto, "defaults,nofail", "0", "2"]
     swap:
         filename: /my/swapfile
         size: auto
@@ -83,7 +83,18 @@ meta: MetaSchema = {
     "title": "Configure mount points and swap files",
     "description": MODULE_DESCRIPTION,
     "distros": distros,
-    "examples": [example],
+    "examples": [
+        example,
+        dedent(
+            """\
+        # Create a 2 GB swap file at /swapfile using human-readable values
+        swap:
+            filename: /swapfile
+            size: 2G
+            maxsize: 2G
+        """
+        ),
+    ],
     "frequency": PER_INSTANCE,
 }
 

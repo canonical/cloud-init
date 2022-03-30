@@ -547,6 +547,22 @@ class TestMountsSchema:
                 {"swap": {"invalidprop": True}},
                 "Additional properties are not allowed \('invalidprop'",
             ),
+            # Swap size/maxsize positive test cases
+            ({"swap": {"size": ".5T", "maxsize": ".5T"}}, None),
+            ({"swap": {"size": "1G", "maxsize": "1G"}}, None),
+            ({"swap": {"size": "200K", "maxsize": "200K"}}, None),
+            ({"swap": {"size": "10485760B", "maxsize": "10485760B"}}, None),
+            # Swap size/maxsize negative test cases
+            ({"swap": {"size": "1.5MB"}}, "swap.size:"),
+            (
+                {"swap": {"maxsize": "1.5MT"}},
+                "swap.maxsize: '1.5MT' is not valid",
+            ),
+            (
+                {"swap": {"maxsize": "..5T"}},
+                "swap.maxsize: '..5T' is not valid",
+            ),
+            ({"swap": {"size": "K"}}, "swap.size: 'K' is not valid"),
         ],
     )
     @test_helpers.skipUnlessJsonSchema()

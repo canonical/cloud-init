@@ -838,13 +838,13 @@
               "minItems": 1,
               "maxItems": 6
           },
-          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` entries of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]",
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declaratiosn of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items, will get remaining values from ``mount_default_fields``. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
           "minItems": 1
         },
         "mount_default_fields": {
           "type": "array",
-          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Systemd-based mount options will be ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
-          "default": [null, null, "auto", "defaults,nobootwait", "0", "2"],
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
+          "default": [null, null, "auto", "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"],
           "items": {
             "oneOf": [
               {"type": "string"},
@@ -862,11 +862,18 @@
               "description": "Path to the swap file to create"
             },
             "size": {
-              "description": "The size in bytes of the swap file, or 'auto'",
-              "oneOf": [{"enum": ["auto"]}, {"type": "integer"}]
+              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T.",
+              "oneOf": [
+                  {"enum": ["auto"]},
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ]
             },
             "maxsize": {
-              "type": "integer",
+              "oneOf": [
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ],
               "description": "The maxsize in bytes of the swap file"
             }
           },
