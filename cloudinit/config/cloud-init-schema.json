@@ -783,6 +783,104 @@
         }
       }
     },
+    "cc_mcollective": {
+      "type": "object",
+      "properties": {
+        "mcollective": {
+          "type": "object",
+          "properties": {
+            "conf": {
+              "type": "object",
+              "properties": {
+                "public-cert": {
+                  "type": "string",
+                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``"
+                },
+                "private-cert": {
+                  "type": "string",
+                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``"
+                }
+              },
+              "patternProperties": {
+                "^.+$": {
+                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                  "oneOf": [
+                    {"type": "boolean"},
+                    {"type": "integer"},
+                    {"type": "string"}
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_migrator": {
+      "type": "object",
+      "properties": {
+        "migrate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to migrate legacy cloud-init semaphores to new format. Default: ``true``"
+        }
+      }
+    },
+    "cc_mounts": {
+      "type": "object",
+      "properties": {
+        "mounts": {
+          "type": "array",
+          "items": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 6
+          },
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from ``mount_default_fields``. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "minItems": 1
+        },
+        "mount_default_fields": {
+          "type": "array",
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
+          "default": [null, null, "auto", "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"],
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "null"}
+            ]
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "swap": {
+          "type": "object",
+          "properties": {
+            "filename": {
+              "type": "string",
+              "description": "Path to the swap file to create"
+            },
+            "size": {
+              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T.",
+              "oneOf": [
+                  {"enum": ["auto"]},
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ]
+            },
+            "maxsize": {
+              "oneOf": [
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ],
+              "description": "The maxsize in bytes of the swap file"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "cc_package_update_upgrade_install": {
         "type": "object",
         "properties": {
@@ -1263,6 +1361,9 @@
     { "$ref": "#/$defs/cc_landscape" },
     { "$ref": "#/$defs/cc_locale" },
     { "$ref": "#/$defs/cc_lxd" },
+    { "$ref": "#/$defs/cc_mcollective" },
+    { "$ref": "#/$defs/cc_migrator" },
+    { "$ref": "#/$defs/cc_mounts" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},

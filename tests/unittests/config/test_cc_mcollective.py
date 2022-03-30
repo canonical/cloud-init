@@ -6,9 +6,15 @@ import tempfile
 from io import BytesIO
 
 import configobj
+import pytest
 
 from cloudinit import util
 from cloudinit.config import cc_mcollective
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
 
@@ -153,6 +159,32 @@ class TestHandler(t_help.TestCase):
             mock_subp.subp.call_args_list[0][0][0],
             ["service", "mcollective", "restart"],
         )
+
+
+class TestMcollectiveSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Disallow undocumented keys client 'mcollective' without error
+            (
+                {"mcollective": {"customkey": True}},
+                "mcollective: Additional properties are not allowed",
+            ),
+            # Allow undocumented keys client keys below 'conf' without error
+            ({"mcollective": {"conf": {"customkey": 1}}}, None),
+            (
+                {"mcollective": {"conf": {"public-cert": 1}}},
+                "mcollective.conf.public-cert: 1 is not of type 'string'",
+            ),
+        ],
+    )
+    @t_help.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab
