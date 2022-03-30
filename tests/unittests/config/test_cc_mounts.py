@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os.path
+import re
 from unittest import mock
 
 import pytest
@@ -529,9 +530,9 @@ class TestMountsSchema:
         "config, error_msg",
         [
             # We expect to see one mount if provided in user-data.
-            ({"mounts": []}, "mounts: \[\] is too short"),
+            ({"mounts": []}, re.escape("mounts: [] is too short")),
             # Disallow less than 1 item per mount entry
-            ({"mounts": [[]]}, "mounts.0: \[\] is too short"),
+            ({"mounts": [[]]}, re.escape("mounts.0: [] is too short")),
             # Disallow more than 6 items per mount entry
             ({"mounts": [["1"] * 7]}, "mounts.0:.* is too long"),
             # Disallow mount_default_fields will anything other than 6 items
@@ -545,7 +546,9 @@ class TestMountsSchema:
             ),
             (
                 {"swap": {"invalidprop": True}},
-                "Additional properties are not allowed \('invalidprop'",
+                re.escape(
+                    "Additional properties are not allowed ('invalidprop'"
+                ),
             ),
             # Swap size/maxsize positive test cases
             ({"swap": {"size": ".5T", "maxsize": ".5T"}}, None),
