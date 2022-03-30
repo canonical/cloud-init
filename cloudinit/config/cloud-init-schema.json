@@ -1762,6 +1762,27 @@
           "description": "The timezone to use as represented in /usr/share/zoneinfo"
         }
       }
+    },
+    "cc_ubuntu_advantage": {
+      "type": "object",
+      "properties": {
+        "ubuntu_advantage": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+            },
+            "token": {
+              "type": "string",
+              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+            }
+          },
+          "required": ["token"],
+          "additionalProperties": false
+        }
+      }
     }
   },
   "allOf": [
@@ -1807,6 +1828,7 @@
     { "$ref": "#/$defs/cc_ssh_authkey_fingerprints"},
     { "$ref": "#/$defs/cc_ssh_import_id"},
     { "$ref": "#/$defs/cc_ssh"},
-    { "$ref": "#/$defs/cc_timezone"}
+    { "$ref": "#/$defs/cc_timezone"},
+    { "$ref": "#/$defs/cc_ubuntu_advantage"}
   ]
 }

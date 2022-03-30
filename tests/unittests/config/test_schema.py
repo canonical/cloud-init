@@ -199,6 +199,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_ssh_import_id"},
             {"$ref": "#/$defs/cc_ssh"},
             {"$ref": "#/$defs/cc_timezone"},
+            {"$ref": "#/$defs/cc_ubuntu_advantage"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -213,7 +214,6 @@ class TestGetSchema:
         assert [
             "drivers",
             "ntp",
-            "ubuntu_advantage",
             "write_files",
             "write_files",
             "zypper",
