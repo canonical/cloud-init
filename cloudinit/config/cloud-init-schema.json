@@ -1783,6 +1783,34 @@
           "additionalProperties": false
         }
       }
+    },
+    "cc_ubuntu_drivers": {
+      "type": "object",
+      "properties": {
+        "drivers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nvidia": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "license-accepted"
+              ],
+              "properties": {
+                "license-accepted": {
+                  "type": "boolean",
+                  "description": "Do you accept the NVIDIA driver license?"
+                },
+                "version": {
+                  "type": "string",
+                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -1829,6 +1857,7 @@
     { "$ref": "#/$defs/cc_ssh_import_id"},
     { "$ref": "#/$defs/cc_ssh"},
     { "$ref": "#/$defs/cc_timezone"},
-    { "$ref": "#/$defs/cc_ubuntu_advantage"}
+    { "$ref": "#/$defs/cc_ubuntu_advantage"},
+    { "$ref": "#/$defs/cc_ubuntu_drivers"}
   ]
 }
