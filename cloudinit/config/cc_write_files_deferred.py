@@ -5,10 +5,7 @@
 """Defer writing certain files"""
 
 from cloudinit import util
-from cloudinit.config.cc_write_files import DEFAULT_DEFER
-from cloudinit.config.cc_write_files import schema as write_files_schema
-from cloudinit.config.cc_write_files import write_files
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
 
 # meta is not used in this module, but it remains as code documentation
 #
@@ -28,15 +25,11 @@ from cloudinit.config.schema import validate_cloudconfig_schema
 #    *Please note that his module is not exposed to the user through
 #    its own dedicated top-level directive.*
 
-schema = write_files_schema
-
-
 # Not exposed, because related modules should document this behaviour
 __doc__ = None
 
 
 def handle(name, cfg, _cloud, log, _args):
-    validate_cloudconfig_schema(cfg, schema)
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f

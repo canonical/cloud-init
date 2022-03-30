@@ -215,7 +215,6 @@ class TestGetSchema:
         assert [
             "ntp",
             "write_files",
-            "write_files",
             "zypper",
         ] == sorted(legacy_schema_keys)
 
