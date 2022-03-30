@@ -201,6 +201,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_timezone"},
             {"$ref": "#/$defs/cc_ubuntu_advantage"},
             {"$ref": "#/$defs/cc_ubuntu_drivers"},
+            {"$ref": "#/$defs/cc_write_files"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -214,7 +215,6 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "ntp",
-            "write_files",
             "zypper",
         ] == sorted(legacy_schema_keys)
 

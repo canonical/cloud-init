@@ -1,19 +1,25 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
-import copy
 import gzip
 import io
+import re
 import shutil
 import tempfile
+
+import pytest
 
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.config.cc_write_files import decode_perms, handle, write_files
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
-    mock,
     skipUnlessJsonSchema,
 )
 
@@ -55,74 +61,6 @@ VALID_SCHEMA = {
     ]
 }
 
-INVALID_SCHEMA = {  # Dropped required path key
-    "write_files": [
-        {
-            "append": False,
-            "content": "a",
-            "encoding": "gzip",
-            "owner": "jeff",
-            "permissions": "0777",
-        }
-    ]
-}
-
-
-@skipUnlessJsonSchema()
-@mock.patch("cloudinit.config.cc_write_files.write_files")
-class TestWriteFilesSchema(CiTestCase):
-
-    with_logs = True
-
-    def test_schema_validation_warns_missing_path(self, m_write_files):
-        """The only required file item property is 'path'."""
-        cc = self.tmp_cloud("ubuntu")
-        valid_config = {"write_files": [{"path": "/some/path"}]}
-        handle("cc_write_file", valid_config, cc, LOG, [])
-        self.assertNotIn(
-            "Invalid cloud-config provided:", self.logs.getvalue()
-        )
-        handle("cc_write_file", INVALID_SCHEMA, cc, LOG, [])
-        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
-        self.assertIn("'path' is a required property", self.logs.getvalue())
-
-    def test_schema_validation_warns_non_string_type_for_files(
-        self, m_write_files
-    ):
-        """Schema validation warns of non-string values for each file item."""
-        cc = self.tmp_cloud("ubuntu")
-        for key in VALID_SCHEMA["write_files"][0].keys():
-            if key == "append":
-                key_type = "boolean"
-            else:
-                key_type = "string"
-            invalid_config = copy.deepcopy(VALID_SCHEMA)
-            invalid_config["write_files"][0][key] = 1
-            handle("cc_write_file", invalid_config, cc, LOG, [])
-            self.assertIn(
-                mock.call("cc_write_file", invalid_config["write_files"]),
-                m_write_files.call_args_list,
-            )
-            self.assertIn(
-                "write_files.0.%s: 1 is not of type '%s'" % (key, key_type),
-                self.logs.getvalue(),
-            )
-        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
-
-    def test_schema_validation_warns_on_additional_undefined_propertes(
-        self, m_write_files
-    ):
-        """Schema validation warns on additional undefined file properties."""
-        cc = self.tmp_cloud("ubuntu")
-        invalid_config = copy.deepcopy(VALID_SCHEMA)
-        invalid_config["write_files"][0]["bogus"] = "value"
-        handle("cc_write_file", invalid_config, cc, LOG, [])
-        self.assertIn(
-            "Invalid cloud-config provided:\nwrite_files.0: Additional"
-            " properties are not allowed ('bogus' was unexpected)",
-            self.logs.getvalue(),
-        )
-
 
 class TestWriteFiles(FilesystemMockingTestCase):
 
@@ -132,19 +70,6 @@ class TestWriteFiles(FilesystemMockingTestCase):
         super(TestWriteFiles, self).setUp()
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
-
-    @skipUnlessJsonSchema()
-    def test_handler_schema_validation_warns_non_array_type(self):
-        """Schema validation warns of non-array value."""
-        invalid_config = {"write_files": 1}
-        cc = self.tmp_cloud("ubuntu")
-        with self.assertRaises(TypeError):
-            handle("cc_write_file", invalid_config, cc, LOG, [])
-        self.assertIn(
-            "Invalid cloud-config provided:\nwrite_files: 1 is not of type"
-            " 'array'",
-            self.logs.getvalue(),
-        )
 
     def test_simple(self):
         self.patchUtils(self.tmp)
@@ -262,6 +187,38 @@ def _gzip_bytes(data):
     finally:
         if fp:
             fp.close()
+
+
+class TestWriteFilesSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Top-level write_files type validation
+            ({"write_files": 1}, "write_files: 1 is not of type 'array'"),
+            ({"write_files": []}, re.escape("write_files: [] is too short")),
+            (
+                {"write_files": [{}]},
+                "write_files.0: 'path' is a required property",
+            ),
+            (
+                {"write_files": [{"path": "/some", "bogus": True}]},
+                re.escape(
+                    "write_files.0: Additional properties are not allowed"
+                    " ('bogus'"
+                ),
+            ),
+            (  # Strict encoding choices
+                {"write_files": [{"path": "/some", "encoding": "g"}]},
+                re.escape(
+                    "write_files.0.encoding: 'g' is not one of ['gz', 'gzip',"
+                ),
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab
