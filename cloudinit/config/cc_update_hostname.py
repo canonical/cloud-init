@@ -6,38 +6,76 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Update Hostname
----------------
-**Summary:** update hostname and fqdn
+"""Update Hostname: Update hostname and fqdn"""
 
+import os
+from textwrap import dedent
+
+from cloudinit import util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 This module will update the system hostname and fqdn. If ``preserve_hostname``
-is set, then the hostname will not be altered.
+is set ``true``, then the hostname will not be altered.
 
 .. note::
     for instructions on specifying hostname and fqdn, see documentation for
     ``cc_set_hostname``
-
-**Internal name:** ``cc_update_hostname``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    preserve_hostname: <true/false>
-    prefer_fqdn_over_hostname: <true/false>
-    fqdn: <fqdn>
-    hostname: <fqdn/hostname>
 """
 
-import os
+distros = ["all"]
 
-from cloudinit import util
-from cloudinit.settings import PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_update_hostname",
+    "name": "Update Hostname",
+    "title": "Update hostname and fqdn",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
+        # By default: when ``preserve_hostname`` is not specified cloud-init
+        # updates ``/etc/hostname`` per-boot based on the cloud provided
+        # ``local-hostname`` setting. If you manually change ``/etc/hostname``
+        # after boot cloud-init will no longer modify it.
+        #
+        # This default cloud-init behavior is equivalent to this cloud-config:
+        preserve_hostname: false
+        """
+        ),
+        dedent(
+            """\
+        # Prevent cloud-init from updating the system hostname.
+        preseve_hostname: true
+        """
+        ),
+        dedent(
+            """\
+        # Prevent cloud-init from updating ``/etc/hostname``
+        preseve_hostname: true
+        """
+        ),
+        (
+            """\
+        # Set hostname to "external.fqdn.me" instead of "myhost"
+        fqdn: external.fqdn.me
+        hostname: myhost
+        prefer_fqdn_over_hostname: true
+        """
+        ),
+        (
+            """\
+        # Set hostname to "external" instead of "external.fqdn.me" when
+        # cloud metadata provides the ``local-hostname``: "external.fqdn.me".
+        prefer_fqdn_over_hostname: false
+        """
+        ),
+    ],
+    "frequency": PER_ALWAYS,
+}
 
-frequency = PER_ALWAYS
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, _args):

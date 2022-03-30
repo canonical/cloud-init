@@ -147,6 +147,7 @@ class TestGetSchema:
                 "cc_ubuntu_advantage",
                 "cc_ubuntu_drivers",
                 "cc_update_etc_hosts",
+                "cc_update_hostname",
                 "cc_write_files",
                 "cc_zypper_add_repo",
             ]
@@ -203,6 +204,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_ubuntu_advantage"},
             {"$ref": "#/$defs/cc_ubuntu_drivers"},
             {"$ref": "#/$defs/cc_update_etc_hosts"},
+            {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_write_files"},
         ]
         found_subschema_defs = []

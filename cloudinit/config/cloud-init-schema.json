@@ -1830,6 +1830,21 @@
         }
       }
     },
+    "cc_update_hostname": {
+      "type": "object",
+      "properties": {
+        "preserve_hostname": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not update system hostname when ``true``. Default: ``false``."
+        },
+        "prefer_fqdn_over_hostname": {
+          "type": "boolean",
+          "default": null,
+          "description": "By default, cloud-init will set the hostname to the short hostname instead of the fully qualified domain name even if cloud-config user-data provides an ``fqdn`` or instance metadata or provides an fqdn in its ``local-hostname`` value. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
@@ -1929,6 +1944,7 @@
     { "$ref": "#/$defs/cc_ubuntu_advantage"},
     { "$ref": "#/$defs/cc_ubuntu_drivers"},
     { "$ref": "#/$defs/cc_update_etc_hosts"},
+    { "$ref": "#/$defs/cc_update_hostname"},
     { "$ref": "#/$defs/cc_write_files"}
   ]
 }
