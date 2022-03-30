@@ -7,6 +7,7 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import os
 
 from cloudinit import distros, helpers
 from cloudinit import log as logging
@@ -57,10 +58,24 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "redhat"
+        self.default_locale = "en_US.UTF-8"
+        self.system_locale = None
         cfg["ssh_svcname"] = "sshd"
 
     def install_packages(self, pkglist):
         self.package_command("install", pkgs=pkglist)
+
+    def get_locale(self):
+        """Return the default locale if set, else use system locale"""
+
+        # read system locale value
+        if not self.system_locale:
+            self.system_locale = self._read_system_locale()
+
+        # Return system_locale setting if valid, else use default locale
+        return (
+            self.system_locale if self.system_locale else self.default_locale
+        )
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
@@ -74,6 +89,23 @@ class Distro(distros.Distro):
             "LANG": locale,
         }
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
+
+    def _read_system_locale(self, keyname="LANG"):
+        """Read system default locale setting, if present"""
+        if self.uses_systemd():
+            locale_fn = self.systemd_locale_conf_fn
+        else:
+            locale_fn = self.locale_conf_fn
+
+        if not locale_fn:
+            raise ValueError("Invalid path: %s" % locale_fn)
+
+        if os.path.exists(locale_fn):
+            (_exists, contents) = rhel_util.read_sysconfig_file(locale_fn)
+            if keyname in contents:
+                return contents[keyname]
+            else:
+                return None
 
     def _write_hostname(self, hostname, filename):
         # systemd will never update previous-hostname for us, so
