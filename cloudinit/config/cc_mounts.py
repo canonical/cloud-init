@@ -49,7 +49,7 @@ values. It defaults to::
     mount_default_fields: [none, none, "auto",
         "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
 
-Other init systems will vary in ``mount_default_fields``.
+Non-systemd init systems will vary in ``mount_default_fields``.
 
 Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
