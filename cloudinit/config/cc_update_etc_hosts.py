@@ -6,11 +6,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Update Etc Hosts
-----------------
-**Summary:** update the hosts file (usually ``/etc/hosts``)
+"""Update Etc Hosts: Update the hosts file (usually ``/etc/hosts``)"""
 
+from textwrap import dedent
+
+from cloudinit import templater, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 This module will update the contents of the local hosts database (hosts file;
 usually ``/etc/hosts``) based on the hostname/fqdn specified in config.
 Management of the hosts file is controlled using ``manage_etc_hosts``. If this
@@ -36,24 +40,57 @@ ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
 .. note::
     for instructions on specifying hostname and fqdn, see documentation for
     ``cc_set_hostname``
-
-**Internal name:** ``cc_update_etc_hosts``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    manage_etc_hosts: <true/"template"/false/"localhost">
-    fqdn: <fqdn>
-    hostname: <fqdn/hostname>
 """
 
-from cloudinit import templater, util
-from cloudinit.settings import PER_ALWAYS
+distros = ["all"]
 
-frequency = PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_update_etc_hosts",
+    "name": "Update Etc Hosts",
+    "title": "Update the hosts file (usually ``/etc/hosts``)",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
+    # Do not update or manage /etc/hosts at all. This is the default behavior.
+    #
+    # Whatever is present at instance boot time will be present after boot.
+    # User changes will not be overwritten.
+    manage_etc_hosts: false
+    """
+        ),
+        dedent(
+            """\
+    # Manage /etc/hosts with cloud-init.
+    # On every boot, /etc/hosts will be re-written from
+    # ``/etc/cloud/templates/hosts.tmpl``.
+    #
+    # The strings '$hostname' and '$fqdn' are replaced in the template
+    # with the appropriate values either from the config-config ``fqdn`` or
+    # ``hostname`` if provided. When absent, the cloud metadata will be
+    # checked for ``local-hostname` which can be split into <hostname>.<fqdn>.
+    #
+    # To make modifications persistent across a reboot, you must modify
+    # ``/etc/cloud/templates/hosts.tmpl``.
+    manage_etc_hosts: true
+    """
+        ),
+        dedent(
+            """\
+    # Update /etc/hosts every boot providing a "localhost" 127.0.1.1 entry
+    # with the latest hostname and fqdn as provided by either IMDS or
+    # cloud-config.
+    # All other entries will be left as is.
+    # 'ping `hostname`' will ping 127.0.1.1
+    manage_etc_hosts: localhost
+    """
+        ),
+    ],
+    "frequency": PER_ALWAYS,
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -62,6 +99,11 @@ def handle(name, cfg, cloud, log, _args):
     hosts_fn = cloud.distro.hosts_fn
 
     if util.translate_bool(manage_hosts, addons=["template"]):
+        if manage_hosts == "template":
+            log.warning(
+                "DEPRECATED: please use manage_etc_hosts: true instead of"
+                " 'template'"
+            )
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             log.warning(

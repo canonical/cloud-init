@@ -146,6 +146,7 @@ class TestGetSchema:
                 "cc_timezone",
                 "cc_ubuntu_advantage",
                 "cc_ubuntu_drivers",
+                "cc_update_etc_hosts",
                 "cc_write_files",
                 "cc_zypper_add_repo",
             ]
@@ -201,6 +202,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_timezone"},
             {"$ref": "#/$defs/cc_ubuntu_advantage"},
             {"$ref": "#/$defs/cc_ubuntu_drivers"},
+            {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_write_files"},
         ]
         found_subschema_defs = []

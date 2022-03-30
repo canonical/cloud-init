@@ -4,8 +4,15 @@ import logging
 import os
 import shutil
 
+import pytest
+
 from cloudinit import cloud, distros, helpers, util
 from cloudinit.config import cc_update_etc_hosts
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers as t_help
 
 LOG = logging.getLogger(__name__)
@@ -66,3 +73,22 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
             self.assertIsNone("No entry for 127.0.1.1 in etc/hosts")
         if "::1 cloud-init.test.us cloud-init" not in contents:
             self.assertIsNone("No entry for 127.0.0.1 in etc/hosts")
+
+
+class TestUpdateEtcHosts:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"manage_etc_hosts": "templatey"},
+                "manage_etc_hosts: 'templatey' is not valid",
+            ),
+        ],
+    )
+    @t_help.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

@@ -1812,6 +1812,24 @@
         }
       }
     },
+    "cc_update_etc_hosts": {
+      "type": "object",
+      "properties": {
+        "manage_etc_hosts": {
+          "default": false,
+          "description": "Whether to manage /etc/hosts on the system. When set ``true``, cloud-init will render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. When set ``localhost``, Default: ``false``. DEPRECATED value ``template``will be dropped, use ``true`` instead.",
+          "oneOf": [{"type": "boolean"}, {"enum": ["template", "localhost"]}]
+        },
+        "fqdn": {
+          "type": "string",
+          "description": "Optional fully qualified domain name to use when updating ``/etc/hosts``. Preferred over ``hostname`` if both are provided. In absence of ``hostname`` and ``fqdn`` in cloud-config, the ``local-hostname`` value will be used from datasource metadata."
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Hostname to set when rendering ``/etc/hosts``. If ``fqdn`` is set, the hostname extracted from ``fqdn`` overrides ``hostname``."
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
@@ -1910,6 +1928,7 @@
     { "$ref": "#/$defs/cc_timezone"},
     { "$ref": "#/$defs/cc_ubuntu_advantage"},
     { "$ref": "#/$defs/cc_ubuntu_drivers"},
+    { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_write_files"}
   ]
 }

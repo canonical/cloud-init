@@ -315,7 +315,7 @@ resize_rootfs: True
 #      * Whatever is present at instance boot time will be present after boot.
 #      * User changes will not be overwritten
 #
-#    true or 'template':
+#    true:
 #      on every boot, /etc/hosts will be re-written from
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
