@@ -60,53 +60,7 @@ meta: MetaSchema = {
     "frequency": PER_ALWAYS,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "zypper": {
-            "type": "object",
-            "properties": {
-                "repos": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "string",
-                                "description": dedent(
-                                    """\
-                                    The unique id of the repo, used when
-                                     writing
-                                    /etc/zypp/repos.d/<id>.repo."""
-                                ),
-                            },
-                            "baseurl": {
-                                "type": "string",
-                                "format": "uri",  # built-in format type
-                                "description": "The base repositoy URL",
-                            },
-                        },
-                        "required": ["id", "baseurl"],
-                        "additionalProperties": True,
-                    },
-                    "minItems": 1,
-                },
-                "config": {
-                    "type": "object",
-                    "description": dedent(
-                        """\
-                        Any supported zypo.conf key is written to
-                        /etc/zypp/zypp.conf'"""
-                    ),
-                },
-            },
-            "minProperties": 1,  # Either config or repo must be provided
-            "additionalProperties": False,  # only repos and config allowed
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 

@@ -208,6 +208,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_write_files"},
             {"$ref": "#/$defs/cc_yum_add_repo"},
+            {"$ref": "#/$defs/cc_zypper_add_repo"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -221,7 +222,6 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "ntp",
-            "zypper",
         ] == sorted(legacy_schema_keys)
 
 
@@ -234,7 +234,7 @@ class TestLoadDoc:
         "module_name",
         (
             "cc_apt_pipelining",  # new style composite schema file
-            "cc_zypper_add_repo",  # legacy sub-schema defined in module
+            "cc_install_hotplug",  # legacy sub-schema defined in module
         ),
     )
     def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):

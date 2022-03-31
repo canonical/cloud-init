@@ -1982,8 +1982,7 @@
           "additionalProperties": false
         }
       }
-    },
->>>>>>> df0b41702... yum
+    }
   },
   "allOf": [
     { "$ref": "#/$defs/cc_apk_configure" },
@@ -2034,6 +2033,7 @@
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
     { "$ref": "#/$defs/cc_write_files"},
-    { "$ref": "#/$defs/cc_yum_add_repo"}
+    { "$ref": "#/$defs/cc_yum_add_repo"},
+    { "$ref": "#/$defs/cc_zypper_add_repo"}
   ]
 }
