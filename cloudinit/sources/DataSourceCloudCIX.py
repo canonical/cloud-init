@@ -15,7 +15,15 @@ class DataSourceCloudCIX(sources.DataSource):
             return False
 
         try:
-            md = read_metadata(self.base_url, self.get_url_params())
+            md = util.log_time(
+                LOG.debug,
+                "Crawl of CloudCIX metadata service",
+                read_metadata,
+                kwargs={
+                    "base_url": self.base_url,
+                    "url_params": self.get_url_params()
+                }
+            )
         except sources.InvalidMetaDataException as error:
             LOG.debug(f"Failed to read data from CloudCIX datasource: {error}")
             return False
