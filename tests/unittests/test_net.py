@@ -7454,6 +7454,12 @@ class TestGetInterfaces(CiTestCase):
     def _se_interface_has_own_mac(self, name):
         return name in self.data["own_macs"]
 
+    def _se_is_bond(self, name):
+        return name in self.data["bonds"]
+
+    def _se_is_netfailover(self, name):
+        return False
+
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)
         self.data["devices"] = set(list(self.data["macs"].keys()))
@@ -7465,6 +7471,8 @@ class TestGetInterfaces(CiTestCase):
             "is_vlan",
             "device_driver",
             "device_devid",
+            "is_bond",
+            "is_netfailover",
         )
         self.mocks = {}
         for n in mocks:
