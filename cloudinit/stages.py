@@ -871,15 +871,12 @@ class Init(object):
             return
 
         def event_enabled_and_metadata_updated(event_type):
-            return (
-                update_event_enabled(
-                    datasource=self.datasource,
-                    cfg=self.cfg,
-                    event_source_type=event_type,
-                    scope=EventScope.NETWORK,
-                )
-                and self.datasource.update_metadata_if_supported([event_type])
-            )
+            return update_event_enabled(
+                datasource=self.datasource,
+                cfg=self.cfg,
+                event_source_type=event_type,
+                scope=EventScope.NETWORK,
+            ) and self.datasource.update_metadata_if_supported([event_type])
 
         def should_run_on_boot_event():
             return (

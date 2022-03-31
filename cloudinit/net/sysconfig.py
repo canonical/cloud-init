@@ -5,20 +5,18 @@ import io
 import os
 import re
 
-from configobj import ConfigObj
-
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
-from cloudinit.net import network_state
-
-from . import renderer
-from .network_state import (
+from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
+    ipv6_mask_to_net_prefix,
     is_ipv6_addr,
     net_prefix_to_ipv4_mask,
     subnet_is_ipv6,
 )
+
+from . import renderer
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
@@ -64,24 +62,6 @@ def _quote_value(value):
             return '"%s"' % value
     else:
         return value
-
-
-def enable_ifcfg_rh(path):
-    """Add ifcfg-rh to NetworkManager.cfg plugins if main section is present"""
-    config = ConfigObj(path)
-    if "main" in config:
-        if "plugins" in config["main"]:
-            if "ifcfg-rh" in config["main"]["plugins"]:
-                return
-        else:
-            config["main"]["plugins"] = []
-
-        if isinstance(config["main"]["plugins"], list):
-            config["main"]["plugins"].append("ifcfg-rh")
-        else:
-            config["main"]["plugins"] = [config["main"]["plugins"], "ifcfg-rh"]
-        config.write()
-        LOG.debug("Enabled ifcfg-rh NetworkManager plugins")
 
 
 class ConfigMap(object):
@@ -228,9 +208,7 @@ class Route(ConfigMap):
                         % ("METRIC" + str(reindex), _quote_value(metric_value))
                     )
             elif proto == "ipv6" and self.is_ipv6_route(address_value):
-                prefix_value = network_state.ipv6_mask_to_net_prefix(
-                    netmask_value
-                )
+                prefix_value = ipv6_mask_to_net_prefix(netmask_value)
                 metric_value = (
                     "metric " + str(self._conf["METRIC" + index])
                     if "METRIC" + index in self._conf
@@ -1032,8 +1010,6 @@ class Renderer(renderer.Renderer):
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
-        if available_nm(target=target):
-            enable_ifcfg_rh(subp.target_path(target, path=NM_CFG_FILE))
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -1063,14 +1039,9 @@ def _supported_vlan_names(rdev, vid):
 
 
 def available(target=None):
-    sysconfig = available_sysconfig(target=target)
-    nm = available_nm(target=target)
-    return util.system_info()["variant"] in KNOWN_DISTROS and any(
-        [nm, sysconfig]
-    )
+    if not util.system_info()["variant"] in KNOWN_DISTROS:
+        return False
 
-
-def available_sysconfig(target=None):
     expected = ["ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
@@ -1085,12 +1056,6 @@ def available_sysconfig(target=None):
         if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
-
-
-def available_nm(target=None):
-    if not os.path.isfile(subp.target_path(target, path=NM_CFG_FILE)):
-        return False
-    return True
 
 
 # vi: ts=4 expandtab

@@ -52,7 +52,8 @@
          "procps",
          "rsyslog",
          "shadow-utils",
-         "sudo"
+         "sudo",
+         "hostname"
       ]
    },
    "suse" : {

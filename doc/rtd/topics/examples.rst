@@ -34,29 +34,10 @@ Configure an instances trusted CA certificates
    :language: yaml
    :linenos:
 
-Configure an instances resolv.conf
-==================================
-
-*Note:* when using a config drive and a RHEL like system resolv.conf
-will also be managed 'automatically' due to the available information
-provided for dns servers in the config drive network format. For those
-that wish to have different settings use this module.
-
-.. literalinclude:: ../../examples/cloud-config-resolv-conf.txt
-   :language: yaml
-   :linenos:
-
 Install and run `chef`_ recipes
 ===============================
 
 .. literalinclude:: ../../examples/cloud-config-chef.txt
-   :language: yaml
-   :linenos:
-
-Setup and run `puppet`_
-=======================
-
-.. literalinclude:: ../../examples/cloud-config-puppet.txt
    :language: yaml
    :linenos:
 
@@ -114,20 +95,6 @@ Adjust mount points mounted
    :language: yaml
    :linenos:
 
-Call a url when finished
-========================
-
-.. literalinclude:: ../../examples/cloud-config-phone-home.txt
-   :language: yaml
-   :linenos:
-
-Reboot/poweroff when finished
-=============================
-
-.. literalinclude:: ../../examples/cloud-config-power-state.txt
-   :language: yaml
-   :linenos:
-
 Configure instances SSH keys
 ============================
 
@@ -146,13 +113,6 @@ Disk setup
 ==========
 
 .. literalinclude:: ../../examples/cloud-config-disk-setup.txt
-    :language: yaml
-    :linenos:
-
-Register Red Hat Subscription
-=============================
-
-.. literalinclude:: ../../examples/cloud-config-rh_subscription.txt
     :language: yaml
     :linenos:
 

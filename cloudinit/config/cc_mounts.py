@@ -6,11 +6,19 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Mounts
-------
-**Summary:** configure mount points and swap files
+"""Mounts: Configure mount points and swap files"""
 
+import logging
+import os
+import re
+from string import whitespace
+from textwrap import dedent
+
+from cloudinit import subp, type_utils, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module can add or remove mountpoints from ``/etc/fstab`` as well as
 configure swap. The ``mounts`` config key takes a list of fstab entries to add.
 Each entry is specified as a list of ``[ fs_spec, fs_file, fs_vfstype,
@@ -19,55 +27,78 @@ consult the manual for ``/etc/fstab``. When specifying the ``fs_spec``, if the
 device name starts with one of ``xvd``, ``sd``, ``hd``, or ``vd``, the leading
 ``/dev`` may be omitted.
 
-In order to remove a previously listed mount, an entry can be added to the
-mounts list containing ``fs_spec`` for the device to be removed but no
-mountpoint (i.e. ``[ sda1 ]`` or ``[ sda1, null ]``).
+Any mounts that do not appear to either an attached block device or network
+resource will be skipped with a log like "Ignoring nonexistent mount ...".
+
+Cloud-init will attempt to add the following mount directives if available and
+unconfigured in `/etc/fstab`:
+    mounts:
+    - ["ephemeral0", "/mnt", "auto",
+       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+    - ["swap", "none", "swap", "sw", "0", "0"]
+
+In order to remove a previously listed mount, an entry can be added to
+the `mounts` list containing ``fs_spec`` for the device to be removed but no
+mountpoint (i.e. ``[ swap ]`` or ``[ swap, null ]``).
 
 The ``mount_default_fields`` config key allows default options to be specified
 for the values in a ``mounts`` entry that are not specified, aside from the
 ``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
 values. It defaults to::
 
-    mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
-
-On a systemd booted system that default is the mostly equivalent::
-
     mount_default_fields: [none, none, "auto",
-       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+        "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
 
-Note that `nobootwait` is an upstart specific boot option that somewhat
-equates to the more standard `nofail`.
+Non-systemd init systems will vary in ``mount_default_fields``.
 
 Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
 the swap file if using an ``size: auto`` with ``maxsize``. By default no
 swap file is created.
+"""
 
-**Internal name:** ``cc_mounts``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
+example = dedent(
+    """\
+    # Mount ephemeral0 with "noexec" flag, /dev/sdc with mount_default_fields,
+    # and /dev/xvdh with custom fs_passno "0" to avoid fsck on the mount.
+    # Also provide an automatically sized swap with a max size of 10485760
+    # bytes.
     mounts:
         - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
         - [ sdc, /opt/data ]
-        - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
-    mount_default_fields: [None, None, "auto", "defaults,nofail", "0", "2"]
+        - [ xvdh, /opt/data, auto, "defaults,nofail", "0", "0" ]
+    mount_default_fields: [None, None, auto, "defaults,nofail", "0", "2"]
     swap:
-        filename: <file>
-        size: <"auto"/size in bytes>
-        maxsize: <size in bytes>
-"""
+        filename: /my/swapfile
+        size: auto
+        maxsize: 10485760
+   """
+)
 
-import logging
-import os
-import re
-from string import whitespace
+distros = ["all"]
 
-from cloudinit import subp, type_utils, util
+meta: MetaSchema = {
+    "id": "cc_mounts",
+    "name": "Mounts",
+    "title": "Configure mount points and swap files",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        example,
+        dedent(
+            """\
+        # Create a 2 GB swap file at /swapfile using human-readable values
+        swap:
+            filename: /swapfile
+            size: 2G
+            maxsize: 2G
+        """
+        ),
+    ],
+    "frequency": PER_INSTANCE,
+}
+
+__doc__ = get_meta_doc(meta)
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
@@ -178,7 +209,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     if memsize is None:
         memsize = util.read_meminfo()["total"]
 
-    GB = 2 ** 30
+    GB = 2**30
     sugg_max = 8 * GB
 
     info = {"avail": "na", "max_in": maxsize, "mem": memsize}
@@ -230,7 +261,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     info["size"] = size
 
-    MB = 2 ** 20
+    MB = 2**20
     pinfo = {}
     for k, v in info.items():
         if isinstance(v, int):
@@ -324,7 +355,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
             fsys=swap_dir, maxsize=maxsize, memsize=memsize
         )
 
-    mibsize = str(int(size / (2 ** 20)))
+    mibsize = str(int(size / (2**20)))
     if not size:
         LOG.debug("Not creating swap: suggested size was 0")
         return

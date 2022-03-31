@@ -4,59 +4,75 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-LXD
----
-**Summary:** configure lxd with ``lxd init`` and optionally lxd-bridge
+"""LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
+import os
+from textwrap import dedent
+
+from cloudinit import log as logging
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+LOG = logging.getLogger(__name__)
+
+_DEFAULT_NETWORK_NAME = "lxdbr0"
+
+
+MODULE_DESCRIPTION = """\
 This module configures lxd with user specified options using ``lxd init``.
 If lxd is not present on the system but lxd configuration is provided, then
 lxd will be installed. If the selected storage backend is zfs, then zfs will
 be installed if missing. If network bridge configuration is provided, then
 lxd-bridge will be configured accordingly.
-
-**Internal name:** ``cc_lxd``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu
-
-**Config keys**::
-
-    lxd:
-        init:
-            network_address: <ip addr>
-            network_port: <port>
-            storage_backend: <zfs/dir>
-            storage_create_device: <dev>
-            storage_create_loop: <size>
-            storage_pool: <name>
-            trust_password: <password>
-        bridge:
-            mode: <new, existing or none>
-            name: <name>
-            ipv4_address: <ip addr>
-            ipv4_netmask: <cidr>
-            ipv4_dhcp_first: <ip addr>
-            ipv4_dhcp_last: <ip addr>
-            ipv4_dhcp_leases: <size>
-            ipv4_nat: <bool>
-            ipv6_address: <ip addr>
-            ipv6_netmask: <cidr>
-            ipv6_nat: <bool>
-            domain: <domain>
 """
-
-import os
-
-from cloudinit import log as logging
-from cloudinit import subp, util
 
 distros = ["ubuntu"]
 
-LOG = logging.getLogger(__name__)
+meta: MetaSchema = {
+    "id": "cc_lxd",
+    "name": "LXD",
+    "title": "Configure LXD with ``lxd init`` and optionally lxd-bridge",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
+            # Simplest working directory backed LXD configuration
+            lxd:
+              init:
+                storage_backend: dir
+            """
+        ),
+        dedent(
+            """\
+            lxd:
+              init:
+                network_address: 0.0.0.0
+                network_port: 8443
+                storage_backend: zfs
+                storage_pool: datapool
+                storage_create_loop: 10
+              bridge:
+                mode: new
+                name: lxdbr0
+                ipv4_address: 10.0.8.1
+                ipv4_netmask: 24
+                ipv4_dhcp_first: 10.0.8.2
+                ipv4_dhcp_last: 10.0.8.3
+                ipv4_dhcp_leases: 250
+                ipv4_nat: true
+                ipv6_address: fd98:9e0:3744::1
+                ipv6_netmask: 64
+                ipv6_nat: true
+                domain: lxd
+            """
+        ),
+    ],
+    "frequency": PER_INSTANCE,
+}
 
-_DEFAULT_NETWORK_NAME = "lxdbr0"
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, args):
@@ -300,8 +316,8 @@ def maybe_cleanup_default(
     """Newer versions of lxc (3.0.1+) create a lxdbr0 network when
     'lxd init --auto' is run.  Older versions did not.
 
-    By removing ay that lxd-init created, we simply leave the add/attach
-    code in-tact.
+    By removing any that lxd-init created, we simply leave the add/attach
+    code intact.
 
     https://github.com/lxc/lxd/issues/4649"""
     if net_name != _DEFAULT_NETWORK_NAME or not did_init:

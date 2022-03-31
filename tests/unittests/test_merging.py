@@ -41,7 +41,7 @@ def _old_mergemanydict(*args):
 
 def _random_str(rand):
     base = ""
-    for _i in range(rand.randint(1, 2 ** 8)):
+    for _i in range(rand.randint(1, 2**8)):
         base += rand.choice(string.ascii_letters + string.digits)
     return base
 
@@ -81,7 +81,7 @@ def _make_dict(current_depth, max_depth, rand):
             if t in [tuple]:
                 base = tuple(base)
     elif t in [int]:
-        base = rand.randint(0, 2 ** 8)
+        base = rand.randint(0, 2**8)
     elif t in [str]:
         base = _random_str(rand)
     return base

@@ -136,7 +136,7 @@ Do these things for each feature or bug
 
 * Apply black and isort formatting rules with `tox`_::
 
-    tox -e format
+    tox -e do_format
 
 * Run unit tests and lint/formatting checks with `tox`_::
 

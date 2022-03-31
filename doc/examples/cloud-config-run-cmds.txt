@@ -16,7 +16,7 @@
 runcmd:
  - [ ls, -l, / ]
  - [ sh, -xc, "echo $(date) ': hello world!'" ]
- - [ sh, -c, echo "=========hello world'=========" ]
+ - [ sh, -c, echo "=========hello world=========" ]
  - ls -l /root
  # Note: Don't write files to /tmp from cloud-init use /run/somedir instead.
  # Early boot environments can race systemd-tmpfiles-clean LP: #1707222.

@@ -71,7 +71,10 @@ def generate_fallback_network_config() -> dict:
                 err,
             )
             return network_v1
-        if virt_type.strip() == "kvm":  # instance.type VIRTUAL-MACHINE
+        if virt_type.strip() in (
+            "kvm",
+            "qemu",
+        ):  # instance.type VIRTUAL-MACHINE
             arch = util.system_info()["uname"][4]
             if arch == "ppc64le":
                 network_v1["config"][0]["name"] = "enp0s5"

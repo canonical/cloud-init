@@ -18,39 +18,41 @@ case then the files contained on the located drive must provide equivalents to
 what the EC2 metadata service would provide (which is typical of the version 2
 support listed below)
 
-Version 1
----------
-**Note:** Version 1 is legacy and should be considered deprecated.  Version 2
-has been supported in OpenStack since 2012.2 (Folsom).
+.. dropdown:: Version 1 (Deprecated)
 
-The following criteria are required to as a config drive:
+        **Note:** Version 1 is legacy and should be considered deprecated.
+        Version 2 has been supported in OpenStack since 2012.2 (Folsom).
 
-1. Must be formatted with `vfat`_ filesystem
-2. Must contain *one* of the following files
+        The following criteria are required to as a config drive:
 
-::
+        1. Must be formatted with `vfat`_ filesystem
+        2. Must contain *one* of the following files
 
-  /etc/network/interfaces
-  /root/.ssh/authorized_keys
-  /meta.js
+        ::
 
-``/etc/network/interfaces``
+          /etc/network/interfaces
+          /root/.ssh/authorized_keys
+          /meta.js
 
-    This file is laid down by nova in order to pass static networking
-    information to the guest.  Cloud-init will copy it off of the config-drive
-    and into /etc/network/interfaces (or convert it to RH format) as soon as
-    it can, and then attempt to bring up all network interfaces.
+        ``/etc/network/interfaces``
 
-``/root/.ssh/authorized_keys``
+            This file is laid down by nova in order to pass static networking
+            information to the guest.  Cloud-init will copy it off of the
+            config-drive and into /etc/network/interfaces (or convert it to RH
+            format) as soon as it can, and then attempt to bring up all network
+            interfaces.
 
-    This file is laid down by nova, and contains the ssk keys that were
-    provided to nova on instance creation (nova-boot --key ....)
+        ``/root/.ssh/authorized_keys``
 
-``/meta.js``
+            This file is laid down by nova, and contains the ssk keys that were
+            provided to nova on instance creation (nova-boot --key ....)
 
-    meta.js is populated on the config-drive in response to the user passing
-    "meta flags" (nova boot --meta key=value ...). It is expected to be json
-    formatted.
+        ``/meta.js``
+
+            meta.js is populated on the config-drive in response to the user
+            passing "meta flags" (nova boot --meta key=value ...). It is
+            expected to be json formatted.
+
 
 Version 2
 ---------
@@ -58,7 +60,7 @@ Version 2
 The following criteria are required to as a config drive:
 
 1. Must be formatted with `vfat`_ or `iso9660`_ filesystem
-   or have a *filesystem* label of **config-2**
+   or have a *filesystem* label of **config-2** or **CONFIG-2**
 2. The files that will typically be present in the config drive are:
 
 ::

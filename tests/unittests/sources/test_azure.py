@@ -14,6 +14,7 @@ import requests
 import yaml
 
 from cloudinit import distros, helpers, url_helper
+from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
@@ -75,6 +76,15 @@ def mock_azure_report_failure_to_fabric():
 
 
 @pytest.fixture
+def mock_time():
+    with mock.patch(
+        MOCKPATH + "time",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
@@ -90,12 +100,21 @@ def mock_dmi_read_dmi_data():
 
 
 @pytest.fixture
+def mock_ephemeral_dhcp_v4():
+    with mock.patch(
+        MOCKPATH + "EphemeralDHCPv4",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.dhcp.maybe_perform_dhcp_discovery",
         return_value=[
             {
-                "unknown-245": "aa:bb:cc:dd",
+                "unknown-245": "0a:0b:0c:0d",
                 "interface": "ethBoot0",
                 "fixed-address": "192.168.2.9",
                 "routers": "192.168.2.1",
@@ -155,6 +174,15 @@ def mock_readurl():
 @pytest.fixture
 def mock_requests_session_request():
     with mock.patch("requests.Session.request", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_sleep():
+    with mock.patch(
+        MOCKPATH + "sleep",
+        autospec=True,
+    ) as m:
         yield m
 
 
@@ -1859,7 +1887,7 @@ scbus-1 on xpt0 bus 0
             test_msg = "Test report failure description message"
             self.assertTrue(dsrc._report_failure(description=test_msg))
             self.m_report_failure_to_fabric.assert_called_once_with(
-                dhcp_opts=mock.ANY, description=test_msg
+                endpoint="168.63.129.16", description=test_msg
             )
 
     def test_dsaz_report_failure_no_description_msg(self):
@@ -1870,7 +1898,7 @@ scbus-1 on xpt0 bus 0
 
             self.assertTrue(dsrc._report_failure())  # no description msg
             self.m_report_failure_to_fabric.assert_called_once_with(
-                dhcp_opts=mock.ANY, description=None
+                endpoint="168.63.129.16", description=None
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
@@ -1879,8 +1907,8 @@ scbus-1 on xpt0 bus 0
         with mock.patch.object(
             dsrc, "crawl_metadata"
         ) as m_crawl_metadata, mock.patch.object(
-            dsrc, "_wireserver_endpoint", return_value="test-ep"
-        ) as m_wireserver_endpoint:
+            dsrc, "_wireserver_endpoint", "test-ep"
+        ):
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
@@ -1888,7 +1916,7 @@ scbus-1 on xpt0 bus 0
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                description=mock.ANY, dhcp_opts=m_wireserver_endpoint
+                endpoint="test-ep", description=mock.ANY
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
@@ -1898,7 +1926,7 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            test_lease_dhcp_option_245 = "test_lease_dhcp_option_245"
+            test_lease_dhcp_option_245 = "01:02:03:04"
             test_lease = {
                 "unknown-245": test_lease_dhcp_option_245,
                 "interface": "eth0",
@@ -1910,7 +1938,7 @@ scbus-1 on xpt0 bus 0
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                description=mock.ANY, dhcp_opts=test_lease_dhcp_option_245
+                endpoint="1.2.3.4", description=mock.ANY
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
@@ -3641,6 +3669,161 @@ class TestRandomSeed(CiTestCase):
         self.assertEqual(deserialized["seed"], result)
 
 
+class TestEphemeralNetworking:
+    @pytest.mark.parametrize("iface", [None, "fakeEth0"])
+    def test_basic_setup(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        iface,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+            "unknown-245": "10:ff:fe:fd",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
+
+        azure_ds._setup_ephemeral_networking(iface=iface)
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=iface, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == []
+        assert azure_ds._wireserver_endpoint == "16.255.254.253"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == lease["interface"]
+
+    @pytest.mark.parametrize("iface", [None, "fakeEth0"])
+    def test_basic_setup_without_wireserver_opt(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        iface,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
+
+        azure_ds._setup_ephemeral_networking(iface=iface)
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=iface, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == []
+        assert azure_ds._wireserver_endpoint == "168.63.129.16"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == lease["interface"]
+
+    def test_no_retry_missing_dhclient_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+    ):
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseMissingDhclientError
+        ]
+
+        with pytest.raises(dhcp.NoDHCPLeaseMissingDhclientError):
+            azure_ds._setup_ephemeral_networking()
+
+        assert azure_ds._ephemeral_dhcp_ctx is None
+
+    def test_retry_interface_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseInterfaceError,
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == [mock.call(1)]
+        assert azure_ds._wireserver_endpoint == "168.63.129.16"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+    @pytest.mark.parametrize(
+        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+    )
+    def test_retry_sleeps(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        error_class,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            error_class()
+        ] * 10 + [lease]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert (
+            mock_ephemeral_dhcp_v4.mock_calls
+            == [
+                mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            ]
+            + [mock.call().obtain_lease()] * 11
+        )
+        assert mock_sleep.mock_calls == [mock.call(1)] * 10
+        assert azure_ds._wireserver_endpoint == "168.63.129.16"
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+    @pytest.mark.parametrize(
+        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+    )
+    def test_retry_times_out(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_sleep,
+        mock_time,
+        error_class,
+    ):
+        mock_time.side_effect = [
+            0.0,  # start
+            60.1,  # first
+            120.1,  # third
+            180.1,  # timeout
+        ]
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            error_class()
+        ] * 10 + [
+            {
+                "interface": "fakeEth0",
+            }
+        ]
+
+        with pytest.raises(dhcp.NoDHCPLeaseError):
+            azure_ds._setup_ephemeral_networking(timeout_minutes=3)
+
+        assert (
+            mock_ephemeral_dhcp_v4.return_value.mock_calls
+            == [mock.call.obtain_lease()] * 3
+        )
+        assert mock_sleep.mock_calls == [mock.call(1)] * 2
+        assert azure_ds._wireserver_endpoint == "168.63.129.16"
+        assert azure_ds._ephemeral_dhcp_ctx is None
+
+
 def fake_http_error_for_code(status_code: int):
     response_failure = requests.Response()
     response_failure.status_code = status_code
@@ -3936,7 +4119,7 @@ class TestProvisioning:
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb)
         ]
-        assert self.azure_ds._wireserver_endpoint == "aa:bb:cc:dd"
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
 
         # Verify DMI usage.
@@ -3951,8 +4134,7 @@ class TestProvisioning:
         # Verify reporting ready once.
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
-                fallback_lease_file=None,
-                dhcp_opts="aa:bb:cc:dd",
+                endpoint="10.11.12.13",
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             )
@@ -4025,7 +4207,7 @@ class TestProvisioning:
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call(None, dsaz.dhcp_log_cb),
         ]
-        assert self.azure_ds._wireserver_endpoint == "aa:bb:cc:dd"
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
 
         # Verify DMI usage.
@@ -4040,14 +4222,12 @@ class TestProvisioning:
         # Verify reporting ready twice.
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
-                fallback_lease_file=None,
-                dhcp_opts="aa:bb:cc:dd",
+                endpoint="10.11.12.13",
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
-                fallback_lease_file=None,
-                dhcp_opts="aa:bb:cc:dd",
+                endpoint="10.11.12.13",
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4146,7 +4326,7 @@ class TestProvisioning:
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call("ethAttached1", dsaz.dhcp_log_cb),
         ]
-        assert self.azure_ds._wireserver_endpoint == "aa:bb:cc:dd"
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
 
         # Verify DMI usage.
@@ -4161,14 +4341,12 @@ class TestProvisioning:
         # Verify reporting ready twice.
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
-                fallback_lease_file=None,
-                dhcp_opts="aa:bb:cc:dd",
+                endpoint="10.11.12.13",
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
-                fallback_lease_file=None,
-                dhcp_opts="aa:bb:cc:dd",
+                endpoint="10.11.12.13",
                 iso_dev=None,
                 pubkey_info=None,
             ),

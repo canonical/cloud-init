@@ -5,28 +5,36 @@ set -f
 LOG=""
 DEBUG_LEVEL=1
 LOG_D="/run/cloud-init"
+LOG_F="/run/cloud-init/cloud-init-generator.log"
 ENABLE="enabled"
 DISABLE="disabled"
-FOUND="found"
-NOTFOUND="notfound"
 RUN_ENABLED_FILE="$LOG_D/$ENABLE"
+RUN_DISABLED_FILE="$LOG_D/$DISABLE"
+CLOUD_TARGET_NAME="cloud-init.target"
+# lxc sets 'container', but lets make that explicitly a global
+CONTAINER="${container}"
+
+# start: template section
 {% if variant in ["suse"] %}
 CLOUD_SYSTEM_TARGET="/usr/lib/systemd/system/cloud-init.target"
 {% else %}
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 {% endif %}
-CLOUD_TARGET_NAME="cloud-init.target"
-# lxc sets 'container', but lets make that explicitly a global
-CONTAINER="${container}"
+{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
+                  "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+    dsidentify="/usr/libexec/cloud-init/ds-identify"
+{% else %}
+    dsidentify="/usr/lib/cloud-init/ds-identify"
+{% endif %}
+# end: template section
 
 debug() {
     local lvl="$1"
     shift
     [ "$lvl" -gt "$DEBUG_LEVEL" ] && return
     if [ -z "$LOG" ]; then
-        local log="$LOG_D/${0##*/}.log"
         { [ -d "$LOG_D" ] || mkdir -p "$LOG_D"; } &&
-            { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
+            { : > "$LOG_F"; } >/dev/null 2>&1 && LOG="$LOG_F" ||
             LOG="/dev/kmsg"
     fi
     echo "$@" >> "$LOG"
@@ -83,26 +91,16 @@ default() {
 
 check_for_datasource() {
     local ds_rc=""
-{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora", 
-                  "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
-    local dsidentify="/usr/libexec/cloud-init/ds-identify"
-{% else %}
-    local dsidentify="/usr/lib/cloud-init/ds-identify"
-{% endif %}
     if [ ! -x "$dsidentify" ]; then
-        debug 1 "no ds-identify in $dsidentify. _RET=$FOUND"
+        debug 1 "no ds-identify in $dsidentify"
         return 0
     fi
     $dsidentify
     ds_rc=$?
     debug 1 "ds-identify rc=$ds_rc"
     if [ "$ds_rc" = "0" ]; then
-        _RET="$FOUND"
-        debug 1 "ds-identify _RET=$_RET"
         return 0
     fi
-    _RET="$NOTFOUND"
-    debug 1 "ds-identify _RET=$_RET"
     return 1
 }
 
@@ -110,7 +108,7 @@ main() {
     local normal_d="$1" early_d="$2" late_d="$3"
     local target_name="multi-user.target" gen_d="$early_d"
     local link_path="$gen_d/${target_name}.wants/${CLOUD_TARGET_NAME}"
-    local ds="$NOTFOUND"
+    local ds=""
 
     debug 1 "$0 normal=$normal_d early=$early_d late=$late_d"
     debug 2 "$0 $*"
@@ -133,8 +131,8 @@ main() {
     if [ "$result" = "$ENABLE" ]; then
         debug 1 "checking for datasource"
         check_for_datasource
-        ds=$_RET
-        if [ "$ds" = "$NOTFOUND" ]; then
+        ds=$?
+        if [ "$ds" = "1" ]; then
             debug 1 "cloud-init is enabled but no datasource found, disabling"
             result="$DISABLE"
         fi
@@ -154,6 +152,10 @@ main() {
                     "ln $CLOUD_SYSTEM_TARGET $link_path"
             fi
         fi
+        if [ -e $RUN_DISABLED_FILE ]; then
+            debug 1 "removing $RUN_DISABLED_FILE and creating $RUN_ENABLED_FILE"
+            rm -f $RUN_DISABLED_FILE
+        fi
         : > "$RUN_ENABLED_FILE"
     elif [ "$result" = "$DISABLE" ]; then
         if [ -f "$link_path" ]; then
@@ -167,8 +169,10 @@ main() {
             debug 1 "already disabled: no change needed [no $link_path]"
         fi
         if [ -e "$RUN_ENABLED_FILE" ]; then
+            debug 1 "removing $RUN_ENABLED_FILE and creating $RUN_DISABLED_FILE"
             rm -f "$RUN_ENABLED_FILE"
         fi
+        : > "$RUN_DISABLED_FILE"
     else
         debug 0 "unexpected result '$result' 'ds=$ds'"
         ret=3

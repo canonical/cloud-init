@@ -5,10 +5,14 @@ import signal
 from textwrap import dedent
 
 import httpretty
+import pytest
 
 import cloudinit.net as net
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError,
+    NoDHCPLeaseError,
+    NoDHCPLeaseInterfaceError,
+    NoDHCPLeaseMissingDhclientError,
     dhcp_discovery,
     maybe_perform_dhcp_discovery,
     networkd_load_leases,
@@ -334,15 +338,21 @@ class TestDHCPDiscoveryClean(CiTestCase):
     def test_no_fallback_nic_found(self, m_fallback_nic):
         """Log and do nothing when nic is absent and no fallback is found."""
         m_fallback_nic.return_value = None  # No fallback nic found
-        self.assertEqual([], maybe_perform_dhcp_discovery())
+
+        with pytest.raises(NoDHCPLeaseInterfaceError):
+            maybe_perform_dhcp_discovery()
+
         self.assertIn(
             "Skip dhcp_discovery: Unable to find fallback nic.",
             self.logs.getvalue(),
         )
 
-    def test_provided_nic_does_not_exist(self):
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value=None)
+    def test_provided_nic_does_not_exist(self, m_fallback_nic):
         """When the provided nic doesn't exist, log a message and no-op."""
-        self.assertEqual([], maybe_perform_dhcp_discovery("idontexist"))
+        with pytest.raises(NoDHCPLeaseInterfaceError):
+            maybe_perform_dhcp_discovery("idontexist")
+
         self.assertIn(
             "Skip dhcp_discovery: nic idontexist not found in get_devicelist.",
             self.logs.getvalue(),
@@ -354,7 +364,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
         """When dhclient doesn't exist in the OS, log the issue and no-op."""
         m_fallback.return_value = "eth9"
         m_which.return_value = None  # dhclient isn't found
-        self.assertEqual([], maybe_perform_dhcp_discovery())
+
+        with pytest.raises(NoDHCPLeaseMissingDhclientError):
+            maybe_perform_dhcp_discovery()
+
         self.assertIn(
             "Skip dhclient configuration: No dhclient command found.",
             self.logs.getvalue(),
@@ -792,6 +805,52 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
             self.assertEqual(fake_lease, lease)
         # Ensure that dhcp discovery occurs
         m_dhcp.called_once_with()
+
+
+@pytest.mark.parametrize(
+    "error_class",
+    [
+        NoDHCPLeaseInterfaceError,
+        NoDHCPLeaseInterfaceError,
+        NoDHCPLeaseMissingDhclientError,
+    ],
+)
+class TestEphemeralDhcpLeaseErrors:
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    def test_obtain_lease_raises_error(self, m_dhcp, error_class):
+        m_dhcp.side_effect = [error_class()]
+
+        with pytest.raises(error_class):
+            net.dhcp.EphemeralDHCPv4().obtain_lease()
+
+        assert len(m_dhcp.mock_calls) == 1
+
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    def test_obtain_lease_umbrella_error(self, m_dhcp, error_class):
+        m_dhcp.side_effect = [error_class()]
+        with pytest.raises(NoDHCPLeaseError):
+            net.dhcp.EphemeralDHCPv4().obtain_lease()
+
+        assert len(m_dhcp.mock_calls) == 1
+
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    def test_ctx_mgr_raises_error(self, m_dhcp, error_class):
+        m_dhcp.side_effect = [error_class()]
+
+        with pytest.raises(error_class):
+            with net.dhcp.EphemeralDHCPv4():
+                pass
+
+        assert len(m_dhcp.mock_calls) == 1
+
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    def test_ctx_mgr_umbrella_error(self, m_dhcp, error_class):
+        m_dhcp.side_effect = [error_class()]
+        with pytest.raises(NoDHCPLeaseError):
+            with net.dhcp.EphemeralDHCPv4():
+                pass
+
+        assert len(m_dhcp.mock_calls) == 1
 
 
 # vi: ts=4 expandtab

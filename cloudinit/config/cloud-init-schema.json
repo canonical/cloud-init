@@ -33,7 +33,8 @@
       "type": "object",
       "properties": {
         "remove-defaults": {
-          "description": "Deprecated key name. Use remove_defaults instead.",
+          "description": "DEPRECATED. Use ``remove_defaults``. ",
+          "deprecated": true,
           "type": "boolean",
           "default": false
         },
@@ -543,6 +544,805 @@
           }
         }
       }
+    },
+    "cc_keyboard": {
+      "type": "object",
+      "properties": {
+        "keyboard": {
+          "type": "object",
+          "properties": {
+            "layout": {
+              "type": "string",
+              "description": "Required. Keyboard layout. Corresponds to XKBLAYOUT."
+            },
+            "model": {
+              "type": "string",
+              "default": "pc105",
+              "description": "Optional. Keyboard model. Corresponds to XKBMODEL. Default: ``pc105``."
+            },
+            "variant": {
+              "type": "string",
+              "description": "Optional. Keyboard variant. Corresponds to XKBVARIANT."
+            },
+            "options": {
+              "type": "string",
+              "description": "Optional. Keyboard options. Corresponds to XKBOPTIONS."
+            }
+          },
+          "required": ["layout"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_keys_to_console": {
+      "type": "object",
+      "properties": {
+        "ssh": {
+          "type": "object",
+          "properties": {
+            "emit_keys_to_console": {
+              "type": "boolean",
+              "default": true,
+              "description": "Set false to avoid printing SSH keys to system console. Default: ``true``."
+            }
+           },
+           "additionalProperties": false,
+           "required": ["emit_keys_to_console"]
+        },
+        "ssh_key_console_blacklist": {
+          "type": "array",
+          "default": ["ssh-dss"],
+          "description": "Avoid printing matching SSH key types to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "ssh_fp_console_blacklist": {
+          "type": "array",
+          "description": "Avoid printing matching SSH fingerprints to the system console.",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "cc_landscape": {
+      "type": "object",
+      "properties": {
+        "landscape": {
+          "type": "object",
+          "required": ["client"],
+          "properties": {
+            "client": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/message-system",
+                  "description": "The Landscape server URL to connect to. Default: ``https://landscape.canonical.com/message-system``."
+                },
+                "ping_url": {
+                  "type": "string",
+                  "default": "https://landscape.canonical.com/ping",
+                  "description": "The URL to perform lightweight exchange initiation with. Default: ``https://landscape.canonical.com/ping``."
+                },
+                "data_path": {
+                  "type": "string",
+                  "default": "/var/lib/landscape/client",
+                  "description": "The directory to store data files in. Default: ``/var/lib/land‐scape/client/``."
+                },
+                "log_level": {
+                  "type": "string",
+                  "default": "info",
+                  "enum": ["debug", "info", "warning", "error", "critical"],
+                  "description": "The log level for the client. Default: ``info``."
+                },
+                "computer_tite": {
+                  "type": "string",
+                  "description": "The title of this computer."
+                },
+                "account_name": {
+                  "type": "string",
+                  "description": "The account this computer belongs to."
+                },
+                "registration_key": {
+                  "type": "string",
+                  "description": "The account-wide key used for registering clients."
+                },
+                "tags": {
+                  "type": "string",
+                  "pattern": "^[-_0-9a-zA-Z]+(,[-_0-9a-zA-Z]+)*$",
+                  "description": "Comma separated list of tag names to be sent to the server."
+                },
+                "http_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTP proxy, if one is needed."
+                },
+                "https_proxy": {
+                  "type": "string",
+                  "description": "The URL of the HTTPS proxy, if one is needed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_locale": {
+      "properties": {
+        "locale": {
+          "type": "string",
+          "description": "The locale to set as the system's locale (e.g. ar_PS)"
+        },
+        "locale_configfile": {
+          "type": "string",
+          "description": "The file in which to write the locale configuration (defaults to the distro's default location)"
+        }
+      }
+    },
+    "cc_lxd": {
+      "type": "object",
+      "properties": {
+        "lxd": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "init": {
+              "type": "object",
+              "properties": {
+                "network_address": {
+                  "type": "string",
+                  "description": "IP address for LXD to listen on"
+                },
+                "network_port": {
+                  "type": "integer",
+                  "description": "Network port to bind LXD to."
+                },
+                "storage_backend": {
+                  "type": "string",
+                  "enum": ["zfs", "dir"],
+                  "default": "dir",
+                  "description": "Storage backend to use. Default: ``dir``."
+                },
+                "storage_create_device": {
+                  "type": "string",
+                  "description": "Setup device based storage using DEVICE"
+                },
+                "storage_create_loop": {
+                  "type": "integer",
+                  "description": "Setup loop based storage with SIZE in GB"
+                },
+                "storage_pool": {
+                  "type": "string",
+                  "description": "Name of storage pool to use or create"
+                },
+                "trust_password": {
+                  "type": "string",
+                  "description": "The password required to add new clients"
+                }
+              }
+            },
+            "bridge": {
+              "type": "object",
+              "required": ["mode"],
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "Whether to setup LXD bridge, use an existing bridge by ``name`` or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching ``name`` and `new` will create a new bridge.",
+                  "enum": ["none", "existing", "new"]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
+                  "default": "lxdbr0"
+                },
+                "ipv4_address": {
+                  "type": "string",
+                  "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
+                },
+                "ipv4_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for the ``ipv4_address`` key. Required when ``ipv4_address`` is set."
+                },
+                "ipv4_dhcp_first": {
+                  "type": "string",
+                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_last`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_last": {
+                  "type": "string",
+                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_first`` key to set LXC ``ipv4.dhcp.ranges``."
+                },
+                "ipv4_dhcp_leases": {
+                  "type": "integer",
+                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dchp_last` when unset."
+                },
+                "ipv4_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Set ``true`` to NAT the IPv4 traffic allowing for a routed IPv4 network. Default: ``false``."
+                },
+                "ipv6_address": {
+                  "type": "string",
+                  "description": "IPv6 address for the bridge (CIDR notation). When set, ``ipv6_netmask`` key is required. When absent, no IPv6 will be configured."
+                },
+                "ipv6_netmask": {
+                  "type": "integer",
+                  "description": "Prefix length for ``ipv6_address`` provided. Required when ``ipv6_address`` is set."
+                },
+                "ipv6_nat": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to NAT. Default: ``false``."
+                },
+                "domain": {
+                  "type": "string",
+                  "description": "Domain to advertise to DHCP clients and use for DNS resolution."
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_mcollective": {
+      "type": "object",
+      "properties": {
+        "mcollective": {
+          "type": "object",
+          "properties": {
+            "conf": {
+              "type": "object",
+              "properties": {
+                "public-cert": {
+                  "type": "string",
+                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``"
+                },
+                "private-cert": {
+                  "type": "string",
+                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``"
+                }
+              },
+              "patternProperties": {
+                "^.+$": {
+                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                  "oneOf": [
+                    {"type": "boolean"},
+                    {"type": "integer"},
+                    {"type": "string"}
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_migrator": {
+      "type": "object",
+      "properties": {
+        "migrate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to migrate legacy cloud-init semaphores to new format. Default: ``true``"
+        }
+      }
+    },
+    "cc_mounts": {
+      "type": "object",
+      "properties": {
+        "mounts": {
+          "type": "array",
+          "items": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 6
+          },
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from ``mount_default_fields``. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "minItems": 1
+        },
+        "mount_default_fields": {
+          "type": "array",
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
+          "default": [null, null, "auto", "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"],
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "null"}
+            ]
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "swap": {
+          "type": "object",
+          "properties": {
+            "filename": {
+              "type": "string",
+              "description": "Path to the swap file to create"
+            },
+            "size": {
+              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T.",
+              "oneOf": [
+                  {"enum": ["auto"]},
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ]
+            },
+            "maxsize": {
+              "oneOf": [
+                  {"type": "integer"},
+                  {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
+              ],
+              "description": "The maxsize in bytes of the swap file"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_package_update_upgrade_install": {
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "description": "A list of packages to install. Each entry in the list can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
+              "items": {
+                "oneOf": [
+                  {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2},
+                  {"type": "string"}
+                ]
+              },
+              "minItems": 1
+            },
+            "package_update": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to update packages. Happens before upgrade or install. Default: ``false``"
+            },
+            "package_upgrade": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to upgrade packages. Happens before install. Default: ``false``"
+            },
+            "package_reboot_if_required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
+            },
+            "apt_update": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_update``. Default: ``false``",
+                "deprecated": true
+            },
+            "apt_upgrade": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_upgrade``. Default: ``false``",
+                "deprecated": true
+            },
+            "apt_reboot_if_required": {
+                "type": "boolean",
+                "default": false,
+                "description": "DEPRECATED. Use ``package_reboot_if_required``. Default: ``false``",
+                "deprecated": true
+            }
+        }
+    },
+    "cc_phone_home": {
+      "type": "object",
+      "properties": {
+        "phone_home": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "The URL to send the phone home data to."
+            },
+            "post": {
+              "description": "A list of keys to post or ``all``. Default: ``all``",
+              "oneOf": [
+                {"enum": ["all"]},
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "pub_key_dsa",
+                      "pub_key_rsa",
+                      "pub_key_ecdsa",
+                      "pub_key_ed25519",
+                      "instance_id",
+                      "hostname",
+                      "fqdn"
+                    ]
+                  }
+                }
+              ]
+            },
+            "tries": {
+              "type": "integer",
+              "description": "The number of times to try sending the phone home data. Default: ``10``",
+              "default": 10
+            }
+          }
+        }
+      }
+    },
+    "cc_power_state_change": {
+      "type": "object",
+      "properties": {
+        "power_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "delay": {
+              "description": "Time in minutes to delay after cloud-init has finished. Can be ``now`` or an integer specifying the number of minutes to delay. Default: ``now``",
+              "default": "now",
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^\\+?[0-9]+$"},
+                {"enum": ["now"]}
+              ]
+            },
+            "mode": {
+              "description": "Must be one of ``poweroff``, ``halt``, or ``reboot``.",
+              "type": "string",
+              "enum": ["poweroff", "reboot", "halt"]
+            },
+            "message": {
+              "description": "Optional message to display to the user when the system is powering off or rebooting.",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "Time in seconds to wait for the cloud-init process to finish before executing shutdown. Default: ``30``",
+              "type": "integer",
+              "default": 30
+            },
+            "condition": {
+              "description": "Apply state change only if condition is met. May be boolean true (always met), false (never met), or a command string or list to be executed. For command formatting, see the documentation for ``cc_runcmd``. If exit code is 0, condition is met, otherwise not. Default: ``true``",
+              "default": true,
+              "oneOf": [
+                {"type": "string"},
+                {"type": "boolean"},
+                {"type": "array"}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cc_puppet": {
+      "type": "object",
+      "properties": {
+        "puppet": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether or not to install puppet. Setting to ``false`` will result in an error if puppet is not already present on the system. Default: ``true``"
+            },
+            "version": {
+              "type": "string",
+              "description": "Optional version to pass to the installer script or package manager. If unset, the latest version from the repos will be installed."
+            },
+            "install_type": {
+              "type": "string",
+              "description": "Valid values are ``packages`` and ``aio``. Agent packages from the puppetlabs repositories can be installed by setting ``aio``. Based on this setting, the default config/SSL/CSR paths will be adjusted accordingly. Default: ``packages``",
+              "enum": ["packages", "aio"],
+              "default": "packages"
+            },
+            "collection": {
+              "type": "string",
+              "description": "Puppet collection to install if ``install_type`` is ``aio``. This can be set to one of ``puppet`` (rolling release), ``puppet6``, ``puppet7`` (or their nightly counterparts) in order to install specific release streams."
+            },
+            "aio_install_url": {
+              "type": "string",
+              "description": "If ``install_type`` is ``aio``, change the url of the install script."
+            },
+            "cleanup": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to remove the puppetlabs repo after installation if ``install_type`` is ``aio`` Default: ``true``"
+            },
+            "conf_file": {
+              "type": "string",
+              "description": "The path to the puppet config file. Default depends on ``install_type``"
+            },
+            "ssl_dir": {
+              "type": "string",
+              "description": "The path to the puppet SSL directory. Default depends on ``install_type``"
+            },
+            "csr_attributes_path": {
+              "type": "string",
+              "description": "The path to the puppet csr attributes file. Default depends on ``install_type``"
+            },
+            "package_name": {
+              "type": "string",
+              "description": "Name of the package to install if ``install_type`` is ``packages``. Default: ``puppet``"
+            },
+            "exec": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether or not to run puppet after configuration finishes. A single manual run can be triggered by setting ``exec`` to ``true``, and additional arguments can be passed to ``puppet agent`` via the ``exec_args`` key (by default the agent will execute with the ``--test`` flag). Default: ``false``"
+            },
+            "exec_args": {
+              "type": "array",
+              "description": "A list of arguments to pass to 'puppet agent' if 'exec' is true Default: ``['--test']``",
+              "items": {
+                "type": "string"
+              }
+            },
+            "start_service": {
+              "type": "boolean",
+              "default": true,
+              "description": "By default, the puppet service will be automatically enabled after installation and set to automatically start on boot. To override this in favor of manual puppet execution set ``start_service`` to ``false``"
+            },
+            "conf": {
+              "type": "object",
+              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | yaml notation for multi-line strings).",
+              "additionalProperties": false,
+              "properties": {
+                "main": {
+                  "type": "object"
+                },
+                "server": {
+                  "type": "object"
+                },
+                "agent": {
+                  "type": "object"
+                },
+                "user": {
+                  "type": "object"
+                },
+                "ca_cert": {
+                  "type": "string"
+                }
+              }
+            },
+            "csr_attributes": {
+              "type": "object",
+              "description": "create a ``csr_attributes.yaml`` file for CSR attributes and certificate extension requests. See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html",
+              "additionalProperties": false,
+              "properties": {
+                "custom_attributes": {
+                  "type": "object"
+                },
+                "extension_requests": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_resizefs": {
+      "type": "object",
+      "properties": {
+        "resize_rootfs": {
+          "enum": [true, false, "noblock"],
+          "description": "Whether to resize the root partition. ``noblock`` will resize in the background. Default: ``true``"
+        }
+      }
+    },
+    "cc_resolv_conf": {
+      "type": "object",
+      "properties": {
+        "manage_resolv_conf": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to manage the resolv.conf file. ``resolv_conf`` block will be ignored unless this is set to ``true``. Default: ``false``"
+        },
+        "resolv_conf": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nameservers": {
+              "type": "array",
+              "description": "A list of nameservers to use to be added as ``nameserver`` lines"
+            },
+            "searchdomains": {
+              "type": "array",
+              "description": "A list of domains to be added ``search`` line"
+            },
+            "domain": {
+              "type": "string",
+              "description": "The domain to be added as ``domain`` line"
+            },
+            "sortlist": {
+              "type": "array",
+              "description": "A list of IP addresses to be added to ``sortlist`` line"
+            },
+            "options": {
+              "type": "object",
+              "description": "Key/value pairs of options to go under ``options`` heading. A unary option should be specified as ``true``"
+            }
+          }
+        }
+      }
+    },
+    "cc_rh_subscription": {
+      "type": "object",
+      "properties": {
+        "rh_subscription": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "username": {
+              "type": "string",
+              "description": "The username to use. Must be used with password. Should not be used with ``activation-key`` or ``org``"
+            },
+            "password": {
+              "type": "string",
+              "description": "The password to use. Must be used with username. Should not be used with ``activation-key`` or ``org``"
+            },
+            "activation-key": {
+              "type": "string",
+              "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
+            },
+            "org": {
+              "type": "integer",
+              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
+            },
+            "auto-attach": {
+              "type": "boolean",
+              "description": "Whether to attach subscriptions automatically"
+            },
+            "service-level": {
+              "type": "string",
+              "description": "The service level to use when subscribing to RH repositories. ``auto-attach`` must be true for this to be used"
+            },
+            "add-pool": {
+              "type": "array",
+              "description": "A list of pools ids add to the subscription",
+              "items": {
+                "type": "string"
+              }
+            },
+            "enable-repo": {
+              "type": "array",
+              "description": "A list of repositories to enable",
+              "items": {
+                "type": "string"
+              }
+            },
+            "disable-repo": {
+              "type": "array",
+              "description": "A list of repositories to disable",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rhsm-baseurl": {
+              "type": "string",
+              "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``"
+            },
+            "server-hostname": {
+              "type": "string",
+              "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``"
+            }
+          }
+        }
+      }
+    },
+    "cc_rsyslog": {
+      "type": "object",
+      "properties": {
+        "rsyslog": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config_dir": {
+              "type": "string",
+              "description": "The directory where rsyslog configuration files will be written. Default: ``/etc/rsyslog.d``"
+            },
+            "config_filename": {
+              "type": "string",
+              "description": "The name of the rsyslog configuration file. Default: ``20-cloud-config.conf``"
+            },
+            "configs": {
+              "type": "array",
+              "description": "Each entry in ``configs`` is either a string or an object. Each config entry contains a configuration string and a file to write it to. For config entries that are an object, ``filename`` sets the target filename and ``content`` specifies the config string to write. For config entries that are only a string, the string is used as the config string to write. If the filename to write the config to is not specified, the value of the ``config_filename`` key is used. A file with the selected filename will be written inside the directory specified by ``config_dir``.",
+              "items": {
+                "oneOf": [
+                  {"type": "string"},
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["content"],
+                    "properties": {
+                      "filename": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "remotes": {
+              "type": "object",
+              "description": "Each key is the name for an rsyslog remote entry. Each value holds the contents of the remote config for rsyslog. The config consists of the following parts:\n\n- filter for log messages (defaults to ``*.*``)\n\n- optional leading ``@`` or ``@@``, indicating udp and tcp respectively (defaults to ``@``, for udp)\n\n- ipv4 or ipv6 hostname or address. ipv6 addresses must be in ``[::1]`` format, (e.g. ``@[fd00::1]:514``)\n\n- optional port number (defaults to ``514``)\n\nThis module will provide sane defaults for any part of the remote entry that is not specified, so in most cases remote hosts can be specified just using ``<name>: <address>``."
+            },
+            "service_reload_command": {
+              "description": "The command to use to reload the rsyslog service after the config has been updated. If this is set to ``auto``, then an appropriate command for the distro will be used. This is the default behavior. To manually set the command, use a list of command args (e.g. ``[systemctl, restart, rsyslog]``).",
+              "oneOf": [
+                {"enum": ["auto"]},
+                {"type": "array", "items": {"type": "string"}}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cc_runcmd": {
+      "type": "object",
+      "properties": {
+        "runcmd": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "string"},
+              {"type": "null"}
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "cc_salt_minion": {
+      "type": "object",
+      "properties": {
+        "salt_minion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pkg_name": {
+              "type": "string",
+              "description": "Package name to install. Default: ``salt-minion``"
+            },
+            "service_name": {
+              "type": "string",
+              "description": "Service name to enable. Default: ``salt-minion``"
+            },
+            "config_dir": {
+              "type": "string",
+              "description": "Directory to write config files to. Default: ``/etc/salt``"
+            },
+            "conf": {
+              "type": "object",
+              "description": "Configuration to be written to `config_dir`/minion"
+            },
+            "grains": {
+              "type": "object",
+              "description": "Configuration to be written to `config_dir`/grains"
+            },
+            "public_key": {
+              "type": "string",
+              "description": "Public key to be used by the salt minion"
+            },
+            "private_key": {
+              "type": "string",
+              "description": "Private key to be used by salt minion"
+            },
+            "pki_dir": {
+              "type": "string",
+              "description": "Directory to write key files. Default: `config_dir`/pki/minion"
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -555,6 +1355,24 @@
     { "$ref": "#/$defs/cc_chef" },
     { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
-    { "$ref": "#/$defs/cc_disk_setup" }
+    { "$ref": "#/$defs/cc_disk_setup" },
+    { "$ref": "#/$defs/cc_keyboard" },
+    { "$ref": "#/$defs/cc_keys_to_console" },
+    { "$ref": "#/$defs/cc_landscape" },
+    { "$ref": "#/$defs/cc_locale" },
+    { "$ref": "#/$defs/cc_lxd" },
+    { "$ref": "#/$defs/cc_mcollective" },
+    { "$ref": "#/$defs/cc_migrator" },
+    { "$ref": "#/$defs/cc_mounts" },
+    { "$ref": "#/$defs/cc_package_update_upgrade_install" },
+    { "$ref": "#/$defs/cc_phone_home" },
+    { "$ref": "#/$defs/cc_power_state_change"},
+    { "$ref": "#/$defs/cc_puppet"},
+    { "$ref": "#/$defs/cc_resizefs"},
+    { "$ref": "#/$defs/cc_resolv_conf"},
+    { "$ref": "#/$defs/cc_rh_subscription"},
+    { "$ref": "#/$defs/cc_rsyslog"},
+    { "$ref": "#/$defs/cc_runcmd"},
+    { "$ref": "#/$defs/cc_salt_minion"}
   ]
 }

@@ -3,6 +3,7 @@
 import logging
 
 import httpretty
+import pytest
 import requests
 
 from cloudinit import util, version
@@ -116,27 +117,6 @@ class TestReadFileOrUrl(CiTestCase):
         self.assertNotIn(REDACTED, logs)
         self.assertIn("sekret", logs)
 
-    @mock.patch(M_PATH + "readurl")
-    def test_read_file_or_url_passes_params_to_readurl(self, m_readurl):
-        """read_file_or_url passes all params through to readurl."""
-        url = "http://hostname/path"
-        response = "This is my url content\n"
-        m_readurl.return_value = response
-        params = {
-            "url": url,
-            "timeout": 1,
-            "retries": 2,
-            "headers": {"somehdr": "val"},
-            "data": "data",
-            "sec_between": 1,
-            "ssl_details": {"cert_file": "/path/cert.pem"},
-            "headers_cb": "headers_cb",
-            "exception_cb": "exception_cb",
-        }
-        self.assertEqual(response, read_file_or_url(**params))
-        params.pop("url")  # url is passed in as a positional arg
-        self.assertEqual([mock.call(url, **params)], m_readurl.call_args_list)
-
     def test_wb_read_url_defaults_honored_by_read_file_or_url_callers(self):
         """Readurl param defaults used when unspecified by read_file_or_url
 
@@ -176,6 +156,79 @@ class TestReadFileOrUrl(CiTestCase):
             # Success on 2nd call with FakeSession
             response = read_file_or_url(url)
         self.assertEqual(m_response, response._response)
+
+
+class TestReadFileOrUrlParameters:
+    @mock.patch(M_PATH + "readurl")
+    @pytest.mark.parametrize(
+        "timeout", [1, 1.2, "1", (1, None), (1, 1), (None, None)]
+    )
+    def test_read_file_or_url_passes_params_to_readurl(
+        self, m_readurl, timeout
+    ):
+        """read_file_or_url passes all params through to readurl."""
+        url = "http://hostname/path"
+        response = "This is my url content\n"
+        m_readurl.return_value = response
+        params = {
+            "url": url,
+            "timeout": timeout,
+            "retries": 2,
+            "headers": {"somehdr": "val"},
+            "data": "data",
+            "sec_between": 1,
+            "ssl_details": {"cert_file": "/path/cert.pem"},
+            "headers_cb": "headers_cb",
+            "exception_cb": "exception_cb",
+        }
+
+        assert response == read_file_or_url(**params)
+        params.pop("url")  # url is passed in as a positional arg
+        assert m_readurl.call_args_list == [mock.call(url, **params)]
+
+    @pytest.mark.parametrize(
+        "readurl_timeout,request_timeout",
+        [
+            (-1, 0),
+            ("-1", 0),
+            (None, None),
+            (1, 1.0),
+            (1.2, 1.2),
+            ("1", 1.0),
+            ((1, None), (1, None)),
+            ((1, 1), (1, 1)),
+            ((None, None), (None, None)),
+        ],
+    )
+    def test_readurl_timeout(self, readurl_timeout, request_timeout):
+        url = "http://hostname/path"
+        m_response = mock.MagicMock()
+
+        class FakeSession(requests.Session):
+            @classmethod
+            def request(cls, **kwargs):
+                expected_kwargs = {
+                    "url": url,
+                    "allow_redirects": True,
+                    "method": "GET",
+                    "headers": {
+                        "User-Agent": "Cloud-Init/%s"
+                        % (version.version_string())
+                    },
+                    "timeout": request_timeout,
+                }
+                if request_timeout is None:
+                    expected_kwargs.pop("timeout")
+
+                assert kwargs == expected_kwargs
+                return m_response
+
+        with mock.patch(
+            M_PATH + "requests.Session", side_effect=[FakeSession()]
+        ):
+            response = read_file_or_url(url, timeout=readurl_timeout)
+
+        assert response._response == m_response
 
 
 class TestRetryOnUrlExc(CiTestCase):

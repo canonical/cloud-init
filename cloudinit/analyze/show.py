@@ -139,7 +139,7 @@ class SystemctlReader(object):
 
     def __init__(self, property, parameter=None):
         self.epoch = None
-        self.args = ["/bin/systemctl", "show"]
+        self.args = [subp.which("systemctl"), "show"]
         if parameter:
             self.args.append(parameter)
         self.args.extend(["-p", property])

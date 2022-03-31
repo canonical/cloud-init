@@ -60,9 +60,11 @@ class TestFreeBSDRoundTrip(CiTestCase):
         renderer.render_network_state(ns, target=target)
         return dir2dict(target)
 
-    @mock.patch("cloudinit.subp.subp")
-    def test_render_output_has_yaml(self, mock_subp):
-
+    @mock.patch(
+        "cloudinit.subp.subp", return_value=(SAMPLE_FREEBSD_IFCONFIG_OUT, 0)
+    )
+    @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
+    def test_render_output_has_yaml(self, m_is_freebsd, m_subp):
         entry = {
             "yaml": V1,
         }

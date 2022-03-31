@@ -6,13 +6,23 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Rightscale Userdata
--------------------
-**Summary:** support rightscale configuration hooks
+import os
+from urllib.parse import parse_qs
 
+from cloudinit import url_helper as uhelp
+from cloudinit import util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+MY_NAME = "cc_rightscale_userdata"
+MY_HOOKNAME = "CLOUD_INIT_REMOTE_HOOK"
+
+"""Rightscale Userdata: Support rightscale configuration hooks"""
+
+MODULE_DESCRIPTION = """\
 This module adds support for RightScale configuration hooks to cloud-init.
-RightScale adds a entry in the format ``CLOUD_INIT_REMOTE_HOOK=http://...`` to
+RightScale adds an entry in the format ``CLOUD_INIT_REMOTE_HOOK=http://...`` to
 ec2 user-data. This module checks for this line in the raw userdata and
 retrieves any scripts linked by the RightScale user data and places them in the
 user scripts configuration directory, to be run later by ``cc_scripts_user``.
@@ -21,16 +31,22 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
     the ``CLOUD_INIT_REMOTE_HOOK`` config variable is present in the raw ec2
     user data only, not in any cloud-config parts
 
-**Internal name:** ``cc_rightscale_userdata``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
+**Raw user data schema**::
 
     CLOUD_INIT_REMOTE_HOOK=<url>
 """
+
+meta: MetaSchema = {
+    "id": "cc_rightscale_userdata",
+    "name": "RightScale Userdata",
+    "title": "Support rightscale configuration hooks",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [],
+}
+
+__doc__ = get_meta_doc(meta)
 
 #
 # The purpose of this script is to allow cloud-init to consume
@@ -48,18 +64,6 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
 #   Therefore, this must run before that.
 #
 #
-
-import os
-from urllib.parse import parse_qs
-
-from cloudinit import url_helper as uhelp
-from cloudinit import util
-from cloudinit.settings import PER_INSTANCE
-
-frequency = PER_INSTANCE
-
-MY_NAME = "cc_rightscale_userdata"
-MY_HOOKNAME = "CLOUD_INIT_REMOTE_HOOK"
 
 
 def handle(name, _cfg, cloud, log, _args):

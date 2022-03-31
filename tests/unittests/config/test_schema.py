@@ -82,6 +82,13 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestGetSchema:
+    def test_static_schema_file_is_valid(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            get_schema()
+        # Assert no warnings parsing our packaged schema file
+        warnings = [msg for (_, _, msg) in caplog.record_tuples]
+        assert [] == warnings
+
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
@@ -99,10 +106,25 @@ class TestGetSchema:
                 "cc_disk_setup",
                 "cc_install_hotplug",
                 "cc_keyboard",
+                "cc_keys_to_console",
+                "cc_landscape",
                 "cc_locale",
+                "cc_lxd",
+                "cc_mcollective",
+                "cc_migrator",
+                "cc_mounts",
                 "cc_ntp",
+                "cc_package_update_upgrade_install",
+                "cc_phone_home",
+                "cc_power_state_change",
+                "cc_puppet",
                 "cc_resizefs",
+                "cc_resolv_conf",
+                "cc_rightscale_userdata",
+                "cc_rh_subscription",
+                "cc_rsyslog",
                 "cc_runcmd",
+                "cc_salt_minion",
                 "cc_snap",
                 "cc_ubuntu_advantage",
                 "cc_ubuntu_drivers",
@@ -126,6 +148,24 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
+            {"$ref": "#/$defs/cc_keyboard"},
+            {"$ref": "#/$defs/cc_keys_to_console"},
+            {"$ref": "#/$defs/cc_landscape"},
+            {"$ref": "#/$defs/cc_locale"},
+            {"$ref": "#/$defs/cc_lxd"},
+            {"$ref": "#/$defs/cc_mcollective"},
+            {"$ref": "#/$defs/cc_migrator"},
+            {"$ref": "#/$defs/cc_mounts"},
+            {"$ref": "#/$defs/cc_package_update_upgrade_install"},
+            {"$ref": "#/$defs/cc_phone_home"},
+            {"$ref": "#/$defs/cc_power_state_change"},
+            {"$ref": "#/$defs/cc_puppet"},
+            {"$ref": "#/$defs/cc_resizefs"},
+            {"$ref": "#/$defs/cc_resolv_conf"},
+            {"$ref": "#/$defs/cc_rh_subscription"},
+            {"$ref": "#/$defs/cc_rsyslog"},
+            {"$ref": "#/$defs/cc_runcmd"},
+            {"$ref": "#/$defs/cc_salt_minion"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -139,12 +179,7 @@ class TestGetSchema:
         # This list will dwindle as we move legacy schema to new $defs
         assert [
             "drivers",
-            "keyboard",
-            "locale",
-            "locale_configfile",
             "ntp",
-            "resize_rootfs",
-            "runcmd",
             "snap",
             "ubuntu_advantage",
             "updates",

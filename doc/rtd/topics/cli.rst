@@ -66,8 +66,8 @@ clean
 Remove cloud-init artifacts from ``/var/lib/cloud`` to simulate a clean
 instance. On reboot, cloud-init will re-run all stages as it did on first boot.
 
-* *\\-\\-logs*: optionally remove all cloud-init log files in ``/var/log/``
-* *\\-\\-reboot*: reboot the system after removing artifacts
+* ``--logs``: optionally remove all cloud-init log files in ``/var/log/``
+* ``--reboot``: reboot the system after removing artifacts
 
 
 .. _cli_collect_logs:
@@ -152,7 +152,7 @@ Can be run on the commandline, but is generally gated to run only once
 due to semaphores in ``/var/lib/cloud/instance/sem/`` and
 ``/var/lib/cloud/sem``.
 
-* *\\-\\-local*: run *init-local* stage instead of *init*
+* ``--local``: run *init-local* stage instead of *init*
 
 
 .. _cli_modules:
@@ -173,8 +173,8 @@ declared to run in various boot stages in the file
 Can be run on the command line, but each module is gated to run only once due
 to semaphores in ``/var/lib/cloud/``.
 
-* *\\-\\-mode [init|config|final]*: run *modules:init*, *modules:config* or
-  *modules:final* cloud-init stages. See :ref:`boot_stages` for more info.
+* ``--mode [init|config|final]``: run ``modules:init``, ``modules:config`` or
+  `modules:final` cloud-init stages. See :ref:`boot_stages` for more info.
 
 
 .. _cli_query:
@@ -187,13 +187,13 @@ in ``/run/cloud-init/instance-data.json``. This is a convenience command-line
 interface to reference any cached configuration metadata that cloud-init
 crawls when booting the instance. See :ref:`instance_metadata` for more info.
 
-* *\\-\\-all*: dump all available instance data as json which can be queried
-* *\\-\\-instance-data*: optional path to a different instance-data.json file
+* ``--all``: dump all available instance data as json which can be queried
+* ``--instance-data``: optional path to a different instance-data.json file
   to source for queries
-* *\\-\\-list-keys*: list available query keys from cached instance data
-* *\\-\\-format*: a string that will use jinja-template syntax to render a
+* ``--list-keys``: list available query keys from cached instance data
+* ``--format``: a string that will use jinja-template syntax to render a
   string replacing
-* *<varname>*: a dot-delimited variable path into the instance-data.json
+* ``<varname>``: a dot-delimited variable path into the instance-data.json
   object
 
 Below demonstrates how to list all top-level query keys that are standardized
@@ -256,8 +256,8 @@ single
 
 Attempt to run a single named cloud config module.
 
-* *\\-\\-name*: the cloud-config module name to run
-* *\\-\\-frequency*: optionally override the declared module frequency
+* ``--name``: the cloud-config module name to run
+* ``--frequency``: optionally override the declared module frequency
   with one of (always|once-per-instance|once)
 
 The following example re-runs the cc_set_hostname module ignoring the module
@@ -281,8 +281,8 @@ status
 Report whether cloud-init is running, done, disabled or errored. Exits
 non-zero if an error is detected in cloud-init.
 
-* *\\-\\-long*: detailed status information
-* *\\-\\-wait*: block until cloud-init completes
+* ``--long``: detailed status information
+* ``--wait``: block until cloud-init completes
 
 Below are examples of output when cloud-init is running, showing status and
 the currently running modules, as well as when it is done.
@@ -306,5 +306,3 @@ the currently running modules, as well as when it is done.
   time: Wed, 17 Jan 2018 20:41:59 +0000
   detail:
   DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
-
-.. vi: textwidth=79

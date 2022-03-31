@@ -8,19 +8,28 @@ import os
 import shutil
 import tempfile
 from io import BytesIO
-from unittest import mock
 
+import pytest
 from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_locale
-from tests.unittests import helpers as t_help
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import (
+    FilesystemMockingTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-class TestLocale(t_help.FilesystemMockingTestCase):
+class TestLocale(FilesystemMockingTestCase):
     def setUp(self):
         super(TestLocale, self).setUp()
         self.new_root = tempfile.mkdtemp()
@@ -118,6 +127,29 @@ class TestLocale(t_help.FilesystemMockingTestCase):
                 m_update_syscfg.assert_called_with(
                     "/etc/locale.conf", {"LANG": "en_US.UTF-8"}
                 )
+
+
+class TestLocaleSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Valid schemas tested via meta['examples'] in test_schema.py
+            # Invalid schemas
+            ({"locale": 1}, "locale: 1 is not of type 'string'"),
+            (
+                {"locale_configfile": 1},
+                "locale_configfile: 1 is not of type 'string'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        schema = get_schema()
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)
 
 
 # vi: ts=4 expandtab

@@ -1,13 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 
+import pytest
 from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_landscape
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     mock,
+    skipUnlessJsonSchema,
     wrap_and_call,
 )
 from tests.unittests.util import get_cloud
@@ -168,3 +175,30 @@ class TestLandscape(FilesystemMockingTestCase):
             "Wrote landscape config file to {0}".format(self.conf),
             self.logs.getvalue(),
         )
+
+
+class TestLandscapeSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Allow undocumented keys client keys without error
+            ({"landscape": {"client": {"allow_additional_keys": 1}}}, None),
+            # tags are comma-delimited
+            ({"landscape": {"client": {"tags": "1,2,3"}}}, None),
+            ({"landscape": {"client": {"tags": "1"}}}, None),
+            # Require client key
+            ({"landscape": {}}, "'client' is a required property"),
+            # tags are not whitespace-delimited
+            (
+                {"landscape": {"client": {"tags": "1, 2,3"}}},
+                "'1, 2,3' does not match",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
