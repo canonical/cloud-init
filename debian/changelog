@@ -1,3 +1,75 @@
+cloud-init (22.1-63-gd8f39d79-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - testing: add additional mocks to test_net tests (#1356) [yangzz-97]
+    - schema: add JSON schema for mcollective, migrator and mounts modules
+      (#1358)
+    - Honor system locale for RHEL (#1355) [Wei Shi]
+    - doc: Fix typo in cloud-config-run-cmds.txt example (#1359) [Ali Shirvani]
+    - ds-identify: also discover LXD by presence from DMI board_name = LXD
+      (#1311)
+    - black: bump pinned version to 22.3.0 to avoid click dependency issues
+      (#1357)
+    - Various doc fixes (#1330)
+    - testing: Add missing is_FreeBSD mock to networking test (#1353)
+    - Add --no-update to add-apt-repostory call (SC-880) (#1337)
+    - schema: add json defs for modules K-L (#1321)
+      (LP: #1858899, #1858900, #1858901, #1858902)
+    - docs: Re-order readthedocs install (#1354)
+    - Stop cc_ssh_authkey_fingerprints from ALWAYS creating home (#1343)
+      [Jeffrey 'jf' Lim]
+    - docs: add jinja2 pin (#1352)
+    - Vultr: Use find_candidate_nics, use ipv6 dns (#1344) [eb3095]
+    - sources/azure: move get_ip_from_lease_value out of shim (#1324)
+      [Chris Patterson]
+    - Fix cloud-init status --wait when no datasource found (#1349)
+      (LP: #1966085)
+    - schema: add JSON defs for modules resize-salt (SC-654) (#1341)
+    - Add myself as a future contributor (#1345) [Neal Gompa (ニール・ゴンパ)]
+    - Update .github-cla-signers (#1342) [Jeffrey 'jf' Lim]
+    - add Requires=cloud-init-hotplugd.socket in cloud-init-hotplugd.service
+      file (#1335) [yangzz-97]
+    - Fix sysconfig render when set-name is missing (#1327)
+      [Andrew Kutz] (LP: #1855945)
+    - Refactoring helper funcs out of NetworkState (#1336) [Andrew Kutz]
+    - url_helper: add tuple support for readurl timeout (#1328)
+      [Chris Patterson]
+    - Make fs labels match for ds-identify and docs (#1329)
+    - Work around bug in LXD VM detection (#1325)
+    - Remove redundant generator logs (#1318)
+    - tox: set verbose flags for integration tests (#1323) [Chris Patterson]
+    - net: introduce find_candidate_nics() (#1313) [Chris Patterson]
+    - Revert "Ensure system_cfg read before ds net config on Oracle (#1174)"
+      (#1326)
+    - Add vendor_data2 support for ConfigDrive source (#1307) [cvstealth]
+    - Make VMWare data source test host independent and expand testing (#1308)
+      [Robert Schweikert]
+    - Add json schemas for modules starting with P
+    - sources/azure: remove lease file parsing (#1302) [Chris Patterson]
+    - remove flaky test from ci (#1322)
+    - ci: Switch to python 3.10 in Travis CI (#1320)
+    - Better interface handling for Vultr, expect unexpected DHCP servers
+      (#1297) [eb3095]
+    - Remove unused init local artifact (#1315)
+    - Doc cleanups (#1317)
+    - docs improvements (#1312)
+    - add support for jinja do statements, add unit test (#1314)
+      [Paul Bruno] (LP: #1962759)
+    - sources/azure: prevent tight loops for DHCP retries (#1285)
+      [Chris Patterson]
+    - net/dhcp: surface type of DHCP lease failure to caller (#1276)
+      [Chris Patterson]
+    - Stop hardcoding systemctl location (#1278) [Robert Schweikert]
+    - Remove python2 syntax from docs (#1310)
+    - [tools/migrate-lp-user-to-github] Rename master branch to main (#1301)
+      [Adam Collard]
+    - redhat: Depend on "hostname" package (#1288) [Lubomir Rintel]
+    - Add native NetworkManager support (#1224) [Lubomir Rintel]
+    - Fix link in CLA check to point to contribution guide. (#1299)
+      [Adam Collard]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 31 Mar 2022 14:54:00 -0600
+
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * debian/apport-launcher.py: Fix string and whitespace formatting
