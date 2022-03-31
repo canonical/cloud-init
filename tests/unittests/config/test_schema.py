@@ -149,6 +149,7 @@ class TestGetSchema:
                 "cc_update_etc_hosts",
                 "cc_update_hostname",
                 "cc_write_files",
+                "cc_yum_add_repo",
                 "cc_zypper_add_repo",
             ]
         ) == sorted(
@@ -206,6 +207,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_write_files"},
+            {"$ref": "#/$defs/cc_yum_add_repo"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []

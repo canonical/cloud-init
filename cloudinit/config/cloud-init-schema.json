@@ -1895,7 +1895,95 @@
           "minItems": 1
         }
       }
-    }
+    },
+    "cc_yum_add_repo": {
+      "type": "object",
+      "properties": {
+        "yum_repo_dir": {
+            "type": "string",
+             "default": "/etc/yum.repos.d",
+             "description": "The repo parts directory where individual yum repo config files will be writting. Default: ``/etc/yum.repos.d``"
+        },
+        "yum_repos": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[0-9a-zA-Z -_]+$": {
+              "type": "object",
+              "description": "Object keyedon unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
+              "properties": {
+                "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the directory where the yum repository's 'repodata' directory lives"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Optional human-readable name of the yum repo."
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Whether to enabled the repo. Default: ``true``."
+                }
+              },
+              "patternProperties": {
+                "^[0-9a-zA-Z_]+$": {
+                    "oneOf": [
+                      {"type": "integer"},
+                      {"type": "boolean"},
+                      {"type": "string"}
+                    ],
+                    "description": "Any supported yum repository configuration options will be written to the yum repo config file. See: man yum.conf"
+                }
+              },
+              "required": ["baseurl"]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_zypper_add_repo": {
+      "type": "object",
+      "properties": {
+        "zypper": {
+          "type": "object",
+          "properties": {
+            "repos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "The unique id of the repo, used when writing /etc/zypp/repos.d/<id>.repo."
+                  },
+                  "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The base repositoy URL"
+                  }
+                },
+                "required": [
+                  "id",
+                  "baseurl"
+                ],
+                "additionalProperties": true
+              },
+              "minItems": 1
+            },
+            "config": {
+              "type": "object",
+              "description": "Any supported zypo.conf key is written to ``/etc/zypp/zypp.conf``"
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      }
+    },
+>>>>>>> df0b41702... yum
   },
   "allOf": [
     { "$ref": "#/$defs/cc_apk_configure" },
@@ -1945,6 +2033,7 @@
     { "$ref": "#/$defs/cc_ubuntu_drivers"},
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
-    { "$ref": "#/$defs/cc_write_files"}
+    { "$ref": "#/$defs/cc_write_files"},
+    { "$ref": "#/$defs/cc_yum_add_repo"}
   ]
 }
