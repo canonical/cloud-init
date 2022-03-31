@@ -228,7 +228,7 @@ class TestCombined:
         assert v1_data["distro"] == image_spec.os
         assert v1_data["distro_release"] == image_spec.release
         assert v1_data["machine"] == "x86_64"
-        assert re.match(r"3.\d\.\d", v1_data["python_version"])
+        assert re.match(r"3.\d+\.\d+", v1_data["python_version"])
 
     @pytest.mark.lxd_container
     def test_instance_json_lxd(self, class_client: IntegrationInstance):
