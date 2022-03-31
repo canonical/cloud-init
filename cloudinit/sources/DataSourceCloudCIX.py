@@ -1,44 +1,62 @@
 import json
 
-from cloudinit import dmi, sources, url_helper
+from cloudinit import log as logging
+from cloudinit import dmi, sources, url_helper, util
 
+LOG = logging.getLogger(__name__)
 
 class DataSourceCloudCIX(sources.DataSource):
 
     dsname = "CloudCIX"
-    base_url = "http://169.254.169.254"
+    base_url = "http://169.254.169.254/v1"
 
     def _get_data(self):
         if not self.is_running_in_cloudcix():
             return False
 
-        self.metadata = self.read_metadata()
-        self.userdata_raw = self.read_userdata()
+        try:
+            md = read_metadata(self.base_url, self.get_url_params())
+        except sources.InvalidMetaDataException as error:
+            LOG.debug(f"Failed to read data from CloudCIX datasource: {error}")
+            return False
+
+        self.metadata = md['meta-data']
+        self.userdata_raw = md['user-data']
         return True
 
     def is_running_in_cloudcix(self):
         return dmi.read_dmi_data("system-product-name") == self.dsname
 
-    def read_metadata(self):
-        metadata_url = url_helper.combine_url(self.base_url, "metadata")
-        response = self.read_url(metadata_url)
-        return json.loads(response.contents.decode())
 
-    def read_userdata(self):
-        userdata_url = url_helper.combine_url(self.base_url, "userdata")
-        response = self.read_url(userdata_url)
-        return response.contents.decode()
+def read_metadata(base_url, url_params):
+    md = {}
+    leaf_key_format_callback = (
+        ("metadata", "meta-data", util.load_json),
+        ("userdata", "user-data", util.decode_binary),
+    )
 
-    def read_url(self, url):
-        response = url_helper.readurl(
-            url,
-            timeout=self.url_timeout,
-            sec_between=self.url_sec_between_retries,
-            retries=self.url_retries,
-        )
+    for url_leaf, new_key, format_callback in leaf_key_format_callback:
+        try:
+            response = url_helper.readurl(
+                url=url_helper.combine_url(base_url, url_leaf),
+                retries=url_params.num_retries,
+                sec_between=url_params.sec_between_retries,
+            )
+        except url_helper.UrlError as error:
+            raise sources.InvalidMetaDataException(
+                f"Failed to fetch IMDS {url_leaf}: {base_url}/{url_leaf}: {error}"
+            )
+
         if not response.ok():
-            raise RuntimeError("Unable to read data at %s" % url)
-        return response
+            raise sources.InvalidMetaDataException(
+                f"No valid {url_leaf} found. URL {base_url}/{url_leaf} returned code {response.code}"
+            )
+
+        try:
+            md[new_key] = format_callback(response.contents)
+        except json.decoder.JSONDecodeError as exc:
+            raise sources.InvalidMetaDataException(f"Invalid JSON at {base_url}/{url_leaf}: {exc}") from exc
+    return md
 
 
 # Used to match classes to dependencies
