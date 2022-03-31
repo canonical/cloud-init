@@ -3,9 +3,16 @@
 import logging
 import os.path
 
+import pytest
+
 from cloudinit import ssh_util
 from cloudinit.config import cc_ssh
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 LOG = logging.getLogger(__name__)
 
@@ -465,3 +472,44 @@ class TestHandleSsh(CiTestCase):
         # Check that all expected output has been done.
         for call_ in expected_calls:
             self.assertIn(call_, m_write_file.call_args_list)
+
+
+class TestSshSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            ({"ssh_authorized_keys": ["key1", "key2"]}, None),
+            (
+                {"ssh_keys": {"dsa_private": "key1", "rsa_public": "key2"}},
+                None,
+            ),
+            (
+                {"ssh_keys": {"rsa_a": "key"}},
+                "'rsa_a' does not match any of the regexes",
+            ),
+            (
+                {"ssh_keys": {"a_public": "key"}},
+                "'a_public' does not match any of the regexes",
+            ),
+            (
+                {"ssh_authorized_keys": "ssh-rsa blah"},
+                "'ssh-rsa blah' is not of type 'array'",
+            ),
+            ({"ssh_genkeytypes": ["bad"]}, "'bad' is not one of"),
+            (
+                {"disable_root_opts": ["no-port-forwarding"]},
+                r"\['no-port-forwarding'\] is not of type 'string'",
+            ),
+            (
+                {"ssh_publish_hostkeys": {"key": "value"}},
+                "Additional properties are not allowed",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

@@ -2,9 +2,16 @@
 
 from unittest import mock
 
+import pytest
+
 from cloudinit import util
 from cloudinit.config import cc_set_passwords as setpass
-from tests.unittests.helpers import CiTestCase
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, skipUnlessJsonSchema
 
 MODPATH = "cloudinit.config.cc_set_passwords."
 
@@ -172,6 +179,37 @@ class TestSetPasswordsHandle(CiTestCase):
                     break
             else:
                 self.fail("Password not emitted to console")
+
+
+class TestSetPasswordsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Test both formats still work
+            ({"ssh_pwauth": True}, None),
+            ({"ssh_pwauth": "yes"}, None),
+            ({"ssh_pwauth": "unchanged"}, None),
+            ({"chpasswd": {"list": "blah"}}, None),
+            # Test regex
+            ({"chpasswd": {"list": ["user:pass"]}}, None),
+            # Test valid
+            ({"password": "pass"}, None),
+            # Test invalid values
+            (
+                {"chpasswd": {"expire": "yes"}},
+                "'yes' is not of type 'boolean'",
+            ),
+            ({"chpasswd": {"list": ["user"]}}, ""),
+            ({"chpasswd": {"list": []}}, r"\[\] is too short"),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

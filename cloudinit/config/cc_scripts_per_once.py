@@ -5,30 +5,34 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-"""
-Scripts Per Once
-----------------
-**Summary:** run one time scripts
-
-Any scripts in the ``scripts/per-once`` directory on the datasource will be run
-only once. Changes to the instance will not force a re-run. The only way to
-re-run these scripts is to run the clean subcommand and reboot. Scripts will
-be run in alphabetical order. This module does not accept any config keys.
-
-**Internal name:** ``cc_scripts_per_once``
-
-**Module frequency:** per once
-
-**Supported distros:** all
-"""
+"""Scripts Per Once: Run one time scripts"""
 
 import os
 
 from cloudinit import subp
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ONCE
 
 frequency = PER_ONCE
+MODULE_DESCRIPTION = """\
+Any scripts in the ``scripts/per-once`` directory on the datasource will be run
+only once. Changes to the instance will not force a re-run. The only way to
+re-run these scripts is to run the clean subcommand and reboot. Scripts will
+be run in alphabetical order. This module does not accept any config keys.
+"""
+
+meta: MetaSchema = {
+    "id": "cc_scripts_per_once",
+    "name": "Scripts Per Once",
+    "title": "Run one time scripts",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [],
+}
+
+__doc__ = get_meta_doc(meta)
 
 SCRIPT_SUBDIR = "per-once"
 

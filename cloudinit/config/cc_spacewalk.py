@@ -1,10 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Spacewalk: Install and configure spacewalk"""
 
-"""
-Spacewalk
----------
-**Summary:** install and configure spacewalk
+from textwrap import dedent
 
+from cloudinit import subp
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+distros = ["redhat", "fedora"]
+MODULE_DESCRIPTION = """\
 This module installs spacewalk and applies basic configuration. If the
 ``spacewalk`` config key is present spacewalk will be installed. The server to
 connect to after installation must be provided in the ``server`` in spacewalk
@@ -12,22 +16,29 @@ configuration. A proxy to connect through and a activation key may optionally
 be specified.
 
 For more information about spacewalk see: https://fedorahosted.org/spacewalk/
-
-**Internal name:** ``cc_spacewalk``
-
-**Module frequency:** per instance
-
-**Supported distros:** redhat, fedora
-
-**Config keys**::
-
-    spacewalk:
-       server: <url>
-       proxy: <proxy host>
-       activation_key: <key>
 """
 
-from cloudinit import subp
+meta: MetaSchema = {
+    "id": "cc_spacewalk",
+    "name": "Spacewalk",
+    "title": "Install and configure spacewalk",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            spacewalk:
+              server: <url>
+              proxy: <proxy host>
+              activation_key: <key>
+            """
+        )
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
+
 
 distros = ["redhat", "fedora"]
 required_packages = ["rhn-setup"]

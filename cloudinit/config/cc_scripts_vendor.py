@@ -3,12 +3,17 @@
 # Author: Ben Howard <ben.howard@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Scripts Vendor: Run vendor scripts"""
 
-"""
-Scripts Vendor
---------------
-**Summary:** run vendor scripts
+import os
 
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+frequency = PER_INSTANCE
+MODULE_DESCRIPTION = """\
 Any scripts in the ``scripts/vendor`` directory in the datasource will be run
 when a new instance is first booted. Scripts will be run in alphabetical order.
 Vendor scripts can be run with an optional prefix specified in the ``prefix``
@@ -26,12 +31,18 @@ entry under the ``vendor_data`` config key.
         prefix: <vendor data prefix>
 """
 
-import os
+meta: MetaSchema = {
+    "id": "cc_scripts_vendor",
+    "name": "Scripts Vendor",
+    "title": "Run vendor scripts",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [],
+}
 
-from cloudinit import subp, util
-from cloudinit.settings import PER_INSTANCE
+__doc__ = get_meta_doc(meta)
 
-frequency = PER_INSTANCE
 
 SCRIPT_SUBDIR = "vendor"
 

@@ -5,38 +5,46 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""SSH Import ID: Import SSH id"""
 
-"""
-SSH Import Id
--------------
-**Summary:** import SSH id
+import pwd
+from textwrap import dedent
 
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ug_util
+from cloudinit.settings import PER_INSTANCE
+
+# https://launchpad.net/ssh-import-id
+distros = ["ubuntu", "debian"]
+
+MODULE_DESCRIPTION = """\
 This module imports SSH keys from either a public keyserver, usually launchpad
 or github using ``ssh-import-id``. Keys are referenced by the username they are
 associated with on the keyserver. The keyserver can be specified by prepending
 either ``lp:`` for launchpad or ``gh:`` for github to the username.
-
-**Internal name:** ``cc_ssh_import_id``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu, debian
-
-**Config keys**::
-
-    ssh_import_id:
-        - user
-        - gh:user
-        - lp:user
 """
 
-import pwd
+meta: MetaSchema = {
+    "id": "cc_ssh_import_id",
+    "name": "SSH Import ID",
+    "title": "Import SSH id",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            ssh_import_id:
+             - user
+             - gh:user
+             - lp:user
+            """
+        )
+    ],
+}
 
-from cloudinit import subp, util
-from cloudinit.distros import ug_util
-
-# https://launchpad.net/ssh-import-id
-distros = ["ubuntu", "debian"]
+__doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, cloud, log, args):
