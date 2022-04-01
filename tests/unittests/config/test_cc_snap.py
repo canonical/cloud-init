@@ -350,21 +350,6 @@ class TestHandle(CiTestCase):
 
     @mock.patch("cloudinit.config.cc_snap.run_commands")
     @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    @mock.patch("cloudinit.config.cc_snap.validate_cloudconfig_schema")
-    def test_handle_no_config(self, m_schema, m_add, m_run):
-        """When no snap-related configuration is provided, nothing happens."""
-        cfg = {}
-        handle("snap", cfg=cfg, cloud=None, log=self.logger, args=None)
-        self.assertIn(
-            "DEBUG: Skipping module named snap, no 'snap' key in config",
-            self.logs.getvalue(),
-        )
-        m_schema.assert_not_called()
-        m_add.assert_not_called()
-        m_run.assert_not_called()
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
     @mock.patch("cloudinit.config.cc_snap.maybe_install_squashfuse")
     def test_handle_skips_squashfuse_when_unconfigured(
         self, m_squash, m_add, m_run
@@ -441,28 +426,6 @@ class TestHandle(CiTestCase):
         util.write_file(compare_file, content.encode("utf-8"))
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file)
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    @skipUnlessJsonSchema()
-    def test_handle_validates_schema(self, m_subp):
-        """Any provided configuration is runs validate_cloudconfig_schema."""
-        assert_file = self.tmp_path("snapd.assertions", dir=self.tmp)
-        cfg = {"snap": {"invalid": ""}}  # Generates schema warning
-        wrap_and_call(
-            "cloudinit.config.cc_snap",
-            {"ASSERTIONS_FILE": {"new": assert_file}},
-            handle,
-            "snap",
-            cfg=cfg,
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap: Additional"
-            " properties are not allowed ('invalid' was unexpected)\n",
-            self.logs.getvalue(),
         )
 
 
