@@ -545,6 +545,127 @@
         }
       }
     },
+    "cc_fan": {
+      "type": "object",
+      "properties": {
+        "fan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["config"],
+          "properties": {
+            "config": {
+              "type": "string",
+              "description": "The fan configuration to use as a single multi-line string"
+            },
+            "config_path": {
+              "type": "string",
+              "description": "The path to write the fan configuration to"
+            }
+          }
+        }
+      }
+    },
+    "cc_final_message": {
+      "type": "object",
+      "properties": {
+        "final_message": {
+          "type": "string",
+          "description": "The message to display at the end of the run"
+        }
+      }
+    },
+    "cc_growpart": {
+      "type": "object",
+      "properties": {
+        "growpart": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "oneOf": [
+                {"type": "boolean"},
+                {"enum": ["auto", "growpart", "gpart", "off"]}
+              ],
+              "default": "auto",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean value for this key is deprecated."
+            },
+            "devices": {
+              "type": "array",
+              "default": ["/"],
+              "items": {
+                "type": "string"
+              },
+              "description": "The devices to resize. Each entry can either be the path to the device's mountpoint in the filesystem or a path to the block device in '/dev'. Default: ``[/]``"
+            },
+            "ignore_growroot_disabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "If ``true``, ignore the presence of ``/etc/growroot-disabled``. If ``false`` and the file exists, then don't resize. Default: ``false``"
+            }
+          }
+        }
+      }
+    },
+    "cc_grub_dpkg": {
+      "type": "object",
+      "properties": {
+        "grub_dpkg": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to configure which device is used as the target for grub installation. Default: ``true``"
+            },
+            "grub-pc/install_devices": {
+              "type": "string",
+              "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` will be used to find the device"
+            },
+            "grub-pc/install_devices_empty": {
+              "type": ["string", "boolean"],
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated."
+            }
+          }
+        },
+        "grub-dpkg": {
+          "type": "object",
+          "description": "DEPRECATED: Use ``grub_dpkg`` instead"
+        }
+      }
+    },
+    "cc_install_hotplug": {
+      "type": "object",
+      "properties": {
+        "updates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "network": {
+              "type": "object",
+              "required": ["when"],
+              "additionalProperties": false,
+              "properties": {
+                "when": {
+                  "type": "array",
+                  "additionalProperties": false,
+                  "items": {
+                    "type": "string",
+                    "additionalProperties": false,
+                    "enum": [
+                      "boot-new-instance",
+                      "boot-legacy",
+                      "boot",
+                      "hotplug"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "cc_keyboard": {
       "type": "object",
       "properties": {
@@ -1356,6 +1477,11 @@
     { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
+    { "$ref": "#/$defs/cc_fan" },
+    { "$ref": "#/$defs/cc_final_message"},
+    { "$ref": "#/$defs/cc_growpart"},
+    { "$ref": "#/$defs/cc_grub_dpkg"},
+    { "$ref": "#/$defs/cc_install_hotplug"},
     { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_keys_to_console" },
     { "$ref": "#/$defs/cc_landscape" },
