@@ -276,7 +276,7 @@ run:
 #cloud-config
 a: c
 vendor_data:
-  enabled: True
+  enabled: true
   prefix: /bin/true
 name: user
 run:
@@ -319,7 +319,7 @@ echo "dynamic test"
         user_blob = """
 #cloud-config
 vendor_data:
-  enabled: True
+  enabled: true
   prefix: /bin/true
 """
         new_root = self.reRoot()

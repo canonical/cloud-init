@@ -757,6 +757,12 @@ class Init(object):
             LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
+        if isinstance(enabled, str):
+            LOG.debug(
+                "Use of string for 'vendor_data:enabled' field is "
+                "deprecated. Use boolean value instead",
+            )
+
         LOG.debug(
             "%s will be consumed. disabled_handlers=%s",
             vendor_source,
@@ -871,12 +877,15 @@ class Init(object):
             return
 
         def event_enabled_and_metadata_updated(event_type):
-            return update_event_enabled(
-                datasource=self.datasource,
-                cfg=self.cfg,
-                event_source_type=event_type,
-                scope=EventScope.NETWORK,
-            ) and self.datasource.update_metadata_if_supported([event_type])
+            return (
+                update_event_enabled(
+                    datasource=self.datasource,
+                    cfg=self.cfg,
+                    event_source_type=event_type,
+                    scope=EventScope.NETWORK,
+                )
+                and self.datasource.update_metadata_if_supported([event_type])
+            )
 
         def should_run_on_boot_event():
             return (

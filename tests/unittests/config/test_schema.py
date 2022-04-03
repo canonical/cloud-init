@@ -189,6 +189,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_rsyslog"},
             {"$ref": "#/$defs/cc_runcmd"},
             {"$ref": "#/$defs/cc_salt_minion"},
+            {"$ref": "#/$defs/cc_scripts_vendor"},
             {"$ref": "#/$defs/cc_seed_random"},
             {"$ref": "#/$defs/cc_set_hostname"},
             {"$ref": "#/$defs/cc_set_passwords"},

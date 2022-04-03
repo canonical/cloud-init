@@ -1463,6 +1463,25 @@
         }
       }
     },
+    "cc_scripts_vendor": {
+      "type": "object",
+      "properties": {
+        "vendor_data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": ["boolean", "string"],
+              "description": "Whether vendor data is enabled or not. Use of string for this value is DEPRECATED. Default: ``true``"
+            },
+            "prefix": {
+              "type": "string",
+              "description": "The command to run before any vendor scripts. Its primary use case is for profiling a script, not to prevent its run"
+            }
+          }
+        }
+      }
+    },
     "cc_seed_random": {
       "type": "object",
       "properties": {
@@ -1774,6 +1793,7 @@
     { "$ref": "#/$defs/cc_rsyslog"},
     { "$ref": "#/$defs/cc_runcmd"},
     { "$ref": "#/$defs/cc_salt_minion"},
+    { "$ref": "#/$defs/cc_scripts_vendor"},
     { "$ref": "#/$defs/cc_seed_random"},
     { "$ref": "#/$defs/cc_set_hostname"},
     { "$ref": "#/$defs/cc_set_passwords"},
