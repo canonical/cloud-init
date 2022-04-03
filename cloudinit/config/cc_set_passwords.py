@@ -45,12 +45,20 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
+            # Set a default password that would need to be changed
+            # at first login
             ssh_pwauth: true
             password: password1
             """
         ),
         dedent(
             """\
+            # Disable ssh password authentication
+            # Don't require users to change their passwords on next login
+            # Set the password for user1 to be 'password1' (OS does hashing)
+            # Set the password for user2 to be a randomly generated password,
+            #   which will be written to the system console
+            # Set the password for user3 to a pre-hashed password
             ssh_pwauth: false
             chpasswd:
               expire: false

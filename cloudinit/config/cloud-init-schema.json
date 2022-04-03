@@ -1500,6 +1500,7 @@
             },
             "encoding": {
               "type": "string",
+              "default": "raw",
               "enum": ["raw", "base64", "b64", "gzip", "gz"],
               "description": "Used to decode ``data`` provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default is ``raw``"
             },
@@ -1510,6 +1511,7 @@
             },
             "command_required": {
               "type": "boolean",
+              "default": false,
               "description": "If true, and ``command`` is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``"
             }
           }

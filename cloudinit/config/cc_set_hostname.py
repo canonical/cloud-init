@@ -26,10 +26,10 @@ A hostname and FQDN can be provided by specifying a full domain name under the
 ``FQDN`` key. Alternatively, a hostname can be specified using the ``hostname``
 key, and the FQDN of the cloud will be used. If a FQDN specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
-the ``FQDN`` config key. If both ``FQDN`` and ``hostname`` are set,
+the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
 the ``prefer_fqdn_over_hostname`` will force the use of FQDN in all distros
-if true, and if false it will force the hostname use. Otherwise, the hostname
-to use is distro-dependent.
+when true, and when false it will force the short hostname. Otherwise, the
+hostname to use is distro-dependent.
 
 .. note::
     cloud-init performs no hostname input validation before sending the
