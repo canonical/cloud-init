@@ -212,7 +212,13 @@ M_PATH_NET = "cloudinit.sources.DataSourceEc2.net."
 
 TAGS_METADATA_2021_03_23 = {
     **DEFAULT_METADATA,
-    "tags": {"instance": {"Environment": "production", "Application": "test"}},
+    "tags": {
+        "instance": {
+            "Environment": "production",
+            "Application": "test",
+            "TagWithoutValue": "",
+        }
+    },
 }
 
 
