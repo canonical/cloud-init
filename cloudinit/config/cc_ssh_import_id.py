@@ -100,7 +100,38 @@ def import_ssh_ids(ids, user, log):
     except KeyError as exc:
         raise exc
 
-    cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
+    # TODO: We have a use case that involes setting a proxy value earlier
+    # in boot and the user wants this env used when using ssh-import-id.
+    # E.g.,:
+    # bootcmd:
+    #   - mkdir -p /etc/systemd/system/cloud-config.service.d
+    #   - mkdir -p /etc/systemd/system/cloud-final.service.d
+    # write_files:
+    #   - content: |
+    #       http_proxy=http://192.168.1.2:3128/
+    #       https_proxy=http://192.168.1.2:3128/
+    #     path: /etc/cloud/env
+    #   - content: |
+    #       [Service]
+    #       EnvironmentFile=/etc/cloud/env
+    #       PassEnvironment=https_proxy http_proxy
+    #     path: /etc/systemd/system/cloud-config.service.d/override.conf
+    #   - content: |
+    #       [Service]
+    #       EnvironmentFile=/etc/cloud/env
+    #       PassEnvironment=https_proxy http_proxy
+    #     path: /etc/systemd/system/cloud-final.service.d/override.conf
+    #
+    # I'm including the `--preserve-env` here as a one-off, but we should
+    # have a better way of setting env earlier in boot and using it later.
+    # Perhaps a 'set_env' module?
+    cmd = [
+        "sudo",
+        "--preserve-env=https_proxy",
+        "-Hu",
+        user,
+        "ssh-import-id",
+    ] + ids
     log.debug("Importing SSH ids for user %s.", user)
 
     try:
