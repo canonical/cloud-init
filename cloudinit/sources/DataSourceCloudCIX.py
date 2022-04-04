@@ -41,7 +41,7 @@ class DataSourceCloudCIX(sources.DataSource):
             )
         except sources.InvalidMetaDataException as error:
             LOG.debug(
-                "Failed to read data from CloudCIX datasource: %error", error
+                "Failed to read data from CloudCIX datasource: %s", error
             )
             return False
 
