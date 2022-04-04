@@ -1,7 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import json
 
-from cloudinit import distros, helpers
-from cloudinit.sources.DataSourceCloudCIX import DataSourceCloudCIX
+from cloudinit import distros, helpers, sources, url_helper
+from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from tests.unittests.helpers import CiTestCase, mock
 
 METADATA = {
@@ -39,7 +40,9 @@ class TestDataSourceCloudCIX(CiTestCase):
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
         distro = distro_cls("ubuntu", cfg={}, paths=self.paths)
-        return DataSourceCloudCIX(sys_cfg={}, distro=distro, paths=self.paths)
+        return ds_mod.DataSourceCloudCIX(
+            sys_cfg={}, distro=distro, paths=self.paths
+        )
 
     def test_identifying_cloudcix(self):
         self.assertTrue(self.datasource.is_running_in_cloudcix())
@@ -47,25 +50,83 @@ class TestDataSourceCloudCIX(CiTestCase):
         self.m_read_dmi_data.return_value = "OnCloud9"
         self.assertFalse(self.datasource.is_running_in_cloudcix())
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_metadata"
-    )
-    @mock.patch(
-        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_userdata"
-    )
-    def test_reading_metadata_on_cloudcix(
-        self, m_read_userdata, m_read_metadata
-    ):
-        m_read_userdata.return_value = USERDATA
-        m_read_metadata.return_value = METADATA
+    @mock.patch("cloudinit.url_helper.readurl")
+    def test_reading_metadata_on_cloudcix(self, m_readurl):
+        def url_responses(url, **params):
+            if url.endswith("metadata"):
+                return url_helper.StringResponse(json.dumps(METADATA))
+            elif url.endswith("userdata"):
+                return url_helper.StringResponse(USERDATA)
+            return None
 
-        self.datasource.get_data()
+        m_readurl.side_effect = url_responses
+
+        self.assertTrue(self.datasource.get_data())
         self.assertEqual(self.datasource.metadata, METADATA)
-        self.assertEqual(self.datasource.userdata_raw, USERDATA)
+        self.assertEqual(self.datasource.userdata_raw, USERDATA.decode())
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceCloudCIX.DataSourceCloudCIX.read_metadata"
-    )
+    def test_setting_config_options(self):
+        cix_options = {
+            "timeout": 1234,
+            "retries": 5678,
+        }
+        sys_cfg = {
+            "datasource": {
+                "CloudCIX": cix_options,
+            }
+        }
+
+        # Instantiate a new datasource
+        distro_cls = distros.fetch("ubuntu")
+        distro = distro_cls("ubuntu", cfg={}, paths=self.paths)
+        new_ds = ds_mod.DataSourceCloudCIX(
+            sys_cfg=sys_cfg, distro=distro, paths=self.paths
+        )
+        self.assertEqual(new_ds.url_timeout, cix_options["timeout"])
+        self.assertEqual(new_ds.url_retries, cix_options["retries"])
+
+    @mock.patch("cloudinit.url_helper.readurl")
+    def test_read_metadata_cannot_contact_imds(self, m_readurl):
+        def url_responses(url, **params):
+            raise url_helper.UrlError("No route")
+
+        m_readurl.side_effect = url_responses
+
+        self.assertFalse(self.datasource.get_data())
+        self.assertFalse(getattr(self.datasource, "metadata"))
+        self.assertFalse(getattr(self.datasource, "userdata_raw"))
+
+        with self.assertRaises(sources.InvalidMetaDataException):
+            ds_mod.read_metadata(
+                self.datasource.base_url, self.datasource.get_url_params()
+            )
+
+    @mock.patch("cloudinit.url_helper.readurl")
+    def test_read_metadata_gets_bad_response(self, m_readurl):
+        def url_responses(url, **params):
+            return url_helper.StringResponse("", code=403)
+
+        m_readurl.side_effect = url_responses
+
+        with self.assertRaises(sources.InvalidMetaDataException):
+            ds_mod.read_metadata(
+                self.datasource.base_url, self.datasource.get_url_params()
+            )
+
+    @mock.patch("cloudinit.url_helper.readurl")
+    def test_read_metadata_gets_malformed_response(self, m_readurl):
+        def url_responses(url, **params):
+            bad_json = json.dumps(METADATA)[:-2]
+            return url_helper.StringResponse(bad_json, code=200)
+
+        m_readurl.side_effect = url_responses
+
+        with self.assertRaises(sources.InvalidMetaDataException):
+            ds_mod.read_metadata(
+                self.datasource.base_url, self.datasource.get_url_params()
+            )
+
+    @mock.patch("cloudinit.sources.DataSourceCloudCIX.read_metadata")
     def test_not_on_cloudcix_returns_false(self, m_read_metadata):
         self.m_read_dmi_data.return_value = "WrongCloud"
         self.assertFalse(self.datasource.get_data())

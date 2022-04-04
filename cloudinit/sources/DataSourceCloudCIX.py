@@ -1,14 +1,29 @@
 import json
 
+from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import dmi, sources, url_helper, util
+from cloudinit import sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
+
+URL_TIMEOUT = 10
+URL_RETRIES = 5
+URL_SEC_BETWEEN_RETRIES = 1
+
 
 class DataSourceCloudCIX(sources.DataSource):
 
     dsname = "CloudCIX"
     base_url = "http://169.254.169.254/v1"
+
+    def __init__(self, sys_cfg, distro, paths):
+        super(DataSourceCloudCIX, self).__init__(sys_cfg, distro, paths)
+
+        self.url_timeout = self.ds_cfg.get("timeout", URL_TIMEOUT)
+        self.url_retries = self.ds_cfg.get("retries", URL_RETRIES)
+        self.wait_retry = self.ds_cfg.get(
+            "wait_retry", URL_SEC_BETWEEN_RETRIES
+        )
 
     def _get_data(self):
         if not self.is_running_in_cloudcix():
@@ -21,15 +36,15 @@ class DataSourceCloudCIX(sources.DataSource):
                 read_metadata,
                 kwargs={
                     "base_url": self.base_url,
-                    "url_params": self.get_url_params()
-                }
+                    "url_params": self.get_url_params(),
+                },
             )
         except sources.InvalidMetaDataException as error:
             LOG.debug(f"Failed to read data from CloudCIX datasource: {error}")
             return False
 
-        self.metadata = md['meta-data']
-        self.userdata_raw = md['user-data']
+        self.metadata = md["meta-data"]
+        self.userdata_raw = md["user-data"]
         return True
 
     def is_running_in_cloudcix(self):
@@ -49,6 +64,7 @@ def read_metadata(base_url, url_params):
                 url=url_helper.combine_url(base_url, url_leaf),
                 retries=url_params.num_retries,
                 sec_between=url_params.sec_between_retries,
+                timeout=url_params.timeout_seconds,
             )
         except url_helper.UrlError as error:
             raise sources.InvalidMetaDataException(
@@ -63,7 +79,9 @@ def read_metadata(base_url, url_params):
         try:
             md[new_key] = format_callback(response.contents)
         except json.decoder.JSONDecodeError as exc:
-            raise sources.InvalidMetaDataException(f"Invalid JSON at {base_url}/{url_leaf}: {exc}") from exc
+            raise sources.InvalidMetaDataException(
+                f"Invalid JSON at {base_url}/{url_leaf}: {exc}"
+            ) from exc
     return md
 
 
