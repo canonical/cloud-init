@@ -3126,12 +3126,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa.wait_for_link_up("eth0")
         self.assertEqual(1, m_is_link_up.call_count)
 
-    @mock.patch(MOCKPATH + "net.is_up", autospec=True)
-    @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
+    @mock.patch(MOCKPATH + "sleep")
     def test_wait_for_link_up_checks_link_after_sleep(
-        self, m_try_set_link_up, m_read_sys_net, m_writefile, m_is_up
+        self, m_sleep, m_try_set_link_up
     ):
         """Waiting for link to be up should return immediately if the link is
         already up."""
@@ -3141,50 +3139,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         m_try_set_link_up.return_value = False
 
-        callcount = 0
-
-        def is_up_mock(key):
-            nonlocal callcount
-            if callcount == 0:
-                callcount += 1
-                return False
-            return True
-
-        m_is_up.side_effect = is_up_mock
-
-        with mock.patch("cloudinit.sources.DataSourceAzure.sleep"):
-            dsa.wait_for_link_up("eth0")
-        self.assertEqual(2, m_try_set_link_up.call_count)
-        self.assertEqual(2, m_is_up.call_count)
-
-    @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
-    @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
-    def test_wait_for_link_up_writes_to_device_file(
-        self, m_is_link_up, m_read_sys_net, m_writefile
-    ):
-        """Waiting for link to be up should return immediately if the link is
-        already up."""
-
-        distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, self.paths)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-
-        callcount = 0
-
-        def linkup(key):
-            nonlocal callcount
-            if callcount == 0:
-                callcount += 1
-                return False
-            return True
-
-        m_is_link_up.side_effect = linkup
-
         dsa.wait_for_link_up("eth0")
-        self.assertEqual(2, m_is_link_up.call_count)
-        self.assertEqual(1, m_read_sys_net.call_count)
-        self.assertEqual(2, m_writefile.call_count)
+
+        self.assertEqual(100, m_try_set_link_up.call_count)
+        self.assertEqual(99 * [mock.call(0.1)], m_sleep.mock_calls)
 
     @mock.patch(
         "cloudinit.sources.helpers.netlink.create_bound_netlink_socket"
