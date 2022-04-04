@@ -1,4 +1,4 @@
-.. _datasource_vultr:
+.. _datasource_cloudcix:
 
 CloudCIX
 ========

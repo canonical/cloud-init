@@ -40,7 +40,9 @@ class DataSourceCloudCIX(sources.DataSource):
                 },
             )
         except sources.InvalidMetaDataException as error:
-            LOG.debug(f"Failed to read data from CloudCIX datasource: {error}")
+            LOG.debug(
+                "Failed to read data from CloudCIX datasource: %error", error
+            )
             return False
 
         self.metadata = md["meta-data"]
