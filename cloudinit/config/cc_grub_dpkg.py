@@ -126,15 +126,19 @@ def handle(name, cfg, _cloud, log, _args):
         return
 
     idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
-    idevs_empty = util.get_cfg_option_bool(
-        mycfg, "grub-pc/install_devices_empty", None  # type: ignore
-    )
-
     if idevs is None:
         idevs = fetch_idevs(log)
 
+    idevs_empty = mycfg.get("grub-pc/install_devices_empty")
     if idevs_empty is None:
         idevs_empty = not idevs
+    elif not isinstance(idevs_empty, bool):
+        log.warning(
+            "DEPRECATED: grub_dpkg: grub-pc/install_devices_empty value of "
+            f"'{idevs_empty}' is not boolean. Use of non-boolean values "
+            "will be removed in a future version of cloud-init."
+        )
+        idevs_empty = util.translate_bool(idevs_empty)
     idevs_empty = str(idevs_empty).lower()
 
     # now idevs and idevs_empty are set to determined values

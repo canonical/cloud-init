@@ -559,7 +559,8 @@
             },
             "config_path": {
               "type": "string",
-              "description": "The path to write the fan configuration to"
+              "default": "/etc/network/fan",
+              "description": "The path to write the fan configuration to. Default: ``/etc/network/fan``"
             }
           }
         }
@@ -582,12 +583,9 @@
           "additionalProperties": false,
           "properties": {
             "mode": {
-              "oneOf": [
-                {"type": "boolean"},
-                {"enum": ["auto", "growpart", "gpart", "off"]}
-              ],
+              "enum": [false, "auto", "growpart", "gpart", "off"],
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean value for this key is deprecated."
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead."
             },
             "devices": {
               "type": "array",
@@ -620,7 +618,7 @@
             },
             "grub-pc/install_devices": {
               "type": "string",
-              "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` will be used to find the device"
+              "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
               "type": ["string", "boolean"],

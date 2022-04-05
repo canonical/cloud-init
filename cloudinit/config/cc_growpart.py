@@ -51,7 +51,7 @@ frequency = PER_ALWAYS
 meta: MetaSchema = {
     "id": "cc_growpart",
     "name": "Growpart",
-    "title": "Growpart",
+    "title": "Grow partitions",
     "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": frequency,

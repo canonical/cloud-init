@@ -367,7 +367,16 @@ class TestGrowpartSchema:
         (
             ({"growpart": {"mode": "off"}}, None),
             ({"growpart": {"mode": False}}, None),
-            ({"growpart": {"mode": "a"}}, "'a' is not valid"),
+            (
+                {"growpart": {"mode": "false"}},
+                "'false' is not one of "
+                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+            ),
+            (
+                {"growpart": {"mode": "a"}},
+                "'a' is not one of "
+                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+            ),
             ({"growpart": {"devices": "/"}}, "'/' is not of type 'array'"),
             (
                 {"growpart": {"ignore_growroot_disabled": "off"}},

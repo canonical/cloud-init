@@ -168,16 +168,12 @@ class TestHandle:
         ],
     )
     @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
-    @mock.patch("cloudinit.config.cc_grub_dpkg.util.get_cfg_option_str")
-    @mock.patch("cloudinit.config.cc_grub_dpkg.util.get_cfg_option_bool")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
     def test_handle(
         self,
         m_subp,
         m_logexc,
-        m_get_cfg_bool,
-        m_get_cfg_str,
         m_fetch_idevs,
         cfg_idevs,
         cfg_idevs_empty,
@@ -185,11 +181,14 @@ class TestHandle:
         expected_log_output,
     ):
         """Test setting of correct debconf database entries"""
-        m_get_cfg_str.return_value = cfg_idevs
-        m_get_cfg_bool.return_value = cfg_idevs_empty
         m_fetch_idevs.return_value = fetch_idevs_output
         log = mock.Mock(spec=Logger)
-        handle(mock.Mock(), mock.Mock(), mock.Mock(), log, mock.Mock())
+        cfg = {"grub_dpkg": {}}
+        if cfg_idevs is not None:
+            cfg["grub_dpkg"]["grub-pc/install_devices"] = cfg_idevs
+        if cfg_idevs_empty is not None:
+            cfg["grub_dpkg"]["grub-pc/install_devices_empty"] = cfg_idevs_empty
+        handle(mock.Mock(), cfg, mock.Mock(), log, mock.Mock())
         log.debug.assert_called_with("".join(expected_log_output))
 
 

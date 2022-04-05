@@ -22,6 +22,8 @@ specified as a jinja template with the following variables set:
     - ``timestamp``: time at cloud-init finish
     - ``datasource``: cloud-init data source
     - ``uptime``: system uptime
+
+Upon exit, this module writes ``/var/lib/cloud/instance/boot-finished``.
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {

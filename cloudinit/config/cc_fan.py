@@ -22,6 +22,9 @@ If cloud-init sees a ``fan`` entry in cloud-config it will:
     - write ``config_path`` with the contents of the ``config`` key
     - install the package ``ubuntu-fan`` if it is not installed
     - ensure the service is started (or restarted if was previously running)
+
+Additionally, the ``ubuntu-fan`` package will be automatically installed
+if not present.
 """
 
 distros = ["ubuntu"]
