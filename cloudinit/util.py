@@ -406,7 +406,7 @@ def multi_log(
                 writing_to_console_worked = True
             except OSError:
                 console_error = "Failed to write to /dev/console"
-                sys.stdout.write(console_error)
+                sys.stdout.write(f"{console_error}\n")
                 if log:
                     log.log(logging.WARNING, console_error)
 
