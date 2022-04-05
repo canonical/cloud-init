@@ -39,6 +39,13 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
+            vendor_data:
+              enabled: true
+              prefix: [timeout, 30]
+            """
+        ),
+        dedent(
+            """\
             # Vendor data will not be processed
             vendor_data:
               enabled: false

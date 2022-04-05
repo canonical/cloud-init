@@ -759,8 +759,8 @@ class Init(object):
 
         if isinstance(enabled, str):
             LOG.debug(
-                "Use of string for 'vendor_data:enabled' field is "
-                "deprecated. Use boolean value instead",
+                f"Use of string '{enabled}' for 'vendor_data:enabled' field "
+                "is deprecated. Use boolean value instead",
             )
 
         LOG.debug(

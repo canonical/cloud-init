@@ -37,15 +37,6 @@ will happen after ``file`` has been populated.  That command's environment will
 contain the value of the ``file`` key as ``RANDOM_SEED_FILE``. If a command is
 specified that cannot be run, no error will be reported unless
 ``command_required`` is set to true.
-
-For example, to use ``pollinate`` to gather data from a
-remote entropy server and write it to ``/dev/urandom``, the following could be
-used::
-
-    random_seed:
-        file: /dev/urandom
-        command: ["pollinate", "--server=http://local.polinate.server"]
-        command_required: true
 """
 
 meta: MetaSchema = {
@@ -65,7 +56,18 @@ meta: MetaSchema = {
               command: ['sh', '-c', 'dd if=/dev/urandom of=$RANDOM_SEED_FILE']
               command_required: true
             """
-        )
+        ),
+        dedent(
+            """\
+            # To use 'pollinate' to gather data from a remote entropy
+            # server and write it to '/dev/urandom', the following
+            # could be used:
+            random_seed:
+              file: /dev/urandom
+              command: ["pollinate", "--server=http://local.polinate.server"]
+              command_required: true
+            """
+        ),
     ],
 }
 

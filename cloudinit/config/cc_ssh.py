@@ -101,10 +101,12 @@ system (i.e. if ``ssh_deletekeys`` was false), no key will be generated.
 Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
 config flags are:
 
-    - rsa
     - dsa
     - ecdsa
+    - ecdsa-sk
     - ed25519
+    - ed25519-sk
+    - rsa
 """
 
 meta: MetaSchema = {

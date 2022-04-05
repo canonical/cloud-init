@@ -66,17 +66,6 @@ meta: MetaSchema = {
               00: snap create-user --sudoer --known <snap-user>@mydomain.com
               01: snap install canonical-livepatch
               02: canonical-livepatch enable <AUTH_TOKEN>
-            squashfuse_in_container: true
-    """
-        ),
-        dedent(
-            """\
-        # LXC-based containers require squashfuse before snaps can be installed
-        snap:
-          commands:
-            00: apt-get install squashfuse -y
-            11: snap install emoj
-
     """
         ),
         dedent(
