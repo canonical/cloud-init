@@ -14,6 +14,7 @@ class TestScriptsVendorSchema:
         (
             ({"vendor_data": {"enabled": True}}, None),
             ({"vendor_data": {"enabled": "yes"}}, None),
+            ({"vendor_data": {"prefix": []}}, r"\[\] is too short"),
         ),
     )
     @skipUnlessJsonSchema()

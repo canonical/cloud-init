@@ -1475,7 +1475,9 @@
               "description": "Whether vendor data is enabled or not. Use of string for this value is DEPRECATED. Default: ``true``"
             },
             "prefix": {
-              "type": ["boolean", "string"],
+              "type": ["array", "string"],
+              "items": {"type": ["string", "integer"]},
+              "minItems": 1,
               "description": "The command to run before any vendor scripts. Its primary use case is for profiling a script, not to prevent its run"
             }
           }
