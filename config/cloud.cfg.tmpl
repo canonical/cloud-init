@@ -102,7 +102,6 @@ cloud_config_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 # Emit the cloud config ready event
 # this can be used by upstart jobs for 'start on cloud-config'.
- - emit_upstart
  - snap
 {% endif %}
 {% if variant not in ["photon"] %}

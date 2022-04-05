@@ -5,12 +5,14 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Foo: Example module"""
 
-"""
-Foo
----
-**Summary:** example module
+from typing import List
 
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_ONCE
+
+MODULE_DESCRIPTION = """\
 Example to show module structure. Does not do anything.
 
 **Internal name:** ``cc_foo``
@@ -20,7 +22,20 @@ Example to show module structure. Does not do anything.
 **Supported distros:** all
 """
 
-from cloudinit.settings import PER_INSTANCE
+distros: List[str] = []
+frequency = PER_ONCE
+meta: MetaSchema = {
+    "id": "cc_foo",
+    "name": "Foo",
+    "title": "Example module",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": frequency,
+    "examples": [],
+}
+
+__doc__ = get_meta_doc(meta)
+
 
 # Modules are expected to have the following attributes.
 # 1. A required 'handle' method which takes the following params.
@@ -46,8 +61,6 @@ from cloudinit.settings import PER_INSTANCE
 #    a warning out if a module is being ran on a untested distribution for
 #    informational purposes. If non existent all distros are assumed and
 #    no warning occurs.
-
-frequency = PER_INSTANCE
 
 
 def handle(name, _cfg, _cloud, log, _args):

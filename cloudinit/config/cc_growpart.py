@@ -5,29 +5,28 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Growpart: Grow partitions"""
 
-"""
-Growpart
---------
-**Summary:** grow partitions
+import os
+import os.path
+import re
+import stat
+from textwrap import dedent
 
+from cloudinit import log as logging
+from cloudinit import subp, temp_utils, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 Growpart resizes partitions to fill the available disk space.
 This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
 use of the extra space.
 
 The devices on which to run growpart are specified as a list under the
-``devices`` key. Each entry in the devices list can be either the path to the
-device's mountpoint in the filesystem or a path to the block device in
-``/dev``.
-
-The utility to use for resizing can be selected using the ``mode`` config key.
-If the ``mode`` key is set to ``auto``, then any available utility (either
-``growpart`` or BSD ``gpart``) will be used. If neither utility is available,
-no error will be raised. If ``mode`` is set to ``growpart``, then the
-``growpart`` utility will be used. If this utility is not available on the
-system, this will result in an error. If ``mode`` is set to ``off`` or
-``false``, then ``cc_growpart`` will take no action.
+``devices`` key.
 
 There is some functionality overlap between this module and the ``growroot``
 functionality of ``cloud-initramfs-tools``. However, there are some situations
@@ -44,36 +43,41 @@ Growpart is enabled by default on the root partition. The default config for
 growpart is::
 
     growpart:
-        mode: auto
-        devices: ["/"]
-        ignore_growroot_disabled: false
-
-**Internal name:** ``cc_growpart``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    growpart:
-        mode: <auto/growpart/off/false>
-        devices:
-            - "/"
-            - "/dev/vdb1"
-        ignore_growroot_disabled: <true/false>
+      mode: auto
+      devices: ["/"]
+      ignore_growroot_disabled: false
 """
-
-import os
-import os.path
-import re
-import stat
-
-from cloudinit import log as logging
-from cloudinit import subp, temp_utils, util
-from cloudinit.settings import PER_ALWAYS
-
 frequency = PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_growpart",
+    "name": "Growpart",
+    "title": "Grow partitions",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [
+        dedent(
+            """\
+            growpart:
+              mode: auto
+              devices: ["/"]
+              ignore_growroot_disabled: false
+            """
+        ),
+        dedent(
+            """\
+            growpart:
+              mode: growpart
+              devices:
+                - "/"
+                - "/dev/vdb1"
+              ignore_growroot_disabled: true
+            """
+        ),
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 DEFAULT_CONFIG = {
     "mode": "auto",
@@ -388,6 +392,11 @@ def handle(_name, cfg, _cloud, log, _args):
 
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
+        if mode != "off":
+            log.warning(
+                f"DEPRECATED: growpart mode '{mode}' is deprecated. "
+                "Use 'off' instead."
+            )
         log.debug("growpart disabled: mode=%s" % mode)
         return
 

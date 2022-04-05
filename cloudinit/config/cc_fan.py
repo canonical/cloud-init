@@ -3,12 +3,16 @@
 # Author: Scott Moser <scott.moser@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Fan: Configure ubuntu fan networking"""
 
-"""
-Fan
----
-**Summary:** configure ubuntu fan networking
+from textwrap import dedent
 
+from cloudinit import log as logging
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module installs, configures and starts the ubuntu fan network system. For
 more information about Ubuntu Fan, see:
 ``https://wiki.ubuntu.com/FanNetworking``.
@@ -19,31 +23,37 @@ If cloud-init sees a ``fan`` entry in cloud-config it will:
     - install the package ``ubuntu-fan`` if it is not installed
     - ensure the service is started (or restarted if was previously running)
 
-**Internal name:** ``cc_fan``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu
-
-**Config keys**::
-
-    fan:
-        config: |
-            # fan 240
-            10.0.0.0/8 eth0/16 dhcp
-            10.0.0.0/8 eth1/16 dhcp off
-            # fan 241
-            241.0.0.0/8 eth0/16 dhcp
-        config_path: /etc/network/fan
+Additionally, the ``ubuntu-fan`` package will be automatically installed
+if not present.
 """
 
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.settings import PER_INSTANCE
+distros = ["ubuntu"]
+meta: MetaSchema = {
+    "id": "cc_fan",
+    "name": "Fan",
+    "title": "Configure ubuntu fan networking",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            fan:
+              config: |
+                # fan 240
+                10.0.0.0/8 eth0/16 dhcp
+                10.0.0.0/8 eth1/16 dhcp off
+                # fan 241
+                241.0.0.0/8 eth0/16 dhcp
+              config_path: /etc/network/fan
+            """
+        )
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
-
-frequency = PER_INSTANCE
 
 BUILTIN_CFG = {
     "config": None,
