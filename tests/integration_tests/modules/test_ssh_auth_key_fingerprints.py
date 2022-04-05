@@ -71,5 +71,5 @@ def test_no_home_directory_created(client: IntegrationInstance):
     assert "system" not in home_output
 
     passwd = client.execute("cat /etc/passwd")
-    assert re.search("nch:", passwd, re.MULTILINE)
-    assert re.search("system:", passwd, re.MULTILINE)
+    assert re.search("^nch:", passwd, re.MULTILINE)
+    assert re.search("^system:", passwd, re.MULTILINE)
