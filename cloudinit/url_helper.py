@@ -522,7 +522,7 @@ def wait_for_url(
             url_exc = None
         return (url_exc, reason)
 
-    def read_url_handle_exceptions(url_reader_cb, urls, start_time):
+    def read_url_handle_exceptions(url_reader_cb, urls, start_time, exc_cb):
         reason = ""
         url = None
         try:
@@ -545,11 +545,11 @@ def wait_for_url(
             reason,
         )
         status_cb(status_msg)
-        if exception_cb:
+        if exc_cb:
             # This can be used to alter the headers that will be sent
             # in the future, for example this is what the MAAS datasource
             # does.
-            exception_cb(msg=status_msg, exception=url_exc)
+            exc_cb(msg=status_msg, exception=url_exc)
 
     def read_url_cb(url, timeout):
         return readurl(
@@ -561,7 +561,7 @@ def wait_for_url(
             request_method=request_method,
         )
 
-    def read_url_serial(start_time, timeout):
+    def read_url_serial(start_time, timeout, exc_cb):
         """iterate over list of urls, request each one and handle responses
         and thrown exceptions individually per url
         """
@@ -583,12 +583,12 @@ def wait_for_url(
                     timeout = int((start_time + max_wait) - now)
 
             out = read_url_handle_exceptions(
-                url_reader_serial, url, start_time
+                url_reader_serial, url, start_time, exc_cb
             )
             if out:
                 return out
 
-    def read_url_parallel(start_time, timeout):
+    def read_url_parallel(start_time, timeout, exc_cb):
         """pass list of urls to dual_stack which sends requests in parallel
         handle response and exceptions of the first endpoint to respond
         """
@@ -598,7 +598,9 @@ def wait_for_url(
             stagger_delay=async_delay,
             timeout=timeout,
         )
-        out = read_url_handle_exceptions(url_reader_parallel, urls, start_time)
+        out = read_url_handle_exceptions(
+            url_reader_parallel, urls, start_time, exc_cb
+        )
         if out:
             return out
 
@@ -613,7 +615,7 @@ def wait_for_url(
     while True:
         sleep_time = sleep_time_cb(response, loop_n)
 
-        url = do_read_url(start_time, timeout)
+        url = do_read_url(start_time, timeout, exception_cb)
         if url:
             return url
 
