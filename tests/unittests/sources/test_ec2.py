@@ -541,6 +541,17 @@ class TestEc2(test_helpers.HttprettyTestCase):
             md={"md": old_metadata},
         )
         self.assertTrue(ds.get_data())
+
+        # Workaround https://github.com/getsentry/responses/issues/212
+        # Can be removed when requests < 0.17.0 is no longer tested
+        # i.e. after Focal is EOL
+        if hasattr(responses.mock, "_urls"):
+            for index, url in enumerate(responses.mock._urls):
+                if url["url"].startswith(
+                    "http://169.254.169.254/2009-04-04/meta-data/"
+                ):
+                    del responses.mock._urls[index]
+
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
             "http://169.254.169.254/2009-04-04/meta-data/", DEFAULT_METADATA
