@@ -6,6 +6,8 @@ from cloudinit import sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
 
+DS_BASE_URL = "http://169.254.169.254/"
+
 URL_TIMEOUT = 10
 URL_RETRIES = 5
 URL_SEC_BETWEEN_RETRIES = 1
@@ -14,11 +16,11 @@ URL_SEC_BETWEEN_RETRIES = 1
 class DataSourceCloudCIX(sources.DataSource):
 
     dsname = "CloudCIX"
-    base_url = "http://169.254.169.254/v1"
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceCloudCIX, self).__init__(sys_cfg, distro, paths)
 
+        self.base_url = url_helper.combine_url(DS_BASE_URL, "v1")
         self.url_timeout = self.ds_cfg.get("timeout", URL_TIMEOUT)
         self.url_retries = self.ds_cfg.get("retries", URL_RETRIES)
         self.wait_retry = self.ds_cfg.get(
@@ -70,12 +72,14 @@ def read_metadata(base_url, url_params):
             )
         except url_helper.UrlError as error:
             raise sources.InvalidMetaDataException(
-                f"Failed to fetch IMDS {url_leaf}: {base_url}/{url_leaf}: {error}"
+                f"Failed to fetch IMDS {url_leaf}: "
+                f"{base_url}/{url_leaf}: {error}"
             )
 
         if not response.ok():
             raise sources.InvalidMetaDataException(
-                f"No valid {url_leaf} found. URL {base_url}/{url_leaf} returned code {response.code}"
+                f"No valid {url_leaf} found. "
+                f"URL {base_url}/{url_leaf} returned code {response.code}"
             )
 
         try:

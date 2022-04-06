@@ -36,6 +36,7 @@ class TestDataSourceCloudCIX(CiTestCase):
             "m_read_dmi_data",
             return_value="CloudCIX",
         )
+        self.base_url = self.datasource.base_url
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -98,7 +99,7 @@ class TestDataSourceCloudCIX(CiTestCase):
 
         with self.assertRaises(sources.InvalidMetaDataException):
             ds_mod.read_metadata(
-                self.datasource.base_url, self.datasource.get_url_params()
+                self.base_url, self.datasource.get_url_params()
             )
 
     @mock.patch("cloudinit.url_helper.readurl")
@@ -110,7 +111,7 @@ class TestDataSourceCloudCIX(CiTestCase):
 
         with self.assertRaises(sources.InvalidMetaDataException):
             ds_mod.read_metadata(
-                self.datasource.base_url, self.datasource.get_url_params()
+                self.base_url, self.datasource.get_url_params()
             )
 
     @mock.patch("cloudinit.url_helper.readurl")
@@ -123,7 +124,7 @@ class TestDataSourceCloudCIX(CiTestCase):
 
         with self.assertRaises(sources.InvalidMetaDataException):
             ds_mod.read_metadata(
-                self.datasource.base_url, self.datasource.get_url_params()
+                self.base_url, self.datasource.get_url_params()
             )
 
     @mock.patch("cloudinit.sources.DataSourceCloudCIX.read_metadata")
