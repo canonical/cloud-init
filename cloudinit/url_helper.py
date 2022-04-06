@@ -447,7 +447,7 @@ def wait_for_url(
     urls,
     max_wait=None,
     timeout=None,
-    status_cb=LOG.debug,
+    status_cb=LOG.debug,  # some datasources use different log levels
     headers_cb=None,
     headers_redact=None,
     sleep_time=1,
@@ -496,11 +496,13 @@ def wait_for_url(
     """
 
     def timeup(max_wait, start_time):
+        """Check if time is up based on start time and max wait"""
         if max_wait is None:
             return False
         return (max_wait <= 0) or (time.time() - start_time > max_wait)
 
     def read_url_handle_response(response, url):
+        """Map requests response code/contents to internal "UrlError" type"""
         if not response.contents:
             reason = "empty response [%s]" % (response.code)
             url_exc = UrlError(
@@ -522,7 +524,10 @@ def wait_for_url(
             url_exc = None
         return (url_exc, reason)
 
-    def read_url_handle_exceptions(url_reader_cb, urls, start_time, exc_cb):
+    def read_url_handle_exceptions(
+        url_reader_cb, urls, start_time, exc_cb, log_cb
+    ):
+        """"""
         reason = ""
         url = None
         try:
@@ -533,7 +538,7 @@ def wait_for_url(
         except UrlError as e:
             reason = "request error [%s]" % e
             url_exc = e
-        except Exception as e:
+        except Exception as e:  # yikes, do we really think this is necessary?
             reason = "unexpected error [%s]" % e
             url_exc = e
         time_taken = int(time.time() - start_time)
@@ -544,7 +549,7 @@ def wait_for_url(
             max_wait_str,
             reason,
         )
-        status_cb(status_msg)
+        log_cb(status_msg)
         if exc_cb:
             # This can be used to alter the headers that will be sent
             # in the future, for example this is what the MAAS datasource
@@ -561,7 +566,7 @@ def wait_for_url(
             request_method=request_method,
         )
 
-    def read_url_serial(start_time, timeout, exc_cb):
+    def read_url_serial(start_time, timeout, exc_cb, log_cb):
         """iterate over list of urls, request each one and handle responses
         and thrown exceptions individually per url
         """
@@ -583,12 +588,12 @@ def wait_for_url(
                     timeout = int((start_time + max_wait) - now)
 
             out = read_url_handle_exceptions(
-                url_reader_serial, url, start_time, exc_cb
+                url_reader_serial, url, start_time, exc_cb, log_cb
             )
             if out:
                 return out
 
-    def read_url_parallel(start_time, timeout, exc_cb):
+    def read_url_parallel(start_time, timeout, exc_cb, log_cb):
         """pass list of urls to dual_stack which sends requests in parallel
         handle response and exceptions of the first endpoint to respond
         """
@@ -599,13 +604,18 @@ def wait_for_url(
             timeout=timeout,
         )
         out = read_url_handle_exceptions(
-            url_reader_parallel, urls, start_time, exc_cb
+            url_reader_parallel, urls, start_time, exc_cb, log_cb
         )
         if out:
             return out
 
     start_time = time.time()
 
+    # Dual-stack support factored out serial and parallel execution paths to
+    # allow the retry loop logic to exist separately from the http calls.
+    # Serial execution should be fundamentally the same as before, but with a
+    # layer of indirection so that the parallel dual-stack path may use the
+    # same max timeout logic.
     do_read_url = (
         read_url_serial if connect_synchronously else read_url_parallel
     )
@@ -615,7 +625,7 @@ def wait_for_url(
     while True:
         sleep_time = sleep_time_cb(response, loop_n)
 
-        url = do_read_url(start_time, timeout, exception_cb)
+        url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
             return url
 
