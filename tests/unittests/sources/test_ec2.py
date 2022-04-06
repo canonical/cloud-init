@@ -210,6 +210,17 @@ SECONDARY_IP_METADATA_2018_09_24 = {
 
 M_PATH_NET = "cloudinit.sources.DataSourceEc2.net."
 
+TAGS_METADATA_2021_03_23 = {
+    **DEFAULT_METADATA,
+    "tags": {
+        "instance": {
+            "Environment": "production",
+            "Application": "test",
+            "TagWithoutValue": "",
+        }
+    },
+}
+
 
 def _register_ssh_keys(rfunc, base_url, keys_data):
     """handle ssh key inconsistencies.
@@ -670,7 +681,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
         logs_with_token = [log for log in all_logs if "API-TOKEN" in log]
         self.assertEqual(1, len(logs_with_redacted_ttl))
-        self.assertEqual(81, len(logs_with_redacted))
+        self.assertEqual(83, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
@@ -810,6 +821,19 @@ class TestEc2(test_helpers.HttprettyTestCase):
             static_routes=None,
         )
         self.assertIn("Crawl of metadata service took", self.logs.getvalue())
+
+    def test_get_instance_tags(self):
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md={"md": TAGS_METADATA_2021_03_23},
+        )
+        self.assertTrue(ds.get_data())
+        self.assertIn("tags", ds.metadata)
+        self.assertIn("instance", ds.metadata["tags"])
+        instance_tags = ds.metadata["tags"]["instance"]
+        self.assertEqual(instance_tags["Application"], "test")
+        self.assertEqual(instance_tags["Environment"], "production")
 
 
 class TestGetSecondaryAddresses(test_helpers.CiTestCase):
