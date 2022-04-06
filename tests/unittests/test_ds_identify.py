@@ -351,7 +351,8 @@ class TestDsIdentify(DsIdentifyBase):
 
         Assert ds-identify can match systemd-detect-virt="qemu" and
         /sys/class/dmi/id/board_name = LXD.
-        Once systemd 251 is available, the virtualized CPUID will be                    represented properly as "kvm"
+        Once systemd 251 is available on a target distro, the virtualized
+        CPUID will be represented properly as "kvm"
         """
         self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10")
 
