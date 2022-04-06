@@ -1,12 +1,15 @@
-cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.4ubuntu2) UNRELEASED; urgency=medium
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.4ubuntu3) UNRELEASED; urgency=medium
 
   * d/p/cpick-be9389c6-Work-around-bug-in-LXD-VM-detection-1325:
     cherry-pick be9389c6: Work around bug in LXD VM detection (#1325)
   * d/p/cpick-30ccd51a-ds-identify-also-discover-LXD-by-presence-from-DMI:
     cherry-pick 30ccd51a: ds-identify: also discover LXD by presence
     from DMI
+  * d/p/pick-e3307e4d-ds-identify-detect-LXD-for-VMs-launched-from-host-with:
+    cherry-pick e3307e4d: ds-identify: detect LXD for VMs launched from
+    host with > (LP: #1968085)
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 06 Apr 2022 11:48:48 -0500
+ -- James Falcon <james.falcon@canonical.com>  Wed, 06 Apr 2022 16:48:16 -0500
 
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.4) jammy; urgency=medium
 
