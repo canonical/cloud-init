@@ -3,7 +3,7 @@
 import logging
 from functools import partial
 from threading import Event
-from time import process_time, sleep
+from time import process_time
 from unittest.mock import call
 
 import httpretty

@@ -304,7 +304,8 @@ def register_mock_metaserver(base_url, data):
         url, body = argc
         method = responses.PUT if ec2.API_TOKEN_ROUTE in url else responses.GET
         print(
-            f"registering: len= {len(argc)}\n{argc[0]}\n{argc[1:]}\nkwargs: {kwargs}"
+            f"registering: len= {len(argc)}\n"
+            f"{argc[0]}\n{argc[1:]}\nkwargs: {kwargs}"
         )
         status = kwargs.get("status", 200)
         return responses.add(method, url, body, status=status)
