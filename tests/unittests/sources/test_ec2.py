@@ -866,6 +866,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         )
         self.assertIn("Crawl of metadata service took", self.logs.getvalue())
 
+    @responses.activate
     def test_get_instance_tags(self):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
