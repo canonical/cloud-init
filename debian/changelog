@@ -1,3 +1,10 @@
+cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.4ubuntu1) UNRELEASED; urgency=medium
+
+  * cpick-be9389c6-Work-around-bug-in-LXD-VM-detection-1325:
+    cherry-pick be9389c6: Work around bug in LXD VM detection (#1325)
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 06 Apr 2022 11:47:25 -0500
+
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~22.04.4) jammy; urgency=medium
 
   * d/p/cpick-eee60329-Fix-cloud-init-status-wait-when-no-datasource-found:
