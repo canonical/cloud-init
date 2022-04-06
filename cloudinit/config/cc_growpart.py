@@ -7,10 +7,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Growpart: Grow partitions"""
 
+import base64
+import copy
+import json
 import os
 import os.path
 import re
 import stat
+from contextlib import suppress
+from pathlib import Path
 from textwrap import dedent
 
 from cloudinit import log as logging
