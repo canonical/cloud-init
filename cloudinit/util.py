@@ -2078,7 +2078,7 @@ def write_file(
     omode="wb",
     preserve_mode=False,
     *,
-    ensure_dir_exists=True
+    ensure_dir_exists=True,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
