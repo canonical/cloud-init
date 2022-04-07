@@ -1982,6 +1982,33 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         util.multi_log("something", fallback_to_stdout=False)
         self.assertEqual("", self.stdout.getvalue())
 
+    @mock.patch(
+        "cloudinit.util.write_to_console",
+        mock.Mock(side_effect=OSError("Failed to write to console")),
+    )
+    def test_logs_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
+        self,
+    ):
+        self._createConsole(self.root)
+        util.multi_log("something", fallback_to_stdout=True)
+        self.assertEqual(
+            "Failed to write to /dev/console\nsomething",
+            self.stdout.getvalue(),
+        )
+
+    @mock.patch(
+        "cloudinit.util.write_to_console",
+        mock.Mock(side_effect=OSError("Failed to write to console")),
+    )
+    def test_logs_go_nowhere_if_writing_to_console_fails_and_fallback_false(
+        self,
+    ):
+        self._createConsole(self.root)
+        util.multi_log("something", fallback_to_stdout=False)
+        self.assertEqual(
+            "Failed to write to /dev/console\n", self.stdout.getvalue()
+        )
+
     def test_logs_go_to_log_if_given(self):
         log = mock.MagicMock()
         logged_string = "something very important"

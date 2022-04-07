@@ -381,6 +381,12 @@ def find_modules(root_dir) -> dict:
     return entries
 
 
+def write_to_console(conpath, text):
+    with open(conpath, "w") as wfh:
+        wfh.write(text)
+        wfh.flush()
+
+
 def multi_log(
     text,
     console=True,
@@ -393,14 +399,25 @@ def multi_log(
         sys.stderr.write(text)
     if console:
         conpath = "/dev/console"
+        writing_to_console_worked = False
         if os.path.exists(conpath):
-            with open(conpath, "w") as wfh:
-                wfh.write(text)
-                wfh.flush()
-        elif fallback_to_stdout:
-            # A container may lack /dev/console (arguably a container bug).  If
-            # it does not exist, then write output to stdout.  this will result
-            # in duplicate stderr and stdout messages if stderr was True.
+            try:
+                write_to_console(conpath, text)
+                writing_to_console_worked = True
+            except OSError:
+                console_error = "Failed to write to /dev/console"
+                sys.stdout.write(f"{console_error}\n")
+                if log:
+                    log.log(logging.WARNING, console_error)
+
+        if fallback_to_stdout and not writing_to_console_worked:
+            # A container may lack /dev/console (arguably a container bug).
+            # Additionally, /dev/console may not be writable to on a VM (again
+            # likely a VM bug or virtualization bug).
+            #
+            # If either of these is the case, then write output to stdout.
+            # This will result in duplicate stderr and stdout messages if
+            # stderr was True.
             #
             # even though upstart or systemd might have set up output to go to
             # /dev/console, the user may have configured elsewhere via
@@ -2061,7 +2078,7 @@ def write_file(
     omode="wb",
     preserve_mode=False,
     *,
-    ensure_dir_exists=True
+    ensure_dir_exists=True,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
