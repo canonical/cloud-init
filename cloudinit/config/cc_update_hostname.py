@@ -56,7 +56,7 @@ meta: MetaSchema = {
         preseve_hostname: true
         """
         ),
-        (
+        dedent(
             """\
         # Set hostname to "external.fqdn.me" instead of "myhost"
         fqdn: external.fqdn.me
@@ -64,7 +64,7 @@ meta: MetaSchema = {
         prefer_fqdn_over_hostname: true
         """
         ),
-        (
+        dedent(
             """\
         # Set hostname to "external" instead of "external.fqdn.me" when
         # cloud metadata provides the ``local-hostname``: "external.fqdn.me".

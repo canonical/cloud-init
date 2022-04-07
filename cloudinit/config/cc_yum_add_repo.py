@@ -60,6 +60,7 @@ meta: MetaSchema = {
             yum_repos:
               my_repo:
                 baseurl: http://blah.org/pub/epel/testing/5/$basearch/
+            yum_repo_dir: /store/custom/yum.repos.d
             """
         ),
         dedent(

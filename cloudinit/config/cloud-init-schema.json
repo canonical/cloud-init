@@ -1817,8 +1817,8 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage /etc/hosts on the system. When set ``true``, cloud-init will render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. When set ``localhost``, Default: ``false``. DEPRECATED value ``template``will be dropped, use ``true`` instead.",
-          "oneOf": [{"type": "boolean"}, {"enum": ["template", "localhost"]}]
+          "description": "Whether to manage ``/etc/hosts`` on the system. Set ``true`` to render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. Set ``localhost`` to and cloud-init will append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``. DEPRECATED value ``template`` will be dropped, use ``true`` instead.",
+          "enum": [true, false, "template", "localhost"]
         },
         "fqdn": {
           "type": "string",
@@ -1841,7 +1841,7 @@
         "prefer_fqdn_over_hostname": {
           "type": "boolean",
           "default": null,
-          "description": "By default, cloud-init will set the hostname to the short hostname instead of the fully qualified domain name even if cloud-config user-data provides an ``fqdn`` or instance metadata or provides an fqdn in its ``local-hostname`` value. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+          "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
         }
       }
     },
@@ -1902,15 +1902,16 @@
         "yum_repo_dir": {
             "type": "string",
              "default": "/etc/yum.repos.d",
-             "description": "The repo parts directory where individual yum repo config files will be writting. Default: ``/etc/yum.repos.d``"
+             "description": "The repo parts directory where individual yum repo config files will be written. Default: ``/etc/yum.repos.d``"
         },
         "yum_repos": {
           "type": "object",
           "minProperties": 1,
           "patternProperties": {
             "^[0-9a-zA-Z -_]+$": {
+              "label": "<repo_name>",
               "type": "object",
-              "description": "Object keyedon unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
+              "description": "Object keyed on unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
               "properties": {
                 "baseurl": {
                     "type": "string",
@@ -1924,11 +1925,12 @@
                 "enabled": {
                   "type": "boolean",
                   "default": true,
-                  "description": "Whether to enabled the repo. Default: ``true``."
+                  "description": "Whether to enable the repo. Default: ``true``."
                 }
               },
               "patternProperties": {
                 "^[0-9a-zA-Z_]+$": {
+                    "label": "<yum_config_option>",
                     "oneOf": [
                       {"type": "integer"},
                       {"type": "boolean"},

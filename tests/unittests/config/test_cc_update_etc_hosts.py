@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import shutil
 
 import pytest
@@ -81,7 +82,10 @@ class TestUpdateEtcHosts:
         [
             (
                 {"manage_etc_hosts": "templatey"},
-                "manage_etc_hosts: 'templatey' is not valid",
+                re.escape(
+                    "manage_etc_hosts: 'templatey' is not one of"
+                    " [True, False, 'template', 'localhost']"
+                ),
             ),
         ],
     )

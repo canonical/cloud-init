@@ -22,14 +22,6 @@ UNKNOWN_ENC = "text/plain"
 
 LOG = logging.getLogger(__name__)
 
-distros = ["all"]
-
-# The schema definition for each cloud-config module is a strict contract for
-# describing supported configuration parameters for each cloud-config section.
-# It allows cloud-config to validate and alert users to invalid or ignored
-# configuration options before actually attempting to deploy with said
-# configuration.
-
 meta: MetaSchema = {
     "id": "cc_write_files",
     "name": "Write Files",
@@ -53,7 +45,7 @@ meta: MetaSchema = {
         the early boot process. Use /run/somedir instead to avoid race
         LP:1707222."""
     ),
-    "distros": distros,
+    "distros": ["all"],
     "examples": [
         dedent(
             """\

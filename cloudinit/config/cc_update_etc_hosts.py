@@ -21,7 +21,7 @@ Management of the hosts file is controlled using ``manage_etc_hosts``. If this
 is set to false, cloud-init will not manage the hosts file at all. This is the
 default behavior.
 
-If set to ``true`` or ``template``, cloud-init will generate the hosts file
+If set to ``true``, cloud-init will generate the hosts file
 using the template located in ``/etc/cloud/templates/hosts.tmpl``. In the
 ``/etc/cloud/templates/hosts.tmpl`` template, the strings ``$hostname`` and
 ``$fqdn`` will be replaced with the hostname and fqdn respectively.
