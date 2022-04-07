@@ -3,7 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""zypper_add_repo: Add zyper repositories to the system"""
+"""zypper_add_repo: Add zypper repositories to the system"""
 
 import os
 from textwrap import dedent
@@ -16,22 +16,25 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
 distros = ["opensuse", "sles"]
+MODULE_DESCRIPTION = """\
+Zypper behavior can be configured using the ``config`` key, which will modify
+``/etc/zypp/zypp.conf``. The configuration writer will only append the
+provided configuration options to the configuration file. Any duplicate
+options will be resolved by the way the zypp.conf INI file is parsed.
 
+.. note::
+    Setting ``configdir`` is not supported and will be skipped.
+
+The ``repos`` key may be used to add repositories to the system. Beyond the
+required ``id`` and ``baseurl`` attributions, no validation is performed
+on the ``repos`` entries. It is assumed the user is familiar with the
+zypper repository file format.
+"""
 meta: MetaSchema = {
     "id": "cc_zypper_add_repo",
-    "name": "ZypperAddRepo",
+    "name": "Zypper Add Repo",
     "title": "Configure zypper behavior and add zypper repositories",
-    "description": dedent(
-        """\
-        Configure zypper behavior by modifying /etc/zypp/zypp.conf. The
-        configuration writer is "dumb" and will simply append the provided
-        configuration options to the configuration file. Option settings
-        that may be duplicate will be resolved by the way the zypp.conf file
-        is parsed. The file is in INI format.
-        Add repositories to the system. No validation is performed on the
-        repository file entries, it is assumed the user is familiar with
-        the zypper repository file format."""
-    ),
+    "description": MODULE_DESCRIPTION,
     "distros": distros,
     "examples": [
         dedent(
