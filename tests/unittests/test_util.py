@@ -376,13 +376,16 @@ class TestSymlink(CiTestCase):
         tmpd = self.tmp_dir()
         link = self.tmp_path("link", tmpd)
         target = self.tmp_path("target", tmpd)
+        target2 = self.tmp_path("target2", tmpd)
         util.write_file(target, "hello")
+        util.write_file(target2, "hello2")
 
         util.sym_link(target, link)
         self.assertTrue(os.path.exists(link))
 
-        util.sym_link(target, link, force=True)
+        util.sym_link(target2, link, force=True)
         self.assertTrue(os.path.exists(link))
+        self.assertEqual("hello2", util.load_file(link))
 
     def test_sym_link_dangling_link(self):
         tmpd = self.tmp_dir()

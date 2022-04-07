@@ -5,7 +5,6 @@
 """Define 'status' utility and handler as part of cloud-init commandline."""
 
 import argparse
-import contextlib
 import enum
 import os
 import sys
@@ -142,8 +141,7 @@ def get_status_details(paths=None):
     if os.path.exists(status_file):
         if not os.path.exists(result_file):
             status = UXAppStatus.RUNNING
-        with contextlib.suppress(FileNotFoundError):
-            status_v1 = load_json(load_file(status_file)).get("v1", {})
+        status_v1 = load_json(load_file(status_file)).get("v1", {})
     errors = []
     latest_event = 0
     for key, value in sorted(status_v1.items()):
