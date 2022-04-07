@@ -1992,7 +1992,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         util.multi_log("something", fallback_to_stdout=True)
         self.assertEqual(
-            "Failed to write to /dev/consolesomething", self.stdout.getvalue()
+            "Failed to write to /dev/console\nsomething",
+            self.stdout.getvalue(),
         )
 
     @mock.patch(
@@ -2005,7 +2006,7 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         util.multi_log("something", fallback_to_stdout=False)
         self.assertEqual(
-            "Failed to write to /dev/console", self.stdout.getvalue()
+            "Failed to write to /dev/console\n", self.stdout.getvalue()
         )
 
     def test_logs_go_to_log_if_given(self):
