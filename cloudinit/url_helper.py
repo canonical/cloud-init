@@ -12,6 +12,7 @@ import copy
 import json
 import os
 import time
+import threading
 from concurrent.futures import (
     ALL_COMPLETED,
     ThreadPoolExecutor,
@@ -372,6 +373,17 @@ def readurl(
 
     raise excps[-1]
 
+def _run_func_with_delay(func, addr, timeout, event, delay=None):
+    """Execute func with optional delay
+    """
+    if delay:
+
+        # event returns True iff the flag is set to true: indicating that
+        # another thread has already completed successfully, no need to try
+        # again - exit early
+        if event.wait(timeout=delay):
+            return
+    return func(addr, timeout)
 
 def dual_stack(
     func: Callable[..., Any],
@@ -382,63 +394,72 @@ def dual_stack(
     """execute multiple callbacks in parallel
 
     Run blocking func against two different addresses staggered with a
-    delay. The first call to return is returned from this function and
-    remaining unfinished calls are canceled (or finish asynchronously on
-    python <3.9
+    delay. The first call to return successfully is returned from this
+    function and remaining unfinished calls are cancelled if they have not
+    yet started
     """
     return_result = None
     returned_address = None
+    last_exception = None
+    exceptions = []
+    is_done = threading.Event()
 
-    def _run_func(func, addr, timeout, delay=None):
-        """Execute func with optional delay"""
-        if delay:
-            time.sleep(delay)
-        return func(addr, timeout)
 
-    executor = ThreadPoolExecutor(max_workers=len(addresses))
-    try:
-        futures = {
-            executor.submit(
-                _run_func,
-                func=func,
-                addr=addr,
-                timeout=timeout,
-                delay=(i * stagger_delay),
-            ): addr
-            for i, addr in enumerate(addresses)
-        }
-
-        # handle the first function to complete from the threadpool executor
-        future = next(as_completed(futures, timeout=timeout))
-        wait(futures, return_when=ALL_COMPLETED)
-
-        returned_address = futures[future]
-        return_exception = future.exception()
-        if return_exception:
-            LOG.warning(
-                "Exception %s during request to %s",
-                return_exception,
-                returned_address,
-            )
-            raise return_exception
-        return_result = future.result()
-        if not return_result:
-            LOG.warning("Empty result for address %s", returned_address)
-
-    # when max_wait expires
-    except TimeoutError:
-        LOG.warning("Timed out waiting for addresses: %s", " ".join(addresses))
-
-    # Executor doesn't provide kwargs for setting shutdown behavior
-    # in the constructor, otherwise the context manager would be preferred
-    finally:
-        # python 3.9 allows canceling futures, which may save some cycles
+    # future work: add cancel_futures to Python stdlib ThreadPoolExecutor
+    # context manager implementation
+    #
+    # for now we don't use this feature since it only supports python >3.8
+    # and doesn't provide a context manager and only marginal benefit
+    with ThreadPoolExecutor(max_workers=len(addresses)) as executor:
         try:
-            executor.shutdown(  # pylint: disable=E1123
-                wait=False, cancel_futures=True
-            )
-        except TypeError:  # no cancel_futures support
-            executor.shutdown(wait=False)
+            futures = {
+                executor.submit(
+                    _run_func_with_delay,
+                    func=func,
+                    addr=addr,
+                    timeout=timeout,
+                    event=is_done,
+                    delay=(i * stagger_delay),
+                ): addr
+                for i, addr in enumerate(addresses)
+            }
+
+            # handle the first function to complete from the threadpool executor
+            for future in as_completed(futures, timeout=timeout):
+
+                returned_address = futures[future]
+                return_exception = future.exception()
+                if return_exception:
+                    last_exception = return_exception
+                else:
+                    return_result = future.result()
+                    if return_result:
+
+                        # communicate to other threads that they do not need to
+                        # try: this thread has already succeeded
+                        is_done.set()
+                        return (returned_address, return_result)
+
+            # No success, return the last exception but log them all for
+            # debugging
+            if last_exception:
+                LOG.warning(
+                    "Exception(s) %s during request to %s, raising last exception",
+                    ' '.join(exceptions),
+                    returned_address,
+                )
+                raise last_exception
+            else:
+                LOG.error("Empty result for address %s", returned_address)
+                raise ValueError("No result returned")
+
+        # when max_wait expires, log but don't throw (retries happen)
+        except TimeoutError:
+            LOG.warning(
+                "Timed out waiting for addresses: %s, "
+                "exception(s) raised while waiting: %s",
+                " ".join(addresses),
+                " ".join(exceptions))
 
     return (returned_address, return_result)
 
@@ -527,7 +548,7 @@ def wait_for_url(
     def read_url_handle_exceptions(
         url_reader_cb, urls, start_time, exc_cb, log_cb
     ):
-        """"""
+        """Execute request, handle response, optionally log exception"""
         reason = ""
         url = None
         try:
@@ -627,6 +648,7 @@ def wait_for_url(
 
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
+            print(url)
             return url
 
         if timeup(max_wait, start_time):
@@ -642,6 +664,7 @@ def wait_for_url(
         # timeout=0.0 causes exceptions in urllib, set to None if zero
         timeout = int((start_time + max_wait) - time.time()) or None
 
+    LOG.warning("No response from url")
     return False, None
 
 

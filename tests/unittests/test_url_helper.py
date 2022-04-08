@@ -257,10 +257,6 @@ class TestRetryOnUrlExc(CiTestCase):
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
 
-def _raise(a):
-    raise a
-
-
 def assert_time(func, max_time=1):
     """Assert function time is bounded by a max (default=1s)
 
@@ -296,17 +292,51 @@ class TestDualStack:
         [
             # Assert order based on timeout
             (lambda x, _: x, ("one", "two"), 1, 1, "one", None),
+
             # Assert timeout results in (None, None)
             (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None, None),
-            # Assert that exception in func is raised
+
+            # Assert that exception in func is raised if all threads
+            # raise exception
+            # currently if all threads experience exception
+            # dual_stack() logs an error containing all exceptions
+            # but only raises the last exception to occur
             (
                 lambda _a, _b: 1 / 0,
                 ("one", "two"),
-                1,
+                0,
                 1,
                 None,
                 ZeroDivisionError,
             ),
+
+            # Verify "best effort behavior"
+            # dual_stack will temporarily ignore an exception in any of the
+            # request threads in hopes that a later thread will succeed
+            # this behavior is intended to allow a requests.ConnectionError
+            # exception from on endpoint to occur without preventing another
+            # thread from succeeding
+            (
+                lambda a, _b: 1 / 0 if a == "one" else a,
+                ("one", "two"),
+                0,
+                1,
+                "two",
+                None,
+            ),
+
+            # Assert that exception in func is only raised
+            # if neither thread gets a valid result
+            (
+                lambda a, _b: 1 / 0 if a == "two" else a,
+                ("one", "two"),
+                0,
+                1,
+                "one",
+                None,
+            ),
+
+            # simulate a slow response to verify correct order
             (
                 lambda x, _: event.wait(1) if x != "two" else x,
                 ("one", "two"),
@@ -315,6 +345,8 @@ class TestDualStack:
                 "two",
                 None,
             ),
+
+            # simulate a slow response to verify correct order
             (
                 lambda x, _: event.wait(1) if x != "tri" else x,
                 ("one", "two", "tri"),
@@ -323,7 +355,6 @@ class TestDualStack:
                 "tri",
                 None,
             ),
-            # TODO: add httpretty tests
         ],
     )
     def test_dual_stack(
@@ -336,6 +367,7 @@ class TestDualStack:
         expected_exc,
     ):
         """Assert various failure modes behave as expected"""
+        event.clear()
 
         gen = partial(
             dual_stack,
@@ -352,27 +384,21 @@ class TestDualStack:
             _, result = assert_time(gen)
             assert expected_val == result
         event.set()
-        event.clear()
 
     def test_dual_stack_staggered(self):
-        """Assert expected sleeps occur"""
-        event = Event()
-        with mock.patch("time.sleep", side_effect=event.wait) as sleep_m:
+        """Assert expected calls occur"""
+        stagger = 0.1
+        with mock.patch(M_PATH + "_run_func_with_delay") as delay_func:
             dual_stack(
-                lambda x, _: x,
+                lambda x, _y: x,
                 ["you", "and", "me", "and", "dog"],
-                stagger_delay=1,
+                stagger_delay=stagger,
                 timeout=1,
             )
-        sleep_m.assert_has_calls(
-            [
-                call(1),
-                call(2),
-                call(3),
-                call(4),
-            ]
-        )
-        event.set()
+            for delay, call in enumerate(delay_func.call_args_list):
+                _, kwargs = call
+                assert stagger * delay == kwargs.get("delay")
+            assert 5 == delay_func.call_count
 
 
 ADDR1 = "https://addr1/"
@@ -416,6 +442,7 @@ class TestUrlHelper:
         Subsequent tests will continue execution after the first response is
         received.
         """
+        self.event.clear()
         for address in set(addresses):
             responses.add_callback(
                 responses.GET,
@@ -438,7 +465,6 @@ class TestUrlHelper:
             async_delay=0.0,
         )
         self.event.set()
-        self.event.clear()
 
         # Test for timeout (no responding endpoint)
         assert addresses[expected_address_index] == url
@@ -448,6 +474,7 @@ class TestUrlHelper:
     def test_timeout(self):
         """If no endpoint responds in time, expect no response"""
 
+        self.event.clear()
         addresses = [SLEEP1, SLEEP2]
         for address in set(addresses):
             responses.add_callback(
@@ -470,7 +497,6 @@ class TestUrlHelper:
             async_delay=0,
         )
         self.event.set()
-        self.event.clear()
         assert not url
         assert not response_contents
 
