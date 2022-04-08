@@ -438,7 +438,7 @@ def dual_stack(
             # debugging
             if last_exception:
                 LOG.warning(
-                    "Exception(s) %s during request to %s, ",
+                    "Exception(s) %s during request to %s, "
                     "raising last exception",
                     " ".join(exceptions),
                     returned_address,
