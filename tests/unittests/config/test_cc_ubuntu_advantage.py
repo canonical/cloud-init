@@ -1,19 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import re
+
+import pytest
 
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua,
     handle,
     maybe_install_ua_tools,
-    schema,
 )
-from cloudinit.config.schema import validate_cloudconfig_schema
-from tests.unittests.helpers import (
-    CiTestCase,
-    SchemaTestCaseMixin,
-    mock,
-    skipUnlessJsonSchema,
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
 )
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
@@ -172,64 +173,28 @@ class TestConfigureUA(CiTestCase):
         )
 
 
-@skipUnlessJsonSchema()
-class TestSchema(CiTestCase, SchemaTestCaseMixin):
-
-    with_logs = True
-    schema = schema
-
-    @mock.patch("%s.maybe_install_ua_tools" % MPATH)
-    @mock.patch("%s.configure_ua" % MPATH)
-    def test_schema_warns_on_ubuntu_advantage_not_dict(self, _cfg, _):
-        """If ubuntu_advantage configuration is not a dict, emit a warning."""
-        validate_cloudconfig_schema({"ubuntu_advantage": "wrong type"}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
-            " 'wrong type' is not of type 'object'\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("%s.maybe_install_ua_tools" % MPATH)
-    @mock.patch("%s.configure_ua" % MPATH)
-    def test_schema_disallows_unknown_keys(self, _cfg, _):
-        """Unknown keys in ubuntu_advantage configuration emit warnings."""
-        validate_cloudconfig_schema(
-            {"ubuntu_advantage": {"token": "winner", "invalid-key": ""}},
-            schema,
-        )
-        self.assertIn(
-            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
-            " Additional properties are not allowed ('invalid-key' was"
-            " unexpected)",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("%s.maybe_install_ua_tools" % MPATH)
-    @mock.patch("%s.configure_ua" % MPATH)
-    def test_warn_schema_requires_token(self, _cfg, _):
-        """Warn if ubuntu_advantage configuration lacks token."""
-        validate_cloudconfig_schema(
-            {"ubuntu_advantage": {"enable": ["esm"]}}, schema
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
-            " 'token' is a required property\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("%s.maybe_install_ua_tools" % MPATH)
-    @mock.patch("%s.configure_ua" % MPATH)
-    def test_warn_schema_services_is_not_list_or_dict(self, _cfg, _):
-        """Warn when ubuntu_advantage:enable config is not a list."""
-        validate_cloudconfig_schema(
-            {"ubuntu_advantage": {"enable": "needslist"}}, schema
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nubuntu_advantage:"
-            " 'token' is a required property\nubuntu_advantage.enable:"
-            " 'needslist' is not of type 'array'\n",
-            self.logs.getvalue(),
-        )
+class TestUbuntuAdvantageSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"ubuntu_advantage": {}}, "'token' is a required property"),
+            # Strict keys
+            (
+                {"ubuntu_advantage": {"token": "win", "invalidkey": ""}},
+                re.escape(
+                    "ubuntu_advantage: Additional properties are not allowed"
+                    " ('invalidkey"
+                ),
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 class TestHandle(CiTestCase):
@@ -240,8 +205,8 @@ class TestHandle(CiTestCase):
         super(TestHandle, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch("%s.validate_cloudconfig_schema" % MPATH)
-    def test_handle_no_config(self, m_schema):
+    @mock.patch("%s.maybe_install_ua_tools" % MPATH)
+    def test_handle_no_config(self, m_maybe_install_ua_tools):
         """When no ua-related configuration is provided, nothing happens."""
         cfg = {}
         handle("ua-test", cfg=cfg, cloud=None, log=self.logger, args=None)
@@ -250,7 +215,7 @@ class TestHandle(CiTestCase):
             " configuration found",
             self.logs.getvalue(),
         )
-        m_schema.assert_not_called()
+        self.assertEqual(m_maybe_install_ua_tools.call_count, 0)
 
     @mock.patch("%s.configure_ua" % MPATH)
     @mock.patch("%s.maybe_install_ua_tools" % MPATH)

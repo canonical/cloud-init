@@ -1762,6 +1762,228 @@
           "description": "The timezone to use as represented in /usr/share/zoneinfo"
         }
       }
+    },
+    "cc_ubuntu_advantage": {
+      "type": "object",
+      "properties": {
+        "ubuntu_advantage": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+            },
+            "token": {
+              "type": "string",
+              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+            }
+          },
+          "required": ["token"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_ubuntu_drivers": {
+      "type": "object",
+      "properties": {
+        "drivers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nvidia": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "license-accepted"
+              ],
+              "properties": {
+                "license-accepted": {
+                  "type": "boolean",
+                  "description": "Do you accept the NVIDIA driver license?"
+                },
+                "version": {
+                  "type": "string",
+                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_update_etc_hosts": {
+      "type": "object",
+      "properties": {
+        "manage_etc_hosts": {
+          "default": false,
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``. DEPRECATED value ``template`` will be dropped, use ``true`` instead.",
+          "enum": [true, false, "template", "localhost"]
+        },
+        "fqdn": {
+          "type": "string",
+          "description": "Optional fully qualified domain name to use when updating ``/etc/hosts``. Preferred over ``hostname`` if both are provided. In absence of ``hostname`` and ``fqdn`` in cloud-config, the ``local-hostname`` value will be used from datasource metadata."
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Hostname to set when rendering ``/etc/hosts``. If ``fqdn`` is set, the hostname extracted from ``fqdn`` overrides ``hostname``."
+        }
+      }
+    },
+    "cc_update_hostname": {
+      "type": "object",
+      "properties": {
+        "preserve_hostname": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not update system hostname when ``true``. Default: ``false``."
+        },
+        "prefer_fqdn_over_hostname": {
+          "type": "boolean",
+          "default": null,
+          "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        }
+      }
+    },
+    "cc_write_files": {
+      "type": "object",
+      "properties": {
+        "write_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path of the file to which ``content`` is decoded and written"
+              },
+              "content": {
+                "type": "string",
+                "default": "",
+                "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
+              },
+              "owner": {
+                "type": "string",
+                "default": "root:root",
+                "description": "Optional owner:group to chown on the file. Default: ``root:root``"
+              },
+              "permissions": {
+                "type": "string",
+                "default": "0o644",
+                "description": "Optional file permissions to set on ``path`` represented as an octal string '0###'. Default: ``0o644``"
+              },
+              "encoding": {
+                "type": "string",
+                "default": "text/plain",
+                "enum": ["gz", "gzip", "gz+base64", "gzip+base64", "gz+b64", "gzip+b64", "b64", "base64"],
+                "description": "Optional encoding type of the content. Default is ``text/plain`` and no content decoding is performed. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
+              },
+              "append": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to append ``content`` to existing file if ``path`` exists. Default: ``false``."
+              },
+              "defer": {
+                "type": "boolean",
+                "default": false,
+                "description": "Defer writing the file until 'final' stage, after users were created, and packages were installed. Default: ``false``."
+              }
+            },
+            "required": ["path"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "cc_yum_add_repo": {
+      "type": "object",
+      "properties": {
+        "yum_repo_dir": {
+            "type": "string",
+             "default": "/etc/yum.repos.d",
+             "description": "The repo parts directory where individual yum repo config files will be written. Default: ``/etc/yum.repos.d``"
+        },
+        "yum_repos": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[0-9a-zA-Z -_]+$": {
+              "label": "<repo_name>",
+              "type": "object",
+              "description": "Object keyed on unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
+              "properties": {
+                "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the directory where the yum repository's 'repodata' directory lives"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Optional human-readable name of the yum repo."
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Whether to enable the repo. Default: ``true``."
+                }
+              },
+              "patternProperties": {
+                "^[0-9a-zA-Z_]+$": {
+                    "label": "<yum_config_option>",
+                    "oneOf": [
+                      {"type": "integer"},
+                      {"type": "boolean"},
+                      {"type": "string"}
+                    ],
+                    "description": "Any supported yum repository configuration options will be written to the yum repo config file. See: man yum.conf"
+                }
+              },
+              "required": ["baseurl"]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_zypper_add_repo": {
+      "type": "object",
+      "properties": {
+        "zypper": {
+          "type": "object",
+          "properties": {
+            "repos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "The unique id of the repo, used when writing /etc/zypp/repos.d/<id>.repo."
+                  },
+                  "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The base repositoy URL"
+                  }
+                },
+                "required": [
+                  "id",
+                  "baseurl"
+                ],
+                "additionalProperties": true
+              },
+              "minItems": 1
+            },
+            "config": {
+              "type": "object",
+              "description": "Any supported zypo.conf key is written to ``/etc/zypp/zypp.conf``"
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      }
     }
   },
   "allOf": [
@@ -1807,6 +2029,13 @@
     { "$ref": "#/$defs/cc_ssh_authkey_fingerprints"},
     { "$ref": "#/$defs/cc_ssh_import_id"},
     { "$ref": "#/$defs/cc_ssh"},
-    { "$ref": "#/$defs/cc_timezone"}
+    { "$ref": "#/$defs/cc_timezone"},
+    { "$ref": "#/$defs/cc_ubuntu_advantage"},
+    { "$ref": "#/$defs/cc_ubuntu_drivers"},
+    { "$ref": "#/$defs/cc_update_etc_hosts"},
+    { "$ref": "#/$defs/cc_update_hostname"},
+    { "$ref": "#/$defs/cc_write_files"},
+    { "$ref": "#/$defs/cc_yum_add_repo"},
+    { "$ref": "#/$defs/cc_zypper_add_repo"}
   ]
 }
