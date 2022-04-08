@@ -11,15 +11,9 @@
 import copy
 import json
 import os
-import time
 import threading
-from concurrent.futures import (
-    ALL_COMPLETED,
-    ThreadPoolExecutor,
-    TimeoutError,
-    as_completed,
-    wait,
-)
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
@@ -373,9 +367,9 @@ def readurl(
 
     raise excps[-1]
 
+
 def _run_func_with_delay(func, addr, timeout, event, delay=None):
-    """Execute func with optional delay
-    """
+    """Execute func with optional delay"""
     if delay:
 
         # event returns True iff the flag is set to true: indicating that
@@ -384,6 +378,7 @@ def _run_func_with_delay(func, addr, timeout, event, delay=None):
         if event.wait(timeout=delay):
             return
     return func(addr, timeout)
+
 
 def dual_stack(
     func: Callable[..., Any],
@@ -404,7 +399,6 @@ def dual_stack(
     exceptions = []
     is_done = threading.Event()
 
-
     # future work: add cancel_futures to Python stdlib ThreadPoolExecutor
     # context manager implementation
     #
@@ -424,7 +418,7 @@ def dual_stack(
                 for i, addr in enumerate(addresses)
             }
 
-            # handle the first function to complete from the threadpool executor
+            # handle returned requests in order of completion
             for future in as_completed(futures, timeout=timeout):
 
                 returned_address = futures[future]
@@ -444,8 +438,9 @@ def dual_stack(
             # debugging
             if last_exception:
                 LOG.warning(
-                    "Exception(s) %s during request to %s, raising last exception",
-                    ' '.join(exceptions),
+                    "Exception(s) %s during request to %s, ",
+                    "raising last exception",
+                    " ".join(exceptions),
                     returned_address,
                 )
                 raise last_exception
@@ -459,7 +454,8 @@ def dual_stack(
                 "Timed out waiting for addresses: %s, "
                 "exception(s) raised while waiting: %s",
                 " ".join(addresses),
-                " ".join(exceptions))
+                " ".join(exceptions),
+            )
 
     return (returned_address, return_result)
 

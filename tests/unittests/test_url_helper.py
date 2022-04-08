@@ -4,7 +4,6 @@ import logging
 from functools import partial
 from threading import Event
 from time import process_time
-from unittest.mock import call
 
 import httpretty
 import pytest
@@ -292,10 +291,8 @@ class TestDualStack:
         [
             # Assert order based on timeout
             (lambda x, _: x, ("one", "two"), 1, 1, "one", None),
-
             # Assert timeout results in (None, None)
             (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None, None),
-
             # Assert that exception in func is raised if all threads
             # raise exception
             # currently if all threads experience exception
@@ -309,7 +306,6 @@ class TestDualStack:
                 None,
                 ZeroDivisionError,
             ),
-
             # Verify "best effort behavior"
             # dual_stack will temporarily ignore an exception in any of the
             # request threads in hopes that a later thread will succeed
@@ -324,7 +320,6 @@ class TestDualStack:
                 "two",
                 None,
             ),
-
             # Assert that exception in func is only raised
             # if neither thread gets a valid result
             (
@@ -335,7 +330,6 @@ class TestDualStack:
                 "one",
                 None,
             ),
-
             # simulate a slow response to verify correct order
             (
                 lambda x, _: event.wait(1) if x != "two" else x,
@@ -345,7 +339,6 @@ class TestDualStack:
                 "two",
                 None,
             ),
-
             # simulate a slow response to verify correct order
             (
                 lambda x, _: event.wait(1) if x != "tri" else x,
@@ -395,8 +388,11 @@ class TestDualStack:
                 stagger_delay=stagger,
                 timeout=1,
             )
-            for delay, call in enumerate(delay_func.call_args_list):
-                _, kwargs = call
+
+            # ensure that stagger delay for each subsequent call is:
+            # [ 0 * N, 1 * N, 2 * N, 3 * N, 4 * N, 5 * N] where N = stagger
+            for delay, call_item in enumerate(delay_func.call_args_list):
+                _, kwargs = call_item
                 assert stagger * delay == kwargs.get("delay")
             assert 5 == delay_func.call_count
 
