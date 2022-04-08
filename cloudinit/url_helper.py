@@ -468,11 +468,11 @@ def dual_stack(
 
 def wait_for_url(
     urls,
-    max_wait = None,
-    timeout = None,
+    max_wait=None,
+    timeout=None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
     headers_cb: Callable = None,
-    headers_redact = None,
+    headers_redact=None,
     sleep_time: int = 1,
     exception_cb: Callable = None,
     sleep_time_cb: Callable = None,
@@ -647,7 +647,7 @@ def wait_for_url(
     )
 
     calculate_sleep_time = (
-            default_sleep_time if not sleep_time_cb else sleep_time_cb
+        default_sleep_time if not sleep_time_cb else sleep_time_cb
     )
 
     loop_n: int = 0
