@@ -8,25 +8,20 @@ cross-platform cloud instance initialization. It is supported across all
 major public cloud providers, provisioning systems for private cloud
 infrastructure, and bare-metal installations.
 
-Cloud instances are initialized from a disk image and instance data:
-
-- Cloud metadata
-- User data (optional)
-- Vendor data (optional)
-
-Cloud-init will identify the cloud it is running on during boot, read any
-provided metadata from the cloud and initialize the system accordingly. This
-may involve setting up the network and storage devices to configuring SSH
-access key and many other aspects of a system. Later on the cloud-init will
-also parse and process any optional user or vendor data that was passed to the
-instance.
+On instance boot, cloud-init will identify the cloud it is running on, read
+any provided metadata from the cloud, and initialize the system accordingly.
+This may involve setting up the network and storage devices, configuring SSH
+access keys, and setting up many other aspects of a system. Later,
+cloud-init will parse and process any optional user or vendor data that was
+passed to the instance.
 
 Getting help
 ************
 
 Having trouble? We would like to help!
 
-- Try the :ref:`FAQ` – its got answers to some common questions
+- Check out the :ref:`lxd_tutorial` if you're new to cloud-init
+- Try the :ref:`FAQ` for answers to some common questions
 - Ask a question in the ``#cloud-init`` IRC channel on Libera
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
@@ -36,6 +31,7 @@ Having trouble? We would like to help!
    :titlesonly:
    :caption: Getting Started
 
+   topics/tutorial.rst
    topics/availability.rst
    topics/boot.rst
    topics/cli.rst
