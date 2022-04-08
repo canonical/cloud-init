@@ -9,11 +9,7 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.config.schema import (
-    MetaSchema,
-    get_meta_doc,
-    validate_cloudconfig_schema,
-)
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
 
@@ -54,10 +50,6 @@ meta: MetaSchema = {
             best to create a snap seed directory and seed.yaml manifest in
             **/var/lib/snapd/seed/** which snapd automatically installs on
             startup.
-
-        **Development only**: The ``squashfuse_in_container`` boolean can be
-        set true to install squashfuse package when in a container to enable
-        snap installs. Default is false.
         """
     ),
     "distros": distros,
@@ -78,94 +70,44 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-        # LXC-based containers require squashfuse before snaps can be installed
-        snap:
-            commands:
-                00: apt-get install squashfuse -y
-                11: snap install emoj
-
-    """
-        ),
-        dedent(
-            """\
         # Convenience: the snap command can be omitted when specifying commands
         # as a list and 'snap' will automatically be prepended.
         # The following commands are equivalent:
         snap:
-            commands:
-                00: ['install', 'vlc']
-                01: ['snap', 'install', 'vlc']
-                02: snap install vlc
-                03: 'snap install vlc'
+          commands:
+            00: ['install', 'vlc']
+            01: ['snap', 'install', 'vlc']
+            02: snap install vlc
+            03: 'snap install vlc'
     """
         ),
         dedent(
             """\
         # You can use a list of commands
         snap:
-            commands:
-                - ['install', 'vlc']
-                - ['snap', 'install', 'vlc']
-                - snap install vlc
-                - 'snap install vlc'
+          commands:
+            - ['install', 'vlc']
+            - ['snap', 'install', 'vlc']
+            - snap install vlc
+            - 'snap install vlc'
     """
         ),
         dedent(
             """\
         # You can use a list of assertions
         snap:
-            assertions:
-                - signed_assertion_blob_here
-                - |
-                    signed_assertion_blob_here
+          assertions:
+            - signed_assertion_blob_here
+            - |
+              signed_assertion_blob_here
     """
         ),
     ],
     "frequency": PER_INSTANCE,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "snap": {
-            "type": "object",
-            "properties": {
-                "assertions": {
-                    "type": ["object", "array"],  # Array of strings or dict
-                    "items": {"type": "string"},
-                    "additionalItems": False,  # Reject items non-string
-                    "minItems": 1,
-                    "minProperties": 1,
-                    "uniqueItems": True,
-                    "additionalProperties": {"type": "string"},
-                },
-                "commands": {
-                    "type": ["object", "array"],  # Array of strings or dict
-                    "items": {
-                        "oneOf": [
-                            {"type": "array", "items": {"type": "string"}},
-                            {"type": "string"},
-                        ]
-                    },
-                    "additionalItems": False,  # Reject non-string & non-list
-                    "minItems": 1,
-                    "minProperties": 1,
-                    "additionalProperties": {
-                        "oneOf": [
-                            {"type": "string"},
-                            {"type": "array", "items": {"type": "string"}},
-                        ],
-                    },
-                },
-                "squashfuse_in_container": {"type": "boolean"},
-            },
-            "additionalProperties": False,  # Reject keys not in schema
-            "minProperties": 1,
-        }
-    },
-}
 
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 SNAP_CMD = "snap"
 ASSERTIONS_FILE = "/var/lib/cloud/instance/snapd.assertions"
@@ -265,7 +207,6 @@ def handle(name, cfg, cloud, log, args):
         )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
     if util.is_true(cfgin.get("squashfuse_in_container", False)):
         maybe_install_squashfuse(cloud)
     add_assertions(cfgin.get("assertions", []))

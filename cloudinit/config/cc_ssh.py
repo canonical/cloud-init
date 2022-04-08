@@ -5,12 +5,19 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""SSH: Configure SSH and SSH keys"""
 
-"""
-SSH
----
-**Summary:** configure SSH and SSH keys (host and authorized)
+import glob
+import os
+import sys
+from textwrap import dedent
 
+from cloudinit import ssh_util, subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS, ug_util
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module handles most configuration for SSH and both host and authorized SSH
 keys.
 
@@ -28,12 +35,7 @@ should be specified as a list of public keys.
     password authentication
 
 Root login can be enabled/disabled using the ``disable_root`` config key. Root
-login options can be manually specified with ``disable_root_opts``. If
-``disable_root_opts`` is specified and contains the string ``$USER``,
-it will be replaced with the username of the default user. By default,
-root login is disabled, and root login opts are set to::
-
-    no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+login options can be manually specified with ``disable_root_opts``.
 
 Supported public key types for the ``ssh_authorized_keys`` are:
 
@@ -75,32 +77,18 @@ Host Keys
 ^^^^^^^^^
 
 Host keys are for authenticating a specific instance. Many images have default
-host SSH keys, which can be removed using ``ssh_deletekeys``. This prevents
-re-use of a private host key from an image on multiple machines. Since
-removing default host keys is usually the desired behavior this option is
-enabled by default.
+host SSH keys, which can be removed using ``ssh_deletekeys``.
 
-Host keys can be added using the ``ssh_keys`` configuration key. The argument
-to this config key should be a dictionary entries for the public and private
-keys of each desired key type. Entries in the ``ssh_keys`` config dict should
-have keys in the format ``<key type>_private``, ``<key type>_public``, and,
-optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``,
-``rsa_public: <key>``, and ``rsa_certificate: <key>``. See below for supported
-key types. Not all key types have to be specified, ones left unspecified will
-not be used. If this config option is used, then no keys will be generated.
+Host keys can be added using the ``ssh_keys`` configuration key.
 
 When host keys are generated the output of the ssh-keygen command(s) can be
 displayed on the console using the ``ssh_quiet_keygen`` configuration key.
-This settings defaults to False which displays the keygen output.
 
 .. note::
     when specifying private host keys in cloud-config, care should be taken to
     ensure that the communication between the data source and the instance is
     secure
 
-.. note::
-    to specify multiline private host keys and certificates, use yaml
-    multiline syntax
 
 If no host keys are specified using ``ssh_keys``, then keys will be generated
 using ``ssh-keygen``. By default one public/private pair of each supported
@@ -113,57 +101,59 @@ system (i.e. if ``ssh_deletekeys`` was false), no key will be generated.
 Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
 config flags are:
 
-    - rsa
     - dsa
     - ecdsa
+    - ecdsa-sk
     - ed25519
-
-**Internal name:** ``cc_ssh``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    ssh_deletekeys: <true/false>
-    ssh_keys:
-        rsa_private: |
-            -----BEGIN RSA PRIVATE KEY-----
-            MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
-            ...
-            -----END RSA PRIVATE KEY-----
-        rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
-        rsa_certificate: |
-            ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
-        dsa_private: |
-            -----BEGIN DSA PRIVATE KEY-----
-            MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
-            ...
-            -----END DSA PRIVATE KEY-----
-        dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
-        dsa_certificate: |
-            ssh-dsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
-
-    ssh_genkeytypes: <key type>
-    disable_root: <true/false>
-    disable_root_opts: <disable root options string>
-    ssh_authorized_keys:
-        - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
-        - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
-    allow_public_ssh_keys: <true/false>
-    ssh_publish_hostkeys:
-        enabled: <true/false> (Defaults to true)
-        blacklist: <list of key types> (Defaults to [dsa])
-    ssh_quiet_keygen: <true/false>
+    - ed25519-sk
+    - rsa
 """
 
-import glob
-import os
-import sys
+meta: MetaSchema = {
+    "id": "cc_ssh",
+    "name": "SSH",
+    "title": "Configure SSH and SSH keys",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            ssh_keys:
+              rsa_private: |
+                -----BEGIN RSA PRIVATE KEY-----
+                MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+                ...
+                -----END RSA PRIVATE KEY-----
+              rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+              rsa_certificate: |
+                ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
+              dsa_private: |
+                -----BEGIN DSA PRIVATE KEY-----
+                MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+                ...
+                -----END DSA PRIVATE KEY-----
+              dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+              dsa_certificate: |
+                ssh-dsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
+              - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
+            ssh_deletekeys: true
+            ssh_genkeytypes: [rsa, dsa, ecdsa, ed25519]
+            disable_root: true
+            disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+            allow_public_ssh_keys: true
+            ssh_quiet_keygen: true
+            ssh_publish_hostkeys:
+              enabled: true
+              blacklist: [dsa]
+            """  # noqa: E501
+        )
+    ],
+}
 
-from cloudinit import ssh_util, subp, util
-from cloudinit.distros import ug_util
+__doc__ = get_meta_doc(meta)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
 KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"

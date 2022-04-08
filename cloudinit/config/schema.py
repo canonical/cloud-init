@@ -36,15 +36,17 @@ SCHEMA_DOC_TMPL = """
 
 **Supported distros:** {distros}
 
-**Config schema**:
+{property_header}
 {property_doc}
+
 {examples}
 """
+SCHEMA_PROPERTY_HEADER = "**Config schema**:"
 SCHEMA_PROPERTY_TMPL = "{prefix}**{prop_name}:** ({prop_type}) {description}"
 SCHEMA_LIST_ITEM_TMPL = (
     "{prefix}Each item in **{prop_name}** list supports the following keys:"
 )
-SCHEMA_EXAMPLES_HEADER = "\n**Examples**::\n\n"
+SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 
 
@@ -604,6 +606,7 @@ def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
+    meta_copy["property_header"] = ""
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
         schema = defs.get(meta["id"])
@@ -612,6 +615,8 @@ def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
     except AttributeError:
         LOG.warning("Unable to render property_doc due to invalid schema")
         meta_copy["property_doc"] = ""
+    if meta_copy["property_doc"]:
+        meta_copy["property_header"] = SCHEMA_PROPERTY_HEADER
     meta_copy["examples"] = _get_examples(meta)
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name

@@ -757,6 +757,13 @@ class Init(object):
             LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
+        if isinstance(enabled, str):
+            LOG.debug(
+                "Use of string '%s' for 'vendor_data:enabled' field "
+                "is deprecated. Use boolean value instead",
+                enabled,
+            )
+
         LOG.debug(
             "%s will be consumed. disabled_handlers=%s",
             vendor_source,
