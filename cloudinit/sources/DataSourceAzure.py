@@ -1068,22 +1068,16 @@ class DataSourceAzure(sources.DataSource):
         return is_primary, expected_nic_count
 
     @azure_ds_telemetry_reporter
-    def _wait_for_hot_attached_nics(self, nl_sock):
-        """Wait until all the expected nics for the vm are hot-attached.
-        The expected nic count is obtained by requesting the network metadata
-        from IMDS.
-        """
-        LOG.info("Waiting for nics to be hot-attached")
+    def _wait_for_hot_attached_primary_nic(self, nl_sock):
+        """Wait until the primary nic for the vm is hot-attached."""
+        LOG.info("Waiting for primary nic to be hot-attached")
         try:
-            # Wait for nics to be attached one at a time, until we know for
-            # sure that all nics have been attached.
             nics_found = []
             primary_nic_found = False
-            expected_nic_count = -1
 
             # Wait for netlink nic attach events. After the first nic is
             # attached, we are already in the customer vm deployment path and
-            # so eerything from then on should happen fast and avoid
+            # so everything from then on should happen fast and avoid
             # unnecessary delays wherever possible.
             while True:
                 ifname = None
@@ -1114,17 +1108,13 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    (
-                        primary_nic_found,
-                        expected_nic_count,
-                    ) = self._check_if_nic_is_primary(ifname)
+                    primary_nic_found, _ = self._check_if_nic_is_primary(
+                        ifname
+                    )
 
-                # Exit criteria: check if we've discovered all nics
-                if (
-                    expected_nic_count != -1
-                    and len(nics_found) >= expected_nic_count
-                ):
-                    LOG.info("Found all the nics for this VM.")
+                # Exit criteria: check if we've discovered primary nic
+                if primary_nic_found:
+                    LOG.info("Found primary nic for this VM.")
                     break
 
         except AssertionError as error:
@@ -1144,7 +1134,7 @@ class DataSourceAzure(sources.DataSource):
             self._report_ready_for_pps()
             self._teardown_ephemeral_networking()
             self._wait_for_nic_detach(nl_sock)
-            self._wait_for_hot_attached_nics(nl_sock)
+            self._wait_for_hot_attached_primary_nic(nl_sock)
         except netlink.NetlinkCreateSocketError as e:
             report_diagnostic_event(str(e), logger_func=LOG.warning)
             raise
