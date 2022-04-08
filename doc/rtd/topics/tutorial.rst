@@ -44,7 +44,7 @@ following file on your local filesystem at ``/tmp/my-user-data``:
 
     #cloud-config
     runcmd:
-     - echo 'Hello, World!' > /var/tmp/hello-world.txt
+      - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
 Here we are defining our cloud-init user data in the
 :ref:`cloud-config<cloud Config Data>` format, using the `runcmd`_ module to
@@ -82,7 +82,24 @@ successfully:
     cloud-init status: done
     $
 
-We can now verify that our user data was applied successfully:
+We can now verify that cloud-init received the expected user data:
+
+.. code-block:: shell-session
+
+    $ cloud-init query userdata
+    #cloud-config
+    runcmd:
+      - echo 'Hello, World!' > /var/tmp/hello-world.txt
+
+We can also assert the user data we provided is a valid cloud-config:
+
+.. code-block:: shell-session
+
+    $ cloud-init devel schema --system --annotate
+    Valid cloud-config: system userdata
+    $
+
+Finally, verify that our user data was applied successfully:
 
 .. code-block:: shell-session
 
@@ -111,7 +128,7 @@ and we can remove the container using:
 What's next?
 ============
 
-In this tutorial, we used the ``runcmd`` module to execute a shell command.
+In this tutorial, we used the runcmd_ module to execute a shell command.
 The full list of modules available can be found in
 :ref:`modules documentation<modules>`.
 Each module contains examples of how to use it.
