@@ -195,7 +195,7 @@ def readurl(
     session=None,
     infinite=False,
     log_req_resp=True,
-    request_method=None,
+    request_method="",
 ) -> UrlResponse:
     """Wrapper around requests.Session to read the url and retry if necessary
 
@@ -368,7 +368,13 @@ def readurl(
     raise excps[-1]
 
 
-def _run_func_with_delay(func, addr, timeout, event, delay=None):
+def _run_func_with_delay(
+    func: Callable[..., Any],
+    addr: str,
+    timeout: int,
+    event: threading.Event,
+    delay: float = None,
+) -> Any:
     """Execute func with optional delay"""
     if delay:
 
@@ -462,17 +468,17 @@ def dual_stack(
 
 def wait_for_url(
     urls,
-    max_wait=None,
-    timeout=None,
-    status_cb=LOG.debug,  # some datasources use different log levels
-    headers_cb=None,
-    headers_redact=None,
-    sleep_time=1,
-    exception_cb=None,
-    sleep_time_cb=lambda _, loop_number: int(loop_number / 5) + 1,
-    request_method=None,
-    connect_synchronously=True,
-    async_delay=0.150,
+    max_wait = None,
+    timeout = None,
+    status_cb: Callable = LOG.debug,  # some sources use different log levels
+    headers_cb: Callable = None,
+    headers_redact = None,
+    sleep_time: int = 1,
+    exception_cb: Callable = None,
+    sleep_time_cb: Callable = None,
+    request_method: str = "",
+    connect_synchronously: bool = True,
+    async_delay: float = 0.150,
 ):
     """
     urls:      a list of urls to try
@@ -511,6 +517,9 @@ def wait_for_url(
 
     A value of None for max_wait will retry indefinitely.
     """
+
+    def default_sleep_time(_, loop_number: int):
+        return int(loop_number / 5) + 1
 
     def timeup(max_wait, start_time):
         """Check if time is up based on start time and max wait"""
@@ -551,7 +560,7 @@ def wait_for_url(
             url, response = url_reader_cb(urls)
             url_exc, reason = read_url_handle_response(response, url)
             if not url_exc:
-                return (url, response.contents)
+                return (url, response)
         except UrlError as e:
             reason = "request error [%s]" % e
             url_exc = e
@@ -637,15 +646,19 @@ def wait_for_url(
         read_url_serial if connect_synchronously else read_url_parallel
     )
 
-    loop_n = 0
+    calculate_sleep_time = (
+            default_sleep_time if not sleep_time_cb else sleep_time_cb
+    )
+
+    loop_n: int = 0
     response = None
     while True:
-        sleep_time = sleep_time_cb(response, loop_n)
+        sleep_time = calculate_sleep_time(response, loop_n)
 
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
-            print(url)
-            return url
+            address, response = url
+            return (address, response.contents)
 
         if timeup(max_wait, start_time):
             break
@@ -660,7 +673,7 @@ def wait_for_url(
         # timeout=0.0 causes exceptions in urllib, set to None if zero
         timeout = int((start_time + max_wait) - time.time()) or None
 
-    LOG.warning("No response from url")
+    LOG.error(f"Timed out, no response from urls: {urls}")
     return False, None
 
 
