@@ -1904,7 +1904,12 @@ def is_link(path):
 def sym_link(source, link, force=False):
     LOG.debug("Creating symbolic link from %r => %r", link, source)
     if force and os.path.lexists(link):
-        del_file(link)
+        # Provide atomic update of symlink to avoid races with status --wait
+        # LP: #1962150
+        tmp_link = os.path.join(os.path.dirname(link), "tmp" + rand_str(8))
+        os.symlink(source, tmp_link)
+        os.replace(tmp_link, link)
+        return
     os.symlink(source, link)
 
 
