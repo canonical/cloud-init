@@ -673,7 +673,7 @@ def wait_for_url(
         # timeout=0.0 causes exceptions in urllib, set to None if zero
         timeout = int((start_time + max_wait) - time.time()) or None
 
-    LOG.error(f"Timed out, no response from urls: {urls}")
+    LOG.error("Timed out, no response from urls: %s", urls)
     return False, None
 
 
