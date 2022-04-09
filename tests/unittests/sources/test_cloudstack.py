@@ -67,6 +67,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         ds.get_data()
         self.assertEqual({}, ds.get_config_obj())
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(DS_PATH + ".wait_for_metadata_service")
     def test_password_sets_password(self, m_wait):
         m_wait.return_value = True
@@ -78,6 +79,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         ds.get_data()
         self.assertEqual(password, ds.get_config_obj()["password"])
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(DS_PATH + ".wait_for_metadata_service")
     def test_bad_request_doesnt_stop_ds_from_working(self, m_wait):
         m_wait.return_value = True
@@ -96,6 +98,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
                     request_types.append(arg.split()[1])
         self.assertEqual(expected_request_types, request_types)
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(DS_PATH + ".wait_for_metadata_service")
     def test_valid_response_means_password_marked_as_saved(self, m_wait):
         m_wait.return_value = True
@@ -119,12 +122,15 @@ class TestCloudStackPasswordFetching(CiTestCase):
             ds.get_data()
         self.assertRequestTypesSent(subp, ["send_my_password"])
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     def test_password_not_saved_if_empty(self):
         self._check_password_not_saved_for("")
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     def test_password_not_saved_if_already_saved(self):
         self._check_password_not_saved_for("saved_password")
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     def test_password_not_saved_if_bad_request(self):
         self._check_password_not_saved_for("bad_request")
 
