@@ -162,8 +162,6 @@ def handle(name, cfg, cloud, _log, _args):
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []
 
-    no_homedir_options = ("no_create_home", "system")
-
     for (name, members) in groups.items():
         cloud.distro.create_group(name, members)
 

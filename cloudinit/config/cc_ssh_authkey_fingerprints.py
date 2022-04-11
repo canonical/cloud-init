@@ -124,7 +124,8 @@ def handle(name, cfg, cloud, log, _args):
     for (user_name, _cfg) in users.items():
         if _cfg.get("no_create_home") or _cfg.get("system"):
             log.debug(
-                "Skipping printing of ssh fingerprints for user '%s' because no home directory is created",
+                "Skipping printing of ssh fingerprints for user '%s' because "
+                "no home directory is created",
                 user_name,
             )
             continue
