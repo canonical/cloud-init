@@ -4,10 +4,12 @@
 import logging
 import os
 import subprocess
+import collections
 from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)
 
+PipeOutput = collections.namedtuple('PipeOutput', ['stdout', 'stderr'])
 
 def prepend_base_command(base_command, commands):
     """Ensure user-provided commands start with base_command; warn otherwise.
@@ -334,7 +336,7 @@ def subp(
         )
     if status_cb:
         status_cb("End run command: exit({code})\n".format(code=rc))
-    return (out, err)
+    return PipeOutput(out, err)
 
 
 def target_path(target, path=None):
