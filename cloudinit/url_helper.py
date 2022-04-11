@@ -30,11 +30,6 @@ from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
-
-# Check if requests has ssl support (added in requests >= 0.8.8)
-SSL_ENABLED = False
-CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
-_REQ_VER = None
 REDACTED = "REDACTED"
 
 
@@ -244,19 +239,6 @@ def readurl(
             req_args["timeout"] = max(float(timeout), 0)
     if headers_redact is None:
         headers_redact = []
-    # It doesn't seem like config
-    # was added in older library versions (or newer ones either), thus we
-    # need to manually do the retries if it wasn't...
-    if CONFIG_ENABLED:
-        req_config = {
-            "store_cookies": False,
-        }
-        # Don't use the retry support built-in
-        # since it doesn't allow for 'sleep_times'
-        # in between tries....
-        # if retries:
-        #     req_config['max_retries'] = max(int(retries), 0)
-        req_args["config"] = req_config
     manual_tries = 1
     if retries:
         manual_tries = max(int(retries) + 1, 1)
@@ -527,7 +509,7 @@ def wait_for_url(
             return False
         return (max_wait <= 0) or (time.time() - start_time > max_wait)
 
-    def read_url_handle_response(response, url):
+    def handle_url_response(response, url):
         """Map requests response code/contents to internal "UrlError" type"""
         if not response.contents:
             reason = "empty response [%s]" % (response.code)
@@ -558,13 +540,13 @@ def wait_for_url(
         url = None
         try:
             url, response = url_reader_cb(urls)
-            url_exc, reason = read_url_handle_response(response, url)
+            url_exc, reason = handle_url_response(response, url)
             if not url_exc:
                 return (url, response)
         except UrlError as e:
             reason = "request error [%s]" % e
             url_exc = e
-        except Exception as e:  # yikes, do we really think this is necessary?
+        except Exception as e:
             reason = "unexpected error [%s]" % e
             url_exc = e
         time_taken = int(time.time() - start_time)
