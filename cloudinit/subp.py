@@ -169,7 +169,7 @@ def subp(
     update_env=None,
     status_cb=None,
     cwd=None,
-):
+) -> PipeOutput:
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]

@@ -74,10 +74,10 @@ def get_dpkg_architecture(target=None):
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out, _ = subp.subp(
+    out = subp.subp(
         ["dpkg", "--print-architecture"], capture=True, target=target
     )
-    return out.strip()
+    return out.stdout.strip()
 
 
 @lru_cache()
@@ -91,10 +91,10 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out, _ = subp.subp(
+        out = subp.subp(
             ["lsb_release", "--all"], capture=True, target=target
         )
-        for line in out.splitlines():
+        for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
                 data[fmap[fname]] = val.strip()
@@ -1293,8 +1293,8 @@ def find_devs_with_netbsd(
             label = criteria.lstrip("LABEL=")
         if criteria.startswith("TYPE="):
             _type = criteria.lstrip("TYPE=")
-    out, _err = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
-    for dev in out.split():
+    out = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
+    for dev in out.stdout.split():
         if label or _type:
             mscdlabel_out, _ = subp.subp(["mscdlabel", dev], rcs=[0, 1])
         if label and not ('label "%s"' % label) in mscdlabel_out:
@@ -1310,9 +1310,9 @@ def find_devs_with_netbsd(
 def find_devs_with_openbsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
-    out, _err = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
+    out = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
     devlist = []
-    for entry in out.rstrip().split(","):
+    for entry in out.stdout.rstrip().split(","):
         if not entry.endswith(":"):
             # ffs partition with a serial, not a config-drive
             continue
@@ -1327,10 +1327,10 @@ def find_devs_with_openbsd(
 def find_devs_with_dragonflybsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
-    out, _err = subp.subp(["sysctl", "-n", "kern.disks"], rcs=[0])
+    out = subp.subp(["sysctl", "-n", "kern.disks"], rcs=[0])
     devlist = [
         i
-        for i in sorted(out.split(), reverse=True)
+        for i in sorted(out.stdout.split(), reverse=True)
         if not i.startswith("md") and not i.startswith("vn")
     ]
 
@@ -1434,9 +1434,9 @@ def blkid(devs=None, disable_cache=False):
     # we have to decode with 'replace' as shelx.split (called by
     # load_shell_content) can't take bytes.  So this is potentially
     # lossy of non-utf-8 chars in blkid output.
-    out, _ = subp.subp(cmd, capture=True, decode="replace")
+    out = subp.subp(cmd, capture=True, decode="replace")
     ret = {}
-    for line in out.splitlines():
+    for line in out.stdout.splitlines():
         dev, _, data = line.partition(":")
         ret[dev] = load_shell_content(data)
         ret[dev]["DEVNAME"] = dev
@@ -1771,8 +1771,8 @@ def mounts():
             mount_locs = load_file("/proc/mounts").splitlines()
             method = "proc"
         else:
-            (mountoutput, _err) = subp.subp("mount")
-            mount_locs = mountoutput.splitlines()
+            out = subp.subp("mount")
+            mount_locs = out.stdout.splitlines()
             method = "mount"
         mountre = r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$"
         for mpline in mount_locs:
@@ -2753,10 +2753,10 @@ def message_from_string(string):
 
 
 def get_installed_packages(target=None):
-    (out, _) = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
+    out = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
 
     pkgs_inst = set()
-    for line in out.splitlines():
+    for line in out.stdout.splitlines():
         try:
             (state, pkg, _) = line.split(None, 2)
         except ValueError:

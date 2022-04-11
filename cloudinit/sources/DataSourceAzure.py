@@ -209,7 +209,7 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd)[0]  # type: ignore
+        return subp.subp(cmd).stdout  # type: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
