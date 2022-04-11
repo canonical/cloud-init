@@ -398,7 +398,9 @@ class TestNtp(FilesystemMockingTestCase):
 
         Schema validation is not strict, so ntp config is still be rendered.
         """
-        invalid_config = {"ntp": {"pools": [123], "servers": ["valid", None]}}
+        invalid_config = {
+            "ntp": {"pools": [123], "servers": ["www.example.com", None]}
+        }
         for distro in cc_ntp.distros:
             mycloud = self._get_cloud(distro)
             ntpconfig = self._mock_ntp_client_config(distro=distro)
@@ -411,7 +413,7 @@ class TestNtp(FilesystemMockingTestCase):
                 self.logs.getvalue(),
             )
             self.assertEqual(
-                "servers ['valid', None]\npools [123]\n",
+                "servers ['www.example.com', None]\npools [123]\n",
                 util.load_file(confpath),
             )
 
