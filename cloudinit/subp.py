@@ -1,12 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Common utility functions for interacting with subprocess."""
 
+import collections
 import logging
 import os
 import subprocess
 from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)
+
+SubpResult = collections.namedtuple("SubpResult", ["stdout", "stderr"])
 
 
 def prepend_base_command(base_command, commands):
@@ -211,9 +214,9 @@ def subp(
         if not capturing, return is (None, None)
         if capturing, stdout and stderr are returned.
             if decode:
-                entries in tuple will be python2 unicode or python3 string
+                entries in tuple will be string
             if not decode:
-                entries in tuple will be python2 string or python3 bytes
+                entries in tuple will be bytes
     """
 
     # not supported in cloud-init (yet), for now kept in the call signature
@@ -334,7 +337,7 @@ def subp(
         )
     if status_cb:
         status_cb("End run command: exit({code})\n".format(code=rc))
-    return (out, err)
+    return SubpResult(out, err)
 
 
 def target_path(target, path=None):
