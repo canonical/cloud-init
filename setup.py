@@ -113,11 +113,13 @@ def render_tmpl(template, mode=None):
                 VARIANT,
                 template,
                 fpath,
-            ]
+            ],
+            check=True,
         )
     else:
         subprocess.run(
-            [sys.executable, "./tools/render-cloudcfg", template, fpath]
+            [sys.executable, "./tools/render-cloudcfg", template, fpath],
+            check=True,
         )
     if mode:
         os.chmod(fpath, mode)
@@ -202,7 +204,7 @@ class MyEggInfo(egg_info):
     """This makes sure to not include the rendered files in SOURCES.txt."""
 
     def find_sources(self):
-        ret = egg_info.find_sources(self)
+        egg_info.find_sources(self)
         # update the self.filelist.
         self.filelist.exclude_pattern(
             RENDERED_TMPD_PREFIX + ".*", is_regex=True
@@ -216,7 +218,6 @@ class MyEggInfo(egg_info):
                 ]
             with open(mfname, "w") as fp:
                 fp.write("".join(files))
-        return ret
 
 
 # TODO: Is there a better way to do this??
