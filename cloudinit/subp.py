@@ -9,7 +9,7 @@ from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)
 
-PipeOutput = collections.namedtuple('PipeOutput', ['stdout', 'stderr'])
+SubpResult = collections.namedtuple('SubpResult', ['stdout', 'stderr'])
 
 def prepend_base_command(base_command, commands):
     """Ensure user-provided commands start with base_command; warn otherwise.
@@ -169,7 +169,7 @@ def subp(
     update_env=None,
     status_cb=None,
     cwd=None,
-) -> PipeOutput:
+) -> SubpResult:
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
@@ -336,7 +336,7 @@ def subp(
         )
     if status_cb:
         status_cb("End run command: exit({code})\n".format(code=rc))
-    return PipeOutput(out, err)
+    return SubpResult(out, err)
 
 
 def target_path(target, path=None):
