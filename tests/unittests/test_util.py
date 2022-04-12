@@ -2389,13 +2389,17 @@ class TestFindDevs:
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_devs_with_openbsd(self, m_subp):
-        m_subp.return_value = SubpResult("cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", "")
+        m_subp.return_value = SubpResult(
+            "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
+        )
         devlist = util.find_devs_with_openbsd()
         assert devlist == ["/dev/cd0a", "/dev/sd1a", "/dev/sd1i"]
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_devs_with_openbsd_with_criteria(self, m_subp):
-        m_subp.return_value = SubpResult("cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", "")
+        m_subp.return_value = SubpResult(
+            "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
+        )
         devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
         assert devlist == ["/dev/cd0a", "/dev/sd1a", "/dev/sd1i"]
 
@@ -2493,7 +2497,9 @@ class TestFindDevs:
     def test_find_devs_with_dragonflybsd(
         self, m_subp, criteria, expected_devlist
     ):
-        m_subp.return_value = SubpResult("md2 md1 cd0 vbd0 acd0 vn3 vn2 vn1 vn0 md0", "")
+        m_subp.return_value = SubpResult(
+            "md2 md1 cd0 vbd0 acd0 vn3 vn2 vn1 vn0 md0", ""
+        )
         devlist = util.find_devs_with_dragonflybsd(criteria=criteria)
         assert devlist == expected_devlist
 

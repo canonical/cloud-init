@@ -91,9 +91,7 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out = subp.subp(
-            ["lsb_release", "--all"], capture=True, target=target
-        )
+        out = subp.subp(["lsb_release", "--all"], capture=True, target=target)
         for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
