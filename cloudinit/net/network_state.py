@@ -959,12 +959,12 @@ def _normalize_net_keys(network, address_keys=()):
             else:
                 # this supports input of 255.255.255.0
                 prefix = ipv4_mask_to_net_prefix(maybe_prefix)
+    elif "prefix" in net:
+        prefix = int(net["prefix"])
     elif netmask and not ipv6:
         prefix = ipv4_mask_to_net_prefix(netmask)
     elif netmask and ipv6:
         prefix = ipv6_mask_to_net_prefix(netmask)
-    elif "prefix" in net:
-        prefix = int(net["prefix"])
     else:
         prefix = 64 if ipv6 else 24
 
