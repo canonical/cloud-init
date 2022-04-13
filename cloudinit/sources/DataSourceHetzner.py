@@ -94,6 +94,8 @@ class DataSourceHetzner(sources.DataSource):
         self.metadata["local-hostname"] = md["hostname"]
         self.metadata["network-config"] = md.get("network-config", None)
         self.metadata["public-keys"] = md.get("public-keys", None)
+        self.metadata["public-ipv4"] = md.get("public-ipv4", None)
+        self.metadata["local-ipv4"] = md.get("local-ipv4", None)
         self.vendordata_raw = md.get("vendor_data", None)
 
         # instance-id and serial from SMBIOS should be identical
