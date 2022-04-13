@@ -1,8 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import re
 
+import pytest
 
 from cloudinit.config import cc_users_groups
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 MODPATH = "cloudinit.config.cc_users_groups"
 
@@ -266,3 +273,28 @@ class TestHandleUsersGroups(CiTestCase):
             " cloud configuration users:  [default, ..].\n",
             self.logs.getvalue(),
         )
+
+
+class TestUsersGroupsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Validate default settings
+            ({"groups": ["anygrp"]}, None),
+            ({"users": ["default"]}, None),
+            ({"users": [{"name": "bbsw"}]}, None),
+            # minItems >= 1 for opaque-key
+            (
+                {"groups": [{"needitems": []}]},
+                re.escape("groups.0.needitems: [] is too short"),
+            ),
+            ({"groups": [{"yep": ["user1"]}]}, None),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

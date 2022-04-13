@@ -435,10 +435,11 @@ def _schemapath_for_cloudconfig(config, original_content):
     return schema_line_numbers
 
 
-def _get_property_type(property_dict: dict) -> str:
+def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
     """
+    _flatten_schema_refs(property_dict, defs)
     property_type = property_dict.get("type")
     if property_type is None:
         if property_dict.get("enum"):
@@ -459,9 +460,11 @@ def _get_property_type(property_dict: dict) -> str:
     for sub_item in items.get("oneOf", {}):
         if sub_property_type:
             sub_property_type += "/"
-        sub_property_type += "(" + _get_property_type(sub_item) + ")"
+        sub_property_type += _get_property_type(sub_item, defs)
     if sub_property_type:
-        return "{0} of {1}".format(property_type, sub_property_type)
+        if "/" in sub_property_type:
+            sub_property_type = f"({sub_property_type})"
+        return f"{property_type} of {sub_property_type}"
     return property_type or "UNDEFINED"
 
 
@@ -487,6 +490,15 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
+def _flatten_schema_refs(src_cfg: dict, defs: dict):
+    """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
+    if "$ref" not in src_cfg:
+        return
+    # Update the defined references in subschema for doc rendering
+    ref = defs[src_cfg["$ref"].replace("#/$defs/", "")]
+    src_cfg.update(ref)
+
+
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + "    "
@@ -498,10 +510,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
 
     for props in property_keys:
         for prop_key, prop_config in props.items():
-            if "$ref" in prop_config:
-                # Update the defined references in subschema for doc rendering
-                ref = defs[prop_config["$ref"].replace("#/$defs/", "")]
-                prop_config.update(ref)
+            _flatten_schema_refs(prop_config, defs)
             # Define prop_name and description for SCHEMA_PROPERTY_TMPL
             description = prop_config.get("description", "")
 
@@ -512,7 +521,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
                     prefix=prefix,
                     prop_name=label,
                     description=_parse_description(description, prefix),
-                    prop_type=_get_property_type(prop_config),
+                    prop_type=_get_property_type(prop_config, defs),
                 )
             )
             items = prop_config.get("items")
