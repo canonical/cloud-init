@@ -728,8 +728,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
         logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
         logs_with_token = [log for log in all_logs if "API-TOKEN" in log]
-        assert len(logs_with_redacted_ttl)
-        assert 80 < len(logs_with_redacted)
+        self.assertEqual(1, len(logs_with_redacted_ttl))
+        self.assertEqual(83, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
     @responses.activate
