@@ -636,12 +636,9 @@ class Renderer(renderer.Renderer):
                             "Duplicate declaration of default "
                             "route found for interface '%s'" % (iface_cfg.name)
                         )
-                    # NOTE(harlowja): ipv6 and ipv4 default gateways
-                    gw_key = "GATEWAY0"
-                    nm_key = "NETMASK0"
-                    addr_key = "ADDRESS0"
-                    # The owning interface provides the default route.
-                    #
+                    # NOTE that instead of defining the route0 settings,
+                    # the owning interface provides the default route.
+
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg["DEFROUTE"] = True

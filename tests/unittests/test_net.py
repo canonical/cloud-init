@@ -5214,7 +5214,7 @@ USERCTL=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
+                """  # noqa: E501
             ),
             "route-eth0": textwrap.dedent(
                 """\
@@ -5223,7 +5223,7 @@ USERCTL=no
                 ADDRESS0=10.54.0.1
                 GATEWAY0=0.0.0.0
                 NETMASK0=255.255.255.255
-                """
+                """  # noqa: E501
             ),
             "route6-eth0": textwrap.dedent(
                 """\
@@ -5231,7 +5231,7 @@ USERCTL=no
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
                 ::0/64 via 2a00:1730:fff9:100::1  dev eth0
-                """
+                """  # noqa: E501
             ),
         }
 
