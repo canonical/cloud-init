@@ -392,58 +392,60 @@ def dual_stack(
     #
     # for now we don't use this feature since it only supports python >3.8
     # and doesn't provide a context manager and only marginal benefit
-    with ThreadPoolExecutor(max_workers=len(addresses)) as executor:
-        try:
-            futures = {
-                executor.submit(
-                    _run_func_with_delay,
-                    func=func,
-                    addr=addr,
-                    timeout=timeout,
-                    event=is_done,
-                    delay=(i * stagger_delay),
-                ): addr
-                for i, addr in enumerate(addresses)
-            }
+    executor = ThreadPoolExecutor(max_workers=len(addresses))
+    try:
+        futures = {
+            executor.submit(
+                _run_func_with_delay,
+                func=func,
+                addr=addr,
+                timeout=timeout,
+                event=is_done,
+                delay=(i * stagger_delay),
+            ): addr
+            for i, addr in enumerate(addresses)
+        }
 
-            # handle returned requests in order of completion
-            for future in as_completed(futures, timeout=timeout):
+        # handle returned requests in order of completion
+        for future in as_completed(futures, timeout=timeout):
 
-                returned_address = futures[future]
-                return_exception = future.exception()
-                if return_exception:
-                    last_exception = return_exception
-                else:
-                    return_result = future.result()
-                    if return_result:
-
-                        # communicate to other threads that they do not need to
-                        # try: this thread has already succeeded
-                        is_done.set()
-                        return (returned_address, return_result)
-
-            # No success, return the last exception but log them all for
-            # debugging
-            if last_exception:
-                LOG.warning(
-                    "Exception(s) %s during request to %s, "
-                    "raising last exception",
-                    " ".join(exceptions),
-                    returned_address,
-                )
-                raise last_exception
+            returned_address = futures[future]
+            return_exception = future.exception()
+            if return_exception:
+                last_exception = return_exception
             else:
-                LOG.error("Empty result for address %s", returned_address)
-                raise ValueError("No result returned")
+                return_result = future.result()
+                if return_result:
 
-        # when max_wait expires, log but don't throw (retries happen)
-        except TimeoutError:
+                    # communicate to other threads that they do not need to
+                    # try: this thread has already succeeded
+                    is_done.set()
+                    return (returned_address, return_result)
+
+        # No success, return the last exception but log them all for
+        # debugging
+        if last_exception:
             LOG.warning(
-                "Timed out waiting for addresses: %s, "
-                "exception(s) raised while waiting: %s",
-                " ".join(addresses),
+                "Exception(s) %s during request to %s, "
+                "raising last exception",
                 " ".join(exceptions),
+                returned_address,
             )
+            raise last_exception
+        else:
+            LOG.error("Empty result for address %s", returned_address)
+            raise ValueError("No result returned")
+
+    # when max_wait expires, log but don't throw (retries happen)
+    except TimeoutError:
+        LOG.warning(
+            "Timed out waiting for addresses: %s, "
+            "exception(s) raised while waiting: %s",
+            " ".join(addresses),
+            " ".join(exceptions),
+        )
+    finally:
+        executor.shutdown(wait=False)
 
     return (returned_address, return_result)
 
