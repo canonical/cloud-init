@@ -1968,7 +1968,7 @@
       "type": "object",
       "properties": {
         "groups": {
-          "type": ["string", "array"],
+          "type": ["string", "object", "array"],
           "items": {
             "type": ["string", "object"],
             "patternProperties": {

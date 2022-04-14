@@ -282,7 +282,12 @@ class TestUsersGroupsSchema:
             # Validate default settings not covered by examples
             ({"groups": ["anygrp"]}, None),
             ({"groups": "anygrp,anyothergroup"}, None),
+            # Create anygrp with user1 as member
             ({"groups": [{"anygrp": "user1"}]}, None),
+            # Create anygrp with user1 as member using object/string syntax
+            ({"groups": {"anygrp": "user1"}}, None),
+            # Create anygrp with user1 as member using object/list syntax
+            ({"groups": {"anygrp": ["user1"]}}, None),
             ({"groups": [{"anygrp": ["user1", "user2"]}]}, None),
             ({"user": "olddefault"}, None),
             ({"users": ["default"]}, None),
