@@ -527,6 +527,10 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
                 if "$ref" in alt_schema:
                     reference = alt_schema.pop("$ref").replace("#/$defs/", "")
                     alt_schema.update(defs[reference])
+    for alt_schema in src_cfg.get("oneOf", []):
+        if "$ref" in alt_schema:
+            reference = alt_schema.pop("$ref").replace("#/$defs/", "")
+            alt_schema.update(defs[reference])
 
 
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:

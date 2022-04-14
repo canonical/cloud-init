@@ -22,7 +22,7 @@
           "type": "string"
         },
         "groups": {
-          "description": "Optional comma-separated list of groups to add the user to.",
+          "description": "Optional comma-separated string of groups to add the user to.",
           "type": "string"
         },
         "homedir": {
@@ -1968,7 +1968,7 @@
       "type": "object",
       "properties": {
         "groups": {
-          "type": "array",
+          "type": ["string", "array"],
           "items": {
             "type": ["string", "object"],
             "patternProperties": {
@@ -1985,11 +1985,18 @@
           },
           "minItems": 1
         },
+        "user": {
+          "oneOf": [
+            {"type": "string"},
+            {"$ref": "#/$defs/users_groups.user"}
+          ],
+          "description": "DEPRECATED, will be removed in a future release. Use ``users`` instead. This option creates a single default user. It overrides the ``default_user`` settings from /etc/cloud/cloud.cfg for a distribution. It accepts either a string of the default username to create or an object with any keys supported by the ``users`` schema."
+        },
         "users": {
           "type": "array",
           "items": {
             "oneOf": [
-              {"enum": ["default"]},
+              {"type": "string"},
               {"$ref": "#/$defs/users_groups.user"}
             ]
           },

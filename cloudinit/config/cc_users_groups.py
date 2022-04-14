@@ -22,14 +22,26 @@ This module configures users and groups. For more detailed information on user
 options, see the :ref:`Including users and groups<yaml_examples>` config
 example.
 
-Groups to add to the system can be specified as a list under the ``groups``
-key. Each entry in the list should either contain a the group name as a string,
+Groups to add to the system can be specified under the ``groups`` key as
+a string of comma-separated groups to create, or a list. Each item in
+the list should either contain a string of a single group to create,
 or a dictionary with the group name as the key and a list of users who should
 be members of the group as the value.
 
 .. note::
    Groups are added before users, so any users in a group list must
    already exist on the system.
+
+Users to add can be specified as a list under the ``users`` key. Each entry in
+the list should either be a string or a dictionary. When a string
+is specified, that string can be comma-separated usernames to create or the
+reserved value ``default``. The string ``default`` will setup the
+``system_info:default_user`` as configured in ``/etc/cloud/cloud.cfg``.
+Omission of ``default`` as the first item in the ``users`` list skips creation
+the default_user.
+
+Each User dictionary must contain either a ``name`` or ``snapuser`` key,
+otherwise it will be ignored.
 
 .. note::
     Specifying a hash of a user's password with ``passwd`` is a security risk

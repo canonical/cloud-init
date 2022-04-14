@@ -279,9 +279,12 @@ class TestUsersGroupsSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         [
-            # Validate default settings
+            # Validate default settings not covered by examples
             ({"groups": ["anygrp"]}, None),
+            ({"groups": "anygrp,anyothergroup"}, None),
+            ({"user": "olddefault"}, None),
             ({"users": ["default"]}, None),
+            ({"users": ["foobar"]}, None),  # non default user creation
             ({"users": [{"name": "bbsw"}]}, None),
             # minItems >= 1 for opaque-key
             (
@@ -289,6 +292,10 @@ class TestUsersGroupsSchema:
                 re.escape("groups.0.needitems: [] is too short"),
             ),
             ({"groups": [{"yep": ["user1"]}]}, None),
+            (
+                {"user": ["no_list_allowed"]},
+                re.escape("user: ['no_list_allowed'] is not valid "),
+            ),
         ],
     )
     @skipUnlessJsonSchema()
