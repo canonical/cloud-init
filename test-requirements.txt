@@ -6,3 +6,4 @@ pytest-cov
 # Only really needed on older versions of python
 setuptools
 jsonschema
+responses
