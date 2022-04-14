@@ -51,12 +51,25 @@
         },
         "no_user_group": {
           "default": false,
-          "description": " Do not create group named after user. Default: ``false``",
+          "description": "Do not create group named after user. Default: ``false``",
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using passwd in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password applied when user does not exist. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
           "type": "string"
+        },
+        "hashed_passwd": {
+          "description": "Hash of user password applied to new or existing users. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "type": "string"
+        },
+        "plain_text_passwd": {
+          "description": "Clear text of user password applied to new or existing users. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "type": "string"
+        },
+        "create_groups": {
+          "default": true,
+          "description": "Boolean set ``false`` to disable creation of specified user ``groups``. Default: ``true``.",
+          "type": "boolean"
         },
         "primary_group": {
           "default": "``<username>``",

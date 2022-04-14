@@ -170,6 +170,10 @@ def normalize_users_groups(cfg, distro):
     # format.
     old_user = {}
     if "user" in cfg and cfg["user"]:
+        LOG.warning(
+            f"DEPRECATED: 'user' key is deprecated and will be removed in a"
+             " future release. Use 'users' instead."
+        )
         old_user = cfg["user"]
         # Translate it into a format that will be more useful going forward
         if isinstance(old_user, str):
