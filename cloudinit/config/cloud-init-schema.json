@@ -1974,8 +1974,8 @@
             "patternProperties": {
               "^.+$": {
                 "label": "<group_name>",
-                "description": "Optional list of usernames to add to the group",
-                "type": "array",
+                "description": "Optional string of single username or a list of usernames to add to the group",
+                "type": ["string", "array"],
                 "items": {
                   "type": "string"
                 },

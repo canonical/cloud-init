@@ -25,8 +25,8 @@ example.
 Groups to add to the system can be specified under the ``groups`` key as
 a string of comma-separated groups to create, or a list. Each item in
 the list should either contain a string of a single group to create,
-or a dictionary with the group name as the key and a list of users who should
-be members of the group as the value.
+or a dictionary with the group name as the key and string of a single user as
+a member of that group or a list of users who should be members of the group.
 
 .. note::
    Groups are added before users, so any users in a group list must

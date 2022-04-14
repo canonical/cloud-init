@@ -282,9 +282,11 @@ class TestUsersGroupsSchema:
             # Validate default settings not covered by examples
             ({"groups": ["anygrp"]}, None),
             ({"groups": "anygrp,anyothergroup"}, None),
+            ({"groups": [{"anygrp": "user1"}]}, None),
+            ({"groups": [{"anygrp": ["user1", "user2"]}]}, None),
             ({"user": "olddefault"}, None),
             ({"users": ["default"]}, None),
-            ({"users": ["foobar"]}, None),  # non default user creation
+            ({"users": ["foobar"]}, None),  # no default user creation
             ({"users": [{"name": "bbsw"}]}, None),
             # minItems >= 1 for opaque-key
             (
