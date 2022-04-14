@@ -18,6 +18,7 @@ from cloudinit.settings import PER_INSTANCE
 # https://launchpad.net/ssh-import-id
 distros = ["ubuntu", "debian"]
 
+SSH_IMPORT_ID = "ssh-import-id"
 MODULE_DESCRIPTION = """\
 This module imports SSH keys from either a public keyserver, usually launchpad
 or github using ``ssh-import-id``. Keys are referenced by the username they are
@@ -48,6 +49,13 @@ __doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, cloud, log, args):
+
+    if cfg.get("ssh_import_id") and subp.which(SSH_IMPORT_ID):
+        log.warn(
+            "ssh-import-id is not installed, but module ssh_import_id is "
+            "configured. Skipping module."
+        )
+        return
 
     # import for "user: XXXXX"
     if len(args) != 0:
@@ -138,7 +146,7 @@ def import_ssh_ids(ids, user, log):
         "--preserve-env=https_proxy",
         "-Hu",
         user,
-        "ssh-import-id",
+        SSH_IMPORT_ID,
     ] + ids
     log.debug("Importing SSH ids for user %s.", user)
 
