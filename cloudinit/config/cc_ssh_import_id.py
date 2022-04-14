@@ -50,7 +50,7 @@ __doc__ = get_meta_doc(meta)
 
 def handle(_name, cfg, cloud, log, args):
 
-    if cfg.get("ssh_import_id") and subp.which(SSH_IMPORT_ID):
+    if cfg.get("ssh_import_id") and not subp.which(SSH_IMPORT_ID):
         log.warn(
             "ssh-import-id is not installed, but module ssh_import_id is "
             "configured. Skipping module."
