@@ -183,6 +183,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_mcollective"},
             {"$ref": "#/$defs/cc_migrator"},
             {"$ref": "#/$defs/cc_mounts"},
+            {"$ref": "#/$defs/cc_ntp"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},
             {"$ref": "#/$defs/cc_phone_home"},
             {"$ref": "#/$defs/cc_power_state_change"},
@@ -221,10 +222,9 @@ class TestGetSchema:
                 legacy_schema_keys.extend(subschema["properties"].keys())
 
         assert expected_subschema_defs == found_subschema_defs
-        # This list will dwindle as we move legacy schema to new $defs
-        assert [
-            "ntp",
-        ] == sorted(legacy_schema_keys)
+        # This list should remain empty unless we induct new modules with
+        # legacy schema attributes defined within the cc_module.
+        assert [] == sorted(legacy_schema_keys)
 
 
 class TestLoadDoc:
