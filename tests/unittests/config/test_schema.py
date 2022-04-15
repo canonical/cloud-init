@@ -9,6 +9,7 @@ import sys
 from copy import copy
 from pathlib import Path
 from textwrap import dedent
+from types import ModuleType
 from typing import List
 
 import pytest
@@ -30,6 +31,8 @@ from cloudinit.config.schema import (
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
 )
+from cloudinit.distros import OSFAMILIES
+from cloudinit.settings import FREQUENCIES
 from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
@@ -55,7 +58,7 @@ def get_metas() -> dict:
     return get_module_variable("meta")
 
 
-def get_modules() -> List[str]:
+def get_module_names() -> List[str]:
     """Return list of module names in cloudinit/config"""
     files = list(
         Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
@@ -64,15 +67,20 @@ def get_modules() -> List[str]:
     return [mod.stem for mod in files]
 
 
+def get_modules() -> List[ModuleType]:
+    """Return list of modules in cloudinit/config"""
+    return [
+        importlib.import_module(f"cloudinit.config.{module}")
+        for module in get_module_names()
+    ]
+
+
 def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
     schemas = {}
-    for module in get_modules():
-        importlib.import_module("cloudinit.config.{}".format(module))
-
+    get_modules()
     for k, v in sys.modules.items():
         path = Path(k)
-
         if "cloudinit.config" == path.stem and path.suffix[1:4] == "cc_":
             module_name = path.suffix[1:]
             members = inspect.getmembers(v)
@@ -95,7 +103,7 @@ class TestGetSchema:
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        assert sorted(get_modules()) == sorted(
+        assert sorted(get_module_names()) == sorted(
             [meta["id"] for meta in get_metas().values() if meta is not None]
         )
         assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]
@@ -1046,4 +1054,14 @@ class TestStrictMetaschema:
         validate_cloudconfig_metaschema(validator, schema, throw=False)
 
 
-# vi: ts=4 expandtab syntax=python
+class TestMeta:
+    def test_valid_meta_for_every_module(self):
+        all_distros = {
+            name for distro in OSFAMILIES.values() for name in distro
+        }
+        all_distros.add("all")
+        for module in get_modules():
+            assert "frequency" in module.meta
+            assert "distros" in module.meta
+            assert {module.meta["frequency"]}.issubset(FREQUENCIES)
+            assert set(module.meta["distros"]).issubset(all_distros)

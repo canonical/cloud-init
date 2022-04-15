@@ -7,7 +7,6 @@ from cloudinit import subp
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-distros = ["redhat", "fedora"]
 MODULE_DESCRIPTION = """\
 This module installs spacewalk and applies basic configuration. If the
 ``spacewalk`` config key is present spacewalk will be installed. The server to
@@ -23,7 +22,7 @@ meta: MetaSchema = {
     "name": "Spacewalk",
     "title": "Install and configure spacewalk",
     "description": MODULE_DESCRIPTION,
-    "distros": distros,
+    "distros": ["rhel", "fedora"],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(
