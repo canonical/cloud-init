@@ -20,8 +20,8 @@ from cloudinit.net import (
     find_fallback_nic,
     get_devicelist,
     has_url_connectivity,
+    mask_and_ipv4_to_bcast_addr,
 )
-from cloudinit.net import mask_and_ipv4_to_bcast_addr as bcip
 
 LOG = logging.getLogger(__name__)
 
@@ -120,7 +120,9 @@ class EphemeralDHCPv4(object):
         }
         kwargs = self.extract_dhcp_options_mapping(nmap)
         if not kwargs["broadcast"]:
-            kwargs["broadcast"] = bcip(kwargs["prefix_or_mask"], kwargs["ip"])
+            kwargs["broadcast"] = mask_and_ipv4_to_bcast_addr(
+                kwargs["prefix_or_mask"], kwargs["ip"]
+            )
         if kwargs["static_routes"]:
             kwargs["static_routes"] = parse_static_routes(
                 kwargs["static_routes"]

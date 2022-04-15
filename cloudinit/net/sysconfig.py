@@ -11,7 +11,7 @@ from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
-    is_ipv6_addr,
+    is_ipv6_address,
     net_prefix_to_ipv4_mask,
     subnet_is_ipv6,
 )
@@ -589,7 +589,7 @@ class Renderer(renderer.Renderer):
 
                 if "gateway" in subnet and flavor != "suse":
                     iface_cfg["DEFROUTE"] = True
-                    if is_ipv6_addr(subnet["gateway"]):
+                    if is_ipv6_address(subnet["gateway"]):
                         iface_cfg["IPV6_DEFAULTGW"] = subnet["gateway"]
                     else:
                         iface_cfg["GATEWAY"] = subnet["gateway"]
@@ -619,7 +619,9 @@ class Renderer(renderer.Renderer):
         for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get("type")
             for route in subnet.get("routes", []):
-                is_ipv6 = subnet.get("ipv6") or is_ipv6_addr(route["gateway"])
+                is_ipv6 = subnet.get("ipv6") or is_ipv6_address(
+                    route["gateway"]
+                )
 
                 # Any dynamic configuration method, slaac, dhcpv6-stateful/
                 # stateless should get router information from router RA's.
