@@ -80,7 +80,6 @@ class Modules(object):
                 base_cfg=self.init.cfg,
             )
             self._cached_cfg = merger.cfg
-            # LOG.debug("Loading 'module' config %s", self._cached_cfg)
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
 
