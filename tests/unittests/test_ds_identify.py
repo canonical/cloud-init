@@ -3,6 +3,7 @@
 import copy
 import os
 from collections import namedtuple
+from textwrap import dedent
 from uuid import uuid4
 
 from cloudinit import safeyaml, subp, util
@@ -732,6 +733,10 @@ class TestDsIdentify(DsIdentifyBase):
         """NoCloud is found with uppercase filesystem label."""
         self._test_ds_found("NoCloudUpper")
 
+    def test_nocloud_seed_in_cfg(self):
+        """NoCloud seed definition can go in /etc/cloud/cloud.cfg[.d]"""
+        self._test_ds_found("NoCloud-cfg")
+
     def test_nocloud_fatboot(self):
         """NoCloud fatboot label - LP: #184166."""
         self._test_ds_found("NoCloud-fatboot")
@@ -1083,6 +1088,26 @@ VALID_CFG = {
         ],
         "files": {
             "dev/vdb": "pretend iso content for cidata\n",
+        },
+    },
+    "NoCloud-cfg": {
+        "ds": "NoCloud",
+        "files": {
+            # Also include a datasource list of more than just
+            # [NoCloud, None], because that would automatically select
+            # NoCloud without checking
+            "/etc/cloud/cloud.cfg": dedent(
+                """\
+                datasource_list: [ Azure, Openstack, NoCloud, None ]
+                datasource:
+                  NoCloud:
+                    user-data: |
+                      #cloud-config
+                      hostname: footbar
+                    meta-data: |
+                      instance_id: cloud-image
+                """
+            )
         },
     },
     "NoCloud-fbsd": {
