@@ -210,7 +210,7 @@ class Modules(object):
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created
-                run_name = f"config-%s" % (name)
+                run_name = f"config-{name}"
 
                 desc = "running %s with frequency %s" % (run_name, freq)
                 myrep = ReportEventStack(
