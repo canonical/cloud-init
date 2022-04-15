@@ -281,7 +281,7 @@ class TestUsersGroupsSchema:
         [
             # Validate default settings not covered by examples
             ({"groups": ["anygrp"]}, None),
-            ({"groups": "anygrp,anyothergroup"}, None),
+            ({"groups": "anygrp,anyothergroup"}, None),  # DEPRECATED
             # Create anygrp with user1 as member
             ({"groups": [{"anygrp": "user1"}]}, None),
             # Create anygrp with user1 as member using object/string syntax
@@ -289,7 +289,10 @@ class TestUsersGroupsSchema:
             # Create anygrp with user1 as member using object/list syntax
             ({"groups": {"anygrp": ["user1"]}}, None),
             ({"groups": [{"anygrp": ["user1", "user2"]}]}, None),
+            # Make default username "olddefault": DEPRECATED
             ({"user": "olddefault"}, None),
+            # Create multiple users, and include default user. DEPRECATED
+            ({"users": "oldstyle,default"}, None),
             ({"users": ["default"]}, None),
             ({"users": ["foobar"]}, None),  # no default user creation
             ({"users": [{"name": "bbsw"}]}, None),

@@ -1998,7 +1998,7 @@
           "description": "DEPRECATED, will be removed in a future release. Use ``users`` instead. This option creates a single default user. It overrides the ``default_user`` settings from /etc/cloud/cloud.cfg for a distribution. It accepts either a string of the default username to create or an object with any keys supported by the ``users`` schema."
         },
         "users": {
-          "type": "array",
+          "type": ["string", "array"],
           "items": {
             "oneOf": [
               {"type": "string"},

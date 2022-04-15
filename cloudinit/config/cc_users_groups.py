@@ -32,16 +32,20 @@ a member of that group or a list of users who should be members of the group.
    Groups are added before users, so any users in a group list must
    already exist on the system.
 
-Users to add can be specified as a list under the ``users`` key. Each entry in
-the list should either be a string or a dictionary. When a string
+Users to add can be specified as a string or list under the ``users`` key.
+Each entry in the list should either be a string or a dictionary. If a string
 is specified, that string can be comma-separated usernames to create or the
-reserved value ``default``. The string ``default`` will setup the
-``system_info:default_user`` as configured in ``/etc/cloud/cloud.cfg``.
-Omission of ``default`` as the first item in the ``users`` list skips creation
-the default_user.
+reserved string ``default`` which represents the primary admin user used to
+access the system. The ``default`` user varies per distribution and is
+generally configured in ``/etc/cloud/cloud.cfg`` by the ``default_user`` key.
 
-Each User dictionary must contain either a ``name`` or ``snapuser`` key,
-otherwise it will be ignored.
+Each ``users`` dictionary item must contain either a ``name`` or ``snapuser``
+key, otherwise it will be ignored. Omission of ``default`` as the first item
+in the ``users`` list skips creation the default user. If no ``users`` key is
+provided the default behavior is to create the default user via this config::
+
+ users:
+ - default
 
 .. note::
     Specifying a hash of a user's password with ``passwd`` is a security risk
@@ -56,6 +60,10 @@ otherwise it will be ignored.
     already exists. The following options are the exceptions; they are applied
     to already-existing users: ``plain_text_passwd``, ``hashed_passwd``,
     ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``, ``ssh_redirect_user``.
+
+The ``user`` key can be used to override the ``default_user`` configuration
+defined in ``/etc/cloud/cloud.cfg``. The ``user`` value should be a dictionary
+which supports the same config keys as the ``users`` dictionary items.
 """
 
 meta: MetaSchema = {
@@ -65,6 +73,15 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": ["all"],
     "examples": [
+        dedent(
+            """\
+        # Add the ``default_user`` from /etc/cloud/cloud.cfg.
+        # This is also the default behavior of cloud-init when no `users` key
+        # is provided.
+        users:
+        - default
+        """
+        ),
         dedent(
             """\
         # Add the 'admingroup' with members 'root' and 'sys' and an empty
@@ -113,6 +130,18 @@ meta: MetaSchema = {
         - default
         - name: nosshlogins
           ssh_redirect_user: true
+        """
+        ),
+        dedent(
+            """\
+        # Override any ``default_user`` config in /etc/cloud/cloud.cfg with
+        # supplemental config options.
+        # This config will make the default user to mynewdefault and change
+        # the user to not have sudo rights.
+        ssh_import_id: [chad.smith]
+        user:
+          name: mynewdefault
+          sudo: false
         """
         ),
     ],
