@@ -488,7 +488,7 @@ def main_init(name, args):
     apply_reporting_cfg(init.cfg)
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -591,7 +591,7 @@ def main_modules(action_name, args):
             return [(msg)]
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -646,7 +646,7 @@ def main_single(name, args):
             return 1
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
