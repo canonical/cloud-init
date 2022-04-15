@@ -260,7 +260,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
                 "openEuler, opensuse, photon, rhel, rocky, sles, ubuntu, "
                 "virtuozzo",
                 "**Config schema**:\n    **resize_rootfs:** "
-                "(true/false/noblock)",
+                "(``true``/``false``/``noblock``)",
                 "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",
             ]
         stdout = stdout.getvalue()

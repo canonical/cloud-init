@@ -1,6 +1,138 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "users_groups.groups_by_groupname": {
+      "patternProperties": {
+        "^.+$": {
+          "label": "<group_name>",
+          "description": "Optional string of single username or a list of usernames to add to the group",
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "users_groups.user": {
+      "oneOf": [
+          {"required": ["name"]},
+          {"required": ["snapuser"]}
+      ],
+      "properties": {
+        "name": {
+          "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
+          "type": "string"
+        },
+        "expiredate": {
+          "default": null,
+          "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
+          "type": "string"
+        },
+        "gecos": {
+          "description": "Optional comment about the user, usually a comma-separated string of real name and contact information",
+          "type": "string"
+        },
+        "groups": {
+          "description": "Optional comma-separated string of groups to add the user to.",
+          "type": "string"
+        },
+        "homedir": {
+          "description": "Optional home dir for user. Default: ``/home/<username>``",
+          "default": "``/home/<username>``",
+          "type": "string"
+        },
+        "inactive": {
+          "description": "Optional string representing the number of days until the user is disabled. ",
+          "type": "string"
+        },
+        "lock_passwd": {
+          "default": true,
+          "description": "Disable password login. Default: ``true``",
+          "type": "boolean"
+        },
+        "no_create_home": {
+          "default": false,
+          "description": "Do not create home directory. Default: ``false``",
+          "type": "boolean"
+        },
+        "no_log_init": {
+          "default": false,
+          "description": "Do not initialize lastlog and faillog for user. Default: ``false``",
+          "type": "boolean"
+        },
+        "no_user_group": {
+          "default": false,
+          "description": "Do not create group named after user. Default: ``false``",
+          "type": "boolean"
+        },
+        "passwd": {
+          "description": "Hash of user password applied when user does not exist. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "type": "string"
+        },
+        "hashed_passwd": {
+          "description": "Hash of user password applied to new or existing users. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "type": "string"
+        },
+        "plain_text_passwd": {
+          "description": "Clear text of user password applied to new or existing users. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "type": "string"
+        },
+        "create_groups": {
+          "default": true,
+          "description": "Boolean set ``false`` to disable creation of specified user ``groups``. Default: ``true``.",
+          "type": "boolean"
+        },
+        "primary_group": {
+          "default": "``<username>``",
+          "description": "Primary group for user. Default: ``<username>``",
+          "type": "string"
+        },
+        "selinux_user": {
+          "description": "SELinux user for user's login. Default to default SELinux user.",
+          "type": "string"
+        },
+        "shell": {
+          "description": "Path to the user's login shell. The default is to set no shell, which results in a system-specific default being used.",
+          "type": "string"
+        },
+        "snapuser": {
+          "description": " Specify an email address to create the user as a Snappy user through ``snap create-user``. If an Ubuntu SSO account is associated with the address, username and SSH keys will be requested from there.",
+          "type": "string"
+        },
+        "ssh_authorized_keys": {
+          "description": "List of SSH keys to add to user's authkeys file. Can not be combined with ``ssh_redirect_user``",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "ssh_import_id": {
+          "description": "List of SSH IDs to import for user. Can not be combined with ``ssh_redirect_user``.",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "ssh_redirect_user": {
+          "type": "boolean",
+          "default": false,
+          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud meta-data public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the ``default_username`` for this instance. Default: ``false``. This key can not be combined with ``ssh_import_id`` or ``ssh_authorized_keys``."
+        },
+        "system": {
+          "description": "Optional. Create user as system user with no home directory. Default: ``false``.",
+          "type": "boolean",
+          "default": false
+        },
+        "sudo": {
+          "type": ["boolean", "string"],
+          "description": "Sudo rule to use or false. Absence of a sudo value or ``false`` will result in no sudo rules added for this user. DEPRECATED: the value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+        },
+        "uid": {
+          "description": "The user's ID. Default is next available value.",
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
     "apt_configure.mirror": {
       "type": "array",
       "items": {
@@ -517,8 +649,7 @@
                   {
                     "type": "string",
                     "enum": ["auto", "any", "none"]
-                  },
-                  {"type": "integer"}
+                  }
                 ],
                 "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
               },
@@ -1845,6 +1976,39 @@
         }
       }
     },
+    "cc_users_groups": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": ["string", "object", "array"],
+          "hidden": ["patternProperties"],
+          "$ref": "#/$defs/users_groups.groups_by_groupname",
+          "items": {
+            "type": ["string", "object"],
+            "$ref": "#/$defs/users_groups.groups_by_groupname"
+          },
+          "minItems": 1
+        },
+        "user": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "object", "$ref": "#/$defs/users_groups.user"}
+          ],
+          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The `user` dictionary keys supported for the default_user are the same as the ``users`` schema. DEPRECATED: string and types will be removed in a future release. Use ``users`` instead."
+        },
+        "users": {
+          "type": ["string", "array", "object"],
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "object", "$ref": "#/$defs/users_groups.user"}
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
@@ -2034,6 +2198,7 @@
     { "$ref": "#/$defs/cc_ubuntu_drivers"},
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
+    { "$ref": "#/$defs/cc_users_groups"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
     { "$ref": "#/$defs/cc_zypper_add_repo"}
