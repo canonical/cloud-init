@@ -15,7 +15,6 @@
       }
     },
     "users_groups.user": {
-      "type": "object",
       "oneOf": [
           {"required": ["name"]},
           {"required": ["snapuser"]}
@@ -1993,16 +1992,17 @@
         "user": {
           "oneOf": [
             {"type": "string"},
-            {"$ref": "#/$defs/users_groups.user"}
+            {"type": "object", "$ref": "#/$defs/users_groups.user"}
           ],
-          "description": "DEPRECATED, will be removed in a future release. Use ``users`` instead. This option creates a single default user. It overrides the ``default_user`` settings from /etc/cloud/cloud.cfg for a distribution. It accepts either a string of the default username to create or an object with any keys supported by the ``users`` schema."
+          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The `user` dictionary keys supported for the default_user are the same as the ``users`` schema. DEPRECATED: string and types will be removed in a future release. Use ``users`` instead."
         },
         "users": {
-          "type": ["string", "array"],
+          "type": ["string", "array", "object"],
           "items": {
             "oneOf": [
               {"type": "string"},
-              {"$ref": "#/$defs/users_groups.user"}
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "object", "$ref": "#/$defs/users_groups.user"}
             ]
           },
           "minItems": 1

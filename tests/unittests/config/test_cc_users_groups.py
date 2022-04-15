@@ -294,13 +294,9 @@ class TestUsersGroupsSchema:
             # Create multiple users, and include default user. DEPRECATED
             ({"users": "oldstyle,default"}, None),
             ({"users": ["default"]}, None),
+            ({"users": ["default", ["aaa", "bbb"]]}, None),
             ({"users": ["foobar"]}, None),  # no default user creation
             ({"users": [{"name": "bbsw"}]}, None),
-            # minItems >= 1 for opaque-key
-            (
-                {"groups": [{"needitems": []}]},
-                re.escape("groups.0.needitems: [] is too short"),
-            ),
             ({"groups": [{"yep": ["user1"]}]}, None),
             (
                 {"user": ["no_list_allowed"]},
