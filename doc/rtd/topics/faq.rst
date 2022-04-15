@@ -60,7 +60,7 @@ to the most recently used instance-id directory. This folder contains the
 information cloud-init received from datasources, including vendor and user
 data. This can be helpful to review to ensure the correct data was passed.
 
-It also contains the `datasource` file that containers the full information
+It also contains the `datasource` file that contains the full information
 about what datasource was identified and used to setup the system.
 
 Finally, the `boot-finished` file is the last thing that cloud-init does.
