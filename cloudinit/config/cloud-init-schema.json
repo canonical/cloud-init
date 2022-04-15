@@ -1,6 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "users_groups.groups_by_groupname": {
+      "patternProperties": {
+        "^.+$": {
+          "label": "<group_name>",
+          "description": "Optional string of single username or a list of usernames to add to the group",
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
     "users_groups.user": {
       "type": "object",
       "oneOf": [
@@ -1969,19 +1982,10 @@
       "properties": {
         "groups": {
           "type": ["string", "object", "array"],
+          "$ref": "#/$defs/users_groups.groups_by_groupname",
           "items": {
             "type": ["string", "object"],
-            "patternProperties": {
-              "^.+$": {
-                "label": "<group_name>",
-                "description": "Optional string of single username or a list of usernames to add to the group",
-                "type": ["string", "array"],
-                "items": {
-                  "type": "string"
-                },
-                "minItems": 1
-              }
-            }
+            "$ref": "#/$defs/users_groups.groups_by_groupname"
           },
           "minItems": 1
         },

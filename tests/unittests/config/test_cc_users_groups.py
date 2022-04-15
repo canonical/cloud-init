@@ -303,6 +303,10 @@ class TestUsersGroupsSchema:
                 {"user": ["no_list_allowed"]},
                 re.escape("user: ['no_list_allowed'] is not valid "),
             ),
+            (
+                {"groups": {"anygrp": 1}},
+                "groups.anygrp: 1 is not of type 'string', 'array'",
+            ),
         ],
     )
     @skipUnlessJsonSchema()
