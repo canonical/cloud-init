@@ -11,6 +11,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# Skip isort on this file because of the patch that comes between imports
+# isort: skip_file
+
 import argparse
 import json
 import os
@@ -19,6 +22,7 @@ import time
 import traceback
 
 from cloudinit import patcher
+from cloudinit.config.modules import Modules
 
 patcher.patch_logging()
 
@@ -105,7 +109,7 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_module_section(mods, action_name, section):
+def run_module_section(mods: Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (which_ran, failures) = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)

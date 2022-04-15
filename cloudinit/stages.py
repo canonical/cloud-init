@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, Set  # noqa: F401
+from typing import Dict, List, Optional, Set  # noqa: F401
 
 from cloudinit import cloud, config, distros, handlers, helpers, importer
 from cloudinit import log as logging
@@ -39,7 +39,6 @@ from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
 
-NULL_DATA_SOURCE = None
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
 
 
@@ -98,17 +97,17 @@ def update_event_enabled(
 
 
 class Init(object):
-    def __init__(self, ds_deps=None, reporter=None):
+    def __init__(self, ds_deps: Optional[List[str]] = None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg = None
-        self._paths = None
-        self._distro = None
+        self._cfg: Optional[dict] = None
+        self._paths: Optional[helpers.Paths] = None
+        self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
-        self.datasource = NULL_DATA_SOURCE
+        self.datasource: Optional[sources.DataSource] = None
         self.ds_restored = False
         self._previous_iid = None
 
@@ -126,7 +125,7 @@ class Init(object):
         self._paths = None
         self._distro = None
         if reset_ds:
-            self.datasource = NULL_DATA_SOURCE
+            self.datasource = None
             self.ds_restored = False
 
     @property
@@ -141,7 +140,7 @@ class Init(object):
             # If we have an active datasource we need to adjust
             # said datasource and move its distro/system config
             # from whatever it was to a new set...
-            if self.datasource is not NULL_DATA_SOURCE:
+            if self.datasource is not None:
                 self.datasource.distro = self._distro
                 self.datasource.sys_cfg = self.cfg
         return self._distro
@@ -252,7 +251,7 @@ class Init(object):
         return _pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
-        if self.datasource is NULL_DATA_SOURCE:
+        if self.datasource is None:
             return False
         if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
             # The empty file in instance/ dir indicates manual cleaning,
@@ -301,7 +300,7 @@ class Init(object):
                 return (None, "cache invalid in datasource: %s" % ds)
 
     def _get_data_source(self, existing) -> sources.DataSource:
-        if self.datasource is not NULL_DATA_SOURCE:
+        if self.datasource is not None:
             return self.datasource
 
         with events.ReportEventStack(
@@ -330,7 +329,7 @@ class Init(object):
                 self.reporter,
             )
             LOG.info("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds  # type: sources.DataSource
+        self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -892,7 +891,7 @@ class Init(object):
             )
 
         if (
-            self.datasource is not NULL_DATA_SOURCE
+            self.datasource is not None
             and not self.is_new_instance()
             and not should_run_on_boot_event()
             and not event_enabled_and_metadata_updated(EventType.BOOT_LEGACY)

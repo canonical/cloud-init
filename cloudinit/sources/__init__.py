@@ -13,7 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
-from typing import Dict, List  # noqa: F401
+from typing import Dict, List, Tuple  # noqa: F401
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -892,7 +892,9 @@ def normalize_pubkey_data(pubkey_data):
     return keys
 
 
-def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
+def find_source(
+    sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter
+) -> Tuple[DataSource, str]:
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
     mode = "network" if DEP_NETWORK in ds_deps else "local"

@@ -260,7 +260,7 @@ class ConfigMerger(object):
                     )
         return i_cfgs
 
-    def _read_cfg(self):
+    def _read_cfg(self) -> dict:
         # Input config files override
         # env config files which
         # override instance configs
