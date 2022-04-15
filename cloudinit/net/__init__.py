@@ -1132,7 +1132,7 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
 
 
 def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
-    """Use a function to determine whether address meets criterea.
+    """Use a function to determine whether address meets criteria.
 
     :param check_cb:
         Test function, must return a truthy value
