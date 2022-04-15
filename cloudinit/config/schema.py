@@ -537,14 +537,20 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + "    "
     properties = []
+    if schema.get("hidden") is True:
+        return ""  # no docs for this schema
     property_keys = [
-        schema.get("properties", {}),
-        schema.get("patternProperties", {}),
+        key
+        for key in ("properties", "patternProperties")
+        if "hidden" not in schema or key not in schema["hidden"]
     ]
+    property_schemas = [schema.get(key, {}) for key in property_keys]
 
-    for props in property_keys:
-        for prop_key, prop_config in props.items():
+    for prop_schema in property_schemas:
+        for prop_key, prop_config in prop_schema.items():
             _flatten_schema_refs(prop_config, defs)
+            if prop_config.get("hidden") is True:
+                continue  # document nothing for this property
             # Define prop_name and description for SCHEMA_PROPERTY_TMPL
             description = prop_config.get("description", "")
             if description:

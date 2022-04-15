@@ -1982,6 +1982,7 @@
       "properties": {
         "groups": {
           "type": ["string", "object", "array"],
+          "hidden": ["patternProperties"],
           "$ref": "#/$defs/users_groups.groups_by_groupname",
           "items": {
             "type": ["string", "object"],

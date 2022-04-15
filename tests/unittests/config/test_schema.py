@@ -604,6 +604,55 @@ class TestSchemaDocMarkdown:
         schema = {"properties": {"prop1": sub_schema}}
         assert expected in get_meta_doc(self.meta, schema)
 
+    @pytest.mark.parametrize(
+        "schema,expected",
+        (
+            (  # Hide top-level keys like 'properties'
+                {
+                    "hidden": ["properties"],
+                    "properties": {
+                        "p1": {"type": "string"},
+                        "p2": {"type": "boolean"},
+                    },
+                    "patternProperties": {
+                        "^.*$": {
+                            "type": "string",
+                            "label": "label2",
+                        }
+                    },
+                },
+                dedent(
+                    """
+                **Config schema**:
+                    **label2:** (string)
+                """
+                ),
+            ),
+            (  # Hide nested individual keys with a bool
+                {
+                    "properties": {
+                        "p1": {"type": "string", "hidden": True},
+                        "p2": {"type": "boolean"},
+                    }
+                },
+                dedent(
+                    """
+                **Config schema**:
+                    **p2:** (boolean)
+                """
+                ),
+            ),
+        ),
+    )
+    def test_get_meta_doc_hidden_hides_specific_properties_from_docs(
+        self, schema, expected
+    ):
+        """Docs are hidden for any property in the hidden list.
+
+        Useful for hiding deprecated key schema.
+        """
+        assert expected in get_meta_doc(self.meta, schema)
+
     def test_get_meta_doc_handles_nested_oneof_property_types(self):
         """get_meta_doc describes array items oneOf declarations in type."""
         schema = {
