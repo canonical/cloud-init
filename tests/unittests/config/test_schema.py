@@ -9,6 +9,7 @@ import sys
 from copy import copy
 from pathlib import Path
 from textwrap import dedent
+from typing import List
 
 import pytest
 import yaml
@@ -54,17 +55,19 @@ def get_metas() -> dict:
     return get_module_variable("meta")
 
 
-def get_module_variable(var_name) -> dict:
-    """Inspect modules and get variable from module matching var_name"""
-    schemas = {}
-
+def get_modules() -> List[str]:
+    """Return list of module names in cloudinit/config"""
     files = list(
         Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
     )
 
-    modules = [mod.stem for mod in files]
+    return [mod.stem for mod in files]
 
-    for module in modules:
+
+def get_module_variable(var_name) -> dict:
+    """Inspect modules and get variable from module matching var_name"""
+    schemas = {}
+    for module in get_modules():
         importlib.import_module("cloudinit.config.{}".format(module))
 
     for k, v in sys.modules.items():
@@ -92,68 +95,7 @@ class TestGetSchema:
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        assert sorted(
-            [
-                "cc_apk_configure",
-                "cc_apt_configure",
-                "cc_apt_pipelining",
-                "cc_bootcmd",
-                "cc_byobu",
-                "cc_ca_certs",
-                "cc_chef",
-                "cc_debug",
-                "cc_disable_ec2_metadata",
-                "cc_disk_setup",
-                "cc_fan",
-                "cc_foo",
-                "cc_final_message",
-                "cc_growpart",
-                "cc_grub_dpkg",
-                "cc_install_hotplug",
-                "cc_keyboard",
-                "cc_keys_to_console",
-                "cc_landscape",
-                "cc_locale",
-                "cc_lxd",
-                "cc_mcollective",
-                "cc_migrator",
-                "cc_mounts",
-                "cc_ntp",
-                "cc_package_update_upgrade_install",
-                "cc_phone_home",
-                "cc_power_state_change",
-                "cc_puppet",
-                "cc_resizefs",
-                "cc_resolv_conf",
-                "cc_rightscale_userdata",
-                "cc_rh_subscription",
-                "cc_rsyslog",
-                "cc_runcmd",
-                "cc_salt_minion",
-                "cc_scripts_per_boot",
-                "cc_scripts_per_instance",
-                "cc_scripts_per_once",
-                "cc_scripts_user",
-                "cc_scripts_vendor",
-                "cc_seed_random",
-                "cc_set_hostname",
-                "cc_set_passwords",
-                "cc_snap",
-                "cc_spacewalk",
-                "cc_ssh_authkey_fingerprints",
-                "cc_ssh_import_id",
-                "cc_ssh",
-                "cc_timezone",
-                "cc_ubuntu_advantage",
-                "cc_ubuntu_drivers",
-                "cc_update_etc_hosts",
-                "cc_update_hostname",
-                "cc_users_groups",
-                "cc_write_files",
-                "cc_yum_add_repo",
-                "cc_zypper_add_repo",
-            ]
-        ) == sorted(
+        assert sorted(get_modules()) == sorted(
             [meta["id"] for meta in get_metas().values() if meta is not None]
         )
         assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]

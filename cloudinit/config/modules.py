@@ -264,12 +264,6 @@ class Modules(object):
         for (mod, name, _freq, _args) in mostly_mods:
             if mod is None:
                 continue
-            print("worked_distros")
-            print("worked_distros")
-            print("worked_distros")
-            print("worked_distros")
-            print("worked_distros")
-            print(mod)
             worked_distros = mod.meta["distros"]
 
             # Skip only when the following conditions are all met:
