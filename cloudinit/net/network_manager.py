@@ -14,7 +14,7 @@ import uuid
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.net import is_ipv6_addr, subnet_is_ipv6
+from cloudinit.net import is_ipv6_address, subnet_is_ipv6
 
 from . import renderer
 
@@ -137,7 +137,7 @@ class NMConnection:
         # together. We might be getting an IPv6 name server while
         # we're dealing with an IPv4 subnet. Sort this out by figuring
         # out the correct family and making sure a valid section exist.
-        family = "ipv6" if is_ipv6_addr(dns) else "ipv4"
+        family = "ipv6" if is_ipv6_address(dns) else "ipv4"
         self._set_default(family, "method", "disabled")
 
         self._set_default(family, "dns", "")

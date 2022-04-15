@@ -11,9 +11,8 @@ import ipaddress
 import logging
 import os
 import re
-import socket
-import struct
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import urlparse
 
 from cloudinit import subp, util
 from cloudinit.url_helper import UrlError, readurl
@@ -1112,12 +1111,16 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
         )
         return False
     url = url_data["url"]
-    if not any([url.startswith("http://"), url.startswith("https://")]):
-        LOG.warning(
-            "Ignoring connectivity check. Expected URL beginning with http*://"
-            " received '%s'",
-            url,
-        )
+    try:
+        result = urlparse(url)
+        if not any([result.scheme == "http", result.scheme == "https"]):
+            LOG.warning(
+                "Ignoring connectivity check. Invalid URL scheme %s",
+                url.scheme,
+            )
+            return False
+    except ValueError as err:
+        LOG.warning("Ignoring connectivity check. Invalid URL %s", err)
         return False
     if "timeout" not in url_data:
         url_data["timeout"] = 5
@@ -1128,69 +1131,118 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
     return True
 
 
-def is_ip_address(s: str) -> bool:
+def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
+    """Use a function to determine whether address meets criteria.
+
+    :param check_cb:
+        Test function, must return a truthy value
+    :param address:
+        The string to test.
+
+    :return:
+        A bool indicating if the string passed the test.
+
+    """
+    try:
+        return bool(check_cb(address, **kwargs))
+    except ValueError:
+        return False
+
+
+def is_ip_address(address: str) -> bool:
     """Returns a bool indicating if ``s`` is an IP address.
 
-    :param s:
+    :param address:
         The string to test.
 
     :return:
-        A bool indicating if the string contains an IP address or not.
+        A bool indicating if the string is an IP address or not.
     """
-    try:
-        ipaddress.ip_address(s)
-    except ValueError:
-        return False
-    return True
+    return network_validator(ipaddress.ip_address, address)
 
 
-def is_ipv4_address(s: str) -> bool:
+def is_ipv4_address(address: str) -> bool:
     """Returns a bool indicating if ``s`` is an IPv4 address.
 
-    :param s:
+    :param address:
         The string to test.
 
     :return:
-        A bool indicating if the string contains an IPv4 address or not.
+        A bool indicating if the string is an IPv4 address or not.
     """
-    try:
-        ipaddress.IPv4Address(s)
-    except ValueError:
-        return False
-    return True
+    return network_validator(ipaddress.IPv4Address, address)
 
 
-def is_ipv6_addr(address):
-    if not address:
-        return False
-    return ":" in str(address)
+def is_ipv6_address(address: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv6 address.
+
+    :param address:
+        The string to test.
+
+    :return:
+        A bool indicating if the string is an IPv4 address or not.
+    """
+    return network_validator(ipaddress.IPv6Address, address)
 
 
-def subnet_is_ipv6(subnet):
+def is_ip_network(address: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv4 or IPv6 network.
+
+    :param address:
+        The string to test.
+
+    :return:
+        A bool indicating if the string is an IPv4 address or not.
+    """
+    return network_validator(ipaddress.ip_network, address, strict=False)
+
+
+def is_ipv4_network(address: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv4 network.
+
+    :param address:
+        The string to test.
+
+    :return:
+        A bool indicating if the string is an IPv4 address or not.
+    """
+    return network_validator(ipaddress.IPv4Network, address, strict=False)
+
+
+def is_ipv6_network(address: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv6 network.
+
+    :param address:
+        The string to test.
+
+    :return:
+        A bool indicating if the string is an IPv4 address or not.
+    """
+    return network_validator(ipaddress.IPv6Network, address, strict=False)
+
+
+def subnet_is_ipv6(subnet) -> bool:
     """Common helper for checking network_state subnets for ipv6."""
     # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
     # 'ipv6_slaac'
     if subnet["type"].endswith("6") or subnet["type"] in IPV6_DYNAMIC_TYPES:
         # This is a request either static6 type or DHCPv6.
         return True
-    elif subnet["type"] == "static" and is_ipv6_addr(subnet.get("address")):
+    elif subnet["type"] == "static" and is_ipv6_address(subnet.get("address")):
         return True
     return False
 
 
-def net_prefix_to_ipv4_mask(prefix):
+def net_prefix_to_ipv4_mask(prefix) -> str:
     """Convert a network prefix to an ipv4 netmask.
 
     This is the inverse of ipv4_mask_to_net_prefix.
         24 -> "255.255.255.0"
     Also supports input as a string."""
-    mask = socket.inet_ntoa(
-        struct.pack(">I", (0xFFFFFFFF << (32 - int(prefix)) & 0xFFFFFFFF))
-    )
-    return mask
+    return str(ipaddress.IPv4Network(f"0.0.0.0/{prefix}").netmask)
 
 
-def ipv4_mask_to_net_prefix(mask):
+def ipv4_mask_to_net_prefix(mask) -> int:
     """Convert an ipv4 netmask into a network prefix length.
 
     If the input is already an integer or a string representation of
@@ -1202,7 +1254,7 @@ def ipv4_mask_to_net_prefix(mask):
     return ipaddress.ip_network(f"0.0.0.0/{mask}").prefixlen
 
 
-def ipv6_mask_to_net_prefix(mask):
+def ipv6_mask_to_net_prefix(mask) -> int:
     """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
 
     If the input is already an integer or a string representation of
@@ -1237,17 +1289,11 @@ def ipv6_mask_to_net_prefix(mask):
     return prefixlen
 
 
-def mask_and_ipv4_to_bcast_addr(mask, ip):
-    """Calculate the broadcast address from the subnet mask and ip addr.
-
-    Supports ipv4 only."""
-    ip_bin = int("".join([bin(int(x) + 256)[3:] for x in ip.split(".")]), 2)
-    mask_dec = ipv4_mask_to_net_prefix(mask)
-    bcast_bin = ip_bin | (2 ** (32 - mask_dec) - 1)
-    bcast_str = ".".join(
-        [str(bcast_bin >> (i << 3) & 0xFF) for i in range(4)[::-1]]
+def mask_and_ipv4_to_bcast_addr(mask: str, ip: str) -> str:
+    """Get string representation of broadcast address from an ip/mask pair"""
+    return str(
+        ipaddress.IPv4Network(f"{ip}/{mask}", strict=False).broadcast_address
     )
-    return bcast_str
 
 
 class EphemeralIPv4Network(object):

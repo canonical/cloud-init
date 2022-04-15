@@ -1848,7 +1848,9 @@ class TestIsIpAddress:
         (
             (ValueError, False),
             (lambda _: ipaddress.IPv4Address("192.168.0.1"), True),
+            (lambda _: ipaddress.IPv4Address("192.168.0.1/24"), False),
             (lambda _: ipaddress.IPv6Address("2001:db8::"), True),
+            (lambda _: ipaddress.IPv6Address("2001:db8::/48"), False),
         ),
     )
     def test_is_ip_address(self, ip_address_side_effect, expected_return):
@@ -1890,4 +1892,33 @@ class TestIsIpv4Address:
         assert [expected_call] == m_ipv4address.call_args_list
 
 
-# vi: ts=4 expandtab
+class TestIsIpNetwork:
+    """Tests for net.is_ip_network() and related functions."""
+
+    @pytest.mark.parametrize(
+        "func,arg,expected_return",
+        (
+            (net.is_ip_network, "192.168.1.1", True),
+            (net.is_ip_network, "192.168.1.1/24", True),
+            (net.is_ip_network, "192.168.1.1/32", True),
+            (net.is_ip_network, "192.168.1.1/33", False),
+            (net.is_ip_network, "2001:67c:1", False),
+            (net.is_ip_network, "2001:67c:1/32", False),
+            (net.is_ip_network, "2001:67c::", True),
+            (net.is_ip_network, "2001:67c::/32", True),
+            (net.is_ipv4_network, "192.168.1.1", True),
+            (net.is_ipv4_network, "192.168.1.1/24", True),
+            (net.is_ipv4_network, "2001:67c::", False),
+            (net.is_ipv4_network, "2001:67c::/32", False),
+            (net.is_ipv6_network, "192.168.1.1", False),
+            (net.is_ipv6_network, "192.168.1.1/24", False),
+            (net.is_ipv6_network, "2001:67c:1", False),
+            (net.is_ipv6_network, "2001:67c:1/32", False),
+            (net.is_ipv6_network, "2001:67c::", True),
+            (net.is_ipv6_network, "2001:67c::/32", True),
+            (net.is_ipv6_network, "2001:67c::/129", False),
+            (net.is_ipv6_network, "2001:67c::/128", True),
+        ),
+    )
+    def test_is_ip_network(self, func, arg, expected_return):
+        assert func(arg) == expected_return
