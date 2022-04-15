@@ -28,21 +28,27 @@ This module handles
   In order to do so, it restarts RSCT service.
 
 Prerequisite of using this module is to install RSCT packages.
-
-**Internal name:** ``cc_reset_rmc``
-
-**Module frequency:** per instance
-
-**Supported distros:** rhel, sles and ubuntu
-
 """
 import os
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
+
+# This module is undocumented
+meta: MetaSchema = {
+    "id": "cc_reset_rmc",
+    "name": "Reset RMC",
+    "title": "reset rsct node id",
+    "description": __doc__,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [],
+}
 
 # RMCCTRL is expected to be in system PATH (/opt/rsct/bin)
 # The symlink for RMCCTRL and RECFGCT are

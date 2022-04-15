@@ -2,31 +2,36 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Defer writing certain files"""
+"""
+Write Files Deferred
+------------
+**Summary:** Defer writing certain files
+
+This module is based on `'Write Files' <write-files>`__, and
+will handle all files from the write_files list, that have been
+marked as deferred and thus are not being processed by the
+write-files module.
+
+*Please note that his module is not exposed to the user through
+its own dedicated top-level directive.*
+"""
 
 from cloudinit import util
 from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
+from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
 
-# meta is not used in this module, but it remains as code documentation
-#
-# id: cc_write_files_deferred'
-# name: 'Write Deferred Files
-# distros: ['all'],
-# frequency: PER_INSTANCE,
-# title:
-#    write certain files, whose creation as been deferred, during
-#    final stage
-# description:
-#    This module is based on `'Write Files' <write-files>`__, and
-#    will handle all files from the write_files list, that have been
-#    marked as deferred and thus are not being processed by the
-#    write-files module.
-#
-#    *Please note that his module is not exposed to the user through
-#    its own dedicated top-level directive.*
-
-# Not exposed, because related modules should document this behaviour
-__doc__ = None
+# This module isn't documented
+meta: MetaSchema = {
+    "id": "cc_write_files_deferred",
+    "name": "Write Files Deferred",
+    "title": "Defer writing certain files",
+    "description": __doc__,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [],
+}
 
 
 def handle(name, cfg, _cloud, log, _args):
@@ -44,6 +49,3 @@ def handle(name, cfg, _cloud, log, _args):
         )
         return
     write_files(name, filtered_files)
-
-
-# vi: ts=4 expandtab

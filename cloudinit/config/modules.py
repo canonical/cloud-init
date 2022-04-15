@@ -8,11 +8,14 @@
 
 import copy
 
-from cloudinit import config, distros, helpers, importer
+from cloudinit import config, importer
 from cloudinit import log as logging
 from cloudinit import type_utils, util
-from cloudinit.reporting import events
-from cloudinit.settings import FREQUENCIES, PER_INSTANCE
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.helpers import ConfigMerger
+from cloudinit.reporting.events import ReportEventStack
+from cloudinit.settings import FREQUENCIES
+from cloudinit.stages import Init
 
 LOG = logging.getLogger(__name__)
 
@@ -35,28 +38,31 @@ def form_module_name(name):
     return canon_name
 
 
-def fixup_module(mod, def_freq=PER_INSTANCE):
-    if not hasattr(mod, "frequency"):
-        setattr(mod, "frequency", def_freq)
-    else:
-        freq = mod.frequency
-        if freq and freq not in FREQUENCIES:
-            LOG.warning("Module %s has an unknown frequency %s", mod, freq)
-    if not hasattr(mod, "distros"):
-        setattr(mod, "distros", [])
-    if not hasattr(mod, "osfamilies"):
-        setattr(mod, "osfamilies", [])
-    return mod
+def validate_module(mod, name):
+    if (
+        not hasattr(mod, "meta")
+        or "frequency" not in mod.meta
+        or "distros" not in mod.meta
+    ):
+        raise ValueError(
+            f"Module '{mod}' with name '{name}' MUST have a 'meta' attribute "
+            "of type 'MetaSchema'."
+        )
+    if mod.meta["frequency"] not in FREQUENCIES:
+        raise ValueError(
+            f"Module '{mod}' with name '{name}' has an invalid frequency "
+            f"{mod.meta['frequency']}."
+        )
 
 
 class Modules(object):
-    def __init__(self, init, cfg_files=None, reporter=None):
+    def __init__(self, init: Init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
         if reporter is None:
-            reporter = events.ReportEventStack(
+            reporter = ReportEventStack(
                 name="module-reporter",
                 description="module-desc",
                 reporting_enabled=False,
@@ -67,7 +73,7 @@ class Modules(object):
     def cfg(self):
         # None check to avoid empty case causing re-reading
         if self._cached_cfg is None:
-            merger = helpers.ConfigMerger(
+            merger = ConfigMerger(
                 paths=self.init.paths,
                 datasource=self.init.datasource,
                 additional_fns=self.cfg_files,
@@ -79,16 +85,25 @@ class Modules(object):
         return copy.deepcopy(self._cached_cfg)
 
     def _read_modules(self, name):
+        """Read the modules from the config file given the specified name.
+
+        Returns a list of module definitions. E.g.,
+        [
+            {
+                "mod": "bootcmd",
+                "freq": "always"
+                "args": "some_arg",
+            }
+        ]
+
+        Note that in the default case, only "mod" will be set.
+        """
         module_list = []
         if name not in self.cfg:
             return module_list
         cfg_mods = self.cfg.get(name)
         if not cfg_mods:
             return module_list
-        # Create 'module_list', an array of hashes
-        # Where hash['mod'] = module name
-        #       hash['freq'] = frequency
-        #       hash['args'] = arguments
         for item in cfg_mods:
             if not item:
                 continue
@@ -129,6 +144,22 @@ class Modules(object):
         return module_list
 
     def _fixup_modules(self, raw_mods):
+        """Convert list of returned from _read_modules() into new format.
+
+        Returns a list of of lists having a module reference, module name,
+        frequency, and run args. E.g.:
+        [
+            [
+                <module 'cloudinit.config.cc_bootcmd'>,
+                "bootcmd",
+                "always",
+                "some_arg",
+            ]
+        ]
+
+        Invalid modules and arguments are ingnored.
+        Also ensures that the module has the required meta fields.
+        """
         mostly_mods = []
         for raw_mod in raw_mods:
             raw_name = raw_mod["mod"]
@@ -155,7 +186,8 @@ class Modules(object):
                     looked_locs,
                 )
                 continue
-            mod = fixup_module(importer.import_module(mod_locs[0]))
+            mod = importer.import_module(mod_locs[0])
+            validate_module(mod, raw_name)
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 
@@ -167,11 +199,6 @@ class Modules(object):
         which_ran = []
         for (mod, name, freq, args) in mostly_mods:
             try:
-                # Try the modules frequency, otherwise fallback to a known one
-                if not freq:
-                    freq = mod.frequency
-                if freq not in FREQUENCIES:
-                    freq = PER_INSTANCE
                 LOG.debug(
                     "Running module %s (%s) with frequency %s", name, mod, freq
                 )
@@ -184,10 +211,10 @@ class Modules(object):
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created
-                run_name = "config-%s" % (name)
+                run_name = f"config-%s" % (name)
 
                 desc = "running %s with frequency %s" % (run_name, freq)
-                myrep = events.ReportEventStack(
+                myrep = ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter
                 )
 
@@ -218,28 +245,40 @@ class Modules(object):
         return self._run_modules(mostly_mods)
 
     def run_section(self, section_name):
+        """Runs all modules in the given section.
+
+        section_name - One of the modules lists as defined in
+          /etc/cloud/cloud.cfg. One of:
+         - cloud_init_modules
+         - cloud_config_modules
+         - cloud_final_modules
+        """
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
-        d_name = self.init.distro.name
+        distro_name = self.init.distro.name
 
         skipped = []
         forced = []
         overridden = self.cfg.get("unverified_modules", [])
         active_mods = []
-        all_distros = set([distros.ALL_DISTROS])
         for (mod, name, _freq, _args) in mostly_mods:
-            worked_distros = set(mod.distros)  # Minimally [] per fixup_modules
-            worked_distros.update(
-                distros.Distro.expand_osfamily(mod.osfamilies)
-            )
+            if mod is None:
+                continue
+            print("worked_distros")
+            print("worked_distros")
+            print("worked_distros")
+            print("worked_distros")
+            print("worked_distros")
+            print(mod)
+            worked_distros = mod.meta["distros"]
 
             # Skip only when the following conditions are all met:
             #  - distros are defined in the module != ALL_DISTROS
             #  - the current d_name isn't in distros
             #  - and the module is unverified and not in the unverified_modules
             #    override list
-            if worked_distros and worked_distros != all_distros:
-                if d_name not in worked_distros:
+            if worked_distros and worked_distros != [ALL_DISTROS]:
+                if distro_name not in worked_distros:
                     if name not in overridden:
                         skipped.append(name)
                         continue
@@ -252,7 +291,7 @@ class Modules(object):
                 "on distro '%s'.  To run anyway, add them to "
                 "'unverified_modules' in config.",
                 ",".join(skipped),
-                d_name,
+                distro_name,
             )
         if forced:
             LOG.info("running unverified_modules: '%s'", ", ".join(forced))
