@@ -17,6 +17,7 @@ endif
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 GENERATOR_F=./systemd/cloud-init-generator
+DS_IDENTIFY=./tools/ds-identify
 
 
 all: check
@@ -31,6 +32,10 @@ flake8:
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
 
+benchmark-bin:
+	chmod +x $(GENERATOR_F)
+	time for _ in {1..$(NUM_RUNS)}; do $(BIN); done
+
 render-template:
 	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
 
@@ -41,9 +46,11 @@ render-template:
 # Our generator is a shell script. Make it easy to measure the
 # generator. This should be monitored for performance regressions
 benchmark-generator: FILE=$(GENERATOR_F).tmpl
-benchmark-generator: render-template
-	chmod +x $(GENERATOR_F)
-	time for _ in {1..$(NUM_RUNS)}; do $(GENERATOR_F); done
+benchmark-generator: BIN=$(GENERATOR_F)
+benchmark-generator: render-template benchmark-bin
+
+benchmark-ds-identify: BIN=$(DS_IDENTIFY)
+benchmark-ds-identify: benchmark-bin
 
 ci-deps-ubuntu:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro

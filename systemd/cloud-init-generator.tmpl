@@ -73,7 +73,7 @@ kernel_cmdline() {
         cmdline=${KERNEL_CMDLINE}
         debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
     else
-        read_proc_cmdline && cmdline="$_RET" ||
+        read_proc_cmdline && cmdline="$_RET" &&
                 debug 1 "kernel command line ($_RET_MSG): $cmdline"
     fi
     _RET="unset"
