@@ -1,4 +1,6 @@
+SHELL:=/bin/bash
 CWD=$(shell pwd)
+VARIANT ?= ubuntu
 
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
@@ -6,12 +8,15 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 PYTHON = python3
 PIP_INSTALL := pip3 install
 
+NUM_RUNS ?= 100
+
 ifeq ($(distro),)
   distro = redhat
 endif
 
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
+GENERATOR_F=./systemd/cloud-init-generator
 
 
 all: check
@@ -25,6 +30,20 @@ flake8:
 
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
+
+render-template:
+	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
+
+# from systemd-generator(7) regarding generators:
+# "We do recommend C code however, since generators are executed
+# synchronously and hence delay the entire boot if they are slow."
+#
+# Our generator is a shell script. Make it easy to measure the
+# generator. This should be monitored for performance regressions
+benchmark-generator: FILE=$(GENERATOR_F).tmpl
+benchmark-generator: render-template
+	chmod +x $(GENERATOR_F)
+	time for _ in {1..$(NUM_RUNS)}; do $(GENERATOR_F); done
 
 ci-deps-ubuntu:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
@@ -76,7 +95,7 @@ clean_release:
 	rm -rf new-upstream-changes.txt commit.msg
 
 clean: clean_pyc clean_pytest clean_packaging clean_release
-	rm -rf doc/rtd_html .tox .coverage tags
+	rm -rf doc/rtd_html .tox .coverage tags $(GENERATOR_F)
 
 yaml:
 	@$(PYTHON) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
@@ -142,5 +161,5 @@ fix_spelling:
 
 .PHONY: test flake8 clean rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
-.PHONY: unittest style-check doc fix_spelling
-.PHONY: clean_pytest clean_packaging check_spelling clean_release
+.PHONY: unittest style-check fix_spelling render-template benchmark-generator
+.PHONY: clean_pytest clean_packaging check_spelling clean_release doc
