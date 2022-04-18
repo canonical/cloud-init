@@ -7,6 +7,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+from collections import namedtuple
+from typing import List
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -24,6 +26,9 @@ LOG = logging.getLogger(__name__)
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
+ModuleDetails = namedtuple(
+    "ModuleDetails", ["module", "name", "frequency", "run_args"]
+)
 
 
 def form_module_name(name):
@@ -52,6 +57,11 @@ def validate_module(mod, name):
         raise ValueError(
             f"Module '{mod}' with name '{name}' has an invalid frequency "
             f"{mod.meta['frequency']}."
+        )
+    if hasattr(mod, "schema"):
+        raise ValueError(
+            f"Module '{mod}' with name '{name}' has a JSON 'schema' attribute "
+            "defined. Please define schema in cloud-init-schema,json."
         )
 
 
@@ -142,19 +152,8 @@ class Modules(object):
                 )
         return module_list
 
-    def _fixup_modules(self, raw_mods):
+    def _fixup_modules(self, raw_mods) -> List[ModuleDetails]:
         """Convert list of returned from _read_modules() into new format.
-
-        Returns a list of of lists having a module reference, module name,
-        frequency, and run args. E.g.:
-        [
-            [
-                <module 'cloudinit.config.cc_bootcmd'>,
-                "bootcmd",
-                "always",
-                "some_arg",
-            ]
-        ]
 
         Invalid modules and arguments are ingnored.
         Also ensures that the module has the required meta fields.
@@ -187,10 +186,17 @@ class Modules(object):
                 continue
             mod = importer.import_module(mod_locs[0])
             validate_module(mod, raw_name)
-            mostly_mods.append([mod, raw_name, freq, run_args])
+            mostly_mods.append(
+                ModuleDetails(
+                    module=mod,
+                    name=raw_name,
+                    frequency=freq,
+                    run_args=run_args,
+                )
+            )
         return mostly_mods
 
-    def _run_modules(self, mostly_mods):
+    def _run_modules(self, mostly_mods: List[ModuleDetails]):
         cc = self.init.cloudify()
         # Return which ones ran
         # and which ones failed + the exception of why it failed

@@ -2,11 +2,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Write Files Deferred
-------------
-**Summary:** Defer writing certain files
+"""Write Files Deferred: Defer writing certain files"""
 
+from cloudinit import util
+from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
+from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module is based on `'Write Files' <write-files>`__, and
 will handle all files from the write_files list, that have been
 marked as deferred and thus are not being processed by the
@@ -15,14 +19,6 @@ write-files module.
 *Please note that his module is not exposed to the user through
 its own dedicated top-level directive.*
 """
-
-from cloudinit import util
-from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
-from cloudinit.config.schema import MetaSchema
-from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_INSTANCE
-
-# This module isn't documented
 meta: MetaSchema = {
     "id": "cc_write_files_deferred",
     "name": "Write Files Deferred",
@@ -32,6 +28,9 @@ meta: MetaSchema = {
     "frequency": PER_INSTANCE,
     "examples": [],
 }
+
+# This module is undocumented in our schema docs
+__doc__ = ""
 
 
 def handle(name, cfg, _cloud, log, _args):
