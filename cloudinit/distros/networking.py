@@ -19,7 +19,7 @@ class Networking(metaclass=abc.ABCMeta):
 
     This is part of an ongoing refactor in the cloud-init codebase, for more
     details see "``cloudinit.net`` -> ``cloudinit.distros.networking``
-    Hierarchy" in HACKING.rst for full details.
+    Hierarchy" in CONTRIBUTING.rst for full details.
     """
 
     def __init__(self):
@@ -32,7 +32,19 @@ class Networking(metaclass=abc.ABCMeta):
         return net._rename_interfaces(renames, current_info=current_info)
 
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
-        return net.apply_network_config_names(netcfg)
+        """Read the network config and rename devices accordingly.
+
+        Renames are only attempted for interfaces of type 'physical'.  It is
+        expected that the network system will create other devices with the
+        correct name in place.
+        """
+
+        try:
+            self._rename_interfaces(self.extract_physdevs(netcfg))
+        except RuntimeError as e:
+            raise RuntimeError(
+                "Failed to apply network config names: %s" % e
+            ) from e
 
     def device_devid(self, devname: DeviceName):
         return net.device_devid(devname)

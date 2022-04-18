@@ -1,11 +1,14 @@
 # See https://docs.pytest.org/en/stable/example
 # /parametrize.html#parametrizing-conditional-raising
+
+import textwrap
 from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import pytest
 
 from cloudinit import net
+from cloudinit import safeyaml as yaml
 from cloudinit.distros.networking import (
     BSDNetworking,
     LinuxNetworking,
@@ -229,3 +232,118 @@ class TestNetworkingWaitForPhysDevs:
             5 * len(wait_for_physdevs_netcfg["ethernets"])
             == m_settle.call_count
         )
+
+
+class TestNetworkingApplyNetworkCfgNames:
+    V1_CONFIG = textwrap.dedent(
+        """\
+        version: 1
+        config:
+            - type: physical
+              name: interface0
+              mac_address: "52:54:00:12:34:00"
+              subnets:
+                  - type: static
+                    address: 10.0.2.15
+                    netmask: 255.255.255.0
+                    gateway: 10.0.2.2
+    """
+    )
+    V2_CONFIG = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              macaddress: "52:54:00:12:34:00"
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+            set-name: interface0
+    """
+    )
+
+    V2_CONFIG_NO_SETNAME = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              macaddress: "52:54:00:12:34:00"
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+    """
+    )
+
+    V2_CONFIG_NO_MAC = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              driver: virtio-net
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+            set-name: interface0
+    """
+    )
+
+    @pytest.mark.parametrize(
+        ["config_attr"],
+        [
+            pytest.param("V1_CONFIG", id="v1"),
+            pytest.param("V2_CONFIG", id="v2"),
+        ],
+    )
+    @mock.patch("cloudinit.net.device_devid")
+    @mock.patch("cloudinit.net.device_driver")
+    def test_apply_renames(
+        self,
+        m_device_driver,
+        m_device_devid,
+        config_attr: str,
+        generic_networking_cls,
+    ):
+        networking = generic_networking_cls()
+        m_device_driver.return_value = "virtio_net"
+        m_device_devid.return_value = "0x15d8"
+        netcfg = yaml.load(getattr(self, config_attr))
+
+        with mock.patch.object(
+            networking, "_rename_interfaces"
+        ) as m_rename_interfaces:
+            networking.apply_network_config_names(netcfg)
+
+        assert (
+            mock.call(
+                [["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]]
+            )
+            == m_rename_interfaces.call_args_list[-1]
+        )
+
+    @pytest.mark.parametrize(
+        ["config_attr"],
+        [
+            pytest.param("V2_CONFIG_NO_SETNAME", id="without_setname"),
+            pytest.param("V2_CONFIG_NO_MAC", id="without_mac"),
+        ],
+    )
+    def test_apply_v2_renames_skips_without_setname(
+        self, config_attr: str, generic_networking_cls
+    ):
+        networking = generic_networking_cls()
+        netcfg = yaml.load(getattr(self, config_attr))
+        with mock.patch.object(
+            networking, "_rename_interfaces"
+        ) as m_rename_interfaces:
+            networking.apply_network_config_names(netcfg)
+        m_rename_interfaces.assert_called_with([])
+
+    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(
+        self, generic_networking_cls
+    ):
+        networking = generic_networking_cls()
+        with pytest.raises(RuntimeError):
+            networking.apply_network_config_names(yaml.load("version: 3"))

@@ -660,24 +660,6 @@ def extract_physdevs(netcfg):
     raise RuntimeError("Unknown network config version: %s" % version)
 
 
-def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
-    """read the network config and rename devices accordingly.
-    if strict_present is false, then do not raise exception if no devices
-    match.  if strict_busy is false, then do not raise exception if the
-    device cannot be renamed because it is currently configured.
-
-    renames are only attempted for interfaces of type 'physical'.  It is
-    expected that the network system will create other devices with the
-    correct name in place."""
-
-    try:
-        _rename_interfaces(extract_physdevs(netcfg))
-    except RuntimeError as e:
-        raise RuntimeError(
-            "Failed to apply network config names: %s" % e
-        ) from e
-
-
 def interface_has_own_mac(ifname, strict=False):
     """return True if the provided interface has its own address.
 

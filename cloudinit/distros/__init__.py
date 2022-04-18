@@ -254,7 +254,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     def apply_network_config_names(self, netconfig):
-        net.apply_network_config_names(netconfig)
+        self.networking.apply_network_config_names(netconfig)
 
     @abc.abstractmethod
     def apply_locale(self, locale, out_fn=None):
