@@ -3075,7 +3075,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_link_up.reset_mock()
         m_attach.side_effect = ["eth0", "eth1"]
         m_imds.reset_mock()
-        m_imds.side_effect = [None, md]
+        m_imds.side_effect = [{}, md]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_all_nics_ready()
         self.assertEqual(1, m_detach.call_count)
