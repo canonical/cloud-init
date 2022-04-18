@@ -244,3 +244,4 @@ Feature Flags
 
 .. automodule:: cloudinit.features
    :members:
+

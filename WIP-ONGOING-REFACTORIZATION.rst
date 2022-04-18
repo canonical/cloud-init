@@ -311,3 +311,4 @@ References
 .. _abstractmethod: https://docs.python.org/3/library/abc.html#abc.abstractmethod
 .. _type aliases: https://docs.python.org/3/library/typing.html#type-aliases
 .. _the list of bugs tagged net-refactor: https://bugs.launchpad.net/cloud-init/+bugs?field.tag=net-refactor
+
