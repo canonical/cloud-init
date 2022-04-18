@@ -245,3 +245,4 @@ Feature Flags
 .. automodule:: cloudinit.features
    :members:
 
+.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers

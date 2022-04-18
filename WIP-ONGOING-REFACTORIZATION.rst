@@ -302,7 +302,6 @@ References
 * `PR #363`_, the discussion which prompted finally starting this
   refactor (and where a lot of the above details were hashed out)
 
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _get_interfaces_by_mac: https://github.com/canonical/cloud-init/blob/961239749106daead88da483e7319e9268c67cde/cloudinit/net/__init__.py#L810-L818
 .. _Mina Galić's email the the cloud-init ML in 2018: https://lists.launchpad.net/cloud-init/msg00185.html
 .. _Mina Galić's email to the cloud-init ML in 2019: https://lists.launchpad.net/cloud-init/msg00237.html
