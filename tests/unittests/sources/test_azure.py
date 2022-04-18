@@ -2987,12 +2987,14 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_hot_attached_nics")
+    @mock.patch(
+        MOCKPATH + "DataSourceAzure._wait_for_hot_attached_primary_nic"
+    )
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     def test_detect_nic_attach_reports_ready_and_waits_for_detach(
         self,
         m_detach,
-        m_wait_for_hot_attached_nics,
+        m_wait_for_hot_attached_primary_nic,
         m_report_ready,
         m_writefile,
     ):
@@ -3000,7 +3002,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_all_nics_ready()
         self.assertEqual(1, m_report_ready.call_count)
-        self.assertEqual(1, m_wait_for_hot_attached_nics.call_count)
+        self.assertEqual(1, m_wait_for_hot_attached_primary_nic.call_count)
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
@@ -3026,7 +3028,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_report_ready,
         m_writefile,
     ):
-        """Wait for nic attach if we do not have a fallback interface"""
+        """Wait for nic attach if we do not have a fallback interface.
+        Skip waiting for additional nics after we have found primary"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         lease = {
             "interface": "eth9",
@@ -3057,10 +3060,28 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa._wait_for_all_nics_ready()
 
         self.assertEqual(1, m_detach.call_count)
-        self.assertEqual(2, m_attach.call_count)
+        # only wait for primary nic
+        self.assertEqual(1, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
         self.assertEqual(1, m_dhcpv4.call_count)
         self.assertEqual(1, m_imds.call_count)
+        # no call to bring link up on secondary nic
+        self.assertEqual(1, m_link_up.call_count)
+
+        # reset mock to test again with primary nic being eth1
+        m_detach.reset_mock()
+        m_attach.reset_mock()
+        m_dhcpv4.reset_mock()
+        m_link_up.reset_mock()
+        m_attach.side_effect = ["eth0", "eth1"]
+        m_imds.reset_mock()
+        m_imds.side_effect = [{}, md]
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa._wait_for_all_nics_ready()
+        self.assertEqual(1, m_detach.call_count)
+        self.assertEqual(2, m_attach.call_count)
+        self.assertEqual(2, m_dhcpv4.call_count)
+        self.assertEqual(2, m_imds.call_count)
         self.assertEqual(2, m_link_up.call_count)
 
     @mock.patch("cloudinit.url_helper.time.sleep", autospec=True)
