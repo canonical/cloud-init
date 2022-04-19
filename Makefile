@@ -8,7 +8,7 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 PYTHON = python3
 PIP_INSTALL := pip3 install
 
-NUM_RUNS ?= 100
+NUM_ITER ?= 100
 
 ifeq ($(distro),)
   distro = redhat
@@ -18,6 +18,7 @@ READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-fa
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 GENERATOR_F=./systemd/cloud-init-generator
 DS_IDENTIFY=./tools/ds-identify
+BENCHMARK=./tools/benchmark.sh
 
 
 all: check
@@ -32,10 +33,6 @@ flake8:
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
 
-benchmark-bin:
-	chmod +x $(GENERATOR_F)
-	time for _ in {1..$(NUM_RUNS)}; do $(BIN); done
-
 render-template:
 	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
 
@@ -46,11 +43,13 @@ render-template:
 # Our generator is a shell script. Make it easy to measure the
 # generator. This should be monitored for performance regressions
 benchmark-generator: FILE=$(GENERATOR_F).tmpl
-benchmark-generator: BIN=$(GENERATOR_F)
-benchmark-generator: render-template benchmark-bin
+benchmark-generator: export ITER=$(NUM_ITER)
+benchmark-generator: render-template
+	$(BENCHMARK) $(GENERATOR_F)
 
-benchmark-ds-identify: BIN=$(DS_IDENTIFY)
-benchmark-ds-identify: benchmark-bin
+benchmark-ds-identify: export ITER=$(NUM_ITER)
+benchmark-ds-identify:
+	$(BENCHMARK) $(DS_IDENTIFY)
 
 ci-deps-ubuntu:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
