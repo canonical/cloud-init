@@ -13,7 +13,6 @@ from types import ModuleType
 from typing import List
 
 import pytest
-from yaml import safe_load
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
@@ -30,6 +29,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.distros import OSFAMILIES
+from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.util import write_file
 from tests.unittests.helpers import (
@@ -809,12 +809,13 @@ class TestSchemaDocMarkdown:
         assert ".*" not in meta_doc
 
 
-class AnnotatedCloudconfigFileTest:
+class TestAnnotatedCloudconfigFile:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
         """With no schema_errors, print the original content."""
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
+        parse_cfg, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            {}, content, schema_errors=[], schemamarks={}
+            parse_cfg, content, schema_errors=[], schemamarks=schemamarks
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -864,14 +865,14 @@ class AnnotatedCloudconfigFileTest:
 
             """
         )
-        parsed_config = safe_load(content[13:])
+        parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             ("ntp", "Some type error"),
             ("ntp.pools.0", "-99 is not a string"),
             ("ntp.pools.1", "75 is not a string"),
         ]
         assert expected == annotated_cloudconfig_file(
-            parsed_config, content, schema_errors
+            parsed_config, content, schema_errors, schemamarks=schemamarks
         )
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
@@ -894,13 +895,13 @@ class AnnotatedCloudconfigFileTest:
                 - 75		# E2
             """
         )
-        parsed_config = safe_load(content[13:])
+        parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             ("ntp.pools.0", "-99 is not a string"),
             ("ntp.pools.1", "75 is not a string"),
         ]
         assert expected in annotated_cloudconfig_file(
-            parsed_config, content, schema_errors
+            parsed_config, content, schema_errors, schemamarks=schemamarks
         )
 
 

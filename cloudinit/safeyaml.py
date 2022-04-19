@@ -32,7 +32,7 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
     def _get_nested_path_prefix(self, node):
         if node.start_mark.line in self.schemamarks_by_line:
             return f"{self.schemamarks_by_line[node.start_mark.line][0][0]}."
-        for line_num, schema_marks in sorted(
+        for _line_num, schema_marks in sorted(
             self.schemamarks_by_line.items(), reverse=True
         ):
             for mark in schema_marks[::-1]:
