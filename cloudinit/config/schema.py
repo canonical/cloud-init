@@ -360,7 +360,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, error.schema_errors, marks
+                    {}, content, error.schema_errors, {}
                 )
             )
         raise error from e

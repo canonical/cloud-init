@@ -383,75 +383,78 @@ class TestCloudConfigExamples:
         validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
-class ValidateCloudConfigFileTest(CiTestCase):
+class TestValidateCloudConfigFile:
     """Tests for validate_cloudconfig_file."""
 
-    def setUp(self):
-        super(ValidateCloudConfigFileTest, self).setUp()
-        self.config_file = self.tmp_path("cloudcfg.yaml")
-
-    def test_validateconfig_file_error_on_absent_file(self):
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_error_on_absent_file(self, annotate):
         """On absent config_path, validate_cloudconfig_file errors."""
-        with self.assertRaises(RuntimeError) as context_mgr:
-            validate_cloudconfig_file("/not/here", {})
-        self.assertEqual(
-            "Configfile /not/here does not exist", str(context_mgr.exception)
-        )
+        with pytest.raises(
+            RuntimeError, match="Configfile /not/here does not exist"
+        ):
+            validate_cloudconfig_file("/not/here", {}, annotate)
 
-    def test_validateconfig_file_error_on_invalid_header(self):
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_error_on_invalid_header(
+        self, annotate, tmpdir
+    ):
         """On invalid header, validate_cloudconfig_file errors.
 
         A SchemaValidationError is raised when the file doesn't begin with
         CLOUD_CONFIG_HEADER.
         """
-        write_file(self.config_file, "#junk")
-        with self.assertRaises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_file(self.config_file, {})
-        self.assertEqual(
-            "Cloud config schema errors: format-l1.c1: File {0} needs to begin"
-            ' with "{1}"'.format(
-                self.config_file, CLOUD_CONFIG_HEADER.decode()
-            ),
-            str(context_mgr.exception),
+        config_file = tmpdir.join("my.yaml")
+        config_file.write("#junk")
+        error_msg = (
+            "Cloud config schema errors: format-l1.c1: File"
+            f" {config_file} needs to begin with"
+            f' "{CLOUD_CONFIG_HEADER.decode()}"'
         )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
 
-    def test_validateconfig_file_error_on_non_yaml_scanner_error(self):
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_error_on_non_yaml_scanner_error(
+        self, annotate, tmpdir
+    ):
         """On non-yaml scan issues, validate_cloudconfig_file errors."""
         # Generate a scanner error by providing text on a single line with
         # improper indent.
-        write_file(self.config_file, "#cloud-config\nasdf:\nasdf")
-        with self.assertRaises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_file(self.config_file, {})
-        self.assertIn(
-            "schema errors: format-l3.c1: File {0} is not valid yaml.".format(
-                self.config_file
-            ),
-            str(context_mgr.exception),
+        config_file = tmpdir.join("my.yaml")
+        config_file.write("#cloud-config\nasdf:\nasdf")
+        error_msg = (
+            f".*errors: format-l3.c1: File {config_file} is not valid yaml.*"
         )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
 
-    def test_validateconfig_file_error_on_non_yaml_parser_error(self):
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_error_on_non_yaml_parser_error(
+        self, annotate, tmpdir
+    ):
         """On non-yaml parser issues, validate_cloudconfig_file errors."""
-        write_file(self.config_file, "#cloud-config\n{}}")
-        with self.assertRaises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_file(self.config_file, {})
-        self.assertIn(
-            "schema errors: format-l2.c3: File {0} is not valid yaml.".format(
-                self.config_file
-            ),
-            str(context_mgr.exception),
+        config_file = tmpdir.join("my.yaml")
+        config_file.write("#cloud-config\n{}}")
+        error_msg = (
+            f"errors: format-l2.c3: File {config_file} is not valid yaml."
         )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
 
     @skipUnlessJsonSchema()
-    def test_validateconfig_file_sctrictly_validates_schema(self):
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_sctrictly_validates_schema(
+        self, annotate, tmpdir
+    ):
         """validate_cloudconfig_file raises errors on invalid schema."""
+        config_file = tmpdir.join("my.yaml")
         schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        write_file(self.config_file, "#cloud-config\np1: -1")
-        with self.assertRaises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_file(self.config_file, schema)
-        self.assertEqual(
-            "Cloud config schema errors: p1: -1 is not of type 'string'",
-            str(context_mgr.exception),
+        config_file.write("#cloud-config\np1: -1")
+        error_msg = (
+            "Cloud config schema errors: p1: -1 is not of type 'string'"
         )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(config_file.strpath, schema, annotate)
 
 
 class TestSchemaDocMarkdown:
