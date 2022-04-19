@@ -13,7 +13,6 @@ from types import ModuleType
 from typing import List
 
 import pytest
-import yaml
 from yaml import safe_load
 
 from cloudinit.config.schema import (
