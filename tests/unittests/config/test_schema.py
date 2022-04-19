@@ -20,7 +20,6 @@ from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     MetaSchema,
     SchemaValidationError,
-    _schemapath_for_cloudconfig,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
@@ -811,14 +810,12 @@ class TestSchemaDocMarkdown:
         assert ".*" not in meta_doc
 
 
-class AnnotatedCloudconfigFileTest(CiTestCase):
-    maxDiff = None
-
+class AnnotatedCloudconfigFileTest:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
         """With no schema_errors, print the original content."""
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
-        self.assertEqual(
-            content, annotated_cloudconfig_file({}, content, schema_errors=[])
+        assert content == annotated_cloudconfig_file(
+            {}, content, schema_errors=[], schemamarks={}
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -837,13 +834,11 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
                 "# E1: Cloud-config is not a YAML dict.\n\n",
             ]
         )
-        self.assertEqual(
-            expected,
-            annotated_cloudconfig_file(
-                None,
-                content,
-                schema_errors=[("", "None is not of type 'object'")],
-            ),
+        assert expected == annotated_cloudconfig_file(
+            None,
+            content,
+            schema_errors=[("", "None is not of type 'object'")],
+            schemamarks={},
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -876,9 +871,8 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
             ("ntp.pools.0", "-99 is not a string"),
             ("ntp.pools.1", "75 is not a string"),
         ]
-        self.assertEqual(
-            expected,
-            annotated_cloudconfig_file(parsed_config, content, schema_errors),
+        assert expected == annotated_cloudconfig_file(
+            parsed_config, content, schema_errors
         )
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
@@ -906,9 +900,8 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
             ("ntp.pools.0", "-99 is not a string"),
             ("ntp.pools.1", "75 is not a string"),
         ]
-        self.assertIn(
-            expected,
-            annotated_cloudconfig_file(parsed_config, content, schema_errors),
+        assert expected in annotated_cloudconfig_file(
+            parsed_config, content, schema_errors
         )
 
 

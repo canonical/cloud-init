@@ -4,14 +4,87 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from collections import namedtuple
+from itertools import chain
+from typing import Any, Dict, List, Tuple
+
 import yaml
 
 YAMLError = yaml.YAMLError
 
+SchemaPathMarks = namedtuple(
+    "SchemaPathMarks", ("path", "start_mark", "end_mark")
+)
+
 
 class _CustomSafeLoader(yaml.SafeLoader):
     def construct_python_unicode(self, node):
-        return self.construct_scalar(node)
+        return super().construct_scalar(node)
+
+
+class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
+    """A loader which catalogs line and column coordination for objects."""
+
+    def __init__(self, stream):
+        super().__init__(stream)
+        self.schemamarks_by_line = {}  # type: Dict[int, List[SchemaPathMarks]]
+
+    def _get_nested_path_prefix(self, node):
+        if node.start_mark.line in self.schemamarks_by_line:
+            return f"{self.schemamarks_by_line[node.start_mark.line][0][0]}."
+        for line_num, schema_marks in sorted(
+            self.schemamarks_by_line.items(), reverse=True
+        ):
+            for mark in schema_marks[::-1]:
+                if (  # Is the node within the scope of the furthest mark
+                    node.start_mark.line >= mark.start_mark.line
+                    and node.start_mark.column >= mark.start_mark.column
+                    and node.end_mark.line <= mark.end_mark.line
+                    and node.end_mark.column <= mark.end_mark.column
+                ):
+                    return f"{mark.path}."
+        return ""
+
+    def construct_mapping(self, node):
+        mapping = super().construct_mapping(node)
+        nested_path_prefix = self._get_nested_path_prefix(node)
+        for key_node, value_node in node.value:
+            node_key_path = f"{nested_path_prefix}{key_node.value}"
+            line_num = key_node.start_mark.line
+            mark = SchemaPathMarks(
+                node_key_path, key_node.start_mark, value_node.end_mark
+            )
+            if line_num not in self.schemamarks_by_line:
+                self.schemamarks_by_line[line_num] = [mark]
+            else:
+                self.schemamarks_by_line[line_num].append(mark)
+        return mapping
+
+    def construct_sequence(self, node, deep=False):
+        sequence = super().construct_sequence(node, deep=True)
+        nested_path_prefix = self._get_nested_path_prefix(node)
+        for index, sequence_item in enumerate(node.value):
+            line_num = sequence_item.start_mark.line
+            node_key_path = f"{nested_path_prefix}{index}"
+            marks = SchemaPathMarks(
+                node_key_path, sequence_item.start_mark, sequence_item.end_mark
+            )
+            if line_num not in self.schemamarks_by_line:
+                self.schemamarks_by_line[line_num] = [marks]
+            else:
+                self.schemamarks_by_line[line_num].append(marks)
+        return sequence
+
+    def get_single_data(self):
+        data = super().get_single_data()
+        if isinstance(data, dict):  # valid cloud-config scheam is a dict
+            data["schemamarks"] = dict(
+                [
+                    (v.path, v.start_mark.line + 1)  # 1-based human-readable
+                    for v in chain(*self.schemamarks_by_line.values())
+                ]
+            )
+        return data
 
 
 _CustomSafeLoader.add_constructor(
@@ -25,6 +98,27 @@ class NoAliasSafeDumper(yaml.dumper.SafeDumper):
 
     def ignore_aliases(self, data):
         return True
+
+
+def load_with_marks(blob) -> Tuple[Any, Dict[str, int]]:
+    """Perform YAML SafeLoad and track start and end marks during parse.
+
+    JSON schema errors come with an encoded object path such as:
+        <key1>.<key2>.<list_item_index>
+
+    YAML loader needs to preserve a mapping of schema path to line and column
+    marks to annotate original content with JSON schema error marks for the
+    command:
+        cloud-init devel schema --annotate
+
+
+    """
+    result = yaml.load(blob, Loader=_CustomSafeLoaderWithMarks)
+    if not isinstance(result, dict):
+        schemamarks = {}
+    else:
+        schemamarks = result.pop("schemamarks")
+    return result, schemamarks
 
 
 def load(blob):
