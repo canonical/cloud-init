@@ -23,7 +23,7 @@ class _CustomSafeLoader(yaml.SafeLoader):
 
 
 class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
-    """A loader which catalogs line and column coordination for objects."""
+    """A loader preserving line and column start and end  marks for objects."""
 
     def __init__(self, stream):
         super().__init__(stream)
