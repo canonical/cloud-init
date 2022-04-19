@@ -7,11 +7,11 @@ import re
 import socket
 import struct
 import textwrap
-import time
 import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
+from time import sleep, time
 from typing import List, Optional
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
@@ -99,7 +99,7 @@ def get_boot_telemetry():
 
     LOG.debug("Collecting boot telemetry")
     try:
-        kernel_start = float(time.time()) - float(util.uptime())
+        kernel_start = float(time()) - float(util.uptime())
     except ValueError as e:
         raise RuntimeError("Failed to determine kernel start timestamp") from e
 
@@ -331,45 +331,49 @@ def get_ip_from_lease_value(fallback_lease_value):
 
 @azure_ds_telemetry_reporter
 def http_with_retries(
-    url: str, *, headers: dict, data: Optional[str] = None
+    url: str,
+    *,
+    headers: dict,
+    data: Optional[str] = None,
+    retry_sleep: int = 5,
+    timeout_minutes: int = 20
 ) -> url_helper.UrlResponse:
     """Readurl wrapper for querying wireserver.
 
-    Retries up to 40 minutes:
-    240 attempts * (5s timeout + 5s sleep)
+    :param retry_sleep: Time to sleep before retrying.
+    :param timeout_minutes: Retry up to specified number of minutes.
+    :raises UrlError: on error fetching data.
     """
-    max_readurl_attempts = 240
-    readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
+    timeout = timeout_minutes * 60 + time()
 
-    for attempt in range(1, max_readurl_attempts + 1):
+    attempt = 0
+    response = None
+    while not response:
+        attempt += 1
         try:
-            ret = url_helper.readurl(
-                url, headers=headers, data=data, timeout=readurl_timeout
+            response = url_helper.readurl(
+                url, headers=headers, data=data, timeout=(5, 60)
             )
-
+            break
+        except url_helper.UrlError as e:
             report_diagnostic_event(
-                "Successful HTTP request with Azure endpoint %s after "
-                "%d attempts" % (url, attempt),
+                "Failed HTTP request with Azure endpoint %s during "
+                "attempt %d with exception: %s (code=%r headers=%r)"
+                % (url, attempt, e, e.code, e.headers),
                 logger_func=LOG.debug,
             )
-
-            return ret
-
-        except Exception as e:
-            if attempt % periodic_logging_attempts == 0:
-                report_diagnostic_event(
-                    "Failed HTTP request with Azure endpoint %s during "
-                    "attempt %d with exception: %s" % (url, attempt, e),
-                    logger_func=LOG.debug,
-                )
-            if attempt == max_readurl_attempts:
+            # Raise exception if we're out of time.
+            if time() + retry_sleep >= timeout:
                 raise
 
-        time.sleep(sleep_duration_between_retries)
+        sleep(retry_sleep)
 
-    raise RuntimeError("Failed to return in http_with_retries")
+    report_diagnostic_event(
+        "Successful HTTP request with Azure endpoint %s after "
+        "%d attempts" % (url, attempt),
+        logger_func=LOG.debug,
+    )
+    return response
 
 
 def build_minimal_ovf(
@@ -777,11 +781,11 @@ class GoalStateHealthReporter:
         # KVP messages that are published after the Azure Host receives the
         # signal are ignored and unprocessed, so yield this thread to the
         # Hyper-V KVP Reporting thread so that they are written.
-        # time.sleep(0) is a low-cost and proven method to yield the scheduler
+        # sleep(0) is a low-cost and proven method to yield the scheduler
         # and ensure that events are flushed.
         # See HyperVKvpReportingHandler class, which is a multi-threaded
         # reporting handler that writes to the special KVP files.
-        time.sleep(0)
+        sleep(0)
 
         LOG.debug("Sending health report to Azure fabric.")
         url = "http://{}/machine?comp=health".format(self._endpoint)
