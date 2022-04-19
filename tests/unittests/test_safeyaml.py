@@ -17,19 +17,19 @@ class TestLoadWithMarks:
             (
                 b"#\na: va\n  \nb: vb\n#\nc: vc",
                 {"a": "va", "b": "vb", "c": "vc"},
-                {"a": 2, "b": 4, "c": 6}
+                {"a": 2, "b": 4, "c": 6},
             ),
             # List items represented on correct line number
             (
                 b"a:\n - a1\n\n - a2\n",
                 {"a": ["a1", "a2"]},
-                {"a": 1, "a.0": 2, "a.1": 4}
+                {"a": 1, "a.0": 2, "a.1": 4},
             ),
             # Nested dicts represented on correct line number
             (
                 b"a:\n a1:\n\n  aa1: aa1v\n",
-               {"a": {"a1": {"aa1": "aa1v"}}},
-               {"a": 1, "a.a1": 2, "a.a1.aa1": 4}
+                {"a": {"a1": {"aa1": "aa1v"}}},
+                {"a": 1, "a.a1": 2, "a.a1.aa1": 4},
             ),
             (b"[list, of, scalar]", ["list", "of", "scalar"], {}),
             (
