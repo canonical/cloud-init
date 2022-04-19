@@ -18,6 +18,7 @@ from cloudinit.settings import PER_INSTANCE
 # https://launchpad.net/ssh-import-id
 distros = ["ubuntu", "debian"]
 
+SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\
 This module imports SSH keys from either a public keyserver, usually launchpad
 or github using ``ssh-import-id``. Keys are referenced by the username they are
@@ -48,6 +49,19 @@ __doc__ = get_meta_doc(meta)
 
 
 def handle(_name, cfg, cloud, log, args):
+
+    if not is_key_in_nested_dict(cfg, "ssh_import_id"):
+        log.debug(
+            "Skipping module named ssh-import-id, no 'ssh_import_id'"
+            " directives found."
+        )
+        return
+    elif not subp.which(SSH_IMPORT_ID_BINARY):
+        log.warn(
+            "ssh-import-id is not installed, but module ssh_import_id is "
+            "configured. Skipping module."
+        )
+        return
 
     # import for "user: XXXXX"
     if len(args) != 0:
@@ -138,7 +152,7 @@ def import_ssh_ids(ids, user, log):
         "--preserve-env=https_proxy",
         "-Hu",
         user,
-        "ssh-import-id",
+        SSH_IMPORT_ID_BINARY,
     ] + ids
     log.debug("Importing SSH ids for user %s.", user)
 
@@ -149,4 +163,21 @@ def import_ssh_ids(ids, user, log):
         raise exc
 
 
-# vi: ts=4 expandtab
+def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
+    """Search for key nested in config.
+
+    Note: A dict embedded in a list of lists will not be found walked - but in
+    this case we don't need it.
+    """
+    for config_key in config.keys():
+        if search_key == config_key:
+            return True
+        if isinstance(config[config_key], dict):
+            return is_key_in_nested_dict(config[config_key], search_key)
+        if isinstance(config[config_key], list):
+            # this code could probably be generalized to walking the whole
+            # config by iterating lists in search of dictionaries
+            for item in config[config_key]:
+                if isinstance(item, dict):
+                    return is_key_in_nested_dict(item, search_key)
+    return False

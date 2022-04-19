@@ -14,6 +14,7 @@ Depends: ${misc:Depends},
          iproute2,
          isc-dhcp-client
 Recommends: eatmydata, sudo, software-properties-common, gdisk
+Suggests: ssh-import-id
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation
  to retrieve and install ssh keys and to let the user run various scripts.
