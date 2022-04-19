@@ -50,9 +50,10 @@ __doc__ = get_meta_doc(meta)
 
 def handle(_name, cfg, cloud, log, args):
 
-    if is_key_in_nested_dict(cfg, "ssh_import_id") and not subp.which(
-        SSH_IMPORT_ID_BINARY
-    ):
+    if not is_key_in_nested_dict(cfg, "ssh_import_id"):
+        log.debug("Skipping module named ssh-import-id, no 'ssh_import_id' directives found.")
+        return
+    elif not subp.which(SSH_IMPORT_ID_BINARY):
         log.warn(
             "ssh-import-id is not installed, but module ssh_import_id is "
             "configured. Skipping module."
