@@ -330,34 +330,22 @@ def get_ip_from_lease_value(fallback_lease_value):
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
+def http_with_retries(
+    url, *, headers: dict, data=None
+) -> url_helper.UrlResponse:
     """Wrapper around url_helper.readurl() with custom telemetry logging
     that url_helper.readurl() does not provide.
     """
     max_readurl_attempts = 240
-    default_readurl_timeout = 5
+    timeout = 5
     sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
-    if "timeout" not in kwargs:
-        kwargs["timeout"] = default_readurl_timeout
-
-    # remove kwargs that cause url_helper.readurl to retry,
-    # since we are already implementing our own retry logic.
-    if kwargs.pop("retries", None):
-        LOG.warning(
-            "Ignoring retries kwarg passed in for "
-            "communication with Azure endpoint."
-        )
-    if kwargs.pop("infinite", None):
-        LOG.warning(
-            "Ignoring infinite kwarg passed in for communication "
-            "with Azure endpoint."
-        )
-
     for attempt in range(1, max_readurl_attempts + 1):
         try:
-            ret = url_helper.readurl(url, **kwargs)
+            ret = url_helper.readurl(
+                url, headers=headers, data=data, timeout=timeout
+            )
 
             report_diagnostic_event(
                 "Successful HTTP request with Azure endpoint %s after "
