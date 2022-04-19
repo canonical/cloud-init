@@ -31,20 +31,9 @@ class Networking(metaclass=abc.ABCMeta):
     def _rename_interfaces(self, renames: list, *, current_info=None) -> None:
         return net._rename_interfaces(renames, current_info=current_info)
 
+    @abc.abstractmethod
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
-        """Read the network config and rename devices accordingly.
-
-        Renames are only attempted for interfaces of type 'physical'.  It is
-        expected that the network system will create other devices with the
-        correct name in place.
-        """
-
-        try:
-            self._rename_interfaces(self.extract_physdevs(netcfg))
-        except RuntimeError as e:
-            raise RuntimeError(
-                "Failed to apply network config names: %s" % e
-            ) from e
+        """Read the network config and rename devices accordingly."""
 
     def device_devid(self, devname: DeviceName):
         return net.device_devid(devname)
@@ -196,6 +185,9 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        LOG.debug("Cannot rename network interface.")
+
     def is_physical(self, devname: DeviceName) -> bool:
         raise NotImplementedError()
 
@@ -208,6 +200,21 @@ class BSDNetworking(Networking):
 
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
+
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        """Read the network config and rename devices accordingly.
+
+        Renames are only attempted for interfaces of type 'physical'. It is
+        expected that the network system will create other devices with the
+        correct name in place.
+        """
+
+        try:
+            self._rename_interfaces(self.extract_physdevs(netcfg))
+        except RuntimeError as e:
+            raise RuntimeError(
+                "Failed to apply network config names: %s" % e
+            ) from e
 
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)

@@ -360,14 +360,16 @@ class TestInit(CiTestCase):
         self.init._find_networking_config = fake_network_config
 
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True
         )
 
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     def test_apply_network_on_same_instance_id(self, m_ubuntu):
-        """Only call distro.apply_network_config_names on same instance id."""
+        """Only call distro.networking.apply_network_config_names on same
+        instance id."""
         self.init.is_new_instance = self._real_is_new_instance
         old_instance_id = os.path.join(
             self.init.paths.get_cpath("data"), "instance-id"
@@ -391,7 +393,8 @@ class TestInit(CiTestCase):
         self.init._find_networking_config = fake_network_config
 
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
@@ -439,9 +442,10 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.apply_network_config(True)
+        networking = self.init.distro.networking
         assert (
             mock.call(net_cfg)
-            == self.init.distro.apply_network_config_names.call_args_list[-1]
+            == networking.apply_network_config_names.call_args_list[-1]
         )
         assert (
             mock.call(net_cfg, bring_up=True)
@@ -479,7 +483,8 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
         self.init._cfg = {"updates": {"network": {"when": ["boot"]}}}
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True
         )

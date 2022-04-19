@@ -26,6 +26,9 @@ def generic_networking_cls():
     """
 
     class TestNetworking(Networking):
+        def apply_network_config_names(self, *args, **kwargs):
+            raise NotImplementedError
+
         def is_physical(self, *args, **kwargs):
             raise NotImplementedError
 
@@ -234,7 +237,7 @@ class TestNetworkingWaitForPhysDevs:
         )
 
 
-class TestNetworkingApplyNetworkCfgNames:
+class TestLinuxNetworkingApplyNetworkCfgNames:
     V1_CONFIG = textwrap.dedent(
         """\
         version: 1
@@ -304,9 +307,8 @@ class TestNetworkingApplyNetworkCfgNames:
         m_device_driver,
         m_device_devid,
         config_attr: str,
-        generic_networking_cls,
     ):
-        networking = generic_networking_cls()
+        networking = LinuxNetworking()
         m_device_driver.return_value = "virtio_net"
         m_device_devid.return_value = "0x15d8"
         netcfg = yaml.load(getattr(self, config_attr))
@@ -330,10 +332,8 @@ class TestNetworkingApplyNetworkCfgNames:
             pytest.param("V2_CONFIG_NO_MAC", id="without_mac"),
         ],
     )
-    def test_apply_v2_renames_skips_without_setname(
-        self, config_attr: str, generic_networking_cls
-    ):
-        networking = generic_networking_cls()
+    def test_apply_v2_renames_skips_without_setname(self, config_attr: str):
+        networking = LinuxNetworking()
         netcfg = yaml.load(getattr(self, config_attr))
         with mock.patch.object(
             networking, "_rename_interfaces"
@@ -341,9 +341,7 @@ class TestNetworkingApplyNetworkCfgNames:
             networking.apply_network_config_names(netcfg)
         m_rename_interfaces.assert_called_with([])
 
-    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(
-        self, generic_networking_cls
-    ):
-        networking = generic_networking_cls()
+    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
+        networking = LinuxNetworking()
         with pytest.raises(RuntimeError):
             networking.apply_network_config_names(yaml.load("version: 3"))

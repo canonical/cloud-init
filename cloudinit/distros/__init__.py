@@ -253,9 +253,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
-    def apply_network_config_names(self, netconfig):
-        self.networking.apply_network_config_names(netconfig)
-
     @abc.abstractmethod
     def apply_locale(self, locale, out_fn=None):
         raise NotImplementedError()

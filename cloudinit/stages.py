@@ -852,7 +852,7 @@ class Init(object):
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
-            self.distro.apply_network_config_names(netcfg)
+            self.distro.networking.apply_network_config_names(netcfg)
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 

@@ -13,7 +13,18 @@ from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.settings import PER_INSTANCE
 
+from .networking import BSDNetworking, NetworkConfig
+
 LOG = logging.getLogger(__name__)
+
+
+class FreeBSDNetworking(BSDNetworking):
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        # This is handled by the freebsd network renderer. It writes in
+        # /etc/rc.conf a line with the following format:
+        #    ifconfig_OLDNAME_name=NEWNAME
+        # FreeBSD network script will rename the interface automatically.
+        pass
 
 
 class Distro(cloudinit.distros.bsd.BSD):
@@ -23,6 +34,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     (N.B. DragonFlyBSD inherits from this class.)
     """
 
+    networking_cls = FreeBSDNetworking
     usr_lib_exec = "/usr/local/lib"
     login_conf_fn = "/etc/login.conf"
     login_conf_fn_bak = "/etc/login.conf.orig"
@@ -152,13 +164,6 @@ class Distro(cloudinit.distros.bsd.BSD):
                 util.logexc(
                     LOG, "Failed to restore %s backup", self.login_conf_fn
                 )
-
-    def apply_network_config_names(self, netconfig):
-        # This is handled by the freebsd network renderer. It writes in
-        # /etc/rc.conf a line with the following format:
-        #    ifconfig_OLDNAME_name=NEWNAME
-        # FreeBSD network script will rename the interface automatically.
-        pass
 
     def _get_pkg_cmd_environ(self):
         """Return environment vars used in *BSD package_command operations"""
