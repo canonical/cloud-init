@@ -53,7 +53,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": frequency,
     "examples": [
-        "perserve_hostname: true",
+        "preserve_hostname: true",
         dedent(
             """\
             hostname: myhost
