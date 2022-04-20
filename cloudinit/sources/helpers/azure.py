@@ -331,20 +331,22 @@ def get_ip_from_lease_value(fallback_lease_value):
 
 @azure_ds_telemetry_reporter
 def http_with_retries(
-    url, *, headers: dict, data=None
+    url: str, *, headers: dict, data: Optional[str] = None
 ) -> url_helper.UrlResponse:
-    """Wrapper around url_helper.readurl() with custom telemetry logging
-    that url_helper.readurl() does not provide.
+    """Readurl wrapper for querying wireserver.
+
+    Retries up to 40 minutes:
+    240 attempts * (5s timeout + 5s sleep)
     """
     max_readurl_attempts = 240
-    timeout = 5
+    readurl_timeout = 5
     sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
     for attempt in range(1, max_readurl_attempts + 1):
         try:
             ret = url_helper.readurl(
-                url, headers=headers, data=data, timeout=timeout
+                url, headers=headers, data=data, timeout=readurl_timeout
             )
 
             report_diagnostic_event(
