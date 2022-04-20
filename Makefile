@@ -1,4 +1,3 @@
-SHELL:=/bin/bash
 CWD=$(shell pwd)
 VARIANT ?= ubuntu
 
@@ -69,9 +68,10 @@ test: unittest
 
 check_version:
 	@if [ "$(READ_VERSION)" != "$(CODE_VERSION)" ]; then \
-	    echo "Error: read-version version '$(READ_VERSION)'" \
-	    "not equal to code version '$(CODE_VERSION)'"; exit 2; \
-	    else true; fi
+		echo "Error: read-version version '$(READ_VERSION)'" \
+			"not equal to code version '$(CODE_VERSION)'"; \
+		exit 2; \
+	else true; fi
 
 config/cloud.cfg:
 	$(PYTHON) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
@@ -115,14 +115,14 @@ srpm:
 deb:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
-		  echo sudo apt-get install devscripts; exit 1; }
+			echo sudo apt-get install devscripts; exit 1; }
 
 	$(PYTHON) ./packages/bddeb
 
 deb-src:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
-		  echo sudo apt-get install devscripts; exit 1; }
+			echo sudo apt-get install devscripts; exit 1; }
 	$(PYTHON) ./packages/bddeb -S -d
 
 doc:
@@ -165,7 +165,7 @@ fix_spelling:
 		awk -F ': | -> ' '{printf "sed -i \047s/%s/%s/g\047 %s\n", $$2, $$3, $$1}' | \
 		sh
 
-.PHONY: test flake8 clean rpm srpm deb deb-src yaml
+.PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
 .PHONY: unittest style-check fix_spelling render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging check_spelling clean_release doc
