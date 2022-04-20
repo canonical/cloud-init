@@ -230,20 +230,20 @@ class TestSeedRandomSchema:
         "config, error_msg",
         [
             (
-                {"seed_random": {"encoding": "bad"}},
+                {"random_seed": {"encoding": "bad"}},
                 "'bad' is not one of "
                 r"\['raw', 'base64', 'b64', 'gzip', 'gz'\]",
             ),
             (
-                {"seed_random": {"command": "foo"}},
+                {"random_seed": {"command": "foo"}},
                 "'foo' is not of type 'array'",
             ),
             (
-                {"seed_random": {"command_required": "true"}},
+                {"random_seed": {"command_required": "true"}},
                 "'true' is not of type 'boolean'",
             ),
             (
-                {"seed_random": {"bad": "key"}},
+                {"random_seed": {"bad": "key"}},
                 "Additional properties are not allowed",
             ),
         ],

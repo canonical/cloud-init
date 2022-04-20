@@ -49,7 +49,7 @@ meta: MetaSchema = {
         # only fips and esm services. Services will only be enabled if
         # the environment supports said service. Otherwise warnings will
         # be logged for incompatible services specified.
-        ubuntu-advantage:
+        ubuntu_advantage:
           token: <ua_contract_token>
           enable:
           - fips
@@ -63,7 +63,7 @@ meta: MetaSchema = {
         # completed.
         power_state:
           mode: reboot
-        ubuntu-advantage:
+        ubuntu_advantage:
           token: <ua_contract_token>
           enable:
           - fips

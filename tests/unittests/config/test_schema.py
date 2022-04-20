@@ -406,6 +406,32 @@ class TestCloudConfigExamples:
         """
         schema = get_schema()
         config_load = safe_load(example)
+        # cloud-init-schema is permissive of additionalProperties at the
+        # top-level.
+        # To validate specific schemas against known documented examples
+        # we need to only define the specific module schema and supply
+        # strict=True.
+        # TODO(Drop to pop/update once full schema is strict)
+        schema.pop("allOf")
+        schema.update(schema["$defs"][schema_id])
+        schema["additionalProperties"] = False
+        # Some module examples reference keys defined in multiple schemas
+        supplemental_schemas = {
+            "cc_ubuntu_advantage": ["cc_power_state_change"],
+            "cc_update_hostname": ["cc_set_hostname"],
+            "cc_users_groups": ["cc_ssh_import_id"],
+            "cc_disk_setup": ["cc_mounts"],
+        }
+        for supplement_id in supplemental_schemas.get(schema_id, []):
+            supplemental_props = dict(
+                [
+                    (key, value)
+                    for key, value in schema["$defs"][supplement_id][
+                        "properties"
+                    ].items()
+                ]
+            )
+            schema["properties"].update(supplemental_props)
         validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
