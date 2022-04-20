@@ -1688,7 +1688,7 @@
     "cc_seed_random": {
       "type": "object",
       "properties": {
-        "seed_random": {
+        "random_seed": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
