@@ -47,13 +47,13 @@ meta: MetaSchema = {
         dedent(
             """\
         # Prevent cloud-init from updating the system hostname.
-        preseve_hostname: true
+        preserve_hostname: true
         """
         ),
         dedent(
             """\
         # Prevent cloud-init from updating ``/etc/hostname``
-        preseve_hostname: true
+        preserve_hostname: true
         """
         ),
         dedent(
