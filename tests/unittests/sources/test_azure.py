@@ -50,6 +50,16 @@ def azure_ds(paths):
 
 
 @pytest.fixture
+def mock_wrapping_setup_ephemeral_networking(azure_ds):
+    with mock.patch.object(
+        azure_ds,
+        "_setup_ephemeral_networking",
+        wraps=azure_ds._setup_ephemeral_networking,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_azure_helper_readurl():
     with mock.patch(
         "cloudinit.sources.helpers.azure.url_helper.readurl", autospec=True
@@ -4013,6 +4023,7 @@ class TestProvisioning:
         mock_util_load_file,
         mock_util_mount_cb,
         mock_util_write_file,
+        mock_wrapping_setup_ephemeral_networking,
     ):
         self.azure_ds = azure_ds
         self.mock_azure_get_metadata_from_fabric = (
@@ -4039,6 +4050,9 @@ class TestProvisioning:
         self.mock_util_load_file = mock_util_load_file
         self.mock_util_mount_cb = mock_util_mount_cb
         self.mock_util_write_file = mock_util_write_file
+        self.mock_wrapping_setup_ephemeral_networking = (
+            mock_wrapping_setup_ephemeral_networking
+        )
 
         self.imds_md = {
             "extended": {"compute": {"ppsType": "None"}},
@@ -4095,6 +4109,9 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb)
         ]
@@ -4182,6 +4199,10 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup twice.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            mock.call(timeout_minutes=5),
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call(None, dsaz.dhcp_log_cb),
@@ -4301,6 +4322,10 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup twice.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            mock.call(iface="ethAttached1", timeout_minutes=20),
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call("ethAttached1", dsaz.dhcp_log_cb),

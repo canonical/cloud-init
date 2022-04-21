@@ -530,7 +530,7 @@ class DataSourceAzure(sources.DataSource):
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
         requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
-        timeout_minutes = 5 if requires_imds_metadata else 20
+        timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
         except NoDHCPLeaseError:
