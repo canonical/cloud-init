@@ -20,7 +20,8 @@ Build-Depends: debhelper (>= 9.20160709),
                python3-requests,
                python3-serial,
                python3-setuptools,
-               python3-yaml
+               python3-yaml,
+               python3-responses
 XS-Python-Version: all
 Vcs-Browser: https://git.launchpad.net/cloud-init/?h=ubuntu/devel
 Vcs-Git: git://git.launchpad.net/cloud-init -b ubuntu/devel
@@ -40,6 +41,7 @@ Depends: cloud-guest-utils | cloud-utils,
          ${misc:Depends},
          ${python3:Depends}
 Recommends: eatmydata, gdisk, software-properties-common
+Suggests: ssh-import-id
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation
