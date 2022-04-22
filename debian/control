@@ -21,7 +21,8 @@ Build-Depends: debhelper (>= 9.20160709),
                python3-requests,
                python3-serial,
                python3-setuptools,
-               python3-yaml
+               python3-yaml,
+               python3-responses
 XS-Python-Version: all
 Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
 Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
@@ -42,6 +43,7 @@ Depends: cloud-guest-utils | cloud-utils,
          ${misc:Depends},
          ${python3:Depends}
 Recommends: eatmydata, gdisk, software-properties-common
+Suggests: ssh-import-id
 XB-Python-Version: ${python:Versions}
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
