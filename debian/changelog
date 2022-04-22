@@ -1,5 +1,8 @@
 cloud-init (22.1-43-gbf94945f-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
 
+  * d/control:
+    - add python3-responses for unittests
+    - add Suggests: ssh-import-id
   * refresh patches:
    + debian/patches/retain-apt-partner-pocket.patch
   * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
