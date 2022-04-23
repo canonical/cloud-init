@@ -22,6 +22,7 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     seed_dir = "/var/tmp/test_seed_dir"
     result = client.execute(
         "mkdir {seed_dir} && "
+        "mkdir -p /var/lib/cloud/seed/nocloud-net && "
         "touch {seed_dir}/user-data && "
         "touch {seed_dir}/meta-data && "
         "echo 'seedfrom: {seed_dir}/' > "
