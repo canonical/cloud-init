@@ -1162,11 +1162,11 @@ def read_runtime_config():
 def fetch_base_config():
     return util.mergemanydict(
         [
-            # builtin config
+            # builtin config, hardcoded in settings.py.
             util.get_builtin_cfg(),
             # Anything in your conf.d or 'default' cloud.cfg location.
             util.read_conf_with_confd(CLOUD_CONFIG),
-            # runtime config
+            # runtime config. I.e., /run/cloud-init/cloud.cfg
             read_runtime_config(),
             # Kernel/cmdline parameters override system config
             util.read_conf_from_cmdline(),

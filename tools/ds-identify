@@ -851,6 +851,11 @@ dscheck_NoCloud() {
         return ${DS_FOUND}
     fi
 
+    # This is a bit hacky, but a NoCloud false positive isn't the end of the world
+    if check_config "NoCloud" && check_config "user-data" && check_config "meta-data"; then
+        return ${DS_FOUND}
+    fi
+
     return ${DS_NOT_FOUND}
 }
 
