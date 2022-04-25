@@ -850,14 +850,14 @@ def main(sysv_args=None):
         "-f",
         action="append",
         dest="files",
-        help="additional yaml configuration files to use",
+        help="Use additional yaml configuration files.",
         type=argparse.FileType("rb"),
     )
     parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
-        help="show additional pre-action logging (default: %(default)s)",
+        help="Show additional pre-action logging (default: %(default)s).",
         default=False,
     )
     parser.add_argument(
@@ -877,13 +877,13 @@ def main(sysv_args=None):
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="initializes cloud-init and performs initial modules"
+        "init", help="Initialize cloud-init and perform initial modules"
     )
     parser_init.add_argument(
         "--local",
         "-l",
         action="store_true",
-        help="start in local mode (default: %(default)s)",
+        help="Start in local mode (default: %(default)s).",
         default=False,
     )
     # This is used so that we can know which action is selected +
@@ -892,13 +892,13 @@ def main(sysv_args=None):
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser(
-        "modules", help="activates modules using a given configuration key"
+        "modules", help="Activate modules using a given configuration key."
     )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="module configuration name to use (default: %(default)s)",
+        help="Module configuration name to use (default: %(default)s).",
         default="config",
         choices=("init", "config", "final"),
     )
@@ -918,21 +918,21 @@ def main(sysv_args=None):
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="frequency of the module",
+        help="Set module frequency.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )
     parser_single.add_argument(
         "--report",
         action="store_true",
-        help="enable reporting",
+        help="Enable reporting.",
         required=False,
     )
     parser_single.add_argument(
         "module_args",
         nargs="*",
         metavar="argument",
-        help="any additional arguments to pass to this module",
+        help="Any additional arguments to pass to this module.",
     )
     parser_single.set_defaults(action=("single", main_single))
 
@@ -947,12 +947,12 @@ def main(sysv_args=None):
     dhclient_hook.get_parser(parser_dhclient)
 
     parser_features = subparsers.add_parser(
-        "features", help="list defined features"
+        "features", help="List defined features."
     )
     parser_features.set_defaults(action=("features", main_features))
 
     parser_analyze = subparsers.add_parser(
-        "analyze", help="Devel tool: Analyze cloud-init logs and data"
+        "analyze", help="Devel tool: Analyze cloud-init logs and data."
     )
 
     parser_devel = subparsers.add_parser(
@@ -960,7 +960,7 @@ def main(sysv_args=None):
     )
 
     parser_collect_logs = subparsers.add_parser(
-        "collect-logs", help="Collect and tar all cloud-init debug info"
+        "collect-logs", help="Collect and tar all cloud-init debug info."
     )
 
     parser_clean = subparsers.add_parser(
