@@ -413,6 +413,19 @@ class DataSourceAzure(sources.DataSource):
                         "Failed to obtain DHCP lease (iface=%s)" % iface,
                         logger_func=LOG.error,
                     )
+                except subp.ProcessExecutionError as error:
+                    # udevadm settle, ip link set dev eth0 up, etc.
+                    report_diagnostic_event(
+                        "Command failed: "
+                        "cmd=%r stderr=%r stdout=%r exit_code=%s"
+                        % (
+                            error.cmd,
+                            error.stderr,
+                            error.stdout,
+                            error.exit_code,
+                        ),
+                        logger_func=LOG.error,
+                    )
 
                 # Sleep before retrying, otherwise break if we're past timeout.
                 if lease is None and time() + retry_sleep < timeout:
