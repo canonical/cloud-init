@@ -836,8 +836,7 @@ def main_features(name, args):
 def main(sysv_args=None):
     if not sysv_args:
         sysv_args = sys.argv
-    parser = argparse.ArgumentParser(prog=sysv_args[0])
-    sysv_args = sysv_args[1:]
+    parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
 
     # Top level args
     parser.add_argument(
@@ -956,7 +955,9 @@ def main(sysv_args=None):
         "analyze", help="Devel tool: Analyze cloud-init logs and data"
     )
 
-    parser_devel = subparsers.add_parser("devel", help="Run development tools")
+    parser_devel = subparsers.add_parser(
+        "devel", help="Run development tools."
+    )
 
     parser_collect_logs = subparsers.add_parser(
         "collect-logs", help="Collect and tar all cloud-init debug info"
@@ -970,19 +971,24 @@ def main(sysv_args=None):
         "status", help="Report cloud-init status or wait on completion."
     )
 
+    parser_schema = subparsers.add_parser(
+        "schema", help="Validate cloud-config files using jsonschema."
+    )
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
-        if sysv_args[0] == "analyze":
+        subcommand = sysv_args[0]
+        if subcommand == "analyze":
             from cloudinit.analyze.__main__ import get_parser as analyze_parser
 
             # Construct analyze subcommand parser
             analyze_parser(parser_analyze)
-        elif sysv_args[0] == "devel":
+        elif subcommand == "devel":
             from cloudinit.cmd.devel.parser import get_parser as devel_parser
 
             # Construct devel subcommand parser
             devel_parser(parser_devel)
-        elif sysv_args[0] == "collect-logs":
+        elif subcommand == "collect-logs":
             from cloudinit.cmd.devel.logs import (
                 get_parser as logs_parser,
                 handle_collect_logs_args,
@@ -992,7 +998,7 @@ def main(sysv_args=None):
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
-        elif sysv_args[0] == "clean":
+        elif subcommand == "clean":
             from cloudinit.cmd.clean import (
                 get_parser as clean_parser,
                 handle_clean_args,
@@ -1000,7 +1006,7 @@ def main(sysv_args=None):
 
             clean_parser(parser_clean)
             parser_clean.set_defaults(action=("clean", handle_clean_args))
-        elif sysv_args[0] == "query":
+        elif subcommand == "query":
             from cloudinit.cmd.query import (
                 get_parser as query_parser,
                 handle_args as handle_query_args,
@@ -1008,7 +1014,15 @@ def main(sysv_args=None):
 
             query_parser(parser_query)
             parser_query.set_defaults(action=("render", handle_query_args))
-        elif sysv_args[0] == "status":
+        elif subcommand == "schema":
+            from cloudinit.config.schema import (
+                get_parser as schema_parser,
+                handle_schema_args,
+            )
+
+            schema_parser(parser_schema)
+            parser_schema.set_defaults(action=("schema", handle_schema_args))
+        elif subcommand == "status":
             from cloudinit.cmd.status import (
                 get_parser as status_parser,
                 handle_status_args,

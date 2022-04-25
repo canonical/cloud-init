@@ -28,12 +28,6 @@ def get_parser(parser=None):
             hotplug_hook.handle_args,
         ),
         (
-            "schema",
-            "Validate cloud-config files for document schema",
-            schema.get_parser,
-            schema.handle_schema_args,
-        ),
-        (
             net_convert.NAME,
             net_convert.__doc__,
             net_convert.get_parser,
