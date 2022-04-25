@@ -249,6 +249,29 @@ This data can then be formatted to generate custom strings or data:
   custom-i-0e91f69987f37ec74.us-east-2.aws.com
 
 
+.. _cli_schema:
+
+schema
+======
+
+Validate cloud-config files using jsonschema.
+
+* ``-h, --help``:            show this help message and exit
+* ``-c CONFIG_FILE, --config-file CONFIG_FILE``: Path of the cloud-config yaml
+  file to validate
+* ``--system``:              Validate the system cloud-config userdata
+* ``-d DOCS [DOCS ...], --docs DOCS [DOCS ...]``: Print schema module docs.
+  Choices: all or space-delimited cc_names.
+* ``--annotate``:            Annotate existing cloud-config file with errors
+
+The following example checks a config file and annotates the config file with
+errors on stdout.
+
+.. code-block:: shell-session
+
+  $ cloud-init schema -c ./config.yml --annotate
+
+
 .. _cli_single:
 
 single
