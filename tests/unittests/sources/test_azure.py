@@ -13,7 +13,7 @@ import pytest
 import requests
 import yaml
 
-from cloudinit import distros, helpers, url_helper
+from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
@@ -178,6 +178,12 @@ def mock_os_path_isfile():
 @pytest.fixture
 def mock_readurl():
     with mock.patch(MOCKPATH + "readurl", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_report_diagnostic_event():
+    with mock.patch(MOCKPATH + "report_diagnostic_event") as m:
         yield m
 
 
@@ -3745,6 +3751,42 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)]
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+    def test_retry_process_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            subp.ProcessExecutionError(
+                cmd=["failed", "cmd"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == [mock.call(1)]
+        assert mock_report_diagnostic_event.mock_calls == [
+            mock.call(
+                "Command failed: cmd=['failed', 'cmd'] "
+                "stderr='test_stderr' stdout='test_stdout' exit_code=4",
+                logger_func=dsaz.LOG.error,
+            )
+        ]
 
     @pytest.mark.parametrize(
         "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
