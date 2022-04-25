@@ -72,9 +72,9 @@ kernel_cmdline() {
         # use KERNEL_CMDLINE if present in environment even if empty
         cmdline=${KERNEL_CMDLINE}
         debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
-    elif read_proc_cmdline; then
-        read_proc_cmdline && cmdline="$_RET"
-        debug 1 "kernel command line ($_RET_MSG): $cmdline"
+    else
+        read_proc_cmdline && cmdline="$_RET" &&
+                debug 1 "kernel command line ($_RET_MSG): $cmdline"
     fi
     _RET="unset"
     cmdline=" $cmdline "
