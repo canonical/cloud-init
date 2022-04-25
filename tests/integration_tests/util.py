@@ -2,6 +2,7 @@ import functools
 import logging
 import multiprocessing
 import os
+import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
@@ -23,8 +24,9 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
     """
     index = 0
     for item in to_verify:
-        index = text[index:].find(item)
-        assert index > -1, "Expected item not found: '{}'".format(item)
+        matched = re.search(item, text[index:])
+        assert matched, "Expected item not found: '{}'".format(item)
+        index = matched.start()
 
 
 def verify_clean_log(log):

@@ -173,11 +173,13 @@ def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
         if search_key == config_key:
             return True
         if isinstance(config[config_key], dict):
-            return is_key_in_nested_dict(config[config_key], search_key)
+            if is_key_in_nested_dict(config[config_key], search_key):
+                return True
         if isinstance(config[config_key], list):
             # this code could probably be generalized to walking the whole
             # config by iterating lists in search of dictionaries
             for item in config[config_key]:
                 if isinstance(item, dict):
-                    return is_key_in_nested_dict(item, search_key)
+                    if is_key_in_nested_dict(item, search_key):
+                        return True
     return False

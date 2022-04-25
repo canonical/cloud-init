@@ -7,6 +7,7 @@ here.
 """
 import json
 import re
+import uuid
 
 import pytest
 
@@ -191,7 +192,11 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            assert parsed_datasource.startswith("DataSourceNoCloud")
+            if ImageSpecification.from_os_image().release == "jammy":
+                datasource = "DataSourceLXD"
+            else:
+                datasource = "DataSourceNoCloud"
+            assert parsed_datasource.startswith(datasource)
         else:
             platform_datasources = {
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
@@ -220,6 +225,7 @@ class TestCombined:
         assert data["merged_cfg"] == "redacted for non-root user"
 
         image_spec = ImageSpecification.from_os_image()
+        image_spec = ImageSpecification.from_os_image()
         assert data["sys_info"]["dist"][0] == image_spec.os
 
         v1_data = data["v1"]
@@ -240,18 +246,29 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        assert v1_data["cloud_name"] == "unknown"
+        if ImageSpecification.from_os_image().release == "jammy":
+            cloud_name = "lxd"
+            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
+            # instance-id should be a UUID
+            try:
+                uuid.UUID(v1_data["instance_id"])
+            except ValueError:
+                raise AssertionError(
+                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+                )
+        else:
+            cloud_name = "unknown"
+            subplatform = "seed-dir (/var/lib/cloud/seed/nocloud-net)"
+            # Pre-Jammy instance-id and instance.name are synonymous
+            assert v1_data["instance_id"] == client.instance.name
+        assert v1_data["cloud_name"] == cloud_name
+        assert v1_data["subplatform"] == subplatform
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
             "/run/cloud-init/cloud-id-lxd"
         )
-        assert (
-            v1_data["subplatform"]
-            == "seed-dir (/var/lib/cloud/seed/nocloud-net)"
-        )
         assert v1_data["availability_zone"] is None
-        assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 
@@ -265,7 +282,23 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        assert v1_data["cloud_name"] == "unknown"
+        if ImageSpecification.from_os_image().release == "jammy":
+            cloud_name = "lxd"
+            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
+            # instance-id should be a UUID
+            try:
+                uuid.UUID(v1_data["instance_id"])
+            except ValueError:
+                raise AssertionError(
+                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+                )
+        else:
+            cloud_name = "unknown"
+            subplatform = "seed-dir (/var/lib/cloud/seed/nocloud-net)"
+            # Pre-Jammy instance-id and instance.name are synonymous
+            assert v1_data["instance_id"] == client.instance.name
+        assert v1_data["cloud_name"] == cloud_name
+        assert v1_data["subplatform"] == subplatform
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
@@ -278,7 +311,6 @@ class TestCombined:
             ]
         )
         assert v1_data["availability_zone"] is None
-        assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 
