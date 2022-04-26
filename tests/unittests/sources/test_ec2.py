@@ -540,14 +540,20 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
 
         # Workaround https://github.com/getsentry/responses/issues/212
-        # Can be removed when requests < 0.17.0 is no longer tested
-        # i.e. after Focal is EOL
         if hasattr(responses.mock, "_urls"):
+            # Can be removed when Bionic is EOL
             for index, url in enumerate(responses.mock._urls):
                 if url["url"].startswith(
                     "http://169.254.169.254/2009-04-04/meta-data/"
                 ):
                     del responses.mock._urls[index]
+        elif hasattr(responses.mock, "_matches"):
+            # Can be removed when Focal and Impish are EOL
+            for index, response in enumerate(responses.mock._matches):
+                if response.url.startswith(
+                    "http://169.254.169.254/2009-04-04/meta-data/"
+                ):
+                    del responses.mock._matches[index]
 
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
