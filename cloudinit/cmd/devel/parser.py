@@ -6,8 +6,6 @@
 
 import argparse
 
-from cloudinit.config import schema
-
 from . import hotplug_hook, make_mime, net_convert, render
 
 
