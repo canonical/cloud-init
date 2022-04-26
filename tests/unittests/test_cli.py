@@ -282,9 +282,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         # manager
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            self._call_main(
-                ["cloud-init", "schema", "--docs", "cc_runcmd"]
-            )
+            self._call_main(["cloud-init", "schema", "--docs", "cc_runcmd"])
             expected_doc_sections = [
                 "Runcmd\n------\n**Summary:** Run arbitrary commands"
             ]
