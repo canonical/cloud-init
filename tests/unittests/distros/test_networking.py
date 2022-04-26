@@ -332,7 +332,9 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
             pytest.param("V2_CONFIG_NO_MAC", id="without_mac"),
         ],
     )
-    def test_apply_v2_renames_skips_without_setname(self, config_attr: str):
+    def test_apply_v2_renames_skips_without_setname_or_mac(
+        self, config_attr: str
+    ):
         networking = LinuxNetworking()
         netcfg = yaml.load(getattr(self, config_attr))
         with mock.patch.object(

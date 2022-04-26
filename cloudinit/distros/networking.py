@@ -198,6 +198,15 @@ class BSDNetworking(Networking):
         raise NotImplementedError()
 
 
+class FreeBSDNetworking(BSDNetworking):
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        # This is handled by the freebsd network renderer. It writes in
+        # /etc/rc.conf a line with the following format:
+        #    ifconfig_OLDNAME_name=NEWNAME
+        # FreeBSD network script will rename the interface automatically.
+        pass
+
+
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
 
