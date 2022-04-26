@@ -437,6 +437,7 @@ class TestEncrypted:
                 '"slot":5}'
             ),
         )
+        mocker.patch("pathlib.Path.exists", return_value=True)
         self.m_unlink = mocker.patch("pathlib.Path.unlink", autospec=True)
 
         self.resizer = mock.Mock()
@@ -564,6 +565,16 @@ class TestEncrypted:
         )
         assert "luksKillSlot" not in all_subp_args
         self.m_unlink.assert_not_called()
+
+    def test_resize_skipped(self, common_mocks, mocker, caplog):
+        mocker.patch("pathlib.Path.exists", return_value=False)
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 2
+        assert info[1] == (
+            "/fake_encrypted",
+            "SKIPPED",
+            "No encryption keyfile found",
+        )
 
 
 def simple_device_part_info(devpath):

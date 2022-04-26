@@ -407,7 +407,10 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
             LOG, "Failed to remove keyfile after resizing encrypted volume"
         )
 
-    return (RESIZE.CHANGED, f"Resized encrypted volume {blockdev}")
+    return (
+        RESIZE.CHANGED,
+        f"Successfully resized encrypted volume '{blockdev}'",
+    )
 
 
 def resize_devices(resizer, devices):
