@@ -192,6 +192,27 @@ class TestHandleUsersGroups(CiTestCase):
         )
         m_group.assert_not_called()
 
+    def test_users_without_home_cannot_import_ssh_keys(self, m_user, m_group):
+        cfg = {
+            "users": [
+                "default",
+                {
+                    "name": "me2",
+                    "ssh_import_id": ["snowflake"],
+                    "no_create_home": True,
+                },
+            ]
+        }
+        cloud = self.tmp_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        with self.assertRaises(ValueError) as context_manager:
+            cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        m_group.assert_not_called()
+        self.assertEqual(
+            "Not creating user me2. Key(s) ssh_import_id cannot be provided"
+            " with no_create_home",
+            str(context_manager.exception),
+        )
+
     def test_users_with_ssh_redirect_user_non_default(self, m_user, m_group):
         """Warn when ssh_redirect_user is not 'default'."""
         cfg = {

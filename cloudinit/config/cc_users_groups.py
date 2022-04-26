@@ -171,8 +171,8 @@ def handle(name, cfg, cloud, _log, _args):
         need_home = [key for key in NEED_HOME if config.get(key)]
         if no_home and need_home:
             raise ValueError(
-                f"Not creating user {user}. Key(s) {need_home.join(',')}"
-                f" cannot be provided with {no_home.join(',')}"
+                f"Not creating user {user}. Key(s) {', '.join(need_home)}"
+                f" cannot be provided with {', '.join(no_home)}"
             )
 
         ssh_redirect_user = config.pop("ssh_redirect_user", False)
