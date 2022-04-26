@@ -381,31 +381,34 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
             "Could not load encryption key. This is expected if "
             "the volume has been previously resized."
         ) from e
-    subp.subp(
-        ["cryptsetup", "--key-file", "-", "resize", blockdev],
-        data=decoded_key,
-    )
 
     try:
         subp.subp(
-            [
-                "cryptsetup",
-                "luksKillSlot",
-                "--batch-mode",
-                partition,
-                str(slot),
-            ]
+            ["cryptsetup", "--key-file", "-", "resize", blockdev],
+            data=decoded_key,
         )
-    except subp.ProcessExecutionError as e:
-        LOG.warning(
-            "Failed to kill luks slot after resizing encrypted volume: %s", e
-        )
-    try:
-        KEYDATA_PATH.unlink()
-    except Exception:
-        util.logexc(
-            LOG, "Failed to remove keyfile after resizing encrypted volume"
-        )
+    finally:
+        try:
+            subp.subp(
+                [
+                    "cryptsetup",
+                    "luksKillSlot",
+                    "--batch-mode",
+                    partition,
+                    str(slot),
+                ]
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.warning(
+                "Failed to kill luks slot after resizing encrypted volume: %s",
+                e,
+            )
+        try:
+            KEYDATA_PATH.unlink()
+        except Exception:
+            util.logexc(
+                LOG, "Failed to remove keyfile after resizing encrypted volume"
+            )
 
     return (
         RESIZE.CHANGED,
