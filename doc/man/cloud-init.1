@@ -4,8 +4,7 @@
 cloud-init \- Cloud instance initialization
 
 .SH SYNOPSIS
-.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v]
-{init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}"
+.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v] [SUBCOMMAND]"
 
 .SH DESCRIPTION
 Cloud-init provides a mechanism for cloud instance initialization.
@@ -20,23 +19,23 @@ debug of deployments.
 .SH OPTIONS
 .TP
 .B "-h, --help"
-Show help message and exit
+Show help message and exit.
 
 .TP
 .B "-d, --debug"
-Show additional pre-action logging (default: False)
+Show additional pre-action logging (default: False).
 
 .TP
 .B "-f <files>, --files <files>"
-Additional YAML configuration files to use
+Use additional YAML configuration files.
 
 .TP
 .B "--force"
-Force running even if no datasource is found (use at your own risk)
+Force running even if no datasource is found (use at your own risk).
 
 .TP
 .B "-v, --version"
-Show program's version number and exit
+Show program's version number and exit.
 
 .SH SUBCOMMANDS
 Please see the help output for each subcommand for additional details,
@@ -68,11 +67,11 @@ List defined features.
 
 .TP
 .B "init"
-Initializes cloud-init and performs initial modules.
+Initialize cloud-init and execute initial modules.
 
 .TP
 .B "modules"
-Activates modules using a given configuration key.
+Activate modules using a given configuration key.
 
 .TP
 .B "query"
