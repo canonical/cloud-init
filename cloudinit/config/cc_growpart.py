@@ -17,6 +17,7 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 from textwrap import dedent
+from typing import Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, util
@@ -360,13 +361,15 @@ def get_underlying_partition(blockdev):
         ) from e
 
 
-def resize_encrypted(blockdev, partition):
+def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     """Use 'cryptsetup resize' to resize LUKS volume.
 
     The loaded keyfile is json formatted with 'key' and 'slot' keys.
     key is base64 encoded. Example:
     {"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=","slot":5}
     """
+    if not KEYDATA_PATH.exists():
+        return (RESIZE.SKIPPED, "No encryption keyfile found")
     try:
         with KEYDATA_PATH.open() as f:
             keydata = json.load(f)
@@ -393,9 +396,9 @@ def resize_encrypted(blockdev, partition):
                 str(slot),
             ]
         )
-    except Exception:
-        util.logexc(
-            LOG, "Failed to kill luks slot after resizing encrypted volume"
+    except subp.ProcessExecutionError as e:
+        LOG.warning(
+            "Failed to kill luks slot after resizing encrypted volume: %s", e
         )
     try:
         KEYDATA_PATH.unlink()
@@ -403,6 +406,8 @@ def resize_encrypted(blockdev, partition):
         util.logexc(
             LOG, "Failed to remove keyfile after resizing encrypted volume"
         )
+
+    return (RESIZE.CHANGED, f"Resized encrypted volume {blockdev}")
 
 
 def resize_devices(resizer, devices):
@@ -463,13 +468,12 @@ def resize_devices(resizer, devices):
                         devices.insert(0, devent)
                         devices.insert(0, partition)
                         continue
-                    resize_encrypted(blockdev, partition)
+                    status, message = resize_encrypted(blockdev, partition)
                     info.append(
                         (
                             devent,
-                            RESIZE.CHANGED,
-                            "Successfully resized encrypted volume "
-                            f"'{blockdev}'",
+                            status,
+                            message,
                         )
                     )
                 else:
