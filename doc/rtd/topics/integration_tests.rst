@@ -54,8 +54,8 @@ or by providing an environment variable of the same name prepended with
     CLOUD_INIT_PLATFORM='ec2' pytest tests/integration_tests/
 
 
-Cloud Interation
-================
+Cloud Integration
+=================
 Cloud interaction happens via the
 `pycloudlib <https://pycloudlib.readthedocs.io/en/latest/index.html>`_ library.
 In order to run integration tests, pycloudlib must first be
