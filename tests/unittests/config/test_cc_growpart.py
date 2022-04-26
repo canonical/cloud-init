@@ -475,8 +475,9 @@ class TestEncrypted:
             return_value=None,
         )
         info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+
         assert len(info) == 1
-        assert "encrypted" not in info[0][2]
+        assert "skipped as it is not encrypted" in info[0][2]
         assert "cryptsetup not found" in caplog.text
         self.assert_no_resize_or_cleanup()
 

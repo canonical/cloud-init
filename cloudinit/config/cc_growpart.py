@@ -316,24 +316,31 @@ def get_mapped_device(blockdev):
     return None
 
 
-def is_encrypted(blockdev) -> bool:
+def is_encrypted(blockdev, partition) -> bool:
     """
     Check if a device is an encrypted device. blockdev should have
-    a /dev/dm-* path.
+    a /dev/dm-* path whereas partition is something like /dev/sda1.
     """
     if not subp.which("cryptsetup"):
         LOG.debug("cryptsetup not found. Assuming no encrypted partitions")
         return False
-    is_encrypted = False
-    with suppress(subp.ProcessExecutionError):
+    try:
         subp.subp(["cryptsetup", "status", blockdev])
-        is_encrypted = True
-    LOG.debug(
-        "Determined that %s is %sencrypted",
-        blockdev,
-        "" if is_encrypted else "not ",
-    )
-    return is_encrypted
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 4:
+            LOG.debug("Determined that %s is not encrypted", blockdev)
+        else:
+            LOG.warning(
+                "Received unexpected exit code %s from "
+                "cryptsetup status. Assuming no encrypted partitions.",
+                e.exit_code,
+            )
+        return False
+    with suppress(subp.ProcessExecutionError):
+        subp.subp(["cryptsetup", "isLuks", partition])
+        LOG.debug("Determined that %s is encrypted", blockdev)
+        return True
+    return False
 
 
 def get_underlying_partition(blockdev):
@@ -442,35 +449,44 @@ def resize_devices(resizer, devices):
             continue
 
         underlying_blockdev = get_mapped_device(blockdev)
-        if underlying_blockdev and is_encrypted(underlying_blockdev):
+        if underlying_blockdev:
             try:
                 # We need to resize the underlying partition first
                 partition = get_underlying_partition(blockdev)
-                if partition not in [x[0] for x in info]:
-                    # We shouldn't attempt to resize this mapped partition
-                    # until the underlying partition is resized, so re-add
-                    # our device to the beginning of the list we're iterating
-                    # over, then add our underlying partition so it can
-                    # get processed first
-                    devices.insert(0, devent)
-                    devices.insert(0, partition)
-                    continue
-                resize_encrypted(blockdev, partition)
-                info.append(
-                    (
-                        devent,
-                        RESIZE.CHANGED,
-                        f"Successfully resized encrypted volume '{blockdev}'",
+                if is_encrypted(underlying_blockdev, partition):
+                    if partition not in [x[0] for x in info]:
+                        # We shouldn't attempt to resize this mapped partition
+                        # until the underlying partition is resized, so re-add
+                        # our device to the beginning of the list we're
+                        # iterating over, then add our underlying partition
+                        # so it can get processed first
+                        devices.insert(0, devent)
+                        devices.insert(0, partition)
+                        continue
+                    resize_encrypted(blockdev, partition)
+                    info.append(
+                        (
+                            devent,
+                            RESIZE.CHANGED,
+                            "Successfully resized encrypted volume "
+                            f"'{blockdev}'",
+                        )
                     )
-                )
+                else:
+                    info.append(
+                        (
+                            devent,
+                            RESIZE.SKIPPED,
+                            f"Resizing mapped device ({blockdev}) skipped "
+                            "as it is not encrypted.",
+                        )
+                    )
             except Exception as e:
                 info.append(
                     (
                         devent,
                         RESIZE.FAILED,
-                        "Resizing encrypted device ({}) failed: {}".format(
-                            blockdev, e
-                        ),
+                        f"Resizing encrypted device ({blockdev}) failed: {e}",
                     )
                 )
             # At this point, we WON'T resize a non-encrypted mapped device
