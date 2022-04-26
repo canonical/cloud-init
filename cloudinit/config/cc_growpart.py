@@ -331,7 +331,7 @@ def is_encrypted(blockdev) -> bool:
     LOG.debug(
         "Determined that %s is %sencrypted",
         blockdev,
-        "" if is_encrypted else "not",
+        "" if is_encrypted else "not ",
     )
     return is_encrypted
 
