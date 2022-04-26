@@ -7,6 +7,7 @@ import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import httpretty
 import pytest
@@ -43,7 +44,7 @@ MOCKPATH = "cloudinit.sources.DataSourceAzure."
 
 
 @pytest.fixture
-def azure_ds(paths):
+def azure_ds(patched_data_dir_path, paths):
     """Provide DataSourceAzure instance with mocks for minimal test case."""
     with mock.patch(MOCKPATH + "_is_platform_viable", return_value=True):
         yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
@@ -256,6 +257,44 @@ def mock_util_write_file():
         autospec=True,
     ) as m:
         yield m
+
+
+@pytest.fixture
+def patched_data_dir_path(tmpdir):
+    data_dir_path = Path(tmpdir) / "data_dir"
+    data_dir_path.mkdir()
+    data_dir = str(data_dir_path)
+
+    with mock.patch(MOCKPATH + "AGENT_SEED_DIR", data_dir):
+        with mock.patch.dict(dsaz.BUILTIN_DS_CONFIG, {"data_dir": data_dir}):
+            yield data_dir_path
+
+
+@pytest.fixture
+def patched_markers_dir_path(tmpdir):
+    patched_markers_dir_path = Path(tmpdir) / "markers"
+    patched_markers_dir_path.mkdir()
+
+    yield patched_markers_dir_path
+
+
+@pytest.fixture
+def patched_reported_ready_marker_path(patched_markers_dir_path):
+    reported_ready_marker = patched_markers_dir_path / "reported_ready"
+    with mock.patch(
+        MOCKPATH + "REPORTED_READY_MARKER_FILE", str(reported_ready_marker)
+    ):
+        yield reported_ready_marker
+
+
+@pytest.fixture
+def patched_reprovision_marker_path(patched_markers_dir_path):
+    reprovision_marker = patched_markers_dir_path / "poll_imds"
+    with mock.patch(
+        MOCKPATH + "REPROVISION_MARKER_FILE",
+        str(patched_reprovision_marker_path),
+    ):
+        yield reprovision_marker
 
 
 def construct_valid_ovf_env(
@@ -4057,15 +4096,15 @@ class TestProvisioning:
         mock_get_interfaces,
         mock_get_interface_mac,
         mock_netlink,
-        mock_os_path_isfile,
         mock_readurl,
         mock_subp_subp,
         mock_util_ensure_dir,
         mock_util_find_devs_with,
         mock_util_load_file,
         mock_util_mount_cb,
-        mock_util_write_file,
         mock_wrapping_setup_ephemeral_networking,
+        patched_reported_ready_marker_path,
+        patched_reprovision_marker_path,
     ):
         self.azure_ds = azure_ds
         self.mock_azure_get_metadata_from_fabric = (
@@ -4084,17 +4123,19 @@ class TestProvisioning:
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
         self.mock_netlink = mock_netlink
-        self.mock_os_path_isfile = mock_os_path_isfile
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
         self.mock_util_ensure_dir = mock_util_ensure_dir
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
         self.mock_util_mount_cb = mock_util_mount_cb
-        self.mock_util_write_file = mock_util_write_file
         self.mock_wrapping_setup_ephemeral_networking = (
             mock_wrapping_setup_ephemeral_networking
         )
+        self.patched_reported_ready_marker_path = (
+            patched_reported_ready_marker_path
+        )
+        self.patched_reprovision_marker_path = patched_reprovision_marker_path
 
         self.imds_md = {
             "extended": {"compute": {"ppsType": "None"}},
@@ -4124,19 +4165,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [False, False, False]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4195,20 +4225,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [False, False, False, False]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4304,25 +4322,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [
-            False,  # /var/lib/cloud/data/poll_imds
-            False,  # seed/azure/ovf-env.xml
-            False,  # /var/lib/cloud/data/poll_imds
-            True,  # /var/lib/cloud/data/reported_ready
-        ]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
