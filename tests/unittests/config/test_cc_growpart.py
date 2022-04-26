@@ -545,7 +545,7 @@ class TestEncrypted:
                 raise subp.ProcessExecutionError()
             return mock.Mock()
 
-        mocker.patch(
+        self.m_subp = mocker.patch(
             "cloudinit.config.cc_growpart.subp.subp",
             side_effect=_subp_side_effect,
         )
@@ -559,12 +559,12 @@ class TestEncrypted:
         assert (
             "Resizing encrypted device (/dev/mapper/fake) failed" in info[1][2]
         )
-        # Assert no cleanup
+        # Assert we still cleanup
         all_subp_args = list(
             chain(*[args[0][0] for args in self.m_subp.call_args_list])
         )
-        assert "luksKillSlot" not in all_subp_args
-        self.m_unlink.assert_not_called()
+        assert "luksKillSlot" in all_subp_args
+        self.m_unlink.assert_called_once()
 
     def test_resize_skipped(self, common_mocks, mocker, caplog):
         mocker.patch("pathlib.Path.exists", return_value=False)
