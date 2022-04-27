@@ -2,6 +2,7 @@ cloud-init (22.1-14-g2e17a0d6-0ubuntu1~21.10.4) UNRELEASED; urgency=medium
 
   * d/control:
     - add python3-responses for unittests
+    - add python3-pytest-mock for unittests
     - add Suggests: ssh-import-id
 
  -- Brett Holman <brett.holman@canonical.com>  Fri, 22 Apr 2022 11:49:39 -0600
