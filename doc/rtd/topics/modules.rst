@@ -1,9 +1,8 @@
 .. _modules:
 
 
-*******
-Modules
-*******
+Module Reference
+****************
 .. contents:: Table of Contents
 
 .. automodule:: cloudinit.config.cc_apk_configure

@@ -65,6 +65,7 @@ Having trouble? We would like to help!
    :caption: Development
 
    topics/contributing.rst
+   topics/module_creation.rst
    topics/code_review.rst
    topics/security.rst
    topics/debugging.rst
