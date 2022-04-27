@@ -13,6 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
+from enum import Enum, unique
 from typing import Dict, List, Tuple  # noqa: F401
 
 from cloudinit import dmi, importer
@@ -67,13 +68,22 @@ CLOUD_ID_REGION_PREFIX_MAP = {
     "china": ("azure-china", lambda c: c == "azure"),  # only change azure
 }
 
-# NetworkConfigSource represents the canonical list of network config sources
-# that cloud-init knows about.  (Python 2.7 lacks PEP 435, so use a singleton
-# namedtuple as an enum; see https://stackoverflow.com/a/6971002)
-_NETCFG_SOURCE_NAMES = ("cmdline", "ds", "system_cfg", "fallback", "initramfs")
-NetworkConfigSource = namedtuple("NetworkConfigSource", _NETCFG_SOURCE_NAMES)(
-    *_NETCFG_SOURCE_NAMES
-)
+
+@unique
+class NetworkConfigSource(Enum):
+    """
+    Represents the canonical list of network config sources that cloud-init
+    knows about.
+    """
+
+    CMD_LINE = "cmdline"
+    DS = "ds"
+    SYSTEM_CFG = "system_cfg"
+    FALLBACK = "fallback"
+    INITRAMFS = "initramfs"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class DatasourceUnpickleUserDataError(Exception):
@@ -177,11 +187,11 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # configuration will be used without considering any that follow.)  This
     # should always be a subset of the members of NetworkConfigSource with no
     # duplicate entries.
-    network_config_sources = (
-        NetworkConfigSource.cmdline,
-        NetworkConfigSource.initramfs,
-        NetworkConfigSource.system_cfg,
-        NetworkConfigSource.ds,
+    network_config_sources: Tuple[NetworkConfigSource, ...] = (
+        NetworkConfigSource.CMD_LINE,
+        NetworkConfigSource.INITRAMFS,
+        NetworkConfigSource.SYSTEM_CFG,
+        NetworkConfigSource.DS,
     )
 
     # read_url_params

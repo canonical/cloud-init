@@ -807,15 +807,15 @@ class Init(object):
             return (None, disable_file)
 
         available_cfgs = {
-            NetworkConfigSource.cmdline: cmdline.read_kernel_cmdline_config(),
-            NetworkConfigSource.initramfs: cmdline.read_initramfs_config(),
-            NetworkConfigSource.ds: None,
-            NetworkConfigSource.system_cfg: self.cfg.get("network"),
+            NetworkConfigSource.CMD_LINE: cmdline.read_kernel_cmdline_config(),
+            NetworkConfigSource.INITRAMFS: cmdline.read_initramfs_config(),
+            NetworkConfigSource.DS: None,
+            NetworkConfigSource.SYSTEM_CFG: self.cfg.get("network"),
         }
 
         if self.datasource and hasattr(self.datasource, "network_config"):
             available_cfgs[
-                NetworkConfigSource.ds
+                NetworkConfigSource.DS
             ] = self.datasource.network_config
 
         if self.datasource:
@@ -823,7 +823,7 @@ class Init(object):
         else:
             order = sources.DataSource.network_config_sources
         for cfg_source in order:
-            if not hasattr(NetworkConfigSource, cfg_source):
+            if not isinstance(cfg_source, NetworkConfigSource):
                 LOG.warning(
                     "data source specifies an invalid network cfg_source: %s",
                     cfg_source,
@@ -844,7 +844,7 @@ class Init(object):
                 return (ncfg, cfg_source)
         return (
             self.distro.generate_fallback_config(),
-            NetworkConfigSource.fallback,
+            NetworkConfigSource.FALLBACK,
         )
 
     def _apply_netcfg_names(self, netcfg):

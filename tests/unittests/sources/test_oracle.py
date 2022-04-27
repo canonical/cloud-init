@@ -923,8 +923,8 @@ class TestNetworkConfig:
     def test_ds_network_cfg_preferred_over_initramfs(self, _m):
         """Ensure that DS net config is preferred over initramfs config"""
         config_sources = oracle.DataSourceOracle.network_config_sources
-        ds_idx = config_sources.index(NetworkConfigSource.ds)
-        initramfs_idx = config_sources.index(NetworkConfigSource.initramfs)
+        ds_idx = config_sources.index(NetworkConfigSource.DS)
+        initramfs_idx = config_sources.index(NetworkConfigSource.INITRAMFS)
         assert ds_idx < initramfs_idx
 
 

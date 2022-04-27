@@ -106,7 +106,7 @@ class TestDataSourceInvariants(test_helpers.TestCase):
                     " {}".format(str(ds), cfg_src)
                 )
                 self.assertTrue(
-                    hasattr(sources.NetworkConfigSource, cfg_src), fail_msg
+                    isinstance(cfg_src, sources.NetworkConfigSource), fail_msg
                 )
 
     def test_expected_dsname_defined(self):
