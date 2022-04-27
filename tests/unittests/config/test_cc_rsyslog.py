@@ -1,8 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+import re
 import shutil
 import tempfile
+from functools import partial
+from typing import Optional
 
 import pytest
 
@@ -237,6 +240,57 @@ class TestRsyslogSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+
+class TestInvalidKeyType:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"rsyslog": {"configs": 1}},
+                (
+                    "Invalid type for key `configs`. Expected type(s): "
+                    "<class 'list'>. Current type: <class 'int'>"
+                ),
+            ),
+            (
+                {"rsyslog": {"configs": [], "config_dir": 1}},
+                (
+                    "Invalid type for key `config_dir`. Expected type(s): "
+                    "<class 'str'>. Current type: <class 'int'>"
+                ),
+            ),
+            (
+                {"rsyslog": {"configs": [], "config_filename": True}},
+                (
+                    "Invalid type for key `config_filename`. Expected type(s):"
+                    " <class 'str'>. Current type: <class 'bool'>"
+                ),
+            ),
+            (
+                {"rsyslog": {"service_reload_command": 3.14}},
+                (
+                    "Invalid type for key `service_reload_command`. "
+                    "Expected type(s): (<class 'str'>, <class 'list'>). "
+                    "Current type: <class 'float'>"
+                ),
+            ),
+            (
+                {"rsyslog": {"remotes": ["1", 2, 3.14]}},
+                (
+                    "Invalid type for key `remotes`. Expected type(s): "
+                    "<class 'dict'>. Current type: <class 'list'>"
+                ),
+            ),
+        ],
+    )
+    def test_invalid_key_types(self, config: dict, error_msg: Optional[str]):
+        callable_ = partial(load_config, config)
+        if error_msg is None:
+            callable_()
+        else:
+            with pytest.raises(ValueError, match=re.escape(error_msg)):
+                callable_()
 
 
 # vi: ts=4 expandtab
