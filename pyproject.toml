@@ -77,7 +77,6 @@ exclude=[
   '^tests/unittests/net/test_dhcp\.py$',
   '^tests/unittests/net/test_init\.py$',
   '^tests/unittests/sources/test_aliyun\.py$',
-  '^tests/unittests/sources/test_azure\.py$',
   '^tests/unittests/sources/test_ec2\.py$',
   '^tests/unittests/sources/test_exoscale\.py$',
   '^tests/unittests/sources/test_gce\.py$',
@@ -100,3 +99,7 @@ exclude=[
   '^tests/unittests/test_util\.py$',
   '^tools/mock-meta\.py$',
 ]
+
+[[tool.mypy.overrides]]
+module = [ "httpretty" ]
+ignore_missing_imports = true
