@@ -152,14 +152,29 @@ __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 
+# NO_HOME and NEED_HOME are mutually exclusive options
+NO_HOME = ("no_create_home", "system")
+NEED_HOME = ("ssh_authorized_keys", "ssh_import_id", "ssh_redirect_user")
+
 
 def handle(name, cfg, cloud, _log, _args):
     (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []
+
     for (name, members) in groups.items():
         cloud.distro.create_group(name, members)
+
     for (user, config) in users.items():
+
+        no_home = [key for key in NO_HOME if config.get(key)]
+        need_home = [key for key in NEED_HOME if config.get(key)]
+        if no_home and need_home:
+            raise ValueError(
+                f"Not creating user {user}. Key(s) {', '.join(need_home)}"
+                f" cannot be provided with {', '.join(no_home)}"
+            )
+
         ssh_redirect_user = config.pop("ssh_redirect_user", False)
         if ssh_redirect_user:
             if "ssh_authorized_keys" in config or "ssh_import_id" in config:
@@ -186,6 +201,7 @@ def handle(name, cfg, cloud, _log, _args):
             else:
                 config["ssh_redirect_user"] = default_user
                 config["cloud_public_ssh_keys"] = cloud_keys
+
         cloud.distro.create_user(user, **config)
 
 
