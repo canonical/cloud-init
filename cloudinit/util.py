@@ -824,7 +824,7 @@ def make_url(
 def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
-    merged_cfg = {}
+    merged_cfg: dict = {}
     for cfg in srcs:
         if cfg:
             # Figure out which mergers to apply...
