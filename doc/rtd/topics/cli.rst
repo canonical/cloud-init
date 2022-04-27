@@ -38,7 +38,6 @@ option. This can be used against cloud-init itself or any of its subcommands.
         status              Report cloud-init status or wait on completion.
         schema              Validate cloud-config files using jsonschema.
 
-
 The rest of this document will give an overview of each of the subcommands.
 
 
