@@ -134,6 +134,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             "init",
             "modules",
             "single",
+            "schema",
         ]
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
@@ -169,6 +170,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             "usage: cloud-init collect-logs",
             "usage: cloud-init devel",
             "usage: cloud-init status",
+            "usage: cloud-init schema",
         ]
         conditional_subcommands = [
             "analyze",
@@ -176,6 +178,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             "collect-logs",
             "devel",
             "status",
+            "schema",
         ]
         # The cloud-init entrypoint calls main without passing sys_argv
         for subcommand in conditional_subcommands:
@@ -220,18 +223,18 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self._call_main(["cloud-init", "status", "-h"])
         self.assertIn("usage: cloud-init status", stdout.getvalue())
 
-    def test_devel_subcommand_parser(self):
-        """The subcommand cloud-init devel calls the correct subparser."""
-        self._call_main(["cloud-init", "devel"])
+    def test_subcommand_parser(self):
+        """The subcommand cloud-init schema calls the correct subparser."""
+        self._call_main(["cloud-init"])
         # These subcommands only valid for cloud-init schema script
         expected_subcommands = ["schema"]
         error = self.stderr.getvalue()
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
 
-    def test_wb_devel_schema_subcommand_parser(self):
+    def test_wb_schema_subcommand_parser(self):
         """The subcommand cloud-init schema calls the correct subparser."""
-        exit_code = self._call_main(["cloud-init", "devel", "schema"])
+        exit_code = self._call_main(["cloud-init", "schema"])
         self.assertEqual(1, exit_code)
         # Known whitebox output from schema subcommand
         self.assertEqual(
@@ -240,7 +243,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             self.stderr.getvalue(),
         )
 
-    def test_wb_devel_schema_subcommand_doc_all_spot_check(self):
+    def test_wb_schema_subcommand_doc_all_spot_check(self):
         """Validate that doc content has correct values from known examples.
 
         Ensure that schema doc is returned
@@ -252,7 +255,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         # manager
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            self._call_main(["cloud-init", "devel", "schema", "--docs", "all"])
+            self._call_main(["cloud-init", "schema", "--docs", "all"])
             expected_doc_sections = [
                 "**Supported distros:** all",
                 "**Supported distros:** almalinux, alpine, centos, "
@@ -267,7 +270,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         for expected in expected_doc_sections:
             self.assertIn(expected, stdout)
 
-    def test_wb_devel_schema_subcommand_single_spot_check(self):
+    def test_wb_schema_subcommand_single_spot_check(self):
         """Validate that doc content has correct values from known example.
 
         Validate 'all' arg
@@ -279,9 +282,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         # manager
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            self._call_main(
-                ["cloud-init", "devel", "schema", "--docs", "cc_runcmd"]
-            )
+            self._call_main(["cloud-init", "schema", "--docs", "cc_runcmd"])
             expected_doc_sections = [
                 "Runcmd\n------\n**Summary:** Run arbitrary commands"
             ]
@@ -289,7 +290,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         for expected in expected_doc_sections:
             self.assertIn(expected, stdout)
 
-    def test_wb_devel_schema_subcommand_multiple_spot_check(self):
+    def test_wb_schema_subcommand_multiple_spot_check(self):
         """Validate that doc content has correct values from known example.
 
         Validate single arg
@@ -300,7 +301,6 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             self._call_main(
                 [
                     "cloud-init",
-                    "devel",
                     "schema",
                     "--docs",
                     "cc_runcmd",
@@ -315,7 +315,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         for expected in expected_doc_sections:
             self.assertIn(expected, stdout)
 
-    def test_wb_devel_schema_subcommand_bad_arg_fails(self):
+    def test_wb_schema_subcommand_bad_arg_fails(self):
         """Validate that doc content has correct values from known example.
 
         Validate multiple args
@@ -328,7 +328,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             self._call_main(
-                ["cloud-init", "devel", "schema", "--docs", "garbage_value"]
+                ["cloud-init", "schema", "--docs", "garbage_value"]
             )
             expected_doc_sections = ["Invalid --docs value"]
         stderr = stderr.getvalue()

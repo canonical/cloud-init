@@ -95,7 +95,7 @@ We can also assert the user data we provided is a valid cloud-config:
 
 .. code-block:: shell-session
 
-    $ cloud-init devel schema --system --annotate
+    $ cloud-init schema --system --annotate
     Valid cloud-config: system userdata
     $
 

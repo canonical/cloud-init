@@ -146,7 +146,7 @@ provided to the system:
 
 .. code-block:: shell-session
 
-    $ cloud-init devel schema --system --annotate
+    $ cloud-init schema --system --annotate
 
 As launching instances in the cloud can cost money and take a bit longer,
 sometimes it is easier to launch instances locally using Multipass or LXD:

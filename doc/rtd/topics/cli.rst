@@ -36,6 +36,7 @@ option. This can be used against cloud-init itself or any of its subcommands.
         collect-logs        Collect and tar all cloud-init debug info
         clean               Remove logs and artifacts so cloud-init can re-run.
         status              Report cloud-init status or wait on completion.
+        schema              Validate cloud-config files using jsonschema.
 
 The rest of this document will give an overview of each of the subcommands.
 
@@ -114,11 +115,6 @@ Current subcommands:
    from ``/run/cloud-init/instance-data.json``. It accepts a user-data file
    containing  the jinja template header ``## template: jinja`` and renders
    that content with any instance-data.json variables present.
- * ``schema``: a **#cloud-config** format and schema
-   validator. It accepts a cloud-config YAML file and annotates potential
-   schema errors locally without the need for deployment. Schema
-   validation is work in progress and supports a subset of cloud-config
-   modules.
  * ``hotplug-hook``: respond to newly added system devices by retrieving
    updated system metadata and bringing up/down the corresponding device.
    This command is intended to be called via a systemd service and is
@@ -247,6 +243,29 @@ This data can then be formatted to generate custom strings or data:
   # Generate a custom hostname fqdn based on instance-id, cloud and region
   % cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
   custom-i-0e91f69987f37ec74.us-east-2.aws.com
+
+
+.. _cli_schema:
+
+schema
+======
+
+Validate cloud-config files using jsonschema.
+
+* ``-h, --help``:            show this help message and exit
+* ``-c CONFIG_FILE, --config-file CONFIG_FILE``: Path of the cloud-config yaml
+  file to validate
+* ``--system``:              Validate the system cloud-config userdata
+* ``-d DOCS [DOCS ...], --docs DOCS [DOCS ...]``: Print schema module docs.
+  Choices: all or space-delimited cc_names.
+* ``--annotate``:            Annotate existing cloud-config file with errors
+
+The following example checks a config file and annotates the config file with
+errors on stdout.
+
+.. code-block:: shell-session
+
+  $ cloud-init schema -c ./config.yml --annotate
 
 
 .. _cli_single:
