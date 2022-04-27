@@ -1031,9 +1031,9 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             if ib_mac not in ret:
                 ret[ib_mac] = name
                 LOG.warning(
-                    "Ethernet and InfiniBand interfaces have the same address",
+                    "Ethernet and InfiniBand interfaces have the same address"
                     " both '%s' and '%s' have address '%s'."
-                    % (name, ret[ib_mac], ib_mac)
+                    % (name, ret[ib_mac], ib_mac),
                 )
     return ret
 
