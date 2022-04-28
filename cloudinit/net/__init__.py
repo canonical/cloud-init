@@ -1002,16 +1002,42 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
                 % (name, ret[mac], mac)
             )
         ret[mac] = name
-        # Try to get an Infiniband hardware address (in 6 byte Ethernet format)
-        # for the interface.
+
+        # Pretend that an Infiniband GUID is an ethernet address for Openstack
+        # configuration purposes
+        # TODO: move this format to openstack
         ib_mac = get_ib_interface_hwaddr(name, True)
         if ib_mac:
-            if ib_mac in ret:
-                raise RuntimeError(
-                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
-                    % (name, ret[ib_mac], ib_mac)
+
+            # If an Ethernet mac address happens to collide with a few bits in
+            # an IB GUID, prefer the ethernet address.
+            #
+            # Log a message in case a user is troubleshooting openstack, but
+            # don't fall over, since this really isn't _a_ problem, and
+            # openstack makes weird assumptions that cause it to fail it's
+            # really not _our_ problem.
+            #
+            # These few bits selected in get_ib_interface_hwaddr() are not
+            # guaranteed to be globally unique in InfiniBand, and really make
+            # no sense to compare them to Ethernet mac addresses. This appears
+            # to be a # workaround for openstack-specific behavior[1], and for
+            # now leave it to avoid breaking openstack
+            # but this should be removed from get_interfaces_by_mac_on_linux()
+            # because IB GUIDs are not mac addresses, and operate on a separate
+            # L2 protocol so address collision doesn't matter.
+            #
+            # [1] sources/helpers/openstack.py:convert_net_json() expects
+            # net.get_interfaces_by_mac() to return IB addresses in this format
+            if ib_mac not in ret:
+                ret[ib_mac] = name
+            else:
+                LOG.warning(
+                    "Ethernet and InfiniBand interfaces have the same address"
+                    " both '%s' and '%s' have address '%s'.",
+                    name,
+                    ret[ib_mac],
+                    ib_mac,
                 )
-            ret[ib_mac] = name
     return ret
 
 
