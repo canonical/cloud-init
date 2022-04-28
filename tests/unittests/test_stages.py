@@ -73,7 +73,7 @@ class TestInit(CiTestCase):
         m_cmdline.return_value = {"config": "disabled"}
         m_initramfs.return_value = {"config": ["fake_initrd"]}
         self.assertEqual(
-            (None, NetworkConfigSource.cmdline),
+            (None, NetworkConfigSource.CMD_LINE),
             self.init._find_networking_config(),
         )
         self.assertEqual(
@@ -89,7 +89,7 @@ class TestInit(CiTestCase):
         m_cmdline.return_value = {}
         m_initramfs.return_value = {"config": "disabled"}
         self.assertEqual(
-            (None, NetworkConfigSource.initramfs),
+            (None, NetworkConfigSource.INITRAMFS),
             self.init._find_networking_config(),
         )
         self.assertEqual(
@@ -114,7 +114,7 @@ class TestInit(CiTestCase):
             network_config={"config": "disabled"}
         )
         self.assertEqual(
-            (None, NetworkConfigSource.ds), self.init._find_networking_config()
+            (None, NetworkConfigSource.DS), self.init._find_networking_config()
         )
         self.assertEqual(
             "DEBUG: network config disabled by ds\n", self.logs.getvalue()
@@ -133,7 +133,7 @@ class TestInit(CiTestCase):
             "network": {"config": "disabled"},
         }
         self.assertEqual(
-            (None, NetworkConfigSource.system_cfg),
+            (None, NetworkConfigSource.SYSTEM_CFG),
             self.init._find_networking_config(),
         )
         self.assertEqual(
@@ -156,14 +156,14 @@ class TestInit(CiTestCase):
         ds_net_cfg = {"config": {"needle": True}}
         self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
         self.init.datasource.network_config_sources = [
-            NetworkConfigSource.ds,
-            NetworkConfigSource.system_cfg,
-            NetworkConfigSource.cmdline,
-            NetworkConfigSource.initramfs,
+            NetworkConfigSource.DS,
+            NetworkConfigSource.SYSTEM_CFG,
+            NetworkConfigSource.CMD_LINE,
+            NetworkConfigSource.INITRAMFS,
         ]
 
         self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
+            (ds_net_cfg, NetworkConfigSource.DS),
             self.init._find_networking_config(),
         )
 
@@ -177,11 +177,11 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
         self.init.datasource.network_config_sources = [
             "invalid_src",
-            NetworkConfigSource.ds,
+            NetworkConfigSource.DS,
         ]
 
         self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
+            (ds_net_cfg, NetworkConfigSource.DS),
             self.init._find_networking_config(),
         )
         self.assertIn(
@@ -199,12 +199,12 @@ class TestInit(CiTestCase):
         ds_net_cfg = {"config": {"needle": True}}
         self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
         self.init.datasource.network_config_sources = [
-            NetworkConfigSource.fallback,
-            NetworkConfigSource.ds,
+            NetworkConfigSource.FALLBACK,
+            NetworkConfigSource.DS,
         ]
 
         self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
+            (ds_net_cfg, NetworkConfigSource.DS),
             self.init._find_networking_config(),
         )
         self.assertIn(
@@ -230,7 +230,7 @@ class TestInit(CiTestCase):
             network_config={"config": ["fakedatasource"]}
         )
         self.assertEqual(
-            (expected_cfg, NetworkConfigSource.cmdline),
+            (expected_cfg, NetworkConfigSource.CMD_LINE),
             self.init._find_networking_config(),
         )
 
@@ -251,7 +251,7 @@ class TestInit(CiTestCase):
             network_config={"config": ["fakedatasource"]}
         )
         self.assertEqual(
-            (expected_cfg, NetworkConfigSource.initramfs),
+            (expected_cfg, NetworkConfigSource.INITRAMFS),
             self.init._find_networking_config(),
         )
 
@@ -272,7 +272,7 @@ class TestInit(CiTestCase):
             network_config={"config": ["fakedatasource"]}
         )
         self.assertEqual(
-            (expected_cfg, NetworkConfigSource.system_cfg),
+            (expected_cfg, NetworkConfigSource.SYSTEM_CFG),
             self.init._find_networking_config(),
         )
 
@@ -288,7 +288,7 @@ class TestInit(CiTestCase):
         expected_cfg = {"config": ["fakedatasource"]}
         self.init.datasource = FakeDataSource(network_config=expected_cfg)
         self.assertEqual(
-            (expected_cfg, NetworkConfigSource.ds),
+            (expected_cfg, NetworkConfigSource.DS),
             self.init._find_networking_config(),
         )
 
@@ -314,7 +314,7 @@ class TestInit(CiTestCase):
         distro = self.init.distro
         distro.generate_fallback_config = fake_generate_fallback
         self.assertEqual(
-            (fake_cfg, NetworkConfigSource.fallback),
+            (fake_cfg, NetworkConfigSource.FALLBACK),
             self.init._find_networking_config(),
         )
         self.assertNotIn("network config disabled", self.logs.getvalue())
@@ -353,7 +353,7 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         m_macs.return_value = {"42:42:42:42:42:42": "eth9"}
 
@@ -388,7 +388,7 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         self.init._find_networking_config = fake_network_config
 
@@ -422,7 +422,7 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         m_macs.return_value = {"42:42:42:42:42:42": "eth9"}
 
