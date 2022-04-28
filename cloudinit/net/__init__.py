@@ -1030,6 +1030,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             # net.get_interfaces_by_mac() to return IB addresses in this format
             if ib_mac not in ret:
                 ret[ib_mac] = name
+            else:
                 LOG.warning(
                     "Ethernet and InfiniBand interfaces have the same address"
                     " both '%s' and '%s' have address '%s'.",
