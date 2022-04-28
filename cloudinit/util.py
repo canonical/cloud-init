@@ -821,10 +821,10 @@ def make_url(
     return parse.urlunparse(pieces)
 
 
-def mergemanydict(srcs, reverse=False):
+def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
-    merged_cfg = {}
+    merged_cfg: dict = {}
     for cfg in srcs:
         if cfg:
             # Figure out which mergers to apply...

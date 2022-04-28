@@ -11,6 +11,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# Skip isort on this file because of the patch that comes between imports
+# isort: skip_file
+
 import argparse
 import json
 import os
@@ -19,6 +22,7 @@ import time
 import traceback
 
 from cloudinit import patcher
+from cloudinit.config.modules import Modules
 
 patcher.patch_logging()
 
@@ -105,7 +109,7 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_module_section(mods, action_name, section):
+def run_module_section(mods: Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (which_ran, failures) = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)
@@ -484,7 +488,7 @@ def main_init(name, args):
     apply_reporting_cfg(init.cfg)
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -587,7 +591,7 @@ def main_modules(action_name, args):
             return [(msg)]
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -642,7 +646,7 @@ def main_single(name, args):
             return 1
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)

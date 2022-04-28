@@ -3,13 +3,18 @@
 # Author: Aman Kumar Sinha <amansi26@in.ibm.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Reset RMC: Reset rsct node id"""
 
 
-"""
-Reset RMC
-------------
-**Summary:** reset rsct node id
+import os
 
+from cloudinit import log as logging
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 Reset RMC module is IBM PowerVM Hypervisor specific
 
 Reliable Scalable Cluster Technology (RSCT) is a set of software components,
@@ -28,21 +33,20 @@ This module handles
   In order to do so, it restarts RSCT service.
 
 Prerequisite of using this module is to install RSCT packages.
-
-**Internal name:** ``cc_reset_rmc``
-
-**Module frequency:** per instance
-
-**Supported distros:** rhel, sles and ubuntu
-
 """
-import os
 
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.settings import PER_INSTANCE
+meta: MetaSchema = {
+    "id": "cc_reset_rmc",
+    "name": "Reset RMC",
+    "title": "reset rsct node id",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [],
+}
 
-frequency = PER_INSTANCE
+# This module is undocumented in our schema docs
+__doc__ = ""
 
 # RMCCTRL is expected to be in system PATH (/opt/rsct/bin)
 # The symlink for RMCCTRL and RECFGCT are
