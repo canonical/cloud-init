@@ -89,7 +89,6 @@ def basic_render(content, params):
 
 
 def detect_template(text):
-
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
@@ -133,9 +132,7 @@ def detect_template(text):
 def render_from_file(fn, params):
     if not params:
         params = {}
-    template_type, renderer, content = detect_template(
-        util.load_file(fn)
-    )
+    template_type, renderer, content = detect_template(util.load_file(fn))
     LOG.debug("Rendering content of '%s' using renderer %s", fn, template_type)
     return renderer(content, params)
 
