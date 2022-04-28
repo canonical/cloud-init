@@ -14,7 +14,7 @@ import json
 import os
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Dict, List, Tuple  # noqa: F401
+from typing import Dict, List, Tuple
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging

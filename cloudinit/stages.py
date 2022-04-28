@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, List, Optional, Set  # noqa: F401
+from typing import Dict, List, Optional, Set
 
 from cloudinit import cloud, distros, handlers, helpers, importer
 from cloudinit import log as logging

@@ -11,8 +11,7 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
-from cloudinit.sources import DataSource  # noqa: F401
-from cloudinit.sources import DataSourceNotFoundException
+from cloudinit.sources import DataSource, DataSourceNotFoundException
 from cloudinit.stages import Init
 
 LOG = log.getLogger(__name__)
@@ -72,7 +71,7 @@ def get_parser(parser=None):
 class UeventHandler(abc.ABC):
     def __init__(self, id, datasource, devpath, action, success_fn):
         self.id = id
-        self.datasource = datasource  # type: DataSource
+        self.datasource: DataSource = datasource
         self.devpath = devpath
         self.action = action
         self.success_fn = success_fn
