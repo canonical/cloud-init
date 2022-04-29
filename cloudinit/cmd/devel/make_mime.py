@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Generate multi-part mime messages for user-data """
+"""Generate multi-part mime messages for user-data."""
 
 import argparse
 import sys

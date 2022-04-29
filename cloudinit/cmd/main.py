@@ -844,6 +844,7 @@ def main(sysv_args=None):
         "-v",
         action="version",
         version="%(prog)s " + (version.version_string()),
+        help="Show program's version number and exit.",
     )
     parser.add_argument(
         "--file",
@@ -864,8 +865,8 @@ def main(sysv_args=None):
         "--force",
         action="store_true",
         help=(
-            "force running even if no datasource is"
-            " found (use at your own risk)"
+            "Force running even if no datasource is"
+            " found (use at your own risk)."
         ),
         dest="force",
         default=False,
@@ -877,7 +878,7 @@ def main(sysv_args=None):
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="Initialize cloud-init and perform initial modules"
+        "init", help="Initialize cloud-init and perform initial modules."
     )
     parser_init.add_argument(
         "--local",
@@ -906,7 +907,7 @@ def main(sysv_args=None):
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
-        "single", help="run a single module "
+        "single", help="Run a single module."
     )
     parser_single.add_argument(
         "--name",
