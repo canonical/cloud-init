@@ -17,12 +17,12 @@ import time
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
+from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
 
