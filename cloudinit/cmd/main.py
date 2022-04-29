@@ -1,4 +1,5 @@
-#
+#!/usr/bin/env python3
+
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
@@ -1099,5 +1100,3 @@ if __name__ == "__main__":
     return_value = main(sys.argv)
     if return_value:
         sys.exit(return_value)
-
-# vi: ts=4 expandtab

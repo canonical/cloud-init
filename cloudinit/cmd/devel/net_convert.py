@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Debug network config format conversions."""
@@ -179,6 +180,3 @@ def handle_args(name, args):
 if __name__ == "__main__":
     args = get_parser().parse_args()
     handle_args(NAME, args)
-
-
-# vi: ts=4 expandtab
