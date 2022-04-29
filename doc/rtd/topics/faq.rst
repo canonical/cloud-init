@@ -278,7 +278,7 @@ configuration, including network configuration and metadata:
 
 See the :ref:`network_config_v2` page for details on the format and config of
 network configuration. To learn more about the possible values for metadata,
-check out the :ref:`nocloud` page.
+check out the :ref:`datasource_nocloud` page.
 
 .. _cloud-utils: https://github.com/canonical/cloud-utils/
 

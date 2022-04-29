@@ -168,7 +168,8 @@ With defaults used::
             log_serv: "10.0.4.1"
 
 
-For more information on rsyslog configuration, see :ref:`rsyslog`.
+For more information on rsyslog configuration, see
+:ref:`topics/modules:rsyslog`.
 
 .. _python logging config: https://docs.python.org/3/library/logging.config.html#configuration-file-format
 .. _python logging handlers: https://docs.python.org/3/library/logging.handlers.html

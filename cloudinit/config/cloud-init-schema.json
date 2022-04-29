@@ -1943,7 +1943,7 @@
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "If true, will read host keys from /etc/ssh/*.pub and publish them to the datasource (if supported). Default: ``true``"
+              "description": "If true, will read host keys from ``/etc/ssh/*.pub`` and publish them to the datasource (if supported). Default: ``true``"
             },
             "blacklist": {
               "type": "array",
