@@ -337,7 +337,6 @@ class Paths(persistence.CloudInitPickleMixin):
         self.run_dir = path_cfgs.get("run_dir", "/run/cloud-init")
         self.instance_link = os.path.join(self.cloud_dir, "instance")
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
-        self.upstart_conf_d = path_cfgs.get("upstart_dir")
         self.seed_dir = os.path.join(self.cloud_dir, "seed")
         # This one isn't joined, since it should just be read-only
         template_dir = path_cfgs.get("templates_dir", "/etc/cloud/templates/")

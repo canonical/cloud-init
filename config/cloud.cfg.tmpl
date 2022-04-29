@@ -100,8 +100,6 @@ cloud_init_modules:
 # The modules that run in the 'config' stage
 cloud_config_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
-# Emit the cloud config ready event
-# this can be used by upstart jobs for 'start on cloud-config'.
  - snap
 {% endif %}
 {% if variant not in ["photon"] %}
@@ -203,7 +201,6 @@ system_info:
    paths:
       cloud_dir: /var/lib/cloud/
       templates_dir: /etc/cloud/templates/
-      upstart_dir: /etc/init/
    package_mirrors:
      - arches: [i386, amd64]
        failsafe:

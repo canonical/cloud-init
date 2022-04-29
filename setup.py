@@ -156,7 +156,6 @@ INITSYS_FILES = {
         for f in glob("systemd/*")
         if is_f(f) and is_generator(f)
     ],
-    "upstart": [f for f in glob("upstart/*") if is_f(f)],
 }
 INITSYS_ROOTS = {
     "sysvinit": "etc/rc.d/init.d",
@@ -169,7 +168,6 @@ INITSYS_ROOTS = {
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"
     ),
-    "upstart": "etc/init/",
 }
 INITSYS_TYPES = sorted([f.partition(".")[0] for f in INITSYS_ROOTS.keys()])
 

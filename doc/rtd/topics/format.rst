@@ -95,7 +95,6 @@ Supported content-types are listed from the cloud-init subcommand make-mime:
     cloud-config-jsonp
     jinja2
     part-handler
-    upstart-job
     x-include-once-url
     x-include-url
     x-shellscript
@@ -202,15 +201,6 @@ Example
    :linenos:
 
 Also this `blog`_ post offers another example for more advanced usage.
-
-Upstart Job
-===========
-
-Content is placed into a file in ``/etc/init``, and will be consumed by upstart
-as any other upstart job.
-
-Begins with: ``#upstart-job`` or ``Content-Type: text/upstart-job`` when using
-a MIME archive.
 
 Disabling User-Data
 ===================
