@@ -39,7 +39,7 @@ DYNAMIC_METADATA = {
 
 # collected from api version 2016-09-02/ with
 # python3 -c 'import json
-# from cloudinit.ec2_utils import get_instance_metadata as gm
+# from cloudinit.sources.helpers.ec2 import get_instance_metadata as gm
 # print(json.dumps(gm("2016-09-02"), indent=1, sort_keys=True))'
 # Note that the MAC addresses have been modified to sort in the opposite order
 # to the device-number attribute, to test LP: #1876312
@@ -124,7 +124,7 @@ DEFAULT_METADATA = {
 
 # collected from api version 2018-09-24/ with
 # python3 -c 'import json
-# from cloudinit.ec2_utils import get_instance_metadata as gm
+# from cloudinit.sources.helpers.ec2 import get_instance_metadata as gm
 # print(json.dumps(gm("2018-09-24"), indent=1, sort_keys=True))'
 
 NIC1_MD_IPV4_IPV6_MULTI_IP = {

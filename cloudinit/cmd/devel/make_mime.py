@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Generate multi-part mime messages for user-data """
@@ -138,6 +140,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-# vi: ts=4 expandtab

@@ -2,8 +2,8 @@
 
 import httpretty as hp
 
-from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
+from cloudinit.sources.helpers import ec2
 from tests.unittests import helpers
 
 
@@ -17,7 +17,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             body="stuff",
             status=200,
         )
-        userdata = eu.get_instance_userdata(self.VERSION)
+        userdata = ec2.get_instance_userdata(self.VERSION)
         self.assertEqual("stuff", userdata.decode("utf-8"))
 
     def test_userdata_fetch_fail_not_found(self):
@@ -26,7 +26,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             "http://169.254.169.254/%s/user-data" % (self.VERSION),
             status=404,
         )
-        userdata = eu.get_instance_userdata(self.VERSION, retries=0)
+        userdata = ec2.get_instance_userdata(self.VERSION, retries=0)
         self.assertEqual("", userdata)
 
     def test_userdata_fetch_fail_server_dead(self):
@@ -35,7 +35,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             "http://169.254.169.254/%s/user-data" % (self.VERSION),
             status=500,
         )
-        userdata = eu.get_instance_userdata(self.VERSION, retries=0)
+        userdata = ec2.get_instance_userdata(self.VERSION, retries=0)
         self.assertEqual("", userdata)
 
     def test_userdata_fetch_fail_server_not_found(self):
@@ -44,7 +44,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             "http://169.254.169.254/%s/user-data" % (self.VERSION),
             status=404,
         )
-        userdata = eu.get_instance_userdata(self.VERSION)
+        userdata = ec2.get_instance_userdata(self.VERSION)
         self.assertEqual("", userdata)
 
     def test_metadata_fetch_no_keys(self):
@@ -73,7 +73,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             status=200,
             body="1",
         )
-        md = eu.get_instance_metadata(self.VERSION, retries=0)
+        md = ec2.get_instance_metadata(self.VERSION, retries=0)
         self.assertEqual(md["hostname"], "ec2.fake.host.name.com")
         self.assertEqual(md["instance-id"], "123")
         self.assertEqual(md["ami-launch-index"], "1")
@@ -110,7 +110,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             status=200,
             body="ssh-rsa AAAA.....wZEf my-public-key",
         )
-        md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEqual(md["hostname"], "ec2.fake.host.name.com")
         self.assertEqual(md["instance-id"], "123")
         self.assertEqual(1, len(md["public-keys"]))
@@ -153,7 +153,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             status=200,
             body="ssh-rsa AAAA.....wZEf my-other-key",
         )
-        md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEqual(md["hostname"], "ec2.fake.host.name.com")
         self.assertEqual(md["instance-id"], "123")
         self.assertEqual(2, len(md["public-keys"]))
@@ -198,7 +198,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             status=200,
             body="sdc",
         )
-        md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEqual(md["hostname"], "ec2.fake.host.name.com")
         self.assertEqual(md["instance-id"], "123")
         bdm = md["block-device-mapping"]
@@ -266,7 +266,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
             status=200,
             body="2016-10-28T00:00:34Z",
         )
-        md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEqual(md["instance-id"], "i-0123451689abcdef0")
         iam = md["iam"]
         self.assertEqual(1, len(iam))

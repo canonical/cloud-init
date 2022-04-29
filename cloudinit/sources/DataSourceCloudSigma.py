@@ -10,7 +10,7 @@ from base64 import b64decode
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit.cs_utils import SERIAL_PORT, Cepko
+from cloudinit.sources.helpers.cloudsigma import SERIAL_PORT, Cepko
 
 LOG = logging.getLogger(__name__)
 
