@@ -28,7 +28,7 @@ meta: MetaSchema = {
 
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
-        See :ref:`Power State Change` for information on how to configure
+        See `Power State Change`_ for information on how to configure
         cloud-init to perform this reboot.
         """
     ),

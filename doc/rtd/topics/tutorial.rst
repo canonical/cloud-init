@@ -47,8 +47,8 @@ following file on your local filesystem at ``/tmp/my-user-data``:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
 Here we are defining our cloud-init user data in the
-:ref:`cloud-config<cloud Config Data>` format, using the `runcmd`_ module to
-define a command to run. When applied, it
+:ref:`cloud-config<topics/format:Cloud Config Data>` format, using the
+`runcmd`_ module to define a command to run. When applied, it
 should write ``Hello, World!`` to ``/var/tmp/hello-world.txt``.
 
 Launch a container with our user data

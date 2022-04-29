@@ -210,7 +210,7 @@ class Test_SchemapathForCloudconfig:
             (b"a:\n a1:\n\n  aa1: aa1v\n", {"a": 1, "a.a1": 2, "a.a1.aa1": 4}),
         ),
     )
-    def test_schemapaths_representatative_of_source_yaml(
+    def test_schemapaths_representative_of_source_yaml(
         self, source_content, expected
     ):
         """Validate schemapaths dict accurately represents source YAML line."""
