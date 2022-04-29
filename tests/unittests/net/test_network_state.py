@@ -58,6 +58,40 @@ network:
         addresses: [4.4.4.4]
 """
 
+V1_CONFIG_WITH_NETWORK = """\
+network:
+  version: 1
+  config:
+   - type: physical
+     name: eth0
+     mac_address: '00:11:22:33:44:55'
+"""
+
+V1_CONFIG_NO_NETWORK = """\
+version: 1
+config:
+ - type: physical
+   name: eth0
+   mac_address: '00:11:22:33:44:55'
+"""
+
+V2_CONFIG_WITH_NETWORK = """\
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: '00:11:22:33:44:55'
+"""
+
+V2_CONFIG_NO_NETWORK = """\
+version: 2
+ethernets:
+  eth0:
+    match:
+      macaddress: '00:11:22:33:44:55'
+"""
+
 
 class TestNetworkStateParseConfig(CiTestCase):
     def setUp(self):
@@ -219,4 +253,16 @@ class TestNetworkStateHelperFunctions(CiTestCase):
         assert prefix_value == expected
 
 
-# vi: ts=4 expandtab
+class TestNetworkKeyOptional:
+    def _load_config(self, config):
+        return network_state.parse_net_config_data(safeyaml.load(config))
+
+    def test_v1(self):
+        no_net = self._load_config(V1_CONFIG_NO_NETWORK)
+        with_net = self._load_config(V1_CONFIG_WITH_NETWORK)
+        assert no_net.config == with_net.config
+
+    def test_v2(self):
+        no_net = self._load_config(V2_CONFIG_NO_NETWORK)
+        with_net = self._load_config(V2_CONFIG_WITH_NETWORK)
+        assert no_net.config == with_net.config

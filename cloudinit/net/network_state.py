@@ -1044,6 +1044,8 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     :param net_config: curtin network config dict
     """
     state = None
+    if "network" in net_config:
+        net_config = net_config["network"]
     version = net_config.get("version")
     config = net_config.get("config")
     if version == 2:
