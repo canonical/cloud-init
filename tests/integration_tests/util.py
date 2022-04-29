@@ -24,7 +24,10 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
     """
     index = 0
     for item in to_verify:
-        matched = re.search(item, text[index:])
+        try:
+            matched = re.search(item, text[index:])
+        except re.error:
+            matched = re.search(re.escape(item), text[index:])
         assert matched, "Expected item not found: '{}'".format(item)
         index = matched.start()
 
