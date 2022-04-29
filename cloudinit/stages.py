@@ -799,6 +799,16 @@ class Init(object):
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
+    def _remove_top_level_network_key(self, cfg):
+        """If network-config contains top level 'network' key, then remove it.
+
+        Some providers of network configuration skip the top-level network
+        key, so ensure both methods works.
+        """
+        if cfg and "network" in cfg:
+            return cfg["network"]
+        return cfg
+
     def _find_networking_config(self):
         disable_file = os.path.join(
             self.paths.get_cpath("data"), "upgraded-network"
@@ -836,7 +846,9 @@ class Init(object):
                     cfg_source,
                 )
                 continue
-            ncfg = available_cfgs[cfg_source]
+            ncfg = self._remove_top_level_network_key(
+                available_cfgs[cfg_source]
+            )
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)

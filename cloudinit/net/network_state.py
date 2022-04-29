@@ -1044,8 +1044,6 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     :param net_config: curtin network config dict
     """
     state = None
-    if "network" in net_config:
-        net_config = net_config["network"]
     version = net_config.get("version")
     config = net_config.get("config")
     if version == 2:
@@ -1061,7 +1059,8 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     if not state:
         raise RuntimeError(
             "No valid network_state object created from network config. "
-            "Did you specify the correct version?"
+            "Did you specify the correct version? Network config:\n"
+            f"{net_config}"
         )
 
     return state
