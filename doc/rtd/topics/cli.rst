@@ -9,7 +9,7 @@ option. This can be used against cloud-init itself or any of its subcommands.
 .. code-block:: shell-session
 
   $ cloud-init --help
-    usage: /home/holmanb/cloud-init-main/cloudinit/cmd/main.py [-h] [--version] [--file FILES] [--debug] [--force]
+    usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
                                                                {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
