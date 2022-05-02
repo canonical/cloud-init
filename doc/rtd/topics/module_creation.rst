@@ -94,12 +94,17 @@ Module Execution
 ================
 
 In order for a module to be run, it must be defined in ``/etc/cloud`` on the
-launched instance. To do so, add your module to `cloud.cfg.tmpl`_ under
-the appropriate module section. The three module sections are
-`cloud_init_modules`_, `cloud_config_modules`_, and `cloud_final_modules`_.
-Each section corresponds to the :ref:`topics/boot:Network`,
-:ref:`topics/boot:Config`, and :ref:`topics/boot:Final` boot stages
-respectively.
+launched instance. The three module sections are
+`cloud_init_modules`_, `cloud_config_modules`_, and `cloud_final_modules`_,
+corresponding to the :ref:`topics/boot:Network`, :ref:`topics/boot:Config`,
+and :ref:`topics/boot:Final` boot stages respectively.
+
+Add your module to `cloud.cfg.tmpl`_ under the appropriate module section.
+Each module gets run in the order listed, so ensure your module is defined
+in the correct location based on dependencies. If your module has no particular
+dependencies or is not necessary for a later boot stage, it should be placed
+in the ``cloud_final_modules`` section before the ``final-message`` module.
+
 
 
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58
