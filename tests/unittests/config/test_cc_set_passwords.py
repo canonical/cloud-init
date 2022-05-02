@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import util
+from cloudinit import subp, util
 from cloudinit.config import cc_set_passwords as setpass
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -40,6 +40,7 @@ class TestHandleSshPwauth(CiTestCase):
         m_subp.assert_called_with(
             ["systemctl", "restart", "ssh"], capture=True
         )
+        self.assertIn("DEBUG: Restarted the SSH daemon.", self.logs.getvalue())
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=False)
     @mock.patch("cloudinit.distros.subp.subp")
@@ -71,6 +72,25 @@ class TestHandleSshPwauth(CiTestCase):
                 setpass.handle_ssh_pwauth(value, cloud.distro)
                 m_update.assert_called_with({optname: optval})
         m_subp.assert_not_called()
+
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_unchanged_does_nothing_TODO_RENAME(
+        self, m_subp, m_update_ssh_config
+    ):
+        """If 'unchanged', then no updates to config and no restart."""
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["systemctl"]
+        process_error = "Unexpected error while running command."
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(process_error)
+        )
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        expected_warning = (
+            f"WARNING: Failed to restart the SSH deamon. ssh: {process_error}"
+        )
+        self.assertIn(expected_warning, self.logs.getvalue())
+        cloud.distro.manage_service.assert_called_with("restart", "ssh")
 
 
 class TestSetPasswordsHandle(CiTestCase):
