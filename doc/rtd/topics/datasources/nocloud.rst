@@ -61,7 +61,7 @@ You may also optionally provide a vendor-data file in the following format.
 
   /vendor-data
 
-Given a disk ubuntu 12.04 cloud image in 'disk.img', you can create a
+Given a disk ubuntu cloud image in 'disk.img', you can create a
 sufficient disk by following the example below.
 
 ::
@@ -78,10 +78,12 @@ sufficient disk by following the example below.
     ## alternatively, create a vfat filesystem with same files
     ## $ truncate --size 2M seed.img
     ## $ mkfs.vfat -n cidata seed.img
-    ## $ mcopy -oi seed.img user-data meta-data ::
+    ## $ sudo mount -t vfat /tmp/seed.img /mnt
+    ## $ sudo cp user-data meta-data /mnt
+    ## $ sudo umount /mnt
 
     ## create a new qcow image to boot, backed by your original image
-    $ qemu-img create -f qcow2 -b disk.img boot-disk.img
+    $ qemu-img create -f qcow2 -b disk.img -F qcow2 -K qcow2 boot-disk.img
 
     ## boot the image and login as 'ubuntu' with password 'passw0rd'
     ## note, passw0rd was set as password through the user-data above,
@@ -89,7 +91,7 @@ sufficient disk by following the example below.
     $ kvm -m 256 \
        -net nic -net user,hostfwd=tcp::2222-:22 \
        -drive file=boot-disk.img,if=virtio \
-       -drive file=seed.iso,if=virtio
+       -drive driver=raw,file=seed.iso,if=virtio
 
 **Note:** that the instance-id provided (``iid-local01`` above) is what is used
 to determine if this is "first boot".  So if you are making updates to
