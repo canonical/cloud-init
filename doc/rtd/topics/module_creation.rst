@@ -35,8 +35,8 @@ Example
         "distros": [ALL_DISTROS],
         "frequency": PER_INSTANCE,
         "examples": [
-            "cc_example: example1",
-            "cc_example: ['example', 2]",
+            "example_key: example_value",
+            "example_other_key: ['value', 2]",
         ],
     }
 
@@ -68,6 +68,8 @@ Guidelines
   schema definition in `cloud-init-schema.json`_.
 * The ``meta`` variable must exist and be of type `MetaSchema`_.
 
+  * ``id``: The module id. In most cases this will be the filename without
+    the `.py` extension.
   * ``distros``: Defines the list of supported distros. It can contain
     any of the values (not keys) defined in the `OSFAMILIES`_ map or
     ``[ALL_DISTROS]`` if there is no distro restriction.
@@ -80,15 +82,31 @@ Guidelines
       would be a significant change to the instance metadata. An example
       could be an instance being moved to a different subnet.
 
-  * ``examples``: Lists examples to be shown in the documentation.
-    These examples will automatically be tested against the defined schema
+  * ``examples``: Lists examples of any cloud-config keys this module reacts
+    to. These examples will be rendered in the module reference documentation
+    and will automatically be tested against the defined schema
     during testing.
 
 * ``__doc__ = get_meta_doc(meta)`` is necessary to provide proper module
   documentation.
+
+Module Execution
+================
+
+In order for a module to be run, it must be defined in ``/etc/cloud`` on the
+launched instance. To do so, add your module to `cloud.cfg.tmpl`_ under
+the appropriate module section. The three module sections are
+`cloud_init_modules`_, `cloud_config_modules`_, and `cloud_final_modules`_.
+Each section corresponds to the :ref:`topics/boot:Network`,
+:ref:`topics/boot:Config`, and :ref:`topics/boot:Final` boot stages
+respectively.
 
 
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58
 .. _OSFAMILIES: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/distros/__init__.py#L35
 .. _settings.py: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/settings.py#L66
 .. _cloud-init-schema.json: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/cloud-init-schema.json
+.. _cloud.cfg.tmpl: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl
+.. _cloud_init_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L70
+.. _cloud_config_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L101
+.. _cloud_final_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L144
