@@ -179,15 +179,11 @@ class TestLoadDoc:
 
     docs = get_module_variable("__doc__")
 
-    # TODO( Drop legacy test when all sub-schemas in cloud-init-schema.json )
     @pytest.mark.parametrize(
         "module_name",
-        (
-            "cc_apt_pipelining",  # new style composite schema file
-            "cc_install_hotplug",  # legacy sub-schema defined in module
-        ),
+        ("cc_apt_pipelining",),  # new style composite schema file
     )
-    def test_report_docs_for_legacy_and_consolidated_schema(self, module_name):
+    def test_report_docs_consolidated_schema(self, module_name):
         doc = load_doc([module_name])
         assert doc, "Unexpected empty docs for {}".format(module_name)
         assert self.docs[module_name] == doc
@@ -329,7 +325,7 @@ class TestCloudConfigExamples:
         """
         schema = get_schema()
         config_load = load(example)
-        # cloud-init-schema is permissive of additionalProperties at the
+        # cloud-init-schema-v1 is permissive of additionalProperties at the
         # top-level.
         # To validate specific schemas against known documented examples
         # we need to only define the specific module schema and supply

@@ -21,6 +21,9 @@ from cloudinit.util import error, find_modules, load_file
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
 
+# Bump this file when introducing incompatible schema changes.
+# Also add new version definition to versions.schema.json.
+USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 _YAML_MAP = {True: "true", False: "false", None: "null"}
 CLOUD_CONFIG_HEADER = b"#cloud-config"
 SCHEMA_DOC_TMPL = """
@@ -661,8 +664,17 @@ def load_doc(requested_modules: list) -> str:
 
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config modules."""
+    # Note versions.schema.json is publicly consumed by schemastore.org.
+    # If we change the location of versions.schema.json in github, we need
+    # to provide an updated PR to
+    # https://github.com/SchemaStore/schemastore.
+
+    # When bumping schema version due to incompatible changes:
+    # 1. Add a new schema-cloud-config-v#.json
+    # 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
+    # 3. Add the new version definition to versions.schema.cloud-config.json
     schema_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "cloud-init-schema.json"
+        os.path.dirname(os.path.abspath(__file__)), USERDATA_SCHEMA_FILE
     )
     full_schema = None
     try:
