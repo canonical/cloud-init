@@ -313,5 +313,7 @@ variety of sources.
 .. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
 .. _The beauty of cloud-init: http://brandon.fuller.name/archives/2011/05/02/06.40.57/
 .. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
+.. Blog Post: [terraform, azure, devops, docker, dotnet, cloud-init] https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
+.. Youtube: [proxmox, cloud-init, template] https://www.youtube.com/watch?v=shiIi38cJe4
 
 .. vi: textwidth=79

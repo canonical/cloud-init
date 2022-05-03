@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # This file is part of cloud-init. See LICENSE file for license information.
-"""Handle reconfiguration on hotplug events"""
+"""Handle reconfiguration on hotplug events."""
 import abc
 import argparse
 import os
@@ -46,24 +46,24 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subparsers.add_parser(
-        "query", help="query if hotplug is enabled for given subsystem"
+        "query", help="Query if hotplug is enabled for given subsystem."
     )
 
     parser_handle = subparsers.add_parser(
-        "handle", help="handle the hotplug event"
+        "handle", help="Handle the hotplug event."
     )
     parser_handle.add_argument(
         "-d",
         "--devpath",
         required=True,
         metavar="PATH",
-        help="sysfs path to hotplugged device",
+        help="Sysfs path to hotplugged device",
     )
     parser_handle.add_argument(
         "-u",
         "--udevaction",
         required=True,
-        help="action to take",
+        help="Specify action to take.",
         choices=["add", "remove"],
     )
 

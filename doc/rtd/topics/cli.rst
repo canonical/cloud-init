@@ -9,34 +9,32 @@ option. This can be used against cloud-init itself or any of its subcommands.
 .. code-block:: shell-session
 
   $ cloud-init --help
-    usage: /usr/bin/cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
-                            {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
-                            ...
+    usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
+                                                               {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
 
-    optional arguments:
-    -h, --help            show this help message and exit
-    --version, -v         show program's version number and exit
-    --file FILES, -f FILES
-                          additional yaml configuration files to use
-    --debug, -d           show additional pre-action logging (default: False)
-    --force               force running even if no datasource is found (use at
-                          your own risk)
+    options:
+      -h, --help            show this help message and exit
+      --version, -v         Show program's version number and exit.
+      --file FILES, -f FILES
+                            Use additional yaml configuration files.
+      --debug, -d           Show additional pre-action logging (default: False).
+      --force               Force running even if no datasource is found (use at your own risk).
 
     Subcommands:
-    {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
-        init                initializes cloud-init and performs initial modules
-        modules             activates modules using a given configuration key
-        single              run a single module
-        query               Query standardized instance metadata from the command
-                            line.
+      {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema}
+        init                Initialize cloud-init and perform initial modules.
+        modules             Activate modules using a given configuration key.
+        single              Run a single module.
+        query               Query standardized instance metadata from the command line.
         dhclient-hook       Run the dhclient hook to record network info.
-        features            list defined features
-        analyze             Devel tool: Analyze cloud-init logs and data
-        devel               Run development tools
-        collect-logs        Collect and tar all cloud-init debug info
+        features            List defined features.
+        analyze             Devel tool: Analyze cloud-init logs and data.
+        devel               Run development tools.
+        collect-logs        Collect and tar all cloud-init debug info.
         clean               Remove logs and artifacts so cloud-init can re-run.
         status              Report cloud-init status or wait on completion.
         schema              Validate cloud-config files using jsonschema.
+
 
 The rest of this document will give an overview of each of the subcommands.
 
