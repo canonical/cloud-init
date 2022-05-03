@@ -93,8 +93,9 @@ Guidelines
 Module Execution
 ================
 
-In order for a module to be run, it must be defined in ``/etc/cloud`` on the
-launched instance. The three module sections are
+In order for a module to be run, it must be defined in a module run section in
+``/etc/cloud/cloud.cfg`` or ``/etc/cloud/cloud.cfg.d`` on the launched
+instance. The three module sections are
 `cloud_init_modules`_, `cloud_config_modules`_, and `cloud_final_modules`_,
 corresponding to the :ref:`topics/boot:Network`, :ref:`topics/boot:Config`,
 and :ref:`topics/boot:Final` boot stages respectively.
