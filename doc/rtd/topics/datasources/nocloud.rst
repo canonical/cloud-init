@@ -68,27 +68,27 @@ sufficient disk by following the example below.
 
     ## 1) create user-data and meta-data files that will be used
     ## to modify image on first boot
-    $ { echo instance-id: iid-local01; echo local-hostname: cloudimg; } > meta-data
-    $ printf "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
+    $ echo "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
+    $ echo "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
 
     ## 2a) create a disk to attach with some user-data and meta-data
     $ genisoimage  -output seed.iso -volid cidata -joliet -rock user-data meta-data
 
     ## 2b) alternatively, create a vfat filesystem with same files
-    ## $ truncate --size 2M seed.img
-    ## $ mkfs.vfat -n cidata seed.img
+    ## $ truncate --size 2M seed.iso
+    ## $ mkfs.vfat -n cidata seed.iso
 
     ## 2b) option 1: mount and copy files
-    ## $ sudo mount -t vfat /tmp/seed.img /mnt
+    ## $ sudo mount -t vfat seed.iso /mnt
     ## $ sudo cp user-data meta-data /mnt
     ## $ sudo umount /mnt
 
     ## 2b) option 2: the mtools package provides mcopy, which can access vfat
-    filesystems without mounting them
-    ## $ mcopy -oi seed.img user-data meta-data
+    ## filesystems without mounting them
+    ## $ mcopy -oi seed.iso user-data meta-data
 
     ## 3) create a new qcow image to boot, backed by your original image
-    $ qemu-img create -f qcow2 -b disk.img -F qcow2 -K qcow2 boot-disk.img
+    $ qemu-img create -f qcow2 -b disk.img -F qcow2 boot-disk.img
 
     ## 4) boot the image and login as 'ubuntu' with password 'passw0rd'
     ## note, passw0rd was set as password through the user-data above,
