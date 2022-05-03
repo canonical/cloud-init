@@ -1,9 +1,8 @@
 .. _modules:
 
 
-*******
-Modules
-*******
+Module Reference
+****************
 .. contents:: Table of Contents
 
 .. automodule:: cloudinit.config.cc_apk_configure
@@ -18,7 +17,6 @@ Modules
 .. automodule:: cloudinit.config.cc_disk_setup
 .. automodule:: cloudinit.config.cc_fan
 .. automodule:: cloudinit.config.cc_final_message
-.. automodule:: cloudinit.config.cc_foo
 .. automodule:: cloudinit.config.cc_growpart
 .. automodule:: cloudinit.config.cc_grub_dpkg
 .. automodule:: cloudinit.config.cc_install_hotplug
