@@ -1,11 +1,12 @@
-"""Integration test for #570.
-
-Test that we can add optional vendor-data to the seedfrom file in a
-NoCloud environment
-"""
+"""NoCloud datasource integration tests."""
+import tempfile
+from pathlib import Path
 
 import pytest
+from pycloudlib.lxd.instance import LXDInstance
 
+from cloudinit.subp import subp
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 VENDOR_DATA = """\
@@ -15,10 +16,44 @@ runcmd:
 """
 
 
-# Only running on LXD because we need NoCloud for this test
+def setup_nocloud(instance: LXDInstance):
+    # On Jammy and above, LXD no longer uses NoCloud, so we need to set
+    # it up manually
+    if ImageSpecification.from_os_image().release in [
+        "bionic",
+        "focal",
+        "impish",
+    ]:
+        return
+    with tempfile.TemporaryDirectory() as tmpdir_str:
+        tmpdir = Path(tmpdir_str)
+        userdata_file = tmpdir / "user-data"
+        metadata_file = tmpdir / "meta-data"
+        userdata_file.touch()
+        metadata_file.touch()
+        subp(
+            [
+                "lxc",
+                "file",
+                "push",
+                str(userdata_file),
+                str(metadata_file),
+                f"{instance.name}/var/lib/cloud/seed/nocloud-net/",
+                "--create-dirs",
+            ]
+        )
+
+
+# Only running on LXD container because we need NoCloud with custom setup
 @pytest.mark.lxd_container
-@pytest.mark.lxd_vm
+@pytest.mark.lxd_setup.with_args(setup_nocloud)
+@pytest.mark.lxd_use_exec
 def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
+    """Integration test for #570.
+
+    Test that we can add optional vendor-data to the seedfrom file in a
+    NoCloud environment
+    """
     seed_dir = "/var/tmp/test_seed_dir"
     result = client.execute(
         "mkdir {seed_dir} && "
