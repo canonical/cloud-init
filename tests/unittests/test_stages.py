@@ -37,8 +37,8 @@ class FakeDataSource(sources.DataSource):
 
 class TestInit:
     @pytest.fixture(autouse=True)
-    def setup(self, tmp_path):
-        self.tmpdir = tmp_path
+    def setup(self, tmpdir):
+        self.tmpdir = tmpdir
         self.init = stages.Init()
         self.init._cfg = {
             "system_info": {
