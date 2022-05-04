@@ -288,28 +288,29 @@ class TestCombined:
             # instance-id should be a UUID
             try:
                 uuid.UUID(v1_data["instance_id"])
-            except ValueError:
+            except ValueError as e:
                 raise AssertionError(
                     f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
-                )
+                ) from e
+            assert v1_data["subplatform"] == subplatform
         else:
             cloud_name = "unknown"
-            subplatform = "seed-dir (/var/lib/cloud/seed/nocloud-net)"
             # Pre-Jammy instance-id and instance.name are synonymous
             assert v1_data["instance_id"] == client.instance.name
+            assert any(
+                [
+                    "/var/lib/cloud/seed/nocloud-net"
+                    in v1_data["subplatform"],
+                    "/dev/sr0" in v1_data["subplatform"],
+                ]
+            )
         assert v1_data["cloud_name"] == cloud_name
-        assert v1_data["subplatform"] == subplatform
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
             "/run/cloud-init/cloud-id-lxd"
         )
-        assert any(
-            [
-                "/var/lib/cloud/seed/nocloud-net" in v1_data["subplatform"],
-                "/dev/sr0" in v1_data["subplatform"],
-            ]
-        )
+
         assert v1_data["availability_zone"] is None
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
