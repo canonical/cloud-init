@@ -5,13 +5,11 @@
 import copy
 import errno
 import os
-import shutil
-import tempfile
 from textwrap import dedent
 
 import pytest
 
-from cloudinit import handlers, helpers, subp, util
+from cloudinit import handlers, helpers, util
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
@@ -27,7 +25,6 @@ from cloudinit.handlers.shell_script_by_frequency import (
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import (
     CiTestCase,
-    FilesystemMockingTestCase,
     mock,
     skipUnlessJinja,
 )
