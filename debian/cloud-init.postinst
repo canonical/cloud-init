@@ -208,6 +208,22 @@ cleanup_lp1552999() {
         "$edir/cloud-init-local.service" "$edir/cloud-init.service"
 }
 
+remove_deprecated_cloud_config_modules() {
+    local oldver="$1" last_bad_ver="22.1-14-g2e17a0d6-0ubuntu1~22.04.5"
+    if dpkg --compare-versions "$oldver" le "$last_bad_ver"; then
+      if grep -q emit_upstart /etc/cloud/cloud.cfg; then
+         # Redact emit_upstart if present in locally modified cloud.cfg:
+         # 1. "- emit_upstart" on a single line as defined in upstream
+         # 2. upstart_dir config which is no longer used
+         sed -i -e '/- emit_upstart/d' -e '/upstart_dir/d' /etc/cloud/cloud.cfg || true
+         if grep -q emit_upstart /etc/cloud/cloud.cfg; then
+             echo "DEPRECATION: unable to remove emit_upstart from /etc/cloud/cloud.cfg."
+             echo "This module is deprecated, you may remove it to eliminate warnings in cloud-init logs."
+         fi
+      fi
+    fi
+}
+
 disable_network_config_on_upgrade() {
     local oldver="$1" last_without_net="0.7.7~bzr1182-0ubuntu1"
     if [ ! -f /var/lib/cloud/instance/obj.pkl ]; then
@@ -369,6 +385,8 @@ EOF
 
    # make upgrades disable network changes by cloud-init
    disable_network_config_on_upgrade "$2"
+
+   remove_deprecated_cloud_config_modules "$2"
 
    fix_azure_upgrade_1611074 "$2"
 
