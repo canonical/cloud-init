@@ -4,6 +4,8 @@ cloud-init (22.1-63-gd8f39d79-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - add python3-responses for unittests
     - add python3-pytest-mock for unittests
     - add Suggests: ssh-import-id
+  * d/cloud-init.postinst:
+    - remove deprecated emit_upstart from cloud.cfg on upgrade
   * New upstream snapshot.
     - testing: add additional mocks to test_net tests (#1356) [yangzz-97]
     - schema: add JSON schema for mcollective, migrator and mounts modules
