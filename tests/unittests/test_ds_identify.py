@@ -164,7 +164,7 @@ class DsIdentifyBase(CiTestCase):
         def write_mock(data):
             ddata = {"out": None, "err": None, "ret": 0, "RET": None}
             ddata.update(data)
-            for k in ddata:
+            for k in ddata.keys():
                 if ddata[k] is None:
                     ddata[k] = unset
             return SHELL_MOCK_TMPL % ddata
