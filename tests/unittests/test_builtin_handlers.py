@@ -23,11 +23,7 @@ from cloudinit.handlers.shell_script_by_frequency import (
     path_map,
 )
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
-from tests.unittests.helpers import (
-    CiTestCase,
-    mock,
-    skipUnlessJinja,
-)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
 
