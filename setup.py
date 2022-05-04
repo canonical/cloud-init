@@ -21,10 +21,12 @@ import setuptools
 from setuptools.command.egg_info import egg_info
 from setuptools.command.install import install
 
+# pylint: disable=W0402
 try:
     from setuptools.errors import DistutilsError
 except ImportError:
     from distutils.errors import DistutilsArgError as DistutilsError
+# pylint: enable=W0402
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
