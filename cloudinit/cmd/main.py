@@ -337,31 +337,6 @@ def main_init(name, args):
     if mode == sources.DSMODE_NETWORK:
         existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
-        LOG.debug(
-            "Checking to see if files that we need already"
-            " exist from a previous run that would allow us"
-            " to stop early."
-        )
-        # A /var/lib/cloud/data/no-net marker file can prevent network
-        # datasource detection.
-        stop_files = [
-            os.path.join(path_helper.get_cpath("data"), "no-net"),
-        ]
-        existing_files = []
-        for fn in stop_files:
-            if os.path.isfile(fn):
-                existing_files.append(fn)
-
-        if existing_files:
-            LOG.debug(
-                "[%s] Exiting. stop file %s existed", mode, existing_files
-            )
-            return (None, [])
-        else:
-            LOG.debug(
-                "Execution continuing, no previous run detected that"
-                " would allow us to stop early."
-            )
     else:
         existing = "check"
         mcfg = util.get_cfg_option_bool(init.cfg, "manual_cache_clean", False)
@@ -375,8 +350,6 @@ def main_init(name, args):
                 existing = "trust"
 
         init.purge_cache()
-        # Delete the no-net file as well
-        util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
