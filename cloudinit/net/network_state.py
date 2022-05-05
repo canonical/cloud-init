@@ -1059,7 +1059,8 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     if not state:
         raise RuntimeError(
             "No valid network_state object created from network config. "
-            "Did you specify the correct version?"
+            "Did you specify the correct version? Network config:\n"
+            f"{net_config}"
         )
 
     return state
