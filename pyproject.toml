@@ -101,5 +101,5 @@ exclude=[
 ]
 
 [[tool.mypy.overrides]]
-module = [ "httpretty" ]
+module = [ "httpretty", "pycloudlib.*" ]
 ignore_missing_imports = true
