@@ -1,7 +1,16 @@
-.. _lxd_tutorial:
+.. _tutorial_lxd:
 
-Tutorial
-********
+Tutorials
+*********
+
+.. toctree::
+   :titlesonly:
+   :hidden:
+
+   qemu.rst
+
+LXD
+===
 
 In this tutorial, we will create our first cloud-init user data script
 and deploy it into an LXD container. We'll be using LXD_ for this tutorial
