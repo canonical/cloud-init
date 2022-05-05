@@ -41,6 +41,7 @@ Usage: ${0##*/} [ options ] [images:]image-ref
       -p | --package         build a binary package (.deb or .rpm)
       -s | --source-package  build source package (debuild -S or srpm)
       -u | --unittest        run unit tests
+           --vm              use a VM instead of a container
 
     Example:
       * ${0##*/} --package --source-package --unittest centos/6
@@ -53,7 +54,7 @@ cleanup() {
         if [ "$KEEP" = "true" ]; then
             error "not deleting container '$CONTAINER' due to --keep"
         else
-            delete_container "$CONTAINER"
+            delete_instance "$CONTAINER"
         fi
     fi
 }
@@ -360,6 +361,12 @@ wait_inside() {
 wait_for_boot() {
     local name="$1"
     local out="" ret="" wtime=$DEFAULT_WAIT_MAX
+    local system_up=false
+    for i in {0..30}; do
+        [ "$i" -gt 1 ] && sleep 5
+        inside "$name" true 2>/dev/null && system_up=true && break
+    done
+    [ $system_up == true ] || { errorrc "exec command inside $name failed."; return; }
     get_os_info_in "$name"
     [ "$OS_NAME" = "debian" ] && wtime=300 &&
         debug 1 "on debian we wait for ${wtime}s"
@@ -379,10 +386,12 @@ wait_for_boot() {
     fi
 }
 
-start_container() {
-    local src="$1" name="$2"
+start_instance() {
+    local src="$1" name="$2" use_vm="$3"
     debug 1 "starting container $name from '$src'"
-    lxc launch "$src" "$name" || {
+    launch_flags=()
+    [ "$use_vm" == true ] && launch_flags+=(--vm)
+    lxc launch "$src" "$name" "${launch_flags[@]}" || {
         errorrc "Failed to start container '$name' from '$src'";
         return
     }
@@ -390,7 +399,7 @@ start_container() {
     wait_for_boot "$name"
 }
 
-delete_container() {
+delete_instance() {
     debug 1 "removing container $1 [--keep to keep]"
     lxc delete --force "$1"
 }
@@ -410,7 +419,7 @@ run_self_inside_as_cd() {
 
 main() {
     local short_opts="a:hknpsuv"
-    local long_opts="artifacts:,dirty,help,keep,name:,pyexe:,package,source-package,unittest,verbose"
+    local long_opts="artifacts:,dirty,help,keep,name:,pyexe:,package,source-package,unittest,verbose,vm"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -420,6 +429,7 @@ main() {
     local cur="" next=""
     local package=false srcpackage=false unittest="" name=""
     local dirty=false pyexe="auto" artifact_d="."
+    local use_vm=false
 
     while [ $# -ne 0 ]; do
         cur="${1:-}"; next="${2:-}";
@@ -434,6 +444,7 @@ main() {
             -s|--source-package) srcpackage=true;;
             -u|--unittest) unittest=1;;
             -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
+               --vm) use_vm=true;;
             --) shift; break;;
         esac
         shift;
@@ -463,7 +474,7 @@ main() {
 
     trap cleanup EXIT
 
-    start_container "$img_ref" "$name" ||
+    start_instance "$img_ref" "$name" "$use_vm" ||
         { errorrc "Failed to start container for $img_ref"; return; }
 
     get_os_info_in "$name" ||
