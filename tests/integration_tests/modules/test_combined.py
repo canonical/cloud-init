@@ -12,9 +12,9 @@ import uuid
 import pytest
 
 from tests.integration_tests.clouds import ImageSpecification
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
-    retry,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
