@@ -20,6 +20,7 @@ from . import renderer
 
 NM_RUN_DIR = "/etc/NetworkManager"
 NM_LIB_DIR = "/usr/lib/NetworkManager"
+NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 LOG = logging.getLogger(__name__)
 
 
@@ -370,8 +371,9 @@ def conn_filename(con_id, target=None):
 
 
 def available(target=None):
-    target_nm_dir = subp.target_path(target, NM_LIB_DIR)
-    return os.path.exists(target_nm_dir)
+    config_present = os.path.isfile(subp.target_path(target, path=NM_CFG_FILE))
+    nmcli_present = subp.which("nmcli", target=target)
+    return config_present and bool(nmcli_present)
 
 
 # vi: ts=4 expandtab
