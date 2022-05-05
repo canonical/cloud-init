@@ -320,8 +320,8 @@ class TestResize(unittest.TestCase):
                 raise e
             return real_stat(path)
 
+        opinfo = cc_growpart.device_part_info
         try:
-            opinfo = cc_growpart.device_part_info
             cc_growpart.device_part_info = simple_device_part_info
             os.stat = mystat
 
