@@ -1,12 +1,8 @@
 """NoCloud datasource integration tests."""
-import tempfile
-from pathlib import Path
-
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 VENDOR_DATA = """\
@@ -16,32 +12,49 @@ runcmd:
 """
 
 
+LXD_METADATA_NOCLOUD_SEED = """\
+  /var/lib/cloud/seed/nocloud-net/meta-data:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: emptycfg.tpl
+    properties:
+      default: |
+        #cloud-config
+        {}
+  /var/lib/cloud/seed/nocloud-net/user-data:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: emptycfg.tpl
+    properties:
+      default: |
+        #cloud-config
+        {}
+"""
+
+
 def setup_nocloud(instance: LXDInstance):
     # On Jammy and above, LXD no longer uses NoCloud, so we need to set
     # it up manually
-    if ImageSpecification.from_os_image().release in [
-        "bionic",
-        "focal",
-        "impish",
-    ]:
+    lxd_image_metadata = subp(
+        ["lxc", "config", "metadata", "show", instance.name]
+    )
+    if "/var/lib/cloud/seed/nocloud-net" in lxd_image_metadata.stdout:
         return
-    with tempfile.TemporaryDirectory() as tmpdir_str:
-        tmpdir = Path(tmpdir_str)
-        userdata_file = tmpdir / "user-data"
-        metadata_file = tmpdir / "meta-data"
-        userdata_file.touch()
-        metadata_file.touch()
-        subp(
-            [
-                "lxc",
-                "file",
-                "push",
-                str(userdata_file),
-                str(metadata_file),
-                f"{instance.name}/var/lib/cloud/seed/nocloud-net/",
-                "--create-dirs",
-            ]
-        )
+    subp(
+        ["lxc", "config", "template", "create", instance.name, "emptycfg.tpl"],
+    )
+    subp(
+        ["lxc", "config", "template", "edit", instance.name, "emptycfg.tpl"],
+        data="#cloud-config\n{}\n",
+    )
+    subp(
+        ["lxc", "config", "metadata", "edit", instance.name],
+        data=f"{lxd_image_metadata.stdout}{LXD_METADATA_NOCLOUD_SEED}",
+    )
 
 
 # Only running on LXD container because we need NoCloud with custom setup
@@ -57,7 +70,6 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     seed_dir = "/var/tmp/test_seed_dir"
     result = client.execute(
         "mkdir {seed_dir} && "
-        "mkdir -p /var/lib/cloud/seed/nocloud-net && "
         "touch {seed_dir}/user-data && "
         "touch {seed_dir}/meta-data && "
         "echo 'seedfrom: {seed_dir}/' > "
