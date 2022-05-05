@@ -342,8 +342,8 @@ def main_init(name, args):
             " exist from a previous run that would allow us"
             " to stop early."
         )
-        # no-net is written by upstart cloud-init-nonet when network failed
-        # to come up
+        # A /var/lib/cloud/data/no-net marker file can prevent network
+        # datasource detection.
         stop_files = [
             os.path.join(path_helper.get_cpath("data"), "no-net"),
         ]
@@ -394,8 +394,7 @@ def main_init(name, args):
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
-        # found. When using upstart it will also mentions job failure
-        # in console log if exit code is != 0.
+        # found.
         if mode == sources.DSMODE_LOCAL:
             LOG.debug("No local datasource found")
         else:
