@@ -101,13 +101,16 @@ class TestHandleSshPwauth(CiTestCase):
         setpass.handle_ssh_pwauth(True, cloud.distro)
         self.assertIn(
             (
-                r"WARNING: Ignoring config 'ssh_pwauth: True'. Service 'ssh' "
-                r"is not running."
+                r"WARNING: Ignoring config 'ssh_pwauth: True'. SSH deamon "
+                r"service 'ssh' is not running."
             ),
             self.logs.getvalue(),
         )
         self.assertIn(
-            rf"DEBUG: Service 'ssh' is not running: {process_error}",
+            (
+                r"DEBUG: SSH deamon service 'ssh' is not running: "
+                rf"{process_error}"
+            ),
             self.logs.getvalue(),
         )
         cloud.distro.manage_service.assert_called_once_with("status", "ssh")

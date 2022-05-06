@@ -92,12 +92,15 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         distro.manage_service("status", service)
     except subp.ProcessExecutionError as e:
         LOG.warning(
-            "Ignoring config 'ssh_pwauth: %s'. Service '%s' is not running.",
+            (
+                "Ignoring config 'ssh_pwauth: %s'. SSH deamon service '%s' is "
+                "not running."
+            ),
             pw_auth,
             service,
         )
         LOG.debug(
-            "Service '%s' is not running: %s",
+            "SSH deamon service '%s' is not running: %s",
             service,
             e,
         )
