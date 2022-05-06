@@ -14,7 +14,7 @@ from textwrap import dedent
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, ug_util
+from cloudinit.distros import ALL_DISTROS, Distro, ug_util
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.ssh_util import update_ssh_config
 
@@ -79,7 +79,7 @@ LOG = logging.getLogger(__name__)
 PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
-def handle_ssh_pwauth(pw_auth, distro):
+def handle_ssh_pwauth(pw_auth, distro: Distro):
     """Apply sshd PasswordAuthentication changes.
 
     @param pw_auth: config setting from 'pw_auth'.
@@ -87,6 +87,22 @@ def handle_ssh_pwauth(pw_auth, distro):
     @param distro: an instance of the distro class for the target distribution
 
     @return: None"""
+    service = distro.get_option("ssh_svcname", "ssh")
+    try:
+        distro.manage_service("status", service)
+    except subp.ProcessExecutionError as e:
+        LOG.warning(
+            "Ignoring config 'ssh_pwauth: %s'. Service '%s' is not running.",
+            pw_auth,
+            service,
+        )
+        LOG.debug(
+            "Service '%s' is not running: %s",
+            service,
+            e,
+        )
+        return
+
     cfg_name = "PasswordAuthentication"
 
     if isinstance(pw_auth, str):
@@ -112,13 +128,8 @@ def handle_ssh_pwauth(pw_auth, distro):
         LOG.debug("No need to restart SSH service, %s not updated.", cfg_name)
         return
 
-    service = distro.get_option("ssh_svcname", "ssh")
-    try:
-        distro.manage_service("restart", service)
-    except subp.ProcessExecutionError as e:
-        LOG.warning("Failed to restart the SSH deamon. %s: %s", service, e)
-    else:
-        LOG.debug("Restarted the SSH daemon.")
+    distro.manage_service("restart", service)
+    LOG.debug("Restarted the SSH daemon.")
 
 
 def handle(_name, cfg, cloud, log, args):

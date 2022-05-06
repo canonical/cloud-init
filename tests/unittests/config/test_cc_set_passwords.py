@@ -28,7 +28,9 @@ class TestHandleSshPwauth(CiTestCase):
         self.assertIn(
             "Unrecognized value: ssh_pwauth=floo", self.logs.getvalue()
         )
-        m_subp.assert_not_called()
+        m_subp.assert_called_once_with(
+            ["systemctl", "status", "ssh"], capture=True
+        )
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
@@ -48,7 +50,10 @@ class TestHandleSshPwauth(CiTestCase):
         """If config is not updated, then no system restart should be done."""
         cloud = self.tmp_cloud(distro="ubuntu")
         setpass.handle_ssh_pwauth(True, cloud.distro)
-        m_subp.assert_not_called()
+        m_subp.assert_called_once_with(
+            ["systemctl", "status", "ssh"],
+            capture=True,
+        )
         self.assertIn("No need to restart SSH", self.logs.getvalue())
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
@@ -58,7 +63,9 @@ class TestHandleSshPwauth(CiTestCase):
         cloud = self.tmp_cloud(distro="ubuntu")
         setpass.handle_ssh_pwauth("unchanged", cloud.distro)
         m_update_ssh_config.assert_not_called()
-        m_subp.assert_not_called()
+        m_subp.assert_called_once_with(
+            ["systemctl", "status", "ssh"], capture=True
+        )
 
     @mock.patch("cloudinit.distros.subp.subp")
     def test_valid_change_values(self, m_subp):
@@ -66,19 +73,25 @@ class TestHandleSshPwauth(CiTestCase):
         cloud = self.tmp_cloud(distro="ubuntu")
         upname = MODPATH + "update_ssh_config"
         optname = "PasswordAuthentication"
-        for value in util.FALSE_STRINGS + util.TRUE_STRINGS:
+        for n, value in enumerate(util.FALSE_STRINGS + util.TRUE_STRINGS, 1):
             optval = "yes" if value in util.TRUE_STRINGS else "no"
             with mock.patch(upname, return_value=False) as m_update:
                 setpass.handle_ssh_pwauth(value, cloud.distro)
                 m_update.assert_called_with({optname: optval})
-        m_subp.assert_not_called()
+            m_subp.call_count = n
+        m_subp.assert_called_with(
+            ["systemctl", "status", "ssh"],
+            capture=True,
+        )
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_unchanged_does_nothing_TODO_RENAME(
+    def test_failed_ssh_service_does_nothing(
         self, m_subp, m_update_ssh_config
     ):
-        """If 'unchanged', then no updates to config and no restart."""
+        """If the ssh service is not running, then no updates to config and
+        no restart.
+        """
         cloud = self.tmp_cloud(distro="ubuntu")
         cloud.distro.init_cmd = ["systemctl"]
         process_error = "Unexpected error while running command."
@@ -86,11 +99,20 @@ class TestHandleSshPwauth(CiTestCase):
             side_effect=subp.ProcessExecutionError(process_error)
         )
         setpass.handle_ssh_pwauth(True, cloud.distro)
-        expected_warning = (
-            f"WARNING: Failed to restart the SSH deamon. ssh: {process_error}"
+        self.assertIn(
+            (
+                r"WARNING: Ignoring config 'ssh_pwauth: True'. Service 'ssh' "
+                r"is not running."
+            ),
+            self.logs.getvalue(),
         )
-        self.assertIn(expected_warning, self.logs.getvalue())
-        cloud.distro.manage_service.assert_called_with("restart", "ssh")
+        self.assertIn(
+            rf"DEBUG: Service 'ssh' is not running: {process_error}",
+            self.logs.getvalue(),
+        )
+        cloud.distro.manage_service.assert_called_once_with("status", "ssh")
+        m_update_ssh_config.assert_not_called()
+        m_subp.assert_not_called()
 
 
 class TestSetPasswordsHandle(CiTestCase):
@@ -98,7 +120,8 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
-    def test_handle_on_empty_config(self, *args):
+    @mock.patch(MODPATH + "subp.subp")
+    def test_handle_on_empty_config(self, m_subp):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro="ubuntu")
         setpass.handle(
@@ -109,8 +132,12 @@ class TestSetPasswordsHandle(CiTestCase):
             "ssh_pwauth=None\n",
             self.logs.getvalue(),
         )
+        m_subp.assert_called_once_with(
+            ["systemctl", "status", "ssh"], capture=True
+        )
 
-    def test_handle_on_chpasswd_list_parses_common_hashes(self):
+    @mock.patch(MODPATH + "subp.subp")
+    def test_handle_on_chpasswd_list_parses_common_hashes(self, m_subp):
         """handle parses command password hashes."""
         cloud = self.tmp_cloud(distro="ubuntu")
         valid_hashed_pwds = [
@@ -156,6 +183,7 @@ class TestSetPasswordsHandle(CiTestCase):
                     logstring="chpasswd for ubuntu",
                 ),
                 mock.call(["pw", "usermod", "ubuntu", "-p", "01-Jan-1970"]),
+                mock.call(["systemctl", "status", "sshd"], capture=True),
             ],
             m_subp.call_args_list,
         )
