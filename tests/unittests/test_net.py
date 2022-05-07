@@ -7366,16 +7366,14 @@ class TestRenderersSelect:
             ),
             # -netplan +ifupdown -sys -nm -networkd selects eni
             ("eni", False, True, False, False, False),
-            # +netplan +ifupdown -sys -nm -networkd selects eni
-            ("eni", True, True, False, False, False),
-            # +netplan -ifupdown -sys -nm -networkd selects netplan
-            ("netplan", True, False, False, False, False),
+            # +netplan +ifupdown -sys -nm -networkd selects netplan
+            ("netplan", True, True, False, False, False),
             # +netplan -ifupdown -sys -nm -networkd selects netplan
             ("netplan", True, False, False, False, False),
             # -netplan -ifupdown +sys -nm -networkd selects sysconfig
             ("sysconfig", False, False, True, False, False),
-            # -netplan -ifupdown +sys +nm -networkd selects sysconfig
-            ("sysconfig", False, False, True, True, False),
+            # -netplan -ifupdown +sys +nm -networkd selects network-manager
+            ("network-manager", False, False, True, True, False),
             # -netplan -ifupdown -sys +nm -networkd selects nm
             ("network-manager", False, False, False, True, False),
             # -netplan -ifupdown -sys +nm +networkd selects nm

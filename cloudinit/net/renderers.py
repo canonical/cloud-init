@@ -27,10 +27,10 @@ NAME_TO_RENDERER = {
 }
 
 DEFAULT_PRIORITY = [
-    "eni",
-    "sysconfig",
     "netplan",
     "network-manager",
+    "eni",
+    "sysconfig",
     "freebsd",
     "netbsd",
     "openbsd",
