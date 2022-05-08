@@ -135,7 +135,7 @@ def dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
         explicit_start=explicit_start,
         explicit_end=explicit_end,
         default_flow_style=False,
-        Dumper=(NoAliasSafeDumper if noalias else yaml.dumper.Dumper),
+        Dumper=(NoAliasSafeDumper if noalias else yaml.dumper.SafeDumper),
     )
 
 
