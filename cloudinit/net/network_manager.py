@@ -373,7 +373,14 @@ def conn_filename(con_id, target=None):
 def available(target=None):
     config_present = os.path.isfile(subp.target_path(target, path=NM_CFG_FILE))
     nmcli_present = subp.which("nmcli", target=target)
-    return config_present and bool(nmcli_present)
+    service_active = True
+    if subp.which("systemctl"):
+        try:
+            subp.subp(["systemctl", "is-active", "NetworkManager.service"])
+        except subp.ProcessExecutionError:
+            service_active = False
+
+    return config_present and bool(nmcli_present) and service_active
 
 
 # vi: ts=4 expandtab
