@@ -28,8 +28,9 @@ class TestHandleSshPwauth(CiTestCase):
         self.assertIn(
             "Unrecognized value: ssh_pwauth=floo", self.logs.getvalue()
         )
-        m_subp.assert_called_once_with(
-            ["systemctl", "status", "ssh"], capture=True
+        self.assertEqual(
+            [mock.call(["systemctl", "status", "ssh"], capture=True)],
+            m_subp.call_args_list,
         )
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
@@ -50,9 +51,9 @@ class TestHandleSshPwauth(CiTestCase):
         """If config is not updated, then no system restart should be done."""
         cloud = self.tmp_cloud(distro="ubuntu")
         setpass.handle_ssh_pwauth(True, cloud.distro)
-        m_subp.assert_called_once_with(
-            ["systemctl", "status", "ssh"],
-            capture=True,
+        self.assertEqual(
+            [mock.call(["systemctl", "status", "ssh"], capture=True)],
+            m_subp.call_args_list,
         )
         self.assertIn("No need to restart SSH", self.logs.getvalue())
 
@@ -63,8 +64,10 @@ class TestHandleSshPwauth(CiTestCase):
         cloud = self.tmp_cloud(distro="ubuntu")
         setpass.handle_ssh_pwauth("unchanged", cloud.distro)
         m_update_ssh_config.assert_not_called()
-        m_subp.assert_called_once_with(
-            ["systemctl", "status", "ssh"], capture=True
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(
+            [mock.call(["systemctl", "status", "ssh"], capture=True)],
+            m_subp.call_args_list,
         )
 
     @mock.patch("cloudinit.distros.subp.subp")
@@ -77,11 +80,13 @@ class TestHandleSshPwauth(CiTestCase):
             optval = "yes" if value in util.TRUE_STRINGS else "no"
             with mock.patch(upname, return_value=False) as m_update:
                 setpass.handle_ssh_pwauth(value, cloud.distro)
-                m_update.assert_called_with({optname: optval})
-            m_subp.call_count = n
-        m_subp.assert_called_with(
-            ["systemctl", "status", "ssh"],
-            capture=True,
+                self.assertEqual(
+                    mock.call({optname: optval}), m_update.call_args_list[-1]
+                )
+            self.assertEqual(m_subp.call_count, n)
+        self.assertEqual(
+            mock.call(["systemctl", "status", "ssh"], capture=True),
+            m_subp.call_args_list[-1],
         )
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
@@ -114,8 +119,8 @@ class TestHandleSshPwauth(CiTestCase):
             self.logs.getvalue(),
         )
         cloud.distro.manage_service.assert_called_once_with("status", "ssh")
-        m_update_ssh_config.assert_not_called()
-        m_subp.assert_not_called()
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(m_subp.call_count, 0)
 
 
 class TestSetPasswordsHandle(CiTestCase):
@@ -135,8 +140,9 @@ class TestSetPasswordsHandle(CiTestCase):
             "ssh_pwauth=None\n",
             self.logs.getvalue(),
         )
-        m_subp.assert_called_once_with(
-            ["systemctl", "status", "ssh"], capture=True
+        self.assertEqual(
+            [mock.call(["systemctl", "status", "ssh"], capture=True)],
+            m_subp.call_args_list,
         )
 
     @mock.patch(MODPATH + "subp.subp")
