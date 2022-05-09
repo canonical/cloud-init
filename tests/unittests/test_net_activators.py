@@ -44,7 +44,9 @@ NETPLAN_CALL_LIST = [
 def available_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
     with ExitStack() as mocks_context:
-        mocks_context.enter_context(patch("cloudinit.subp.subp"))
+        mocks_context.enter_context(
+            patch("cloudinit.distros.uses_systemd", return_value=False)
+        )
         m_which = mocks_context.enter_context(
             patch("cloudinit.subp.which", return_value=True)
         )
@@ -61,7 +63,9 @@ def available_mocks():
 def unavailable_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
     with ExitStack() as mocks_context:
-        mocks_context.enter_context(patch("cloudinit.subp.subp"))
+        mocks_context.enter_context(
+            patch("cloudinit.distros.uses_systemd", return_value=False)
+        )
         m_which = mocks_context.enter_context(
             patch("cloudinit.subp.which", return_value=False)
         )

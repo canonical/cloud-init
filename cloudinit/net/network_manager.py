@@ -371,10 +371,14 @@ def conn_filename(con_id, target=None):
 
 
 def available(target=None):
+    # TODO: Move `uses_systemd` to a more appropriate location
+    # It is imported here to avoid circular import
+    from cloudinit.distros import uses_systemd
+
     config_present = os.path.isfile(subp.target_path(target, path=NM_CFG_FILE))
     nmcli_present = subp.which("nmcli", target=target)
     service_active = True
-    if subp.which("systemctl"):
+    if uses_systemd():
         try:
             subp.subp(["systemctl", "is-active", "NetworkManager.service"])
         except subp.ProcessExecutionError:
