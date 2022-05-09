@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import errno
 import os
 from collections import namedtuple
 from io import StringIO
@@ -13,6 +14,9 @@ from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
 from cloudinit.util import ensure_file
 from tests.unittests.helpers import wrap_and_call
+
+M_NAME = "cloudinit.cmd.status"
+M_PATH = f"{M_NAME}."
 
 MyPaths = namedtuple("MyPaths", "run_dir")
 MyArgs = namedtuple("MyArgs", "long wait")
@@ -30,20 +34,6 @@ def config(tmpdir):
         result_file=tmpdir.join("result.json"),
         paths=MyPaths(run_dir=tmpdir),
     )
-
-
-@pytest.fixture(scope="function")
-def init_class(config):
-    class FakeInit(object):
-        paths = config.paths
-
-        def __init__(self, ds_deps):
-            pass
-
-        def read_cfg(self):
-            pass
-
-    return FakeInit
 
 
 class TestStatus:
@@ -132,7 +122,7 @@ class TestStatus:
         if ensured_file is not None:
             ensure_file(ensured_file(config))
         (is_disabled, reason) = wrap_and_call(
-            "cloudinit.cmd.status",
+            M_NAME,
             {
                 "uses_systemd": uses_systemd,
                 "get_cmdline": get_cmdline,
@@ -147,19 +137,18 @@ class TestStatus:
         else:
             assert reason == expected_reason(config)
 
-    def test_status_returns_not_run(self, config: Config, init_class):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_status_returns_not_run(self, m_read_cfg_paths, config: Config):
         """When status.json does not exist yet, return 'not run'."""
+        m_read_cfg_paths.return_value = config.paths
         assert not os.path.exists(
             config.status_file
         ), "Unexpected status.json found"
         cmdargs = MyArgs(long=False, wait=False)
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
-                "cloudinit.cmd.status",
-                {
-                    "_is_cloudinit_disabled": (False, ""),
-                    "Init": {"side_effect": init_class},
-                },
+                M_NAME,
+                {"_is_cloudinit_disabled": (False, "")},
                 status.handle_status_args,
                 "ignored",
                 cmdargs,
@@ -167,11 +156,12 @@ class TestStatus:
         assert retcode == 0
         assert m_stdout.getvalue() == "status: not run\n"
 
+    @mock.patch(M_PATH + "read_cfg_paths")
     def test_status_returns_disabled_long_on_presence_of_disable_file(
-        self, config: Config, init_class
+        self, m_read_cfg_paths, config: Config
     ):
         """When cloudinit is disabled, return disabled reason."""
-
+        m_read_cfg_paths.return_value = config.paths
         checked_files = []
 
         def fakeexists(filepath):
@@ -182,14 +172,13 @@ class TestStatus:
         cmdargs = MyArgs(long=True, wait=False)
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
-                "cloudinit.cmd.status",
+                M_NAME,
                 {
                     "os.path.exists": {"side_effect": fakeexists},
                     "_is_cloudinit_disabled": (
                         True,
                         "disabled for some reason",
                     ),
-                    "Init": {"side_effect": init_class},
                 },
                 status.handle_status_args,
                 "ignored",
@@ -377,8 +366,10 @@ class TestStatus:
             ),
         ],
     )
+    @mock.patch(M_PATH + "read_cfg_paths")
     def test_status_output(
         self,
+        m_read_cfg_paths,
         ensured_file: Optional[Callable],
         status_content: Dict,
         assert_file,
@@ -386,9 +377,8 @@ class TestStatus:
         expected_retcode: int,
         expected_status: str,
         config: Config,
-        init_class,
     ):
-        """"""
+        m_read_cfg_paths.return_value = config.paths
         if ensured_file:
             ensure_file(ensured_file(config))
         write_json(
@@ -401,11 +391,8 @@ class TestStatus:
             ), f"Unexpected {config.result_file} found"
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
-                "cloudinit.cmd.status",
-                {
-                    "_is_cloudinit_disabled": (False, ""),
-                    "Init": {"side_effect": init_class},
-                },
+                M_NAME,
+                {"_is_cloudinit_disabled": (False, "")},
                 status.handle_status_args,
                 "ignored",
                 cmdargs,
@@ -413,8 +400,12 @@ class TestStatus:
         assert retcode == expected_retcode
         assert m_stdout.getvalue() == expected_status
 
-    def test_status_wait_blocks_until_done(self, config: Config, init_class):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_status_wait_blocks_until_done(
+        self, m_read_cfg_paths, config: Config
+    ):
         """Specifying wait will poll every 1/4 second until done state."""
+        m_read_cfg_paths.return_value = config.paths
         running_json = {
             "v1": {
                 "stage": "init",
@@ -446,11 +437,10 @@ class TestStatus:
         cmdargs = MyArgs(long=False, wait=True)
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
-                "cloudinit.cmd.status",
+                M_NAME,
                 {
                     "sleep": {"side_effect": fake_sleep},
                     "_is_cloudinit_disabled": (False, ""),
-                    "Init": {"side_effect": init_class},
                 },
                 status.handle_status_args,
                 "ignored",
@@ -460,8 +450,12 @@ class TestStatus:
         assert sleep_calls == 4
         assert m_stdout.getvalue() == "....\nstatus: done\n"
 
-    def test_status_wait_blocks_until_error(self, config: Config, init_class):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_status_wait_blocks_until_error(
+        self, m_read_cfg_paths, config: Config
+    ):
         """Specifying wait will poll every 1/4 second until error state."""
+        m_read_cfg_paths.return_value = config.paths
         running_json = {
             "v1": {
                 "stage": "init",
@@ -495,11 +489,10 @@ class TestStatus:
         cmdargs = MyArgs(long=False, wait=True)
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
-                "cloudinit.cmd.status",
+                M_NAME,
                 {
                     "sleep": {"side_effect": fake_sleep},
                     "_is_cloudinit_disabled": (False, ""),
-                    "Init": {"side_effect": init_class},
                 },
                 status.handle_status_args,
                 "ignored",
@@ -509,8 +502,10 @@ class TestStatus:
         assert sleep_calls == 4
         assert m_stdout.getvalue() == "....\nstatus: error\n"
 
-    def test_status_main(self, config: Config, init_class, capsys):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_status_main(self, m_read_cfg_paths, config: Config):
         """status.main can be run as a standalone script."""
+        m_read_cfg_paths.return_value = config.paths
         write_json(
             config.status_file,
             {"v1": {"init": {"start": 1, "finished": None}}},
@@ -518,16 +513,66 @@ class TestStatus:
         with pytest.raises(SystemExit) as e:
             with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
                 wrap_and_call(
-                    "cloudinit.cmd.status",
+                    M_NAME,
                     {
                         "sys.argv": {"new": ["status"]},
                         "_is_cloudinit_disabled": (False, ""),
-                        "Init": {"side_effect": init_class},
                     },
                     status.main,
                 )
         assert e.value.code == 0
         assert m_stdout.getvalue() == "status: running\n"
+
+    @mock.patch(
+        "cloudinit.cmd.devel.Init.read_cfg",
+        side_effect=OSError(errno.EACCES, "Not allowed"),
+    )
+    def test_status_no_read_permission_init_config(self, m_read_cfg):
+        """status.handle_status_args outputs to stderr and exists with 1 if
+        some init cfg file has no user permissions.
+        """
+
+        cmdargs = MyArgs(long=False, wait=True)
+        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
+            with pytest.raises(SystemExit) as exc_info:
+                wrap_and_call(
+                    M_NAME,
+                    {
+                        "sleep": {"side_effect": lambda *_: None},
+                        "_is_cloudinit_disabled": (False, ""),
+                    },
+                    status.handle_status_args,
+                    "ignored",
+                    cmdargs,
+                )
+        assert exc_info.value.code == 1
+        expected_error = (
+            "Error:\nFailed reading config file(s) due to permission error:\n"
+            "[Errno 13] Not allowed\n"
+        )
+        assert m_stderr.getvalue() == expected_error
+        assert m_read_cfg.call_count == 1
+
+    @mock.patch(
+        "cloudinit.cmd.devel.Init.read_cfg",
+        side_effect=OSError(errno.EACCES, "Not allowed"),
+    )
+    def test_get_status_details_no_read_permission_init_config(
+        self, m_read_cfg
+    ):
+        """status.get_status_details outputs to stderr and exists with 1 if
+        some init cfg file has no user permissions.
+        """
+        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
+            with pytest.raises(SystemExit) as exc_info:
+                status.get_status_details()
+        assert exc_info.value.code == 1
+        expected_error = (
+            "Error:\nFailed reading config file(s) due to permission error:\n"
+            "[Errno 13] Not allowed\n"
+        )
+        assert m_stderr.getvalue() == expected_error
+        assert m_read_cfg.call_count == 1
 
 
 # vi: ts=4 expandtab syntax=python

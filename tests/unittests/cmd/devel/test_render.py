@@ -1,154 +1,164 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import os
+import errno
 from collections import namedtuple
 from io import StringIO
+
+import pytest
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.util import ensure_dir, write_file
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
+from tests.unittests.helpers import mock, skipUnlessJinja
+
+M_PATH = "cloudinit.cmd.devel.render."
 
 
-class TestRender(CiTestCase):
+class TestRender:
 
-    with_logs = True
+    Args = namedtuple("Args", "user_data instance_data debug")
 
-    args = namedtuple("renderargs", "user_data instance_data debug")
-
-    def setUp(self):
-        super(TestRender, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    def test_handle_args_error_on_missing_user_data(self):
+    def test_handle_args_error_on_missing_user_data(self, caplog, tmpdir):
         """When user_data file path does not exist, log an error."""
-        absent_file = self.tmp_path("user-data", dir=self.tmp)
-        instance_data = self.tmp_path("instance-data", dir=self.tmp)
+        absent_file = tmpdir.join("user-data")
+        instance_data = tmpdir.join("instance-data")
         write_file(instance_data, "{}")
-        args = self.args(
+        args = self.Args(
             user_data=absent_file, instance_data=instance_data, debug=False
         )
         with mock.patch("sys.stderr", new_callable=StringIO):
-            self.assertEqual(1, render.handle_args("anyname", args))
-        self.assertIn(
-            "Missing user-data file: %s" % absent_file, self.logs.getvalue()
-        )
+            assert render.handle_args("anyname", args) == 1
+        assert "Missing user-data file: %s" % absent_file in caplog.text
 
-    def test_handle_args_error_on_missing_instance_data(self):
+    def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):
         """When instance_data file path does not exist, log an error."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
-        absent_file = self.tmp_path("instance-data", dir=self.tmp)
-        args = self.args(
+        user_data = tmpdir.join("user-data")
+        absent_file = tmpdir.join("instance-data")
+        args = self.Args(
             user_data=user_data, instance_data=absent_file, debug=False
         )
         with mock.patch("sys.stderr", new_callable=StringIO):
-            self.assertEqual(1, render.handle_args("anyname", args))
-        self.assertIn(
-            "Missing instance-data.json file: %s" % absent_file,
-            self.logs.getvalue(),
+            assert render.handle_args("anyname", args) == 1
+        assert (
+            "Missing instance-data.json file: %s" % absent_file in caplog.text
         )
 
-    def test_handle_args_defaults_instance_data(self):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_args_defaults_instance_data(self, m_paths, caplog, tmpdir):
         """When no instance_data argument, default to configured run_dir."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
-        run_dir = self.tmp_path("run_dir", dir=self.tmp)
+        user_data = tmpdir.join("user-data")
+        run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
-        paths = Paths({"run_dir": run_dir})
-        self.add_patch("cloudinit.cmd.devel.render.read_cfg_paths", "m_paths")
-        self.m_paths.return_value = paths
-        args = self.args(user_data=user_data, instance_data=None, debug=False)
+        m_paths.return_value = Paths({"run_dir": run_dir})
+        args = self.Args(user_data=user_data, instance_data=None, debug=False)
         with mock.patch("sys.stderr", new_callable=StringIO):
-            self.assertEqual(1, render.handle_args("anyname", args))
-        json_file = os.path.join(run_dir, INSTANCE_JSON_FILE)
-        self.assertIn(
-            "Missing instance-data.json file: %s" % json_file,
-            self.logs.getvalue(),
-        )
+            assert render.handle_args("anyname", args) == 1
+        json_file = run_dir.join(INSTANCE_JSON_FILE)
+        msg = "Missing instance-data.json file: %s" % json_file
+        assert msg in caplog.text
 
-    def test_handle_args_root_fallback_from_sensitive_instance_data(self):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_args_root_fallback_from_sensitive_instance_data(
+        self, m_paths, caplog, tmpdir
+    ):
         """When root user defaults to sensitive.json."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
-        run_dir = self.tmp_path("run_dir", dir=self.tmp)
+        user_data = tmpdir.join("user-data")
+        run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
-        paths = Paths({"run_dir": run_dir})
-        self.add_patch("cloudinit.cmd.devel.render.read_cfg_paths", "m_paths")
-        self.m_paths.return_value = paths
-        args = self.args(user_data=user_data, instance_data=None, debug=False)
+        m_paths.return_value = Paths({"run_dir": run_dir})
+        args = self.Args(user_data=user_data, instance_data=None, debug=False)
         with mock.patch("sys.stderr", new_callable=StringIO):
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
-                self.assertEqual(1, render.handle_args("anyname", args))
-        json_file = os.path.join(run_dir, INSTANCE_JSON_FILE)
-        json_sensitive = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
-        self.assertIn(
-            "WARNING: Missing root-readable %s. Using redacted %s"
-            % (json_sensitive, json_file),
-            self.logs.getvalue(),
+                assert render.handle_args("anyname", args) == 1
+        json_file = run_dir.join(INSTANCE_JSON_FILE)
+        json_sensitive = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
+        assert (
+            "Missing root-readable %s. Using redacted %s"
+            % (json_sensitive, json_file)
+            in caplog.text
         )
-        self.assertIn(
-            "ERROR: Missing instance-data.json file: %s" % json_file,
-            self.logs.getvalue(),
-        )
+        assert "Missing instance-data.json file: %s" % json_file in caplog.text
 
-    def test_handle_args_root_uses_sensitive_instance_data(self):
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_args_root_uses_sensitive_instance_data(
+        self, m_paths, tmpdir
+    ):
         """When root user, and no instance-data arg, use sensitive.json."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
+        user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var }}")
-        run_dir = self.tmp_path("run_dir", dir=self.tmp)
+        run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
-        json_sensitive = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+        json_sensitive = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
         write_file(json_sensitive, '{"my-var": "jinja worked"}')
-        paths = Paths({"run_dir": run_dir})
-        self.add_patch("cloudinit.cmd.devel.render.read_cfg_paths", "m_paths")
-        self.m_paths.return_value = paths
-        args = self.args(user_data=user_data, instance_data=None, debug=False)
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-                with mock.patch("os.getuid") as m_getuid:
-                    m_getuid.return_value = 0
-                    self.assertEqual(0, render.handle_args("anyname", args))
-        self.assertIn("rendering: jinja worked", m_stdout.getvalue())
+        m_paths.return_value = Paths({"run_dir": run_dir})
+        args = self.Args(user_data=user_data, instance_data=None, debug=False)
+        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
+            with mock.patch("os.getuid") as m_getuid:
+                m_getuid.return_value = 0
+                assert render.handle_args("anyname", args) == 0
+        assert "rendering: jinja worked" in m_stdout.getvalue()
 
     @skipUnlessJinja()
-    def test_handle_args_renders_instance_data_vars_in_template(self):
+    def test_handle_args_renders_instance_data_vars_in_template(
+        self, caplog, tmpdir
+    ):
         """If user_data file is a jinja template render instance-data vars."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
+        user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var }}")
-        instance_data = self.tmp_path("instance-data", dir=self.tmp)
+        instance_data = tmpdir.join("instance-data")
         write_file(instance_data, '{"my-var": "jinja worked"}')
-        args = self.args(
+        args = self.Args(
             user_data=user_data, instance_data=instance_data, debug=True
         )
         with mock.patch("sys.stderr", new_callable=StringIO) as m_console_err:
             with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-                self.assertEqual(0, render.handle_args("anyname", args))
-        self.assertIn(
-            "DEBUG: Converted jinja variables\n{", self.logs.getvalue()
-        )
-        self.assertIn(
-            "DEBUG: Converted jinja variables\n{", m_console_err.getvalue()
-        )
-        self.assertEqual("rendering: jinja worked", m_stdout.getvalue())
+                assert render.handle_args("anyname", args) == 0
+        assert "Converted jinja variables\n{" in caplog.text
+        assert "Converted jinja variables\n{" in m_console_err.getvalue()
+        assert "rendering: jinja worked" == m_stdout.getvalue()
 
     @skipUnlessJinja()
-    def test_handle_args_warns_and_gives_up_on_invalid_jinja_operation(self):
+    def test_handle_args_warns_and_gives_up_on_invalid_jinja_operation(
+        self, caplog, tmpdir
+    ):
         """If user_data file has invalid jinja operations log warnings."""
-        user_data = self.tmp_path("user-data", dir=self.tmp)
+        user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my-var }}")
-        instance_data = self.tmp_path("instance-data", dir=self.tmp)
+        instance_data = tmpdir.join("instance-data")
         write_file(instance_data, '{"my-var": "jinja worked"}')
-        args = self.args(
+        args = self.Args(
             user_data=user_data, instance_data=instance_data, debug=True
         )
         with mock.patch("sys.stderr", new_callable=StringIO):
-            self.assertEqual(1, render.handle_args("anyname", args))
-        self.assertIn(
-            "WARNING: Ignoring jinja template for %s: Undefined jinja"
+            assert render.handle_args("anyname", args) == 1
+        assert (
+            "Ignoring jinja template for %s: Undefined jinja"
             ' variable: "my-var". Jinja tried subtraction. Perhaps you meant'
-            ' "my_var"?' % user_data,
-            self.logs.getvalue(),
+            ' "my_var"?' % user_data
+        ) in caplog.text
+
+    @mock.patch(
+        "cloudinit.cmd.devel.Init.read_cfg",
+        side_effect=OSError(errno.EACCES, "Not allowed"),
+    )
+    def test_handle_args_error_when_no_read_permission_instance_data2(
+        self,
+        m_read_cfg,
+    ):
+        """When instance_data file is unreadable, log an error."""
+        args = self.Args(user_data=None, instance_data=None, debug=False)
+        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
+            with pytest.raises(SystemExit) as exc_info:
+                render.handle_args("anyname", args)
+        assert exc_info.value.code == 1
+        expected_error = (
+            "Error:\nFailed reading config file(s) due to permission error:\n"
+            "[Errno 13] Not allowed\n"
         )
+        assert m_stderr.getvalue() == expected_error
+        assert m_read_cfg.call_count == 1
 
 
 # vi: ts=4 expandtab
