@@ -380,7 +380,7 @@ def available(target=None):
     service_active = True
     if uses_systemd():
         try:
-            subp.subp(["systemctl", "is-active", "NetworkManager.service"])
+            subp.subp(["systemctl", "is-enabled", "NetworkManager.service"])
         except subp.ProcessExecutionError:
             service_active = False
 
