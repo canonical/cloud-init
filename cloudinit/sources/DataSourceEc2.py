@@ -43,12 +43,18 @@ class CloudNames(object):
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
+    OUTSCALE = "outscale"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
     # NO_EC2_METADATA indicates this platform does not have a Ec2 metadata
     # service available. No attempt at the Ec2 Metadata service will be made.
     NO_EC2_METADATA = "no-ec2-metadata"
+
+
+# Drop when LP: #1988157 tag handling is fixed
+def skip_404_tag_errors(exception):
+    return exception.code == 404 and "meta-data/tags/" in exception.url
 
 
 class DataSourceEc2(sources.DataSource):
@@ -527,8 +533,12 @@ class DataSourceEc2(sources.DataSource):
         if self.cloud_name == CloudNames.AWS:
             exc_cb = self._refresh_stale_aws_token_cb
             exc_cb_ud = self._skip_or_refresh_stale_aws_token_cb
-        else:
+            skip_cb = None
+        elif self.cloud_name == CloudNames.OUTSCALE:
             exc_cb = exc_cb_ud = None
+            skip_cb = skip_404_tag_errors
+        else:
+            exc_cb = exc_cb_ud = skip_cb = None
         try:
             crawled_metadata["user-data"] = ec2.get_instance_userdata(
                 api_version,
@@ -543,6 +553,7 @@ class DataSourceEc2(sources.DataSource):
                 headers_cb=self._get_headers,
                 headers_redact=redact,
                 exception_cb=exc_cb,
+                retrieval_exception_ignore_cb=skip_cb,
             )
             if self.cloud_name == CloudNames.AWS:
                 identity = ec2.get_instance_identity(
@@ -667,7 +678,7 @@ class DataSourceEc2Local(DataSourceEc2):
     perform_dhcp_setup = True  # Use dhcp before querying metadata
 
     def get_data(self):
-        supported_platforms = (CloudNames.AWS,)
+        supported_platforms = (CloudNames.AWS, CloudNames.OUTSCALE)
         if self.cloud_name not in supported_platforms:
             LOG.debug(
                 "Local Ec2 mode only supported on %s, not %s",
@@ -757,6 +768,14 @@ def identify_e24cloud(data):
         return CloudNames.E24CLOUD
 
 
+def identify_outscale(data):
+    if (
+        data["product_name"] == "3DS Outscale VM".lower()
+        and data["vendor"] == "3DS Outscale".lower()
+    ):
+        return CloudNames.OUTSCALE
+
+
 def identify_platform():
     # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
@@ -765,6 +784,7 @@ def identify_platform():
         identify_brightbox,
         identify_zstack,
         identify_e24cloud,
+        identify_outscale,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:
@@ -787,6 +807,7 @@ def _collect_platform_data():
        serial: dmi 'system-serial-number' (/sys/.../product_serial)
        asset_tag: 'dmidecode -s chassis-asset-tag'
        vendor: dmi 'system-manufacturer' (/sys/.../sys_vendor)
+       product_name: dmi 'system-product-name' (/sys/.../system-manufacturer)
 
     On Ec2 instances experimentation is that product_serial is upper case,
     and product_uuid is lower case.  This returns lower case values for both.
@@ -817,6 +838,9 @@ def _collect_platform_data():
 
     vendor = dmi.read_dmi_data("system-manufacturer")
     data["vendor"] = (vendor if vendor else "").lower()
+
+    product_name = dmi.read_dmi_data("system-product-name")
+    data["product_name"] = (product_name if product_name else "").lower()
 
     return data
 

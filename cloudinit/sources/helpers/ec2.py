@@ -213,7 +213,7 @@ def _get_instance_metadata(
             ):
                 raise
             else:
-                LOG.warning("Skipped retrieval of the content of %s", base_url)
+                LOG.warning("Skipped retrieval of the content of %s", url)
                 return "(skipped)"
 
     try:
