@@ -33,7 +33,6 @@ KNOWN_DISTROS = [
     "suse",
     "virtuozzo",
 ]
-NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
 def _make_header(sep="#"):
