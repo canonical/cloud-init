@@ -88,23 +88,37 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
 
     @return: None"""
     service = distro.get_option("ssh_svcname", "ssh")
+    restart_ssh = True
     try:
         distro.manage_service("status", service)
     except subp.ProcessExecutionError as e:
-        LOG.warning(
-            (
-                "Ignoring config 'ssh_pwauth: %s'. SSH deamon service '%s' is "
-                "not running."
-            ),
-            pw_auth,
-            service,
-        )
-        LOG.debug(
-            "SSH deamon service '%s' is not running: %s",
-            service,
-            e,
-        )
-        return
+        if e.exit_code == 3:
+            # Service is not running. Write ssh config.
+            LOG.warning(
+                "Writing config 'ssh_pwauth: %s'."
+                " SSH service '%s' will not be restarted because is stopped.",
+                pw_auth,
+                service,
+            )
+            restart_ssh = False
+        elif e.exit_code == 4:
+            # Service status is unknown
+            LOG.warning(
+                "Ignoring config 'ssh_pwauth: %s'."
+                " SSH service '%s' is not installed.",
+                pw_auth,
+                service,
+            )
+            return
+        else:
+            LOG.warning(
+                "Ignoring config 'ssh_pwauth: %s'."
+                " SSH service '%s' is not available. Error: %s.",
+                pw_auth,
+                service,
+                e,
+            )
+            return
 
     cfg_name = "PasswordAuthentication"
 
@@ -131,8 +145,11 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         LOG.debug("No need to restart SSH service, %s not updated.", cfg_name)
         return
 
-    distro.manage_service("restart", service)
-    LOG.debug("Restarted the SSH daemon.")
+    if restart_ssh:
+        distro.manage_service("restart", service)
+        LOG.debug("Restarted the SSH daemon.")
+    else:
+        LOG.debug("Not restarting SSH service: service is stopped.")
 
 
 def handle(_name, cfg, cloud, log, args):

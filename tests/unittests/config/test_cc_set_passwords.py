@@ -91,34 +91,94 @@ class TestHandleSshPwauth(CiTestCase):
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_failed_ssh_service_does_nothing(
+    def test_failed_ssh_service_is_not_runing(
         self, m_subp, m_update_ssh_config
     ):
-        """If the ssh service is not running, then no updates to config and
+        """If the ssh service is not running, then the config is updated and
         no restart.
         """
         cloud = self.tmp_cloud(distro="ubuntu")
         cloud.distro.init_cmd = ["systemctl"]
-        process_error = "Unexpected error while running command."
         cloud.distro.manage_service = mock.Mock(
-            side_effect=subp.ProcessExecutionError(process_error)
+            side_effect=subp.ProcessExecutionError(
+                stderr="Service is not running.", exit_code=3
+            )
         )
+
         setpass.handle_ssh_pwauth(True, cloud.distro)
         self.assertIn(
-            (
-                r"WARNING: Ignoring config 'ssh_pwauth: True'. SSH deamon "
-                r"service 'ssh' is not running."
-            ),
+            r"WARNING: Writing config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' will not be restarted because is stopped.",
             self.logs.getvalue(),
         )
         self.assertIn(
-            (
-                r"DEBUG: SSH deamon service 'ssh' is not running: "
-                rf"{process_error}"
-            ),
+            r"DEBUG: Not restarting SSH service: service is stopped.",
             self.logs.getvalue(),
         )
-        cloud.distro.manage_service.assert_called_once_with("status", "ssh")
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
+        self.assertEqual(m_update_ssh_config.call_count, 1)
+        self.assertEqual(m_subp.call_count, 0)
+
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_failed_ssh_service_is_not_installed(
+        self, m_subp, m_update_ssh_config
+    ):
+        """If the ssh service is not installed, then no updates config and
+        no restart.
+        """
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["systemctl"]
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(
+                stderr="Service is not installed.", exit_code=4
+            )
+        )
+
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        self.assertIn(
+            r"WARNING: Ignoring config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' is not installed.",
+            self.logs.getvalue(),
+        )
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(m_subp.call_count, 0)
+
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_failed_ssh_service_is_not_available(
+        self, m_subp, m_update_ssh_config
+    ):
+        """If the ssh service is not available, then no updates config and
+        no restart.
+        """
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["systemctl"]
+        process_error = "Service is not available."
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(
+                stderr=process_error, exit_code=2
+            )
+        )
+
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        self.assertIn(
+            r"WARNING: Ignoring config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' is not available. Error: ",
+            self.logs.getvalue(),
+        )
+        self.assertIn(process_error, self.logs.getvalue())
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
         self.assertEqual(m_update_ssh_config.call_count, 0)
         self.assertEqual(m_subp.call_count, 0)
 
