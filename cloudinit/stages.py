@@ -24,7 +24,6 @@ from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.shell_script_by_frequency import (
     ShellScriptByFreqPartHandler,
 )
-from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
@@ -525,7 +524,6 @@ class Init(object):
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             BootHookPartHandler(**opts),
-            UpstartJobPartHandler(**opts),
         ]
         opts.update(
             {"sub_handlers": [cloudconfig_handler, shellscript_handler]}

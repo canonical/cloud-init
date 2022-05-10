@@ -417,7 +417,7 @@ def multi_log(
             # This will result in duplicate stderr and stdout messages if
             # stderr was True.
             #
-            # even though upstart or systemd might have set up output to go to
+            # even though systemd might have set up output to go to
             # /dev/console, the user may have configured elsewhere via
             # cloud-config 'output'.  If there is /dev/console, messages will
             # still get there.
@@ -2220,10 +2220,6 @@ def _is_container_systemd():
     return _cmd_exits_zero(["systemd-detect-virt", "--quiet", "--container"])
 
 
-def _is_container_upstart():
-    return _cmd_exits_zero(["running-in-container"])
-
-
 def _is_container_old_lxc():
     return _cmd_exits_zero(["lxc-is-container"])
 
@@ -2246,7 +2242,6 @@ def is_container():
     checks = (
         _is_container_systemd,
         _is_container_freebsd,
-        _is_container_upstart,
         _is_container_old_lxc,
     )
 
