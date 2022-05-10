@@ -12,6 +12,9 @@ import yaml
 
 YAMLError = yaml.YAMLError
 
+# SchemaPathMarks track the path to an element within a loaded YAML file.
+# The start_mark and end_mark contain the row and column indicators
+# which represent the coordinates where the schema element begins and ends.
 SchemaPathMarks = namedtuple(
     "SchemaPathMarks", ("path", "start_mark", "end_mark")
 )
@@ -23,7 +26,34 @@ class _CustomSafeLoader(yaml.SafeLoader):
 
 
 class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
-    """A loader preserving line and column start and end  marks for objects."""
+    """A loader which provides line and column start and end marks for YAML.
+
+    If the YAML loaded represents a dictionary, get_single_data will inject
+    a top-level "schemamarks" key in that dictionary which can be used at
+    call-sites to process YAML paths schemamark metadata when annotating
+    YAML files for errors.
+
+    The schemamarks key is dictionary where each key is a dot-delimited path
+    into the YAML object. Each dot represents an element that is nested under
+    a parent and list items are represented with the format
+    `<parent>.<list-index>`.
+
+    The values in schemamarks will be the line number in the original content
+    where YAML element begins to aid in annotation when encountering schema
+    errors.
+
+    The example YAML shows expected schemamarks for both dicts and lists:
+
+      one: val1
+      two:
+        subtwo: val2
+      three: [val3, val4]
+
+    schemamarks == {
+        "one": 1, "two": 2, "two.subtwo": 3, "three": 4, "three.0": 4,
+        "three.1": 4
+    }
+    """
 
     def __init__(self, stream):
         super().__init__(stream)
@@ -77,7 +107,7 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
 
     def get_single_data(self):
         data = super().get_single_data()
-        if isinstance(data, dict):  # valid cloud-config scheam is a dict
+        if isinstance(data, dict):  # valid cloud-config schema is a dict
             data["schemamarks"] = dict(
                 [
                     (v.path, v.start_mark.line + 1)  # 1-based human-readable
