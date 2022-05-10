@@ -9,7 +9,7 @@ from tests.integration_tests.util import verify_clean_log
 
 
 def _customize_envionment(client: IntegrationInstance):
-    # Assert our platform can detect LXD during sytemd generator timeframe.
+    # Assert our platform can detect LXD during systemd generator timeframe.
     ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
     assert "check for 'LXD' returned found" in ds_id_log
 
@@ -35,6 +35,7 @@ def _customize_envionment(client: IntegrationInstance):
         "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
         "datasource_list: [LXD, NoCloud]\n",
     )
+    # This is also to ensure that NoCloud can be detected
     if ImageSpecification.from_os_image().release == "jammy":
         # Add nocloud-net seed files because Jammy no longer delivers NoCloud
         # (LP: #1958460).
@@ -47,8 +48,6 @@ def _customize_envionment(client: IntegrationInstance):
     client.restart()
 
 
-# This test should be able to work on any cloud whose datasource specifies
-# a NETWORK dependency
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.ubuntu  # Because netplan
@@ -111,7 +110,11 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
 
     # Jammy not longer provides nocloud-net seed files (LP: #1958460)
-    if ImageSpecification.from_os_image().release != "jammy":
+    if ImageSpecification.from_os_image().release in [
+        "bionic",
+        "focal",
+        "impish",
+    ]:
         # Assert NoCloud seed files are still present in non-Jammy images
         # and that NoCloud seed files provide the same content as LXD socket.
         nocloud_metadata = yaml.safe_load(
