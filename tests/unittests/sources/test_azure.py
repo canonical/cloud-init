@@ -287,16 +287,6 @@ def patched_reported_ready_marker_path(patched_markers_dir_path):
         yield reported_ready_marker
 
 
-@pytest.fixture
-def patched_reprovision_marker_path(patched_markers_dir_path):
-    reprovision_marker = patched_markers_dir_path / "poll_imds"
-    with mock.patch(
-        MOCKPATH + "REPROVISION_MARKER_FILE",
-        str(patched_reprovision_marker_path),
-    ):
-        yield reprovision_marker
-
-
 def construct_valid_ovf_env(
     data=None, pubkeys=None, userdata=None, platform_settings=None
 ):
@@ -3006,7 +2996,9 @@ class TestDeterminePPSTypeScenarios:
             azure_ds._determine_pps_type(ovf_cfg, imds_md)
             == dsaz.PPSType.UNKNOWN
         )
-        assert is_file.mock_calls == [mock.call(dsaz.REPROVISION_MARKER_FILE)]
+        assert is_file.mock_calls == [
+            mock.call(dsaz.REPORTED_READY_MARKER_FILE)
+        ]
 
 
 @mock.patch("os.path.isfile", return_value=False)
@@ -4104,7 +4096,6 @@ class TestProvisioning:
         mock_util_mount_cb,
         mock_wrapping_setup_ephemeral_networking,
         patched_reported_ready_marker_path,
-        patched_reprovision_marker_path,
     ):
         self.azure_ds = azure_ds
         self.mock_azure_get_metadata_from_fabric = (
@@ -4135,7 +4126,6 @@ class TestProvisioning:
         self.patched_reported_ready_marker_path = (
             patched_reported_ready_marker_path
         )
-        self.patched_reprovision_marker_path = patched_reprovision_marker_path
 
         self.imds_md = {
             "extended": {"compute": {"ppsType": "None"}},
@@ -4407,6 +4397,76 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket().__bool__(),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
+    def test_recovery_pps(self, pps_type):
+        self.patched_reported_ready_marker_path.write_text("")
+        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+        ovf_data = {"HostName": "myhost", "UserName": "myuser"}
+
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(
+                contents=construct_valid_ovf_env(data=ovf_data).encode()
+            ),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                timeout=2,
+                headers={"Metadata": "true"},
+                exception_cb=mock.ANY,
+                infinite=True,
+                log_req_resp=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+        ]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(None, dsaz.dhcp_log_cb),
+        ]
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # Verify reports ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            ),
+        ]
+
+        # Verify no netlink operations for recovering PPS.
+        assert self.mock_netlink.mock_calls == []
 
 
 class TestValidateIMDSMetadata:

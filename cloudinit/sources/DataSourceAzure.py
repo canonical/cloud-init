@@ -60,7 +60,6 @@ RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
-REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
@@ -487,50 +486,42 @@ class DataSourceAzure(sources.DataSource):
         cfg = {}
         files = {}
 
-        if os.path.isfile(REPROVISION_MARKER_FILE):
-            metadata_source = "IMDS"
-            report_diagnostic_event(
-                "Reprovision marker file already present "
-                "before crawling Azure metadata: %s" % REPROVISION_MARKER_FILE,
-                logger_func=LOG.debug,
-            )
-        else:
-            for src in list_possible_azure_ds(self.seed_dir, ddir):
-                try:
-                    if src.startswith("/dev/"):
-                        if util.is_FreeBSD():
-                            md, userdata_raw, cfg, files = util.mount_cb(
-                                src, load_azure_ds_dir, mtype="udf"
-                            )
-                        else:
-                            md, userdata_raw, cfg, files = util.mount_cb(
-                                src, load_azure_ds_dir
-                            )
-                        # save the device for ejection later
-                        self._iso_dev = src
+        for src in list_possible_azure_ds(self.seed_dir, ddir):
+            try:
+                if src.startswith("/dev/"):
+                    if util.is_FreeBSD():
+                        md, userdata_raw, cfg, files = util.mount_cb(
+                            src, load_azure_ds_dir, mtype="udf"
+                        )
                     else:
-                        md, userdata_raw, cfg, files = load_azure_ds_dir(src)
-                    ovf_is_accessible = True
-                    metadata_source = src
-                    break
-                except NonAzureDataSource:
-                    report_diagnostic_event(
-                        "Did not find Azure data source in %s" % src,
-                        logger_func=LOG.debug,
-                    )
-                    continue
-                except util.MountFailedError:
-                    report_diagnostic_event(
-                        "%s was not mountable" % src, logger_func=LOG.debug
-                    )
-                    md = {"local-hostname": ""}
-                    cfg = {"system_info": {"default_user": {"name": ""}}}
-                    metadata_source = "IMDS"
-                    continue
-                except BrokenAzureDataSource as exc:
-                    msg = "BrokenAzureDataSource: %s" % exc
-                    report_diagnostic_event(msg, logger_func=LOG.error)
-                    raise sources.InvalidMetaDataException(msg)
+                        md, userdata_raw, cfg, files = util.mount_cb(
+                            src, load_azure_ds_dir
+                        )
+                    # save the device for ejection later
+                    self._iso_dev = src
+                else:
+                    md, userdata_raw, cfg, files = load_azure_ds_dir(src)
+                ovf_is_accessible = True
+                metadata_source = src
+                break
+            except NonAzureDataSource:
+                report_diagnostic_event(
+                    "Did not find Azure data source in %s" % src,
+                    logger_func=LOG.debug,
+                )
+                continue
+            except util.MountFailedError:
+                report_diagnostic_event(
+                    "%s was not mountable" % src, logger_func=LOG.debug
+                )
+                md = {"local-hostname": ""}
+                cfg = {"system_info": {"default_user": {"name": ""}}}
+                metadata_source = "IMDS"
+                continue
+            except BrokenAzureDataSource as exc:
+                msg = "BrokenAzureDataSource: %s" % exc
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
 
         report_diagnostic_event(
             "Found provisioning metadata in %s" % metadata_source,
@@ -566,8 +557,6 @@ class DataSourceAzure(sources.DataSource):
                 msg = "Free BSD is not supported for PPS VMs"
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-
-            self._write_reprovision_marker()
 
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
@@ -1394,7 +1383,7 @@ class DataSourceAzure(sources.DataSource):
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
-        if os.path.isfile(REPROVISION_MARKER_FILE):
+        if os.path.isfile(REPORTED_READY_MARKER_FILE):
             pps_type = PPSType.UNKNOWN
         elif (
             ovf_cfg.get("PreprovisionedVMType", None) == PPSType.SAVABLE.value
@@ -1415,16 +1404,6 @@ class DataSourceAzure(sources.DataSource):
             "PPS type: %s" % pps_type.value, logger_func=LOG.info
         )
         return pps_type
-
-    def _write_reprovision_marker(self):
-        """Write reprovision marker file in case system is rebooted."""
-        LOG.info(
-            "Creating a marker file to poll imds: %s", REPROVISION_MARKER_FILE
-        )
-        util.write_file(
-            REPROVISION_MARKER_FILE,
-            "{pid}: {time}\n".format(pid=os.getpid(), time=time()),
-        )
 
     @azure_ds_telemetry_reporter
     def _reprovision(self):
@@ -1463,7 +1442,6 @@ class DataSourceAzure(sources.DataSource):
     def _cleanup_markers(self):
         """Cleanup any marker files."""
         util.del_file(REPORTED_READY_MARKER_FILE)
-        util.del_file(REPROVISION_MARKER_FILE)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
