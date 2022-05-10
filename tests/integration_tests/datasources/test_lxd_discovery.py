@@ -35,6 +35,15 @@ def _customize_envionment(client: IntegrationInstance):
         "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
         "datasource_list: [LXD, NoCloud]\n",
     )
+    # This is also to ensure that NoCloud can be detected
+    if ImageSpecification.from_os_image().release == "jammy":
+        # Add nocloud-net seed files because Jammy no longer delivers NoCloud
+        # (LP: #1958460).
+        client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
+        client.write_to_file("/var/lib/cloud/seed/nocloud-net/meta-data", "")
+        client.write_to_file(
+            "/var/lib/cloud/seed/nocloud-net/user-data", "#cloud-config\n{}"
+        )
     client.execute("cloud-init clean --logs")
     client.restart()
 
