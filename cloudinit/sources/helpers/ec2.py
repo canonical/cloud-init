@@ -190,6 +190,7 @@ def _get_instance_metadata(
     headers_cb=None,
     headers_redact=None,
     exception_cb=None,
+    retrieval_exception_ignore_cb=None,
 ):
     md_url = url_helper.combine_url(metadata_address, api_version, tree)
     caller = functools.partial(
@@ -203,7 +204,17 @@ def _get_instance_metadata(
     )
 
     def mcaller(url):
-        return caller(url).contents
+        try:
+            return caller(url).contents
+        except url_helper.UrlError as e:
+            if (
+                not retrieval_exception_ignore_cb
+                or not retrieval_exception_ignore_cb(e)
+            ):
+                raise
+            else:
+                LOG.warning("Skipped retrieval of the content of %s", base_url)
+                return "(skipped)"
 
     try:
         response = caller(md_url)
@@ -229,6 +240,7 @@ def get_instance_metadata(
     headers_cb=None,
     headers_redact=None,
     exception_cb=None,
+    retrieval_exception_ignore_cb=None,
 ):
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
@@ -243,6 +255,7 @@ def get_instance_metadata(
         headers_redact=headers_redact,
         headers_cb=headers_cb,
         exception_cb=exception_cb,
+        retrieval_exception_ignore_cb=retrieval_exception_ignore_cb,
     )
 
 
