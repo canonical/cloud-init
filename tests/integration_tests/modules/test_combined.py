@@ -192,10 +192,14 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            if ImageSpecification.from_os_image().release == "jammy":
-                datasource = "DataSourceLXD"
-            else:
+            if ImageSpecification.from_os_image().release in [
+                "bionic",
+                "focal",
+                "impish",
+            ]:
                 datasource = "DataSourceNoCloud"
+            else:
+                datasource = "DataSourceLXD"
             assert parsed_datasource.startswith(datasource)
         else:
             platform_datasources = {
@@ -246,7 +250,11 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release == "jammy":
+        if ImageSpecification.from_os_image().release not in [
+            "bionic",
+            "focal",
+            "impish",
+        ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -282,7 +290,11 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release == "jammy":
+        if ImageSpecification.from_os_image().release not in [
+            "bionic",
+            "focal",
+            "impish",
+        ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
