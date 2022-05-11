@@ -413,6 +413,7 @@ def dual_stack(
             return_exception = future.exception()
             if return_exception:
                 last_exception = return_exception
+                exceptions.append(last_exception)
             else:
                 return_result = future.result()
                 if return_result:
@@ -426,9 +427,9 @@ def dual_stack(
         # debugging
         if last_exception:
             LOG.warning(
-                "Exception(s) %s during request to %s, "
-                "raising last exception",
-                " ".join(exceptions),
+                "Exception(s) %s during request to "
+                "%s, raising last exception",
+                exceptions,
                 returned_address,
             )
             raise last_exception
