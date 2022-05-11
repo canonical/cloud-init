@@ -59,7 +59,6 @@ runcmd:
   - #
   - logger "My test log"
 snap:
-  squashfuse_in_container: true
   commands:
     - snap install hello-world
 ssh_import_id:

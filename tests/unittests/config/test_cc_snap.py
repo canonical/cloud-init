@@ -10,7 +10,6 @@ from cloudinit.config.cc_snap import (
     ASSERTIONS_FILE,
     add_assertions,
     handle,
-    maybe_install_squashfuse,
     run_commands,
 )
 from cloudinit.config.schema import (
@@ -348,62 +347,6 @@ class TestHandle(CiTestCase):
         super(TestHandle, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    @mock.patch("cloudinit.config.cc_snap.maybe_install_squashfuse")
-    def test_handle_skips_squashfuse_when_unconfigured(
-        self, m_squash, m_add, m_run
-    ):
-        """When squashfuse_in_container is unset, don't attempt to install."""
-        handle(
-            "snap", cfg={"snap": {}}, cloud=None, log=self.logger, args=None
-        )
-        handle(
-            "snap",
-            cfg={"snap": {"squashfuse_in_container": None}},
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        handle(
-            "snap",
-            cfg={"snap": {"squashfuse_in_container": False}},
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        self.assertEqual([], m_squash.call_args_list)  # No calls
-        # snap configuration missing assertions and commands will default to []
-        self.assertIn(mock.call([]), m_add.call_args_list)
-        self.assertIn(mock.call([]), m_run.call_args_list)
-
-    @mock.patch("cloudinit.config.cc_snap.maybe_install_squashfuse")
-    def test_handle_tries_to_install_squashfuse(self, m_squash):
-        """If squashfuse_in_container is True, try installing squashfuse."""
-        cfg = {"snap": {"squashfuse_in_container": True}}
-        mycloud = FakeCloud(None)
-        handle("snap", cfg=cfg, cloud=mycloud, log=self.logger, args=None)
-        self.assertEqual([mock.call(mycloud)], m_squash.call_args_list)
-
-    def test_handle_runs_commands_provided(self):
-        """If commands are specified as a list, run them."""
-        outfile = self.tmp_path("output.log", dir=self.tmp)
-
-        cfg = {
-            "snap": {
-                "commands": [
-                    'echo "HI" >> %s' % outfile,
-                    'echo "MOM" >> %s' % outfile,
-                ]
-            }
-        }
-        mock_path = "cloudinit.config.cc_snap.sys.stderr"
-        with self.allow_subp([CiTestCase.SUBP_SHELL_TRUE]):
-            with mock.patch(mock_path, new_callable=StringIO):
-                handle("snap", cfg=cfg, cloud=None, log=self.logger, args=None)
-
-        self.assertEqual("HI\nMOM\n", util.load_file(outfile))
-
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_handle_adds_assertions(self, m_subp):
         """Any configured snap assertions are provided to add_assertions."""
@@ -426,62 +369,6 @@ class TestHandle(CiTestCase):
         util.write_file(compare_file, content.encode("utf-8"))
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file)
-        )
-
-
-class TestMaybeInstallSquashFuse(CiTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestMaybeInstallSquashFuse, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_skips_non_containers(self, m_container):
-        """maybe_install_squashfuse does nothing when not on a container."""
-        m_container.return_value = False
-        maybe_install_squashfuse(cloud=FakeCloud(None))
-        self.assertEqual([mock.call()], m_container.call_args_list)
-        self.assertEqual("", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_raises_install_errors(self, m_container):
-        """maybe_install_squashfuse logs and raises package install errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()
-        distro.update_package_sources.side_effect = RuntimeError(
-            "Some apt error"
-        )
-        with self.assertRaises(RuntimeError) as context_manager:
-            maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual("Some apt error", str(context_manager.exception))
-        self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_raises_update_errors(self, m_container):
-        """maybe_install_squashfuse logs and raises package update errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()
-        distro.update_package_sources.side_effect = RuntimeError(
-            "Some apt error"
-        )
-        with self.assertRaises(RuntimeError) as context_manager:
-            maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual("Some apt error", str(context_manager.exception))
-        self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_happy_path(self, m_container):
-        """maybe_install_squashfuse logs and raises package install errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()  # No errors raised
-        maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual(
-            [mock.call()], distro.update_package_sources.call_args_list
-        )
-        self.assertEqual(
-            [mock.call(["squashfuse"])], distro.install_packages.call_args_list
         )
 
 
