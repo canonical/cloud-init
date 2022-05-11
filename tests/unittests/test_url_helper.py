@@ -282,43 +282,18 @@ class TestDualStack:
     """
 
     @pytest.mark.parametrize(
-        "func,"
-        "addresses,"
-        "stagger_delay,"
-        "timeout,"
-        "expected_val,"
-        "expected_exc",
+        "func," "addresses," "stagger_delay," "timeout," "expected_val,",
         [
             # Assert order based on timeout
-            (lambda x, _: x, ("one", "two"), 1, 1, "one", None),
+            (lambda x, _: x, ("one", "two"), 1, 1, "one"),
             # Assert timeout results in (None, None)
-            (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None, None),
-            # Assert that exception in func is raised if all threads
-            # raise exception
-            # currently if all threads experience exception
-            # dual_stack() logs an error containing all exceptions
-            # but only raises the last exception to occur
-            (
-                lambda _a, _b: 1 / 0,
-                ("one", "two"),
-                0,
-                1,
-                None,
-                ZeroDivisionError,
-            ),
-            # Verify "best effort behavior"
-            # dual_stack will temporarily ignore an exception in any of the
-            # request threads in hopes that a later thread will succeed
-            # this behavior is intended to allow a requests.ConnectionError
-            # exception from on endpoint to occur without preventing another
-            # thread from succeeding
+            (lambda _a, _b: event.wait(1), ("one", "two"), 1, 0, None),
             (
                 lambda a, _b: 1 / 0 if a == "one" else a,
                 ("one", "two"),
                 0,
                 1,
                 "two",
-                None,
             ),
             # Assert that exception in func is only raised
             # if neither thread gets a valid result
@@ -328,7 +303,6 @@ class TestDualStack:
                 0,
                 1,
                 "one",
-                None,
             ),
             # simulate a slow response to verify correct order
             (
@@ -337,7 +311,6 @@ class TestDualStack:
                 0,
                 1,
                 "two",
-                None,
             ),
             # simulate a slow response to verify correct order
             (
@@ -346,7 +319,6 @@ class TestDualStack:
                 0,
                 1,
                 "tri",
-                None,
             ),
         ],
     )
@@ -357,7 +329,6 @@ class TestDualStack:
         stagger_delay,
         timeout,
         expected_val,
-        expected_exc,
     ):
         """Assert various failure modes behave as expected"""
         event.clear()
@@ -369,13 +340,100 @@ class TestDualStack:
             stagger_delay=stagger_delay,
             timeout=timeout,
         )
-        if expected_exc:
-            with pytest.raises(expected_exc):
-                _, result = assert_time(gen)
-                assert expected_val == result
-        else:
-            _, result = assert_time(gen)
-            assert expected_val == result
+        _, result = assert_time(gen)
+        assert expected_val == result
+
+        event.set()
+
+    @pytest.mark.parametrize(
+        "func,"
+        "addresses,"
+        "stagger_delay,"
+        "timeout,"
+        "message,"
+        "expected_exc",
+        [
+            (
+                lambda _a, _b: 1 / 0,
+                ("¯\\_(ツ)_/¯", "(╯°□°）╯︵ ┻━┻"),
+                0,
+                1,
+                "Exception(s) [ZeroDivisionError('division by zero'), "
+                "ZeroDivisionError('division by zero')] during request",
+                ZeroDivisionError,
+            ),
+            (
+                lambda _a, _b: 1 / 0,
+                ("it", "really", "doesn't"),
+                0,
+                1,
+                "Exception(s) [ZeroDivisionError('division by zero'), "
+                "ZeroDivisionError('division by zero'), "
+                "ZeroDivisionError('division by zero')] during request",
+                ZeroDivisionError,
+            ),
+            (
+                lambda _a, _b: [][0],
+                ("matter", "these"),
+                0,
+                1,
+                "Exception(s) [IndexError('list index out of range'), "
+                "IndexError('list index out of range')] during request",
+                IndexError,
+            ),
+            (
+                lambda _a, _b: (_ for _ in ()).throw(
+                    Exception('soap stone is not effective soap')
+                ),
+                ("are", "ignored"),
+                0,
+                1,
+                "Exception(s) [Exception('soap stone is not effective soap'), "
+                "Exception('soap stone is not effective soap')] during request",
+                Exception,
+            ),
+        ],
+    )
+    def test_dual_stack_exceptions(
+        self,
+        func,
+        addresses,
+        stagger_delay,
+        timeout,
+        message,
+        expected_exc,
+        caplog,
+    ):
+        # Context:
+        #
+        # currently if all threads experience exception
+        # dual_stack() logs an error containing all exceptions
+        # but only raises the last exception to occur
+        # Verify "best effort behavior"
+        # dual_stack will temporarily ignore an exception in any of the
+        # request threads in hopes that a later thread will succeed
+        # this behavior is intended to allow a requests.ConnectionError
+        # exception from on endpoint to occur without preventing another
+        # thread from succeeding
+        event.clear()
+
+        gen = partial(
+            dual_stack,
+            func,
+            addresses,
+            stagger_delay=stagger_delay,
+            timeout=timeout,
+        )
+        with pytest.raises(expected_exc):
+            gen()  # 1
+        with caplog.at_level(logging.DEBUG):
+            try:
+                gen()  # 2
+            except expected_exc:
+                pass
+            finally:
+                assert 2 == len(caplog.records)
+                assert 2 == caplog.text.count(message)
         event.set()
 
     def test_dual_stack_staggered(self):
