@@ -16,6 +16,12 @@ from tests.unittests.helpers import CiTestCase, skipUnlessJsonSchema
 MODPATH = "cloudinit.config.cc_set_passwords."
 
 
+@pytest.fixture()
+def mock_uses_systemd(mocker):
+    mocker.patch("cloudinit.distros.uses_systemd", return_value=True)
+
+
+@pytest.mark.usefixtures("mock_uses_systemd")
 class TestHandleSshPwauth(CiTestCase):
     """Test cc_set_passwords handling of ssh_pwauth in handle_ssh_pwauth."""
 
@@ -183,6 +189,7 @@ class TestHandleSshPwauth(CiTestCase):
         self.assertEqual(m_subp.call_count, 0)
 
 
+@pytest.mark.usefixtures("mock_uses_systemd")
 class TestSetPasswordsHandle(CiTestCase):
     """Test cc_set_passwords.handle"""
 
