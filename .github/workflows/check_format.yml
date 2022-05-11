@@ -2,6 +2,13 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: sh -ex {0}
+
 jobs:
   check_format:
     strategy:
@@ -10,10 +17,10 @@ jobs:
         env: [flake8, mypy, pylint, black, isort]
     runs-on: ubuntu-18.04
     steps:
-      - name: Checkout #1
+      - name: "Checkout #1"
         uses: actions/checkout@v3.0.0
 
-      - name: Checkout #2 (for tools/read-version)
+      - name: "Checkout #2 (for tools/read-version)"
         run: |
           git fetch --unshallow
           git remote add upstream https://git.launchpad.net/cloud-init
