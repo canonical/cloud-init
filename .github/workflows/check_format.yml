@@ -20,8 +20,8 @@ jobs:
 
       - name: Dependencies
         run: |
-          sudo apt update
-          sudo apt install tox
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
 
       - name: Print version
         run: python --version
