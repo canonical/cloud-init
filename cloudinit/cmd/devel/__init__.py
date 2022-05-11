@@ -18,10 +18,7 @@ def addLogHandlerCLI(logger, log_level):
 
 
 def read_cfg_paths() -> Paths:
-    """Return a Paths object based on the system configuration on disk.
-
-    It handles file permission errors.
-    """
+    """Return a Paths object based on the system configuration on disk."""
     init = Init(ds_deps=[])
     init.read_cfg()
     return init.paths
