@@ -31,7 +31,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
 
       - name: Print version
-        run: python --version
+        run: python3 --version
 
       - name: Test
         env:
