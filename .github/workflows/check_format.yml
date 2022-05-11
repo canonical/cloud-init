@@ -1,0 +1,33 @@
+on:
+  push:
+  pull_request:
+
+jobs:
+  check_format:
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [flake8, mypy, pylint, black, isort]
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout #1
+        uses: actions/checkout@v3.0.0
+
+      - name: Checkout #2 (for tools/read-version)
+        run: |
+          git fetch --unshallow
+          git remote add upstream https://git.launchpad.net/cloud-init
+
+      - name: Dependencies
+        run: |
+          sudo apt update
+          sudo apt install tox
+
+      - name: Print version
+        run: python --version
+
+      - name: Test
+        env:
+          # matrix env: not to be confused w/environment variables or testenv
+          TOXENV: ${{ matrix.env}}
+        run: tox
