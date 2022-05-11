@@ -358,8 +358,7 @@ class TestDualStack:
                 ("¯\\_(ツ)_/¯", "(╯°□°）╯︵ ┻━┻"),
                 0,
                 1,
-                "Exception(s) [ZeroDivisionError('division by zero'), "
-                "ZeroDivisionError('division by zero')] during request",
+                "division by zero",
                 ZeroDivisionError,
             ),
             (
@@ -367,9 +366,7 @@ class TestDualStack:
                 ("it", "really", "doesn't"),
                 0,
                 1,
-                "Exception(s) [ZeroDivisionError('division by zero'), "
-                "ZeroDivisionError('division by zero'), "
-                "ZeroDivisionError('division by zero')] during request",
+                "division by zero",
                 ZeroDivisionError,
             ),
             (
@@ -377,8 +374,7 @@ class TestDualStack:
                 ("matter", "these"),
                 0,
                 1,
-                "Exception(s) [IndexError('list index out of range'), "
-                "IndexError('list index out of range')] during request",
+                "list index out of range",
                 IndexError,
             ),
             (
@@ -388,8 +384,7 @@ class TestDualStack:
                 ("are", "ignored"),
                 0,
                 1,
-                "Exception(s) [Exception('soapstone is not effective soap'), "
-                "Exception('soapstone is not effective soap')] during request",
+                "soapstone is not effective soap",
                 Exception,
             ),
         ],
@@ -417,6 +412,14 @@ class TestDualStack:
         # thread from succeeding
         event.clear()
 
+        # Note: python3.6 repr(Exception("test")) produces different output
+        # than later versions, so we cannot match exact message without
+        # some ugly manual exception repr() function, which I'd rather not do
+        # in dual_stack(), so we recreate expected messages manually here
+        # in a version-independant way for testing, the extra comma on old
+        # versions won't hurt anything
+        exc_list = str([expected_exc(message) for _ in addresses])
+        expected_msg = f'Exception(s) {exc_list} during request'
         gen = partial(
             dual_stack,
             func,
@@ -433,7 +436,7 @@ class TestDualStack:
                 pass
             finally:
                 assert 2 == len(caplog.records)
-                assert 2 == caplog.text.count(message)
+                assert 2 == caplog.text.count(expected_msg)
         event.set()
 
     def test_dual_stack_staggered(self):
