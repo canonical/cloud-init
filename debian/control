@@ -44,7 +44,7 @@ Depends: cloud-guest-utils | cloud-utils,
          ${misc:Depends},
          ${python3:Depends}
 Recommends: eatmydata, gdisk, gnupg, software-properties-common
-Suggests: ssh-import-id
+Suggests: openssh-server, ssh-import-id
 XB-Python-Version: ${python:Versions}
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
