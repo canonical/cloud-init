@@ -32,7 +32,7 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from errno import ENOENT
+from errno import EACCES, ENOENT
 from functools import lru_cache
 from typing import List
 from urllib import parse
@@ -998,6 +998,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
 
 
 def read_conf_d(confd):
+    """Read configuration directory."""
     # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
 
@@ -1010,13 +1011,24 @@ def read_conf_d(confd):
     # Load them all so that they can be merged
     cfgs = []
     for fn in confs:
-        cfgs.append(read_conf(os.path.join(confd, fn)))
+        try:
+            cfgs.append(read_conf(os.path.join(confd, fn)))
+        except OSError as e:
+            if e.errno == EACCES:
+                LOG.warning(
+                    "REDACTED config part %s/%s for non-root user", confd, fn
+                )
 
     return mergemanydict(cfgs)
 
 
 def read_conf_with_confd(cfgfile):
-    cfg = read_conf(cfgfile)
+    try:
+        cfg = read_conf(cfgfile)
+    except OSError as e:
+        if e.errno == EACCES:
+            LOG.warning("REDACTED config part %s for non-root user", cfgfile)
+        raise
 
     confd = False
     if "conf_d" in cfg:

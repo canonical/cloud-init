@@ -3,13 +3,11 @@
 """Common cloud-init devel commandline utility functions."""
 
 
-import errno
 import logging
 
 from cloudinit import log
 from cloudinit.helpers import Paths
 from cloudinit.stages import Init
-from cloudinit.util import error
 
 
 def addLogHandlerCLI(logger, log_level):
@@ -25,16 +23,7 @@ def read_cfg_paths() -> Paths:
     It handles file permission errors.
     """
     init = Init(ds_deps=[])
-    try:
-        init.read_cfg()
-    except OSError as e:
-        if e.errno == errno.EACCES:
-            error(
-                f"Failed reading config file(s) due to permission error:\n{e}",
-                rc=1,
-                sys_exit=True,
-            )
-        raise
+    init.read_cfg()
     return init.paths
 
 

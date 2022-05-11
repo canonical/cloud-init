@@ -42,7 +42,6 @@ exclude=[
   '^cloudinit/sources/DataSourceVMware\.py$',
   '^cloudinit/sources/__init__\.py$',
   '^cloudinit/sources/helpers/vmware/imc/config_file\.py$',
-  '^cloudinit/stages\.py$',
   '^cloudinit/templater\.py$',
   '^cloudinit/url_helper\.py$',
   '^conftest\.py$',
@@ -93,7 +92,6 @@ exclude=[
   '^tests/unittests/test_subp\.py$',
   '^tests/unittests/test_templating\.py$',
   '^tests/unittests/test_url_helper\.py$',
-  '^tests/unittests/test_util\.py$',
   '^tools/mock-meta\.py$',
 ]
 

@@ -68,7 +68,10 @@ def get_parser(parser=None):
 def handle_status_args(name, args) -> int:
     """Handle calls to 'cloud-init status' as a subcommand."""
     # Read configured paths
-    paths = read_cfg_paths()
+    try:
+        paths = read_cfg_paths()
+    except (IOError, OSError):
+        return 1
     status, status_detail, time = get_status_details(paths)
     if args.wait:
         while status in (UXAppStatus.NOT_RUN, UXAppStatus.RUNNING):

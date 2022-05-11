@@ -5,11 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import errno
 import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, List, Optional, Set
+from functools import partial
+from typing import Dict, Iterable, List, Optional, Set
 
 from cloudinit import cloud, distros, handlers, helpers, importer
 from cloudinit import log as logging
@@ -58,12 +60,12 @@ def update_event_enabled(
     case, we only have the data source's `default_update_events`,
     so an event that should be enabled in userdata may be denied.
     """
-    default_events = (
-        datasource.default_update_events
-    )  # type: Dict[EventScope, Set[EventType]]
-    user_events = userdata_to_events(
+    default_events: Dict[
+        EventScope, Set[EventType]
+    ] = datasource.default_update_events
+    user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
         cfg.get("updates", {})
-    )  # type: Dict[EventScope, Set[EventType]]
+    )
     # A value in the first will override a value in the second
     allowed = util.mergemanydict(
         [
@@ -73,6 +75,7 @@ def update_event_enabled(
     )
     LOG.debug("Allowed events: %s", allowed)
 
+    scopes: Iterable[EventScope]
     if not scope:
         scopes = allowed.keys()
     else:
@@ -953,23 +956,38 @@ class Init(object):
 
 
 def read_runtime_config():
-    return util.read_conf(RUN_CLOUD_CONFIG)
+    try:
+        return util.read_conf(RUN_CLOUD_CONFIG)
+    except OSError as e:
+        if e.errno == errno.EACCES:
+            LOG.warning(
+                "REDACTED config part %s for non-root user",
+                RUN_CLOUD_CONFIG,
+            )
+        raise
 
 
 def fetch_base_config():
-    return util.mergemanydict(
-        [
-            # builtin config, hardcoded in settings.py.
-            util.get_builtin_cfg(),
-            # Anything in your conf.d or 'default' cloud.cfg location.
-            util.read_conf_with_confd(CLOUD_CONFIG),
-            # runtime config. I.e., /run/cloud-init/cloud.cfg
-            read_runtime_config(),
-            # Kernel/cmdline parameters override system config
-            util.read_conf_from_cmdline(),
-        ],
-        reverse=True,
-    )
+    config_loaders = [
+        # builtin config, hardcoded in settings.py.
+        util.get_builtin_cfg,
+        # Anything in your conf.d or 'default' cloud.cfg location.
+        partial(util.read_conf_with_confd, CLOUD_CONFIG),
+        # runtime config. I.e., /run/cloud-init/cloud.cfg
+        read_runtime_config,
+        # Kernel/cmdline parameters override system config
+        util.read_conf_from_cmdline,
+    ]
+    configs = []
+    for config_loader in config_loaders:
+        try:
+            configs.append(config_loader())
+        except OSError as e:
+            if e.errno == errno.EACCES:
+                pass  # Already logged in `config_loaders`.
+            else:
+                raise
+    return util.mergemanydict(configs, reverse=True)
 
 
 def _pkl_store(obj, fname):

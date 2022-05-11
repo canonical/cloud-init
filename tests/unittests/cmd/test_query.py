@@ -5,7 +5,7 @@ import gzip
 import json
 import os
 from collections import namedtuple
-from io import BytesIO, StringIO
+from io import BytesIO
 from textwrap import dedent
 
 import pytest
@@ -110,7 +110,7 @@ class TestQuery:
             ),
         ),
     )
-    def test_handle_args_error_on_invalid_vaname_paths(
+    def test_handle_args_error_on_invalid_varname_paths(
         self, inst_data, varname, expected_error, caplog, tmpdir
     ):
         """Error when varname is not a valid instance-data variable path."""
@@ -175,15 +175,18 @@ class TestQuery:
         msg = "No read permission on '%s'. Try sudo" % noread_fn
         assert msg in caplog.text
 
-    @mock.patch(
-        "cloudinit.cmd.devel.Init.read_cfg",
-        side_effect=OSError(errno.EACCES, "Not allowed"),
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            (OSError(errno.EACCES, "Not allowed"),),
+            (OSError(errno.ENOENT, "Not allowed"),),
+            (IOError,),
+        ],
     )
     def test_handle_args_error_when_no_read_permission_init_cfg(
-        self,
-        m_read_cfg,
+        self, exception, capsys
     ):
-        """When init cfg file is unreadable, log an error."""
+        """query.handle_status_args exists with 1 and no sys-output."""
         args = self.Args(
             debug=False,
             dump_all=True,
@@ -194,16 +197,15 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
-            with pytest.raises(SystemExit) as exc_info:
-                query.handle_args("anyname", args)
-        assert exc_info.value.code == 1
-        expected_error = (
-            "Error:\nFailed reading config file(s) due to permission error:\n"
-            "[Errno 13] Not allowed\n"
-        )
-        assert m_stderr.getvalue() == expected_error
-        assert m_read_cfg.call_count == 1
+        with mock.patch(
+            M_PATH + "read_cfg_paths",
+            side_effect=exception,
+        ) as m_read_cfg_paths:
+            query.handle_args("anyname", args)
+        assert m_read_cfg_paths.call_count == 1
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
 
     def test_handle_args_defaults_instance_data(self, caplog, tmpdir):
         """When no instance_data argument, default to configured run_dir."""

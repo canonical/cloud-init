@@ -523,56 +523,37 @@ class TestStatus:
         assert e.value.code == 0
         assert m_stdout.getvalue() == "status: running\n"
 
-    @mock.patch(
-        "cloudinit.cmd.devel.Init.read_cfg",
-        side_effect=OSError(errno.EACCES, "Not allowed"),
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            (OSError(errno.EACCES, "Not allowed"),),
+            (OSError(errno.ENOENT, "Not allowed"),),
+            (IOError,),
+        ],
     )
-    def test_status_no_read_permission_init_config(self, m_read_cfg):
-        """status.handle_status_args outputs to stderr and exists with 1 if
-        some init cfg file has no user permissions.
-        """
-
-        cmdargs = MyArgs(long=False, wait=True)
-        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
-            with pytest.raises(SystemExit) as exc_info:
-                wrap_and_call(
-                    M_NAME,
-                    {
-                        "sleep": {"side_effect": lambda *_: None},
-                        "_is_cloudinit_disabled": (False, ""),
-                    },
-                    status.handle_status_args,
-                    "ignored",
-                    cmdargs,
-                )
-        assert exc_info.value.code == 1
-        expected_error = (
-            "Error:\nFailed reading config file(s) due to permission error:\n"
-            "[Errno 13] Not allowed\n"
-        )
-        assert m_stderr.getvalue() == expected_error
-        assert m_read_cfg.call_count == 1
-
-    @mock.patch(
-        "cloudinit.cmd.devel.Init.read_cfg",
-        side_effect=OSError(errno.EACCES, "Not allowed"),
-    )
-    def test_get_status_details_no_read_permission_init_config(
-        self, m_read_cfg
+    def test_handle_args_no_read_permission_init_config(
+        self, exception, capsys
     ):
-        """status.get_status_details outputs to stderr and exists with 1 if
-        some init cfg file has no user permissions.
-        """
-        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
-            with pytest.raises(SystemExit) as exc_info:
-                status.get_status_details()
-        assert exc_info.value.code == 1
-        expected_error = (
-            "Error:\nFailed reading config file(s) due to permission error:\n"
-            "[Errno 13] Not allowed\n"
-        )
-        assert m_stderr.getvalue() == expected_error
-        assert m_read_cfg.call_count == 1
+        """status.handle_status_args exists with 1 and no sys-output."""
+        cmdargs = MyArgs(long=False, wait=True)
+        with mock.patch(
+            M_PATH + "read_cfg_paths",
+            side_effect=exception,
+        ) as m_read_cfg_paths:
+            assert 1 == wrap_and_call(
+                M_NAME,
+                {
+                    "sleep": {"side_effect": lambda *_: None},
+                    "_is_cloudinit_disabled": (False, ""),
+                },
+                status.handle_status_args,
+                "ignored",
+                cmdargs,
+            )
+        assert m_read_cfg_paths.call_count == 1
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
 
 
 # vi: ts=4 expandtab syntax=python

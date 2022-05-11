@@ -141,26 +141,27 @@ class TestRender:
             ' "my_var"?' % user_data
         ) in caplog.text
 
-    @mock.patch(
-        "cloudinit.cmd.devel.Init.read_cfg",
-        side_effect=OSError(errno.EACCES, "Not allowed"),
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            (OSError(errno.EACCES, "Not allowed"),),
+            (OSError(errno.ENOENT, "Not allowed"),),
+            (IOError,),
+        ],
     )
-    def test_handle_args_error_when_no_read_permission_instance_data2(
-        self,
-        m_read_cfg,
+    def test_handle_args_no_read_permission_init_config(
+        self, exception, capsys
     ):
-        """When instance_data file is unreadable, log an error."""
+        """render.handle_args exists with 1 and no sys-output."""
         args = self.Args(user_data=None, instance_data=None, debug=False)
-        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
-            with pytest.raises(SystemExit) as exc_info:
-                render.handle_args("anyname", args)
-        assert exc_info.value.code == 1
-        expected_error = (
-            "Error:\nFailed reading config file(s) due to permission error:\n"
-            "[Errno 13] Not allowed\n"
-        )
-        assert m_stderr.getvalue() == expected_error
-        assert m_read_cfg.call_count == 1
+        with mock.patch(
+            M_PATH + "read_cfg_paths", side_effect=exception
+        ) as m_read_cfg_paths:
+            assert 1 == render.handle_args("anyname", args)
+        assert m_read_cfg_paths.call_count == 1
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
 
 
 # vi: ts=4 expandtab
