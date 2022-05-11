@@ -14,7 +14,7 @@ from functools import partial
 
 import yaml
 
-from cloudinit import importer
+from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.util import error, find_modules, load_file
 
@@ -236,7 +236,9 @@ def validate_cloudconfig_schema(
             )
 
 
-def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
+def annotated_cloudconfig_file(
+    cloudconfig, original_content, schema_errors, schemamarks
+):
     """Return contents of the cloud-config file annotated with schema errors.
 
     @param cloudconfig: YAML-loaded dict from the original_content or empty
@@ -247,7 +249,6 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
     """
     if not schema_errors:
         return original_content
-    schemapaths = {}
     errors_by_line = defaultdict(list)
     error_footer = []
     error_header = "# Errors: -------------\n{0}\n\n"
@@ -259,10 +260,6 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
             lines
             + [error_header.format("# E1: Cloud-config is not a YAML dict.")]
         )
-    if cloudconfig:
-        schemapaths = _schemapath_for_cloudconfig(
-            cloudconfig, original_content
-        )
     for path, msg in schema_errors:
         match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
         if match:
@@ -270,7 +267,7 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
             errors_by_line[int(line)].append(msg)
         else:
             col = None
-            errors_by_line[schemapaths[path]].append(msg)
+            errors_by_line[schemamarks[path]].append(msg)
         if col is not None:
             msg = "Line {line} column {col}: {msg}".format(
                 line=line, col=col, msg=msg
@@ -331,10 +328,18 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         )
         error = SchemaValidationError(errors)
         if annotate:
-            print(annotated_cloudconfig_file({}, content, error.schema_errors))
+            print(
+                annotated_cloudconfig_file(
+                    {}, content, error.schema_errors, {}
+                )
+            )
         raise error
     try:
-        cloudconfig = yaml.safe_load(content)
+        if annotate:
+            cloudconfig, marks = safeyaml.load_with_marks(content)
+        else:
+            cloudconfig = safeyaml.load(content)
+            marks = {}
     except (yaml.YAMLError) as e:
         line = column = 1
         mark = None
@@ -353,7 +358,11 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         )
         error = SchemaValidationError(errors)
         if annotate:
-            print(annotated_cloudconfig_file({}, content, error.schema_errors))
+            print(
+                annotated_cloudconfig_file(
+                    {}, content, error.schema_errors, {}
+                )
+            )
         raise error from e
     if not isinstance(cloudconfig, dict):
         # Return a meaningful message on empty cloud-config
@@ -365,74 +374,10 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    cloudconfig, content, e.schema_errors
+                    cloudconfig, content, e.schema_errors, marks
                 )
             )
         raise
-
-
-def _schemapath_for_cloudconfig(config, original_content):
-    """Return a dictionary mapping schemapath to original_content line number.
-
-    @param config: The yaml.loaded config dictionary of a cloud-config file.
-    @param original_content: The simple file content of the cloud-config file
-    """
-    # TODO( handle multi-line lists or multi-line strings, inline dicts)
-    content_lines = original_content.decode().split("\n")
-    schema_line_numbers = {}
-    list_index = 0
-    RE_YAML_INDENT = r"^(\s*)"
-    scopes = []
-    if not config:
-        return {}  # No YAML config dict, no schemapaths to annotate
-    for line_number, line in enumerate(content_lines, 1):
-        indent_depth = len(re.match(RE_YAML_INDENT, line).groups()[0])
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if scopes:
-            previous_depth, path_prefix = scopes[-1]
-        else:
-            previous_depth = -1
-            path_prefix = ""
-        if line.startswith("- "):
-            # Process list items adding a list_index to the path prefix
-            previous_list_idx = ".%d" % (list_index - 1)
-            if path_prefix and path_prefix.endswith(previous_list_idx):
-                path_prefix = path_prefix[: -len(previous_list_idx)]
-            key = str(list_index)
-            item_indent = len(re.match(RE_YAML_INDENT, line[1:]).groups()[0])
-            item_indent += 1  # For the leading '-' character
-            previous_depth = indent_depth
-            indent_depth += item_indent
-            line = line[item_indent:]  # Strip leading list item + whitespace
-            list_index += 1
-        else:
-            # Process non-list lines setting value if present
-            list_index = 0
-            key, value = line.split(":", 1)
-        if path_prefix and indent_depth > previous_depth:
-            # Append any existing path_prefix for a fully-pathed key
-            key = path_prefix + "." + key
-        while indent_depth <= previous_depth:
-            if scopes:
-                previous_depth, path_prefix = scopes.pop()
-                if list_index > 0 and indent_depth == previous_depth:
-                    path_prefix = ".".join(path_prefix.split(".")[:-1])
-                    break
-            else:
-                previous_depth = -1
-                path_prefix = ""
-        scopes.append((indent_depth, key))
-        if value:
-            value = value.strip()
-            if value.startswith("["):
-                scopes.append((indent_depth + 2, key + ".0"))
-                for inner_list_index in range(0, len(yaml.safe_load(value))):
-                    list_key = key + "." + str(inner_list_index)
-                    schema_line_numbers[list_key] = line_number
-        schema_line_numbers[key] = line_number
-    return schema_line_numbers
 
 
 def _sort_property_order(value):
