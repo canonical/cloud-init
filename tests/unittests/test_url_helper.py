@@ -419,7 +419,7 @@ class TestDualStack:
         # in a version-independant way for testing, the extra comma on old
         # versions won't hurt anything
         exc_list = str([expected_exc(message) for _ in addresses])
-        expected_msg = f'Exception(s) {exc_list} during request'
+        expected_msg = f"Exception(s) {exc_list} during request"
         gen = partial(
             dual_stack,
             func,
