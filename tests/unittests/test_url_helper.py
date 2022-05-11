@@ -383,13 +383,13 @@ class TestDualStack:
             ),
             (
                 lambda _a, _b: (_ for _ in ()).throw(
-                    Exception('soap stone is not effective soap')
+                    Exception("soapstone is not effective soap")
                 ),
                 ("are", "ignored"),
                 0,
                 1,
-                "Exception(s) [Exception('soap stone is not effective soap'), "
-                "Exception('soap stone is not effective soap')] during request",
+                "Exception(s) [Exception('soapstone is not effective soap'), "
+                "Exception('soapstone is not effective soap')] during request",
                 Exception,
             ),
         ],
