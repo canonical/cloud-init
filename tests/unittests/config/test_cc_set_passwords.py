@@ -23,11 +23,6 @@ def mock_uses_systemd(mocker):
     mocker.patch("cloudinit.distros.uses_systemd", return_value=True)
 
 
-@pytest.fixture()
-def mock_uses_systemd_false(mocker):
-    mocker.patch("cloudinit.distros.uses_systemd", return_value=False)
-
-
 class TestHandleSSHPwauth:
     @pytest.mark.parametrize(
         "uses_systemd,cmd",
@@ -103,10 +98,11 @@ class TestHandleSSHPwauth:
             r.msg for r in caplog.records if r.levelname == "DEBUG"
         )
 
-    @pytest.mark.usefixtures("mock_uses_systemd")
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_unchanged_value_does_nothing(self, m_subp, update_ssh_config):
+    def test_unchanged_value_does_nothing(
+        self, m_subp, update_ssh_config, mock_uses_systemd
+    ):
         """If 'unchanged', then no updates to config and no restart."""
         update_ssh_config.assert_not_called()
         cloud = get_cloud("ubuntu")
@@ -115,10 +111,9 @@ class TestHandleSSHPwauth:
             mock.call(["systemctl", "status", "ssh"], capture=True)
         ] == m_subp.call_args_list
 
-    @pytest.mark.usefixtures("mock_uses_systemd")
     @pytest.mark.allow_subp_for("systemctl")
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_valid_value_changes_updates_ssh(self, m_subp):
+    def test_valid_value_changes_updates_ssh(self, m_subp, mock_uses_systemd):
         """If value is a valid changed value, then update will be called."""
         cloud = get_cloud("ubuntu")
         upname = MODPATH + "update_ssh_config"
