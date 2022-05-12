@@ -188,6 +188,105 @@ class TestHandleSSHPwauth:
         assert m_update_ssh_config.call_count == update_ssh_call_count
         m_subp.assert_not_called()
 
+    @mock.patch("cloudinit.distros.Distro.uses_systemd", return_value=False)
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_failed_ssh_non_systemd_service_is_not_available_exit_code_25(
+        self, m_subp, m_update_ssh_config, m_uses_systemd
+    ):
+        """If the ssh service is not available in a system without systemd,
+        then no updates config, no restart and a generic message is logged.
+        """
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["service"]
+        process_error = "Service is not available."
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(
+                stderr=process_error, exit_code=25
+            )
+        )
+
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        self.assertIn(
+            r"WARNING: Ignoring config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' is not available. Error: ",
+            self.logs.getvalue(),
+        )
+        self.assertIn(process_error, self.logs.getvalue())
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(m_subp.call_count, 0)
+        self.assertEqual(m_uses_systemd.call_count, 1)
+
+    @mock.patch("cloudinit.distros.Distro.uses_systemd", return_value=False)
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_failed_ssh_non_systemd_service_is_not_available_exit_code_3(
+        self, m_subp, m_update_ssh_config, m_uses_systemd
+    ):
+        """If the ssh service is not available in a system without systemd,
+        then no updates config, no restart and a generic message is logged.
+        """
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["service"]
+        process_error = "Service is not available."
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(
+                stderr=process_error, exit_code=3
+            )
+        )
+
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        self.assertIn(
+            r"WARNING: Ignoring config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' is not available. Error: ",
+            self.logs.getvalue(),
+        )
+        self.assertIn(process_error, self.logs.getvalue())
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(m_subp.call_count, 0)
+        self.assertEqual(m_uses_systemd.call_count, 1)
+
+    @mock.patch("cloudinit.distros.Distro.uses_systemd", return_value=False)
+    @mock.patch(MODPATH + "update_ssh_config", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_failed_ssh_non_systemd_service_is_not_available_exit_code_4(
+        self, m_subp, m_update_ssh_config, m_uses_systemd
+    ):
+        """If the ssh service is not available in a system without systemd,
+        then no updates config, no restart and a generic message is logged.
+        """
+        cloud = self.tmp_cloud(distro="ubuntu")
+        cloud.distro.init_cmd = ["service"]
+        process_error = "Service is not available."
+        cloud.distro.manage_service = mock.Mock(
+            side_effect=subp.ProcessExecutionError(
+                stderr=process_error, exit_code=4
+            )
+        )
+
+        setpass.handle_ssh_pwauth(True, cloud.distro)
+        self.assertIn(
+            r"WARNING: Ignoring config 'ssh_pwauth: True'."
+            r" SSH service 'ssh' is not available. Error: ",
+            self.logs.getvalue(),
+        )
+        self.assertIn(process_error, self.logs.getvalue())
+        self.assertEqual(
+            [mock.call("status", "ssh")],
+            cloud.distro.manage_service.call_args_list,
+        )
+        self.assertEqual(m_update_ssh_config.call_count, 0)
+        self.assertEqual(m_subp.call_count, 0)
+        self.assertEqual(m_uses_systemd.call_count, 1)
+
 
 @pytest.mark.usefixtures("mock_uses_systemd")
 class TestSetPasswordsHandle(CiTestCase):
