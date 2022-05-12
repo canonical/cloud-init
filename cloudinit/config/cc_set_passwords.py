@@ -95,8 +95,8 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         if e.exit_code == 3:
             # Service is not running. Write ssh config.
             LOG.warning(
-                "Writing config 'ssh_pwauth: %s'."
-                " SSH service '%s' will not be restarted because is stopped.",
+                "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
+                " will not be restarted because it is stopped.",
                 pw_auth,
                 service,
             )
