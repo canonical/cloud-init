@@ -88,6 +88,11 @@ class TestKeysToConsoleDisabled:
 
 @pytest.mark.user_data(ENABLE_KEYS_TO_CONSOLE_USER_DATA)
 @retry(tries=30, delay=1)
+@pytest.mark.ec2
+@pytest.mark.lxd_container
+@pytest.mark.oci
+@pytest.mark.openstack
+# No Azure because no console log on Azure
 def test_duplicate_messaging_console_log(client: IntegrationInstance):
     """Test that output can be enabled disabled."""
     assert (
