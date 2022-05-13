@@ -101,7 +101,9 @@ class TestVersionedSchemas:
         (
             ({}, None),
             ({"version": "v1"}, None),
-            ({"version": "v2"}, re.escape("{'version': 'v2'} is not valid")),
+            ({"version": "v2"}, "is not valid"),
+            ({"version": "v1", "final_message": -1}, "is not valid"),
+            ({"version": "v1", "final_message": "some msg"}, None),
         ),
     )
     def test_versioned_cloud_config_schema_is_valid_json(
