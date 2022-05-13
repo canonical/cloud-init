@@ -21,6 +21,7 @@ from cloudinit.util import error, find_modules, load_file
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
 
+VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 # Bump this file when introducing incompatible schema changes.
 # Also add new version definition to versions.schema.json.
 USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
@@ -662,6 +663,10 @@ def load_doc(requested_modules: list) -> str:
     return docs
 
 
+def get_schema_dir() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+
+
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config modules."""
     # Note versions.schema.json is publicly consumed by schemastore.org.
@@ -673,9 +678,7 @@ def get_schema() -> dict:
     # 1. Add a new schema-cloud-config-v#.json
     # 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
     # 3. Add the new version definition to versions.schema.cloud-config.json
-    schema_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), USERDATA_SCHEMA_FILE
-    )
+    schema_file = os.path.join(get_schema_dir(), USERDATA_SCHEMA_FILE)
     full_schema = None
     try:
         full_schema = json.loads(load_file(schema_file))
@@ -692,20 +695,6 @@ def get_schema() -> dict:
             "$schema": "http://json-schema.org/draft-04/schema#",
             "allOf": [],
         }
-
-    # TODO( Drop the get_modules loop when all legacy cc_* schema migrates )
-    # Supplement base_schema with any legacy modules which still contain a
-    # "schema" attribute. Legacy cc_* modules will be migrated to use the
-    # store module schema in the composite cloud-init-schema-<version>.json
-    # and will drop "schema" at that point.
-    for (_, mod_name) in get_modules().items():
-        # All cc_* modules need a "meta" attribute to represent schema defs
-        (mod_locs, _) = importer.find_module(
-            mod_name, ["cloudinit.config"], ["schema"]
-        )
-        if mod_locs:
-            mod = importer.import_module(mod_locs[0])
-            full_schema["allOf"].append(mod.schema)
     return full_schema
 
 

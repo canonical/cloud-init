@@ -4,7 +4,10 @@
 import importlib
 import inspect
 import itertools
+import json
 import logging
+import os
+import re
 import sys
 from copy import copy
 from pathlib import Path
@@ -16,12 +19,14 @@ import pytest
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
+    VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
     get_schema,
+    get_schema_dir,
     load_doc,
     main,
     validate_cloudconfig_file,
@@ -31,7 +36,7 @@ from cloudinit.config.schema import (
 from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
-from cloudinit.util import write_file
+from cloudinit.util import load_file, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,
@@ -88,6 +93,37 @@ def get_module_variable(var_name) -> dict:
                     schemas[module_name] = value
                     break
     return schemas
+
+
+class TestVersionedSchemas:
+    @pytest.mark.parametrize(
+        "schema,error_msg",
+        (
+            ({}, None),
+            ({"version": "v1"}, None),
+            ({"version": "v2"}, re.escape("{'version': 'v2'} is not valid")),
+        ),
+    )
+    def test_versioned_cloud_config_schema_is_valid_json(
+        self, schema, error_msg
+    ):
+        version_schemafile = os.path.join(
+            get_schema_dir(), VERSIONED_USERDATA_SCHEMA_FILE
+        )
+        version_schema = json.loads(load_file(version_schemafile))
+        # To avoid JSON resolver trying to pull the reference from our
+        # upstream raw file in github.
+        version_schema["$id"] = f"file://{version_schemafile}"
+        if error_msg:
+            with pytest.raises(SchemaValidationError) as context_mgr:
+                validate_cloudconfig_schema(
+                    schema, schema=version_schema, strict=True
+                )
+            assert error_msg in str(context_mgr.value)
+        else:
+            validate_cloudconfig_schema(
+                schema, schema=version_schema, strict=True
+            )
 
 
 class TestGetSchema:
