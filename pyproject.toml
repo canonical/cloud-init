@@ -9,6 +9,8 @@ skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
 
 [tool.mypy]
 follow_imports = "silent"
+warn_unused_ignores = "true"
+warn_redundant_casts = "true"
 exclude=[
   '^cloudinit/apport\.py$',
   '^cloudinit/cmd/query\.py$',
