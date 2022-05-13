@@ -26,7 +26,7 @@ KEY_NAMES_NO_DSA = [
 
 
 @pytest.fixture(scope="function")
-def _publish_hostkey_test_setup(tmpdir):
+def publish_hostkey_test_setup(tmpdir):
     test_hostkeys = {
         "dsa": ("ssh-dss", "AAAAB3NzaC1kc3MAAACB"),
         "ecdsa": ("ecdsa-sha2-nistp256", "AAAAE2VjZ"),
@@ -62,45 +62,33 @@ class TestHandleSsh:
     """Test cc_ssh handling of ssh config."""
 
     @pytest.mark.parametrize(
-        "args,kwargs",
+        "keys,user,disable_root_opts",
         [
             # For the given user and root.
-            pytest.param([["key1"], "clouduser", False], {}, id="with_user"),
+            pytest.param(["key1"], "clouduser", False, id="with_user"),
             # For root only.
-            pytest.param([["key1"], None, False], {}, id="with_no_user"),
+            pytest.param(["key1"], None, False, id="with_no_user"),
             # For the given user and disable root ssh.
             pytest.param(
-                [
-                    ["key1"],
-                    "clouduser",
-                    True,
-                ],
-                {},
+                ["key1"],
+                "clouduser",
+                True,
                 id="with_user_disable_root",
             ),
             # No user and disable root ssh.
             pytest.param(
-                [
-                    ["key1"],
-                    None,
-                    True,
-                ],
-                {},
+                ["key1"],
+                None,
+                True,
                 id="with_no_user_disable_root",
             ),
         ],
     )
     def test_apply_credentials(
-        self,
-        m_setup_keys,
-        args,
-        kwargs,
+        self, m_setup_keys, keys, user, disable_root_opts
     ):
-        keys, user, *args, disable_root_opts = args
         options = ssh_util.DISABLE_USER_OPTS
-        cc_ssh.apply_credentials(
-            keys, user, *args, disable_root_opts, options, **kwargs
-        )
+        cc_ssh.apply_credentials(keys, user, disable_root_opts, options)
         if not disable_root_opts:
             expected_options = ""
         else:
@@ -258,12 +246,12 @@ class TestHandleSsh:
         m_nug,
         m_glob,
         m_setup_keys,
-        _publish_hostkey_test_setup,
+        publish_hostkey_test_setup,
         cfg,
         expected_key_types,
     ):
         """Test handle with various configs for ssh_publish_hostkeys."""
-        test_hostkeys, test_hostkey_files = _publish_hostkey_test_setup
+        test_hostkeys, test_hostkey_files = publish_hostkey_test_setup
         cc_ssh.PUBLISH_HOST_KEYS = True
         keys = ["key1"]
         user = "clouduser"
