@@ -9,10 +9,14 @@
 
 import glob
 import os
+import re
 import sys
+from logging import Logger
 from textwrap import dedent
+from typing import List, Optional, Sequence
 
 from cloudinit import ssh_util, subp, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -103,11 +107,21 @@ config flags are:
 
     - dsa
     - ecdsa
-    - ecdsa-sk
     - ed25519
-    - ed25519-sk
     - rsa
+
+Unsupported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
+config flags are:
+
+    - ecdsa-sk
+    - ed25519-sk
 """
+
+# Note: We do not support *-sk key types because:
+# 1) In the autogeneration case user interaction with the device is needed
+# which does not fit with a cloud-context.
+# 2) This type of keys are user-based, not hostkeys.
+
 
 meta: MetaSchema = {
     "id": "cc_ssh",
@@ -156,6 +170,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
+pattern_unsupported_config_keys = re.compile(
+    "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
+)
 KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
 PUBLISH_HOST_KEYS = True
 # Don't publish the dsa hostkey by default since OpenSSH recommends not using
@@ -165,19 +182,19 @@ HOST_KEY_PUBLISH_BLACKLIST = ["dsa"]
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
 for k in GENERATE_KEY_NAMES:
-    CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
     CONFIG_KEY_TO_FILE.update(
-        {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)}
+        {
+            f"{k}_private": (KEY_FILE_TPL % k, 0o600),
+            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o600),
+            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o600),
+        }
     )
-    CONFIG_KEY_TO_FILE.update(
-        {"%s_certificate" % k: (KEY_FILE_TPL % k + "-cert.pub", 0o600)}
-    )
-    PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
+    PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
@@ -191,8 +208,12 @@ def handle(_name, cfg, cloud, log, _args):
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
         for (key, val) in cfg["ssh_keys"].items():
-            # skip entry if unrecognized
             if key not in CONFIG_KEY_TO_FILE:
+                if pattern_unsupported_config_keys.match(key):
+                    reason = "unsupported"
+                else:
+                    reason = "unrecognized"
+                log.warning("Skipping %s ssh_keys" ' entry: "%s"', reason, key)
                 continue
             tgt_fn = CONFIG_KEY_TO_FILE[key][0]
             tgt_perms = CONFIG_KEY_TO_FILE[key][1]
@@ -297,7 +318,7 @@ def handle(_name, cfg, cloud, log, _args):
             cfg, "disable_root_opts", ssh_util.DISABLE_USER_OPTS
         )
 
-        keys = []
+        keys: List[str] = []
         if util.get_cfg_option_bool(cfg, "allow_public_ssh_keys", True):
             keys = cloud.get_public_ssh_keys() or []
         else:
@@ -332,7 +353,7 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
     ssh_util.setup_user_keys(keys, "root", options=key_prefix)
 
 
-def get_public_host_keys(blacklist=None):
+def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     """Read host keys from /etc/ssh/*.pub files and return them as a list.
 
     @param blacklist: List of key types to ignore. e.g. ['dsa', 'rsa']

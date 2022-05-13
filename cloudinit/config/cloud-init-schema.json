@@ -1886,7 +1886,7 @@
           "type": "object",
           "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax.",
           "patternProperties": {
-            "^(dsa|ecdsa|ecdsa-sk|ed25519|ed25519-sk|rsa)_(public|private|certificate)$": {
+            "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
               "label": "<key_type>",
               "type": "string"
             }
@@ -1909,11 +1909,11 @@
         "ssh_genkeytypes": {
           "type": "array",
           "description": "The SSH key types to generate. Default: ``[rsa, dsa, ecdsa, ed25519]``",
-          "default": ["dsa", "ecdsa", "ecdsa-sk", "ed25519", "ed25519-sk", "rsa"],
+          "default": ["dsa", "ecdsa", "ed25519", "rsa"],
           "minItems": 1,
           "items": {
             "type": "string",
-            "enum": ["dsa", "ecdsa", "ecdsa-sk", "ed25519", "ed25519-sk", "rsa"]
+            "enum": ["dsa", "ecdsa", "ed25519", "rsa"]
           }
         },
         "disable_root": {
