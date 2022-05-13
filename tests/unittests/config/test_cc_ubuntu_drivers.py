@@ -46,7 +46,7 @@ class AnyTempScriptAndDebconfFile(object):
 
 
 class TestUbuntuDrivers(CiTestCase):
-    cfg_accepted = {"drivers": {"nvidia": {"license-accepted": True}}}
+    cfg_accepted: dict = {"drivers": {"nvidia": {"license-accepted": True}}}
     install_gpgpu = ["ubuntu-drivers", "install", "--gpgpu", "nvidia"]
 
     with_logs = True

@@ -8,7 +8,7 @@ from cloudinit.cmd import clean
 from cloudinit.util import ensure_dir, sym_link, write_file
 from tests.unittests.helpers import CiTestCase, mock, wrap_and_call
 
-mypaths = namedtuple("MyPaths", "cloud_dir")
+MyPaths = namedtuple("MyPaths", "cloud_dir")
 
 
 class TestClean(CiTestCase):
@@ -25,7 +25,7 @@ class TestClean(CiTestCase):
                 "output": {"all": "|tee -a {0}".format(self.log2)},
             }
             # Ensure cloud_dir has a trailing slash, to match real behaviour
-            paths = mypaths(cloud_dir="{}/".format(self.artifact_dir))
+            paths = MyPaths(cloud_dir="{}/".format(self.artifact_dir))
 
             def __init__(self, ds_deps):
                 pass

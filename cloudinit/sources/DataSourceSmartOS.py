@@ -1049,7 +1049,7 @@ if __name__ == "__main__":
 
         return data[key]
 
-    data = {}
+    data: dict = {}
     for key in keys:
         load_key(client=jmc, key=key, data=data)
 

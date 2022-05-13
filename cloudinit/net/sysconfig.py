@@ -361,7 +361,7 @@ class Renderer(renderer.Renderer):
         ]
     )
 
-    templates = {}
+    templates: dict = {}
 
     def __init__(self, config=None):
         if not config:

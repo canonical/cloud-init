@@ -17,7 +17,7 @@ from cloudinit.sources import InvalidMetaDataException
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
 
-LStatResponse = namedtuple("lstatresponse", "st_mode")
+LStatResponse = namedtuple("LStatResponse", "st_mode")
 
 
 NETWORK_V1 = {
@@ -34,7 +34,7 @@ NETWORK_V1 = {
 
 def _add_network_v1_device(devname) -> dict:
     """Helper to inject device name into default network v1 config."""
-    network_cfg = deepcopy(NETWORK_V1)
+    network_cfg: dict = deepcopy(NETWORK_V1)
     network_cfg["config"][0]["name"] = devname
     return network_cfg
 
@@ -51,10 +51,25 @@ LXD_V1_METADATA = {
     },
 }
 
+LXD_V1_METADATA_NO_NETWORK_CONFIG = {
+    "meta-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
+    "user-data": "#cloud-config\npackages: [sl]\n",
+    "vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
+    "config": {
+        "user.user-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
+        "user.vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
+    },
+}
+
 
 @pytest.fixture
 def lxd_metadata():
     return LXD_V1_METADATA
+
+
+@pytest.fixture
+def lxd_metadata_no_network_config():
+    return LXD_V1_METADATA_NO_NETWORK_CONFIG
 
 
 @pytest.fixture
@@ -70,6 +85,27 @@ def lxd_ds(request, paths, lxd_metadata):
     """
     with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
         with mock.patch(DS_PATH + "read_metadata", return_value=lxd_metadata):
+            yield lxd.DataSourceLXD(
+                sys_cfg={}, distro=mock.Mock(), paths=paths
+            )
+
+
+@pytest.fixture
+def lxd_ds_no_network_config(request, paths, lxd_metadata_no_network_config):
+    """
+    Return an instantiated DataSourceLXD.
+
+    This also performs the mocking required for the default test case:
+        * ``is_platform_viable`` returns True,
+        * ``read_metadata`` returns ``LXD_V1_METADATA_NO_NETWORK_CONFIG``
+
+    (This uses the paths fixture for the required helpers.Paths object)
+    """
+    with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
+        with mock.patch(
+            DS_PATH + "read_metadata",
+            return_value=lxd_metadata_no_network_config,
+        ):
             yield lxd.DataSourceLXD(
                 sys_cfg={}, distro=mock.Mock(), paths=paths
             )
@@ -141,6 +177,37 @@ class TestDataSourceLXD:
         # Any user-data and vendor-data are saved as raw
         assert LXD_V1_METADATA["user-data"] == lxd_ds.userdata_raw
         assert LXD_V1_METADATA["vendor-data"] == lxd_ds.vendordata_raw
+
+    def test_network_config_when_unset(self, lxd_ds):
+        """network_config is correctly computed when _network_config and
+        _crawled_metadata are unset.
+        """
+        assert UNSET == lxd_ds._crawled_metadata
+        assert UNSET == lxd_ds._network_config
+        assert None is lxd_ds.userdata_raw
+        # network-config is dumped from YAML
+        assert NETWORK_V1 == lxd_ds.network_config
+        assert LXD_V1_METADATA == lxd_ds._crawled_metadata
+
+    def test_network_config_crawled_metadata_no_newtwork_config(
+        self, lxd_ds_no_network_config
+    ):
+        """network_config is correctly computed when _network_config is unset
+        and _crawled_metadata does not contain network_config.
+        """
+        lxd.generate_fallback_network_config = mock.Mock(
+            return_value=NETWORK_V1
+        )
+        assert UNSET == lxd_ds_no_network_config._crawled_metadata
+        assert UNSET == lxd_ds_no_network_config._network_config
+        assert None is lxd_ds_no_network_config.userdata_raw
+        # network-config is dumped from YAML
+        assert NETWORK_V1 == lxd_ds_no_network_config.network_config
+        assert (
+            LXD_V1_METADATA_NO_NETWORK_CONFIG
+            == lxd_ds_no_network_config._crawled_metadata
+        )
+        assert 1 == lxd.generate_fallback_network_config.call_count
 
 
 class TestIsPlatformViable:

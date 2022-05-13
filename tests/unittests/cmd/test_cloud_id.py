@@ -15,7 +15,7 @@ M_PATH = "cloudinit.cmd.cloud_id."
 
 class TestCloudId:
 
-    args = namedtuple("cloudidargs", "instance_data json long")
+    CloudIdArgs = namedtuple("CloudIdArgs", "instance_data json long")
 
     def test_cloud_id_arg_parser_defaults(self):
         """Validate the argument defaults when not provided by the end-user."""

@@ -13,6 +13,7 @@ import time
 import unittest
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
 
@@ -114,7 +115,7 @@ class CiTestCase(TestCase):
     # Subclass overrides for specific test behavior
     # Whether or not a unit test needs logfile setup
     with_logs = False
-    allowed_subp = False
+    allowed_subp: ClassVar[Union[List, bool]] = False
     SUBP_SHELL_TRUE = "shell=true"
 
     @contextmanager
@@ -516,21 +517,6 @@ def skipUnlessJinja():
 
 def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
-
-
-# older versions of mock do not have the useful 'assert_not_called'
-if not hasattr(mock.Mock, "assert_not_called"):
-
-    def __mock_assert_not_called(mmock):
-        if mmock.call_count != 0:
-            msg = (
-                "[citest] Expected '%s' to not have been called. "
-                "Called %s times."
-                % (mmock._mock_name or "mock", mmock.call_count)
-            )
-            raise AssertionError(msg)
-
-    mock.Mock.assert_not_called = __mock_assert_not_called
 
 
 def get_top_level_dir() -> Path:

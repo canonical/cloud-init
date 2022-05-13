@@ -18,14 +18,14 @@ from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_KEYBOARD_MODEL = "pc105"
 
-distros = distros.Distro.expand_osfamily(["arch", "debian", "redhat", "suse"])
+distros_ = distros.Distro.expand_osfamily(["arch", "debian", "redhat", "suse"])
 
 meta: MetaSchema = {
     "id": "cc_keyboard",
     "name": "Keyboard",
     "title": "Set keyboard layout",
     "description": "Handle keyboard configuration.",
-    "distros": distros,
+    "distros": distros_,
     "examples": [
         dedent(
             """\

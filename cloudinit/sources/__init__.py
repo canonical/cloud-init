@@ -14,7 +14,7 @@ import json
 import os
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -56,6 +56,10 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
 UNSET = "_unset"
+# `UnsetOrDict` should be Union[Literal["_unset"], dict] but Literal is not yet
+# supported
+UnsetOrDict = Union[str, dict]
+
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)
@@ -149,7 +153,7 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
 
 URLParams = namedtuple(
-    "URLParms",
+    "URLParams",
     [
         "max_wait_seconds",
         "timeout_seconds",
@@ -228,7 +232,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
     # values are reset via clear_cached_attrs during any update_metadata call.
-    cached_attr_defaults = (
+    cached_attr_defaults: Tuple[Tuple[str, Any], ...] = (
         ("ec2_metadata", UNSET),
         ("network_json", UNSET),
         ("metadata", {}),
@@ -244,7 +248,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
-    sensitive_metadata_keys = (
+    sensitive_metadata_keys: Tuple[str, ...] = (
         "merged_cfg",
         "security-credentials",
     )
@@ -256,7 +260,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.distro = distro
         self.paths = paths
         self.userdata = None
-        self.metadata = {}
+        self.metadata: dict = {}
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata2 = None
@@ -445,7 +449,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
     def get_url_params(self):
-        """Return the Datasource's prefered url_read parameters.
+        """Return the Datasource's preferred url_read parameters.
 
         Subclasses may override url_max_wait, url_timeout, url_retries.
 

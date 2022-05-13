@@ -13,8 +13,8 @@ from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
-mypaths = namedtuple("MyPaths", "run_dir")
-myargs = namedtuple("MyArgs", "debug files force local reporter subcommand")
+MyPaths = namedtuple("MyPaths", "run_dir")
+MyArgs = namedtuple("MyArgs", "debug files force local reporter subcommand")
 
 
 class TestMain(FilesystemMockingTestCase):
@@ -58,7 +58,7 @@ class TestMain(FilesystemMockingTestCase):
 
     def test_main_init_run_net_runs_modules(self):
         """Modules like write_files are run in 'net' mode."""
-        cmdargs = myargs(
+        cmdargs = MyArgs(
             debug=False,
             files=None,
             force=False,
@@ -104,7 +104,7 @@ class TestMain(FilesystemMockingTestCase):
         }
         cloud_cfg = safeyaml.dumps(self.cfg)
         write_file(self.cloud_cfg_file, cloud_cfg)
-        cmdargs = myargs(
+        cmdargs = MyArgs(
             debug=False,
             files=None,
             force=False,

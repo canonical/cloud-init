@@ -13,15 +13,19 @@
 import collections
 import re
 import sys
+from typing import Type
 
 try:
-    from jinja2 import DebugUndefined as JUndefined
+    from jinja2 import DebugUndefined as _DebugUndefined
     from jinja2 import Template as JTemplate
 
-    JINJA_AVAILABLE = True
+    JUndefined: Type
 except (ImportError, AttributeError):
     JINJA_AVAILABLE = False
     JUndefined = object
+else:
+    JINJA_AVAILABLE = True
+    JUndefined = _DebugUndefined
 
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
@@ -34,7 +38,9 @@ BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 
-class UndefinedJinjaVariable(JUndefined):
+# Mypy, and the PEP 484 ecosystem in general, does not support creating
+# classes with dynamic base types: https://stackoverflow.com/a/59636248
+class UndefinedJinjaVariable(JUndefined):  # type: ignore
     """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):

@@ -992,7 +992,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
-    ret = {}
+    ret: dict = {}
     for name, mac, _driver, _devid in get_interfaces(
         blacklist_drivers=blacklist_drivers
     ):
@@ -1357,7 +1357,8 @@ class EphemeralIPv4Network(object):
         self.broadcast = broadcast
         self.router = router
         self.static_routes = static_routes
-        self.cleanup_cmds = []  # List of commands to run to cleanup state.
+        # List of commands to run to cleanup state.
+        self.cleanup_cmds: List[str] = []
 
     def __enter__(self):
         """Perform ephemeral network setup if interface is not connected."""
