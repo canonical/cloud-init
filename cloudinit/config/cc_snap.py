@@ -182,23 +182,6 @@ def run_commands(commands):
         raise RuntimeError(msg)
 
 
-# RELEASE_BLOCKER: Once LP: #1628289 is released on xenial, drop this function.
-def maybe_install_squashfuse(cloud):
-    """Install squashfuse if we are in a container."""
-    if not util.is_container():
-        return
-    try:
-        cloud.distro.update_package_sources()
-    except Exception:
-        util.logexc(LOG, "Package update failed")
-        raise
-    try:
-        cloud.distro.install_packages(["squashfuse"])
-    except Exception:
-        util.logexc(LOG, "Failed to install squashfuse")
-        raise
-
-
 def handle(name, cfg, cloud, log, args):
     cfgin = cfg.get("snap", {})
     if not cfgin:
@@ -207,8 +190,6 @@ def handle(name, cfg, cloud, log, args):
         )
         return
 
-    if util.is_true(cfgin.get("squashfuse_in_container", False)):
-        maybe_install_squashfuse(cloud)
     add_assertions(cfgin.get("assertions", []))
     run_commands(cfgin.get("commands", []))
 

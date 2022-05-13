@@ -1819,11 +1819,6 @@
                   {"type": "array", "items": {"type": "string"}}
                 ]
               }
-            },
-            "squashfuse_in_container": {
-              "type": "boolean",
-              "default": false,
-              "description": "DEPRECATED: This key is no longer needed and will be removed in a future version of cloud-init."
             }
           }
         }
