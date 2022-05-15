@@ -9,9 +9,9 @@
             "version": {
               "enum": ["22.2", "v1"]
             }
-          },
-          "$ref": "./schema-cloud-config-v1.json"
-        }
+          }
+        },
+        {"$ref": "./schema-cloud-config-v1.json"}
       ]
     }
   ]
