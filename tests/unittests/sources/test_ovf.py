@@ -1022,11 +1022,15 @@ class TestDatasourceOVF(CiTestCase):
 class TestTransportIso9660(CiTestCase):
     def setUp(self):
         super(TestTransportIso9660, self).setUp()
-        self.add_patch("cloudinit.util.find_devs_with", "m_find_devs_with")
-        self.add_patch("cloudinit.util.mounts", "m_mounts")
-        self.add_patch("cloudinit.util.mount_cb", "m_mount_cb")
         self.add_patch(
-            "cloudinit.sources.DataSourceOVF.get_ovf_env", "m_get_ovf_env"
+            "cloudinit.util.find_devs_with", "m_find_devs_with", autospec=False
+        )
+        self.add_patch("cloudinit.util.mounts", "m_mounts", autospec=False)
+        self.add_patch("cloudinit.util.mount_cb", "m_mount_cb", autospec=False)
+        self.add_patch(
+            "cloudinit.sources.DataSourceOVF.get_ovf_env",
+            "m_get_ovf_env",
+            autospec=False,
         )
         self.m_get_ovf_env.return_value = ("myfile", "mycontent")
 
