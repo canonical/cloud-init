@@ -245,6 +245,7 @@ class TestCombined:
         assert (
             found_count > 10
         ), "Not enough modules found in log. Did the log message change?"
+        assert "with frequency None" not in log
 
     def _check_common_metadata(self, data):
         assert data["base64_encoded_keys"] == []
