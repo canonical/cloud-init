@@ -63,8 +63,8 @@ def prepend_base_command(base_command, commands):
     return fixed_commands
 
 
-# really long line akjsenbfkajsnebfkajfsekjabflesjbfalksejbflkajsbeflkajsbeflkjabseflkjabselkfjbalksejfblkasjebflkjb 
 class ProcessExecutionError(IOError):
+
     MESSAGE_TMPL = (
         "%(description)s\n"
         "Command: %(cmd)s\n"
