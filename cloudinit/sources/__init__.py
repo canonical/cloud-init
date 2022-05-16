@@ -767,7 +767,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self.distro.get_package_mirror_info(data_source=self)
 
     def get_supported_events(self, source_event_types: List[EventType]):
-        supported_events = {}  # type: Dict[EventScope, set]
+        supported_events: Dict[EventScope, set] = {}
         for event in source_event_types:
             for (
                 update_scope,
