@@ -95,7 +95,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         uses_systemd = distro.uses_systemd()
         if uses_systemd and e.exit_code == 3:
             # Service is not running. Write ssh config.
-            LOG.warning(
+            LOG.debug(
                 "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
                 " will not be restarted because it is stopped.",
                 pw_auth,
@@ -111,6 +111,15 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
                 service,
             )
             return
+        elif not uses_systemd:
+            LOG.debug(
+                "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
+                " will not be restarted because it is not running or not"
+                " available.",
+                pw_auth,
+                service,
+            )
+            restart_ssh = False
         else:
             LOG.warning(
                 "Ignoring config 'ssh_pwauth: %s'."
