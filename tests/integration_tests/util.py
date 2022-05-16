@@ -75,7 +75,10 @@ def verify_clean_log(log):
     for traceback_text in traceback_texts:
         expected_tracebacks += log.count(traceback_text)
 
-    assert warning_count == expected_warnings
+    assert warning_count == expected_warnings, (
+        f"Unexpected warning count != {expected_warnings}. Found: "
+        f"{re.findall('WARNING.*', log)}"
+    )
     assert traceback_count == expected_tracebacks
 
 
