@@ -70,43 +70,61 @@ class TestOpenNebulaDataSource(CiTestCase):
         super(TestOpenNebulaDataSource, self).tearDown()
 
     def test_get_data_non_contextdisk(self):
-        # dont' try to lookup for CDs
-        util.find_devs_with = mock.Mock(return_value=[])
-        dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-        ret = dsrc.get_data()
-        self.assertFalse(ret)
+        orig_find_devs_with = util.find_devs_with
+        try:
+            # dont' try to lookup for CDs
+            util.find_devs_with = lambda n: []  # type: ignore
+            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
+            ret = dsrc.get_data()
+            self.assertFalse(ret)
+        finally:
+            util.find_devs_with = orig_find_devs_with
 
     def test_get_data_broken_contextdisk(self):
-        # dont' try to lookup for CDs
-        util.find_devs_with = mock.Mock(return_value=[])
-        populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
-        dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-        self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
+        orig_find_devs_with = util.find_devs_with
+        try:
+            # dont' try to lookup for CDs
+            util.find_devs_with = lambda n: []  # type: ignore
+            populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
+            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
+            self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
+        finally:
+            util.find_devs_with = orig_find_devs_with
 
     def test_get_data_invalid_identity(self):
-        # generate non-existing system user name
-        sys_cfg = self.sys_cfg
-        invalid_user = "invalid"
-        while not sys_cfg["datasource"]["OpenNebula"].get("parseuser"):
-            try:
-                pwd.getpwnam(invalid_user)
-                invalid_user += "X"
-            except KeyError:
-                sys_cfg["datasource"]["OpenNebula"]["parseuser"] = invalid_user
+        orig_find_devs_with = util.find_devs_with
+        try:
+            # generate non-existing system user name
+            sys_cfg = self.sys_cfg
+            invalid_user = "invalid"
+            while not sys_cfg["datasource"]["OpenNebula"].get("parseuser"):
+                try:
+                    pwd.getpwnam(invalid_user)
+                    invalid_user += "X"
+                except KeyError:
+                    sys_cfg["datasource"]["OpenNebula"][
+                        "parseuser"
+                    ] = invalid_user
 
-        # dont' try to lookup for CDs
-        util.find_devs_with = mock.Mock(return_value=[])
-        populate_context_dir(self.seed_dir, {"KEY1": "val1"})
-        dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
-        self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
+            # dont' try to lookup for CDs
+            util.find_devs_with = lambda n: []  # type: ignore
+            populate_context_dir(self.seed_dir, {"KEY1": "val1"})
+            dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+            self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
+        finally:
+            util.find_devs_with = orig_find_devs_with
 
     def test_get_data(self):
-        # dont' try to lookup for CDs
-        util.find_devs_with = mock.Mock(return_value=[])
-        populate_context_dir(self.seed_dir, {"KEY1": "val1"})
-        dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
+        orig_find_devs_with = util.find_devs_with
+        try:
+            # dont' try to lookup for CDs
+            util.find_devs_with = lambda n: []  # type: ignore
+            populate_context_dir(self.seed_dir, {"KEY1": "val1"})
+            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+        finally:
+            util.find_devs_with = orig_find_devs_with
         self.assertEqual("opennebula", dsrc.cloud_name)
         self.assertEqual("opennebula", dsrc.platform_type)
         self.assertEqual(
