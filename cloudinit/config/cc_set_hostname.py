@@ -109,6 +109,10 @@ def handle(name, cfg, cloud, log, _args):
     if not hostname_changed:
         log.debug("No hostname changes. Skipping set-hostname")
         return
+    if hostname == "localhost":
+        # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
+        log.debug("Hostname is localhost. Let other services handle this.")
+        return
     log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
     try:
         cloud.distro.set_hostname(hostname, fqdn)
