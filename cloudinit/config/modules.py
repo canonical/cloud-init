@@ -172,7 +172,8 @@ class Modules(object):
                     raw_name,
                     freq,
                 )
-                # Reset it so when ran it will get set to a known value
+                # Misconfigured in /etc/cloud/cloud.cfg. Reset so cc_* module
+                # default meta attribute "frequency" value is used.
                 freq = None
             mod_locs, looked_locs = importer.find_module(
                 mod_name, ["", type_utils.obj_name(config)], ["handle"]
@@ -186,6 +187,9 @@ class Modules(object):
                 continue
             mod = importer.import_module(mod_locs[0])
             validate_module(mod, raw_name)
+            if freq is None:
+                # Use cc_* module default setting since no cloud.cfg overrides
+                freq = mod.meta["frequency"]
             mostly_mods.append(
                 ModuleDetails(
                     module=mod,
