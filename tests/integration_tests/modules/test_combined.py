@@ -5,12 +5,16 @@ of the test would be unlikely to affect the running of another test using
 the same instance launch. Most independent module coherence tests can go
 here.
 """
+import glob
+import importlib
 import json
 import re
 import uuid
+from pathlib import Path
 
 import pytest
 
+import cloudinit.config
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
@@ -222,6 +226,25 @@ class TestCombined:
         assert expected_link_output == str(
             class_client.execute("stat -c %N /run/cloud-init/cloud-id")
         )
+
+    def test_run_frequency(self, class_client: IntegrationInstance):
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        config_dir = Path(cloudinit.config.__file__).parent
+        module_paths = glob.glob(str(config_dir / "cc*.py"))
+        module_names = [Path(x).stem for x in module_paths]
+        found_count = 0
+        for name in module_names:
+            mod = importlib.import_module(f"cloudinit.config.{name}")
+            frequency = mod.meta["frequency"]
+            # cc_ gets replaced with config- in logs
+            log_name = name.replace("cc_", "config-")
+            # Some modules have been filtered out in /etc/cloud/cloud.cfg,
+            if f"running {log_name}" in log:
+                found_count += 1  # Ensure we're matching on the right text
+                assert f"running {log_name} with frequency {frequency}" in log
+        assert (
+            found_count > 10
+        ), "Not enough modules found in log. Did the log message change?"
 
     def _check_common_metadata(self, data):
         assert data["base64_encoded_keys"] == []
