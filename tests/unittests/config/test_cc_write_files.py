@@ -139,6 +139,27 @@ class TestWriteFiles(FilesystemMockingTestCase):
         )
         self.assertEqual(len(expected), flen_expected)
 
+    def test_handle_plain_text(self):
+        self.patchUtils(self.tmp)
+        file_path = "/tmp/file-text-plain"
+        content = "asdf"
+        cfg = {
+            "write_files": [
+                {
+                    "content": content,
+                    "path": file_path,
+                    "encoding": "text/plain",
+                    "defer": False,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, LOG, [])
+        assert content == util.load_file(file_path)
+        self.assertNotIn(
+            "Unknown encoding type text/plain", self.logs.getvalue()
+        )
+
     def test_deferred(self):
         self.patchUtils(self.tmp)
         file_path = "/tmp/deferred.file"
@@ -213,11 +234,29 @@ class TestWriteFilesSchema:
                     "write_files.0.encoding: 'g' is not one of ['gz', 'gzip',"
                 ),
             ),
+            (
+                {
+                    "write_files": [
+                        {
+                            "append": False,
+                            "content": "a",
+                            "encoding": "text/plain",
+                            "owner": "jeff",
+                            "path": "/some",
+                            "permissions": "0777",
+                        }
+                    ]
+                },
+                None,
+            ),
         ],
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
-        with pytest.raises(SchemaValidationError, match=error_msg):
+        if error_msg is not None:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 

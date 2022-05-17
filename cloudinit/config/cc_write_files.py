@@ -18,7 +18,7 @@ from cloudinit.settings import PER_INSTANCE
 DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
 DEFAULT_DEFER = False
-UNKNOWN_ENC = "text/plain"
+TEXT_PLAIN_ENC = "text/plain"
 
 LOG = logging.getLogger(__name__)
 
@@ -141,14 +141,18 @@ def canonicalize_extraction(encoding_type):
     # Yaml already encodes binary data as base64 if it is given to the
     # yaml file as binary, so those will be automatically decoded for you.
     # But the above b64 is just for people that are more 'comfortable'
-    # specifing it manually (which might be a possiblity)
+    # specifing it manually (which might be a possibility)
     if encoding_type in ["b64", "base64"]:
         return ["application/base64"]
+    if encoding_type == TEXT_PLAIN_ENC:
+        return [TEXT_PLAIN_ENC]
     if encoding_type:
         LOG.warning(
-            "Unknown encoding type %s, assuming %s", encoding_type, UNKNOWN_ENC
+            "Unknown encoding type %s, assuming %s",
+            encoding_type,
+            TEXT_PLAIN_ENC,
         )
-    return [UNKNOWN_ENC]
+    return [TEXT_PLAIN_ENC]
 
 
 def write_files(name, files):
@@ -202,7 +206,7 @@ def extract_contents(contents, extraction_types):
             result = util.decomp_gzip(result, quiet=False, decode=False)
         elif t == "application/base64":
             result = base64.b64decode(result)
-        elif t == UNKNOWN_ENC:
+        elif t == TEXT_PLAIN_ENC:
             pass
     return result
 
