@@ -213,11 +213,29 @@ class TestWriteFilesSchema:
                     "write_files.0.encoding: 'g' is not one of ['gz', 'gzip',"
                 ),
             ),
+            (
+                {
+                    "write_files": [
+                        {
+                            "append": False,
+                            "content": "a",
+                            "encoding": "text/plain",
+                            "owner": "jeff",
+                            "path": "/some",
+                            "permissions": "0777",
+                        }
+                    ]
+                },
+                None,
+            ),
         ],
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
-        with pytest.raises(SchemaValidationError, match=error_msg):
+        if error_msg is not None:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
