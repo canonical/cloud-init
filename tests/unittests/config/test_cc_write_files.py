@@ -139,6 +139,27 @@ class TestWriteFiles(FilesystemMockingTestCase):
         )
         self.assertEqual(len(expected), flen_expected)
 
+    def test_handle_plain_text(self):
+        self.patchUtils(self.tmp)
+        file_path = "/tmp/file-text-plain"
+        content = "asdf"
+        cfg = {
+            "write_files": [
+                {
+                    "content": content,
+                    "path": file_path,
+                    "encoding": "text/plain",
+                    "defer": False,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, LOG, [])
+        assert content == util.load_file(file_path)
+        self.assertNotIn(
+            "Unknown encoding type text/plain", self.logs.getvalue()
+        )
+
     def test_deferred(self):
         self.patchUtils(self.tmp)
         file_path = "/tmp/deferred.file"
