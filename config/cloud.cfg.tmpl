@@ -72,7 +72,7 @@ network:
 
 {% if variant == "rhel" %}
 # Default redhat settings:
-ssh_deletekeys:   1
+ssh_deletekeys:   true
 ssh_genkeytypes:  ['rsa', 'ecdsa', 'ed25519']
 syslog_fix_perms: ~
 disable_vmware_customization: false
@@ -119,10 +119,10 @@ cloud_config_modules:
 {% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
- - locale
 {% if variant not in ["rhel"] %}
  - keyboard
 {% endif %}
+ - locale
 {% endif %}
  - set-passwords
 {% if variant in ["rhel"] %}

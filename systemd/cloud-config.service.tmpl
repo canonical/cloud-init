@@ -2,9 +2,7 @@
 [Unit]
 Description=Apply the settings specified in cloud-config
 After=network-online.target cloud-config.target
-{% if variant not in ["rhel"] %}
 After=snapd.seeded.service
-{% endif %}
 Wants=network-online.target cloud-config.target
 {% if variant == "rhel" %}
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
