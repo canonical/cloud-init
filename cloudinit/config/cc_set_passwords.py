@@ -93,16 +93,25 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         distro.manage_service("status", service)
     except subp.ProcessExecutionError as e:
         uses_systemd = distro.uses_systemd()
-        if uses_systemd and e.exit_code == 3:
+        if not uses_systemd:
+            LOG.debug(
+                "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
+                " will not be restarted because it is not running or not"
+                " available.",
+                pw_auth,
+                service,
+            )
+            restart_ssh = False
+        elif e.exit_code == 3:
             # Service is not running. Write ssh config.
-            LOG.warning(
+            LOG.debug(
                 "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
                 " will not be restarted because it is stopped.",
                 pw_auth,
                 service,
             )
             restart_ssh = False
-        elif uses_systemd and e.exit_code == 4:
+        elif e.exit_code == 4:
             # Service status is unknown
             LOG.warning(
                 "Ignoring config 'ssh_pwauth: %s'."
