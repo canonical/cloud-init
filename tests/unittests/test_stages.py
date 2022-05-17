@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Tests related to cloudinit.stages module."""
-import errno
 import os
 import stat
 
@@ -623,32 +622,3 @@ class TestInit_InitializeFilesystem:
         init._initialize_filesystem()
 
         assert mode == stat.S_IMODE(log_file.stat().mode)
-
-
-class TestStagesNonRootUser:
-    @mock.patch(M_PATH + "util.read_conf_from_cmdline", return_value={})
-    @mock.patch(
-        "cloudinit.util.read_conf",
-        side_effect=(OSError(errno.EACCES, "Not allowed"), {}),
-    )
-    def test_init_read_cfg_no_permissions_init_cfg(
-        self, m_read_conf, m_read_conf_from_cmdline, caplog, capsys
-    ):
-        """If a user has not read permission to read base config then
-        there is no exception nor stderr output and the user is informed via
-        logging warnings.
-
-        Note: This is used in cmd, therefore want to keep the invariant of
-        not outputing to the console and log file permission errors.
-        """
-        init = stages.Init()
-        init.read_cfg()
-        assert init.paths
-        out, err = capsys.readouterr()
-        assert not out
-        assert not err
-        msg = "REDACTED config part /etc/cloud/cloud.cfg for non-root user"
-        assert caplog.text.count(msg) == 1
-        assert m_read_conf.call_count > 1
-        assert mock.call("/etc/cloud/cloud.cfg") in m_read_conf.call_args_list
-        assert m_read_conf_from_cmdline.call_count > 0
