@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import errno
 import os
 from collections import namedtuple
 from io import StringIO
@@ -522,38 +521,6 @@ class TestStatus:
                 )
         assert e.value.code == 0
         assert m_stdout.getvalue() == "status: running\n"
-
-    @pytest.mark.parametrize(
-        "exception",
-        [
-            (OSError(errno.EACCES, "Not allowed"),),
-            (OSError(errno.ENOENT, "Not allowed"),),
-            (IOError,),
-        ],
-    )
-    def test_handle_args_no_read_permission_init_config(
-        self, exception, capsys
-    ):
-        """status.handle_status_args exists with 1 and no sys-output."""
-        cmdargs = MyArgs(long=False, wait=True)
-        with mock.patch(
-            M_PATH + "read_cfg_paths",
-            side_effect=exception,
-        ) as m_read_cfg_paths:
-            assert 1 == wrap_and_call(
-                M_NAME,
-                {
-                    "sleep": {"side_effect": lambda *_: None},
-                    "_is_cloudinit_disabled": (False, ""),
-                },
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
-        assert m_read_cfg_paths.call_count == 1
-        out, err = capsys.readouterr()
-        assert not out
-        assert not err
 
 
 # vi: ts=4 expandtab syntax=python
