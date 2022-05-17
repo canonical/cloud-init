@@ -63,10 +63,7 @@ def handle_args(name, args):
     if args.instance_data:
         instance_data_fn = args.instance_data
     else:
-        try:
-            paths = read_cfg_paths()
-        except (IOError, OSError):
-            return 1
+        paths = read_cfg_paths()
         uid = os.getuid()
         redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
         if uid == 0:

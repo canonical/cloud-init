@@ -1,10 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import errno
 from collections import namedtuple
 from io import StringIO
-
-import pytest
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
@@ -140,28 +137,6 @@ class TestRender:
             ' variable: "my-var". Jinja tried subtraction. Perhaps you meant'
             ' "my_var"?' % user_data
         ) in caplog.text
-
-    @pytest.mark.parametrize(
-        "exception",
-        [
-            (OSError(errno.EACCES, "Not allowed"),),
-            (OSError(errno.ENOENT, "Not allowed"),),
-            (IOError,),
-        ],
-    )
-    def test_handle_args_no_read_permission_init_config(
-        self, exception, capsys
-    ):
-        """render.handle_args exists with 1 and no sys-output."""
-        args = self.Args(user_data=None, instance_data=None, debug=False)
-        with mock.patch(
-            M_PATH + "read_cfg_paths", side_effect=exception
-        ) as m_read_cfg_paths:
-            assert 1 == render.handle_args("anyname", args)
-        assert m_read_cfg_paths.call_count == 1
-        out, err = capsys.readouterr()
-        assert not out
-        assert not err
 
 
 # vi: ts=4 expandtab

@@ -32,6 +32,7 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
+from collections import deque
 from errno import EACCES, ENOENT
 from functools import lru_cache
 from typing import List
@@ -1023,12 +1024,15 @@ def read_conf_d(confd):
 
 
 def read_conf_with_confd(cfgfile):
+    cfgs = deque()
+    cfg: dict = {}
     try:
         cfg = read_conf(cfgfile)
     except OSError as e:
         if e.errno == EACCES:
             LOG.warning("REDACTED config part %s for non-root user", cfgfile)
-        raise
+    else:
+        cfgs.append(cfg)
 
     confd = False
     if "conf_d" in cfg:
@@ -1044,12 +1048,12 @@ def read_conf_with_confd(cfgfile):
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
-    if not confd or not os.path.isdir(confd):
-        return cfg
+    if confd and os.path.isdir(confd):
+        # Conf.d settings override input configuration
+        confd_cfg = read_conf_d(confd)
+        cfgs.appendleft(confd_cfg)
 
-    # Conf.d settings override input configuration
-    confd_cfg = read_conf_d(confd)
-    return mergemanydict([confd_cfg, cfg])
+    return mergemanydict(cfgs)
 
 
 def read_conf_from_cmdline(cmdline=None):

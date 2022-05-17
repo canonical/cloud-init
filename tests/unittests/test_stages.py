@@ -629,7 +629,7 @@ class TestStagesNonRootUser:
     @mock.patch(M_PATH + "util.read_conf_from_cmdline", return_value={})
     @mock.patch(
         "cloudinit.util.read_conf",
-        side_effect=OSError(errno.EACCES, "Not allowed"),
+        side_effect=(OSError(errno.EACCES, "Not allowed"), {}),
     )
     def test_init_read_cfg_no_permissions_init_cfg(
         self, m_read_conf, m_read_conf_from_cmdline, caplog, capsys
@@ -647,11 +647,8 @@ class TestStagesNonRootUser:
         out, err = capsys.readouterr()
         assert not out
         assert not err
-        msgs = [
-            "REDACTED config part /etc/cloud/cloud.cfg for non-root user",
-            "REDACTED config part /run/cloud-init/cloud.cfg for non-root user",
-        ]
-        for msg in msgs:
-            assert caplog.text.count(msg) == 1
-        assert m_read_conf.call_count > 0
+        msg = "REDACTED config part /etc/cloud/cloud.cfg for non-root user"
+        assert caplog.text.count(msg) == 1
+        assert m_read_conf.call_count > 1
+        assert mock.call("/etc/cloud/cloud.cfg") in m_read_conf.call_args_list
         assert m_read_conf_from_cmdline.call_count > 0

@@ -5,12 +5,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import errno
 import os
 import pickle
 import sys
 from collections import namedtuple
-from functools import partial
 from typing import Dict, Iterable, List, Optional, Set
 
 from cloudinit import cloud, distros, handlers, helpers, importer
@@ -956,38 +954,23 @@ class Init(object):
 
 
 def read_runtime_config():
-    try:
-        return util.read_conf(RUN_CLOUD_CONFIG)
-    except OSError as e:
-        if e.errno == errno.EACCES:
-            LOG.warning(
-                "REDACTED config part %s for non-root user",
-                RUN_CLOUD_CONFIG,
-            )
-        raise
+    return util.read_conf(RUN_CLOUD_CONFIG)
 
 
 def fetch_base_config():
-    config_loaders = [
-        # builtin config, hardcoded in settings.py.
-        util.get_builtin_cfg,
-        # Anything in your conf.d or 'default' cloud.cfg location.
-        partial(util.read_conf_with_confd, CLOUD_CONFIG),
-        # runtime config. I.e., /run/cloud-init/cloud.cfg
-        read_runtime_config,
-        # Kernel/cmdline parameters override system config
-        util.read_conf_from_cmdline,
-    ]
-    configs = []
-    for config_loader in config_loaders:
-        try:
-            configs.append(config_loader())
-        except OSError as e:
-            if e.errno == errno.EACCES:
-                pass  # Already logged in `config_loaders`.
-            else:
-                raise
-    return util.mergemanydict(configs, reverse=True)
+    return util.mergemanydict(
+        [
+            # builtin config, hardcoded in settings.py.
+            util.get_builtin_cfg(),
+            # Anything in your conf.d or 'default' cloud.cfg location.
+            util.read_conf_with_confd(CLOUD_CONFIG),
+            # runtime config. I.e., /run/cloud-init/cloud.cfg
+            read_runtime_config(),
+            # Kernel/cmdline parameters override system config
+            util.read_conf_from_cmdline(),
+        ],
+        reverse=True,
+    )
 
 
 def _pkl_store(obj, fname):

@@ -13,6 +13,7 @@ import re
 import shutil
 import stat
 import tempfile
+from collections import deque
 from textwrap import dedent
 from typing import Tuple
 from unittest import mock
@@ -394,24 +395,40 @@ class TestUtil:
         assert not out
         assert not err
 
+    @pytest.mark.parametrize(
+        "create_confd,expected_call",
+        [
+            (False, mock.call(deque())),
+            (True, mock.call(deque([{"my_config": "foo"}]))),
+        ],
+    )
+    @mock.patch(M_PATH + "mergemanydict")
+    @mock.patch(M_PATH + "read_conf_d", return_value={"my_config": "foo"})
     @mock.patch(
         M_PATH + "read_conf", side_effect=OSError(errno.EACCES, "Not allowed")
     )
     def test_read_conf_with_confd_no_permissions(
-        self, m_read_conf, caplog, capsys, tmpdir
+        self,
+        m_read_conf,
+        m_read_confd,
+        m_mergemanydict,
+        create_confd,
+        expected_call,
+        caplog,
+        capsys,
+        tmpdir,
     ):
-        """
-        If a user has not read permission then there is a exception,
+        """Read a conf file without permission.
+
         sys output is empty and the user is informed via logging warnings.
 
         Note: This is used in cmd, therefore want to keep the invariant of
         not outputing to the console and log file permission errors.
         """
         conf_fn = tmpdir.join("conf.cfg")
-        with pytest.raises(OSError) as exc_info:
-            util.read_conf_with_confd(conf_fn)
-        assert exc_info.value.errno == errno.EACCES
-        assert exc_info.value.strerror == "Not allowed"
+        if create_confd:
+            confd_fn = tmpdir.mkdir("conf.cfg.d")
+        util.read_conf_with_confd(conf_fn)
         assert (
             caplog.text.count(
                 f"REDACTED config part {conf_fn} for non-root user"
@@ -422,8 +439,9 @@ class TestUtil:
         out, err = capsys.readouterr()
         assert not out
         assert not err
-
-    # read_conf_with_confd
+        if create_confd:
+            assert [mock.call(confd_fn)] == m_read_confd.call_args_list
+        assert [expected_call] == m_mergemanydict.call_args_list
 
 
 class TestSymlink(CiTestCase):
