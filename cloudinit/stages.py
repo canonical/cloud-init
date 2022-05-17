@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 from cloudinit import cloud, distros, handlers, helpers, importer
 from cloudinit import log as logging
@@ -58,12 +58,12 @@ def update_event_enabled(
     case, we only have the data source's `default_update_events`,
     so an event that should be enabled in userdata may be denied.
     """
-    default_events = (
-        datasource.default_update_events
-    )  # type: Dict[EventScope, Set[EventType]]
-    user_events = userdata_to_events(
+    default_events: Dict[
+        EventScope, Set[EventType]
+    ] = datasource.default_update_events
+    user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
         cfg.get("updates", {})
-    )  # type: Dict[EventScope, Set[EventType]]
+    )
     # A value in the first will override a value in the second
     allowed = util.mergemanydict(
         [
@@ -73,6 +73,7 @@ def update_event_enabled(
     )
     LOG.debug("Allowed events: %s", allowed)
 
+    scopes: Iterable[EventScope]
     if not scope:
         scopes = allowed.keys()
     else:

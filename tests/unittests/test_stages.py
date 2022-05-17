@@ -13,6 +13,7 @@ from cloudinit.util import write_file
 from tests.unittests.helpers import mock
 
 TEST_INSTANCE_ID = "i-testing"
+M_PATH = "cloudinit.stages."
 
 
 class FakeDataSource(sources.DataSource):
@@ -58,8 +59,8 @@ class TestInit:
         write_file(disable_file, "")
         assert (None, disable_file) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "net_config",
         [
@@ -80,8 +81,8 @@ class TestInit:
         assert caplog.records[0].levelname == "DEBUG"
         assert "network config disabled by cmdline" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "net_config",
         [
@@ -102,8 +103,8 @@ class TestInit:
         assert caplog.records[0].levelname == "DEBUG"
         assert "network config disabled by initramfs" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "net_config",
         [
@@ -130,8 +131,8 @@ class TestInit:
         assert caplog.records[0].levelname == "DEBUG"
         assert "network config disabled by ds" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "net_config",
         [
@@ -156,8 +157,8 @@ class TestInit:
         assert caplog.records[0].levelname == "DEBUG"
         assert "network config disabled by system_cfg" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -188,8 +189,8 @@ class TestInit:
             NetworkConfigSource.DS,
         ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -217,8 +218,8 @@ class TestInit:
             in caplog.text
         )
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -246,8 +247,8 @@ class TestInit:
             in caplog.text
         )
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -273,8 +274,8 @@ class TestInit:
             NetworkConfigSource.CMD_LINE,
         ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -300,8 +301,8 @@ class TestInit:
             NetworkConfigSource.INITRAMFS,
         ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -327,8 +328,8 @@ class TestInit:
             NetworkConfigSource.SYSTEM_CFG,
         ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     @pytest.mark.parametrize(
         "in_config,out_config",
         [
@@ -348,8 +349,8 @@ class TestInit:
             NetworkConfigSource.DS,
         ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     def test_wb__find_networking_config_returns_fallback(
         self, m_cmdline, m_initramfs, caplog
     ):
@@ -577,13 +578,13 @@ class TestInit_InitializeFilesystem:
         As it is replaced with a mock, consumers of this fixture can set
         `init._cfg` if the default empty dict configuration is not appropriate.
         """
-        with mock.patch("cloudinit.stages.util.ensure_dirs"):
+        with mock.patch(M_PATH + "util.ensure_dirs"):
             init = stages.Init()
             init._cfg = {}
             init._paths = paths
             yield init
 
-    @mock.patch("cloudinit.stages.util.ensure_file")
+    @mock.patch(M_PATH + "util.ensure_file")
     def test_ensure_file_not_called_if_no_log_file_configured(
         self, m_ensure_file, init
     ):
