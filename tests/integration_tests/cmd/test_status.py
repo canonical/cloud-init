@@ -13,7 +13,7 @@ def _wait_for_cloud_init(client: IntegrationInstance):
     last_exception = None
     for _ in range(30):
         try:
-            result = client.execute("cloud-init status --long")
+            result = client.execute("cloud-init status")
             if (
                 result
                 and result.ok
