@@ -1,12 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os.path
+import re
 from unittest import mock
 
 import pytest
 
 from cloudinit.config import cc_mounts
 from cloudinit.config.cc_mounts import create_swapfile
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests import helpers as test_helpers
 
@@ -517,6 +523,58 @@ class TestCreateSwapfile:
 
         msg = "fallocate swap creation failed, will attempt with dd"
         assert msg in caplog.text
+
+
+class TestMountsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # We expect to see one mount if provided in user-data.
+            ({"mounts": []}, re.escape("mounts: [] is too short")),
+            # Disallow less than 1 item per mount entry
+            ({"mounts": [[]]}, re.escape("mounts.0: [] is too short")),
+            # Disallow more than 6 items per mount entry
+            ({"mounts": [["1"] * 7]}, "mounts.0:.* is too long"),
+            # Disallow mount_default_fields will anything other than 6 items
+            (
+                {"mount_default_fields": ["1"] * 5},
+                "mount_default_fields:.* is too short",
+            ),
+            (
+                {"mount_default_fields": ["1"] * 7},
+                "mount_default_fields:.* is too long",
+            ),
+            (
+                {"swap": {"invalidprop": True}},
+                re.escape(
+                    "Additional properties are not allowed ('invalidprop'"
+                ),
+            ),
+            # Swap size/maxsize positive test cases
+            ({"swap": {"size": ".5T", "maxsize": ".5T"}}, None),
+            ({"swap": {"size": "1G", "maxsize": "1G"}}, None),
+            ({"swap": {"size": "200K", "maxsize": "200K"}}, None),
+            ({"swap": {"size": "10485760B", "maxsize": "10485760B"}}, None),
+            # Swap size/maxsize negative test cases
+            ({"swap": {"size": "1.5MB"}}, "swap.size:"),
+            (
+                {"swap": {"maxsize": "1.5MT"}},
+                "swap.maxsize: '1.5MT' is not valid",
+            ),
+            (
+                {"swap": {"maxsize": "..5T"}},
+                "swap.maxsize: '..5T' is not valid",
+            ),
+            ({"swap": {"size": "K"}}, "swap.size: 'K' is not valid"),
+        ],
+    )
+    @test_helpers.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

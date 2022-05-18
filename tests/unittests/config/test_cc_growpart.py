@@ -8,11 +8,19 @@ import shutil
 import stat
 import unittest
 from contextlib import ExitStack
+from itertools import chain
 from unittest import mock
+
+import pytest
 
 from cloudinit import cloud, subp, temp_utils
 from cloudinit.config import cc_growpart
-from tests.unittests.helpers import TestCase
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -312,8 +320,8 @@ class TestResize(unittest.TestCase):
                 raise e
             return real_stat(path)
 
+        opinfo = cc_growpart.device_part_info
         try:
-            opinfo = cc_growpart.device_part_info
             cc_growpart.device_part_info = simple_device_part_info
             os.stat = mystat
 
@@ -342,6 +350,233 @@ class TestResize(unittest.TestCase):
             os.stat = real_stat
 
 
+class TestEncrypted:
+    """Attempt end-to-end scenarios using encrypted devices.
+
+    Things are mocked such that:
+     - "/fake_encrypted" is mounted onto "/dev/mapper/fake"
+     - "/dev/mapper/fake" is a LUKS device and symlinked to /dev/dm-1
+     - The partition backing "/dev/mapper/fake" is "/dev/vdx1"
+     - "/" is not encrypted and mounted onto "/dev/vdz1"
+
+    Note that we don't (yet) support non-encrypted mapped drives, such
+    as LVM volumes. If our mount point is /dev/mapper/*, then we will
+    not resize it if it is not encrypted.
+    """
+
+    def _subp_side_effect(self, value, good=True, **kwargs):
+        if value[0] == "dmsetup":
+            return ("1 dependencies : (vdx1)",)
+        return mock.Mock()
+
+    def _device_part_info_side_effect(self, value):
+        if value.startswith("/dev/mapper/"):
+            raise TypeError(f"{value} not a partition")
+        return (1024, 1024)
+
+    def _devent2dev_side_effect(self, value):
+        if value == "/fake_encrypted":
+            return "/dev/mapper/fake"
+        elif value == "/":
+            return "/dev/vdz"
+        elif value.startswith("/dev"):
+            return value
+        raise Exception(f"unexpected value {value}")
+
+    def _realpath_side_effect(self, value):
+        return "/dev/dm-1" if value.startswith("/dev/mapper") else value
+
+    def assert_resize_and_cleanup(self):
+        all_subp_args = list(
+            chain(*[args[0][0] for args in self.m_subp.call_args_list])
+        )
+        assert "resize" in all_subp_args
+        assert "luksKillSlot" in all_subp_args
+        self.m_unlink.assert_called_once()
+
+    def assert_no_resize_or_cleanup(self):
+        all_subp_args = list(
+            chain(*[args[0][0] for args in self.m_subp.call_args_list])
+        )
+        assert "resize" not in all_subp_args
+        assert "luksKillSlot" not in all_subp_args
+        self.m_unlink.assert_not_called()
+
+    @pytest.fixture
+    def common_mocks(self, mocker):
+        # These are all "happy path" mocks which will get overridden
+        # when needed
+        mocker.patch(
+            "cloudinit.config.cc_growpart.device_part_info",
+            side_effect=self._device_part_info_side_effect,
+        )
+        mocker.patch("os.stat")
+        mocker.patch("stat.S_ISBLK")
+        mocker.patch("stat.S_ISCHR")
+        mocker.patch(
+            "cloudinit.config.cc_growpart.devent2dev",
+            side_effect=self._devent2dev_side_effect,
+        )
+        mocker.patch(
+            "os.path.realpath", side_effect=self._realpath_side_effect
+        )
+        # Only place subp.which is used in cc_growpart is for cryptsetup
+        mocker.patch(
+            "cloudinit.config.cc_growpart.subp.which",
+            return_value="/usr/sbin/cryptsetup",
+        )
+        self.m_subp = mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=self._subp_side_effect,
+        )
+        mocker.patch(
+            "pathlib.Path.open",
+            new_callable=mock.mock_open,
+            read_data=(
+                '{"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=",'
+                '"slot":5}'
+            ),
+        )
+        mocker.patch("pathlib.Path.exists", return_value=True)
+        self.m_unlink = mocker.patch("pathlib.Path.unlink", autospec=True)
+
+        self.resizer = mock.Mock()
+        self.resizer.resize = mock.Mock(return_value=(1024, 1024))
+
+    def test_resize_when_encrypted(self, common_mocks, caplog):
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 2
+        assert info[0][0] == "/dev/vdx1"
+        assert info[0][2].startswith("no change necessary")
+        assert info[1][0] == "/fake_encrypted"
+        assert (
+            info[1][2]
+            == "Successfully resized encrypted volume '/dev/mapper/fake'"
+        )
+        assert (
+            "/dev/mapper/fake is a mapped device pointing to /dev/dm-1"
+            in caplog.text
+        )
+        assert "Determined that /dev/dm-1 is encrypted" in caplog.text
+
+        self.assert_resize_and_cleanup()
+
+    def test_resize_when_unencrypted(self, common_mocks):
+        info = cc_growpart.resize_devices(self.resizer, ["/"])
+        assert len(info) == 1
+        assert info[0][0] == "/"
+        assert "encrypted" not in info[0][2]
+        self.assert_no_resize_or_cleanup()
+
+    def test_encrypted_but_cryptsetup_not_found(
+        self, common_mocks, mocker, caplog
+    ):
+        mocker.patch(
+            "cloudinit.config.cc_growpart.subp.which",
+            return_value=None,
+        )
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+
+        assert len(info) == 1
+        assert "skipped as it is not encrypted" in info[0][2]
+        assert "cryptsetup not found" in caplog.text
+        self.assert_no_resize_or_cleanup()
+
+    def test_dmsetup_not_found(self, common_mocks, mocker, caplog):
+        def _subp_side_effect(value, **kwargs):
+            if value[0] == "dmsetup":
+                raise subp.ProcessExecutionError()
+
+        mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=_subp_side_effect,
+        )
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 1
+        assert info[0][0] == "/fake_encrypted"
+        assert info[0][1] == "FAILED"
+        assert (
+            "Resizing encrypted device (/dev/mapper/fake) failed" in info[0][2]
+        )
+        self.assert_no_resize_or_cleanup()
+
+    def test_unparsable_dmsetup(self, common_mocks, mocker, caplog):
+        def _subp_side_effect(value, **kwargs):
+            if value[0] == "dmsetup":
+                return ("2 dependencies",)
+            return mock.Mock()
+
+        mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=_subp_side_effect,
+        )
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 1
+        assert info[0][0] == "/fake_encrypted"
+        assert info[0][1] == "FAILED"
+        assert (
+            "Resizing encrypted device (/dev/mapper/fake) failed" in info[0][2]
+        )
+        self.assert_no_resize_or_cleanup()
+
+    def test_missing_keydata(self, common_mocks, mocker, caplog):
+        # Note that this will be standard behavior after first boot
+        # on a system with an encrypted root partition
+        mocker.patch("pathlib.Path.open", side_effect=FileNotFoundError())
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 2
+        assert info[0][0] == "/dev/vdx1"
+        assert info[0][2].startswith("no change necessary")
+        assert info[1][0] == "/fake_encrypted"
+        assert info[1][1] == "FAILED"
+        assert (
+            info[1][2]
+            == "Resizing encrypted device (/dev/mapper/fake) failed: Could "
+            "not load encryption key. This is expected if the volume has "
+            "been previously resized."
+        )
+        self.assert_no_resize_or_cleanup()
+
+    def test_resize_failed(self, common_mocks, mocker, caplog):
+        def _subp_side_effect(value, **kwargs):
+            if value[0] == "dmsetup":
+                return ("1 dependencies : (vdx1)",)
+            elif value[0] == "cryptsetup" and "resize" in value:
+                raise subp.ProcessExecutionError()
+            return mock.Mock()
+
+        self.m_subp = mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=_subp_side_effect,
+        )
+
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 2
+        assert info[0][0] == "/dev/vdx1"
+        assert info[0][2].startswith("no change necessary")
+        assert info[1][0] == "/fake_encrypted"
+        assert info[1][1] == "FAILED"
+        assert (
+            "Resizing encrypted device (/dev/mapper/fake) failed" in info[1][2]
+        )
+        # Assert we still cleanup
+        all_subp_args = list(
+            chain(*[args[0][0] for args in self.m_subp.call_args_list])
+        )
+        assert "luksKillSlot" in all_subp_args
+        self.m_unlink.assert_called_once()
+
+    def test_resize_skipped(self, common_mocks, mocker, caplog):
+        mocker.patch("pathlib.Path.exists", return_value=False)
+        info = cc_growpart.resize_devices(self.resizer, ["/fake_encrypted"])
+        assert len(info) == 2
+        assert info[1] == (
+            "/fake_encrypted",
+            "SKIPPED",
+            "No encryption keyfile found",
+        )
+
+
 def simple_device_part_info(devpath):
     # simple stupid return (/dev/vda, 1) for /dev/vda
     ret = re.search("([^0-9]*)([0-9]*)$", devpath)
@@ -354,4 +589,39 @@ class Bunch(object):
         self.__dict__.update(kwds)
 
 
-# vi: ts=4 expandtab
+class TestGrowpartSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            ({"growpart": {"mode": "off"}}, None),
+            ({"growpart": {"mode": False}}, None),
+            (
+                {"growpart": {"mode": "false"}},
+                "'false' is not one of "
+                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+            ),
+            (
+                {"growpart": {"mode": "a"}},
+                "'a' is not one of "
+                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+            ),
+            ({"growpart": {"devices": "/"}}, "'/' is not of type 'array'"),
+            (
+                {"growpart": {"ignore_growroot_disabled": "off"}},
+                "'off' is not of type 'boolean'",
+            ),
+            (
+                {"growpart": {"a": "b"}},
+                "Additional properties are not allowed",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        schema = get_schema()
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)

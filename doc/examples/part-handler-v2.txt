@@ -16,7 +16,7 @@ def list_types():
     # return a list of mime-types that are handled by this module
     return(["text/plain", "text/go-cubs-go"])
 
-def handle_part(data,ctype,filename,payload,frequency):
+def handle_part(data, ctype, filename, payload, frequency):
     # data: the cloudinit object
     # ctype: '__begin__', '__end__', or the specific mime-type of the part
     # filename: the filename for the part, or dynamically generated part if
@@ -27,12 +27,12 @@ def handle_part(data,ctype,filename,payload,frequency):
     #            will be invoked only on the first boot.  'always' will
     #            will be called on subsequent boots.
     if ctype == "__begin__":
-       print "my handler is beginning, frequency=%s" % frequency
+       print(f"my handler is beginning, frequency={frequency}")
        return
     if ctype == "__end__":
-       print "my handler is ending, frequency=%s" % frequency
+       print(f"my handler is ending, frequency={frequency}")
        return
 
-    print "==== received ctype=%s filename=%s ====" % (ctype,filename)
-    print payload
-    print "==== end ctype=%s filename=%s" % (ctype, filename)
+    print(f"==== received ctype={ctype} filename={filename} ====")
+    print(payload)
+    print(f"==== end ctype={ctype} filename={filename}")

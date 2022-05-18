@@ -187,12 +187,14 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         locale = d.get_locale()
         self.assertEqual("C.UTF-8", locale)
 
-    def test_get_locale_rhel(self):
-        """Test rhel distro returns NotImplementedError exception"""
+    @mock.patch("cloudinit.distros.rhel.Distro._read_system_locale")
+    def test_get_locale_rhel(self, m_locale):
+        """Test rhel distro returns locale set to C.UTF-8"""
+        m_locale.return_value = "C.UTF-8"
         cls = distros.fetch("rhel")
         d = cls("rhel", {}, None)
-        with self.assertRaises(NotImplementedError):
-            d.get_locale()
+        locale = d.get_locale()
+        self.assertEqual("C.UTF-8", locale)
 
     def test_expire_passwd_uses_chpasswd(self):
         """Test ubuntu.expire_passwd uses the passwd command."""

@@ -7,6 +7,7 @@
 import base64
 import gzip
 import os
+from contextlib import ExitStack
 
 import pytest
 
@@ -59,13 +60,26 @@ runcmd:
 
 @pytest.fixture(autouse=True)
 def common_patches():
-    with mock.patch("cloudinit.util.platform.platform", return_value="Linux"):
-        with mock.patch.multiple(
+    mocks = [
+        mock.patch("cloudinit.util.platform.platform", return_value="Linux"),
+        mock.patch.multiple(
             "cloudinit.dmi",
             is_container=mock.Mock(return_value=False),
             is_FreeBSD=mock.Mock(return_value=False),
-        ):
-            yield
+        ),
+        mock.patch(
+            "cloudinit.sources.DataSourceVMware.netifaces.interfaces",
+            return_value=[],
+        ),
+        mock.patch(
+            "cloudinit.sources.DataSourceVMware.getfqdn",
+            return_value="host.cloudinit.test",
+        ),
+    ]
+    with ExitStack() as stack:
+        for some_mock in mocks:
+            stack.enter_context(some_mock)
+        yield
 
 
 class TestDataSourceVMware(CiTestCase):
@@ -83,13 +97,49 @@ class TestDataSourceVMware(CiTestCase):
         ret = ds.get_data()
         self.assertFalse(ret)
 
-    def test_get_host_info(self):
+    @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
+    def test_get_host_info_ipv4(self, m_fn_ipaddr):
+        m_fn_ipaddr.return_value = ("10.10.10.1", None)
         host_info = DataSourceVMware.get_host_info()
         self.assertTrue(host_info)
         self.assertTrue(host_info["hostname"])
+        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
         self.assertTrue(host_info["local-hostname"])
         self.assertTrue(host_info["local_hostname"])
         self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
+        self.assertFalse(host_info.get(DataSourceVMware.LOCAL_IPV6))
+
+    @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
+    def test_get_host_info_ipv6(self, m_fn_ipaddr):
+        m_fn_ipaddr.return_value = (None, "2001:db8::::::8888")
+        host_info = DataSourceVMware.get_host_info()
+        self.assertTrue(host_info)
+        self.assertTrue(host_info["hostname"])
+        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
+        self.assertTrue(host_info["local-hostname"])
+        self.assertTrue(host_info["local_hostname"])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV6])
+        self.assertTrue(
+            host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
+        )
+        self.assertFalse(host_info.get(DataSourceVMware.LOCAL_IPV4))
+
+    @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
+    def test_get_host_info_dual(self, m_fn_ipaddr):
+        m_fn_ipaddr.return_value = ("10.10.10.1", "2001:db8::::::8888")
+        host_info = DataSourceVMware.get_host_info()
+        self.assertTrue(host_info)
+        self.assertTrue(host_info["hostname"])
+        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
+        self.assertTrue(host_info["local-hostname"])
+        self.assertTrue(host_info["local_hostname"])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV6])
+        self.assertTrue(
+            host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
+        )
 
 
 class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):

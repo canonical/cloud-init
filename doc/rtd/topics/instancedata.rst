@@ -263,7 +263,6 @@ EC2 instance:
      "[handler_cloudLogHandler]\nclass=handlers.SysLogHandler\nlevel=DEBUG\nformatter=simpleFormatter\nargs=(\"/dev/log\", handlers.SysLogHandler.LOG_USER)\n"
     ],
     "cloud_config_modules": [
-     "emit_upstart",
      "snap",
      "ssh-import-id",
      "locale",

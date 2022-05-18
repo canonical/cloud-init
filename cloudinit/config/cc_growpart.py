@@ -5,29 +5,34 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Growpart: Grow partitions"""
 
-"""
-Growpart
---------
-**Summary:** grow partitions
+import base64
+import copy
+import json
+import os
+import os.path
+import re
+import stat
+from contextlib import suppress
+from pathlib import Path
+from textwrap import dedent
+from typing import Tuple
 
+from cloudinit import log as logging
+from cloudinit import subp, temp_utils, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 Growpart resizes partitions to fill the available disk space.
 This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
 use of the extra space.
 
 The devices on which to run growpart are specified as a list under the
-``devices`` key. Each entry in the devices list can be either the path to the
-device's mountpoint in the filesystem or a path to the block device in
-``/dev``.
-
-The utility to use for resizing can be selected using the ``mode`` config key.
-If the ``mode`` key is set to ``auto``, then any available utility (either
-``growpart`` or BSD ``gpart``) will be used. If neither utility is available,
-no error will be raised. If ``mode`` is set to ``growpart``, then the
-``growpart`` utility will be used. If this utility is not available on the
-system, this will result in an error. If ``mode`` is set to ``off`` or
-``false``, then ``cc_growpart`` will take no action.
+``devices`` key.
 
 There is some functionality overlap between this module and the ``growroot``
 functionality of ``cloud-initramfs-tools``. However, there are some situations
@@ -44,42 +49,49 @@ Growpart is enabled by default on the root partition. The default config for
 growpart is::
 
     growpart:
-        mode: auto
-        devices: ["/"]
-        ignore_growroot_disabled: false
-
-**Internal name:** ``cc_growpart``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    growpart:
-        mode: <auto/growpart/off/false>
-        devices:
-            - "/"
-            - "/dev/vdb1"
-        ignore_growroot_disabled: <true/false>
+      mode: auto
+      devices: ["/"]
+      ignore_growroot_disabled: false
 """
-
-import os
-import os.path
-import re
-import stat
-
-from cloudinit import log as logging
-from cloudinit import subp, temp_utils, util
-from cloudinit.settings import PER_ALWAYS
-
 frequency = PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_growpart",
+    "name": "Growpart",
+    "title": "Grow partitions",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [
+        dedent(
+            """\
+            growpart:
+              mode: auto
+              devices: ["/"]
+              ignore_growroot_disabled: false
+            """
+        ),
+        dedent(
+            """\
+            growpart:
+              mode: growpart
+              devices:
+                - "/"
+                - "/dev/vdb1"
+              ignore_growroot_disabled: true
+            """
+        ),
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 DEFAULT_CONFIG = {
     "mode": "auto",
     "devices": ["/"],
     "ignore_growroot_disabled": False,
 }
+
+KEYDATA_PATH = Path("/cc_growpart_keydata")
 
 
 class RESIZE(object):
@@ -289,10 +301,128 @@ def devent2dev(devent):
     return dev
 
 
+def get_mapped_device(blockdev):
+    """Returns underlying block device for a mapped device.
+
+    If it is mapped, blockdev will usually take the form of
+    /dev/mapper/some_name
+
+    If blockdev is a symlink pointing to a /dev/dm-* device, return
+    the device pointed to. Otherwise, return None.
+    """
+    realpath = os.path.realpath(blockdev)
+    if realpath.startswith("/dev/dm-"):
+        LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
+        return realpath
+    return None
+
+
+def is_encrypted(blockdev, partition) -> bool:
+    """
+    Check if a device is an encrypted device. blockdev should have
+    a /dev/dm-* path whereas partition is something like /dev/sda1.
+    """
+    if not subp.which("cryptsetup"):
+        LOG.debug("cryptsetup not found. Assuming no encrypted partitions")
+        return False
+    try:
+        subp.subp(["cryptsetup", "status", blockdev])
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 4:
+            LOG.debug("Determined that %s is not encrypted", blockdev)
+        else:
+            LOG.warning(
+                "Received unexpected exit code %s from "
+                "cryptsetup status. Assuming no encrypted partitions.",
+                e.exit_code,
+            )
+        return False
+    with suppress(subp.ProcessExecutionError):
+        subp.subp(["cryptsetup", "isLuks", partition])
+        LOG.debug("Determined that %s is encrypted", blockdev)
+        return True
+    return False
+
+
+def get_underlying_partition(blockdev):
+    command = ["dmsetup", "deps", "--options=devname", blockdev]
+    dep: str = subp.subp(command)[0]  # type: ignore
+    # Returned result should look something like:
+    # 1 dependencies : (vdb1)
+    if not dep.startswith("1 depend"):
+        raise RuntimeError(
+            f"Expecting '1 dependencies' from 'dmsetup'. Received: {dep}"
+        )
+    try:
+        return f'/dev/{dep.split(": (")[1].split(")")[0]}'
+    except IndexError as e:
+        raise RuntimeError(
+            f"Ran `{command}`, but received unexpected stdout: `{dep}`"
+        ) from e
+
+
+def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
+    """Use 'cryptsetup resize' to resize LUKS volume.
+
+    The loaded keyfile is json formatted with 'key' and 'slot' keys.
+    key is base64 encoded. Example:
+    {"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=","slot":5}
+    """
+    if not KEYDATA_PATH.exists():
+        return (RESIZE.SKIPPED, "No encryption keyfile found")
+    try:
+        with KEYDATA_PATH.open() as f:
+            keydata = json.load(f)
+        key = keydata["key"]
+        decoded_key = base64.b64decode(key)
+        slot = keydata["slot"]
+    except Exception as e:
+        raise RuntimeError(
+            "Could not load encryption key. This is expected if "
+            "the volume has been previously resized."
+        ) from e
+
+    try:
+        subp.subp(
+            ["cryptsetup", "--key-file", "-", "resize", blockdev],
+            data=decoded_key,
+        )
+    finally:
+        try:
+            subp.subp(
+                [
+                    "cryptsetup",
+                    "luksKillSlot",
+                    "--batch-mode",
+                    partition,
+                    str(slot),
+                ]
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.warning(
+                "Failed to kill luks slot after resizing encrypted volume: %s",
+                e,
+            )
+        try:
+            KEYDATA_PATH.unlink()
+        except Exception:
+            util.logexc(
+                LOG, "Failed to remove keyfile after resizing encrypted volume"
+            )
+
+    return (
+        RESIZE.CHANGED,
+        f"Successfully resized encrypted volume '{blockdev}'",
+    )
+
+
 def resize_devices(resizer, devices):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
+    devices = copy.copy(devices)
     info = []
-    for devent in devices:
+
+    while devices:
+        devent = devices.pop(0)
         try:
             blockdev = devent2dev(devent)
         except ValueError as e:
@@ -329,6 +459,49 @@ def resize_devices(resizer, devices):
             )
             continue
 
+        underlying_blockdev = get_mapped_device(blockdev)
+        if underlying_blockdev:
+            try:
+                # We need to resize the underlying partition first
+                partition = get_underlying_partition(blockdev)
+                if is_encrypted(underlying_blockdev, partition):
+                    if partition not in [x[0] for x in info]:
+                        # We shouldn't attempt to resize this mapped partition
+                        # until the underlying partition is resized, so re-add
+                        # our device to the beginning of the list we're
+                        # iterating over, then add our underlying partition
+                        # so it can get processed first
+                        devices.insert(0, devent)
+                        devices.insert(0, partition)
+                        continue
+                    status, message = resize_encrypted(blockdev, partition)
+                    info.append(
+                        (
+                            devent,
+                            status,
+                            message,
+                        )
+                    )
+                else:
+                    info.append(
+                        (
+                            devent,
+                            RESIZE.SKIPPED,
+                            f"Resizing mapped device ({blockdev}) skipped "
+                            "as it is not encrypted.",
+                        )
+                    )
+            except Exception as e:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.FAILED,
+                        f"Resizing encrypted device ({blockdev}) failed: {e}",
+                    )
+                )
+            # At this point, we WON'T resize a non-encrypted mapped device
+            # though we should probably grow the ability to
+            continue
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
@@ -388,6 +561,11 @@ def handle(_name, cfg, _cloud, log, _args):
 
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
+        if mode != "off":
+            log.warning(
+                f"DEPRECATED: growpart mode '{mode}' is deprecated. "
+                "Use 'off' instead."
+            )
         log.debug("growpart disabled: mode=%s" % mode)
         return
 

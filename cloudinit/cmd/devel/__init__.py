@@ -6,6 +6,7 @@
 import logging
 
 from cloudinit import log
+from cloudinit.helpers import Paths
 from cloudinit.stages import Init
 
 
@@ -16,7 +17,7 @@ def addLogHandlerCLI(logger, log_level):
     return logger
 
 
-def read_cfg_paths():
+def read_cfg_paths() -> Paths:
     """Return a Paths object based on the system configuration on disk."""
     init = Init(ds_deps=[])
     init.read_cfg()

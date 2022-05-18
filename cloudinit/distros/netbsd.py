@@ -133,9 +133,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
 
-    def apply_network_config_names(self, netconfig):
-        LOG.debug("NetBSD cannot rename network interface.")
-
     def _get_pkg_cmd_environ(self):
         """Return env vars used in NetBSD package_command operations"""
         os_release = platform.release()

@@ -20,15 +20,19 @@ from cloudinit.net import (
     find_fallback_nic,
     get_devicelist,
     has_url_connectivity,
+    mask_and_ipv4_to_bcast_addr,
 )
-from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 
 LOG = logging.getLogger(__name__)
 
 NETWORKD_LEASES_DIR = "/run/systemd/netif/leases"
 
 
-class InvalidDHCPLeaseFileError(Exception):
+class NoDHCPLeaseError(Exception):
+    """Raised when unable to get a DHCP lease."""
+
+
+class InvalidDHCPLeaseFileError(NoDHCPLeaseError):
     """Raised when parsing an empty or invalid dhcp.leases file.
 
     Current uses are DataSourceAzure and DataSourceEc2 during ephemeral
@@ -36,8 +40,12 @@ class InvalidDHCPLeaseFileError(Exception):
     """
 
 
-class NoDHCPLeaseError(Exception):
-    """Raised when unable to get a DHCP lease."""
+class NoDHCPLeaseInterfaceError(NoDHCPLeaseError):
+    """Raised when unable to find a viable interface for DHCP."""
+
+
+class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
+    """Raised when unable to find dhclient."""
 
 
 class EphemeralDHCPv4(object):
@@ -89,12 +97,7 @@ class EphemeralDHCPv4(object):
         """
         if self.lease:
             return self.lease
-        try:
-            leases = maybe_perform_dhcp_discovery(
-                self.iface, self.dhcp_log_func
-            )
-        except InvalidDHCPLeaseFileError as e:
-            raise NoDHCPLeaseError() from e
+        leases = maybe_perform_dhcp_discovery(self.iface, self.dhcp_log_func)
         if not leases:
             raise NoDHCPLeaseError()
         self.lease = leases[-1]
@@ -117,7 +120,9 @@ class EphemeralDHCPv4(object):
         }
         kwargs = self.extract_dhcp_options_mapping(nmap)
         if not kwargs["broadcast"]:
-            kwargs["broadcast"] = bcip(kwargs["prefix_or_mask"], kwargs["ip"])
+            kwargs["broadcast"] = mask_and_ipv4_to_bcast_addr(
+                kwargs["prefix_or_mask"], kwargs["ip"]
+            )
         if kwargs["static_routes"]:
             kwargs["static_routes"] = parse_static_routes(
                 kwargs["static_routes"]
@@ -165,16 +170,16 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
         nic = find_fallback_nic()
         if nic is None:
             LOG.debug("Skip dhcp_discovery: Unable to find fallback nic.")
-            return []
+            raise NoDHCPLeaseInterfaceError()
     elif nic not in get_devicelist():
         LOG.debug(
             "Skip dhcp_discovery: nic %s not found in get_devicelist.", nic
         )
-        return []
+        raise NoDHCPLeaseInterfaceError()
     dhclient_path = subp.which("dhclient")
     if not dhclient_path:
         LOG.debug("Skip dhclient configuration: No dhclient command found.")
-        return []
+        raise NoDHCPLeaseMissingDhclientError()
     with temp_utils.tempdir(
         rmtree_ignore_errors=True, prefix="cloud-init-dhcp-", needs_exe=True
     ) as tdir:

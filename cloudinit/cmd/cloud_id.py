@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Commandline utility to list the canonical cloud-id for an instance."""
@@ -111,5 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# vi: ts=4 expandtab

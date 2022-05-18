@@ -96,6 +96,7 @@ DI_BLKID_EXPORT_OUT=""
 DI_GEOM_LABEL_STATUS_OUT=""
 DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+DI_DMI_BOARD_NAME=""
 DI_DMI_CHASSIS_ASSET_TAG=""
 DI_DMI_PRODUCT_NAME=""
 DI_DMI_SYS_VENDOR=""
@@ -460,6 +461,10 @@ is_container() {
     esac
 }
 
+is_socket_file() {
+    [ -S $1 ] && return 0 || return 1
+}
+
 read_kernel_cmdline() {
     cached "${DI_KERNEL_CMDLINE}" && return
     local cmdline="" fpath="${PATH_PROC_CMDLINE}"
@@ -475,6 +480,12 @@ read_kernel_cmdline() {
         cmdline="${UNAVAILABLE}:no-cmdline"
     fi
     DI_KERNEL_CMDLINE="$cmdline"
+}
+
+read_dmi_board_name() {
+    cached "${DI_DMI_BOARD_NAME}" && return
+    get_dmi_field board_name
+    DI_DMI_BOARD_NAME="$_RET"
 }
 
 read_dmi_chassis_asset_tag() {
@@ -806,7 +817,20 @@ dscheck_MAAS() {
 # LXD datasource requires active /dev/lxd/sock
 # https://linuxcontainers.org/lxd/docs/master/dev-lxd
 dscheck_LXD() {
-    [ -S /dev/lxd/sock ] && return ${DS_FOUND} || return ${DS_NOT_FOUND}
+    if is_socket_file /dev/lxd/sock; then
+        return ${DS_FOUND}
+    fi
+    # On LXD KVM instances, /dev/lxd/sock is not yet setup by
+    # lxd-agent-loader's systemd lxd-agent.service.
+    # Rely on DMI product information that is present on all LXD images.
+    # Note "qemu" is returned on kvm instances launched from a host kernel
+    # kernels >=5.10, due to `hv_passthrough` option.
+    # systemd v. 251 should properly return "kvm" in this scenario
+    # https://github.com/systemd/systemd/issues/22709
+    if [ "${DI_VIRT}" = "kvm" -o "${DI_VIRT}" = "qemu" ]; then
+        [ "${DI_DMI_BOARD_NAME}" = "LXD" ] && return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
 }
 
 dscheck_NoCloud() {
@@ -824,6 +848,11 @@ dscheck_NoCloud() {
     done
     # shellcheck disable=2086
     if has_fs_with_label $fslabel; then
+        return ${DS_FOUND}
+    fi
+
+    # This is a bit hacky, but a NoCloud false positive isn't the end of the world
+    if check_config "NoCloud" && check_config "user-data" && check_config "meta-data"; then
         return ${DS_FOUND}
     fi
 
@@ -884,7 +913,7 @@ dscheck_DigitalOcean() {
 
 dscheck_OpenNebula() {
     check_seed_dir opennebula && return ${DS_FOUND}
-    has_fs_with_label "CONTEXT" && return ${DS_FOUND}
+    has_fs_with_label "CONTEXT" "CDROM" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
@@ -1466,6 +1495,7 @@ collect_info() {
     read_config
     read_datasource_list
     read_dmi_sys_vendor
+    read_dmi_board_name
     read_dmi_chassis_asset_tag
     read_dmi_product_name
     read_dmi_product_serial
@@ -1482,7 +1512,7 @@ _print_info() {
     local n="" v="" vars=""
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
     vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME DMI_CHASSIS_ASSET_TAG"
-    vars="$vars FS_LABELS ISO9660_DEVS KERNEL_CMDLINE VIRT"
+    vars="$vars DMI_BOARD_NAME FS_LABELS ISO9660_DEVS KERNEL_CMDLINE VIRT"
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
     vars="$vars DSNAME DSLIST"

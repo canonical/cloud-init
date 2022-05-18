@@ -149,6 +149,14 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             LOG.warning("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
+        vd2 = results.get("vendordata2")
+        self.vendordata2_pure = vd2
+        try:
+            self.vendordata2_raw = sources.convert_vendordata(vd2)
+        except ValueError as e:
+            LOG.warning("Invalid content in vendor-data2: %s", e)
+            self.vendordata2_raw = None
+
         # network_config is an /etc/network/interfaces formated file and is
         # obsolete compared to networkdata (from network_data.json) but both
         # might be present.

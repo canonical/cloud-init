@@ -46,8 +46,8 @@ Thus, to determine if cloud-init is finished:
  if os.path.exists(fin):
    ret = json.load(open(fin, "r"))
    if len(ret['v1']['errors']):
-     print "Finished with errors:" + "\n".join(ret['v1']['errors'])
+     print("Finished with errors:" + "\n".join(ret['v1']['errors']))
    else:
-     print "Finished no errors"
+     print("Finished no errors")
  else:
-   print "Not Finished"
+   print("Not Finished")

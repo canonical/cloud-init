@@ -2,10 +2,17 @@
 
 import sys
 
+import pytest
+
 from cloudinit import distros, helpers
 from cloudinit.config import cc_power_state_change as psc
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers as t_help
-from tests.unittests.helpers import mock
+from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 
 class TestLoadPowerState(t_help.TestCase):
@@ -154,6 +161,42 @@ def check_lps_ret(psc_return, mode=None):
     if len(errs):
         lines = ["Errors in result: %s" % str(psc_return)] + errs
         raise Exception("\n".join(lines))
+
+
+class TestPowerStateChangeSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Invalid mode
+            (
+                {"power_state": {"mode": "test"}},
+                r"'test' is not one of \['poweroff', 'reboot', 'halt'\]",
+            ),
+            # Delay can be a number, a +number, or "now"
+            ({"power_state": {"mode": "halt", "delay": "5"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "now"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "+5"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "++5"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "-5"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "test"}}, ""),
+            # Condition
+            ({"power_state": {"mode": "halt", "condition": False}}, None),
+            ({"power_state": {"mode": "halt", "condition": "ls /tmp"}}, None),
+            (
+                {"power_state": {"mode": "halt", "condition": ["ls", "/tmp"]}},
+                None,
+            ),
+            ({"power_state": {"mode": "halt", "condition": 5}}, ""),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

@@ -15,13 +15,6 @@ import re
 import sys
 
 try:
-    from Cheetah.Template import Template as CTemplate
-
-    CHEETAH_AVAILABLE = True
-except (ImportError, AttributeError):
-    CHEETAH_AVAILABLE = False
-
-try:
     from jinja2 import DebugUndefined as JUndefined
     from jinja2 import Template as JTemplate
 
@@ -96,15 +89,15 @@ def basic_render(content, params):
 
 
 def detect_template(text):
-    def cheetah_render(content, params):
-        return CTemplate(content, searchList=[params]).respond()
-
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
         return (
             JTemplate(
-                content, undefined=UndefinedJinjaVariable, trim_blocks=True
+                content,
+                undefined=UndefinedJinjaVariable,
+                trim_blocks=True,
+                extensions=["jinja2.ext.do"],
             ).render(**params)
             + add
         )
@@ -116,14 +109,10 @@ def detect_template(text):
         rest = ""
     type_match = TYPE_MATCHER.match(ident)
     if not type_match:
-        if CHEETAH_AVAILABLE:
-            LOG.debug("Using Cheetah as the renderer for unknown template.")
-            return ("cheetah", cheetah_render, text)
-        else:
-            return ("basic", basic_render, text)
+        return ("basic", basic_render, text)
     else:
         template_type = type_match.group(1).lower().strip()
-        if template_type not in ("jinja", "cheetah", "basic"):
+        if template_type not in ("jinja", "basic"):
             raise ValueError(
                 "Unknown template rendering type '%s' requested"
                 % template_type
@@ -136,14 +125,6 @@ def detect_template(text):
             return ("basic", basic_render, rest)
         elif template_type == "jinja" and JINJA_AVAILABLE:
             return ("jinja", jinja_render, rest)
-        if template_type == "cheetah" and not CHEETAH_AVAILABLE:
-            LOG.warning(
-                "Cheetah not available as the selected renderer for"
-                " desired template, reverting to the basic renderer."
-            )
-            return ("basic", basic_render, rest)
-        elif template_type == "cheetah" and CHEETAH_AVAILABLE:
-            return ("cheetah", cheetah_render, rest)
         # Only thing left over is the basic renderer (it is always available).
         return ("basic", basic_render, rest)
 
@@ -151,12 +132,7 @@ def detect_template(text):
 def render_from_file(fn, params):
     if not params:
         params = {}
-    # jinja in python2 uses unicode internally.  All py2 str will be decoded.
-    # If it is given a str that has non-ascii then it will raise a
-    # UnicodeDecodeError.  So we explicitly convert to unicode type here.
-    template_type, renderer, content = detect_template(
-        util.load_file(fn, decode=False).decode("utf-8")
-    )
+    template_type, renderer, content = detect_template(util.load_file(fn))
     LOG.debug("Rendering content of '%s' using renderer %s", fn, template_type)
     return renderer(content, params)
 
@@ -167,15 +143,13 @@ def render_to_file(fn, outfn, params, mode=0o644):
 
 
 def render_string_to_file(content, outfn, params, mode=0o644):
-    """Render string (or py2 unicode) to file.
-    Warning: py2 str with non-ascii chars will cause UnicodeDecodeError."""
+    """Render string"""
     contents = render_string(content, params)
     util.write_file(outfn, contents, mode=mode)
 
 
 def render_string(content, params):
-    """Render string (or py2 unicode).
-    Warning: py2 str with non-ascii chars will cause UnicodeDecodeError."""
+    """Render string"""
     if not params:
         params = {}
     _template_type, renderer, content = detect_template(content)
@@ -193,6 +167,3 @@ def render_cloudcfg(variant, template, output):
         sys.stdout.write(contents)
     else:
         write_file(output, contents, omode="w")
-
-
-# vi: ts=4 expandtab

@@ -663,7 +663,12 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(subp, "subp") as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
         mockobj.assert_called_once_with(
-            ["add-apt-repository", "ppa:smoser/cloud-init-test"], target=None
+            [
+                "add-apt-repository",
+                "--no-update",
+                "ppa:smoser/cloud-init-test",
+            ],
+            target=None,
         )
 
         # adding ppa should ignore filename (uses add-apt-repository)
@@ -689,15 +694,27 @@ class TestAptSourceConfig(TestCase):
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
         calls = [
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test",
+                ],
                 target=None,
             ),
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test2"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test2",
+                ],
                 target=None,
             ),
             call(
-                ["add-apt-repository", "ppa:smoser/cloud-init-test3"],
+                [
+                    "add-apt-repository",
+                    "--no-update",
+                    "ppa:smoser/cloud-init-test3",
+                ],
                 target=None,
             ),
         ]

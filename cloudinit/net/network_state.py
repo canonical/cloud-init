@@ -6,22 +6,23 @@
 
 import copy
 import functools
-import ipaddress
 import logging
-import socket
-import struct
 
 from cloudinit import safeyaml, util
+from cloudinit.net import (
+    get_interfaces_by_mac,
+    ipv4_mask_to_net_prefix,
+    ipv6_mask_to_net_prefix,
+    is_ip_network,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
+    net_prefix_to_ipv4_mask,
+)
 
 LOG = logging.getLogger(__name__)
 
 NETWORK_STATE_VERSION = 1
-IPV6_DYNAMIC_TYPES = [
-    "dhcp6",
-    "ipv6_slaac",
-    "ipv6_dhcpv6-stateless",
-    "ipv6_dhcpv6-stateful",
-]
 NETWORK_STATE_REQUIRED_KEYS = {
     1: ["version", "config", "network_state"],
 }
@@ -363,7 +364,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         # automatically set 'use_ipv6' if any addresses are ipv6
         if not self.use_ipv6:
             for subnet in subnets:
-                if subnet.get("type").endswith("6") or is_ipv6_addr(
+                if subnet.get("type").endswith("6") or is_ipv6_address(
                     subnet.get("address")
                 ):
                     self.use_ipv6 = True
@@ -668,10 +669,18 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
              ]
         }
         """
+
+        # Get the interfaces by MAC address to update an interface's
+        # device name to the name of the device that matches a provided
+        # MAC address when the set-name directive is not present.
+        #
+        # Please see https://bugs.launchpad.net/cloud-init/+bug/1855945
+        # for more information.
+        ifaces_by_mac = get_interfaces_by_mac()
+
         for eth, cfg in command.items():
             phy_cmd = {
                 "type": "physical",
-                "name": cfg.get("set-name", eth),
             }
             match = cfg.get("match", {})
             mac_address = match.get("macaddress", None)
@@ -683,6 +692,24 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     str(cfg),
                 )
             phy_cmd["mac_address"] = mac_address
+
+            # Determine the name of the interface by using one of the
+            # following in the order they are listed:
+            #   * set-name
+            #   * interface name looked up by mac
+            #   * value of "eth" key from this loop
+            name = eth
+            set_name = cfg.get("set-name", None)
+            if set_name:
+                name = set_name
+            elif mac_address and ifaces_by_mac:
+                lcase_mac_address = mac_address.lower()
+                for iface_mac, iface_name in ifaces_by_mac.items():
+                    if lcase_mac_address == iface_mac.lower():
+                        name = iface_name
+                        break
+            phy_cmd["name"] = name
+
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}
@@ -920,27 +947,35 @@ def _normalize_net_keys(network, address_keys=()):
         LOG.error(message)
         raise ValueError(message)
 
-    addr = net.get(addr_key)
-    ipv6 = is_ipv6_addr(addr)
+    addr = str(net.get(addr_key))
+    if not is_ip_network(addr):
+        LOG.error("Address %s is not a valid ip network", addr)
+        raise ValueError(f"Address {addr} is not a valid ip address")
+
+    ipv6 = is_ipv6_network(addr)
+    ipv4 = is_ipv4_network(addr)
+
     netmask = net.get("netmask")
     if "/" in addr:
         addr_part, _, maybe_prefix = addr.partition("/")
         net[addr_key] = addr_part
-        try:
-            prefix = int(maybe_prefix)
-        except ValueError:
-            if ipv6:
-                # this supports input of ffff:ffff:ffff::
-                prefix = ipv6_mask_to_net_prefix(maybe_prefix)
-            else:
-                # this supports input of 255.255.255.0
-                prefix = ipv4_mask_to_net_prefix(maybe_prefix)
-    elif netmask and not ipv6:
+        if ipv6:
+            # this supports input of ffff:ffff:ffff::
+            prefix = ipv6_mask_to_net_prefix(maybe_prefix)
+        elif ipv4:
+            # this supports input of 255.255.255.0
+            prefix = ipv4_mask_to_net_prefix(maybe_prefix)
+        else:
+            # In theory this never happens, is_ip_network() should catch all
+            # invalid networks
+            LOG.error("Address %s is not a valid ip network", addr)
+            raise ValueError(f"Address {addr} is not a valid ip address")
+    elif "prefix" in net:
+        prefix = int(net["prefix"])
+    elif netmask and ipv4:
         prefix = ipv4_mask_to_net_prefix(netmask)
     elif netmask and ipv6:
         prefix = ipv6_mask_to_net_prefix(netmask)
-    elif "prefix" in net:
-        prefix = int(net["prefix"])
     else:
         prefix = 64 if ipv6 else 24
 
@@ -957,7 +992,7 @@ def _normalize_net_keys(network, address_keys=()):
         # 'netmask' for ipv6.  We need a 'net_prefix_to_ipv6_mask' for that.
         if "netmask" in net:
             del net["netmask"]
-    else:
+    elif ipv4:
         net["netmask"] = net_prefix_to_ipv4_mask(net["prefix"])
 
     return net
@@ -1003,96 +1038,6 @@ def _normalize_subnets(subnets):
     return [_normalize_subnet(s) for s in subnets]
 
 
-def is_ipv6_addr(address):
-    if not address:
-        return False
-    return ":" in str(address)
-
-
-def subnet_is_ipv6(subnet):
-    """Common helper for checking network_state subnets for ipv6."""
-    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
-    # 'ipv6_slaac'
-    if subnet["type"].endswith("6") or subnet["type"] in IPV6_DYNAMIC_TYPES:
-        # This is a request either static6 type or DHCPv6.
-        return True
-    elif subnet["type"] == "static" and is_ipv6_addr(subnet.get("address")):
-        return True
-    return False
-
-
-def net_prefix_to_ipv4_mask(prefix):
-    """Convert a network prefix to an ipv4 netmask.
-
-    This is the inverse of ipv4_mask_to_net_prefix.
-        24 -> "255.255.255.0"
-    Also supports input as a string."""
-    mask = socket.inet_ntoa(
-        struct.pack(">I", (0xFFFFFFFF << (32 - int(prefix)) & 0xFFFFFFFF))
-    )
-    return mask
-
-
-def ipv4_mask_to_net_prefix(mask):
-    """Convert an ipv4 netmask into a network prefix length.
-
-    If the input is already an integer or a string representation of
-    an integer, then int(mask) will be returned.
-       "255.255.255.0" => 24
-       str(24)         => 24
-       "24"            => 24
-    """
-    return ipaddress.ip_network(f"0.0.0.0/{mask}").prefixlen
-
-
-def ipv6_mask_to_net_prefix(mask):
-    """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
-
-    If the input is already an integer or a string representation of
-    an integer, then int(mask) will be returned.
-       "ffff:ffff:ffff::"  => 48
-       "48"                => 48
-    """
-    try:
-        # In the case the mask is already a prefix
-        prefixlen = ipaddress.ip_network(f"::/{mask}").prefixlen
-        return prefixlen
-    except ValueError:
-        # ValueError means mask is an IPv6 address representation and need
-        # conversion.
-        pass
-
-    netmask = ipaddress.ip_address(mask)
-    mask_int = int(netmask)
-    # If the mask is all zeroes, just return it
-    if mask_int == 0:
-        return mask_int
-
-    trailing_zeroes = min(
-        ipaddress.IPV6LENGTH, (~mask_int & (mask_int - 1)).bit_length()
-    )
-    leading_ones = mask_int >> trailing_zeroes
-    prefixlen = ipaddress.IPV6LENGTH - trailing_zeroes
-    all_ones = (1 << prefixlen) - 1
-    if leading_ones != all_ones:
-        raise ValueError("Invalid network mask '%s'" % mask)
-
-    return prefixlen
-
-
-def mask_and_ipv4_to_bcast_addr(mask, ip):
-    """Calculate the broadcast address from the subnet mask and ip addr.
-
-    Supports ipv4 only."""
-    ip_bin = int("".join([bin(int(x) + 256)[3:] for x in ip.split(".")]), 2)
-    mask_dec = ipv4_mask_to_net_prefix(mask)
-    bcast_bin = ip_bin | (2 ** (32 - mask_dec) - 1)
-    bcast_str = ".".join(
-        [str(bcast_bin >> (i << 3) & 0xFF) for i in range(4)[::-1]]
-    )
-    return bcast_str
-
-
 def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     """Parses the config, returns NetworkState object
 
@@ -1114,7 +1059,8 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     if not state:
         raise RuntimeError(
             "No valid network_state object created from network config. "
-            "Did you specify the correct version?"
+            "Did you specify the correct version? Network config:\n"
+            f"{net_config}"
         )
 
     return state

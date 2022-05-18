@@ -444,8 +444,14 @@ class TestDataSourceScaleway(HttprettyTestCase):
                         {
                             "type": "static",
                             "address": "2000:abc:4444:9876::42:999",
-                            "gateway": "2000:abc:4444:9876::42:000",
                             "netmask": "127",
+                            "routes": [
+                                {
+                                    "gateway": "2000:abc:4444:9876::42:000",
+                                    "network": "::",
+                                    "prefix": "0",
+                                }
+                            ],
                         },
                     ],
                 }

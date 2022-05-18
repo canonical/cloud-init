@@ -9,8 +9,5 @@
   multi line payload
   here
 -
-  type: text/upstart-job
-  filename: my-upstart.conf
-  content: |
-   whats this, yo?
-
+  type: text/cloud-config
+  content: '#cloud-config\n\n        password: gocubs'

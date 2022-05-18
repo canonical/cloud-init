@@ -3,7 +3,7 @@
 # The following example adds the ubuntu group with members 'root' and 'sys'
 # and the empty group cloud-users.
 groups:
-  - ubuntu: [root,sys]
+  - admingroup: [root,sys]
   - cloud-users
 
 # Add users to the system. Users are added after groups are added.
@@ -34,17 +34,16 @@ users:
       - gh:TheRealFalcon
     lock_passwd: true
     ssh_authorized_keys:
-      - <ssh pub key 1>
-      - <ssh pub key 2>
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB csmith@fringe
   - name: cloudy
     gecos: Magic Cloud App Daemon User
     inactive: '5'
     system: true
   - name: fizzbuzz
-    sudo: False
+    sudo: false
+    shell: /bin/bash
     ssh_authorized_keys:
-      - <ssh pub key 1>
-      - <ssh pub key 2>
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB csmith@fringe
   - snapuser: joe@joeuser.io
   - name: nosshlogins
     ssh_redirect_user: true
@@ -64,7 +63,7 @@ users:
 #   lock_passwd: Defaults to true. Lock the password to disable password login
 #   inactive: Number of days after password expires until account is disabled
 #   passwd: The hash -- not the password itself -- of the password you want
-#           to use for this user. You can generate a safe hash via:
+#           to use for this user. You can generate a hash via:
 #               mkpasswd --method=SHA-512 --rounds=4096
 #           (the above command would create from stdin an SHA-512 password hash
 #           with 4096 salt rounds)
@@ -81,14 +80,15 @@ users:
 #               In other words, this feature is a potential security risk and is
 #               provided for your convenience only. If you do not fully trust the
 #               medium over which your cloud-config will be transmitted, then you
-#               should use SSH authentication only.
+#               should not use this feature.
 #
-#               You have thus been warned.
 #   no_create_home: When set to true, do not create home directory.
 #   no_user_group: When set to true, do not create a group named after the user.
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
 #   ssh_import_id: Optional. Import SSH ids
 #   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
+#                        An error will be raised if no_create_home or system is
+#                        also set.
 #   ssh_redirect_user: Optional. [bool] Set true to block ssh logins for cloud
 #       ssh public keys and emit a message redirecting logins to
 #       use <default_username> instead. This option only disables cloud

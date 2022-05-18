@@ -1,25 +1,44 @@
 ## template:jinja
 [Unit]
 Description=Initial cloud-init job (pre-networking)
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "rhel" ] %}
 DefaultDependencies=no
 {% endif %}
 Wants=network-pre.target
 After=hv_kvp_daemon.service
 After=systemd-remount-fs.service
+{% if variant == "rhel" %}
+Requires=dbus.socket
+After=dbus.socket
+{% endif %}
 Before=NetworkManager.service
+{% if variant == "rhel" %}
+Before=network.service
+{% endif %}
 Before=network-pre.target
 Before=shutdown.target
+{% if variant == "rhel" %}
+Before=firewalld.target
+Conflicts=shutdown.target
+{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
 Conflicts=shutdown.target
 {% endif %}
 RequiresMountsFor=/var/lib/cloud
+{% if variant == "rhel" %}
+ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ConditionKernelCommandLine=!cloud-init=disabled
+{% endif %}
 
 [Service]
 Type=oneshot
+{% if variant == "rhel" %}
+ExecStartPre=/bin/mkdir -p /run/cloud-init
+ExecStartPre=/sbin/restorecon /run/cloud-init
+ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
+{% endif %}
 ExecStart=/usr/bin/cloud-init init --local
-ExecStart=/bin/touch /run/cloud-init/network-config-ready
 RemainAfterExit=yes
 TimeoutSec=0
 

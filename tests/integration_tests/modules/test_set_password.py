@@ -11,7 +11,8 @@ only specify one user-data per instance.
 import pytest
 import yaml
 
-from tests.integration_tests.util import retry
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.util import get_console_log
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -137,21 +138,7 @@ class Mixin:
     @retry(tries=30, delay=1)
     def test_random_passwords_emitted_to_serial_console(self, class_client):
         """We should emit passwords to the serial console. (LP: #1918303)"""
-        try:
-            console_log = class_client.instance.console_log()
-        except NotImplementedError:
-            # Assume that an exception here means that we can't use the console
-            # log
-            pytest.skip("NotImplementedError when requesting console log")
-            return
-        if console_log.lower() == "no console output":
-            # This test retries because we might not have the full console log
-            # on the first fetch. However, if we have no console output
-            # at all, we don't want to keep retrying as that would trigger
-            # another 5 minute wait on the pycloudlib side, which could
-            # leave us waiting for a couple hours
-            pytest.fail("no console output")
-            return
+        console_log = get_console_log(class_client)
         assert "dick:" in console_log
         assert "harry:" in console_log
 

@@ -158,7 +158,7 @@ scripts until cloud-init is done without having to write your own systemd
 units dependency chains. See :ref:`cli_status` for more info.
 
 First Boot Determination
-************************
+========================
 
 cloud-init has to determine whether or not the current boot is the first boot
 of a new instance or not, so that it applies the appropriate configuration.  On

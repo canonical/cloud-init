@@ -4,7 +4,8 @@ import copy
 import errno
 import ipaddress
 import os
-import textwrap
+from pathlib import Path
+from typing import Optional
 from unittest import mock
 
 import httpretty
@@ -12,7 +13,6 @@ import pytest
 import requests
 
 import cloudinit.net as net
-from cloudinit import safeyaml as yaml
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase
@@ -388,6 +388,163 @@ class TestNetFindFallBackNic(CiTestCase):
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth1", "address"), mac)
         self.assertEqual("eth1", net.find_fallback_nic())
+
+
+class TestNetFindCandidateNics:
+    def create_fake_interface(
+        self,
+        name: str,
+        address: Optional[str] = "aa:bb:cc:aa:bb:cc",
+        carrier: bool = True,
+        bonding: bool = False,
+        dormant: bool = False,
+        driver: str = "fakenic",
+        bridge: bool = False,
+        failover_standby: bool = False,
+        operstate: Optional[str] = None,
+    ):
+        interface_path = self.sys_path / name
+        interface_path.mkdir(parents=True)
+
+        if address is not None:
+            (interface_path / "address").write_text(str(address))
+
+        if carrier:
+            (interface_path / "carrier").write_text("1")
+        else:
+            (interface_path / "carrier").write_text("0")
+
+        if bonding:
+            (interface_path / "bonding").write_text("1")
+
+        if bridge:
+            (interface_path / "bridge").write_text("1")
+
+        if dormant:
+            (interface_path / "dormant").write_text("1")
+        else:
+            (interface_path / "dormant").write_text("0")
+
+        if operstate:
+            (interface_path / "operstate").write_text(operstate)
+
+        device_path = interface_path / "device"
+        device_path.mkdir()
+        if failover_standby:
+            driver = "virtio_net"
+            (interface_path / "master").symlink_to(os.path.join("..", name))
+            (device_path / "features").write_text("1" * 64)
+
+        if driver:
+            (device_path / driver).write_text(driver)
+            (device_path / "driver").symlink_to(driver)
+
+    @pytest.fixture(autouse=True)
+    def setup(self, monkeypatch, tmpdir):
+        self.sys_path = Path(tmpdir) / "sys"
+        monkeypatch.setattr(
+            net, "get_sys_class_path", lambda: str(self.sys_path) + "/"
+        )
+        monkeypatch.setattr(
+            net.util,
+            "is_container",
+            lambda: False,
+        )
+        monkeypatch.setattr(net.util, "udevadm_settle", lambda: None)
+
+    def test_ignored_interfaces(self):
+        self.create_fake_interface(
+            name="ethNoCarrierDormantOperstateIgnored",
+            carrier=False,
+        )
+        self.create_fake_interface(
+            name="ethWithoutMacIgnored",
+            address=None,
+        )
+        self.create_fake_interface(name="vethIgnored", carrier=1)
+        self.create_fake_interface(
+            name="bondIgnored",
+            bonding=True,
+        )
+        self.create_fake_interface(
+            name="bridgeIgnored",
+            bridge=True,
+        )
+        self.create_fake_interface(
+            name="failOverIgnored",
+            failover_standby=True,
+        )
+        self.create_fake_interface(
+            name="TestingOperStateIgnored",
+            carrier=False,
+            operstate="testing",
+        )
+        self.create_fake_interface(
+            name="blacklistedDriverIgnored",
+            driver="bad",
+        )
+
+        assert (
+            net.find_candidate_nics_on_linux(blacklist_drivers=["bad"]) == []
+        )
+
+    def test_carrier_preferred(self):
+        self.create_fake_interface(name="eth0", carrier=False, dormant=True)
+        self.create_fake_interface(name="eth1")
+
+        assert net.find_candidate_nics_on_linux() == ["eth1", "eth0"]
+
+    def test_natural_sort(self):
+        self.create_fake_interface(name="a")
+        self.create_fake_interface(name="a1")
+        self.create_fake_interface(name="a2")
+        self.create_fake_interface(name="a10")
+        self.create_fake_interface(name="b1")
+
+        assert net.find_candidate_nics_on_linux() == [
+            "a",
+            "a1",
+            "a2",
+            "a10",
+            "b1",
+        ]
+
+    def test_eth0_preferred_with_carrier(self):
+        self.create_fake_interface(name="abc0")
+        self.create_fake_interface(name="eth0")
+
+        assert net.find_candidate_nics_on_linux() == ["eth0", "abc0"]
+
+    @pytest.mark.parametrize("dormant", [False, True])
+    @pytest.mark.parametrize(
+        "operstate", ["dormant", "down", "lowerlayerdown", "unknown"]
+    )
+    def test_eth0_preferred_after_carrier(self, dormant, operstate):
+        self.create_fake_interface(name="xeth10")
+        self.create_fake_interface(name="eth", carrier=False, dormant=True)
+        self.create_fake_interface(
+            name="eth0",
+            carrier=False,
+            dormant=dormant,
+            operstate=operstate,
+        )
+        self.create_fake_interface(name="eth1", carrier=False, dormant=True)
+        self.create_fake_interface(
+            name="eth2",
+            carrier=False,
+            operstate=operstate,
+        )
+
+        assert net.find_candidate_nics_on_linux() == [
+            "xeth10",
+            "eth0",
+            "eth",
+            "eth1",
+            "eth2",
+        ]
+
+    def test_no_nics(self):
+        assert net.find_candidate_nics_on_linux() == []
 
 
 class TestGetDeviceList(CiTestCase):
@@ -1037,105 +1194,6 @@ class TestEphemeralIPV4Network(CiTestCase):
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
 
 
-class TestApplyNetworkCfgNames(CiTestCase):
-    V1_CONFIG = textwrap.dedent(
-        """\
-        version: 1
-        config:
-            - type: physical
-              name: interface0
-              mac_address: "52:54:00:12:34:00"
-              subnets:
-                  - type: static
-                    address: 10.0.2.15
-                    netmask: 255.255.255.0
-                    gateway: 10.0.2.2
-    """
-    )
-    V2_CONFIG = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              macaddress: "52:54:00:12:34:00"
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-            set-name: interface0
-    """
-    )
-
-    V2_CONFIG_NO_SETNAME = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              macaddress: "52:54:00:12:34:00"
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-    """
-    )
-
-    V2_CONFIG_NO_MAC = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              driver: virtio-net
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-            set-name: interface0
-    """
-    )
-
-    @mock.patch("cloudinit.net.device_devid")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v1_renames(
-        self, m_rename_interfaces, m_device_driver, m_device_devid
-    ):
-        m_device_driver.return_value = "virtio_net"
-        m_device_devid.return_value = "0x15d8"
-
-        net.apply_network_config_names(yaml.load(self.V1_CONFIG))
-
-        call = ["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]
-        m_rename_interfaces.assert_called_with([call])
-
-    @mock.patch("cloudinit.net.device_devid")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames(
-        self, m_rename_interfaces, m_device_driver, m_device_devid
-    ):
-        m_device_driver.return_value = "virtio_net"
-        m_device_devid.return_value = "0x15d8"
-
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG))
-
-        call = ["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]
-        m_rename_interfaces.assert_called_with([call])
-
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames_skips_without_setname(self, m_rename_interfaces):
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG_NO_SETNAME))
-        m_rename_interfaces.assert_called_with([])
-
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames_skips_without_mac(self, m_rename_interfaces):
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG_NO_MAC))
-        m_rename_interfaces.assert_called_with([])
-
-    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
-        with self.assertRaises(RuntimeError):
-            net.apply_network_config_names(yaml.load("version: 3"))
-
-
 class TestHasURLConnectivity(HttprettyTestCase):
     def setUp(self):
         super(TestHasURLConnectivity, self).setUp()
@@ -1689,7 +1747,9 @@ class TestIsIpAddress:
         (
             (ValueError, False),
             (lambda _: ipaddress.IPv4Address("192.168.0.1"), True),
+            (lambda _: ipaddress.IPv4Address("192.168.0.1/24"), False),
             (lambda _: ipaddress.IPv6Address("2001:db8::"), True),
+            (lambda _: ipaddress.IPv6Address("2001:db8::/48"), False),
         ),
     )
     def test_is_ip_address(self, ip_address_side_effect, expected_return):
@@ -1731,4 +1791,33 @@ class TestIsIpv4Address:
         assert [expected_call] == m_ipv4address.call_args_list
 
 
-# vi: ts=4 expandtab
+class TestIsIpNetwork:
+    """Tests for net.is_ip_network() and related functions."""
+
+    @pytest.mark.parametrize(
+        "func,arg,expected_return",
+        (
+            (net.is_ip_network, "192.168.1.1", True),
+            (net.is_ip_network, "192.168.1.1/24", True),
+            (net.is_ip_network, "192.168.1.1/32", True),
+            (net.is_ip_network, "192.168.1.1/33", False),
+            (net.is_ip_network, "2001:67c:1", False),
+            (net.is_ip_network, "2001:67c:1/32", False),
+            (net.is_ip_network, "2001:67c::", True),
+            (net.is_ip_network, "2001:67c::/32", True),
+            (net.is_ipv4_network, "192.168.1.1", True),
+            (net.is_ipv4_network, "192.168.1.1/24", True),
+            (net.is_ipv4_network, "2001:67c::", False),
+            (net.is_ipv4_network, "2001:67c::/32", False),
+            (net.is_ipv6_network, "192.168.1.1", False),
+            (net.is_ipv6_network, "192.168.1.1/24", False),
+            (net.is_ipv6_network, "2001:67c:1", False),
+            (net.is_ipv6_network, "2001:67c:1/32", False),
+            (net.is_ipv6_network, "2001:67c::", True),
+            (net.is_ipv6_network, "2001:67c::/32", True),
+            (net.is_ipv6_network, "2001:67c::/129", False),
+            (net.is_ipv6_network, "2001:67c::/128", True),
+        ),
+    )
+    def test_is_ip_network(self, func, arg, expected_return):
+        assert func(arg) == expected_return

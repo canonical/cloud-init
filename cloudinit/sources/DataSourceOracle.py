@@ -16,6 +16,7 @@ Notes:
 import base64
 from collections import namedtuple
 from contextlib import suppress as noop
+from typing import Tuple
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -102,11 +103,11 @@ class DataSourceOracle(sources.DataSource):
     dsname = "Oracle"
     system_uuid = None
     vendordata_pure = None
-    network_config_sources = (
-        sources.NetworkConfigSource.cmdline,
-        sources.NetworkConfigSource.system_cfg,
-        sources.NetworkConfigSource.ds,
-        sources.NetworkConfigSource.initramfs,
+    network_config_sources: Tuple[sources.NetworkConfigSource, ...] = (
+        sources.NetworkConfigSource.CMD_LINE,
+        sources.NetworkConfigSource.DS,
+        sources.NetworkConfigSource.INITRAMFS,
+        sources.NetworkConfigSource.SYSTEM_CFG,
     )
 
     _network_config = sources.UNSET

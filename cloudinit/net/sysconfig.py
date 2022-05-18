@@ -4,21 +4,20 @@ import copy
 import io
 import os
 import re
-
-from configobj import ConfigObj
+from typing import Mapping
 
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
-from cloudinit.net import network_state
-
-from . import renderer
-from .network_state import (
+from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
-    is_ipv6_addr,
+    is_ipv6_address,
     net_prefix_to_ipv4_mask,
     subnet_is_ipv6,
 )
+from cloudinit.net.network_state import NetworkState
+
+from . import renderer
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
@@ -34,7 +33,6 @@ KNOWN_DISTROS = [
     "suse",
     "virtuozzo",
 ]
-NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
 def _make_header(sep="#"):
@@ -64,24 +62,6 @@ def _quote_value(value):
             return '"%s"' % value
     else:
         return value
-
-
-def enable_ifcfg_rh(path):
-    """Add ifcfg-rh to NetworkManager.cfg plugins if main section is present"""
-    config = ConfigObj(path)
-    if "main" in config:
-        if "plugins" in config["main"]:
-            if "ifcfg-rh" in config["main"]["plugins"]:
-                return
-        else:
-            config["main"]["plugins"] = []
-
-        if isinstance(config["main"]["plugins"], list):
-            config["main"]["plugins"].append("ifcfg-rh")
-        else:
-            config["main"]["plugins"] = [config["main"]["plugins"], "ifcfg-rh"]
-        config.write()
-        LOG.debug("Enabled ifcfg-rh NetworkManager plugins")
 
 
 class ConfigMap(object):
@@ -196,7 +176,6 @@ class Route(ConfigMap):
 
             index = key.replace("ADDRESS", "")
             address_value = str(self._conf[key])
-            netmask_value = str(self._conf["NETMASK" + index])
             gateway_value = str(self._conf["GATEWAY" + index])
 
             # only accept combinations:
@@ -206,6 +185,7 @@ class Route(ConfigMap):
             # do not add ipv4 routes if proto is ipv6
             # (this array will contain a mix of ipv4 and ipv6)
             if proto == "ipv4" and not self.is_ipv6_route(address_value):
+                netmask_value = str(self._conf["NETMASK" + index])
                 # increase IPv4 index
                 reindex = reindex + 1
                 buf.write(
@@ -228,9 +208,7 @@ class Route(ConfigMap):
                         % ("METRIC" + str(reindex), _quote_value(metric_value))
                     )
             elif proto == "ipv6" and self.is_ipv6_route(address_value):
-                prefix_value = network_state.ipv6_mask_to_net_prefix(
-                    netmask_value
-                )
+                prefix_value = str(self._conf[f"PREFIX{index}"])
                 metric_value = (
                     "metric " + str(self._conf["METRIC" + index])
                     if "METRIC" + index in self._conf
@@ -610,7 +588,7 @@ class Renderer(renderer.Renderer):
 
                 if "gateway" in subnet and flavor != "suse":
                     iface_cfg["DEFROUTE"] = True
-                    if is_ipv6_addr(subnet["gateway"]):
+                    if is_ipv6_address(subnet["gateway"]):
                         iface_cfg["IPV6_DEFAULTGW"] = subnet["gateway"]
                     else:
                         iface_cfg["GATEWAY"] = subnet["gateway"]
@@ -640,7 +618,9 @@ class Renderer(renderer.Renderer):
         for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get("type")
             for route in subnet.get("routes", []):
-                is_ipv6 = subnet.get("ipv6") or is_ipv6_addr(route["gateway"])
+                is_ipv6 = subnet.get("ipv6") or is_ipv6_address(
+                    route["gateway"]
+                )
 
                 # Any dynamic configuration method, slaac, dhcpv6-stateful/
                 # stateless should get router information from router RA's.
@@ -657,12 +637,9 @@ class Renderer(renderer.Renderer):
                             "Duplicate declaration of default "
                             "route found for interface '%s'" % (iface_cfg.name)
                         )
-                    # NOTE(harlowja): ipv6 and ipv4 default gateways
-                    gw_key = "GATEWAY0"
-                    nm_key = "NETMASK0"
-                    addr_key = "ADDRESS0"
-                    # The owning interface provides the default route.
-                    #
+                    # NOTE that instead of defining the route0 settings,
+                    # the owning interface provides the default route.
+
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg["DEFROUTE"] = True
@@ -679,21 +656,19 @@ class Renderer(renderer.Renderer):
                         iface_cfg["METRIC"] = route["metric"]
 
                 else:
-                    gw_key = "GATEWAY%s" % route_cfg.last_idx
-                    nm_key = "NETMASK%s" % route_cfg.last_idx
-                    addr_key = "ADDRESS%s" % route_cfg.last_idx
-                    metric_key = "METRIC%s" % route_cfg.last_idx
-                    route_cfg.last_idx += 1
                     # add default routes only to ifcfg files, not
                     # to route-* or route6-*
-                    for (old_key, new_key) in [
-                        ("gateway", gw_key),
-                        ("metric", metric_key),
-                        ("netmask", nm_key),
-                        ("network", addr_key),
+                    for old_key, new_name in [
+                        ("gateway", "GATEWAY"),
+                        ("metric", "METRIC"),
+                        ("prefix", "PREFIX"),
+                        ("netmask", "NETMASK"),
+                        ("network", "ADDRESS"),
                     ]:
                         if old_key in route:
+                            new_key = f"{new_name}{route_cfg.last_idx}"
                             route_cfg[new_key] = route[old_key]
+                    route_cfg.last_idx += 1
 
     @classmethod
     def _render_bonding_opts(cls, iface_cfg, iface, flavor):
@@ -970,7 +945,7 @@ class Renderer(renderer.Renderer):
         """Given state, return /etc/sysconfig files + contents"""
         if not templates:
             templates = cls.templates
-        iface_contents = {}
+        iface_contents: Mapping[str, NetInterface] = {}
         for iface in network_state.iter_interfaces():
             if iface["type"] == "loopback":
                 continue
@@ -1003,7 +978,9 @@ class Renderer(renderer.Renderer):
                         contents[cpath] = iface_cfg.routes.to_string(proto)
         return contents
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self, network_state: NetworkState, templates=None, target=None
+    ):
         if not templates:
             templates = self.templates
         file_mode = 0o644
@@ -1032,8 +1009,6 @@ class Renderer(renderer.Renderer):
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
-        if available_nm(target=target):
-            enable_ifcfg_rh(subp.target_path(target, path=NM_CFG_FILE))
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -1063,14 +1038,9 @@ def _supported_vlan_names(rdev, vid):
 
 
 def available(target=None):
-    sysconfig = available_sysconfig(target=target)
-    nm = available_nm(target=target)
-    return util.system_info()["variant"] in KNOWN_DISTROS and any(
-        [nm, sysconfig]
-    )
+    if not util.system_info()["variant"] in KNOWN_DISTROS:
+        return False
 
-
-def available_sysconfig(target=None):
     expected = ["ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
@@ -1085,12 +1055,6 @@ def available_sysconfig(target=None):
         if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
-
-
-def available_nm(target=None):
-    if not os.path.isfile(subp.target_path(target, path=NM_CFG_FILE)):
-        return False
-    return True
 
 
 # vi: ts=4 expandtab

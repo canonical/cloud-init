@@ -7,7 +7,7 @@
 # (Not implemented yet, but provided for future documentation)
 
 disk_setup:
-  ephmeral0:
+  ephemeral0:
     table_type: 'mbr'
     layout: True
     overwrite: False
@@ -78,7 +78,7 @@ fs_setup:
 # The disk_setup directive instructs Cloud-init to partition a disk. The format is:
 
 disk_setup:
-  ephmeral0:
+  ephemeral0:
     table_type: 'mbr'
     layout: true
   /dev/xvdh:
