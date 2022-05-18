@@ -112,10 +112,7 @@ class TestRender:
         with mock.patch("sys.stderr", new_callable=StringIO):
             with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
                 assert render.handle_args("anyname", args) == 0
-        assert "Converted jinja variables\n{" in caplog.text
-        # TODO enable after pytest>=3.4
-        # more info: https://docs.pytest.org/en/stable/how-to/logging.html
-        # assert "Converted jinja variables\n{" in m_stderr.getvalue()
+        assert "Converted jinja variables\n" in caplog.text
         assert "rendering: jinja worked" == m_stdout.getvalue()
 
     @skipUnlessJinja()
