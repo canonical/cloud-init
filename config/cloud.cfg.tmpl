@@ -34,7 +34,11 @@ disable_root: true
 
 {% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
                   "fedora", "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+{% if variant == "rhel" %}
+mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
+{% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
+{% endif %}
 {% if variant == "amazon" %}
 resize_rootfs: noblock
 {% endif %}
@@ -64,6 +68,14 @@ datasource_list: ['NoCloud', 'ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
 # Amazon Linux relies on ec2-net-utils for network configuration
 network:
   config: disabled
+{% endif %}
+
+{% if variant == "rhel" %}
+# Default redhat settings:
+ssh_deletekeys:   true
+ssh_genkeytypes:  ['rsa', 'ecdsa', 'ed25519']
+syslog_fix_perms: ~
+disable_vmware_customization: false
 {% endif %}
 
 # The modules that run in the 'init' stage
@@ -104,10 +116,15 @@ cloud_config_modules:
 {% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
+{% if variant not in ["rhel"] %}
  - keyboard
+{% endif %}
  - locale
 {% endif %}
  - set-passwords
+{% if variant in ["rhel"] %}
+ - rh_subscription
+{% endif %}
 {% if variant in ["rhel", "fedora", "photon"] %}
 {% if variant not in ["photon"] %}
  - spacewalk
@@ -235,6 +252,10 @@ system_info:
      name: ec2-user
      lock_passwd: True
      gecos: EC2 Default User
+{% elif variant == "rhel" %}
+     name: cloud-user
+     lock_passwd: true
+     gecos: Cloud User
 {% else %}
      name: {{ variant }}
      lock_passwd: True
@@ -250,6 +271,8 @@ system_info:
      groups: [adm, sudo]
 {% elif variant == "arch" %}
      groups: [wheel, users]
+{% elif variant == "rhel" %}
+     groups: [adm, systemd-journal]
 {% else %}
      groups: [wheel, adm, systemd-journal]
 {% endif %}
