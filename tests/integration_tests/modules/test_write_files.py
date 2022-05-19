@@ -50,6 +50,7 @@ write_files:
     defer: true
     owner: 'myuser'
     permissions: '0644'
+    append: true
 """.format(
     B64_CONTENT.decode("ascii")
 )
@@ -91,3 +92,8 @@ class TestWriteFiles:
             class_client.execute('stat -c "%U %a" /home/testuser/my-file')
             == "myuser 644"
         )
+        # Assert write_files per-instance is honored and run only once.
+        # Given append: true multiple runs across would append new content.
+        class_client.restart()
+        out = class_client.read_from_file("/home/testuser/my-file")
+        assert "echo 'hello world!'" == out

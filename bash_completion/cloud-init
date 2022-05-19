@@ -45,6 +45,9 @@ _cloudinit_complete()
 
                 query)
                     COMPREPLY=($(compgen -W "--all --help --instance-data --list-keys --user-data --vendor-data --debug" -- $cur_word));;
+                schema)
+                    COMPREPLY=($(compgen -W "--help --config-file --docs --annotate --system" -- $cur_word))
+                    ;;
                 single)
                     COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
                     ;;
@@ -72,9 +75,6 @@ _cloudinit_complete()
                     ;;
                 render)
                     COMPREPLY=($(compgen -W "--help --instance-data --debug" -- $cur_word));;
-                schema)
-                    COMPREPLY=($(compgen -W "--help --config-file --doc --annotate" -- $cur_word))
-                    ;;
                 show)
                     COMPREPLY=($(compgen -W "--help --format --infile --outfile" -- $cur_word))
                     ;;

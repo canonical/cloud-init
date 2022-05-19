@@ -44,7 +44,6 @@ INCLUSION_TYPES_MAP = {
     "#include-once": "text/x-include-once-url",
     "#!": "text/x-shellscript",
     "#cloud-config": "text/cloud-config",
-    "#upstart-job": "text/upstart-job",
     "#part-handler": "text/part-handler",
     "#cloud-boothook": "text/cloud-boothook",
     "#cloud-config-archive": "text/cloud-config-archive",

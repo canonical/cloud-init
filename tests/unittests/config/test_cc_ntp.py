@@ -1,12 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import copy
 import os
+import re
 import shutil
 from functools import partial
 from os.path import dirname
 
+import pytest
+
 from cloudinit import helpers, util
 from cloudinit.config import cc_ntp
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
@@ -389,119 +397,6 @@ class TestNtp(FilesystemMockingTestCase):
                 "Invalid cloud-config provided:", self.logs.getvalue()
             )
 
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_non_string_item_type(
-        self, m_sel
-    ):
-        """Ntp schema validation warns of non-strings in pools or servers.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {"ntp": {"pools": [123], "servers": ["valid", None]}}
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_sel.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools.0: 123 is not of"
-                " type 'string'\nntp.servers.1: None is not of type 'string'",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers ['valid', None]\npools [123]\n",
-                util.load_file(confpath),
-            )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_of_non_array_type(
-        self, m_select
-    ):
-        """Ntp schema validation warns of non-array pools or servers types.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {"ntp": {"pools": 123, "servers": "non-array"}}
-
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools: 123 is not of type"
-                " 'array'\nntp.servers: 'non-array' is not of type 'array'",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers non-array\npools 123\n", util.load_file(confpath)
-            )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_invalid_key_present(
-        self, m_select
-    ):
-        """Ntp schema validation warns of invalid keys present in ntp config.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {
-            "ntp": {"invalidkey": 1, "pools": ["0.mycompany.pool.ntp.org"]}
-        }
-        for distro in cc_ntp.distros:
-            if distro != "alpine":
-                mycloud = self._get_cloud(distro)
-                ntpconfig = self._mock_ntp_client_config(distro=distro)
-                confpath = ntpconfig["confpath"]
-                m_select.return_value = ntpconfig
-                cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-                self.assertIn(
-                    "Invalid cloud-config provided:\nntp: Additional"
-                    " properties are not allowed ('invalidkey' was"
-                    " unexpected)",
-                    self.logs.getvalue(),
-                )
-                self.assertEqual(
-                    "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                    util.load_file(confpath),
-                )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_of_duplicates(self, m_select):
-        """Ntp schema validation warns of duplicates in servers or pools.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {
-            "ntp": {
-                "pools": ["0.mypool.org", "0.mypool.org"],
-                "servers": ["10.0.0.1", "10.0.0.1"],
-            }
-        }
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools: ['0.mypool.org',"
-                " '0.mypool.org'] has non-unique elements\nntp.servers: "
-                "['10.0.0.1', '10.0.0.1'] has non-unique elements",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers ['10.0.0.1', '10.0.0.1']\n"
-                "pools ['0.mypool.org', '0.mypool.org']\n",
-                util.load_file(confpath),
-            )
-
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
     def test_ntp_handler_timesyncd(self, m_select):
         """Test ntp handler configures timesyncd"""
@@ -865,6 +760,61 @@ class TestSupplementalSchemaValidation(CiTestCase):
         error_msg = str(context_mgr.exception)
         for error in errors:
             self.assertIn(error, error_msg)
+
+
+class TestNTPSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Allow empty ntp config
+            ({"ntp": None}, None),
+            (
+                {
+                    "ntp": {
+                        "invalidkey": 1,
+                        "pools": ["0.mycompany.pool.ntp.org"],
+                    }
+                },
+                re.escape(
+                    "ntp: Additional properties are not allowed ('invalidkey'"
+                ),
+            ),
+            (
+                {
+                    "ntp": {
+                        "pools": ["0.mypool.org", "0.mypool.org"],
+                        "servers": ["10.0.0.1", "10.0.0.1"],
+                    }
+                },
+                re.escape(
+                    "ntp.pools: ['0.mypool.org', '0.mypool.org'] has"
+                    " non-unique elements"
+                ),
+            ),
+            (
+                {
+                    "ntp": {
+                        "pools": [123],
+                        "servers": ["www.example.com", None],
+                    }
+                },
+                "ntp.pools.0: 123 is not of type 'string'.*"
+                "ntp.servers.1: None is not of type 'string'",
+            ),
+            (
+                {"ntp": {"pools": 123, "servers": "non-array"}},
+                "ntp.pools: 123 is not of type 'array'.*"
+                "ntp.servers: 'non-array' is not of type 'array'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

@@ -60,7 +60,6 @@ RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
-REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
@@ -209,7 +208,7 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd)[0]  # type: ignore
+        return subp.subp(cmd).stdout  # type: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
@@ -413,6 +412,19 @@ class DataSourceAzure(sources.DataSource):
                         "Failed to obtain DHCP lease (iface=%s)" % iface,
                         logger_func=LOG.error,
                     )
+                except subp.ProcessExecutionError as error:
+                    # udevadm settle, ip link set dev eth0 up, etc.
+                    report_diagnostic_event(
+                        "Command failed: "
+                        "cmd=%r stderr=%r stdout=%r exit_code=%s"
+                        % (
+                            error.cmd,
+                            error.stderr,
+                            error.stdout,
+                            error.exit_code,
+                        ),
+                        logger_func=LOG.error,
+                    )
 
                 # Sleep before retrying, otherwise break if we're past timeout.
                 if lease is None and time() + retry_sleep < timeout:
@@ -474,50 +486,42 @@ class DataSourceAzure(sources.DataSource):
         cfg = {}
         files = {}
 
-        if os.path.isfile(REPROVISION_MARKER_FILE):
-            metadata_source = "IMDS"
-            report_diagnostic_event(
-                "Reprovision marker file already present "
-                "before crawling Azure metadata: %s" % REPROVISION_MARKER_FILE,
-                logger_func=LOG.debug,
-            )
-        else:
-            for src in list_possible_azure_ds(self.seed_dir, ddir):
-                try:
-                    if src.startswith("/dev/"):
-                        if util.is_FreeBSD():
-                            md, userdata_raw, cfg, files = util.mount_cb(
-                                src, load_azure_ds_dir, mtype="udf"
-                            )
-                        else:
-                            md, userdata_raw, cfg, files = util.mount_cb(
-                                src, load_azure_ds_dir
-                            )
-                        # save the device for ejection later
-                        self._iso_dev = src
+        for src in list_possible_azure_ds(self.seed_dir, ddir):
+            try:
+                if src.startswith("/dev/"):
+                    if util.is_FreeBSD():
+                        md, userdata_raw, cfg, files = util.mount_cb(
+                            src, load_azure_ds_dir, mtype="udf"
+                        )
                     else:
-                        md, userdata_raw, cfg, files = load_azure_ds_dir(src)
-                    ovf_is_accessible = True
-                    metadata_source = src
-                    break
-                except NonAzureDataSource:
-                    report_diagnostic_event(
-                        "Did not find Azure data source in %s" % src,
-                        logger_func=LOG.debug,
-                    )
-                    continue
-                except util.MountFailedError:
-                    report_diagnostic_event(
-                        "%s was not mountable" % src, logger_func=LOG.debug
-                    )
-                    md = {"local-hostname": ""}
-                    cfg = {"system_info": {"default_user": {"name": ""}}}
-                    metadata_source = "IMDS"
-                    continue
-                except BrokenAzureDataSource as exc:
-                    msg = "BrokenAzureDataSource: %s" % exc
-                    report_diagnostic_event(msg, logger_func=LOG.error)
-                    raise sources.InvalidMetaDataException(msg)
+                        md, userdata_raw, cfg, files = util.mount_cb(
+                            src, load_azure_ds_dir
+                        )
+                    # save the device for ejection later
+                    self._iso_dev = src
+                else:
+                    md, userdata_raw, cfg, files = load_azure_ds_dir(src)
+                ovf_is_accessible = True
+                metadata_source = src
+                break
+            except NonAzureDataSource:
+                report_diagnostic_event(
+                    "Did not find Azure data source in %s" % src,
+                    logger_func=LOG.debug,
+                )
+                continue
+            except util.MountFailedError:
+                report_diagnostic_event(
+                    "%s was not mountable" % src, logger_func=LOG.debug
+                )
+                md = {"local-hostname": ""}
+                cfg = {"system_info": {"default_user": {"name": ""}}}
+                metadata_source = "IMDS"
+                continue
+            except BrokenAzureDataSource as exc:
+                msg = "BrokenAzureDataSource: %s" % exc
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
 
         report_diagnostic_event(
             "Found provisioning metadata in %s" % metadata_source,
@@ -530,7 +534,7 @@ class DataSourceAzure(sources.DataSource):
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
         requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
-        timeout_minutes = 5 if requires_imds_metadata else 20
+        timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
         except NoDHCPLeaseError:
@@ -553,8 +557,6 @@ class DataSourceAzure(sources.DataSource):
                 msg = "Free BSD is not supported for PPS VMs"
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-
-            self._write_reprovision_marker()
 
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
@@ -925,70 +927,24 @@ class DataSourceAzure(sources.DataSource):
             raise
 
     @azure_ds_telemetry_reporter
-    def wait_for_link_up(self, ifname):
-        """In cases where the link state is still showing down after a nic is
-        hot-attached, we can attempt to bring it up by forcing the hv_netvsc
-        drivers to query the link state by unbinding and then binding the
-        device. This function attempts infinitely until the link is up,
-        because we cannot proceed further until we have a stable link."""
-
-        if self.distro.networking.try_set_link_up(ifname):
-            report_diagnostic_event(
-                "The link %s is already up." % ifname, logger_func=LOG.info
-            )
-            return
-
-        LOG.debug("Attempting to bring %s up", ifname)
-
-        attempts = 0
-        LOG.info("Unbinding and binding the interface %s", ifname)
-        while True:
-            device_id = net.read_sys_net(ifname, "device/device_id")
-            if device_id is False or not isinstance(device_id, str):
-                raise RuntimeError("Unable to read device ID: %s" % device_id)
-            devicename = device_id.strip("{}")
-            util.write_file(
-                "/sys/bus/vmbus/drivers/hv_netvsc/unbind", devicename
-            )
-            util.write_file(
-                "/sys/bus/vmbus/drivers/hv_netvsc/bind", devicename
-            )
-
-            attempts = attempts + 1
+    def wait_for_link_up(
+        self, ifname: str, retries: int = 100, retry_sleep: float = 0.1
+    ):
+        for i in range(retries):
             if self.distro.networking.try_set_link_up(ifname):
-                msg = "The link %s is up after %s attempts" % (
-                    ifname,
-                    attempts,
+                report_diagnostic_event(
+                    "The link %s is up." % ifname, logger_func=LOG.info
                 )
-                report_diagnostic_event(msg, logger_func=LOG.info)
-                return
+                break
 
-            if attempts % 10 == 0:
-                msg = "Link is not up after %d attempts to rebind" % attempts
-                report_diagnostic_event(msg, logger_func=LOG.info)
-                LOG.info(msg)
-
-            # It could take some time after rebind for the interface to be up.
-            # So poll for the status for some time before attempting to rebind
-            # again.
-            sleep_duration = 0.5
-            max_status_polls = 20
-            LOG.debug(
-                "Polling %d seconds for primary NIC link up after rebind.",
-                sleep_duration * max_status_polls,
+            if (i + 1) < retries:
+                sleep(retry_sleep)
+        else:
+            report_diagnostic_event(
+                "The link %s is not up after %f seconds, continuing anyways."
+                % (ifname, retries * retry_sleep),
+                logger_func=LOG.info,
             )
-
-            for i in range(0, max_status_polls):
-                if self.distro.networking.is_up(ifname):
-                    msg = (
-                        "After %d attempts to rebind, link is up after "
-                        "polling the link status %d times" % (attempts, i)
-                    )
-                    report_diagnostic_event(msg, logger_func=LOG.info)
-                    LOG.debug(msg)
-                    return
-                else:
-                    sleep(sleep_duration)
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
@@ -1114,22 +1070,16 @@ class DataSourceAzure(sources.DataSource):
         return is_primary, expected_nic_count
 
     @azure_ds_telemetry_reporter
-    def _wait_for_hot_attached_nics(self, nl_sock):
-        """Wait until all the expected nics for the vm are hot-attached.
-        The expected nic count is obtained by requesting the network metadata
-        from IMDS.
-        """
-        LOG.info("Waiting for nics to be hot-attached")
+    def _wait_for_hot_attached_primary_nic(self, nl_sock):
+        """Wait until the primary nic for the vm is hot-attached."""
+        LOG.info("Waiting for primary nic to be hot-attached")
         try:
-            # Wait for nics to be attached one at a time, until we know for
-            # sure that all nics have been attached.
             nics_found = []
             primary_nic_found = False
-            expected_nic_count = -1
 
             # Wait for netlink nic attach events. After the first nic is
             # attached, we are already in the customer vm deployment path and
-            # so eerything from then on should happen fast and avoid
+            # so everything from then on should happen fast and avoid
             # unnecessary delays wherever possible.
             while True:
                 ifname = None
@@ -1160,17 +1110,13 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    (
-                        primary_nic_found,
-                        expected_nic_count,
-                    ) = self._check_if_nic_is_primary(ifname)
+                    primary_nic_found, _ = self._check_if_nic_is_primary(
+                        ifname
+                    )
 
-                # Exit criteria: check if we've discovered all nics
-                if (
-                    expected_nic_count != -1
-                    and len(nics_found) >= expected_nic_count
-                ):
-                    LOG.info("Found all the nics for this VM.")
+                # Exit criteria: check if we've discovered primary nic
+                if primary_nic_found:
+                    LOG.info("Found primary nic for this VM.")
                     break
 
         except AssertionError as error:
@@ -1190,7 +1136,7 @@ class DataSourceAzure(sources.DataSource):
             self._report_ready_for_pps()
             self._teardown_ephemeral_networking()
             self._wait_for_nic_detach(nl_sock)
-            self._wait_for_hot_attached_nics(nl_sock)
+            self._wait_for_hot_attached_primary_nic(nl_sock)
         except netlink.NetlinkCreateSocketError as e:
             report_diagnostic_event(str(e), logger_func=LOG.warning)
             raise
@@ -1437,7 +1383,7 @@ class DataSourceAzure(sources.DataSource):
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
-        if os.path.isfile(REPROVISION_MARKER_FILE):
+        if os.path.isfile(REPORTED_READY_MARKER_FILE):
             pps_type = PPSType.UNKNOWN
         elif (
             ovf_cfg.get("PreprovisionedVMType", None) == PPSType.SAVABLE.value
@@ -1458,16 +1404,6 @@ class DataSourceAzure(sources.DataSource):
             "PPS type: %s" % pps_type.value, logger_func=LOG.info
         )
         return pps_type
-
-    def _write_reprovision_marker(self):
-        """Write reprovision marker file in case system is rebooted."""
-        LOG.info(
-            "Creating a marker file to poll imds: %s", REPROVISION_MARKER_FILE
-        )
-        util.write_file(
-            REPROVISION_MARKER_FILE,
-            "{pid}: {time}\n".format(pid=os.getpid(), time=time()),
-        )
 
     @azure_ds_telemetry_reporter
     def _reprovision(self):
@@ -1506,7 +1442,6 @@ class DataSourceAzure(sources.DataSource):
     def _cleanup_markers(self):
         """Cleanup any marker files."""
         util.del_file(REPORTED_READY_MARKER_FILE)
-        util.del_file(REPROVISION_MARKER_FILE)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):

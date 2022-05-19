@@ -56,50 +56,6 @@ class TestMain(FilesystemMockingTestCase):
         self.stderr = StringIO()
         self.patchStdoutAndStderr(stderr=self.stderr)
 
-    def test_main_init_run_net_stops_on_file_no_net(self):
-        """When no-net file is present, main_init does not process modules."""
-        stop_file = os.path.join(self.cloud_dir, "data", "no-net")  # stop file
-        write_file(stop_file, "")
-        cmdargs = myargs(
-            debug=False,
-            files=None,
-            force=False,
-            local=False,
-            reporter=None,
-            subcommand="init",
-        )
-        (_item1, item2) = wrap_and_call(
-            "cloudinit.cmd.main",
-            {
-                "util.close_stdin": True,
-                "netinfo.debug_info": "my net debug info",
-                "util.fixup_output": ("outfmt", "errfmt"),
-            },
-            main.main_init,
-            "init",
-            cmdargs,
-        )
-        # We should not run write_files module
-        self.assertFalse(
-            os.path.exists(os.path.join(self.new_root, "etc/blah.ini")),
-            "Unexpected run of write_files module produced blah.ini",
-        )
-        self.assertEqual([], item2)
-        # Instancify is called
-        instance_id_path = "var/lib/cloud/data/instance-id"
-        self.assertFalse(
-            os.path.exists(os.path.join(self.new_root, instance_id_path)),
-            "Unexpected call to datasource.instancify produced instance-id",
-        )
-        expected_logs = [
-            "Exiting. stop file ['{stop_file}'] existed\n".format(
-                stop_file=stop_file
-            ),
-            "my net debug info",  # netinfo.debug_info
-        ]
-        for log in expected_logs:
-            self.assertIn(log, self.stderr.getvalue())
-
     def test_main_init_run_net_runs_modules(self):
         """Modules like write_files are run in 'net' mode."""
         cmdargs = myargs(
@@ -137,7 +93,6 @@ class TestMain(FilesystemMockingTestCase):
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
             "my net debug info",  # netinfo.debug_info
-            "no previous run detected",
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
@@ -209,7 +164,6 @@ class TestMain(FilesystemMockingTestCase):
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
             "my net debug info",  # netinfo.debug_info
-            "no previous run detected",
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())

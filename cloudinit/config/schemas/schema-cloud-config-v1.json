@@ -1,6 +1,138 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "users_groups.groups_by_groupname": {
+      "patternProperties": {
+        "^.+$": {
+          "label": "<group_name>",
+          "description": "Optional string of single username or a list of usernames to add to the group",
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "users_groups.user": {
+      "oneOf": [
+          {"required": ["name"]},
+          {"required": ["snapuser"]}
+      ],
+      "properties": {
+        "name": {
+          "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
+          "type": "string"
+        },
+        "expiredate": {
+          "default": null,
+          "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
+          "type": "string"
+        },
+        "gecos": {
+          "description": "Optional comment about the user, usually a comma-separated string of real name and contact information",
+          "type": "string"
+        },
+        "groups": {
+          "description": "Optional comma-separated string of groups to add the user to.",
+          "type": "string"
+        },
+        "homedir": {
+          "description": "Optional home dir for user. Default: ``/home/<username>``",
+          "default": "``/home/<username>``",
+          "type": "string"
+        },
+        "inactive": {
+          "description": "Optional string representing the number of days until the user is disabled. ",
+          "type": "string"
+        },
+        "lock_passwd": {
+          "default": true,
+          "description": "Disable password login. Default: ``true``",
+          "type": "boolean"
+        },
+        "no_create_home": {
+          "default": false,
+          "description": "Do not create home directory. Default: ``false``",
+          "type": "boolean"
+        },
+        "no_log_init": {
+          "default": false,
+          "description": "Do not initialize lastlog and faillog for user. Default: ``false``",
+          "type": "boolean"
+        },
+        "no_user_group": {
+          "default": false,
+          "description": "Do not create group named after user. Default: ``false``",
+          "type": "boolean"
+        },
+        "passwd": {
+          "description": "Hash of user password applied when user does not exist. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "type": "string"
+        },
+        "hashed_passwd": {
+          "description": "Hash of user password applied to new or existing users. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "type": "string"
+        },
+        "plain_text_passwd": {
+          "description": "Clear text of user password applied to new or existing users. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "type": "string"
+        },
+        "create_groups": {
+          "default": true,
+          "description": "Boolean set ``false`` to disable creation of specified user ``groups``. Default: ``true``.",
+          "type": "boolean"
+        },
+        "primary_group": {
+          "default": "``<username>``",
+          "description": "Primary group for user. Default: ``<username>``",
+          "type": "string"
+        },
+        "selinux_user": {
+          "description": "SELinux user for user's login. Default to default SELinux user.",
+          "type": "string"
+        },
+        "shell": {
+          "description": "Path to the user's login shell. The default is to set no shell, which results in a system-specific default being used.",
+          "type": "string"
+        },
+        "snapuser": {
+          "description": " Specify an email address to create the user as a Snappy user through ``snap create-user``. If an Ubuntu SSO account is associated with the address, username and SSH keys will be requested from there.",
+          "type": "string"
+        },
+        "ssh_authorized_keys": {
+          "description": "List of SSH keys to add to user's authkeys file. Can not be combined with ``ssh_redirect_user``",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "ssh_import_id": {
+          "description": "List of SSH IDs to import for user. Can not be combined with ``ssh_redirect_user``.",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "ssh_redirect_user": {
+          "type": "boolean",
+          "default": false,
+          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud meta-data public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the ``default_username`` for this instance. Default: ``false``. This key can not be combined with ``ssh_import_id`` or ``ssh_authorized_keys``."
+        },
+        "system": {
+          "description": "Optional. Create user as system user with no home directory. Default: ``false``.",
+          "type": "boolean",
+          "default": false
+        },
+        "sudo": {
+          "type": ["boolean", "string"],
+          "description": "Sudo rule to use or false. Absence of a sudo value or ``false`` will result in no sudo rules added for this user. DEPRECATED: the value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+        },
+        "uid": {
+          "description": "The user's ID. Default is next available value.",
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
     "apt_configure.mirror": {
       "type": "array",
       "items": {
@@ -517,8 +649,7 @@
                   {
                     "type": "string",
                     "enum": ["auto", "any", "none"]
-                  },
-                  {"type": "integer"}
+                  }
                 ],
                 "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
               },
@@ -539,6 +670,125 @@
                 "type": ["array", "string"],
                 "items": {"type": "string"},
                 "description": "Optional command to run to create the filesystem. Can include string substitutions of the other ``fs_setup`` config keys. This is only necessary if you need to override the default command."
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_fan": {
+      "type": "object",
+      "properties": {
+        "fan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["config"],
+          "properties": {
+            "config": {
+              "type": "string",
+              "description": "The fan configuration to use as a single multi-line string"
+            },
+            "config_path": {
+              "type": "string",
+              "default": "/etc/network/fan",
+              "description": "The path to write the fan configuration to. Default: ``/etc/network/fan``"
+            }
+          }
+        }
+      }
+    },
+    "cc_final_message": {
+      "type": "object",
+      "properties": {
+        "final_message": {
+          "type": "string",
+          "description": "The message to display at the end of the run"
+        }
+      }
+    },
+    "cc_growpart": {
+      "type": "object",
+      "properties": {
+        "growpart": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [false, "auto", "growpart", "gpart", "off"],
+              "default": "auto",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead."
+            },
+            "devices": {
+              "type": "array",
+              "default": ["/"],
+              "items": {
+                "type": "string"
+              },
+              "description": "The devices to resize. Each entry can either be the path to the device's mountpoint in the filesystem or a path to the block device in '/dev'. Default: ``[/]``"
+            },
+            "ignore_growroot_disabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "If ``true``, ignore the presence of ``/etc/growroot-disabled``. If ``false`` and the file exists, then don't resize. Default: ``false``"
+            }
+          }
+        }
+      }
+    },
+    "cc_grub_dpkg": {
+      "type": "object",
+      "properties": {
+        "grub_dpkg": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to configure which device is used as the target for grub installation. Default: ``true``"
+            },
+            "grub-pc/install_devices": {
+              "type": "string",
+              "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
+            },
+            "grub-pc/install_devices_empty": {
+              "type": ["string", "boolean"],
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated."
+            }
+          }
+        },
+        "grub-dpkg": {
+          "type": "object",
+          "description": "DEPRECATED: Use ``grub_dpkg`` instead"
+        }
+      }
+    },
+    "cc_install_hotplug": {
+      "type": "object",
+      "properties": {
+        "updates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "network": {
+              "type": "object",
+              "required": ["when"],
+              "additionalProperties": false,
+              "properties": {
+                "when": {
+                  "type": "array",
+                  "additionalProperties": false,
+                  "items": {
+                    "type": "string",
+                    "additionalProperties": false,
+                    "enum": [
+                      "boot-new-instance",
+                      "boot-legacy",
+                      "boot",
+                      "hotplug"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -875,6 +1125,77 @@
                   {"type": "string", "pattern": "^([0-9]+)?\\.?[0-9]+[BKMGT]$"}
               ],
               "description": "The maxsize in bytes of the swap file"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_ntp": {
+      "type": "object",
+      "properties": {
+        "ntp": {
+          "type": ["null", "object"],
+          "properties": {
+            "pools": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "List of ntp pools. If both pools and servers are\nempty, 4 default pool servers will be provided of\nthe format ``{0-3}.{distro}.pool.ntp.org``. NOTE:\nfor Alpine Linux when using the Busybox NTP client\nthis setting will be ignored due to the limited\nfunctionality of Busybox's ntpd."
+            },
+            "servers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "List of ntp servers. If both pools and servers are\nempty, 4 default pool servers will be provided with\nthe format ``{0-3}.{distro}.pool.ntp.org``."
+            },
+            "ntp_client": {
+              "type": "string",
+              "default": "auto",
+              "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, ntpdate,\nsystemd-timesyncd."
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Attempt to enable ntp clients if set to True.  If set\nto False, ntp client will not be configured or\ninstalled"
+            },
+            "config": {
+              "description": "Configuration settings or overrides for the\n``ntp_client`` specified.",
+              "type": "object",
+              "properties": {
+                "confpath": {
+                  "type": "string",
+                  "description": "The path to where the ``ntp_client``\nconfiguration is written."
+                },
+                "check_exe": {
+                  "type": "string",
+                  "description": "The executable name for the ``ntp_client``.\nFor example, ntp service ``check_exe`` is\n'ntpd' because it runs the ntpd binary."
+                },
+                "packages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "uniqueItems": true,
+                  "description": "List of packages needed to be installed for the\nselected ``ntp_client``."
+                },
+                "service_name": {
+                  "type": "string",
+                  "description": "The systemd or sysvinit service name used to\nstart and stop the ``ntp_client``\nservice."
+                },
+                "template": {
+                  "type": "string",
+                  "description": "Inline template allowing users to define their\nown ``ntp_client`` configuration template.\nThe value must start with '## template:jinja'\nto enable use of templating support.\n"
+                }
+              },
+              "minProperties": 1,
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -1343,6 +1664,556 @@
           }
         }
       }
+    },
+    "cc_scripts_vendor": {
+      "type": "object",
+      "properties": {
+        "vendor_data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": ["boolean", "string"],
+              "description": "Whether vendor data is enabled or not. Use of string for this value is DEPRECATED. Default: ``true``"
+            },
+            "prefix": {
+              "type": ["array", "string"],
+              "items": {"type": ["string", "integer"]},
+              "description": "The command to run before any vendor scripts. Its primary use case is for profiling a script, not to prevent its run"
+            }
+          }
+        }
+      }
+    },
+    "cc_seed_random": {
+      "type": "object",
+      "properties": {
+        "random_seed": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "default": "/dev/urandom",
+              "description": "File to write random data to. Default: ``/dev/urandom``"
+            },
+            "data": {
+              "type": "string",
+              "description": "This data will be written to ``file`` before data from the datasource. When using a multiline value or specifying binary data, be sure to follow yaml syntax and use the ``|`` and ``!binary`` yaml format specifiers when appropriate"
+            },
+            "encoding": {
+              "type": "string",
+              "default": "raw",
+              "enum": ["raw", "base64", "b64", "gzip", "gz"],
+              "description": "Used to decode ``data`` provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``"
+            },
+            "command": {
+              "type": "array",
+              "items": {"type": "string"},
+            "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of ``file`` above."
+            },
+            "command_required": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, and ``command`` is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``"
+            }
+          }
+        }
+      }
+    },
+    "cc_set_hostname": {
+      "type": "object",
+      "properties": {
+        "preserve_hostname": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, the hostname will not be changed. Default: ``false``"
+        },
+        "hostname": {
+          "type": "string",
+          "description": "The hostname to set"
+        },
+        "fqdn": {
+          "type": "string",
+          "description": "The fully qualified domain name to set"
+        },
+        "prefer_fqdn_over_hostname": {
+          "type": "boolean",
+          "description": "If true, the fqdn will be used if it is set. If false, the hostname will be used. If unset, the result is distro-dependent"
+        }
+      }
+    },
+    "cc_set_passwords": {
+      "type": "object",
+      "properties": {
+        "ssh_pwauth": {
+          "oneOf": [
+            {"type": "boolean"},
+            {"type": "string"}
+          ],
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init."
+        },
+        "chpasswd": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expire": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
+            },
+            "list": {
+              "oneOf": [
+                {"type": "string"},
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^.+:.+$"
+                  }}
+              ],
+              "minItems": 1,
+              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\nUse of a multiline string for this field is DEPRECATED and will result in an error in a future version of cloud-init."
+            }
+          }
+        },
+        "password": {
+          "type": "string",
+          "description": "Set the default user's password. Ignored if ``chpasswd`` ``list`` is used"
+        }
+      }
+    },
+    "cc_snap": {
+      "type": "object",
+      "properties": {
+        "snap": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "assertions": {
+              "type": ["object", "array"],
+              "description": "Properly-signed snap assertions which will run before and snap ``commands``.",
+              "items": {"type": "string"},
+              "additionalItems": false,
+              "minItems": 1,
+              "minProperties": 1,
+              "uniqueItems": true,
+              "additionalProperties": {"type": "string"}
+            },
+            "commands": {
+              "type": ["object", "array"],
+              "description": "Snap commands to run on the target system",
+              "items": {
+                "oneOf": [
+                  {"type": "string"},
+                  {"type": "array", "items": {"type": "string"}}
+                ]
+              },
+              "additionalItems": false,
+              "minItems": 1,
+              "minProperties": 1,
+              "additionalProperties": {
+                "oneOf": [
+                  {"type": "string"},
+                  {"type": "array", "items": {"type": "string"}}
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_spacewalk": {
+      "type": "object",
+      "properties": {
+        "spacewalk": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": "The Spacewalk server to use"
+            },
+            "proxy": {
+              "type": "string",
+              "description": "The proxy to use when connecting to Spacewalk"
+            },
+            "activation_key": {
+              "type": "string",
+              "description": "The activation key to use when registering with Spacewalk"
+            }
+          }
+        }
+      }
+    },
+    "cc_ssh_authkey_fingerprints": {
+      "type": "object",
+      "properties": {
+        "no_ssh_fingerprints": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, SSH fingerprints will not be written. Default: ``false``"
+        },
+        "authkey_hash": {
+          "type": "string",
+          "default": "sha256",
+          "description": "The hash type to use when generating SSH fingerprints. Default: ``sha256``"
+        }
+      }
+    },
+    "cc_ssh_import_id": {
+      "type": "object",
+      "properties": {
+        "ssh_import_id": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "The SSH public key to import"
+          }
+        }
+      }
+    },
+    "cc_ssh": {
+      "type": "object",
+      "properties": {
+        "ssh_keys": {
+          "type": "object",
+          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax.",
+          "patternProperties": {
+            "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
+              "label": "<key_type>",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ssh_authorized_keys": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The SSH public keys to add ``.ssh/authorized_keys`` in the default user's home directory",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ssh_deletekeys" : {
+          "type": "boolean",
+          "default": true,
+          "description": "Remove host SSH keys. This prevents re-use of a private host key from an image with default host SSH keys. Default: ``true``"
+        },
+        "ssh_genkeytypes": {
+          "type": "array",
+          "description": "The SSH key types to generate. Default: ``[rsa, dsa, ecdsa, ed25519]``",
+          "default": ["dsa", "ecdsa", "ed25519", "rsa"],
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["dsa", "ecdsa", "ed25519", "rsa"]
+          }
+        },
+        "disable_root": {
+          "type": "boolean",
+          "default": true,
+          "description": "Disable root login. Default: ``true``"
+        },
+        "disable_root_opts": {
+          "type": "string",
+          "default": "``no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo 'Please login as the user \\\"$USER\\\" rather than the user \\\"$DISABLE_USER\\\".';echo;sleep 10;exit 142\"``",
+          "description": "Disable root login options.  If ``disable_root_opts`` is specified and contains the string ``$USER``, it will be replaced with the username of the default user. Default: ``no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo 'Please login as the user \\\"$USER\\\" rather than the user \\\"$DISABLE_USER\\\".';echo;sleep 10;exit 142\"``"
+        },
+        "allow_public_ssh_keys": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``true``, will import the public SSH keys from the datasource's metadata to the user's ``.ssh/authorized_keys`` file. Default: ``true``"
+        },
+        "ssh_quiet_keygen": {
+          "type": "boolean",
+          "default": false,
+          "description": "If ``true``, will suppress the output of key generation to the console. Default: ``false``"
+        },
+        "ssh_publish_hostkeys": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, will read host keys from ``/etc/ssh/*.pub`` and publish them to the datasource (if supported). Default: ``true``"
+            },
+            "blacklist": {
+              "type": "array",
+              "description": "The SSH key types to ignore when publishing. Default: ``[dsa]``",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_timezone": {
+      "type": "object",
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "The timezone to use as represented in /usr/share/zoneinfo"
+        }
+      }
+    },
+    "cc_ubuntu_advantage": {
+      "type": "object",
+      "properties": {
+        "ubuntu_advantage": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+            },
+            "token": {
+              "type": "string",
+              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+            }
+          },
+          "required": ["token"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_ubuntu_drivers": {
+      "type": "object",
+      "properties": {
+        "drivers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nvidia": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "license-accepted"
+              ],
+              "properties": {
+                "license-accepted": {
+                  "type": "boolean",
+                  "description": "Do you accept the NVIDIA driver license?"
+                },
+                "version": {
+                  "type": "string",
+                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cc_update_etc_hosts": {
+      "type": "object",
+      "properties": {
+        "manage_etc_hosts": {
+          "default": false,
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``. DEPRECATED value ``template`` will be dropped, use ``true`` instead.",
+          "enum": [true, false, "template", "localhost"]
+        },
+        "fqdn": {
+          "type": "string",
+          "description": "Optional fully qualified domain name to use when updating ``/etc/hosts``. Preferred over ``hostname`` if both are provided. In absence of ``hostname`` and ``fqdn`` in cloud-config, the ``local-hostname`` value will be used from datasource metadata."
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Hostname to set when rendering ``/etc/hosts``. If ``fqdn`` is set, the hostname extracted from ``fqdn`` overrides ``hostname``."
+        }
+      }
+    },
+    "cc_update_hostname": {
+      "type": "object",
+      "properties": {
+        "preserve_hostname": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not update system hostname when ``true``. Default: ``false``."
+        },
+        "prefer_fqdn_over_hostname": {
+          "type": "boolean",
+          "default": null,
+          "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        }
+      }
+    },
+    "cc_users_groups": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": ["string", "object", "array"],
+          "hidden": ["patternProperties"],
+          "$ref": "#/$defs/users_groups.groups_by_groupname",
+          "items": {
+            "type": ["string", "object"],
+            "$ref": "#/$defs/users_groups.groups_by_groupname"
+          },
+          "minItems": 1
+        },
+        "user": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "object", "$ref": "#/$defs/users_groups.user"}
+          ],
+          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The `user` dictionary keys supported for the default_user are the same as the ``users`` schema. DEPRECATED: string and types will be removed in a future release. Use ``users`` instead."
+        },
+        "users": {
+          "type": ["string", "array", "object"],
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}},
+              {"type": "object", "$ref": "#/$defs/users_groups.user"}
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "cc_write_files": {
+      "type": "object",
+      "properties": {
+        "write_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path of the file to which ``content`` is decoded and written"
+              },
+              "content": {
+                "type": "string",
+                "default": "",
+                "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
+              },
+              "owner": {
+                "type": "string",
+                "default": "root:root",
+                "description": "Optional owner:group to chown on the file. Default: ``root:root``"
+              },
+              "permissions": {
+                "type": "string",
+                "default": "0o644",
+                "description": "Optional file permissions to set on ``path`` represented as an octal string '0###'. Default: ``0o644``"
+              },
+              "encoding": {
+                "type": "string",
+                "default": "text/plain",
+                "enum": ["gz", "gzip", "gz+base64", "gzip+base64", "gz+b64", "gzip+b64", "b64", "base64", "text/plain"],
+                "description": "Optional encoding type of the content. Default is ``text/plain`` and no content decoding is performed. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
+              },
+              "append": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to append ``content`` to existing file if ``path`` exists. Default: ``false``."
+              },
+              "defer": {
+                "type": "boolean",
+                "default": false,
+                "description": "Defer writing the file until 'final' stage, after users were created, and packages were installed. Default: ``false``."
+              }
+            },
+            "required": ["path"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "cc_yum_add_repo": {
+      "type": "object",
+      "properties": {
+        "yum_repo_dir": {
+            "type": "string",
+             "default": "/etc/yum.repos.d",
+             "description": "The repo parts directory where individual yum repo config files will be written. Default: ``/etc/yum.repos.d``"
+        },
+        "yum_repos": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[0-9a-zA-Z -_]+$": {
+              "label": "<repo_name>",
+              "type": "object",
+              "description": "Object keyed on unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
+              "properties": {
+                "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the directory where the yum repository's 'repodata' directory lives"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Optional human-readable name of the yum repo."
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Whether to enable the repo. Default: ``true``."
+                }
+              },
+              "patternProperties": {
+                "^[0-9a-zA-Z_]+$": {
+                    "label": "<yum_config_option>",
+                    "oneOf": [
+                      {"type": "integer"},
+                      {"type": "boolean"},
+                      {"type": "string"}
+                    ],
+                    "description": "Any supported yum repository configuration options will be written to the yum repo config file. See: man yum.conf"
+                }
+              },
+              "required": ["baseurl"]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "cc_zypper_add_repo": {
+      "type": "object",
+      "properties": {
+        "zypper": {
+          "type": "object",
+          "properties": {
+            "repos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "The unique id of the repo, used when writing /etc/zypp/repos.d/<id>.repo."
+                  },
+                  "baseurl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The base repositoy URL"
+                  }
+                },
+                "required": [
+                  "id",
+                  "baseurl"
+                ],
+                "additionalProperties": true
+              },
+              "minItems": 1
+            },
+            "config": {
+              "type": "object",
+              "description": "Any supported zypo.conf key is written to ``/etc/zypp/zypp.conf``"
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      }
     }
   },
   "allOf": [
@@ -1356,6 +2227,11 @@
     { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
+    { "$ref": "#/$defs/cc_fan" },
+    { "$ref": "#/$defs/cc_final_message"},
+    { "$ref": "#/$defs/cc_growpart"},
+    { "$ref": "#/$defs/cc_grub_dpkg"},
+    { "$ref": "#/$defs/cc_install_hotplug"},
     { "$ref": "#/$defs/cc_keyboard" },
     { "$ref": "#/$defs/cc_keys_to_console" },
     { "$ref": "#/$defs/cc_landscape" },
@@ -1364,6 +2240,7 @@
     { "$ref": "#/$defs/cc_mcollective" },
     { "$ref": "#/$defs/cc_migrator" },
     { "$ref": "#/$defs/cc_mounts" },
+    { "$ref": "#/$defs/cc_ntp" },
     { "$ref": "#/$defs/cc_package_update_upgrade_install" },
     { "$ref": "#/$defs/cc_phone_home" },
     { "$ref": "#/$defs/cc_power_state_change"},
@@ -1373,6 +2250,24 @@
     { "$ref": "#/$defs/cc_rh_subscription"},
     { "$ref": "#/$defs/cc_rsyslog"},
     { "$ref": "#/$defs/cc_runcmd"},
-    { "$ref": "#/$defs/cc_salt_minion"}
+    { "$ref": "#/$defs/cc_salt_minion"},
+    { "$ref": "#/$defs/cc_scripts_vendor"},
+    { "$ref": "#/$defs/cc_seed_random"},
+    { "$ref": "#/$defs/cc_set_hostname"},
+    { "$ref": "#/$defs/cc_set_passwords"},
+    { "$ref": "#/$defs/cc_snap"},
+    { "$ref": "#/$defs/cc_spacewalk"},
+    { "$ref": "#/$defs/cc_ssh_authkey_fingerprints"},
+    { "$ref": "#/$defs/cc_ssh_import_id"},
+    { "$ref": "#/$defs/cc_ssh"},
+    { "$ref": "#/$defs/cc_timezone"},
+    { "$ref": "#/$defs/cc_ubuntu_advantage"},
+    { "$ref": "#/$defs/cc_ubuntu_drivers"},
+    { "$ref": "#/$defs/cc_update_etc_hosts"},
+    { "$ref": "#/$defs/cc_update_hostname"},
+    { "$ref": "#/$defs/cc_users_groups"},
+    { "$ref": "#/$defs/cc_write_files"},
+    { "$ref": "#/$defs/cc_yum_add_repo"},
+    { "$ref": "#/$defs/cc_zypper_add_repo"}
   ]
 }

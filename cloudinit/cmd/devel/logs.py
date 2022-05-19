@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2017 Canonical Ltd.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
@@ -189,5 +191,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-# vi: ts=4 expandtab

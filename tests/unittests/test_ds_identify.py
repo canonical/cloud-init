@@ -3,6 +3,7 @@
 import copy
 import os
 from collections import namedtuple
+from textwrap import dedent
 from uuid import uuid4
 
 from cloudinit import safeyaml, subp, util
@@ -95,6 +96,10 @@ MOCK_VIRT_IS_CONTAINER_OTHER = {
 }
 MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
 MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
+# qemu support for LXD is only for host systems > 5.10 kernel as lxd
+# passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
+# as "qemu" instead of "kvm"
+MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
@@ -159,7 +164,7 @@ class DsIdentifyBase(CiTestCase):
         def write_mock(data):
             ddata = {"out": None, "err": None, "ret": 0, "RET": None}
             ddata.update(data)
-            for k in ddata:
+            for k in ddata.keys():
                 if ddata[k] is None:
                     ddata[k] = unset
             return SHELL_MOCK_TMPL % ddata
@@ -337,6 +342,20 @@ class TestDsIdentify(DsIdentifyBase):
     def test_lxd_kvm(self):
         """LXD KVM has race on absent /dev/lxd/socket. Use DMI board_name."""
         self._test_ds_found("LXD-kvm")
+
+    def test_lxd_kvm_jammy(self):
+        """LXD KVM on host systems with a kernel > 5.10 need to match "qemu".
+        LXD provides `hv_passthrough` when launching kvm instances when host
+        kernel is > 5.10. This results in systemd being unable to detect the
+        virtualized CPUID="Linux KVM Hv" as type "kvm" and results in
+        systemd-detect-virt returning "qemu" in this case.
+
+        Assert ds-identify can match systemd-detect-virt="qemu" and
+        /sys/class/dmi/id/board_name = LXD.
+        Once systemd 251 is available on a target distro, the virtualized
+        CPUID will be represented properly as "kvm"
+        """
+        self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10")
 
     def test_lxd_containers(self):
         """LXD containers will have /dev/lxd/socket at generator time."""
@@ -714,6 +733,10 @@ class TestDsIdentify(DsIdentifyBase):
         """NoCloud is found with uppercase filesystem label."""
         self._test_ds_found("NoCloudUpper")
 
+    def test_nocloud_seed_in_cfg(self):
+        """NoCloud seed definition can go in /etc/cloud/cloud.cfg[.d]"""
+        self._test_ds_found("NoCloud-cfg")
+
     def test_nocloud_fatboot(self):
         """NoCloud fatboot label - LP: #184166."""
         self._test_ds_found("NoCloud-fatboot")
@@ -1031,6 +1054,13 @@ VALID_CFG = {
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
+    "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm launch virt==qemu
+        "ds": "LXD",
+        "files": {P_BOARD_NAME: "LXD\n"},
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
     "LXD": {
         "ds": "LXD",
         # /dev/lxd/sock exists
@@ -1058,6 +1088,26 @@ VALID_CFG = {
         ],
         "files": {
             "dev/vdb": "pretend iso content for cidata\n",
+        },
+    },
+    "NoCloud-cfg": {
+        "ds": "NoCloud",
+        "files": {
+            # Also include a datasource list of more than just
+            # [NoCloud, None], because that would automatically select
+            # NoCloud without checking
+            "/etc/cloud/cloud.cfg": dedent(
+                """\
+                datasource_list: [ Azure, Openstack, NoCloud, None ]
+                datasource:
+                  NoCloud:
+                    user-data: |
+                      #cloud-config
+                      hostname: footbar
+                    meta-data: |
+                      instance_id: cloud-image
+                """
+            )
         },
     },
     "NoCloud-fbsd": {

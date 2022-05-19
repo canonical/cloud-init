@@ -2,11 +2,19 @@
 
 import configparser
 import logging
+import re
 import shutil
 import tempfile
 
+import pytest
+
 from cloudinit import util
 from cloudinit.config import cc_yum_add_repo
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers
 
 LOG = logging.getLogger(__name__)
@@ -115,6 +123,42 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             )
             for k, v in expected[section].items():
                 self.assertEqual(parser.get(section, k), v)
+
+
+class TestAddYumRepoSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Happy path case
+            ({"yum_repos": {"My-Repo 123": {"baseurl": "http://doit"}}}, None),
+            # yum_repo_dir is a string
+            (
+                {"yum_repo_dir": True},
+                "yum_repo_dir: True is not of type 'string'",
+            ),
+            (
+                {"yum_repos": {}},
+                re.escape("yum_repos: {} does not have enough properties"),
+            ),
+            # baseurl required
+            (
+                {"yum_repos": {"My-Repo": {}}},
+                "yum_repos.My-Repo: 'baseurl' is a required",
+            ),
+            # patternProperties don't override type of explicit property names
+            (
+                {"yum_repos": {"My Repo": {"enabled": "nope"}}},
+                "yum_repos.My Repo.enabled: 'nope' is not of type 'boolean'",
+            ),
+        ],
+    )
+    @helpers.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

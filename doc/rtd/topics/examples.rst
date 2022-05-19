@@ -59,14 +59,6 @@ Run commands on first boot
    :language: yaml
    :linenos:
 
-
-Alter the completion message
-============================
-
-.. literalinclude:: ../../examples/cloud-config-final-message.txt
-   :language: yaml
-   :linenos:
-
 Install arbitrary packages
 ==========================
 
@@ -127,13 +119,6 @@ Create partitions and filesystems
 =================================
 
 .. literalinclude:: ../../examples/cloud-config-disk-setup.txt
-   :language: yaml
-   :linenos:
-
-Grow partitions
-===============
-
-.. literalinclude:: ../../examples/cloud-config-growpart.txt
    :language: yaml
    :linenos:
 

@@ -9,13 +9,10 @@ from tests.integration_tests.util import verify_clean_log
 
 
 def _customize_envionment(client: IntegrationInstance):
-    # Assert our platform can detect LXD during sytemd generator timeframe.
+    # Assert our platform can detect LXD during systemd generator timeframe.
     ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
     assert "check for 'LXD' returned found" in ds_id_log
 
-    # At some point Jammy will fail this test. We want to be informed
-    # when Jammy images no longer ship NoCloud template files (LP: #1958460).
-    assert "check for 'NoCloud' returned found" in ds_id_log
     if client.settings.PLATFORM == "lxd_vm":
         # ds-identify runs at systemd generator time before /dev/lxd/sock.
         # Assert we can expected artifact which indicates LXD is viable.
@@ -38,12 +35,19 @@ def _customize_envionment(client: IntegrationInstance):
         "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
         "datasource_list: [LXD, NoCloud]\n",
     )
+    # This is also to ensure that NoCloud can be detected
+    if ImageSpecification.from_os_image().release == "jammy":
+        # Add nocloud-net seed files because Jammy no longer delivers NoCloud
+        # (LP: #1958460).
+        client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
+        client.write_to_file("/var/lib/cloud/seed/nocloud-net/meta-data", "")
+        client.write_to_file(
+            "/var/lib/cloud/seed/nocloud-net/user-data", "#cloud-config\n{}"
+        )
     client.execute("cloud-init clean --logs")
     client.restart()
 
 
-# This test should be able to work on any cloud whose datasource specifies
-# a NETWORK dependency
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.ubuntu  # Because netplan
@@ -104,15 +108,21 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
         yaml.safe_load(ds_cfg["config"]["user.meta-data"])
     )
     assert "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
-    # Assert NoCloud seed data is still present in cloud image metadata
-    # This will start failing if we redact metadata templates from
-    # https://cloud-images.ubuntu.com/daily/server/jammy/current/\
-    #    jammy-server-cloudimg-amd64-lxd.tar.xz
-    nocloud_metadata = yaml.safe_load(
-        client.read_from_file("/var/lib/cloud/seed/nocloud-net/meta-data")
-    )
-    assert client.instance.name == nocloud_metadata["instance-id"]
-    assert (
-        nocloud_metadata["instance-id"] == nocloud_metadata["local-hostname"]
-    )
-    assert v1["public_ssh_keys"][0] == nocloud_metadata["public-keys"]
+
+    # Jammy not longer provides nocloud-net seed files (LP: #1958460)
+    if ImageSpecification.from_os_image().release in [
+        "bionic",
+        "focal",
+        "impish",
+    ]:
+        # Assert NoCloud seed files are still present in non-Jammy images
+        # and that NoCloud seed files provide the same content as LXD socket.
+        nocloud_metadata = yaml.safe_load(
+            client.read_from_file("/var/lib/cloud/seed/nocloud-net/meta-data")
+        )
+        assert client.instance.name == nocloud_metadata["instance-id"]
+        assert (
+            nocloud_metadata["instance-id"]
+            == nocloud_metadata["local-hostname"]
+        )
+        assert v1["public_ssh_keys"][0] == nocloud_metadata["public-keys"]

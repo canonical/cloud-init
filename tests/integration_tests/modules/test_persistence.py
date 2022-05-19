@@ -26,7 +26,7 @@ def test_log_message_on_missing_version_file(client: IntegrationInstance):
             "attribute 'policy'. Ignoring current cache.",
             "no cache found",
             "Searching for local data source",
-            "SUCCESS: found local data from DataSourceNoCloud",
+            r"SUCCESS: found local data from DataSource(NoCloud|LXD)",
         ],
         log,
     )

@@ -823,7 +823,11 @@ dscheck_LXD() {
     # On LXD KVM instances, /dev/lxd/sock is not yet setup by
     # lxd-agent-loader's systemd lxd-agent.service.
     # Rely on DMI product information that is present on all LXD images.
-    if [ "${DI_VIRT}" = "kvm" ]; then
+    # Note "qemu" is returned on kvm instances launched from a host kernel
+    # kernels >=5.10, due to `hv_passthrough` option.
+    # systemd v. 251 should properly return "kvm" in this scenario
+    # https://github.com/systemd/systemd/issues/22709
+    if [ "${DI_VIRT}" = "kvm" -o "${DI_VIRT}" = "qemu" ]; then
         [ "${DI_DMI_BOARD_NAME}" = "LXD" ] && return ${DS_FOUND}
     fi
     return ${DS_NOT_FOUND}
@@ -844,6 +848,11 @@ dscheck_NoCloud() {
     done
     # shellcheck disable=2086
     if has_fs_with_label $fslabel; then
+        return ${DS_FOUND}
+    fi
+
+    # This is a bit hacky, but a NoCloud false positive isn't the end of the world
+    if check_config "NoCloud" && check_config "user-data" && check_config "meta-data"; then
         return ${DS_FOUND}
     fi
 

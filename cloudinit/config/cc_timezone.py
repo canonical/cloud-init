@@ -5,31 +5,30 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-"""
-Timezone
---------
-**Summary:** set system timezone
-
-Set the system timezone. If any args are passed to the module then the first
-will be used for the timezone. Otherwise, the module will attempt to retrieve
-the timezone from cloud config.
-
-**Internal name:** ``cc_timezone``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    timezone: <timezone>
-"""
+"""Timezone: Set the system timezone"""
 
 from cloudinit import util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_INSTANCE
+MODULE_DESCRIPTION = """\
+Sets the system timezone based on the value provided.
+"""
+
+meta: MetaSchema = {
+    "id": "cc_timezone",
+    "name": "Timezone",
+    "title": "Set the system timezone",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        "timezone: US/Eastern",
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def handle(name, cfg, cloud, log, args):

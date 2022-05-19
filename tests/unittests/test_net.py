@@ -2951,10 +2951,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                     address: 2001:1::1/92
                     routes:
                         - gateway: 2001:67c:1562::1
-                          network: 2001:67c:1
+                          network: "2001:67c::"
                           netmask: "ffff:ffff::"
                         - gateway: 3001:67c:15::1
-                          network: 3001:67c:1
+                          network: "3001:67c::"
                           netmask: "ffff:ffff::"
                           metric: 10000
             """
@@ -2997,10 +2997,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
-                     -   to: 2001:67c:1/32
+                     -   to: 2001:67c::/32
                          via: 2001:67c:1562::1
                      -   metric: 10000
-                         to: 3001:67c:1/32
+                         to: 3001:67c::/32
                          via: 3001:67c:15::1
         """
         ),
@@ -3061,11 +3061,11 @@ iface bond0 inet static
 # control-alias bond0
 iface bond0 inet6 static
     address 2001:1::1/92
-    post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
-    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562::1 || true
-    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:15::1 metric 10000 \
+    post-up route add -A inet6 2001:67c::/32 gw 2001:67c:1562::1 || true
+    pre-down route del -A inet6 2001:67c::/32 gw 2001:67c:1562::1 || true
+    post-up route add -A inet6 3001:67c::/32 gw 3001:67c:15::1 metric 10000 \
 || true
-    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:15::1 metric 10000 \
+    pre-down route del -A inet6 3001:67c::/32 gw 3001:67c:15::1 metric 10000 \
 || true
         """
         ),
@@ -3243,8 +3243,8 @@ iface bond0 inet6 static
                 """\
         # Created by cloud-init on instance boot automatically, do not edit.
         #
-        2001:67c:1/32 via 2001:67c:1562::1  dev bond0
-        3001:67c:1/32 via 3001:67c:15::1 metric 10000 dev bond0
+        2001:67c::/32 via 2001:67c:1562::1  dev bond0
+        3001:67c::/32 via 3001:67c:15::1 metric 10000 dev bond0
             """
             ),
             "route-bond0": textwrap.dedent(
@@ -3344,8 +3344,8 @@ iface bond0 inet6 static
                 may-fail=false
                 addr-gen-mode=stable-privacy
                 address1=2001:1::1/92
-                route1=2001:67c:1/32,2001:67c:1562::1
-                route2=3001:67c:1/32,3001:67c:15::1
+                route1=2001:67c::/32,2001:67c:1562::1
+                route2=3001:67c::/32,3001:67c:15::1
 
                 """
             ),
@@ -5136,6 +5136,108 @@ USERCTL=no
             self._compare_files_to_expected(
                 expected, self._render_and_read(network_config=v2data)
             )
+
+    def test_from_v2_routes(self):
+        """verify routes (including IPv6) get rendered using v2 config.
+
+        LP: #1958506
+        """
+        v2_data = {
+            "version": 2,
+            "ethernets": {
+                "eth0": {
+                    "addresses": [
+                        "10.54.2.19/21",
+                        "2a00:1730:fff9:100::52/128",
+                    ],
+                    "gateway4": "10.54.0.1",
+                    "gateway6": "2a00:1730:fff9:100::1",
+                    "match": {"macaddress": "52:54:00:3f:fc:f7"},
+                    "mtu": 1400,
+                    "nameservers": {
+                        "addresses": [
+                            "10.52.1.1",
+                            "10.52.1.71",
+                            "2001:4860:4860::8888",
+                            "2001:4860:4860::8844",
+                        ]
+                    },
+                    "routes": [
+                        {
+                            "scope": "link",
+                            "to": "10.54.0.1/32",
+                            "via": "0.0.0.0",
+                        },
+                        {
+                            "scope": "link",
+                            "to": "0.0.0.0/0",
+                            "via": "10.54.0.1",
+                        },
+                        {
+                            "scope": "link",
+                            "to": "2a00:1730:fff9:100::1/128",
+                            "via": "::0",
+                        },
+                        {
+                            "scope": "link",
+                            "to": "::0/0",
+                            "via": "2a00:1730:fff9:100::1",
+                        },
+                    ],
+                    "set-name": "eth0",
+                }
+            },
+        }
+
+        expected = {
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init on instance boot automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=eth0
+                DNS1=10.52.1.1
+                DNS2=10.52.1.71
+                DNS3=2001:4860:4860::8888
+                GATEWAY=10.54.0.1
+                HWADDR=52:54:00:3f:fc:f7
+                IPADDR=10.54.2.19
+                IPV6ADDR=2a00:1730:fff9:100::52/128
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_DEFAULTGW=2a00:1730:fff9:100::1
+                IPV6_FORCE_ACCEPT_RA=no
+                MTU=1400
+                NETMASK=255.255.248.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """  # noqa: E501
+            ),
+            "route-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init on instance boot automatically, do not edit.
+                #
+                ADDRESS0=10.54.0.1
+                GATEWAY0=0.0.0.0
+                NETMASK0=255.255.255.255
+                """  # noqa: E501
+            ),
+            "route6-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init on instance boot automatically, do not edit.
+                #
+                2a00:1730:fff9:100::1/128 via ::0  dev eth0
+                ::0/64 via 2a00:1730:fff9:100::1  dev eth0
+                """  # noqa: E501
+            ),
+        }
+
+        found = self._render_and_read(network_config=v2_data)
+        self._compare_files_to_expected(expected, found)
+        self._assert_headers(found)
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")

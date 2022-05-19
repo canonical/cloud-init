@@ -7,13 +7,14 @@ import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import httpretty
 import pytest
 import requests
 import yaml
 
-from cloudinit import distros, helpers, url_helper
+from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
@@ -43,10 +44,20 @@ MOCKPATH = "cloudinit.sources.DataSourceAzure."
 
 
 @pytest.fixture
-def azure_ds(paths):
+def azure_ds(patched_data_dir_path, paths):
     """Provide DataSourceAzure instance with mocks for minimal test case."""
     with mock.patch(MOCKPATH + "_is_platform_viable", return_value=True):
         yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
+
+
+@pytest.fixture
+def mock_wrapping_setup_ephemeral_networking(azure_ds):
+    with mock.patch.object(
+        azure_ds,
+        "_setup_ephemeral_networking",
+        wraps=azure_ds._setup_ephemeral_networking,
+    ) as m:
+        yield m
 
 
 @pytest.fixture
@@ -172,6 +183,12 @@ def mock_readurl():
 
 
 @pytest.fixture
+def mock_report_diagnostic_event():
+    with mock.patch(MOCKPATH + "report_diagnostic_event") as m:
+        yield m
+
+
+@pytest.fixture
 def mock_requests_session_request():
     with mock.patch("requests.Session.request", autospec=True) as m:
         yield m
@@ -240,6 +257,34 @@ def mock_util_write_file():
         autospec=True,
     ) as m:
         yield m
+
+
+@pytest.fixture
+def patched_data_dir_path(tmpdir):
+    data_dir_path = Path(tmpdir) / "data_dir"
+    data_dir_path.mkdir()
+    data_dir = str(data_dir_path)
+
+    with mock.patch(MOCKPATH + "AGENT_SEED_DIR", data_dir):
+        with mock.patch.dict(dsaz.BUILTIN_DS_CONFIG, {"data_dir": data_dir}):
+            yield data_dir_path
+
+
+@pytest.fixture
+def patched_markers_dir_path(tmpdir):
+    patched_markers_dir_path = Path(tmpdir) / "markers"
+    patched_markers_dir_path.mkdir()
+
+    yield patched_markers_dir_path
+
+
+@pytest.fixture
+def patched_reported_ready_marker_path(patched_markers_dir_path):
+    reported_ready_marker = patched_markers_dir_path / "reported_ready"
+    with mock.patch(
+        MOCKPATH + "REPORTED_READY_MARKER_FILE", str(reported_ready_marker)
+    ):
+        yield reported_ready_marker
 
 
 def construct_valid_ovf_env(
@@ -2951,7 +2996,9 @@ class TestDeterminePPSTypeScenarios:
             azure_ds._determine_pps_type(ovf_cfg, imds_md)
             == dsaz.PPSType.UNKNOWN
         )
-        assert is_file.mock_calls == [mock.call(dsaz.REPROVISION_MARKER_FILE)]
+        assert is_file.mock_calls == [
+            mock.call(dsaz.REPORTED_READY_MARKER_FILE)
+        ]
 
 
 @mock.patch("os.path.isfile", return_value=False)
@@ -2987,12 +3034,14 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
-    @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_hot_attached_nics")
+    @mock.patch(
+        MOCKPATH + "DataSourceAzure._wait_for_hot_attached_primary_nic"
+    )
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     def test_detect_nic_attach_reports_ready_and_waits_for_detach(
         self,
         m_detach,
-        m_wait_for_hot_attached_nics,
+        m_wait_for_hot_attached_primary_nic,
         m_report_ready,
         m_writefile,
     ):
@@ -3000,7 +3049,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_all_nics_ready()
         self.assertEqual(1, m_report_ready.call_count)
-        self.assertEqual(1, m_wait_for_hot_attached_nics.call_count)
+        self.assertEqual(1, m_wait_for_hot_attached_primary_nic.call_count)
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
@@ -3026,7 +3075,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_report_ready,
         m_writefile,
     ):
-        """Wait for nic attach if we do not have a fallback interface"""
+        """Wait for nic attach if we do not have a fallback interface.
+        Skip waiting for additional nics after we have found primary"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         lease = {
             "interface": "eth9",
@@ -3057,10 +3107,28 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa._wait_for_all_nics_ready()
 
         self.assertEqual(1, m_detach.call_count)
-        self.assertEqual(2, m_attach.call_count)
+        # only wait for primary nic
+        self.assertEqual(1, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
         self.assertEqual(1, m_dhcpv4.call_count)
         self.assertEqual(1, m_imds.call_count)
+        # no call to bring link up on secondary nic
+        self.assertEqual(1, m_link_up.call_count)
+
+        # reset mock to test again with primary nic being eth1
+        m_detach.reset_mock()
+        m_attach.reset_mock()
+        m_dhcpv4.reset_mock()
+        m_link_up.reset_mock()
+        m_attach.side_effect = ["eth0", "eth1"]
+        m_imds.reset_mock()
+        m_imds.side_effect = [{}, md]
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa._wait_for_all_nics_ready()
+        self.assertEqual(1, m_detach.call_count)
+        self.assertEqual(2, m_attach.call_count)
+        self.assertEqual(2, m_dhcpv4.call_count)
+        self.assertEqual(2, m_imds.call_count)
         self.assertEqual(2, m_link_up.call_count)
 
     @mock.patch("cloudinit.url_helper.time.sleep", autospec=True)
@@ -3126,12 +3194,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa.wait_for_link_up("eth0")
         self.assertEqual(1, m_is_link_up.call_count)
 
-    @mock.patch(MOCKPATH + "net.is_up", autospec=True)
-    @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
+    @mock.patch(MOCKPATH + "sleep")
     def test_wait_for_link_up_checks_link_after_sleep(
-        self, m_try_set_link_up, m_read_sys_net, m_writefile, m_is_up
+        self, m_sleep, m_try_set_link_up
     ):
         """Waiting for link to be up should return immediately if the link is
         already up."""
@@ -3141,50 +3207,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         m_try_set_link_up.return_value = False
 
-        callcount = 0
-
-        def is_up_mock(key):
-            nonlocal callcount
-            if callcount == 0:
-                callcount += 1
-                return False
-            return True
-
-        m_is_up.side_effect = is_up_mock
-
-        with mock.patch("cloudinit.sources.DataSourceAzure.sleep"):
-            dsa.wait_for_link_up("eth0")
-        self.assertEqual(2, m_try_set_link_up.call_count)
-        self.assertEqual(2, m_is_up.call_count)
-
-    @mock.patch(MOCKPATH + "util.write_file")
-    @mock.patch("cloudinit.net.read_sys_net", return_value="device-id")
-    @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
-    def test_wait_for_link_up_writes_to_device_file(
-        self, m_is_link_up, m_read_sys_net, m_writefile
-    ):
-        """Waiting for link to be up should return immediately if the link is
-        already up."""
-
-        distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, self.paths)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-
-        callcount = 0
-
-        def linkup(key):
-            nonlocal callcount
-            if callcount == 0:
-                callcount += 1
-                return False
-            return True
-
-        m_is_link_up.side_effect = linkup
-
         dsa.wait_for_link_up("eth0")
-        self.assertEqual(2, m_is_link_up.call_count)
-        self.assertEqual(1, m_read_sys_net.call_count)
-        self.assertEqual(2, m_writefile.call_count)
+
+        self.assertEqual(100, m_try_set_link_up.call_count)
+        self.assertEqual(99 * [mock.call(0.1)], m_sleep.mock_calls)
 
     @mock.patch(
         "cloudinit.sources.helpers.netlink.create_bound_netlink_socket"
@@ -3757,6 +3783,42 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
+    def test_retry_process_error(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            subp.ProcessExecutionError(
+                cmd=["failed", "cmd"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock_ephemeral_dhcp_v4.mock_calls == [
+            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call().obtain_lease(),
+            mock.call().obtain_lease(),
+        ]
+        assert mock_sleep.mock_calls == [mock.call(1)]
+        assert mock_report_diagnostic_event.mock_calls == [
+            mock.call(
+                "Command failed: cmd=['failed', 'cmd'] "
+                "stderr='test_stderr' stdout='test_stdout' exit_code=4",
+                logger_func=dsaz.LOG.error,
+            )
+        ]
+
     @pytest.mark.parametrize(
         "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
     )
@@ -4026,14 +4088,14 @@ class TestProvisioning:
         mock_get_interfaces,
         mock_get_interface_mac,
         mock_netlink,
-        mock_os_path_isfile,
         mock_readurl,
         mock_subp_subp,
         mock_util_ensure_dir,
         mock_util_find_devs_with,
         mock_util_load_file,
         mock_util_mount_cb,
-        mock_util_write_file,
+        mock_wrapping_setup_ephemeral_networking,
+        patched_reported_ready_marker_path,
     ):
         self.azure_ds = azure_ds
         self.mock_azure_get_metadata_from_fabric = (
@@ -4052,14 +4114,18 @@ class TestProvisioning:
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
         self.mock_netlink = mock_netlink
-        self.mock_os_path_isfile = mock_os_path_isfile
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
         self.mock_util_ensure_dir = mock_util_ensure_dir
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
         self.mock_util_mount_cb = mock_util_mount_cb
-        self.mock_util_write_file = mock_util_write_file
+        self.mock_wrapping_setup_ephemeral_networking = (
+            mock_wrapping_setup_ephemeral_networking
+        )
+        self.patched_reported_ready_marker_path = (
+            patched_reported_ready_marker_path
+        )
 
         self.imds_md = {
             "extended": {"compute": {"ppsType": "None"}},
@@ -4089,19 +4155,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [False, False, False]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4116,6 +4171,9 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb)
         ]
@@ -4157,20 +4215,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [False, False, False, False]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4203,6 +4249,10 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup twice.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            mock.call(timeout_minutes=5),
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call(None, dsaz.dhcp_log_cb),
@@ -4262,25 +4312,8 @@ class TestProvisioning:
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
-        self.mock_os_path_isfile.side_effect = [
-            False,  # /var/lib/cloud/data/poll_imds
-            False,  # seed/azure/ovf-env.xml
-            False,  # /var/lib/cloud/data/poll_imds
-            True,  # /var/lib/cloud/data/reported_ready
-        ]
 
         self.azure_ds._get_data()
-
-        assert self.mock_os_path_isfile.mock_calls == [
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call(
-                os.path.join(
-                    self.azure_ds.paths.cloud_dir, "seed/azure/ovf-env.xml"
-                )
-            ),
-            mock.call("/var/lib/cloud/data/poll_imds"),
-            mock.call("/var/lib/cloud/data/reported_ready"),
-        ]
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4322,6 +4355,10 @@ class TestProvisioning:
         ]
 
         # Verify DHCP is setup twice.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            mock.call(iface="ethAttached1", timeout_minutes=20),
+        ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(None, dsaz.dhcp_log_cb),
             mock.call("ethAttached1", dsaz.dhcp_log_cb),
@@ -4360,6 +4397,76 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket().__bool__(),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
+    def test_recovery_pps(self, pps_type):
+        self.patched_reported_ready_marker_path.write_text("")
+        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+        ovf_data = {"HostName": "myhost", "UserName": "myuser"}
+
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(
+                contents=construct_valid_ovf_env(data=ovf_data).encode()
+            ),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                timeout=2,
+                headers={"Metadata": "true"},
+                exception_cb=mock.ANY,
+                infinite=True,
+                log_req_resp=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+        ]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(None, dsaz.dhcp_log_cb),
+        ]
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # Verify reports ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            ),
+        ]
+
+        # Verify no netlink operations for recovering PPS.
+        assert self.mock_netlink.mock_calls == []
 
 
 class TestValidateIMDSMetadata:

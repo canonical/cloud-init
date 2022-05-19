@@ -31,11 +31,12 @@ Any mounts that do not appear to either an attached block device or network
 resource will be skipped with a log like "Ignoring nonexistent mount ...".
 
 Cloud-init will attempt to add the following mount directives if available and
-unconfigured in `/etc/fstab`:
+unconfigured in `/etc/fstab`::
+
     mounts:
-    - ["ephemeral0", "/mnt", "auto",
-       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
-    - ["swap", "none", "swap", "sw", "0", "0"]
+        - ["ephemeral0", "/mnt", "auto",\
+"defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+        - ["swap", "none", "swap", "sw", "0", "0"]
 
 In order to remove a previously listed mount, an entry can be added to
 the `mounts` list containing ``fs_spec`` for the device to be removed but no
@@ -46,8 +47,8 @@ for the values in a ``mounts`` entry that are not specified, aside from the
 ``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
 values. It defaults to::
 
-    mount_default_fields: [none, none, "auto",
-        "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+    mount_default_fields: [none, none, "auto",\
+"defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
 
 Non-systemd init systems will vary in ``mount_default_fields``.
 
@@ -72,7 +73,7 @@ example = dedent(
         filename: /my/swapfile
         size: auto
         maxsize: 10485760
-   """
+    """
 )
 
 distros = ["all"]

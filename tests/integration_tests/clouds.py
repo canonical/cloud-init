@@ -207,9 +207,18 @@ class Ec2Cloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs, **kwargs):
         """Use a dual-stack VPC for cloud-init integration testing."""
-        launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
-            name="ec2-cloud-init-integration"
-        )
+        if "vpc" not in launch_kwargs:
+            launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
+                name="ec2-cloud-init-integration"
+            )
+        # Enable IPv6 metadata at http://[fd00:ec2::254]
+        if "Ipv6AddressCount" not in launch_kwargs:
+            launch_kwargs["Ipv6AddressCount"] = 1
+        if "MetadataOptions" not in launch_kwargs:
+            launch_kwargs["MetadataOptions"] = {}
+        if "HttpProtocolIpv6" not in launch_kwargs["MetadataOptions"]:
+            launch_kwargs["MetadataOptions"] = {"HttpProtocolIpv6": "enabled"}
+
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 

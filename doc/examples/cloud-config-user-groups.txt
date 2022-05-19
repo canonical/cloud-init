@@ -3,7 +3,7 @@
 # The following example adds the ubuntu group with members 'root' and 'sys'
 # and the empty group cloud-users.
 groups:
-  - ubuntu: [root,sys]
+  - admingroup: [root,sys]
   - cloud-users
 
 # Add users to the system. Users are added after groups are added.
@@ -34,17 +34,16 @@ users:
       - gh:TheRealFalcon
     lock_passwd: true
     ssh_authorized_keys:
-      - <ssh pub key 1>
-      - <ssh pub key 2>
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB csmith@fringe
   - name: cloudy
     gecos: Magic Cloud App Daemon User
     inactive: '5'
     system: true
   - name: fizzbuzz
-    sudo: False
+    sudo: false
+    shell: /bin/bash
     ssh_authorized_keys:
-      - <ssh pub key 1>
-      - <ssh pub key 2>
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB csmith@fringe
   - snapuser: joe@joeuser.io
   - name: nosshlogins
     ssh_redirect_user: true
@@ -88,6 +87,8 @@ users:
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
 #   ssh_import_id: Optional. Import SSH ids
 #   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
+#                        An error will be raised if no_create_home or system is
+#                        also set.
 #   ssh_redirect_user: Optional. [bool] Set true to block ssh logins for cloud
 #       ssh public keys and emit a message redirecting logins to
 #       use <default_username> instead. This option only disables cloud

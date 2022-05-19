@@ -217,6 +217,3 @@ class TestNetworkStateHelperFunctions(CiTestCase):
         expected = 48
         prefix_value = network_state.ipv6_mask_to_net_prefix(netmask_value)
         assert prefix_value == expected
-
-
-# vi: ts=4 expandtab

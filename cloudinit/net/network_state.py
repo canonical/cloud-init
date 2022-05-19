@@ -13,7 +13,10 @@ from cloudinit.net import (
     get_interfaces_by_mac,
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
-    is_ipv6_addr,
+    is_ip_network,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
     net_prefix_to_ipv4_mask,
 )
 
@@ -361,7 +364,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         # automatically set 'use_ipv6' if any addresses are ipv6
         if not self.use_ipv6:
             for subnet in subnets:
-                if subnet.get("type").endswith("6") or is_ipv6_addr(
+                if subnet.get("type").endswith("6") or is_ipv6_address(
                     subnet.get("address")
                 ):
                     self.use_ipv6 = True
@@ -944,27 +947,35 @@ def _normalize_net_keys(network, address_keys=()):
         LOG.error(message)
         raise ValueError(message)
 
-    addr = net.get(addr_key)
-    ipv6 = is_ipv6_addr(addr)
+    addr = str(net.get(addr_key))
+    if not is_ip_network(addr):
+        LOG.error("Address %s is not a valid ip network", addr)
+        raise ValueError(f"Address {addr} is not a valid ip address")
+
+    ipv6 = is_ipv6_network(addr)
+    ipv4 = is_ipv4_network(addr)
+
     netmask = net.get("netmask")
     if "/" in addr:
         addr_part, _, maybe_prefix = addr.partition("/")
         net[addr_key] = addr_part
-        try:
-            prefix = int(maybe_prefix)
-        except ValueError:
-            if ipv6:
-                # this supports input of ffff:ffff:ffff::
-                prefix = ipv6_mask_to_net_prefix(maybe_prefix)
-            else:
-                # this supports input of 255.255.255.0
-                prefix = ipv4_mask_to_net_prefix(maybe_prefix)
-    elif netmask and not ipv6:
+        if ipv6:
+            # this supports input of ffff:ffff:ffff::
+            prefix = ipv6_mask_to_net_prefix(maybe_prefix)
+        elif ipv4:
+            # this supports input of 255.255.255.0
+            prefix = ipv4_mask_to_net_prefix(maybe_prefix)
+        else:
+            # In theory this never happens, is_ip_network() should catch all
+            # invalid networks
+            LOG.error("Address %s is not a valid ip network", addr)
+            raise ValueError(f"Address {addr} is not a valid ip address")
+    elif "prefix" in net:
+        prefix = int(net["prefix"])
+    elif netmask and ipv4:
         prefix = ipv4_mask_to_net_prefix(netmask)
     elif netmask and ipv6:
         prefix = ipv6_mask_to_net_prefix(netmask)
-    elif "prefix" in net:
-        prefix = int(net["prefix"])
     else:
         prefix = 64 if ipv6 else 24
 
@@ -981,7 +992,7 @@ def _normalize_net_keys(network, address_keys=()):
         # 'netmask' for ipv6.  We need a 'net_prefix_to_ipv6_mask' for that.
         if "netmask" in net:
             del net["netmask"]
-    else:
+    elif ipv4:
         net["netmask"] = net_prefix_to_ipv4_mask(net["prefix"])
 
     return net
@@ -1048,7 +1059,8 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
     if not state:
         raise RuntimeError(
             "No valid network_state object created from network config. "
-            "Did you specify the correct version?"
+            "Did you specify the correct version? Network config:\n"
+            f"{net_config}"
         )
 
     return state

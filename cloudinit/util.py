@@ -32,7 +32,8 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from errno import ENOENT
+from collections import deque
+from errno import EACCES, ENOENT
 from functools import lru_cache
 from typing import List
 from urllib import parse
@@ -74,10 +75,10 @@ def get_dpkg_architecture(target=None):
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out, _ = subp.subp(
+    out = subp.subp(
         ["dpkg", "--print-architecture"], capture=True, target=target
     )
-    return out.strip()
+    return out.stdout.strip()
 
 
 @lru_cache()
@@ -91,10 +92,8 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out, _ = subp.subp(
-            ["lsb_release", "--all"], capture=True, target=target
-        )
-        for line in out.splitlines():
+        out = subp.subp(["lsb_release", "--all"], capture=True, target=target)
+        for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
                 data[fmap[fname]] = val.strip()
@@ -381,6 +380,12 @@ def find_modules(root_dir) -> dict:
     return entries
 
 
+def write_to_console(conpath, text):
+    with open(conpath, "w") as wfh:
+        wfh.write(text)
+        wfh.flush()
+
+
 def multi_log(
     text,
     console=True,
@@ -393,16 +398,27 @@ def multi_log(
         sys.stderr.write(text)
     if console:
         conpath = "/dev/console"
+        writing_to_console_worked = False
         if os.path.exists(conpath):
-            with open(conpath, "w") as wfh:
-                wfh.write(text)
-                wfh.flush()
-        elif fallback_to_stdout:
-            # A container may lack /dev/console (arguably a container bug).  If
-            # it does not exist, then write output to stdout.  this will result
-            # in duplicate stderr and stdout messages if stderr was True.
+            try:
+                write_to_console(conpath, text)
+                writing_to_console_worked = True
+            except OSError:
+                console_error = "Failed to write to /dev/console"
+                sys.stdout.write(f"{console_error}\n")
+                if log:
+                    log.log(logging.WARNING, console_error)
+
+        if fallback_to_stdout and not writing_to_console_worked:
+            # A container may lack /dev/console (arguably a container bug).
+            # Additionally, /dev/console may not be writable to on a VM (again
+            # likely a VM bug or virtualization bug).
             #
-            # even though upstart or systemd might have set up output to go to
+            # If either of these is the case, then write output to stdout.
+            # This will result in duplicate stderr and stdout messages if
+            # stderr was True.
+            #
+            # even though systemd might have set up output to go to
             # /dev/console, the user may have configured elsewhere via
             # cloud-config 'output'.  If there is /dev/console, messages will
             # still get there.
@@ -806,10 +822,10 @@ def make_url(
     return parse.urlunparse(pieces)
 
 
-def mergemanydict(srcs, reverse=False):
+def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
-    merged_cfg = {}
+    merged_cfg: dict = {}
     for cfg in srcs:
         if cfg:
             # Figure out which mergers to apply...
@@ -983,6 +999,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
 
 
 def read_conf_d(confd):
+    """Read configuration directory."""
     # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
 
@@ -995,13 +1012,27 @@ def read_conf_d(confd):
     # Load them all so that they can be merged
     cfgs = []
     for fn in confs:
-        cfgs.append(read_conf(os.path.join(confd, fn)))
+        try:
+            cfgs.append(read_conf(os.path.join(confd, fn)))
+        except OSError as e:
+            if e.errno == EACCES:
+                LOG.warning(
+                    "REDACTED config part %s/%s for non-root user", confd, fn
+                )
 
     return mergemanydict(cfgs)
 
 
 def read_conf_with_confd(cfgfile):
-    cfg = read_conf(cfgfile)
+    cfgs = deque()
+    cfg: dict = {}
+    try:
+        cfg = read_conf(cfgfile)
+    except OSError as e:
+        if e.errno == EACCES:
+            LOG.warning("REDACTED config part %s for non-root user", cfgfile)
+    else:
+        cfgs.append(cfg)
 
     confd = False
     if "conf_d" in cfg:
@@ -1017,12 +1048,12 @@ def read_conf_with_confd(cfgfile):
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
-    if not confd or not os.path.isdir(confd):
-        return cfg
+    if confd and os.path.isdir(confd):
+        # Conf.d settings override input configuration
+        confd_cfg = read_conf_d(confd)
+        cfgs.appendleft(confd_cfg)
 
-    # Conf.d settings override input configuration
-    confd_cfg = read_conf_d(confd)
-    return mergemanydict([confd_cfg, cfg])
+    return mergemanydict(cfgs)
 
 
 def read_conf_from_cmdline(cmdline=None):
@@ -1276,8 +1307,8 @@ def find_devs_with_netbsd(
             label = criteria.lstrip("LABEL=")
         if criteria.startswith("TYPE="):
             _type = criteria.lstrip("TYPE=")
-    out, _err = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
-    for dev in out.split():
+    out = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
+    for dev in out.stdout.split():
         if label or _type:
             mscdlabel_out, _ = subp.subp(["mscdlabel", dev], rcs=[0, 1])
         if label and not ('label "%s"' % label) in mscdlabel_out:
@@ -1293,9 +1324,9 @@ def find_devs_with_netbsd(
 def find_devs_with_openbsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
-    out, _err = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
+    out = subp.subp(["sysctl", "-n", "hw.disknames"], rcs=[0])
     devlist = []
-    for entry in out.rstrip().split(","):
+    for entry in out.stdout.rstrip().split(","):
         if not entry.endswith(":"):
             # ffs partition with a serial, not a config-drive
             continue
@@ -1310,10 +1341,10 @@ def find_devs_with_openbsd(
 def find_devs_with_dragonflybsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
-    out, _err = subp.subp(["sysctl", "-n", "kern.disks"], rcs=[0])
+    out = subp.subp(["sysctl", "-n", "kern.disks"], rcs=[0])
     devlist = [
         i
-        for i in sorted(out.split(), reverse=True)
+        for i in sorted(out.stdout.split(), reverse=True)
         if not i.startswith("md") and not i.startswith("vn")
     ]
 
@@ -1417,9 +1448,9 @@ def blkid(devs=None, disable_cache=False):
     # we have to decode with 'replace' as shelx.split (called by
     # load_shell_content) can't take bytes.  So this is potentially
     # lossy of non-utf-8 chars in blkid output.
-    out, _ = subp.subp(cmd, capture=True, decode="replace")
+    out = subp.subp(cmd, capture=True, decode="replace")
     ret = {}
-    for line in out.splitlines():
+    for line in out.stdout.splitlines():
         dev, _, data = line.partition(":")
         ret[dev] = load_shell_content(data)
         ret[dev]["DEVNAME"] = dev
@@ -1754,8 +1785,8 @@ def mounts():
             mount_locs = load_file("/proc/mounts").splitlines()
             method = "proc"
         else:
-            (mountoutput, _err) = subp.subp("mount")
-            mount_locs = mountoutput.splitlines()
+            out = subp.subp("mount")
+            mount_locs = out.stdout.splitlines()
             method = "mount"
         mountre = r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$"
         for mpline in mount_locs:
@@ -1887,7 +1918,12 @@ def is_link(path):
 def sym_link(source, link, force=False):
     LOG.debug("Creating symbolic link from %r => %r", link, source)
     if force and os.path.lexists(link):
-        del_file(link)
+        # Provide atomic update of symlink to avoid races with status --wait
+        # LP: #1962150
+        tmp_link = os.path.join(os.path.dirname(link), "tmp" + rand_str(8))
+        os.symlink(source, tmp_link)
+        os.replace(tmp_link, link)
+        return
     os.symlink(source, link)
 
 
@@ -2061,7 +2097,7 @@ def write_file(
     omode="wb",
     preserve_mode=False,
     *,
-    ensure_dir_exists=True
+    ensure_dir_exists=True,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2200,10 +2236,6 @@ def _is_container_systemd():
     return _cmd_exits_zero(["systemd-detect-virt", "--quiet", "--container"])
 
 
-def _is_container_upstart():
-    return _cmd_exits_zero(["running-in-container"])
-
-
 def _is_container_old_lxc():
     return _cmd_exits_zero(["lxc-is-container"])
 
@@ -2226,7 +2258,6 @@ def is_container():
     checks = (
         _is_container_systemd,
         _is_container_freebsd,
-        _is_container_upstart,
         _is_container_old_lxc,
     )
 
@@ -2731,10 +2762,10 @@ def message_from_string(string):
 
 
 def get_installed_packages(target=None):
-    (out, _) = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
+    out = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
 
     pkgs_inst = set()
-    for line in out.splitlines():
+    for line in out.stdout.splitlines():
         try:
             (state, pkg, _) = line.split(None, 2)
         except ValueError:

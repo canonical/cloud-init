@@ -1,4 +1,5 @@
 from collections import namedtuple
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
@@ -42,19 +43,39 @@ NETPLAN_CALL_LIST = [
 @pytest.fixture
 def available_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
-    with patch("cloudinit.subp.which", return_value=True) as m_which:
-        with patch("os.path.isfile", return_value=True) as m_file:
-            with patch("os.path.exists", return_value=True) as m_exists:
-                yield mocks(m_which, m_file, m_exists)
+    with ExitStack() as mocks_context:
+        mocks_context.enter_context(
+            patch("cloudinit.distros.uses_systemd", return_value=False)
+        )
+        m_which = mocks_context.enter_context(
+            patch("cloudinit.subp.which", return_value=True)
+        )
+        m_file = mocks_context.enter_context(
+            patch("os.path.isfile", return_value=True)
+        )
+        m_exists = mocks_context.enter_context(
+            patch("os.path.exists", return_value=True)
+        )
+        yield mocks(m_which, m_file, m_exists)
 
 
 @pytest.fixture
 def unavailable_mocks():
     mocks = namedtuple("Mocks", "m_which, m_file, m_exists")
-    with patch("cloudinit.subp.which", return_value=False) as m_which:
-        with patch("os.path.isfile", return_value=False) as m_file:
-            with patch("os.path.exists", return_value=False) as m_exists:
-                yield mocks(m_which, m_file, m_exists)
+    with ExitStack() as mocks_context:
+        mocks_context.enter_context(
+            patch("cloudinit.distros.uses_systemd", return_value=False)
+        )
+        m_which = mocks_context.enter_context(
+            patch("cloudinit.subp.which", return_value=False)
+        )
+        m_file = mocks_context.enter_context(
+            patch("os.path.isfile", return_value=False)
+        )
+        m_exists = mocks_context.enter_context(
+            patch("os.path.exists", return_value=False)
+        )
+        yield mocks(m_which, m_file, m_exists)
 
 
 class TestSearchAndSelect:
