@@ -9,7 +9,7 @@ Forwarded: not-needed
 Last-Update: 2020-06-01
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -457,12 +457,12 @@ class DataSourceEc2(sources.DataSource):
+@@ -463,12 +463,12 @@ class DataSourceEc2(sources.DataSource):
          if isinstance(net_md, dict):
              # SRU_BLOCKER: xenial, bionic and eoan should default
              # apply_full_imds_network_config to False to retain original
@@ -26,7 +26,7 @@ Last-Update: 2020-06-01
  
 --- a/tests/unittests/sources/test_ec2.py
 +++ b/tests/unittests/sources/test_ec2.py
-@@ -451,7 +451,14 @@ class TestEc2(test_helpers.HttprettyTest
+@@ -476,7 +476,14 @@ class TestEc2(test_helpers.HttprettyTest
          """
          ds = self._setup_ds(
              platform_data=self.valid_platform_data,
