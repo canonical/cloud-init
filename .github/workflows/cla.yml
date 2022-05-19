@@ -18,8 +18,8 @@ jobs:
           In order for us to merge this pull request, you need
           to have signed the Contributor License Agreement (CLA).
           Please sign the CLA by following our
-          hacking guide at:
-            https://cloudinit.readthedocs.io/en/latest/topics/hacking.html
+          contribution guide at:
+            https://cloudinit.readthedocs.io/en/latest/topics/contributing.html
 
           Thanks,
           Your friendly cloud-init upstream

@@ -1,7 +1,12 @@
-# cloud-init target is enabled by cloud-init-generator
+# cloud-init.target is enabled by cloud-init-generator
 # To disable it you can either:
 #  a.) boot with kernel cmdline of 'cloud-init=disabled'
 #  b.) touch a file /etc/cloud/cloud-init.disabled
+#
+# cloud-init.target is a  synchronization point when all cloud-init's initial
+# system configuration tasks have completed. To order a service after cloud-init
+# is done, add the directives as applicable:
+#  After=cloud-init.target and Wants=cloud-init.target
 [Unit]
 Description=Cloud-init target
 After=multi-user.target

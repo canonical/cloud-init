@@ -15,7 +15,7 @@ from tests.integration_tests.util import verify_clean_log
 def test_datasource_rbx_no_stacktrace(client: IntegrationInstance):
     client.write_to_file(
         "/etc/cloud/cloud.cfg.d/90_dpkg.cfg",
-        "datasource_list: [ RbxCloud, NoCloud ]\n",
+        "datasource_list: [ RbxCloud, NoCloud, LXD ]\n",
     )
     client.write_to_file(
         "/etc/cloud/ds-identify.cfg",

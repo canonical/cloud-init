@@ -1,6 +1,8 @@
 import os
 import sys
 
+import sphinx_rtd_theme
+
 from cloudinit import version
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -18,17 +20,19 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "2020, Canonical Ltd."
+copyright = "2022, Canonical Ltd."
 
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-# needs_sphinx = '1.0'
+needs_sphinx = "4.0"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "m2r",
+    "m2r2",
+    "sphinx_rtd_theme",
+    "sphinx_panels",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
@@ -66,3 +70,7 @@ html_theme = "sphinx_rtd_theme"
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "static/logo.png"
+
+# Make sure the target is unique
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 2

@@ -218,23 +218,26 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        if pkgs is None:
-            pkgs = []
-
         cmd = list("emerge")
         # Redirect output
         cmd.append("--quiet")
 
-        if args and isinstance(args, str):
-            cmd.append(args)
-        elif args and isinstance(args, list):
-            cmd.extend(args)
+        if command == "upgrade":
+            cmd.extend(["--update", "world"])
+        else:
+            if pkgs is None:
+                pkgs = []
 
-        if command:
-            cmd.append(command)
+            if args and isinstance(args, str):
+                cmd.append(args)
+            elif args and isinstance(args, list):
+                cmd.extend(args)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
-        cmd.extend(pkglist)
+            if command:
+                cmd.append(command)
+
+            pkglist = util.expand_package_list("%s-%s", pkgs)
+            cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
@@ -243,7 +246,7 @@ class Distro(distros.Distro):
         self._runner.run(
             "update-sources",
             self.package_command,
-            ["-u", "world"],
+            ["--sync"],
             freq=PER_INSTANCE,
         )
 

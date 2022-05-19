@@ -7,9 +7,9 @@ import re
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.net import subnet_is_ipv6
 
 from . import ParserError, renderer
-from .network_state import subnet_is_ipv6
 
 LOG = logging.getLogger(__name__)
 

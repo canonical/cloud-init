@@ -3,54 +3,22 @@
 import shutil
 import tempfile
 
+import pytest
+
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.config.cc_write_files_deferred import handle
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
-    CiTestCase,
     FilesystemMockingTestCase,
-    mock,
     skipUnlessJsonSchema,
 )
 
-from .test_cc_write_files import VALID_SCHEMA
-
 LOG = logging.getLogger(__name__)
-
-
-@skipUnlessJsonSchema()
-@mock.patch("cloudinit.config.cc_write_files_deferred.write_files")
-class TestWriteFilesDeferredSchema(CiTestCase):
-
-    with_logs = True
-
-    def test_schema_validation_warns_invalid_value(
-        self, m_write_files_deferred
-    ):
-        """If 'defer' is defined, it must be of type 'bool'."""
-
-        valid_config = {
-            "write_files": [
-                {**VALID_SCHEMA.get("write_files")[0], "defer": True}
-            ]
-        }
-
-        invalid_config = {
-            "write_files": [
-                {**VALID_SCHEMA.get("write_files")[0], "defer": str("no")}
-            ]
-        }
-
-        cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_files_deferred", valid_config, cc, LOG, [])
-        self.assertNotIn(
-            "Invalid cloud-config provided:", self.logs.getvalue()
-        )
-        handle("cc_write_files_deferred", invalid_config, cc, LOG, [])
-        self.assertIn("Invalid cloud-config provided:", self.logs.getvalue())
-        self.assertIn(
-            "defer: 'no' is not of type 'boolean'", self.logs.getvalue()
-        )
 
 
 class TestWriteFilesDeferred(FilesystemMockingTestCase):
@@ -80,6 +48,23 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
         self.assertEqual(util.load_file("/tmp/deferred.file"), expected)
         with self.assertRaises(FileNotFoundError):
             util.load_file("/tmp/not_deferred.file")
+
+
+class TestWriteFilesDeferredSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Allow undocumented keys client keys without error
+            (
+                {"write_files": [{"defer": "no"}]},
+                "write_files.0.defer: 'no' is not of type 'boolean'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

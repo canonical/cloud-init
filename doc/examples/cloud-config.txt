@@ -3,19 +3,15 @@
 # (ie run apt-get update)
 #
 # Default: true
-# Aliases: apt_update
 package_update: false
 
 # Upgrade the instance on first boot
-# (ie run apt-get upgrade)
 #
 # Default: false
-# Aliases: apt_upgrade
 package_upgrade: true
 
 # Reboot after package install/update if necessary
 # Default: false
-# Aliases: apt_reboot_if_required
 package_reboot_if_required: true
 
 # For 'apt' specific config, see cloud-config-apt.txt
@@ -165,7 +161,7 @@ bootcmd:
 # where 'frequency' is one of:
 #   once-per-instance
 #   always
-# a python file in the CloudConfig/ module directory named 
+# a python file in the CloudConfig/ module directory named
 # cc_<name>.py
 # example:
 cloud_config_modules:
@@ -257,21 +253,6 @@ locale: en_US.UTF-8
 # render template default-locale.tmpl to locale_configfile
 locale_configfile: /etc/default/locale
 
-# add entries to rsyslog configuration
-# The first occurrence of a given filename will truncate. 
-# subsequent entries will append.
-# if value is a scalar, its content is assumed to be 'content', and the
-# default filename is used.
-# if filename is not provided, it will default to 'rsylog_filename'
-# if filename does not start with a '/', it will be put in 'rsyslog_dir'
-# rsyslog_dir default: /etc/rsyslog.d
-# rsyslog_filename default: 20-cloud-config.conf
-rsyslog:
- - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
- - content: "*.*   @@192.0.2.1:10514"
- - filename: 01-examplecom.conf
-   content: "*.*   @@syslogd.example.com"
-
 # resize_rootfs should the / filesystem be resized on first boot
 # this allows you to launch an instance with a larger disk / partition
 # and have the instance automatically grow / to accomoddate it
@@ -321,7 +302,7 @@ resize_rootfs: True
 #
 # == /etc/hosts management ==
 #
-# The cloud-config variable that covers management of /etc/hosts is 
+# The cloud-config variable that covers management of /etc/hosts is
 # 'manage_etc_hosts'
 #
 # By default, its value is 'false' (boolean False)
@@ -330,29 +311,29 @@ resize_rootfs: True
 #      default: false
 #
 #    false:
-#      cloud-init will not modify /etc/hosts at all.  
+#      cloud-init will not modify /etc/hosts at all.
 #      * Whatever is present at instance boot time will be present after boot.
 #      * User changes will not be overwritten
 #
-#    true or 'template':
-#      on every boot, /etc/hosts will be re-written from 
+#    true:
+#      on every boot, /etc/hosts will be re-written from
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
 #      with the appropriate values.
-#      To make modifications persistent across a reboot, you must make 
+#      To make modifications persistent across a reboot, you must make
 #      modificatoins to /etc/cloud/templates/hosts.tmpl
 #
 #    localhost:
 #      This option ensures that an entry is present for fqdn as described in
-#      section 5.1.2 of the debian manual 
+#      section 5.1.2 of the debian manual
 #      http://www.debian.org/doc/manuals/debian-reference/ch05.en.html
 #
-#      cloud-init will generally own the 127.0.1.1 entry, and will update 
+#      cloud-init will generally own the 127.0.1.1 entry, and will update
 #      it to the hostname and fqdn on every boot.  All other entries will
 #      be left as is.  'ping `hostname`' will ping 127.0.1.1
 #
 #      If you want a fqdn entry with aliases other than 'hostname' to resolve
-#      to a localhost interface, you'll need to use something other than 
+#      to a localhost interface, you'll need to use something other than
 #      127.0.1.1.  For example:
 #        127.0.1.2 myhost.fqdn.example.com myhost whatup.example.com
 
@@ -366,7 +347,7 @@ final_message: "The system is finally up, after $UPTIME seconds"
 
 # configure where output will go
 # 'output' entry is a dict with 'init', 'config', 'final' or 'all'
-# entries.  Each one defines where 
+# entries.  Each one defines where
 #  cloud-init, cloud-config, cloud-config-final or all output will go
 # each entry in the dict can be a string, list or dict.
 #  if it is a string, it refers to stdout and stderr
@@ -401,7 +382,7 @@ phone_home:
 timezone: US/Eastern
 
 # def_log_file and syslog_fix_perms work together
-# if 
+# if
 # - logging is set to go to a log file 'L' both with and without syslog
 # - and 'L' does not exist
 # - and syslog is configured to write to 'L'
@@ -473,17 +454,6 @@ ssh_pwauth: True
 #  will be booted as a new instance.
 # default is False
 manual_cache_clean: False
-
-# When cloud-init is finished running including having run 
-# cloud_init_modules, then it will run this command.  The default
-# is to emit an upstart signal as shown below.  If the value is a
-# list, it will be passed to Popen.  If it is a string, it will be
-# invoked through 'sh -c'.
-# 
-# default value:
-# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
-# example:
-# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh

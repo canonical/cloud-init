@@ -2,10 +2,14 @@
 
 import copy
 import os
+import re
+
+import pytest
 
 from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.config.schema import (
     SchemaValidationError,
+    get_schema,
     validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
@@ -46,17 +50,6 @@ class TestUbuntuDrivers(CiTestCase):
     install_gpgpu = ["ubuntu-drivers", "install", "--gpgpu", "nvidia"]
 
     with_logs = True
-
-    @skipUnlessJsonSchema()
-    def test_schema_requires_boolean_for_license_accepted(self):
-        with self.assertRaisesRegex(
-            SchemaValidationError, ".*license-accepted.*TRUE.*boolean"
-        ):
-            validate_cloudconfig_schema(
-                {"drivers": {"nvidia": {"license-accepted": "TRUE"}}},
-                schema=drivers.schema,
-                strict=True,
-            )
 
     @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "subp.subp", return_value=("", ""))
@@ -288,6 +281,41 @@ class TestUbuntuDriversWithVersion(TestUbuntuDrivers):
                 }
             }
         )
+
+
+class TestUbuntuAdvantageSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Strict boolean license-accepted
+            (
+                {"drivers": {"nvidia": {"license-accepted": "TRUE"}}},
+                "drivers.nvidia.license-accepted: 'TRUE' is not of type"
+                " 'boolean'",
+            ),
+            # Additional properties disallowed
+            (
+                {"drivers": {"bogus": {"license-accepted": True}}},
+                re.escape(
+                    "drivers: Additional properties are not allowed ('bogus'"
+                ),
+            ),
+            (
+                {"drivers": {"nvidia": {"bogus": True}}},
+                re.escape(
+                    "drivers.nvidia: Additional properties are not allowed"
+                    " ('bogus' "
+                ),
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

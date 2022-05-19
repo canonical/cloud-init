@@ -4,35 +4,37 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Migrator
---------
-**Summary:** migrate old versions of cloud-init data to new
-
-This module handles moving old versions of cloud-init data to newer ones.
-Currently, it only handles renaming cloud-init's per-frequency semaphore files
-to canonicalized name and renaming legacy semaphore names to newer ones. This
-module is enabled by default, but can be disabled by specifying ``migrate:
-false`` in config.
-
-**Internal name:** ``cc_migrator``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    migrate: <true/false>
-"""
+"""Migrator: Migrate old versions of cloud-init data to new"""
 
 import os
 import shutil
 
 from cloudinit import helpers, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
+MODULE_DESCRIPTION = """\
+This module handles moving old versions of cloud-init data to newer ones.
+Currently, it only handles renaming cloud-init's per-frequency semaphore files
+to canonicalized name and renaming legacy semaphore names to newer ones. This
+module is enabled by default, but can be disabled by specifying ``migrate:
+false`` in config.
+"""
+
+distros = ["all"]
 frequency = PER_ALWAYS
+
+meta: MetaSchema = {
+    "id": "cc_migrator",
+    "name": "Migrator",
+    "title": "Migrate old versions of cloud-init data to new",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": ["# Do not migrate cloud-init semaphores\nmigrate: false\n"],
+    "frequency": frequency,
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def _migrate_canon_sems(cloud):

@@ -42,7 +42,6 @@ exclude=[
   '^cloudinit/sources/DataSourceVMware\.py$',
   '^cloudinit/sources/__init__\.py$',
   '^cloudinit/sources/helpers/vmware/imc/config_file\.py$',
-  '^cloudinit/stages\.py$',
   '^cloudinit/templater\.py$',
   '^cloudinit/url_helper\.py$',
   '^conftest\.py$',
@@ -56,12 +55,9 @@ exclude=[
   '^tests/integration_tests/modules/test_growpart\.py$',
   '^tests/integration_tests/modules/test_ssh_keysfile\.py$',
   '^tests/unittests/__init__\.py$',
-  '^tests/unittests/cmd/devel/test_render\.py$',
   '^tests/unittests/cmd/test_clean\.py$',
   '^tests/unittests/cmd/test_cloud_id\.py$',
   '^tests/unittests/cmd/test_main\.py$',
-  '^tests/unittests/cmd/test_query\.py$',
-  '^tests/unittests/cmd/test_status\.py$',
   '^tests/unittests/config/test_cc_chef\.py$',
   '^tests/unittests/config/test_cc_landscape\.py$',
   '^tests/unittests/config/test_cc_locale\.py$',
@@ -77,7 +73,6 @@ exclude=[
   '^tests/unittests/net/test_dhcp\.py$',
   '^tests/unittests/net/test_init\.py$',
   '^tests/unittests/sources/test_aliyun\.py$',
-  '^tests/unittests/sources/test_azure\.py$',
   '^tests/unittests/sources/test_ec2\.py$',
   '^tests/unittests/sources/test_exoscale\.py$',
   '^tests/unittests/sources/test_gce\.py$',
@@ -97,6 +92,9 @@ exclude=[
   '^tests/unittests/test_subp\.py$',
   '^tests/unittests/test_templating\.py$',
   '^tests/unittests/test_url_helper\.py$',
-  '^tests/unittests/test_util\.py$',
   '^tools/mock-meta\.py$',
 ]
+
+[[tool.mypy.overrides]]
+module = [ "httpretty", "pycloudlib.*" ]
+ignore_missing_imports = true

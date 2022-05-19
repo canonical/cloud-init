@@ -19,7 +19,7 @@ class Networking(metaclass=abc.ABCMeta):
 
     This is part of an ongoing refactor in the cloud-init codebase, for more
     details see "``cloudinit.net`` -> ``cloudinit.distros.networking``
-    Hierarchy" in HACKING.rst for full details.
+    Hierarchy" in CONTRIBUTING.rst for full details.
     """
 
     def __init__(self):
@@ -31,8 +31,9 @@ class Networking(metaclass=abc.ABCMeta):
     def _rename_interfaces(self, renames: list, *, current_info=None) -> None:
         return net._rename_interfaces(renames, current_info=current_info)
 
+    @abc.abstractmethod
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
-        return net.apply_network_config_names(netcfg)
+        """Read the network config and rename devices accordingly."""
 
     def device_devid(self, devname: DeviceName):
         return net.device_devid(devname)
@@ -184,6 +185,9 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        LOG.debug("Cannot rename network interface.")
+
     def is_physical(self, devname: DeviceName) -> bool:
         raise NotImplementedError()
 
@@ -194,8 +198,32 @@ class BSDNetworking(Networking):
         raise NotImplementedError()
 
 
+class FreeBSDNetworking(BSDNetworking):
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        # This is handled by the freebsd network renderer. It writes in
+        # /etc/rc.conf a line with the following format:
+        #    ifconfig_OLDNAME_name=NEWNAME
+        # FreeBSD network script will rename the interface automatically.
+        pass
+
+
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
+
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        """Read the network config and rename devices accordingly.
+
+        Renames are only attempted for interfaces of type 'physical'. It is
+        expected that the network system will create other devices with the
+        correct name in place.
+        """
+
+        try:
+            self._rename_interfaces(self.extract_physdevs(netcfg))
+        except RuntimeError as e:
+            raise RuntimeError(
+                "Failed to apply network config names: %s" % e
+            ) from e
 
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)

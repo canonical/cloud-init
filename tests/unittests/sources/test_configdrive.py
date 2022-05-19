@@ -35,6 +35,12 @@ EC2_META = {
     "security-groups": ["default"],
 }
 USER_DATA = b"#!/bin/sh\necho This is user data\n"
+VENDOR_DATA = {
+    "magic": "",
+}
+VENDOR_DATA2 = {
+    "static": "",
+}
 OSTACK_META = {
     "availability_zone": "nova",
     "files": [
@@ -363,10 +369,14 @@ CFG_DRIVE_FILES_V2 = {
     "openstack/content/0001": CONTENT_1,
     "openstack/latest/meta_data.json": json.dumps(OSTACK_META),
     "openstack/latest/user_data": USER_DATA,
+    "openstack/latest/vendor_data.json": json.dumps(VENDOR_DATA),
+    "openstack/latest/vendor_data2.json": json.dumps(VENDOR_DATA2),
     "openstack/latest/network_data.json": json.dumps(NETWORK_DATA),
     "openstack/2015-10-15/meta_data.json": json.dumps(OSTACK_META),
     "openstack/2015-10-15/user_data": USER_DATA,
     "openstack/2015-10-15/network_data.json": json.dumps(NETWORK_DATA),
+    "openstack/2015-10-15/vendor_data.json": json.dumps(VENDOR_DATA),
+    "openstack/2015-10-15/vendor_data2.json": json.dumps(VENDOR_DATA2),
 }
 
 M_PATH = "cloudinit.sources.DataSourceConfigDrive."
@@ -531,6 +541,8 @@ class TestConfigDriveDataSource(CiTestCase):
         self.assertEqual(USER_DATA, found["userdata"])
         self.assertEqual(expected_md, found["metadata"])
         self.assertEqual(NETWORK_DATA, found["networkdata"])
+        self.assertEqual(VENDOR_DATA, found["vendordata"])
+        self.assertEqual(VENDOR_DATA2, found["vendordata2"])
         self.assertEqual(found["files"]["/etc/foo.cfg"], CONTENT_0)
         self.assertEqual(found["files"]["/etc/bar/bar.cfg"], CONTENT_1)
 
@@ -591,11 +603,10 @@ class TestConfigDriveDataSource(CiTestCase):
         def my_is_partition(dev):
             return dev[-1] in "0123456789" and not dev.startswith("sr")
 
+        orig_find_devs_with = util.find_devs_with
+        orig_is_partition = util.is_partition
         try:
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = my_devs_with
-
-            orig_is_partition = util.is_partition
             util.is_partition = my_is_partition
 
             devs_with_answers = {
@@ -1058,6 +1069,8 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.metadata = results.get("metadata")
     cfg_ds.ec2_metadata = results.get("ec2-metadata")
     cfg_ds.userdata_raw = results.get("userdata")
+    cfg_ds.vendordata_raw = results.get("vendordata")
+    cfg_ds.vendordata2_raw = results.get("vendordata2")
     cfg_ds.version = results.get("version")
     cfg_ds.network_json = results.get("networkdata")
     cfg_ds._network_config = openstack.convert_net_json(

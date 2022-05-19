@@ -67,10 +67,7 @@
 #     }
 # }
 
-from cloudinit.net.network_state import (
-    mask_and_ipv4_to_bcast_addr,
-    net_prefix_to_ipv4_mask,
-)
+from cloudinit.net import mask_and_ipv4_to_bcast_addr, net_prefix_to_ipv4_mask
 
 
 def translate_network(settings):

@@ -13,13 +13,13 @@ import os
 import time
 
 from cloudinit import dmi
-from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
 
@@ -55,14 +55,19 @@ class DataSourceEc2(sources.DataSource):
     # Default metadata urls that will be used if none are provided
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
-    metadata_urls = ["http://169.254.169.254", "http://instance-data.:8773"]
+    metadata_urls = [
+        "http://169.254.169.254",
+        "http://[fd00:ec2::254]",
+        "http://instance-data.:8773",
+    ]
 
     # The minimum supported metadata_version from the ec2 metadata apis
     min_metadata_version = "2009-04-04"
 
     # Priority ordered list of additional metadata versions which will be tried
-    # for extended metadata content. IPv6 support comes in 2016-09-02
-    extended_metadata_versions = ["2018-09-24", "2016-09-02"]
+    # for extended metadata content. IPv6 support comes in 2016-09-02.
+    # Tags support comes in 2021-03-23.
+    extended_metadata_versions = ["2021-03-23", "2018-09-24", "2016-09-02"]
 
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
@@ -252,6 +257,7 @@ class DataSourceEc2(sources.DataSource):
                 exception_cb=self._imds_exception_cb,
                 request_method=request_method,
                 headers_redact=AWS_TOKEN_REDACT,
+                connect_synchronously=False,
             )
         except uhelp.UrlError:
             # We use the raised exception to interupt the retry loop.

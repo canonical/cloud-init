@@ -1,9 +1,10 @@
 doc8
-m2r
-sphinx<2
-sphinx_rtd_theme
+m2r2
+sphinx==4.3.0
+sphinx_rtd_theme==1.0.0
 pyyaml
+sphinx-panels
 
 # Indirect dependencies
-docutils<0.18
-mistune<2.0.0  # https://github.com/miyakogi/m2r/issues/66
+jinja2<3.1.0  # https://github.com/readthedocs/readthedocs.org/issues/9037
+docutils==0.16  # https://github.com/readthedocs/sphinx_rtd_theme/issues/1115

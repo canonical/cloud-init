@@ -12,11 +12,7 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
-from cloudinit.config.schema import (
-    MetaSchema,
-    get_meta_doc,
-    validate_cloudconfig_schema,
-)
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -210,135 +206,12 @@ meta: MetaSchema = {
     ],
     "frequency": PER_INSTANCE,
 }
+__doc__ = get_meta_doc(meta)
 
-schema = {
-    "type": "object",
-    "properties": {
-        "ntp": {
-            "type": ["object", "null"],
-            "properties": {
-                "pools": {
-                    "type": "array",
-                    "items": {"type": "string", "format": "hostname"},
-                    "uniqueItems": True,
-                    "description": dedent(
-                        """\
-                        List of ntp pools. If both pools and servers are
-                        empty, 4 default pool servers will be provided of
-                        the format ``{0-3}.{distro}.pool.ntp.org``. NOTE:
-                        for Alpine Linux when using the Busybox NTP client
-                        this setting will be ignored due to the limited
-                        functionality of Busybox's ntpd."""
-                    ),
-                },
-                "servers": {
-                    "type": "array",
-                    "items": {"type": "string", "format": "hostname"},
-                    "uniqueItems": True,
-                    "description": dedent(
-                        """\
-                        List of ntp servers. If both pools and servers are
-                        empty, 4 default pool servers will be provided with
-                        the format ``{0-3}.{distro}.pool.ntp.org``."""
-                    ),
-                },
-                "ntp_client": {
-                    "type": "string",
-                    "default": "auto",
-                    "description": dedent(
-                        """\
-                        Name of an NTP client to use to configure system NTP.
-                        When unprovided or 'auto' the default client preferred
-                        by the distribution will be used. The following
-                        built-in client names can be used to override existing
-                        configuration defaults: chrony, ntp, ntpdate,
-                        systemd-timesyncd."""
-                    ),
-                },
-                "enabled": {
-                    "type": "boolean",
-                    "default": True,
-                    "description": dedent(
-                        """\
-                        Attempt to enable ntp clients if set to True.  If set
-                        to False, ntp client will not be configured or
-                        installed"""
-                    ),
-                },
-                "config": {
-                    "description": dedent(
-                        """\
-                        Configuration settings or overrides for the
-                        ``ntp_client`` specified."""
-                    ),
-                    "type": ["object"],
-                    "properties": {
-                        "confpath": {
-                            "type": "string",
-                            "description": dedent(
-                                """\
-                                The path to where the ``ntp_client``
-                                configuration is written."""
-                            ),
-                        },
-                        "check_exe": {
-                            "type": "string",
-                            "description": dedent(
-                                """\
-                                The executable name for the ``ntp_client``.
-                                For example, ntp service ``check_exe`` is
-                                'ntpd' because it runs the ntpd binary."""
-                            ),
-                        },
-                        "packages": {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                            },
-                            "uniqueItems": True,
-                            "description": dedent(
-                                """\
-                                List of packages needed to be installed for the
-                                selected ``ntp_client``."""
-                            ),
-                        },
-                        "service_name": {
-                            "type": "string",
-                            "description": dedent(
-                                """\
-                                The systemd or sysvinit service name used to
-                                start and stop the ``ntp_client``
-                                service."""
-                            ),
-                        },
-                        "template": {
-                            "type": "string",
-                            "description": dedent(
-                                """\
-                                Inline template allowing users to define their
-                                own ``ntp_client`` configuration template.
-                                The value must start with '## template:jinja'
-                                to enable use of templating support.
-                                """
-                            ),
-                        },
-                    },
-                    # Don't use REQUIRED_NTP_CONFIG_KEYS to allow for override
-                    # of builtin client values.
-                    "minProperties": 1,  # If we have config, define something
-                    "additionalProperties": False,
-                },
-            },
-            "additionalProperties": False,
-        }
-    },
-}
+
 REQUIRED_NTP_CONFIG_KEYS = frozenset(
     ["check_exe", "confpath", "packages", "service_name"]
 )
-
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def distro_ntp_client_configs(distro):
@@ -603,8 +476,6 @@ def handle(name, cfg, cloud, log, _args):
             "'ntp' key existed in config, but not a dictionary type,"
             " is a {_type} instead".format(_type=type_utils.obj_name(ntp_cfg))
         )
-
-    validate_cloudconfig_schema(cfg, schema)
 
     # Allow users to explicitly enable/disable
     enabled = ntp_cfg.get("enabled", True)

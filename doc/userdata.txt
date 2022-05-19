@@ -52,12 +52,6 @@ finds.  However, certain types of user-data are handled specially.
    This content is "cloud-config" data.  See the examples for a
    commented example of supported config formats.
 
- * Upstart Job
-   begins with  #upstart-job  or Content-Type: text/upstart-job
-   
-   Content is placed into a file in /etc/init, and will be consumed
-   by upstart as any other upstart job.
-
  * Cloud Boothook 
    begins with #cloud-boothook or Content-Type: text/cloud-boothook
 

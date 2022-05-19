@@ -7,17 +7,13 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
-from cloudinit.config.schema import (
-    MetaSchema,
-    get_meta_doc,
-    validate_cloudconfig_schema,
-)
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-frequency = PER_INSTANCE
 distros = ["ubuntu"]
+
 meta: MetaSchema = {
     "id": "cc_ubuntu_drivers",
     "name": "Ubuntu Drivers",
@@ -37,46 +33,14 @@ meta: MetaSchema = {
         """
         )
     ],
-    "frequency": frequency,
+    "frequency": PER_INSTANCE,
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "drivers": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "nvidia": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["license-accepted"],
-                    "properties": {
-                        "license-accepted": {
-                            "type": "boolean",
-                            "description": (
-                                "Do you accept the NVIDIA driver license?"
-                            ),
-                        },
-                        "version": {
-                            "type": "string",
-                            "description": (
-                                "The version of the driver to install (e.g."
-                                ' "390", "410"). Defaults to the latest'
-                                " version."
-                            ),
-                        },
-                    },
-                },
-            },
-        },
-    },
-}
+__doc__ = get_meta_doc(meta)
+
 OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install'"
 )
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 # Use a debconf template to configure a global debconf variable
@@ -180,5 +144,4 @@ def handle(name, cfg, cloud, log, _args):
         log.debug("Skipping module named %s, no 'drivers' key in config", name)
         return
 
-    validate_cloudconfig_schema(cfg, schema)
     install_drivers(cfg["drivers"], cloud.distro.install_packages)

@@ -5,9 +5,16 @@
 import copy
 import logging
 
+import pytest
+
 from cloudinit import subp
 from cloudinit.config import cc_rh_subscription
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 SUBMGR = cc_rh_subscription.SubscriptionManager
 SUB_MAN_CLI = "cloudinit.config.cc_rh_subscription._sub_man_cli"
@@ -315,6 +322,37 @@ class TestBadInput(CiTestCase):
                 "rh_subscription plugin did not complete successfully",
             )
         )
+
+
+class TestRhSubscriptionSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"rh_subscription": {"bad": "input"}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"rh_subscription": {"add-pool": [1]}},
+                "1 is not of type 'string'",
+            ),
+            (
+                {"rh_subscription": {"enable-repo": "name"}},
+                "'name' is not of type 'array'",
+            ),
+            (
+                {"rh_subscription": {"disable-repo": "name"}},
+                "'name' is not of type 'array'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.cs_utils import Cepko
+from cloudinit.sources.helpers.cloudsigma import Cepko
 from tests.unittests import helpers as test_helpers
 
 SERVER_CONTEXT = {

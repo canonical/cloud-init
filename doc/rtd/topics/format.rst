@@ -7,6 +7,67 @@ User-Data Formats
 User data that will be acted upon by cloud-init must be in one of the following
 types.
 
+Cloud Config Data
+=================
+
+Cloud-config is the simplest way to accomplish some things via user-data. Using
+cloud-config syntax, the user can specify certain things in a human friendly
+format.
+
+These things include:
+
+- apt upgrade should be run on first boot
+- a different apt mirror should be used
+- additional apt sources should be added
+- certain SSH keys should be imported
+- *and many more...*
+
+.. note::
+   This file must be valid YAML syntax.
+
+See the :ref:`yaml_examples` section for a commented set of examples of
+supported cloud config formats.
+
+Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when
+using a MIME archive.
+
+.. note::
+   New in cloud-init v. 18.4: Cloud config data can also render cloud instance
+   metadata variables using jinja templating. See
+   :ref:`instance_metadata` for more information.
+
+User-Data Script
+================
+
+Typically used by those who just want to execute a shell script.
+
+Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
+archive.
+
+.. note::
+   New in cloud-init v. 18.4: User-data scripts can also render cloud instance
+   metadata variables using jinja templating. See
+   :ref:`instance_metadata` for more information.
+
+Example
+-------
+
+.. code-block:: shell-session
+
+  $ cat myscript.sh
+
+  #!/bin/sh
+  echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
+
+  $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
+
+Kernel Command Line
+===================
+
+When using the :ref:`datasource_nocloud` datasource, users can pass user data
+via the kernel command line parameters. See the :ref:`datasource_nocloud`
+datasource documentation for more details.
+
 Gzip Compressed Content
 =======================
 
@@ -34,14 +95,12 @@ Supported content-types are listed from the cloud-init subcommand make-mime:
     cloud-config-jsonp
     jinja2
     part-handler
-    upstart-job
     x-include-once-url
     x-include-url
     x-shellscript
     x-shellscript-per-boot
     x-shellscript-per-instance
     x-shellscript-per-once
-
 
 Helper subcommand to generate mime messages
 -------------------------------------------
@@ -73,32 +132,6 @@ Create userdata containing 3 shell scripts:
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 
-
-User-Data Script
-================
-
-Typically used by those who just want to execute a shell script.
-
-Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
-archive.
-
-.. note::
-   New in cloud-init v. 18.4: User-data scripts can also render cloud instance
-   metadata variables using jinja templating. See
-   :ref:`instance_metadata` for more information.
-
-Example
--------
-
-.. code-block:: shell-session
-
-  $ cat myscript.sh
-
-  #!/bin/sh
-  echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
-
-  $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
-
 Include File
 ============
 
@@ -110,44 +143,6 @@ content read from the URL can be gzipped, mime-multi-part, or plain text. If
 an error occurs reading a file the remaining files will not be read.
 
 Begins with: ``#include`` or ``Content-Type: text/x-include-url``  when using
-a MIME archive.
-
-Cloud Config Data
-=================
-
-Cloud-config is the simplest way to accomplish some things via user-data. Using
-cloud-config syntax, the user can specify certain things in a human friendly
-format.
-
-These things include:
-
-- apt upgrade should be run on first boot
-- a different apt mirror should be used
-- additional apt sources should be added
-- certain SSH keys should be imported
-- *and many more...*
-
-.. note::
-   This file must be valid YAML syntax.
-
-See the :ref:`yaml_examples` section for a commented set of examples of
-supported cloud config formats.
-
-Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when
-using a MIME archive.
-
-.. note::
-   New in cloud-init v. 18.4: Cloud config data can also render cloud instance
-   metadata variables using jinja templating. See
-   :ref:`instance_metadata` for more information.
-
-Upstart Job
-===========
-
-Content is placed into a file in ``/etc/init``, and will be consumed by upstart
-as any other upstart job.
-
-Begins with: ``#upstart-job`` or ``Content-Type: text/upstart-job`` when using
 a MIME archive.
 
 Cloud Boothook
@@ -207,13 +202,6 @@ Example
 
 Also this `blog`_ post offers another example for more advanced usage.
 
-Kernel Command Line
-===================
-
-When using the :ref:`datasource_nocloud` datasource, users can pass user data
-via the kernel command line parameters. See the :ref:`datasource_nocloud`
-datasource documentation for more details.
-
 Disabling User-Data
 ===================
 
@@ -224,5 +212,3 @@ cloud-init from processing user-data.
 
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _blog: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
-
-.. vi: textwidth=79

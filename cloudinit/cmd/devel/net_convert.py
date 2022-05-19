@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Debug network config format conversions."""
@@ -7,7 +8,14 @@ import os
 import sys
 
 from cloudinit import distros, log, safeyaml
-from cloudinit.net import eni, netplan, network_state, networkd, sysconfig
+from cloudinit.net import (
+    eni,
+    netplan,
+    network_manager,
+    network_state,
+    networkd,
+    sysconfig,
+)
 from cloudinit.sources import DataSourceAzure as azure
 from cloudinit.sources import DataSourceOVF as ovf
 from cloudinit.sources.helpers import openstack
@@ -74,7 +82,7 @@ def get_parser(parser=None):
     parser.add_argument(
         "-O",
         "--output-kind",
-        choices=["eni", "netplan", "networkd", "sysconfig"],
+        choices=["eni", "netplan", "networkd", "sysconfig", "network-manager"],
         required=True,
         help="The network config format to emit",
     )
@@ -148,6 +156,9 @@ def handle_args(name, args):
     elif args.output_kind == "sysconfig":
         r_cls = sysconfig.Renderer
         config = distro.renderer_configs.get("sysconfig")
+    elif args.output_kind == "network-manager":
+        r_cls = network_manager.Renderer
+        config = distro.renderer_configs.get("network-manager")
     else:
         raise RuntimeError("Invalid output_kind")
 
@@ -169,6 +180,3 @@ def handle_args(name, args):
 if __name__ == "__main__":
     args = get_parser().parse_args()
     handle_args(NAME, args)
-
-
-# vi: ts=4 expandtab

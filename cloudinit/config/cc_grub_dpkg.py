@@ -6,12 +6,17 @@
 # Author: Matthew Ruffell <matthew.ruffell@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Grub Dpkg: Configure grub debconf installation device"""
 
-"""
-Grub Dpkg
----------
-**Summary:** configure grub debconf installation device
+import os
+from textwrap import dedent
 
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+from cloudinit.subp import ProcessExecutionError
+
+MODULE_DESCRIPTION = """\
 Configure which device is used as the target for grub installation. This module
 should work correctly by default without any user configuration. It can be
 enabled/disabled using the ``enabled`` config key in the ``grub_dpkg`` config
@@ -25,28 +30,28 @@ but we do fallback to the plain disk name if a by-id name is not present.
 
 If this module is executed inside a container, then the debconf database is
 seeded with empty values, and install_devices_empty is set to true.
-
-**Internal name:** ``cc_grub_dpkg``
-
-**Module frequency:** per instance
-
-**Supported distros:** ubuntu, debian
-
-**Config keys**::
-
-    grub_dpkg:
-        enabled: <true/false>
-        grub-pc/install_devices: <devices>
-        grub-pc/install_devices_empty: <devices>
-    grub-dpkg: (alias for grub_dpkg)
 """
-
-import os
-
-from cloudinit import subp, util
-from cloudinit.subp import ProcessExecutionError
-
 distros = ["ubuntu", "debian"]
+meta: MetaSchema = {
+    "id": "cc_grub_dpkg",
+    "name": "Grub Dpkg",
+    "title": "Configure grub debconf installation device",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            grub_dpkg:
+              enabled: true
+              grub-pc/install_devices: /dev/sda
+              grub-pc/install_devices_empty: false
+            """
+        )
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def fetch_idevs(log):
@@ -121,14 +126,20 @@ def handle(name, cfg, _cloud, log, _args):
         return
 
     idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
-    idevs_empty = util.get_cfg_option_str(
-        mycfg, "grub-pc/install_devices_empty", None
-    )
-
     if idevs is None:
         idevs = fetch_idevs(log)
+
+    idevs_empty = mycfg.get("grub-pc/install_devices_empty")
     if idevs_empty is None:
-        idevs_empty = "false" if idevs else "true"
+        idevs_empty = not idevs
+    elif not isinstance(idevs_empty, bool):
+        log.warning(
+            "DEPRECATED: grub_dpkg: grub-pc/install_devices_empty value of "
+            f"'{idevs_empty}' is not boolean. Use of non-boolean values "
+            "will be removed in a future version of cloud-init."
+        )
+        idevs_empty = util.translate_bool(idevs_empty)
+    idevs_empty = str(idevs_empty).lower()
 
     # now idevs and idevs_empty are set to determined values
     # or, those set by user

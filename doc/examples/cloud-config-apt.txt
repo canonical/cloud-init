@@ -35,7 +35,7 @@ apt_pipelining: False
 #
 # Default: none
 #
-# if packages are specified, this apt_update will be set to true
+# if packages are specified, this package_update will be set to true
 
 packages: ['pastebinit']
 

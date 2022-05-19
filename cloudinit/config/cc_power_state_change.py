@@ -4,66 +4,77 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Power State Change
-------------------
-**Summary:** change power state
-
-This module handles shutdown/reboot after all config modules have been run. By
-default it will take no action, and the system will keep running unless a
-package installation/upgrade requires a system reboot (e.g. installing a new
-kernel) and ``package_reboot_if_required`` is true. The ``power_state`` config
-key accepts a dict of options. If ``mode`` is any value other than
-``poweroff``, ``halt``, or ``reboot``, then no action will be taken.
-
-The system
-can be shutdown before cloud-init has finished using the ``timeout`` option.
-The ``delay`` key specifies a duration to be added onto any shutdown command
-used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
-the maximum amount of time between cloud-init starting and the system shutting
-down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
-key must have an argument in either the form ``'+5'`` for 5 minutes or ``now``
-for immediate shutdown.
-
-Optionally, a command can be run to determine whether or not
-the system should shut down. The command to be run should be specified in the
-``condition`` key. For command formatting, see the documentation for
-``cc_runcmd``. The specified shutdown behavior will only take place if the
-``condition`` key is omitted or the command specified by the ``condition``
-key returns 0.
-
-.. note::
-    With Alpine Linux any message value specified is ignored as Alpine's halt,
-    poweroff, and reboot commands do not support broadcasting a message.
-
-**Internal name:** ``cc_power_state_change``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    power_state:
-        delay: <now/'+minutes'>
-        mode: <poweroff/halt/reboot>
-        message: <shutdown message>
-        timeout: <seconds>
-        condition: <true/false/command>
-"""
+"""Power State Change: Change power state"""
 
 import errno
 import os
 import re
 import subprocess
 import time
+from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
+
+MODULE_DESCRIPTION = """\
+This module handles shutdown/reboot after all config modules have been run. By
+default it will take no action, and the system will keep running unless a
+package installation/upgrade requires a system reboot (e.g. installing a new
+kernel) and ``package_reboot_if_required`` is true.
+
+Using this module ensures that cloud-init is entirely finished with
+modules that would be executed.
+
+An example to distinguish delay from timeout:
+
+If you delay 5 (5 minutes) and have a timeout of
+120 (2 minutes), then the max time until shutdown will be 7 minutes, though
+it could be as soon as 5 minutes. Cloud-init will invoke 'shutdown +5' after
+the process finishes, or when 'timeout' seconds have elapsed.
+
+.. note::
+    With Alpine Linux any message value specified is ignored as Alpine's halt,
+    poweroff, and reboot commands do not support broadcasting a message.
+
+"""
+
+meta: MetaSchema = {
+    "id": "cc_power_state_change",
+    "name": "Power State Change",
+    "title": "Change power state",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            power_state:
+                delay: now
+                mode: poweroff
+                message: Powering off
+                timeout: 2
+                condition: true
+            """
+        ),
+        dedent(
+            """\
+            power_state:
+                delay: 30
+                mode: reboot
+                message: Rebooting machine
+                condition: test -f /var/tmp/reboot_me
+            """
+        ),
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
 def givecmdline(pid):
