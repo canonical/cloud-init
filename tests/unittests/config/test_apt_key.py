@@ -3,6 +3,7 @@ from unittest import mock
 
 from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
+from cloudinit.subp import SubpResult
 
 TEST_KEY_HUMAN = """
 /etc/apt/cloud-init.gpg.d/my_key.gpg
@@ -38,7 +39,7 @@ class TestAptKey:
     Class to test apt-key commands
     """
 
-    @mock.patch.object(subp, "subp", return_value=("fakekey", ""))
+    @mock.patch.object(subp, "subp", return_value=SubpResult("fakekey", ""))
     @mock.patch.object(util, "write_file")
     def _apt_key_add_success_helper(self, directory, *args, hardened=False):
         file = cc_apt_configure.apt_key(

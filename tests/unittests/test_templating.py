@@ -10,14 +10,6 @@ from cloudinit import templater
 from cloudinit.util import load_file, write_file
 from tests.unittests import helpers as test_helpers
 
-try:
-    import Cheetah
-
-    HAS_CHEETAH = True
-    c = Cheetah  # make pyflakes and pylint happy, as Cheetah is not used here
-except ImportError:
-    HAS_CHEETAH = False
-
 
 class TestTemplates(test_helpers.CiTestCase):
 
@@ -51,28 +43,6 @@ class TestTemplates(test_helpers.CiTestCase):
         )
         out_data = templater.basic_render(in_data, {"b": 2})
         self.assertEqual(expected_data.strip(), out_data)
-
-    @test_helpers.skipIf(not HAS_CHEETAH, "cheetah renderer not available")
-    def test_detection(self):
-        blob = "## template:cheetah"
-
-        (template_type, _renderer, contents) = templater.detect_template(blob)
-        self.assertIn("cheetah", template_type)
-        self.assertEqual("", contents.strip())
-
-        blob = "blahblah $blah"
-        (template_type, _renderer, _contents) = templater.detect_template(blob)
-        self.assertIn("cheetah", template_type)
-        self.assertEqual(blob, contents)
-
-        blob = "##template:something-new"
-        self.assertRaises(ValueError, templater.detect_template, blob)
-
-    def test_render_cheetah(self):
-        blob = """## template:cheetah
-$a,$b"""
-        c = templater.render_string(blob, {"a": 1, "b": 2})
-        self.assertEqual("1,2", c)
 
     def test_render_jinja(self):
         blob = """## template:jinja

@@ -109,34 +109,6 @@ class LXDSocketAdapter(HTTPAdapter):
         return SocketConnectionPool(LXD_SOCKET_PATH)
 
 
-def _maybe_remove_top_network(cfg):
-    """If network-config contains top level 'network' key, then remove it.
-
-    Some providers of network configuration may provide a top level
-    'network' key (LP: #1798117) even though it is not necessary.
-
-    Be friendly and remove it if it really seems so.
-
-    Return the original value if no change or the updated value if changed."""
-    if "network" not in cfg:
-        return cfg
-    network_val = cfg["network"]
-    bmsg = "Top level network key in network-config %s: %s"
-    if not isinstance(network_val, dict):
-        LOG.debug(bmsg, "was not a dict", cfg)
-        return cfg
-    if len(list(cfg.keys())) != 1:
-        LOG.debug(bmsg, "had multiple top level keys", cfg)
-        return cfg
-    if network_val.get("config") == "disabled":
-        LOG.debug(bmsg, "was config/disabled", cfg)
-    elif not all(("config" in network_val, "version" in network_val)):
-        LOG.debug(bmsg, "but missing 'config' or 'version'", cfg)
-        return cfg
-    LOG.debug(bmsg, "fixed by removing shifting network.", cfg)
-    return network_val
-
-
 def _raw_instance_data_to_dict(metadata_type: str, metadata_value) -> dict:
     """Convert raw instance data from str, bytes, YAML to dict
 
@@ -211,10 +183,8 @@ class DataSourceLXD(sources.DataSource):
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]
         if "network-config" in self._crawled_metadata:
-            self._network_config = _maybe_remove_top_network(
-                _raw_instance_data_to_dict(
-                    "network-config", self._crawled_metadata["network-config"]
-                )
+            self._network_config = _raw_instance_data_to_dict(
+                "network-config", self._crawled_metadata["network-config"]
             )
         if "vendor-data" in self._crawled_metadata:
             self.vendordata_raw = self._crawled_metadata["vendor-data"]

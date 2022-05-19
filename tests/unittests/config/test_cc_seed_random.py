@@ -12,15 +12,22 @@ import logging
 import tempfile
 from io import BytesIO
 
+import pytest
+
 from cloudinit import subp, util
 from cloudinit.config import cc_seed_random
-from tests.unittests import helpers as t_help
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-class TestRandomSeed(t_help.TestCase):
+class TestRandomSeed(TestCase):
     def setUp(self):
         super(TestRandomSeed, self).setUp()
         self._seed_file = tempfile.mktemp()
@@ -216,6 +223,38 @@ def apply_patches(patches):
         setattr(ref, name, replace)
         ret.append((ref, name, orig))
     return ret
+
+
+class TestSeedRandomSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"random_seed": {"encoding": "bad"}},
+                "'bad' is not one of "
+                r"\['raw', 'base64', 'b64', 'gzip', 'gz'\]",
+            ),
+            (
+                {"random_seed": {"command": "foo"}},
+                "'foo' is not of type 'array'",
+            ),
+            (
+                {"random_seed": {"command_required": "true"}},
+                "'true' is not of type 'boolean'",
+            ),
+            (
+                {"random_seed": {"bad": "key"}},
+                "Additional properties are not allowed",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

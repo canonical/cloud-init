@@ -1,7 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import re
 from unittest import mock
 
+import pytest
+
 from cloudinit.config import cc_lxd
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
 
@@ -267,6 +275,29 @@ class TestLxdMaybeCleanupDefault(t_help.CiTestCase):
         m_lxc.assert_called_once_with(
             ["profile", "device", "remove", profile, nic_name]
         )
+
+
+class TestLXDSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Only allow init and bridge keys
+            ({"lxd": {"bridgeo": 1}}, "Additional properties are not allowed"),
+            # Only allow init.storage_backend values zfs and dir
+            (
+                {"lxd": {"init": {"storage_backend": "1zfs"}}},
+                re.escape("not one of ['zfs', 'dir']"),
+            ),
+            # Require bridge.mode
+            ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
+            # Require init or bridge keys
+            ({"lxd": {}}, "does not have enough properties"),
+        ],
+    )
+    @t_help.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

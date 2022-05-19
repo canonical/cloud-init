@@ -22,7 +22,7 @@ marks can be used to limit tests to particular platforms. The
 client fixture can be used to interact with the launched
 test instance.
 
-See :ref:`Examples` section for examples.
+See `Examples`_ section for examples.
 
 Test Execution
 ==============
@@ -54,8 +54,8 @@ or by providing an environment variable of the same name prepended with
     CLOUD_INIT_PLATFORM='ec2' pytest tests/integration_tests/
 
 
-Cloud Interation
-================
+Cloud Interaction
+=================
 Cloud interaction happens via the
 `pycloudlib <https://pycloudlib.readthedocs.io/en/latest/index.html>`_ library.
 In order to run integration tests, pycloudlib must first be
@@ -74,7 +74,7 @@ Image Selection
 
 Each integration testing run uses a single image as its basis.  This
 image is configured using the ``OS_IMAGE`` variable; see
-:ref:`Configuration` for details of how configuration works.
+`Configuration`_ for details of how configuration works.
 
 ``OS_IMAGE`` can take two types of value: an Ubuntu series name (e.g.
 "focal"), or an image specification.  If an Ubuntu series name is
@@ -139,13 +139,13 @@ Integration tests rely heavily on fixtures to do initial test setup.
 One or more of these fixtures will be used in almost every integration test.
 
 Details such as the cloud platform or initial image to use are determined
-via what is specified in the :ref:`Configuration`.
+via what is specified in the `Configuration`_.
 
 client
 ------
 The ``client`` fixture should be used for most test cases. It ensures:
 
-- All setup performed by :ref:`session_cloud` and :ref:`setup_image`
+- All setup performed by `session_cloud`_ and `setup_image`_
 - `Pytest marks <https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/conftest.py#L220-L224>`_
   used during instance creation are obtained and applied
 - The test instance is launched

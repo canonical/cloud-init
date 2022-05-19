@@ -5,15 +5,20 @@ of the test would be unlikely to affect the running of another test using
 the same instance launch. Most independent module coherence tests can go
 here.
 """
+import glob
+import importlib
 import json
 import re
+import uuid
+from pathlib import Path
 
 import pytest
 
+import cloudinit.config
 from tests.integration_tests.clouds import ImageSpecification
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
-    retry,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -58,7 +63,6 @@ runcmd:
   - #
   - logger "My test log"
 snap:
-  squashfuse_in_container: true
   commands:
     - snap install hello-world
 ssh_import_id:
@@ -191,7 +195,15 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            assert parsed_datasource.startswith("DataSourceNoCloud")
+            if ImageSpecification.from_os_image().release in [
+                "bionic",
+                "focal",
+                "impish",
+            ]:
+                datasource = "DataSourceNoCloud"
+            else:
+                datasource = "DataSourceLXD"
+            assert parsed_datasource.startswith(datasource)
         else:
             platform_datasources = {
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
@@ -215,10 +227,31 @@ class TestCombined:
             class_client.execute("stat -c %N /run/cloud-init/cloud-id")
         )
 
+    def test_run_frequency(self, class_client: IntegrationInstance):
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        config_dir = Path(cloudinit.config.__file__).parent
+        module_paths = glob.glob(str(config_dir / "cc*.py"))
+        module_names = [Path(x).stem for x in module_paths]
+        found_count = 0
+        for name in module_names:
+            mod = importlib.import_module(f"cloudinit.config.{name}")
+            frequency = mod.meta["frequency"]
+            # cc_ gets replaced with config- in logs
+            log_name = name.replace("cc_", "config-")
+            # Some modules have been filtered out in /etc/cloud/cloud.cfg,
+            if f"running {log_name}" in log:
+                found_count += 1  # Ensure we're matching on the right text
+                assert f"running {log_name} with frequency {frequency}" in log
+        assert (
+            found_count > 10
+        ), "Not enough modules found in log. Did the log message change?"
+        assert "with frequency None" not in log
+
     def _check_common_metadata(self, data):
         assert data["base64_encoded_keys"] == []
         assert data["merged_cfg"] == "redacted for non-root user"
 
+        image_spec = ImageSpecification.from_os_image()
         image_spec = ImageSpecification.from_os_image()
         assert data["sys_info"]["dist"][0] == image_spec.os
 
@@ -228,7 +261,7 @@ class TestCombined:
         assert v1_data["distro"] == image_spec.os
         assert v1_data["distro_release"] == image_spec.release
         assert v1_data["machine"] == "x86_64"
-        assert re.match(r"3.\d\.\d", v1_data["python_version"])
+        assert re.match(r"3.\d+\.\d+", v1_data["python_version"])
 
     @pytest.mark.lxd_container
     def test_instance_json_lxd(self, class_client: IntegrationInstance):
@@ -240,18 +273,33 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        assert v1_data["cloud_name"] == "unknown"
+        if ImageSpecification.from_os_image().release not in [
+            "bionic",
+            "focal",
+            "impish",
+        ]:
+            cloud_name = "lxd"
+            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
+            # instance-id should be a UUID
+            try:
+                uuid.UUID(v1_data["instance_id"])
+            except ValueError:
+                raise AssertionError(
+                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+                )
+        else:
+            cloud_name = "unknown"
+            subplatform = "seed-dir (/var/lib/cloud/seed/nocloud-net)"
+            # Pre-Jammy instance-id and instance.name are synonymous
+            assert v1_data["instance_id"] == client.instance.name
+        assert v1_data["cloud_name"] == cloud_name
+        assert v1_data["subplatform"] == subplatform
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
             "/run/cloud-init/cloud-id-lxd"
         )
-        assert (
-            v1_data["subplatform"]
-            == "seed-dir (/var/lib/cloud/seed/nocloud-net)"
-        )
         assert v1_data["availability_zone"] is None
-        assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 
@@ -265,20 +313,40 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        assert v1_data["cloud_name"] == "unknown"
+        if ImageSpecification.from_os_image().release not in [
+            "bionic",
+            "focal",
+            "impish",
+        ]:
+            cloud_name = "lxd"
+            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
+            # instance-id should be a UUID
+            try:
+                uuid.UUID(v1_data["instance_id"])
+            except ValueError as e:
+                raise AssertionError(
+                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+                ) from e
+            assert v1_data["subplatform"] == subplatform
+        else:
+            cloud_name = "unknown"
+            # Pre-Jammy instance-id and instance.name are synonymous
+            assert v1_data["instance_id"] == client.instance.name
+            assert any(
+                [
+                    "/var/lib/cloud/seed/nocloud-net"
+                    in v1_data["subplatform"],
+                    "/dev/sr0" in v1_data["subplatform"],
+                ]
+            )
+        assert v1_data["cloud_name"] == cloud_name
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
             "/run/cloud-init/cloud-id-lxd"
         )
-        assert any(
-            [
-                "/var/lib/cloud/seed/nocloud-net" in v1_data["subplatform"],
-                "/dev/sr0" in v1_data["subplatform"],
-            ]
-        )
+
         assert v1_data["availability_zone"] is None
-        assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 

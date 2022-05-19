@@ -4,6 +4,7 @@ import copy
 import os
 
 from cloudinit import safeyaml, stages, util
+from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
 
@@ -71,7 +72,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
@@ -99,7 +100,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn(
@@ -128,7 +129,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn("runcmd", which_ran)
@@ -163,7 +164,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn("spacewalk", which_ran)
@@ -197,7 +198,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertEqual([], which_ran)

@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
-"""Handle reconfiguration on hotplug events"""
+"""Handle reconfiguration on hotplug events."""
 import abc
 import argparse
 import os
@@ -11,8 +13,7 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
-from cloudinit.sources import DataSource  # noqa: F401
-from cloudinit.sources import DataSourceNotFoundException
+from cloudinit.sources import DataSource, DataSourceNotFoundException
 from cloudinit.stages import Init
 
 LOG = log.getLogger(__name__)
@@ -45,24 +46,24 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subparsers.add_parser(
-        "query", help="query if hotplug is enabled for given subsystem"
+        "query", help="Query if hotplug is enabled for given subsystem."
     )
 
     parser_handle = subparsers.add_parser(
-        "handle", help="handle the hotplug event"
+        "handle", help="Handle the hotplug event."
     )
     parser_handle.add_argument(
         "-d",
         "--devpath",
         required=True,
         metavar="PATH",
-        help="sysfs path to hotplugged device",
+        help="Sysfs path to hotplugged device",
     )
     parser_handle.add_argument(
         "-u",
         "--udevaction",
         required=True,
-        help="action to take",
+        help="Specify action to take.",
         choices=["add", "remove"],
     )
 
@@ -72,7 +73,7 @@ def get_parser(parser=None):
 class UeventHandler(abc.ABC):
     def __init__(self, id, datasource, devpath, action, success_fn):
         self.id = id
-        self.datasource = datasource  # type: DataSource
+        self.datasource: DataSource = datasource
         self.devpath = devpath
         self.action = action
         self.success_fn = success_fn
@@ -208,6 +209,7 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         success_fn=hotplug_init._write_to_cache,
     )  # type: UeventHandler
     wait_times = [1, 3, 5, 10, 30]
+    last_exception = Exception("Bug while processing hotplug event.")
     for attempt, wait in enumerate(wait_times):
         LOG.debug(
             "subsystem=%s update attempt %s/%s",
@@ -230,7 +232,7 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
             time.sleep(wait)
             last_exception = e
     else:
-        raise last_exception  # type: ignore
+        raise last_exception
 
 
 def handle_args(name, args):

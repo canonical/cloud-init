@@ -5,24 +5,36 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Set Hostname: Set hostname and FQDN"""
 
-"""
-Set Hostname
-------------
-**Summary:** set hostname and fqdn
+import os
+from textwrap import dedent
 
-This module handles setting the system hostname and fqdn. If
-``preserve_hostname`` is set, then the hostname will not be altered.
+from cloudinit import util
+from cloudinit.atomic_helper import write_json
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_ALWAYS
 
-A hostname and fqdn can be provided by specifying a full domain name under the
-``fqdn`` key. Alternatively, a hostname can be specified using the ``hostname``
-key, and the fqdn of the cloud wil be used. If a fqdn specified with the
+frequency = PER_ALWAYS
+MODULE_DESCRIPTION = """\
+This module handles setting the system hostname and fully qualified domain
+name (FQDN). If ``preserve_hostname`` is set, then the hostname will not be
+altered.
+
+A hostname and FQDN can be provided by specifying a full domain name under the
+``FQDN`` key. Alternatively, a hostname can be specified using the ``hostname``
+key, and the FQDN of the cloud will be used. If a FQDN specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
-it is distro dependent whether ``hostname`` or ``fqdn`` is used,
-unless the ``prefer_fqdn_over_hostname`` option is true and fqdn is set
-it will force the use of FQDN in all distros, and if false then it will
-force the hostname use.
+the ``prefer_fqdn_over_hostname`` will force the use of FQDN in all distros
+when true, and when false it will force the short hostname. Otherwise, the
+hostname to use is distro-dependent.
+
+.. note::
+    cloud-init performs no hostname input validation before sending the
+    hostname to distro-specific tools, and most tools will not accept a
+    trailing dot on the FQDN.
 
 This module will run in the init-local stage before networking is configured
 if the hostname is set by metadata or user data on the local system.
@@ -31,25 +43,28 @@ This will occur on datasources like nocloud and ovf where metadata and user
 data are available locally. This ensures that the desired hostname is applied
 before any DHCP requests are preformed on these platforms where dynamic DNS is
 based on initial hostname.
-
-**Internal name:** ``cc_set_hostname``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    preserve_hostname: <true/false>
-    prefer_fqdn_over_hostname: <true/false>
-    fqdn: <fqdn>
-    hostname: <fqdn/hostname>
 """
 
-import os
+meta: MetaSchema = {
+    "id": "cc_set_hostname",
+    "name": "Set Hostname",
+    "title": "Set hostname and FQDN",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [
+        "preserve_hostname: true",
+        dedent(
+            """\
+            hostname: myhost
+            fqdn: myhost.example.com
+            prefer_fqdn_over_hostname: true
+            """
+        ),
+    ],
+}
 
-from cloudinit import util
-from cloudinit.atomic_helper import write_json
+__doc__ = get_meta_doc(meta)
 
 
 class SetHostnameError(Exception):

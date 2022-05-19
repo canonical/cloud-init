@@ -3,19 +3,22 @@
 import re
 from io import StringIO
 
+import pytest
+
 from cloudinit import util
 from cloudinit.config.cc_snap import (
     ASSERTIONS_FILE,
     add_assertions,
     handle,
-    maybe_install_squashfuse,
     run_commands,
-    schema,
 )
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     CiTestCase,
-    SchemaTestCaseMixin,
     mock,
     skipUnlessJsonSchema,
     wrap_and_call,
@@ -275,184 +278,65 @@ class TestRunCommands(CiTestCase):
 
 
 @skipUnlessJsonSchema()
-class TestSchema(CiTestCase, SchemaTestCaseMixin):
-
-    with_logs = True
-    schema = schema
-
-    def test_schema_warns_on_snap_not_as_dict(self):
-        """If the snap configuration is not a dict, emit a warning."""
-        validate_cloudconfig_schema({"snap": "wrong type"}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap: 'wrong type'"
-            " is not of type 'object'\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_schema_disallows_unknown_keys(self, _):
-        """Unknown keys in the snap configuration emit warnings."""
-        validate_cloudconfig_schema(
-            {"snap": {"commands": ["ls"], "invalid-key": ""}}, schema
-        )
-        self.assertIn(
-            "WARNING: Invalid cloud-config provided:\nsnap: Additional"
-            " properties are not allowed ('invalid-key' was unexpected)",
-            self.logs.getvalue(),
-        )
-
-    def test_warn_schema_requires_either_commands_or_assertions(self):
-        """Warn when snap configuration lacks both commands and assertions."""
-        validate_cloudconfig_schema({"snap": {}}, schema)
-        self.assertIn(
-            "WARNING: Invalid cloud-config provided:\nsnap: {} does not"
-            " have enough properties",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_warn_schema_commands_is_not_list_or_dict(self, _):
-        """Warn when snap:commands config is not a list or dict."""
-        validate_cloudconfig_schema({"snap": {"commands": "broken"}}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap.commands: 'broken'"
-            " is not of type 'object', 'array'\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_warn_schema_when_commands_is_empty(self, _):
-        """Emit warnings when snap:commands is an empty list or dict."""
-        validate_cloudconfig_schema({"snap": {"commands": []}}, schema)
-        validate_cloudconfig_schema({"snap": {"commands": {}}}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap.commands: [] is"
-            " too short\nWARNING: Invalid cloud-config provided:\n"
-            "snap.commands: {} does not have enough properties\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_schema_when_commands_are_list_or_dict(self, _):
-        """No warnings when snap:commands are either a list or dict."""
-        validate_cloudconfig_schema({"snap": {"commands": ["valid"]}}, schema)
-        validate_cloudconfig_schema(
-            {"snap": {"commands": {"01": "also valid"}}}, schema
-        )
-        self.assertEqual("", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_schema_when_commands_values_are_invalid_type(self, _):
-        """Warnings when snap:commands values are invalid type (e.g. int)"""
-        validate_cloudconfig_schema({"snap": {"commands": [123]}}, schema)
-        validate_cloudconfig_schema(
-            {"snap": {"commands": {"01": 123}}}, schema
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.commands.0: 123 is not valid under any of the given"
-            " schemas\n"
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.commands.01: 123 is not valid under any of the given"
-            " schemas\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_schema_when_commands_list_values_are_invalid_type(self, _):
-        """Warnings when snap:commands list values are wrong type (e.g. int)"""
-        validate_cloudconfig_schema(
-            {"snap": {"commands": [["snap", "install", 123]]}}, schema
-        )
-        validate_cloudconfig_schema(
-            {"snap": {"commands": {"01": ["snap", "install", 123]}}}, schema
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
-            " of the given schemas\n",
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
-            " of the given schemas\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    def test_schema_when_assertions_values_are_invalid_type(self, _):
-        """Warnings when snap:assertions values are invalid type (e.g. int)"""
-        validate_cloudconfig_schema({"snap": {"assertions": [123]}}, schema)
-        validate_cloudconfig_schema(
-            {"snap": {"assertions": {"01": 123}}}, schema
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.assertions.0: 123 is not of type 'string'\n"
-            "WARNING: Invalid cloud-config provided:\n"
-            "snap.assertions.01: 123 is not of type 'string'\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    def test_warn_schema_assertions_is_not_list_or_dict(self, _):
-        """Warn when snap:assertions config is not a list or dict."""
-        validate_cloudconfig_schema({"snap": {"assertions": "broken"}}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap.assertions:"
-            " 'broken' is not of type 'object', 'array'\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    def test_warn_schema_when_assertions_is_empty(self, _):
-        """Emit warnings when snap:assertions is an empty list or dict."""
-        validate_cloudconfig_schema({"snap": {"assertions": []}}, schema)
-        validate_cloudconfig_schema({"snap": {"assertions": {}}}, schema)
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap.assertions: []"
-            " is too short\n"
-            "WARNING: Invalid cloud-config provided:\nsnap.assertions: {}"
-            " does not have enough properties\n",
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    def test_schema_when_assertions_are_list_or_dict(self, _):
-        """No warnings when snap:assertions are a list or dict."""
-        validate_cloudconfig_schema(
-            {"snap": {"assertions": ["valid"]}}, schema
-        )
-        validate_cloudconfig_schema(
-            {"snap": {"assertions": {"01": "also valid"}}}, schema
-        )
-        self.assertEqual("", self.logs.getvalue())
-
-    def test_duplicates_are_fine_array_array(self):
-        """Duplicated commands array/array entries are allowed."""
-        self.assertSchemaValid(
-            {"commands": [["echo", "bye"], ["echo", "bye"]]},
-            "command entries can be duplicate.",
-        )
-
-    def test_duplicates_are_fine_array_string(self):
-        """Duplicated commands array/string entries are allowed."""
-        self.assertSchemaValid(
-            {"commands": ["echo bye", "echo bye"]},
-            "command entries can be duplicate.",
-        )
-
-    def test_duplicates_are_fine_dict_array(self):
-        """Duplicated commands dict/array entries are allowed."""
-        self.assertSchemaValid(
-            {"commands": {"00": ["echo", "bye"], "01": ["echo", "bye"]}},
-            "command entries can be duplicate.",
-        )
-
-    def test_duplicates_are_fine_dict_string(self):
-        """Duplicated commands dict/string entries are allowed."""
-        self.assertSchemaValid(
-            {"commands": {"00": "echo bye", "01": "echo bye"}},
-            "command entries can be duplicate.",
-        )
+class TestSnapSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Valid
+            ({"snap": {"commands": ["valid"]}}, None),
+            ({"snap": {"commands": {"01": "also valid"}}}, None),
+            ({"snap": {"assertions": ["valid"]}}, None),
+            ({"snap": {"assertions": {"01": "also valid"}}}, None),
+            ({"commands": [["echo", "bye"], ["echo", "bye"]]}, None),
+            ({"commands": ["echo bye", "echo bye"]}, None),
+            (
+                {"commands": {"00": ["echo", "bye"], "01": ["echo", "bye"]}},
+                None,
+            ),
+            ({"commands": {"00": "echo bye", "01": "echo bye"}}, None),
+            # Invalid
+            ({"snap": "wrong type"}, "'wrong type' is not of type 'object'"),
+            (
+                {"snap": {"commands": ["ls"], "invalid-key": ""}},
+                "Additional properties are not allowed",
+            ),
+            ({"snap": {}}, "{} does not have enough properties"),
+            (
+                {"snap": {"commands": "broken"}},
+                "'broken' is not of type 'object', 'array'",
+            ),
+            ({"snap": {"commands": []}}, r"snap.commands: \[\] is too short"),
+            (
+                {"snap": {"commands": {}}},
+                r"snap.commands: {} does not have enough properties",
+            ),
+            ({"snap": {"commands": [123]}}, ""),
+            ({"snap": {"commands": {"01": 123}}}, ""),
+            ({"snap": {"commands": [["snap", "install", 123]]}}, ""),
+            ({"snap": {"commands": {"01": ["snap", "install", 123]}}}, ""),
+            ({"snap": {"assertions": [123]}}, "123 is not of type 'string'"),
+            (
+                {"snap": {"assertions": {"01": 123}}},
+                "123 is not of type 'string'",
+            ),
+            (
+                {"snap": {"assertions": "broken"}},
+                "'broken' is not of type 'object', 'array'",
+            ),
+            ({"snap": {"assertions": []}}, r"\[\] is too short"),
+            (
+                {"snap": {"assertions": {}}},
+                r"\{} does not have enough properties",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 class TestHandle(CiTestCase):
@@ -462,77 +346,6 @@ class TestHandle(CiTestCase):
     def setUp(self):
         super(TestHandle, self).setUp()
         self.tmp = self.tmp_dir()
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    @mock.patch("cloudinit.config.cc_snap.validate_cloudconfig_schema")
-    def test_handle_no_config(self, m_schema, m_add, m_run):
-        """When no snap-related configuration is provided, nothing happens."""
-        cfg = {}
-        handle("snap", cfg=cfg, cloud=None, log=self.logger, args=None)
-        self.assertIn(
-            "DEBUG: Skipping module named snap, no 'snap' key in config",
-            self.logs.getvalue(),
-        )
-        m_schema.assert_not_called()
-        m_add.assert_not_called()
-        m_run.assert_not_called()
-
-    @mock.patch("cloudinit.config.cc_snap.run_commands")
-    @mock.patch("cloudinit.config.cc_snap.add_assertions")
-    @mock.patch("cloudinit.config.cc_snap.maybe_install_squashfuse")
-    def test_handle_skips_squashfuse_when_unconfigured(
-        self, m_squash, m_add, m_run
-    ):
-        """When squashfuse_in_container is unset, don't attempt to install."""
-        handle(
-            "snap", cfg={"snap": {}}, cloud=None, log=self.logger, args=None
-        )
-        handle(
-            "snap",
-            cfg={"snap": {"squashfuse_in_container": None}},
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        handle(
-            "snap",
-            cfg={"snap": {"squashfuse_in_container": False}},
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        self.assertEqual([], m_squash.call_args_list)  # No calls
-        # snap configuration missing assertions and commands will default to []
-        self.assertIn(mock.call([]), m_add.call_args_list)
-        self.assertIn(mock.call([]), m_run.call_args_list)
-
-    @mock.patch("cloudinit.config.cc_snap.maybe_install_squashfuse")
-    def test_handle_tries_to_install_squashfuse(self, m_squash):
-        """If squashfuse_in_container is True, try installing squashfuse."""
-        cfg = {"snap": {"squashfuse_in_container": True}}
-        mycloud = FakeCloud(None)
-        handle("snap", cfg=cfg, cloud=mycloud, log=self.logger, args=None)
-        self.assertEqual([mock.call(mycloud)], m_squash.call_args_list)
-
-    def test_handle_runs_commands_provided(self):
-        """If commands are specified as a list, run them."""
-        outfile = self.tmp_path("output.log", dir=self.tmp)
-
-        cfg = {
-            "snap": {
-                "commands": [
-                    'echo "HI" >> %s' % outfile,
-                    'echo "MOM" >> %s' % outfile,
-                ]
-            }
-        }
-        mock_path = "cloudinit.config.cc_snap.sys.stderr"
-        with self.allow_subp([CiTestCase.SUBP_SHELL_TRUE]):
-            with mock.patch(mock_path, new_callable=StringIO):
-                handle("snap", cfg=cfg, cloud=None, log=self.logger, args=None)
-
-        self.assertEqual("HI\nMOM\n", util.load_file(outfile))
 
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_handle_adds_assertions(self, m_subp):
@@ -556,84 +369,6 @@ class TestHandle(CiTestCase):
         util.write_file(compare_file, content.encode("utf-8"))
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file)
-        )
-
-    @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    @skipUnlessJsonSchema()
-    def test_handle_validates_schema(self, m_subp):
-        """Any provided configuration is runs validate_cloudconfig_schema."""
-        assert_file = self.tmp_path("snapd.assertions", dir=self.tmp)
-        cfg = {"snap": {"invalid": ""}}  # Generates schema warning
-        wrap_and_call(
-            "cloudinit.config.cc_snap",
-            {"ASSERTIONS_FILE": {"new": assert_file}},
-            handle,
-            "snap",
-            cfg=cfg,
-            cloud=None,
-            log=self.logger,
-            args=None,
-        )
-        self.assertEqual(
-            "WARNING: Invalid cloud-config provided:\nsnap: Additional"
-            " properties are not allowed ('invalid' was unexpected)\n",
-            self.logs.getvalue(),
-        )
-
-
-class TestMaybeInstallSquashFuse(CiTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestMaybeInstallSquashFuse, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_skips_non_containers(self, m_container):
-        """maybe_install_squashfuse does nothing when not on a container."""
-        m_container.return_value = False
-        maybe_install_squashfuse(cloud=FakeCloud(None))
-        self.assertEqual([mock.call()], m_container.call_args_list)
-        self.assertEqual("", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_raises_install_errors(self, m_container):
-        """maybe_install_squashfuse logs and raises package install errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()
-        distro.update_package_sources.side_effect = RuntimeError(
-            "Some apt error"
-        )
-        with self.assertRaises(RuntimeError) as context_manager:
-            maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual("Some apt error", str(context_manager.exception))
-        self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_raises_update_errors(self, m_container):
-        """maybe_install_squashfuse logs and raises package update errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()
-        distro.update_package_sources.side_effect = RuntimeError(
-            "Some apt error"
-        )
-        with self.assertRaises(RuntimeError) as context_manager:
-            maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual("Some apt error", str(context_manager.exception))
-        self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
-
-    @mock.patch("cloudinit.config.cc_snap.util.is_container")
-    def test_maybe_install_squashfuse_happy_path(self, m_container):
-        """maybe_install_squashfuse logs and raises package install errors."""
-        m_container.return_value = True
-        distro = mock.MagicMock()  # No errors raised
-        maybe_install_squashfuse(cloud=FakeCloud(distro))
-        self.assertEqual(
-            [mock.call()], distro.update_package_sources.call_args_list
-        )
-        self.assertEqual(
-            [mock.call(["squashfuse"])], distro.install_packages.call_args_list
         )
 
 

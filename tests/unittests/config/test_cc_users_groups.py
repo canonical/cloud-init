@@ -1,8 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import re
 
+import pytest
 
 from cloudinit.config import cc_users_groups
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 MODPATH = "cloudinit.config.cc_users_groups"
 
@@ -185,6 +192,27 @@ class TestHandleUsersGroups(CiTestCase):
         )
         m_group.assert_not_called()
 
+    def test_users_without_home_cannot_import_ssh_keys(self, m_user, m_group):
+        cfg = {
+            "users": [
+                "default",
+                {
+                    "name": "me2",
+                    "ssh_import_id": ["snowflake"],
+                    "no_create_home": True,
+                },
+            ]
+        }
+        cloud = self.tmp_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        with self.assertRaises(ValueError) as context_manager:
+            cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        m_group.assert_not_called()
+        self.assertEqual(
+            "Not creating user me2. Key(s) ssh_import_id cannot be provided"
+            " with no_create_home",
+            str(context_manager.exception),
+        )
+
     def test_users_with_ssh_redirect_user_non_default(self, m_user, m_group):
         """Warn when ssh_redirect_user is not 'default'."""
         cfg = {
@@ -266,3 +294,45 @@ class TestHandleUsersGroups(CiTestCase):
             " cloud configuration users:  [default, ..].\n",
             self.logs.getvalue(),
         )
+
+
+class TestUsersGroupsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Validate default settings not covered by examples
+            ({"groups": ["anygrp"]}, None),
+            ({"groups": "anygrp,anyothergroup"}, None),  # DEPRECATED
+            # Create anygrp with user1 as member
+            ({"groups": [{"anygrp": "user1"}]}, None),
+            # Create anygrp with user1 as member using object/string syntax
+            ({"groups": {"anygrp": "user1"}}, None),
+            # Create anygrp with user1 as member using object/list syntax
+            ({"groups": {"anygrp": ["user1"]}}, None),
+            ({"groups": [{"anygrp": ["user1", "user2"]}]}, None),
+            # Make default username "olddefault": DEPRECATED
+            ({"user": "olddefault"}, None),
+            # Create multiple users, and include default user. DEPRECATED
+            ({"users": "oldstyle,default"}, None),
+            ({"users": ["default"]}, None),
+            ({"users": ["default", ["aaa", "bbb"]]}, None),
+            ({"users": ["foobar"]}, None),  # no default user creation
+            ({"users": [{"name": "bbsw"}]}, None),
+            ({"groups": [{"yep": ["user1"]}]}, None),
+            (
+                {"user": ["no_list_allowed"]},
+                re.escape("user: ['no_list_allowed'] is not valid "),
+            ),
+            (
+                {"groups": {"anygrp": 1}},
+                "groups.anygrp: 1 is not of type 'string', 'array'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

@@ -253,21 +253,6 @@ locale: en_US.UTF-8
 # render template default-locale.tmpl to locale_configfile
 locale_configfile: /etc/default/locale
 
-# add entries to rsyslog configuration
-# The first occurrence of a given filename will truncate.
-# subsequent entries will append.
-# if value is a scalar, its content is assumed to be 'content', and the
-# default filename is used.
-# if filename is not provided, it will default to 'rsylog_filename'
-# if filename does not start with a '/', it will be put in 'rsyslog_dir'
-# rsyslog_dir default: /etc/rsyslog.d
-# rsyslog_filename default: 20-cloud-config.conf
-rsyslog:
- - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
- - content: "*.*   @@192.0.2.1:10514"
- - filename: 01-examplecom.conf
-   content: "*.*   @@syslogd.example.com"
-
 # resize_rootfs should the / filesystem be resized on first boot
 # this allows you to launch an instance with a larger disk / partition
 # and have the instance automatically grow / to accomoddate it
@@ -330,7 +315,7 @@ resize_rootfs: True
 #      * Whatever is present at instance boot time will be present after boot.
 #      * User changes will not be overwritten
 #
-#    true or 'template':
+#    true:
 #      on every boot, /etc/hosts will be re-written from
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
@@ -469,17 +454,6 @@ ssh_pwauth: True
 #  will be booted as a new instance.
 # default is False
 manual_cache_clean: False
-
-# When cloud-init is finished running including having run
-# cloud_init_modules, then it will run this command.  The default
-# is to emit an upstart signal as shown below.  If the value is a
-# list, it will be passed to Popen.  If it is a string, it will be
-# invoked through 'sh -c'.
-#
-# default value:
-# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
-# example:
-# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh

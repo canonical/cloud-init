@@ -9,6 +9,7 @@ LOG_F="/run/cloud-init/cloud-init-generator.log"
 ENABLE="enabled"
 DISABLE="disabled"
 RUN_ENABLED_FILE="$LOG_D/$ENABLE"
+RUN_DISABLED_FILE="$LOG_D/$DISABLE"
 CLOUD_TARGET_NAME="cloud-init.target"
 # lxc sets 'container', but lets make that explicitly a global
 CONTAINER="${container}"
@@ -71,9 +72,9 @@ kernel_cmdline() {
         # use KERNEL_CMDLINE if present in environment even if empty
         cmdline=${KERNEL_CMDLINE}
         debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
-    elif read_proc_cmdline; then
-        read_proc_cmdline && cmdline="$_RET"
-        debug 1 "kernel command line ($_RET_MSG): $cmdline"
+    else
+        read_proc_cmdline && cmdline="$_RET" &&
+                debug 1 "kernel command line ($_RET_MSG): $cmdline"
     fi
     _RET="unset"
     cmdline=" $cmdline "
@@ -151,6 +152,10 @@ main() {
                     "ln $CLOUD_SYSTEM_TARGET $link_path"
             fi
         fi
+        if [ -e $RUN_DISABLED_FILE ]; then
+            debug 1 "removing $RUN_DISABLED_FILE and creating $RUN_ENABLED_FILE"
+            rm -f $RUN_DISABLED_FILE
+        fi
         : > "$RUN_ENABLED_FILE"
     elif [ "$result" = "$DISABLE" ]; then
         if [ -f "$link_path" ]; then
@@ -164,8 +169,10 @@ main() {
             debug 1 "already disabled: no change needed [no $link_path]"
         fi
         if [ -e "$RUN_ENABLED_FILE" ]; then
+            debug 1 "removing $RUN_ENABLED_FILE and creating $RUN_DISABLED_FILE"
             rm -f "$RUN_ENABLED_FILE"
         fi
+        : > "$RUN_DISABLED_FILE"
     else
         debug 0 "unexpected result '$result' 'ds=$ds'"
         ret=3

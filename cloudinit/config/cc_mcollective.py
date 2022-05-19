@@ -7,11 +7,28 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Mcollective
------------
-**Summary:** install, configure and start mcollective
+""" Mcollective: Install, configure and start mcollective"""
 
+import errno
+import io
+from textwrap import dedent
+
+# Used since this can maintain comments
+# and doesn't need a top level section
+from configobj import ConfigObj
+
+from cloudinit import log as logging
+from cloudinit import subp, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
+PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
+SERVER_CFG = "/etc/mcollective/server.cfg"
+
+LOG = logging.getLogger(__name__)
+
+MODULE_DESCRIPTION = """\
 This module installs, configures and starts mcollective. If the ``mcollective``
 key is present in config, then mcollective will be installed and started.
 
@@ -26,43 +43,48 @@ private certificates for mcollective. Their values will be written to
 .. note::
     The ec2 metadata service is readable by non-root users.
     If security is a concern, use include-once and ssl urls.
-
-**Internal name:** ``cc_mcollective``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    mcollective:
-        conf:
-            <key>: <value>
-            public-cert: |
-                -------BEGIN CERTIFICATE--------
-                <cert data>
-                -------END CERTIFICATE--------
-            private-cert: |
-                -------BEGIN CERTIFICATE--------
-                <cert data>
-                -------END CERTIFICATE--------
 """
 
-import errno
-import io
+distros = ["all"]
 
-# Used since this can maintain comments
-# and doesn't need a top level section
-from configobj import ConfigObj
+meta: MetaSchema = {
+    "id": "cc_mcollective",
+    "name": "Mcollective",
+    "title": "Install, configure and start mcollective",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
+            # Provide server private and public key and provide the following
+            # config settings in /etc/mcollective/server.cfg:
+            # loglevel: debug
+            # plugin.stomp.host: dbhost
 
-from cloudinit import log as logging
-from cloudinit import subp, util
+            # WARNING WARNING WARNING
+            # The ec2 metadata service is a network service, and thus is
+            # readable by non-root users on the system
+            # (ie: 'ec2metadata --user-data')
+            # If you want security for this, please use include-once + SSL urls
+            mcollective:
+              conf:
+                loglevel: debug
+                plugin.stomp.host: dbhost
+                public-cert: |
+                    -------BEGIN CERTIFICATE--------
+                    <cert data>
+                    -------END CERTIFICATE--------
+                private-cert: |
+                    -------BEGIN CERTIFICATE--------
+                    <cert data>
+                    -------END CERTIFICATE--------
+            """
+        ),
+    ],
+    "frequency": PER_INSTANCE,
+}
 
-PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
-PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
-SERVER_CFG = "/etc/mcollective/server.cfg"
-
-LOG = logging.getLogger(__name__)
+__doc__ = get_meta_doc(meta)
 
 
 def configure(
