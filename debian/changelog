@@ -3,8 +3,11 @@ cloud-init (22.1-14-g2e17a0d6-0ubuntu1~18.04.4) UNRELEASED; urgency=medium
   * d/control:
     - Build-Depends: add python3-responses and python3-pytest-mock for unittests
     - Suggests: add openssh-server and ssh-import-id
+  * refresh patches:
+   + debian/patches/ec2-dont-apply-full-imds-network-config.patch
+   + debian/patches/renderer-do-not-prefer-netplan.patch
 
- -- Brett Holman <brett.holman@canonical.com>  Fri, 22 Apr 2022 11:55:09 -0600
+ -- James Falcon <james.falcon@canonical.com>  Thu, 19 May 2022 17:10:43 -0500
 
 cloud-init (22.1-14-g2e17a0d6-0ubuntu1~18.04.3) bionic; urgency=medium
 
