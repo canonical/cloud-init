@@ -285,7 +285,6 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
 }
-# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
     "disk_setup": {

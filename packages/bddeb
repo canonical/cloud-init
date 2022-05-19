@@ -34,7 +34,13 @@ DEBUILD_ARGS = ["-S", "-d"]
 
 
 def get_release_suffix(release):
-    """Given ubuntu release (xenial), return a suffix for package (~16.04.1)"""
+    """Given ubuntu release, return a suffix for package
+
+    Examples:
+    ---------
+    >>> get_release_suffix("xenial")
+    '~16.04.1'
+    """
     csv_path = "/usr/share/distro-info/ubuntu.csv"
     rels = {}
     # fields are version, codename, series, created, release, eol, eol-server
