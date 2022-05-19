@@ -349,4 +349,7 @@ system_info:
 {% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
+{% elif variant in ["rhel", "fedora"] %}
+   network:
+      renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
 {% endif %}
