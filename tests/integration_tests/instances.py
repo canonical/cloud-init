@@ -9,7 +9,7 @@ from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
 from tests.integration_tests import integration_settings
-from tests.integration_tests.util import retry
+from tests.integration_tests.decorators import retry
 
 try:
     from typing import TYPE_CHECKING

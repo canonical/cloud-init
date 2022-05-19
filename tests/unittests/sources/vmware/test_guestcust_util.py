@@ -12,6 +12,7 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_tools_config,
     set_gc_status,
 )
+from cloudinit.subp import SubpResult
 from tests.unittests.helpers import CiTestCase, mock
 
 
@@ -35,7 +36,7 @@ class TestGuestCustUtil(CiTestCase):
             with mock.patch.object(
                 subp,
                 "subp",
-                return_value=("key=value", b""),
+                return_value=SubpResult("key=value", b""),
                 side_effect=subp.ProcessExecutionError(
                     "subp failed", exit_code=99
                 ),
@@ -54,19 +55,21 @@ class TestGuestCustUtil(CiTestCase):
         with mock.patch.object(subp, "which", return_value="/dummy/path"):
             # value is not blank
             with mock.patch.object(
-                subp, "subp", return_value=("key =   value  ", b"")
+                subp, "subp", return_value=SubpResult("key =   value  ", b"")
             ):
                 self.assertEqual(
                     get_tools_config("section", "key", "defaultVal"), "value"
                 )
             # value is blank
-            with mock.patch.object(subp, "subp", return_value=("key = ", b"")):
+            with mock.patch.object(
+                subp, "subp", return_value=SubpResult("key = ", b"")
+            ):
                 self.assertEqual(
                     get_tools_config("section", "key", "defaultVal"), ""
                 )
             # value contains =
             with mock.patch.object(
-                subp, "subp", return_value=("key=Bar=Wark", b"")
+                subp, "subp", return_value=SubpResult("key=Bar=Wark", b"")
             ):
                 self.assertEqual(
                     get_tools_config("section", "key", "defaultVal"),
@@ -75,7 +78,7 @@ class TestGuestCustUtil(CiTestCase):
 
             # value contains specific characters
             with mock.patch.object(
-                subp, "subp", return_value=("[a] b.c_d=e-f", b"")
+                subp, "subp", return_value=SubpResult("[a] b.c_d=e-f", b"")
             ):
                 self.assertEqual(
                     get_tools_config("section", "key", "defaultVal"), "e-f"
@@ -97,7 +100,7 @@ class TestGuestCustUtil(CiTestCase):
         cf._insertKey("MISC|POST-GC-STATUS", "YES")
         conf = Config(cf)
         with mock.patch.object(
-            subp, "subp", return_value=("ok", b"")
+            subp, "subp", return_value=SubpResult("ok", b"")
         ) as mockobj:
             self.assertEqual(set_gc_status(conf, "Successful"), ("ok", b""))
             mockobj.assert_called_once_with(

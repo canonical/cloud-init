@@ -1,4 +1,5 @@
 CWD=$(shell pwd)
+VARIANT ?= ubuntu
 
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
@@ -6,12 +7,17 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 PYTHON = python3
 PIP_INSTALL := pip3 install
 
+NUM_ITER ?= 100
+
 ifeq ($(distro),)
   distro = redhat
 endif
 
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
+GENERATOR_F=./systemd/cloud-init-generator
+DS_IDENTIFY=./tools/ds-identify
+BENCHMARK=./tools/benchmark.sh
 
 
 all: check
@@ -25,6 +31,24 @@ flake8:
 
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
+
+render-template:
+	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
+
+# from systemd-generator(7) regarding generators:
+# "We do recommend C code however, since generators are executed
+# synchronously and hence delay the entire boot if they are slow."
+#
+# Our generator is a shell script. Make it easy to measure the
+# generator. This should be monitored for performance regressions
+benchmark-generator: FILE=$(GENERATOR_F).tmpl
+benchmark-generator: export ITER=$(NUM_ITER)
+benchmark-generator: render-template
+	$(BENCHMARK) $(GENERATOR_F)
+
+benchmark-ds-identify: export ITER=$(NUM_ITER)
+benchmark-ds-identify:
+	$(BENCHMARK) $(DS_IDENTIFY)
 
 ci-deps-ubuntu:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
@@ -44,9 +68,10 @@ test: unittest
 
 check_version:
 	@if [ "$(READ_VERSION)" != "$(CODE_VERSION)" ]; then \
-	    echo "Error: read-version version '$(READ_VERSION)'" \
-	    "not equal to code version '$(CODE_VERSION)'"; exit 2; \
-	    else true; fi
+		echo "Error: read-version version '$(READ_VERSION)'" \
+			"not equal to code version '$(CODE_VERSION)'"; \
+		exit 2; \
+	else true; fi
 
 config/cloud.cfg:
 	$(PYTHON) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
@@ -76,7 +101,7 @@ clean_release:
 	rm -rf new-upstream-changes.txt commit.msg
 
 clean: clean_pyc clean_pytest clean_packaging clean_release
-	rm -rf doc/rtd_html .tox .coverage tags
+	rm -rf doc/rtd_html .tox .coverage tags $(GENERATOR_F)
 
 yaml:
 	@$(PYTHON) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
@@ -90,14 +115,14 @@ srpm:
 deb:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
-		  echo sudo apt-get install devscripts; exit 1; }
+			echo sudo apt-get install devscripts; exit 1; }
 
 	$(PYTHON) ./packages/bddeb
 
 deb-src:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
-		  echo sudo apt-get install devscripts; exit 1; }
+			echo sudo apt-get install devscripts; exit 1; }
 	$(PYTHON) ./packages/bddeb -S -d
 
 doc:
@@ -108,7 +133,8 @@ _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
        grep -v -e 'doc/rtd/topics/cli.rst: modules modules' \
                -e 'doc/examples/cloud-config-mcollective.txt: WARNING WARNING' \
                -e 'doc/examples/cloud-config-power-state.txt: Bye Bye' \
-               -e 'doc/examples/cloud-config.txt: Bye Bye'
+               -e 'doc/examples/cloud-config.txt: Bye Bye' \
+               -e 'doc/rtd/topics/cli.rst: DOCS DOCS'
 
 
 # For CI we require a failing return code when spellintian finds spelling errors
@@ -140,7 +166,7 @@ fix_spelling:
 		awk -F ': | -> ' '{printf "sed -i \047s/%s/%s/g\047 %s\n", $$2, $$3, $$1}' | \
 		sh
 
-.PHONY: test flake8 clean rpm srpm deb deb-src yaml
+.PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
-.PHONY: unittest style-check doc fix_spelling
-.PHONY: clean_pytest clean_packaging check_spelling clean_release
+.PHONY: unittest style-check fix_spelling render-template benchmark-generator
+.PHONY: clean_pytest clean_packaging check_spelling clean_release doc

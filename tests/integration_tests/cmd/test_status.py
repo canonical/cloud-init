@@ -13,8 +13,12 @@ def _wait_for_cloud_init(client: IntegrationInstance):
     last_exception = None
     for _ in range(30):
         try:
-            result = client.execute("cloud-init status --long")
-            if result and result.ok:
+            result = client.execute("cloud-init status")
+            if (
+                result
+                and result.ok
+                and ("running" not in result or "not run" not in result)
+            ):
                 return result
         except Exception as e:
             last_exception = e

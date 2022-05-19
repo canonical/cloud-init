@@ -3,6 +3,7 @@
 """Tests for cloudinit.util"""
 
 import base64
+import errno
 import io
 import json
 import logging
@@ -12,17 +13,21 @@ import re
 import shutil
 import stat
 import tempfile
+from collections import deque
 from textwrap import dedent
+from typing import Tuple
 from unittest import mock
 
 import pytest
 import yaml
 
 from cloudinit import importer, subp, util
+from cloudinit.subp import SubpResult
 from tests.unittests import helpers
 from tests.unittests.helpers import CiTestCase
 
 LOG = logging.getLogger(__name__)
+M_PATH = "cloudinit.util."
 
 MOUNT_INFO = [
     "68 0 8:3 / / ro,relatime shared:1 - btrfs /dev/sda1 ro,attr2,inode64",
@@ -335,30 +340,108 @@ class FakeCloud(object):
         return self.hostname
 
 
-class TestUtil(CiTestCase):
+class TestUtil:
     def test_parse_mount_info_no_opts_no_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG)
-        self.assertEqual(("/dev/sda2", "xfs", "/home"), result)
+        assert ("/dev/sda2", "xfs", "/home") == result
 
     def test_parse_mount_info_no_opts_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG, False)
-        self.assertEqual(("/dev/sda2", "xfs", "/home"), result)
+        assert ("/dev/sda2", "xfs", "/home") == result
 
     def test_parse_mount_info_with_opts(self):
         result = util.parse_mount_info("/", MOUNT_INFO, LOG, True)
-        self.assertEqual(("/dev/sda1", "btrfs", "/", "ro,relatime"), result)
+        assert ("/dev/sda1", "btrfs", "/", "ro,relatime") == result
 
-    @mock.patch("cloudinit.util.get_mount_info")
+    @mock.patch(M_PATH + "get_mount_info")
     def test_mount_is_rw(self, m_mount_info):
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "rw,relatime")
         is_rw = util.mount_is_read_write("/")
-        self.assertEqual(is_rw, True)
+        assert is_rw is True
 
-    @mock.patch("cloudinit.util.get_mount_info")
+    @mock.patch(M_PATH + "get_mount_info")
     def test_mount_is_ro(self, m_mount_info):
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "ro,relatime")
         is_rw = util.mount_is_read_write("/")
-        self.assertEqual(is_rw, False)
+        assert is_rw is False
+
+    @mock.patch(
+        M_PATH + "read_conf",
+        side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
+    )
+    def test_read_conf_d_no_permissions(
+        self, m_read_conf, caplog, capsys, tmpdir
+    ):
+        """If a user has not read permission to read a config file then
+        there is no exception nor stderr output and the user is informed via
+        logging warnings.
+
+        Note: This is used in cmd, therefore want to keep the invariant of
+        not outputing to the console and log file permission errors.
+        """
+        confs = []
+        for i in range(2):
+            confs.append(tmpdir.join(f"conf-{i}.cfg"))
+            confs[i].write("{}")
+        assert {"0": "0"} == util.read_conf_d(tmpdir)
+        assert (
+            caplog.text.count(
+                f"REDACTED config part {tmpdir}/conf-1.cfg for non-root user"
+            )
+            == 1
+        )
+        assert m_read_conf.call_count == 2
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
+
+    @pytest.mark.parametrize(
+        "create_confd,expected_call",
+        [
+            (False, mock.call(deque())),
+            (True, mock.call(deque([{"my_config": "foo"}]))),
+        ],
+    )
+    @mock.patch(M_PATH + "mergemanydict")
+    @mock.patch(M_PATH + "read_conf_d", return_value={"my_config": "foo"})
+    @mock.patch(
+        M_PATH + "read_conf", side_effect=OSError(errno.EACCES, "Not allowed")
+    )
+    def test_read_conf_with_confd_no_permissions(
+        self,
+        m_read_conf,
+        m_read_confd,
+        m_mergemanydict,
+        create_confd,
+        expected_call,
+        caplog,
+        capsys,
+        tmpdir,
+    ):
+        """Read a conf file without permission.
+
+        sys output is empty and the user is informed via logging warnings.
+
+        Note: This is used in cmd, therefore want to keep the invariant of
+        not outputing to the console and log file permission errors.
+        """
+        conf_fn = tmpdir.join("conf.cfg")
+        if create_confd:
+            confd_fn = tmpdir.mkdir("conf.cfg.d")
+        util.read_conf_with_confd(conf_fn)
+        assert (
+            caplog.text.count(
+                f"REDACTED config part {conf_fn} for non-root user"
+            )
+            == 1
+        )
+        assert m_read_conf.call_count == 1
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
+        if create_confd:
+            assert [mock.call(confd_fn)] == m_read_confd.call_args_list
+        assert [expected_call] == m_mergemanydict.call_args_list
 
 
 class TestSymlink(CiTestCase):
@@ -376,13 +459,16 @@ class TestSymlink(CiTestCase):
         tmpd = self.tmp_dir()
         link = self.tmp_path("link", tmpd)
         target = self.tmp_path("target", tmpd)
+        target2 = self.tmp_path("target2", tmpd)
         util.write_file(target, "hello")
+        util.write_file(target2, "hello2")
 
         util.sym_link(target, link)
         self.assertTrue(os.path.exists(link))
 
-        util.sym_link(target, link, force=True)
+        util.sym_link(target2, link, force=True)
         self.assertTrue(os.path.exists(link))
+        self.assertEqual("hello2", util.load_file(link))
 
     def test_sym_link_dangling_link(self):
         tmpd = self.tmp_dir()
@@ -408,9 +494,9 @@ class TestSymlink(CiTestCase):
 
 
 class TestUptime(CiTestCase):
-    @mock.patch("cloudinit.util.boottime")
-    @mock.patch("cloudinit.util.os.path.exists")
-    @mock.patch("cloudinit.util.time.time")
+    @mock.patch(M_PATH + "boottime")
+    @mock.patch(M_PATH + "os.path.exists")
+    @mock.patch(M_PATH + "time.time")
     def test_uptime_non_linux_path(self, m_time, m_exists, m_boottime):
         boottime = 1000.0
         uptime = 10.0
@@ -590,7 +676,7 @@ class TestBlkid(CiTestCase):
 
     @mock.patch("cloudinit.subp.subp")
     def test_functional_blkid(self, m_subp):
-        m_subp.return_value = (self.blkid_out.format(**self.ids), "")
+        m_subp.return_value = SubpResult(self.blkid_out.format(**self.ids), "")
         self.assertEqual(self._get_expected(), util.blkid())
         m_subp.assert_called_with(
             ["blkid", "-o", "full"], capture=True, decode="replace"
@@ -599,7 +685,7 @@ class TestBlkid(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_blkid_no_cache_uses_no_cache(self, m_subp):
         """blkid should turn off cache if disable_cache is true."""
-        m_subp.return_value = (self.blkid_out.format(**self.ids), "")
+        m_subp.return_value = SubpResult(self.blkid_out.format(**self.ids), "")
         self.assertEqual(self._get_expected(), util.blkid(disable_cache=True))
         m_subp.assert_called_with(
             ["blkid", "-o", "full", "-c", "/dev/null"],
@@ -684,7 +770,7 @@ class TestGetLinuxDistro(CiTestCase):
         if path == "/etc/redhat-release":
             return 1
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_distro_quoted_name(self, m_os_release, m_path_exists):
         """Verify we get the correct name if the os-release file has
         the distro name in quotes"""
@@ -693,7 +779,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("sles", "12.3", platform.machine()), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_distro_bare_name(self, m_os_release, m_path_exists):
         """Verify we get the correct name if the os-release file does not
         have the distro name in quotes"""
@@ -704,7 +790,7 @@ class TestGetLinuxDistro(CiTestCase):
 
     @mock.patch("platform.system")
     @mock.patch("platform.release")
-    @mock.patch("cloudinit.util._parse_redhat_release")
+    @mock.patch(M_PATH + "_parse_redhat_release")
     def test_get_linux_freebsd(
         self,
         m_parse_redhat_release,
@@ -721,7 +807,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("freebsd", "12.0-RELEASE-p10", ""), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_centos6(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on CentOS 6."""
         m_os_release.return_value = REDHAT_RELEASE_CENTOS_6
@@ -729,7 +815,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("centos", "6.10", "Final"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_centos7_redhat_release(self, m_os_release, m_exists):
         """Verify the correct release info on CentOS 7 without os-release."""
         m_os_release.return_value = REDHAT_RELEASE_CENTOS_7
@@ -737,7 +823,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("centos", "7.5.1804", "Core"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_redhat7_osrelease(self, m_os_release, m_path_exists):
         """Verify redhat 7 read from os-release."""
         m_os_release.return_value = OS_RELEASE_REDHAT_7
@@ -745,7 +831,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("redhat", "7.5", "Maipo"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_redhat7_rhrelease(self, m_os_release, m_path_exists):
         """Verify redhat 7 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_REDHAT_7
@@ -753,7 +839,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("redhat", "7.5", "Maipo"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_redhat6_rhrelease(self, m_os_release, m_path_exists):
         """Verify redhat 6 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_REDHAT_6
@@ -761,7 +847,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("redhat", "6.10", "Santiago"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_copr_centos(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on COPR CentOS."""
         m_os_release.return_value = OS_RELEASE_CENTOS
@@ -769,7 +855,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("centos", "7", "Core"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_almalinux8_rhrelease(self, m_os_release, m_path_exists):
         """Verify almalinux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_ALMALINUX_8
@@ -777,7 +863,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("almalinux", "8.3", "Purple Manul"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_almalinux8_osrelease(self, m_os_release, m_path_exists):
         """Verify almalinux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_ALMALINUX_8
@@ -785,7 +871,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("almalinux", "8.3", "Purple Manul"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_eurolinux7_rhrelease(self, m_os_release, m_path_exists):
         """Verify eurolinux 7 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_7
@@ -793,7 +879,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("eurolinux", "7.9", "Minsk"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_eurolinux7_osrelease(self, m_os_release, m_path_exists):
         """Verify eurolinux 7 read from os-release."""
         m_os_release.return_value = OS_RELEASE_EUROLINUX_7
@@ -801,7 +887,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("eurolinux", "7.9", "Minsk"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_eurolinux8_rhrelease(self, m_os_release, m_path_exists):
         """Verify eurolinux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_8
@@ -809,7 +895,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("eurolinux", "8.4", "Vaduz"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_eurolinux8_osrelease(self, m_os_release, m_path_exists):
         """Verify eurolinux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_EUROLINUX_8
@@ -817,7 +903,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("eurolinux", "8.4", "Vaduz"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_miraclelinux8_rhrelease(
         self, m_os_release, m_path_exists
     ):
@@ -827,7 +913,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("miracle", "8.4", "Peony"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_miraclelinux8_osrelease(
         self, m_os_release, m_path_exists
     ):
@@ -837,7 +923,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("miraclelinux", "8", "Peony"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
         """Verify rocky linux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
@@ -845,7 +931,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("rocky", "8.3", "Green Obsidian"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
         """Verify rocky linux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_ROCKY_8
@@ -853,7 +939,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("rocky", "8.3", "Green Obsidian"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_virtuozzo8_rhrelease(self, m_os_release, m_path_exists):
         """Verify virtuozzo linux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_VIRTUOZZO_8
@@ -861,7 +947,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("virtuozzo", "8", "Virtuozzo Linux"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_virtuozzo8_osrelease(self, m_os_release, m_path_exists):
         """Verify virtuozzo linux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_VIRTUOZZO_8
@@ -869,7 +955,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("virtuozzo", "8", "Virtuozzo Linux"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_cloud8_rhrelease(self, m_os_release, m_path_exists):
         """Verify cloudlinux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_CLOUDLINUX_8
@@ -877,7 +963,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("cloudlinux", "8.4", "Valery Rozhdestvensky"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_cloud8_osrelease(self, m_os_release, m_path_exists):
         """Verify cloudlinux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_CLOUDLINUX_8
@@ -885,7 +971,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("cloudlinux", "8.4", "Valery Rozhdestvensky"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_debian(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on Debian."""
         m_os_release.return_value = OS_RELEASE_DEBIAN
@@ -893,7 +979,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("debian", "9", "stretch"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_openeuler(self, m_os_release, m_path_exists):
         """Verify get the correct name and release name on Openeuler."""
         m_os_release.return_value = OS_RELEASE_OPENEULER_20
@@ -901,7 +987,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("openEuler", "20.03", "LTS-SP2"), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -911,7 +997,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("opensuse", "42.3", platform.machine()), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse_l15(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         for openSUSE Leap 15.0 and later.
@@ -921,7 +1007,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("opensuse-leap", "15.0", platform.machine()), dist)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse_tw(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         for openSUSE Tumbleweed
@@ -933,7 +1019,7 @@ class TestGetLinuxDistro(CiTestCase):
             ("opensuse-tumbleweed", "20180920", platform.machine()), dist
         )
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_photon_os_release(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on PhotonOS"""
         m_os_release.return_value = OS_RELEASE_PHOTON
@@ -1055,6 +1141,9 @@ class TestIsLXD(CiTestCase):
 
 
 class TestReadCcFromCmdline:
+
+    random_string: Tuple
+
     if hasattr(pytest, "param"):
         random_string = pytest.param(
             CiTestCase.random_string(), None, id="random_string"
@@ -1178,8 +1267,8 @@ class TestMountCb:
         """Mock an already-mounted device, and yield (device, mount dict)"""
         device = "/dev/fake0"
         mountpoint = "/mnt/fake"
-        with mock.patch("cloudinit.util.subp.subp"):
-            with mock.patch("cloudinit.util.mounts") as m_mounts:
+        with mock.patch(M_PATH + "subp.subp"):
+            with mock.patch(M_PATH + "mounts") as m_mounts:
                 mounts = {device: {"mountpoint": mountpoint}}
                 m_mounts.return_value = mounts
                 yield device, mounts[device]
@@ -1202,9 +1291,9 @@ class TestMountCb:
             ("ufs", "ufs"),
         ],
     )
-    @mock.patch("cloudinit.util.is_Linux", autospec=True)
-    @mock.patch("cloudinit.util.is_BSD", autospec=True)
-    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch(M_PATH + "is_Linux", autospec=True)
+    @mock.patch(M_PATH + "is_BSD", autospec=True)
+    @mock.patch(M_PATH + "subp.subp")
     @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
     def test_normalize_mtype_on_bsd(
         self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
@@ -1241,7 +1330,7 @@ class TestMountCb:
         with pytest.raises(TypeError):
             util.mount_cb(mock.Mock(), mock.Mock(), mtype=invalid_mtype)
 
-    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch(M_PATH + "subp.subp")
     def test_already_mounted_does_not_mount_or_umount_anything(
         self, m_subp, already_mounted_device
     ):
@@ -1277,7 +1366,7 @@ class TestMountCb:
         ] == callback.call_args_list
 
 
-@mock.patch("cloudinit.util.write_file")
+@mock.patch(M_PATH + "write_file")
 class TestEnsureFile:
     """Tests for ``cloudinit.util.ensure_file``."""
 
@@ -1322,9 +1411,9 @@ class TestEnsureFile:
         assert "ab" == kwargs["omode"]
 
 
-@mock.patch("cloudinit.util.grp.getgrnam")
-@mock.patch("cloudinit.util.os.setgid")
-@mock.patch("cloudinit.util.os.umask")
+@mock.patch(M_PATH + "grp.getgrnam")
+@mock.patch(M_PATH + "os.setgid")
+@mock.patch(M_PATH + "os.umask")
 class TestRedirectOutputPreexecFn:
     """This tests specifically the preexec_fn used in redirect_output."""
 
@@ -1340,7 +1429,7 @@ class TestRedirectOutputPreexecFn:
             args = (test_string, None)
         elif request.param == "errfmt":
             args = (None, test_string)
-        with mock.patch("cloudinit.util.subprocess.Popen") as m_popen:
+        with mock.patch(M_PATH + "subprocess.Popen") as m_popen:
             util.redirect_output(*args)
 
         assert 1 == m_popen.call_count
@@ -1774,7 +1863,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         expected = ("none", "tmpfs", "/run/lock")
         self.assertEqual(expected, util.parse_mount_info("/run/lock", lines))
 
-    @mock.patch("cloudinit.util.os")
+    @mock.patch(M_PATH + "os")
     @mock.patch("cloudinit.subp.subp")
     def test_get_device_info_from_zpool(self, zpool_output, m_os):
         # mock /dev/zfs exists
@@ -1790,7 +1879,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertIsNotNone(ret)
         m_os.path.exists.assert_called_with("/dev/zfs")
 
-    @mock.patch("cloudinit.util.os")
+    @mock.patch(M_PATH + "os")
     def test_get_device_info_from_zpool_no_dev_zfs(self, m_os):
         # mock /dev/zfs missing
         m_os.path.exists.return_value = False
@@ -1798,7 +1887,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         ret = util.get_device_info_from_zpool("vmzroot")
         self.assertIsNone(ret)
 
-    @mock.patch("cloudinit.util.os")
+    @mock.patch(M_PATH + "os")
     @mock.patch("cloudinit.subp.subp")
     def test_get_device_info_from_zpool_handles_no_zpool(self, m_sub, m_os):
         """Handle case where there is no zpool command"""
@@ -1808,7 +1897,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         ret = util.get_device_info_from_zpool("vmzroot")
         self.assertIsNone(ret)
 
-    @mock.patch("cloudinit.util.os")
+    @mock.patch(M_PATH + "os")
     @mock.patch("cloudinit.subp.subp")
     def test_get_device_info_from_zpool_on_error(self, zpool_output, m_os):
         # mock /dev/zfs exists
@@ -1875,7 +1964,7 @@ class TestIsX86(helpers.CiTestCase):
                 util.is_x86(arch), 'Expected not is_x86 for arch "%s"' % arch
             )
 
-    @mock.patch("cloudinit.util.os.uname")
+    @mock.patch(M_PATH + "os.uname")
     def test_is_x86_calls_uname_for_architecture(self, m_uname):
         """is_x86 returns True if platform from uname matches."""
         m_uname.return_value = [0, 1, 2, 3, "x86_64"]
@@ -1981,6 +2070,33 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
     def test_logs_dont_go_to_stdout_if_fallback_to_stdout_is_false(self):
         util.multi_log("something", fallback_to_stdout=False)
         self.assertEqual("", self.stdout.getvalue())
+
+    @mock.patch(
+        M_PATH + "write_to_console",
+        mock.Mock(side_effect=OSError("Failed to write to console")),
+    )
+    def test_logs_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
+        self,
+    ):
+        self._createConsole(self.root)
+        util.multi_log("something", fallback_to_stdout=True)
+        self.assertEqual(
+            "Failed to write to /dev/console\nsomething",
+            self.stdout.getvalue(),
+        )
+
+    @mock.patch(
+        M_PATH + "write_to_console",
+        mock.Mock(side_effect=OSError("Failed to write to console")),
+    )
+    def test_logs_go_nowhere_if_writing_to_console_fails_and_fallback_false(
+        self,
+    ):
+        self._createConsole(self.root)
+        util.multi_log("something", fallback_to_stdout=False)
+        self.assertEqual(
+            "Failed to write to /dev/console\n", self.stdout.getvalue()
+        )
 
     def test_logs_go_to_log_if_given(self):
         log = mock.MagicMock()
@@ -2179,7 +2295,7 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         self.assertTrue(util.system_is_snappy())
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch(M_PATH + "get_cmdline")
     def test_bad_content_in_os_release_no_effect(self, m_cmdline):
         """malformed os-release should not raise exception."""
         m_cmdline.return_value = "root=/dev/sda"
@@ -2189,7 +2305,7 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.reRoot()
         self.assertFalse(util.system_is_snappy())
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch(M_PATH + "get_cmdline")
     def test_snap_core_in_cmdline_is_snappy(self, m_cmdline):
         """The string snap_core= in kernel cmdline indicates snappy."""
         cmdline = (
@@ -2202,7 +2318,7 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.assertTrue(util.system_is_snappy())
         self.assertTrue(m_cmdline.call_count > 0)
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch(M_PATH + "get_cmdline")
     def test_nothing_found_is_not_snappy(self, m_cmdline):
         """If no positive identification, then not snappy."""
         m_cmdline.return_value = "root=/dev/sda"
@@ -2210,7 +2326,7 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.assertFalse(util.system_is_snappy())
         self.assertTrue(m_cmdline.call_count > 0)
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch(M_PATH + "get_cmdline")
     def test_channel_ini_with_snappy_is_snappy(self, m_cmdline):
         """A Channel.ini file with 'ubuntu-core' indicates snappy."""
         m_cmdline.return_value = "root=/dev/sda"
@@ -2220,7 +2336,7 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         self.assertTrue(util.system_is_snappy())
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch(M_PATH + "get_cmdline")
     def test_system_image_config_dir_is_snappy(self, m_cmdline):
         """Existence of /etc/system-image/config.d indicates snappy."""
         m_cmdline.return_value = "root=/dev/sda"
@@ -2265,7 +2381,7 @@ class TestGetProcEnv(helpers.TestCase):
         # return the value portion of key=val decoded.
         return blob.split(b"=", 1)[1].decode(encoding, errors)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_non_utf8_in_environment(self, m_load_file):
         """env may have non utf-8 decodable content."""
         content = self.null.join(
@@ -2284,7 +2400,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_encoding_none_returns_bytes(self, m_load_file):
         """encoding none returns bytes."""
         lines = (self.bootflag, self.simple1, self.simple2, self.mixed)
@@ -2297,7 +2413,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_all_utf8_encoded(self, m_load_file):
         """common path where only utf-8 decodable content."""
         content = self.null.join((self.simple1, self.simple2))
@@ -2307,7 +2423,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch(M_PATH + "load_file")
     def test_non_existing_file_returns_empty_dict(self, m_load_file):
         """as implemented, a non-existing pid returns empty dict.
         This is how it was originally implemented."""
@@ -2358,13 +2474,17 @@ class TestFindDevs:
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_devs_with_openbsd(self, m_subp):
-        m_subp.return_value = ("cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", "")
+        m_subp.return_value = SubpResult(
+            "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
+        )
         devlist = util.find_devs_with_openbsd()
         assert devlist == ["/dev/cd0a", "/dev/sd1a", "/dev/sd1i"]
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_devs_with_openbsd_with_criteria(self, m_subp):
-        m_subp.return_value = ("cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", "")
+        m_subp.return_value = SubpResult(
+            "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
+        )
         devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
         assert devlist == ["/dev/cd0a", "/dev/sd1a", "/dev/sd1i"]
 
@@ -2412,29 +2532,29 @@ class TestFindDevs:
     @mock.patch("cloudinit.subp.subp")
     def test_find_devs_with_netbsd(self, m_subp, criteria, expected_devlist):
         side_effect_values = [
-            ("ld0 dk0 dk1 cd0", ""),
-            (
+            SubpResult("ld0 dk0 dk1 cd0", ""),
+            SubpResult(
                 "mscdlabel: CDIOREADTOCHEADER: "
                 "Inappropriate ioctl for device\n"
                 "track (ctl=4) at sector 0\n"
                 "disklabel not written\n",
                 "",
             ),
-            (
+            SubpResult(
                 "mscdlabel: CDIOREADTOCHEADER: "
                 "Inappropriate ioctl for device\n"
                 "track (ctl=4) at sector 0\n"
                 "disklabel not written\n",
                 "",
             ),
-            (
+            SubpResult(
                 "mscdlabel: CDIOREADTOCHEADER: "
                 "Inappropriate ioctl for device\n"
                 "track (ctl=4) at sector 0\n"
                 "disklabel not written\n",
                 "",
             ),
-            (
+            SubpResult(
                 "track (ctl=4) at sector 0\n"
                 'ISO filesystem, label "config-2", '
                 "creation time: 2020/03/31 17:29\n"
@@ -2462,7 +2582,9 @@ class TestFindDevs:
     def test_find_devs_with_dragonflybsd(
         self, m_subp, criteria, expected_devlist
     ):
-        m_subp.return_value = ("md2 md1 cd0 vbd0 acd0 vn3 vn2 vn1 vn0 md0", "")
+        m_subp.return_value = SubpResult(
+            "md2 md1 cd0 vbd0 acd0 vn3 vn2 vn1 vn0 md0", ""
+        )
         devlist = util.find_devs_with_dragonflybsd(criteria=criteria)
         assert devlist == expected_devlist
 

@@ -315,7 +315,7 @@ resize_rootfs: True
 #      * Whatever is present at instance boot time will be present after boot.
 #      * User changes will not be overwritten
 #
-#    true or 'template':
+#    true:
 #      on every boot, /etc/hosts will be re-written from
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
@@ -454,17 +454,6 @@ ssh_pwauth: True
 #  will be booted as a new instance.
 # default is False
 manual_cache_clean: False
-
-# When cloud-init is finished running including having run
-# cloud_init_modules, then it will run this command.  The default
-# is to emit an upstart signal as shown below.  If the value is a
-# list, it will be passed to Popen.  If it is a string, it will be
-# invoked through 'sh -c'.
-#
-# default value:
-# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
-# example:
-# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh

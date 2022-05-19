@@ -16,7 +16,8 @@ LOG = logging.getLogger(__name__)
 
 MODULE_DESCRIPTION = """\
 Register a Red Hat system either by username and password *or* activation and
-org. Following a sucessful registration, you can:
+org. Following a successful registration, you can:
+
  - auto-attach subscriptions
  - set the service level
  - add subscriptions based on pool id

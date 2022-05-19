@@ -43,7 +43,9 @@ keys to post. Available keys are:
 
 Data is sent as ``x-www-form-urlencoded`` arguments.
 
-**Example HTTP POST**::
+**Example HTTP POST**:
+
+.. code-block:: http
 
     POST / HTTP/1.1
     Content-Length: 1337

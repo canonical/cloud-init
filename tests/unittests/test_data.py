@@ -19,6 +19,7 @@ from cloudinit import helpers as c_helpers
 from cloudinit import log, safeyaml, sources, stages
 from cloudinit import user_data as ud
 from cloudinit import util
+from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
 
@@ -141,7 +142,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         self.assertIn("vendor_data", cfg)
@@ -187,7 +188,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         self.assertEqual("qux", cfg["baz"])
@@ -276,7 +277,7 @@ run:
 #cloud-config
 a: c
 vendor_data:
-  enabled: True
+  enabled: true
   prefix: /bin/true
 name: user
 run:
@@ -296,7 +297,7 @@ run:
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         self.assertIn("vendor_data", cfg)
@@ -319,7 +320,7 @@ echo "dynamic test"
         user_blob = """
 #cloud-config
 vendor_data:
-  enabled: True
+  enabled: true
   prefix: /bin/true
 """
         new_root = self.reRoot()
@@ -338,7 +339,7 @@ vendor_data:
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         vendor_script = initer.paths.get_ipath_cur("vendor_scripts")
         vendor_script_fns = "%s%s/part-001" % (new_root, vendor_script)
@@ -634,7 +635,7 @@ c: 4
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         self.assertIn("vendor_data", cfg)

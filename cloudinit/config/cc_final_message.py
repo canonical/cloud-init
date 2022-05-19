@@ -5,12 +5,16 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Final Message: Output final message when cloud-init has finished"""
 
-"""
-Final Message
--------------
-**Summary:** output final message when cloud-init has finished
+from textwrap import dedent
 
+from cloudinit import templater, util, version
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 This module configures the final message that cloud-init writes. The message is
 specified as a jinja template with the following variables set:
 
@@ -19,22 +23,31 @@ specified as a jinja template with the following variables set:
     - ``datasource``: cloud-init data source
     - ``uptime``: system uptime
 
-**Internal name:** ``cc_final_message``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    final_message: <message>
-
+Upon exit, this module writes ``/var/lib/cloud/instance/boot-finished``.
 """
-
-from cloudinit import templater, util, version
-from cloudinit.settings import PER_ALWAYS
-
 frequency = PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_final_message",
+    "name": "Final Message",
+    "title": "Output final message when cloud-init has finished",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [
+        dedent(
+            """\
+            final_message: |
+              cloud-init has finished
+              version: $version
+              timestamp: $timestamp
+              datasource: $datasource
+              uptime: $uptime
+            """
+        )
+    ],
+}
+
+__doc__ = get_meta_doc(meta)
 
 # Jinja formated default message
 FINAL_MESSAGE_DEF = (

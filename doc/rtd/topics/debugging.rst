@@ -33,7 +33,6 @@ subcommands default to reading /var/log/cloud-init.log.
     The time the event takes is printed after the "+" character.
 
     Starting stage: modules-config
-    |`->config-emit_upstart ran successfully @05.47600s +00.00100s
     |`->config-snap_config ran successfully @05.47700s +00.00100s
     |`->config-ssh-import-id ran successfully @05.47800s +00.00200s
     |`->config-locale ran successfully @05.48000s +00.00100s

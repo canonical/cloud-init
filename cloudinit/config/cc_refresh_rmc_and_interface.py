@@ -4,11 +4,18 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Refresh IPv6 interface and RMC
-------------------------------
-**Summary:** Ensure Network Manager is not managing IPv6 interface
+"""Refresh IPv6 interface and RMC:
+Ensure Network Manager is not managing IPv6 interface"""
 
+import errno
+
+from cloudinit import log as logging
+from cloudinit import netinfo, subp, util
+from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 This module is IBM PowerVM Hypervisor specific
 
 Reliable Scalable Cluster Technology (RSCT) is a set of software components
@@ -25,22 +32,20 @@ This module handles
 - Refreshing RMC
 - Disabling NetworkManager from handling IPv6 interface, as IPv6 interface
   is used for communication between RMC daemon and PowerVM hypervisor.
-
-**Internal name:** ``cc_refresh_rmc_and_interface``
-
-**Module frequency:** always
-
-**Supported distros:** RHEL
-
 """
 
-import errno
+meta: MetaSchema = {
+    "id": "cc_refresh_rmc_and_interface",
+    "name": "Refresh IPv6 Interface and RMC",
+    "title": "Ensure Network Manager is not managing IPv6 interface",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_ALWAYS,
+    "examples": [],
+}
 
-from cloudinit import log as logging
-from cloudinit import netinfo, subp, util
-from cloudinit.settings import PER_ALWAYS
-
-frequency = PER_ALWAYS
+# This module is undocumented in our schema docs
+__doc__ = ""
 
 LOG = logging.getLogger(__name__)
 # Ensure that /opt/rsct/bin has been added to standard PATH of the

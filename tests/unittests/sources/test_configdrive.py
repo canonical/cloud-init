@@ -603,11 +603,10 @@ class TestConfigDriveDataSource(CiTestCase):
         def my_is_partition(dev):
             return dev[-1] in "0123456789" and not dev.startswith("sr")
 
+        orig_find_devs_with = util.find_devs_with
+        orig_is_partition = util.is_partition
         try:
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = my_devs_with
-
-            orig_is_partition = util.is_partition
             util.is_partition = my_is_partition
 
             devs_with_answers = {

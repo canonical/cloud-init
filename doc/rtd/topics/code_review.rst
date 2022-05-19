@@ -115,7 +115,7 @@ request and meeting the prerequisites laid out above.
 
 If they need help understanding the prerequisites, or help meeting the
 prerequisites, then they can (and should!) ask for help.  See the
-:ref:`Asking For Help` section above for the ways to do that.
+`Asking For Help`_ section above for the ways to do that.
 
 These are the steps that comprise the opening phase:
 
@@ -127,7 +127,7 @@ These are the steps that comprise the opening phase:
       The **Proposer** is expected to fix CI failures.  If the
       **Proposer** doesn't understand the nature of the failures they
       are seeing, they should comment in the PR to request assistance,
-      or use another way of :ref:`Asking For Help`.
+      or use another way of `Asking For Help`_.
 
       (Note that if assistance is not requested, the **Committers**
       will assume that the **Proposer** is working on addressing the
@@ -135,7 +135,7 @@ These are the steps that comprise the opening phase:
       for help!)
 
    CI passes
-      Move on to the :ref:`Review phase`.
+      Move on to the `Review Phase`_.
 
 Review Phase
 ============
@@ -144,7 +144,7 @@ In this phase, the **Proposer** and the **Reviewers** will iterate
 together to, hopefully, get the PR merged into the cloud-init codebase.
 There are three potential outcomes: merged, rejected permanently, and
 temporarily closed.  (The first two are covered in this section; see
-:ref:`Inactive Pull Requests` for details about temporary closure.)
+`Inactive Pull Requests`_ for details about temporary closure.)
 
 (In the below, when the verbs "merge" or "squash merge" are used, they
 should be understood to mean "squash merged using the GitHub UI", which
@@ -177,8 +177,8 @@ These are the steps that comprise the review phase:
    in one of the following:
 
    Approve
-     If the submitted PR meets all of the :ref:`Prerequisites for
-     Landing Pull Requests` and passes code review, then the
+     If the submitted PR meets all of the `Prerequisites for
+     Landing Pull Requests`_ and passes code review, then the
      **Committer** will squash merge immediately.
 
      There may be circumstances where a PR should not be merged
@@ -252,5 +252,5 @@ of inactivity.  It will be closed after a further 7 days of inactivity.
 
 These closes are not considered permanent, and the closing message
 should reflect this for the **Proposer**. However, if a PR is reopened,
-it should effectively enter the :ref:`Opening phase` again, as it may
+it should effectively enter the `Opening phase`_ again, as it may
 need some work done to get CI passing again.

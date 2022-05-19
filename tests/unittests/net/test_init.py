@@ -4,7 +4,6 @@ import copy
 import errno
 import ipaddress
 import os
-import textwrap
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -14,7 +13,6 @@ import pytest
 import requests
 
 import cloudinit.net as net
-from cloudinit import safeyaml as yaml
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase
@@ -1196,105 +1194,6 @@ class TestEphemeralIPV4Network(CiTestCase):
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
 
 
-class TestApplyNetworkCfgNames(CiTestCase):
-    V1_CONFIG = textwrap.dedent(
-        """\
-        version: 1
-        config:
-            - type: physical
-              name: interface0
-              mac_address: "52:54:00:12:34:00"
-              subnets:
-                  - type: static
-                    address: 10.0.2.15
-                    netmask: 255.255.255.0
-                    gateway: 10.0.2.2
-    """
-    )
-    V2_CONFIG = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              macaddress: "52:54:00:12:34:00"
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-            set-name: interface0
-    """
-    )
-
-    V2_CONFIG_NO_SETNAME = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              macaddress: "52:54:00:12:34:00"
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-    """
-    )
-
-    V2_CONFIG_NO_MAC = textwrap.dedent(
-        """\
-      version: 2
-      ethernets:
-          interface0:
-            match:
-              driver: virtio-net
-            addresses:
-              - 10.0.2.15/24
-            gateway4: 10.0.2.2
-            set-name: interface0
-    """
-    )
-
-    @mock.patch("cloudinit.net.device_devid")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v1_renames(
-        self, m_rename_interfaces, m_device_driver, m_device_devid
-    ):
-        m_device_driver.return_value = "virtio_net"
-        m_device_devid.return_value = "0x15d8"
-
-        net.apply_network_config_names(yaml.load(self.V1_CONFIG))
-
-        call = ["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]
-        m_rename_interfaces.assert_called_with([call])
-
-    @mock.patch("cloudinit.net.device_devid")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames(
-        self, m_rename_interfaces, m_device_driver, m_device_devid
-    ):
-        m_device_driver.return_value = "virtio_net"
-        m_device_devid.return_value = "0x15d8"
-
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG))
-
-        call = ["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]
-        m_rename_interfaces.assert_called_with([call])
-
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames_skips_without_setname(self, m_rename_interfaces):
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG_NO_SETNAME))
-        m_rename_interfaces.assert_called_with([])
-
-    @mock.patch("cloudinit.net._rename_interfaces")
-    def test_apply_v2_renames_skips_without_mac(self, m_rename_interfaces):
-        net.apply_network_config_names(yaml.load(self.V2_CONFIG_NO_MAC))
-        m_rename_interfaces.assert_called_with([])
-
-    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
-        with self.assertRaises(RuntimeError):
-            net.apply_network_config_names(yaml.load("version: 3"))
-
-
 class TestHasURLConnectivity(HttprettyTestCase):
     def setUp(self):
         super(TestHasURLConnectivity, self).setUp()
@@ -1848,7 +1747,9 @@ class TestIsIpAddress:
         (
             (ValueError, False),
             (lambda _: ipaddress.IPv4Address("192.168.0.1"), True),
+            (lambda _: ipaddress.IPv4Address("192.168.0.1/24"), False),
             (lambda _: ipaddress.IPv6Address("2001:db8::"), True),
+            (lambda _: ipaddress.IPv6Address("2001:db8::/48"), False),
         ),
     )
     def test_is_ip_address(self, ip_address_side_effect, expected_return):
@@ -1890,4 +1791,33 @@ class TestIsIpv4Address:
         assert [expected_call] == m_ipv4address.call_args_list
 
 
-# vi: ts=4 expandtab
+class TestIsIpNetwork:
+    """Tests for net.is_ip_network() and related functions."""
+
+    @pytest.mark.parametrize(
+        "func,arg,expected_return",
+        (
+            (net.is_ip_network, "192.168.1.1", True),
+            (net.is_ip_network, "192.168.1.1/24", True),
+            (net.is_ip_network, "192.168.1.1/32", True),
+            (net.is_ip_network, "192.168.1.1/33", False),
+            (net.is_ip_network, "2001:67c:1", False),
+            (net.is_ip_network, "2001:67c:1/32", False),
+            (net.is_ip_network, "2001:67c::", True),
+            (net.is_ip_network, "2001:67c::/32", True),
+            (net.is_ipv4_network, "192.168.1.1", True),
+            (net.is_ipv4_network, "192.168.1.1/24", True),
+            (net.is_ipv4_network, "2001:67c::", False),
+            (net.is_ipv4_network, "2001:67c::/32", False),
+            (net.is_ipv6_network, "192.168.1.1", False),
+            (net.is_ipv6_network, "192.168.1.1/24", False),
+            (net.is_ipv6_network, "2001:67c:1", False),
+            (net.is_ipv6_network, "2001:67c:1/32", False),
+            (net.is_ipv6_network, "2001:67c::", True),
+            (net.is_ipv6_network, "2001:67c::/32", True),
+            (net.is_ipv6_network, "2001:67c::/129", False),
+            (net.is_ipv6_network, "2001:67c::/128", True),
+        ),
+    )
+    def test_is_ip_network(self, func, arg, expected_return):
+        assert func(arg) == expected_return

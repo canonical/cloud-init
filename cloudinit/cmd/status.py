@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2017 Canonical Ltd.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
@@ -9,9 +11,10 @@ import enum
 import os
 import sys
 from time import gmtime, sleep, strftime
+from typing import Tuple
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.distros import uses_systemd
-from cloudinit.stages import Init
 from cloudinit.util import get_cmdline, load_file, load_json
 
 CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
@@ -62,17 +65,16 @@ def get_parser(parser=None):
     return parser
 
 
-def handle_status_args(name, args):
+def handle_status_args(name, args) -> int:
     """Handle calls to 'cloud-init status' as a subcommand."""
     # Read configured paths
-    init = Init(ds_deps=[])
-    init.read_cfg()
-    status, status_detail, time = get_status_details(init.paths)
+    paths = read_cfg_paths()
+    status, status_detail, time = get_status_details(paths)
     if args.wait:
         while status in (UXAppStatus.NOT_RUN, UXAppStatus.RUNNING):
             sys.stdout.write(".")
             sys.stdout.flush()
-            status, status_detail, time = get_status_details(init.paths)
+            status, status_detail, time = get_status_details(paths)
             sleep(0.25)
         sys.stdout.write("\n")
     print("status: {0}".format(status.value))
@@ -113,17 +115,14 @@ def _is_cloudinit_disabled(disable_file, paths):
     return (is_disabled, reason)
 
 
-def get_status_details(paths=None):
+def get_status_details(paths=None) -> Tuple[UXAppStatus, str, str]:
     """Return a 3-tuple of status, status_details and time of last event.
 
     @param paths: An initialized cloudinit.helpers.paths object.
 
     Values are obtained from parsing paths.run_dir/status.json.
     """
-    if not paths:
-        init = Init(ds_deps=[])
-        init.read_cfg()
-        paths = init.paths
+    paths = paths or read_cfg_paths()
 
     status = UXAppStatus.NOT_RUN
     status_detail = ""
@@ -180,5 +179,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# vi: ts=4 expandtab

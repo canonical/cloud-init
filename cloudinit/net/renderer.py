@@ -8,7 +8,7 @@
 import abc
 import io
 
-from cloudinit.net.network_state import parse_net_config_data
+from cloudinit.net.network_state import NetworkState, parse_net_config_data
 from cloudinit.net.udev import generate_udev_rule
 
 
@@ -32,7 +32,7 @@ class Renderer(object):
         pass
 
     @staticmethod
-    def _render_persistent_net(network_state):
+    def _render_persistent_net(network_state: NetworkState):
         """Given state, emit udev rules to map mac to ifname."""
         # TODO(harlowja): this seems shared between eni renderer and
         # this, so move it to a shared location.

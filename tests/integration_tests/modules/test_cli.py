@@ -28,11 +28,11 @@ apt_pipelining: bogus
 
 @pytest.mark.user_data(VALID_USER_DATA)
 def test_valid_userdata(client: IntegrationInstance):
-    """Test `cloud-init devel schema` with valid userdata.
+    """Test `cloud-init schema` with valid userdata.
 
     PR #575
     """
-    result = client.execute("cloud-init devel schema --system")
+    result = client.execute("cloud-init schema --system")
     assert result.ok
     assert "Valid cloud-config: system userdata" == result.stdout.strip()
     result = client.execute("cloud-init status --long")
@@ -44,11 +44,11 @@ def test_valid_userdata(client: IntegrationInstance):
 
 @pytest.mark.user_data(INVALID_USER_DATA_HEADER)
 def test_invalid_userdata(client: IntegrationInstance):
-    """Test `cloud-init devel schema` with invalid userdata.
+    """Test `cloud-init schema` with invalid userdata.
 
     PR #575
     """
-    result = client.execute("cloud-init devel schema --system")
+    result = client.execute("cloud-init schema --system")
     assert not result.ok
     assert "Cloud config schema errors" in result.stderr
     assert 'needs to begin with "#cloud-config"' in result.stderr

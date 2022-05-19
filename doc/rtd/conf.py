@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "2020, Canonical Ltd."
+copyright = "2022, Canonical Ltd."
 
 # -- General configuration ----------------------------------------------------
 
@@ -70,3 +70,7 @@ html_theme = "sphinx_rtd_theme"
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "static/logo.png"
+
+# Make sure the target is unique
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 2

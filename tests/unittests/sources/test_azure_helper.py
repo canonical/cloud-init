@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 import os
 import re
 import unittest
@@ -358,7 +357,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
     def test_http_with_retries(self):
         self.m_readurl.return_value = "TestResp"
         self.assertEqual(
-            azure_helper.http_with_retries("testurl"),
+            azure_helper.http_with_retries("testurl", headers={}),
             self.m_readurl.return_value,
         )
         self.assertEqual(self.m_readurl.call_count, 1)
@@ -367,7 +366,10 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.m_readurl.side_effect = SentinelException
 
         self.assertRaises(
-            SentinelException, azure_helper.http_with_retries, "testurl"
+            SentinelException,
+            azure_helper.http_with_retries,
+            "testurl",
+            headers={},
         )
         self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
 
@@ -394,7 +396,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         ] * self.periodic_logging_attempts + ["TestResp"]
         self.m_readurl.return_value = "TestResp"
 
-        response = azure_helper.http_with_retries("testurl")
+        response = azure_helper.http_with_retries("testurl", headers={})
         self.assertEqual(response, self.m_readurl.return_value)
         self.assertEqual(
             self.m_readurl.call_count, self.periodic_logging_attempts + 1
@@ -412,7 +414,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         ] * self.periodic_logging_attempts + ["TestResp"]
         self.m_readurl.return_value = "TestResp"
 
-        azure_helper.http_with_retries("testurl")
+        azure_helper.http_with_retries("testurl", headers={})
 
         self.assertEqual(
             self.m_readurl.call_count, self.periodic_logging_attempts + 1
@@ -440,7 +442,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         ) + ["TestResp"]
         self.m_readurl.return_value = "TestResp"
 
-        azure_helper.http_with_retries("testurl")
+        azure_helper.http_with_retries("testurl", headers={})
         self.assertEqual(
             self.m_readurl.call_count, self.periodic_logging_attempts
         )
@@ -465,49 +467,9 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         kwargs = {
             "headers": mock.MagicMock(),
             "data": mock.MagicMock(),
-            # timeout kwarg should not be modified or deleted if present
-            "timeout": mock.MagicMock(),
         }
         azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **kwargs)
-
-    def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
-        testurl = mock.MagicMock()
-        kwargs = {"headers": mock.MagicMock(), "data": mock.MagicMock()}
-        expected_kwargs = copy.deepcopy(kwargs)
-        expected_kwargs["timeout"] = self.default_readurl_timeout
-
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
-
-    def test_http_with_retries_deletes_retries_kwargs_passed_in(self):
-        """http_with_retries already implements retry logic,
-        so url_helper.readurl should not have retries.
-        http_with_retries should delete kwargs that
-        cause url_helper.readurl to retry.
-        """
-        testurl = mock.MagicMock()
-        kwargs = {
-            "headers": mock.MagicMock(),
-            "data": mock.MagicMock(),
-            "timeout": mock.MagicMock(),
-            "retries": mock.MagicMock(),
-            "infinite": mock.MagicMock(),
-        }
-        expected_kwargs = copy.deepcopy(kwargs)
-        expected_kwargs.pop("retries", None)
-        expected_kwargs.pop("infinite", None)
-
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
-        self.assertIn(
-            "retries kwarg passed in for communication with Azure endpoint.",
-            self.logs.getvalue(),
-        )
-        self.assertIn(
-            "infinite kwarg passed in for communication with Azure endpoint.",
-            self.logs.getvalue(),
-        )
+        self.m_readurl.assert_called_once_with(testurl, **kwargs, timeout=5)
 
 
 class TestOpenSSLManager(CiTestCase):

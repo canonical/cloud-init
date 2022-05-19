@@ -254,8 +254,14 @@ class DataSourceScaleway(sources.DataSource):
                 {
                     "type": "static",
                     "address": "%s" % self.metadata["ipv6"]["address"],
-                    "gateway": "%s" % self.metadata["ipv6"]["gateway"],
                     "netmask": "%s" % self.metadata["ipv6"]["netmask"],
+                    "routes": [
+                        {
+                            "network": "::",
+                            "prefix": "0",
+                            "gateway": "%s" % self.metadata["ipv6"]["gateway"],
+                        }
+                    ],
                 }
             ]
         netcfg["subnets"] = subnets

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Query standardized instance metadata provided to machine, returning a JSON
@@ -317,5 +319,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# vi: ts=4 expandtab

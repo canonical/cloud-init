@@ -3,11 +3,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import dmi
-from cloudinit import ec2_utils as ec2
-from cloudinit import helpers
+from cloudinit import dmi, helpers
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
+from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
 

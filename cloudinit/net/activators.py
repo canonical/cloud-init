@@ -255,8 +255,8 @@ class NetworkdActivator(NetworkActivator):
 # version to encompass both seems overkill at this point
 DEFAULT_PRIORITY = [
     IfUpDownActivator,
-    NetworkManagerActivator,
     NetplanActivator,
+    NetworkManagerActivator,
     NetworkdActivator,
 ]
 

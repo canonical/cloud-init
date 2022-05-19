@@ -12,10 +12,10 @@ import copy
 import functools
 import os
 
-from cloudinit import ec2_utils
 from cloudinit import log as logging
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
+from cloudinit.sources.helpers import ec2
 
 # See https://docs.openstack.org/user-guide/cli-config-drive.html
 
@@ -515,7 +515,7 @@ class MetadataReader(BaseReader):
         return url_helper.combine_url(base, *add_ons)
 
     def _read_ec2_metadata(self):
-        return ec2_utils.get_instance_metadata(
+        return ec2.get_instance_metadata(
             ssl_details=self.ssl_details,
             timeout=self.timeout,
             retries=self.retries,

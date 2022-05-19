@@ -133,6 +133,3 @@ class BSD(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
-
-    def apply_network_config_names(self, netconfig):
-        LOG.debug("Cannot rename network interface.")

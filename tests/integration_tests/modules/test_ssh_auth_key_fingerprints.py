@@ -12,8 +12,8 @@ import re
 
 import pytest
 
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import retry
 
 USER_DATA_SSH_AUTHKEY_DISABLE = """\
 #cloud-config
@@ -71,5 +71,5 @@ def test_no_home_directory_created(client: IntegrationInstance):
     assert "system" not in home_output
 
     passwd = client.execute("cat /etc/passwd")
-    assert "nch:" in passwd
-    assert "system:" in passwd
+    assert re.search("^nch:", passwd, re.MULTILINE)
+    assert re.search("^system:", passwd, re.MULTILINE)

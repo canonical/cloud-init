@@ -9,33 +9,32 @@ option. This can be used against cloud-init itself or any of its subcommands.
 .. code-block:: shell-session
 
   $ cloud-init --help
-    usage: /usr/bin/cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
-                            {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
-                            ...
+    usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
+                                                               {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
 
-    optional arguments:
-    -h, --help            show this help message and exit
-    --version, -v         show program's version number and exit
-    --file FILES, -f FILES
-                          additional yaml configuration files to use
-    --debug, -d           show additional pre-action logging (default: False)
-    --force               force running even if no datasource is found (use at
-                          your own risk)
+    options:
+      -h, --help            show this help message and exit
+      --version, -v         Show program's version number and exit.
+      --file FILES, -f FILES
+                            Use additional yaml configuration files.
+      --debug, -d           Show additional pre-action logging (default: False).
+      --force               Force running even if no datasource is found (use at your own risk).
 
     Subcommands:
-    {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
-        init                initializes cloud-init and performs initial modules
-        modules             activates modules using a given configuration key
-        single              run a single module
-        query               Query standardized instance metadata from the command
-                            line.
+      {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema}
+        init                Initialize cloud-init and perform initial modules.
+        modules             Activate modules using a given configuration key.
+        single              Run a single module.
+        query               Query standardized instance metadata from the command line.
         dhclient-hook       Run the dhclient hook to record network info.
-        features            list defined features
-        analyze             Devel tool: Analyze cloud-init logs and data
-        devel               Run development tools
-        collect-logs        Collect and tar all cloud-init debug info
+        features            List defined features.
+        analyze             Devel tool: Analyze cloud-init logs and data.
+        devel               Run development tools.
+        collect-logs        Collect and tar all cloud-init debug info.
         clean               Remove logs and artifacts so cloud-init can re-run.
         status              Report cloud-init status or wait on completion.
+        schema              Validate cloud-config files using jsonschema.
+
 
 The rest of this document will give an overview of each of the subcommands.
 
@@ -114,11 +113,6 @@ Current subcommands:
    from ``/run/cloud-init/instance-data.json``. It accepts a user-data file
    containing  the jinja template header ``## template: jinja`` and renders
    that content with any instance-data.json variables present.
- * ``schema``: a **#cloud-config** format and schema
-   validator. It accepts a cloud-config YAML file and annotates potential
-   schema errors locally without the need for deployment. Schema
-   validation is work in progress and supports a subset of cloud-config
-   modules.
  * ``hotplug-hook``: respond to newly added system devices by retrieving
    updated system metadata and bringing up/down the corresponding device.
    This command is intended to be called via a systemd service and is
@@ -247,6 +241,29 @@ This data can then be formatted to generate custom strings or data:
   # Generate a custom hostname fqdn based on instance-id, cloud and region
   % cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
   custom-i-0e91f69987f37ec74.us-east-2.aws.com
+
+
+.. _cli_schema:
+
+schema
+======
+
+Validate cloud-config files using jsonschema.
+
+* ``-h, --help``:            show this help message and exit
+* ``-c CONFIG_FILE, --config-file CONFIG_FILE``: Path of the cloud-config yaml
+  file to validate
+* ``--system``:              Validate the system cloud-config userdata
+* ``-d DOCS [DOCS ...], --docs DOCS [DOCS ...]``: Print schema module docs.
+  Choices: all or space-delimited cc_names.
+* ``--annotate``:            Annotate existing cloud-config file with errors
+
+The following example checks a config file and annotates the config file with
+errors on stdout.
+
+.. code-block:: shell-session
+
+  $ cloud-init schema -c ./config.yml --annotate
 
 
 .. _cli_single:

@@ -174,6 +174,10 @@ def normalize_users_groups(cfg, distro):
         # Translate it into a format that will be more useful going forward
         if isinstance(old_user, str):
             old_user = {"name": old_user}
+            LOG.warning(
+                "DEPRECATED: 'user' of type string is deprecated and will"
+                " be removed in a future release. Use 'users' list instead."
+            )
         elif not isinstance(old_user, dict):
             LOG.warning(
                 "Format for 'user' key must be a string or dictionary"
@@ -201,9 +205,15 @@ def normalize_users_groups(cfg, distro):
     default_user_config = util.mergemanydict([old_user, distro_user_config])
 
     base_users = cfg.get("users", [])
-    if not isinstance(base_users, (list, dict, str)):
+    if isinstance(base_users, (dict, str)):
         LOG.warning(
-            "Format for 'users' key must be a comma separated string"
+            "DEPRECATED: 'users' of type %s is deprecated and will be removed"
+            " in a future release. Use 'users' as a list.",
+            type(base_users),
+        )
+    elif not isinstance(base_users, (list)):
+        LOG.warning(
+            "Format for 'users' key must be a comma-separated string"
             " or a dictionary or a list but found %s",
             type_utils.obj_name(base_users),
         )

@@ -94,9 +94,12 @@ def reload_syslog(distro, command=DEF_RELOAD):
     return subp.subp(command, capture=True)
 
 
-def load_config(cfg):
-    # return an updated config with entries of the correct type
-    # support converting the old top level format into new format
+def load_config(cfg: dict) -> dict:
+    """Return an updated config.
+
+    Support converting the old top level format into new format.
+    Raise a `ValueError` if some top level entry has an incorrect type.
+    """
     mycfg = cfg.get("rsyslog", {})
 
     if isinstance(cfg.get("rsyslog"), list):
@@ -119,8 +122,13 @@ def load_config(cfg):
     )
 
     for key, default, vtypes in fillup:
-        if key not in mycfg or not isinstance(mycfg[key], vtypes):
+        if key not in mycfg:
             mycfg[key] = default
+        elif not isinstance(mycfg[key], vtypes):
+            raise ValueError(
+                f"Invalid type for key `{key}`. Expected type(s): {vtypes}. "
+                f"Current type: {type(mycfg[key])}"
+            )
 
     return mycfg
 
