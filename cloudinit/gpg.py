@@ -41,7 +41,7 @@ def dearmor(key):
 
     note: man gpg(1) makes no mention of an --armour spelling, only --armor
     """
-    return subp.subp(["gpg", "--dearmor"], data=key, decode=False)[0]
+    return subp.subp(["gpg", "--dearmor"], data=key, decode=False).stdout
 
 
 def list(key_file, human_output=False):

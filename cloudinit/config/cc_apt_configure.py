@@ -571,7 +571,10 @@ def add_apt_sources(
 
         if aa_repo_match(source):
             try:
-                subp.subp(["add-apt-repository", source], target=target)
+                subp.subp(
+                    ["add-apt-repository", "--no-update", source],
+                    target=target,
+                )
             except subp.ProcessExecutionError:
                 LOG.exception("add-apt-repository failed.")
                 raise

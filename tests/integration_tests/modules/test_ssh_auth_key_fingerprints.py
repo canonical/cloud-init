@@ -12,7 +12,8 @@ import re
 
 import pytest
 
-from tests.integration_tests.util import retry
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.instances import IntegrationInstance
 
 USER_DATA_SSH_AUTHKEY_DISABLE = """\
 #cloud-config
@@ -50,3 +51,25 @@ class TestSshAuthkeyFingerprints:
         assert re.search(r"256 SHA256:.*(ED25519)", syslog_output) is not None
         assert re.search(r"1024 SHA256:.*(DSA)", syslog_output) is None
         assert re.search(r"2048 SHA256:.*(RSA)", syslog_output) is None
+
+
+@pytest.mark.user_data(
+    """\
+#cloud-config
+users:
+ - default
+ - name: nch
+   no_create_home: true
+ - name: system
+   system: true
+"""
+)
+def test_no_home_directory_created(client: IntegrationInstance):
+    """Ensure cc_ssh_authkey_fingerprints doesn't create user directories"""
+    home_output = client.execute("ls /home")
+    assert "nch" not in home_output
+    assert "system" not in home_output
+
+    passwd = client.execute("cat /etc/passwd")
+    assert re.search("^nch:", passwd, re.MULTILINE)
+    assert re.search("^system:", passwd, re.MULTILINE)

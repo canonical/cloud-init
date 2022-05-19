@@ -139,7 +139,7 @@ class SystemctlReader(object):
 
     def __init__(self, property, parameter=None):
         self.epoch = None
-        self.args = ["/bin/systemctl", "show"]
+        self.args = [subp.which("systemctl"), "show"]
         if parameter:
             self.args.append(parameter)
         self.args.extend(["-p", property])
@@ -188,7 +188,7 @@ class SystemctlReader(object):
 def dist_check_timestamp():
     """
     Determine which init system a particular linux distro is using.
-    Each init system (systemd, upstart, etc) has a different way of
+    Each init system (systemd, etc) has a different way of
     providing timestamps.
 
     :return: timestamps of kernelboot, kernelendboot, and cloud-initstart

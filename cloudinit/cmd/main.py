@@ -1,4 +1,5 @@
-#
+#!/usr/bin/env python3
+
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
@@ -11,6 +12,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# Skip isort on this file because of the patch that comes between imports
+# isort: skip_file
+
 import argparse
 import json
 import os
@@ -19,6 +23,7 @@ import time
 import traceback
 
 from cloudinit import patcher
+from cloudinit.config.modules import Modules
 
 patcher.patch_logging()
 
@@ -105,7 +110,7 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_module_section(mods, action_name, section):
+def run_module_section(mods: Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (which_ran, failures) = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)
@@ -337,31 +342,6 @@ def main_init(name, args):
     if mode == sources.DSMODE_NETWORK:
         existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
-        LOG.debug(
-            "Checking to see if files that we need already"
-            " exist from a previous run that would allow us"
-            " to stop early."
-        )
-        # no-net is written by upstart cloud-init-nonet when network failed
-        # to come up
-        stop_files = [
-            os.path.join(path_helper.get_cpath("data"), "no-net"),
-        ]
-        existing_files = []
-        for fn in stop_files:
-            if os.path.isfile(fn):
-                existing_files.append(fn)
-
-        if existing_files:
-            LOG.debug(
-                "[%s] Exiting. stop file %s existed", mode, existing_files
-            )
-            return (None, [])
-        else:
-            LOG.debug(
-                "Execution continuing, no previous run detected that"
-                " would allow us to stop early."
-            )
     else:
         existing = "check"
         mcfg = util.get_cfg_option_bool(init.cfg, "manual_cache_clean", False)
@@ -375,8 +355,6 @@ def main_init(name, args):
                 existing = "trust"
 
         init.purge_cache()
-        # Delete the no-net file as well
-        util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
@@ -394,8 +372,7 @@ def main_init(name, args):
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
-        # found. When using upstart it will also mentions job failure
-        # in console log if exit code is != 0.
+        # found.
         if mode == sources.DSMODE_LOCAL:
             LOG.debug("No local datasource found")
         else:
@@ -484,7 +461,7 @@ def main_init(name, args):
     apply_reporting_cfg(init.cfg)
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -587,7 +564,7 @@ def main_modules(action_name, args):
             return [(msg)]
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -642,7 +619,7 @@ def main_single(name, args):
             return 1
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
@@ -836,8 +813,7 @@ def main_features(name, args):
 def main(sysv_args=None):
     if not sysv_args:
         sysv_args = sys.argv
-    parser = argparse.ArgumentParser(prog=sysv_args[0])
-    sysv_args = sysv_args[1:]
+    parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
 
     # Top level args
     parser.add_argument(
@@ -845,28 +821,29 @@ def main(sysv_args=None):
         "-v",
         action="version",
         version="%(prog)s " + (version.version_string()),
+        help="Show program's version number and exit.",
     )
     parser.add_argument(
         "--file",
         "-f",
         action="append",
         dest="files",
-        help="additional yaml configuration files to use",
+        help="Use additional yaml configuration files.",
         type=argparse.FileType("rb"),
     )
     parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
-        help="show additional pre-action logging (default: %(default)s)",
+        help="Show additional pre-action logging (default: %(default)s).",
         default=False,
     )
     parser.add_argument(
         "--force",
         action="store_true",
         help=(
-            "force running even if no datasource is"
-            " found (use at your own risk)"
+            "Force running even if no datasource is"
+            " found (use at your own risk)."
         ),
         dest="force",
         default=False,
@@ -878,13 +855,13 @@ def main(sysv_args=None):
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="initializes cloud-init and performs initial modules"
+        "init", help="Initialize cloud-init and perform initial modules."
     )
     parser_init.add_argument(
         "--local",
         "-l",
         action="store_true",
-        help="start in local mode (default: %(default)s)",
+        help="Start in local mode (default: %(default)s).",
         default=False,
     )
     # This is used so that we can know which action is selected +
@@ -893,13 +870,13 @@ def main(sysv_args=None):
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser(
-        "modules", help="activates modules using a given configuration key"
+        "modules", help="Activate modules using a given configuration key."
     )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="module configuration name to use (default: %(default)s)",
+        help="Module configuration name to use (default: %(default)s).",
         default="config",
         choices=("init", "config", "final"),
     )
@@ -907,7 +884,7 @@ def main(sysv_args=None):
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
-        "single", help="run a single module "
+        "single", help="Run a single module."
     )
     parser_single.add_argument(
         "--name",
@@ -919,21 +896,21 @@ def main(sysv_args=None):
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="frequency of the module",
+        help="Set module frequency.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )
     parser_single.add_argument(
         "--report",
         action="store_true",
-        help="enable reporting",
+        help="Enable reporting.",
         required=False,
     )
     parser_single.add_argument(
         "module_args",
         nargs="*",
         metavar="argument",
-        help="any additional arguments to pass to this module",
+        help="Any additional arguments to pass to this module.",
     )
     parser_single.set_defaults(action=("single", main_single))
 
@@ -948,18 +925,20 @@ def main(sysv_args=None):
     dhclient_hook.get_parser(parser_dhclient)
 
     parser_features = subparsers.add_parser(
-        "features", help="list defined features"
+        "features", help="List defined features."
     )
     parser_features.set_defaults(action=("features", main_features))
 
     parser_analyze = subparsers.add_parser(
-        "analyze", help="Devel tool: Analyze cloud-init logs and data"
+        "analyze", help="Devel tool: Analyze cloud-init logs and data."
     )
 
-    parser_devel = subparsers.add_parser("devel", help="Run development tools")
+    parser_devel = subparsers.add_parser(
+        "devel", help="Run development tools."
+    )
 
     parser_collect_logs = subparsers.add_parser(
-        "collect-logs", help="Collect and tar all cloud-init debug info"
+        "collect-logs", help="Collect and tar all cloud-init debug info."
     )
 
     parser_clean = subparsers.add_parser(
@@ -970,19 +949,24 @@ def main(sysv_args=None):
         "status", help="Report cloud-init status or wait on completion."
     )
 
+    parser_schema = subparsers.add_parser(
+        "schema", help="Validate cloud-config files using jsonschema."
+    )
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
-        if sysv_args[0] == "analyze":
+        subcommand = sysv_args[0]
+        if subcommand == "analyze":
             from cloudinit.analyze.__main__ import get_parser as analyze_parser
 
             # Construct analyze subcommand parser
             analyze_parser(parser_analyze)
-        elif sysv_args[0] == "devel":
+        elif subcommand == "devel":
             from cloudinit.cmd.devel.parser import get_parser as devel_parser
 
             # Construct devel subcommand parser
             devel_parser(parser_devel)
-        elif sysv_args[0] == "collect-logs":
+        elif subcommand == "collect-logs":
             from cloudinit.cmd.devel.logs import (
                 get_parser as logs_parser,
                 handle_collect_logs_args,
@@ -992,7 +976,7 @@ def main(sysv_args=None):
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
-        elif sysv_args[0] == "clean":
+        elif subcommand == "clean":
             from cloudinit.cmd.clean import (
                 get_parser as clean_parser,
                 handle_clean_args,
@@ -1000,7 +984,7 @@ def main(sysv_args=None):
 
             clean_parser(parser_clean)
             parser_clean.set_defaults(action=("clean", handle_clean_args))
-        elif sysv_args[0] == "query":
+        elif subcommand == "query":
             from cloudinit.cmd.query import (
                 get_parser as query_parser,
                 handle_args as handle_query_args,
@@ -1008,7 +992,15 @@ def main(sysv_args=None):
 
             query_parser(parser_query)
             parser_query.set_defaults(action=("render", handle_query_args))
-        elif sysv_args[0] == "status":
+        elif subcommand == "schema":
+            from cloudinit.config.schema import (
+                get_parser as schema_parser,
+                handle_schema_args,
+            )
+
+            schema_parser(parser_schema)
+            parser_schema.set_defaults(action=("schema", handle_schema_args))
+        elif subcommand == "status":
             from cloudinit.cmd.status import (
                 get_parser as status_parser,
                 handle_status_args,
@@ -1081,5 +1073,3 @@ if __name__ == "__main__":
     return_value = main(sys.argv)
     if return_value:
         sys.exit(return_value)
-
-# vi: ts=4 expandtab

@@ -5,6 +5,7 @@ import os.path
 import random
 import string
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Optional, Type
 from uuid import UUID
 
@@ -206,9 +207,18 @@ class Ec2Cloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs, **kwargs):
         """Use a dual-stack VPC for cloud-init integration testing."""
-        launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
-            name="ec2-cloud-init-integration"
-        )
+        if "vpc" not in launch_kwargs:
+            launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
+                name="ec2-cloud-init-integration"
+            )
+        # Enable IPv6 metadata at http://[fd00:ec2::254]
+        if "Ipv6AddressCount" not in launch_kwargs:
+            launch_kwargs["Ipv6AddressCount"] = 1
+        if "MetadataOptions" not in launch_kwargs:
+            launch_kwargs["MetadataOptions"] = {}
+        if "HttpProtocolIpv6" not in launch_kwargs["MetadataOptions"]:
+            launch_kwargs["MetadataOptions"] = {"HttpProtocolIpv6": "enabled"}
+
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 
@@ -291,12 +301,15 @@ class _LxdIntegrationCloud(IntegrationCloud):
             subp(command.split())
 
     def _perform_launch(self, launch_kwargs, **kwargs):
-        launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
-        wait = launch_kwargs.pop("wait", True)
-        release = launch_kwargs.pop("image_id")
+        instance_kwargs = deepcopy(launch_kwargs)
+        instance_kwargs["inst_type"] = instance_kwargs.pop(
+            "instance_type", None
+        )
+        wait = instance_kwargs.pop("wait", True)
+        release = instance_kwargs.pop("image_id")
 
         try:
-            profile_list = launch_kwargs["profile_list"]
+            profile_list = instance_kwargs["profile_list"]
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
@@ -305,10 +318,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )
         pycloudlib_instance = self.cloud_instance.init(
-            launch_kwargs.pop("name", default_name),
+            instance_kwargs.pop("name", default_name),
             release,
             profile_list=profile_list,
-            **launch_kwargs,
+            **instance_kwargs,
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)

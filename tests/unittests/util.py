@@ -84,9 +84,6 @@ class MockDistro(distros.Distro):
     def apply_network_config(self, netconfig, bring_up=False) -> bool:
         return False
 
-    def apply_network_config_names(self, netconfig):
-        pass
-
     def apply_locale(self, locale, out_fn=None):
         pass
 

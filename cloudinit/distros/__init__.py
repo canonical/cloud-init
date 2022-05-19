@@ -253,9 +253,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
-    def apply_network_config_names(self, netconfig):
-        net.apply_network_config_names(netconfig)
-
     @abc.abstractmethod
     def apply_locale(self, locale, out_fn=None):
         raise NotImplementedError()
@@ -853,7 +850,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
-    def manage_service(self, action, service):
+    def manage_service(self, action: str, service: str):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
@@ -870,6 +867,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
                 "try-reload": ["reload-or-try-restart", service],
+                "status": ["status", service],
             }
         else:
             cmds = {
@@ -879,6 +877,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "restart": [service, "restart"],
                 "reload": [service, "restart"],
                 "try-reload": [service, "restart"],
+                "status": [service, "status"],
             }
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True)
@@ -1064,7 +1063,7 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
     return default
 
 
-def fetch(name):
+def fetch(name) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
         raise ImportError(

@@ -170,6 +170,13 @@ class TestPartProbeAvailability:
         log = client.read_from_file("/var/log/cloud-init.log")
         self._verify_first_disk_setup(client, log)
 
+        # Ensure NoCloud gets detected on reboot
+        client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net/")
+        client.execute("touch /var/lib/cloud/seed/nocloud-net/meta-data")
+        client.write_to_file(
+            "/etc/cloud/cloud.cfg.d/99_nocloud.cfg",
+            "datasource_list: [ NoCloud ]\n",
+        )
         # Update our userdata and cloud.cfg to mount then perform new disk
         # setup
         client.write_to_file(

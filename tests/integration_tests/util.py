@@ -1,11 +1,15 @@
-import functools
 import logging
 import multiprocessing
 import os
+import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
 from pathlib import Path
+
+import pytest
+
+from tests.integration_tests.instances import IntegrationInstance
 
 log = logging.getLogger("integration_testing")
 key_pair = namedtuple("key_pair", "public_key private_key")
@@ -23,8 +27,12 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
     """
     index = 0
     for item in to_verify:
-        index = text[index:].find(item)
-        assert index > -1, "Expected item not found: '{}'".format(item)
+        try:
+            matched = re.search(item, text[index:])
+        except re.error:
+            matched = re.search(re.escape(item), text[index:])
+        assert matched, "Expected item not found: '{}'".format(item)
+        index = matched.start()
 
 
 def verify_clean_log(log):
@@ -67,7 +75,10 @@ def verify_clean_log(log):
     for traceback_text in traceback_texts:
         expected_tracebacks += log.count(traceback_text)
 
-    assert warning_count == expected_warnings
+    assert warning_count == expected_warnings, (
+        f"Unexpected warning count != {expected_warnings}. Found: "
+        f"{re.findall('WARNING.*', log)}"
+    )
     assert traceback_count == expected_tracebacks
 
 
@@ -110,33 +121,11 @@ def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
     return key_pair(public_key, private_key)
 
 
-def retry(*, tries: int = 30, delay: int = 1):
-    """Decorator for retries.
-
-    Retry a function until code no longer raises an exception or
-    max tries is reached.
-
-    Example:
-      @retry(tries=5, delay=1)
-      def try_something_that_may_not_be_ready():
-          ...
-    """
-
-    def _retry(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            last_error = None
-            for _ in range(tries):
-                try:
-                    func(*args, **kwargs)
-                    break
-                except Exception as e:
-                    last_error = e
-                    time.sleep(delay)
-            else:
-                if last_error:
-                    raise last_error
-
-        return wrapper
-
-    return _retry
+def get_console_log(client: IntegrationInstance):
+    try:
+        console_log = client.instance.console_log()
+    except NotImplementedError:
+        pytest.skip("NotImplementedError when requesting console log")
+    if console_log.lower().startswith("no console output"):
+        pytest.fail("no console output")
+    return console_log

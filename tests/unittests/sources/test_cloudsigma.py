@@ -3,8 +3,8 @@
 import copy
 
 from cloudinit import distros, helpers, sources
-from cloudinit.cs_utils import Cepko
 from cloudinit.sources import DataSourceCloudSigma
+from cloudinit.sources.helpers.cloudsigma import Cepko
 from tests.unittests import helpers as test_helpers
 
 SERVER_CONTEXT = {

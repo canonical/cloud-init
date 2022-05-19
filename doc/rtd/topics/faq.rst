@@ -60,7 +60,7 @@ to the most recently used instance-id directory. This folder contains the
 information cloud-init received from datasources, including vendor and user
 data. This can be helpful to review to ensure the correct data was passed.
 
-It also contains the `datasource` file that containers the full information
+It also contains the `datasource` file that contains the full information
 about what datasource was identified and used to setup the system.
 
 Finally, the `boot-finished` file is the last thing that cloud-init does.
@@ -146,7 +146,7 @@ provided to the system:
 
 .. code-block:: shell-session
 
-    $ cloud-init devel schema --system --annotate
+    $ cloud-init schema --system --annotate
 
 As launching instances in the cloud can cost money and take a bit longer,
 sometimes it is easier to launch instances locally using Multipass or LXD:
@@ -278,7 +278,7 @@ configuration, including network configuration and metadata:
 
 See the :ref:`network_config_v2` page for details on the format and config of
 network configuration. To learn more about the possible values for metadata,
-check out the :ref:`nocloud` page.
+check out the :ref:`datasource_nocloud` page.
 
 .. _cloud-utils: https://github.com/canonical/cloud-utils/
 
@@ -313,5 +313,7 @@ variety of sources.
 .. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
 .. _The beauty of cloud-init: http://brandon.fuller.name/archives/2011/05/02/06.40.57/
 .. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
+.. Blog Post: [terraform, azure, devops, docker, dotnet, cloud-init] https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
+.. Youtube: [proxmox, cloud-init, template] https://www.youtube.com/watch?v=shiIi38cJe4
 
 .. vi: textwidth=79

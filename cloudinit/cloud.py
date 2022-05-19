@@ -6,9 +6,13 @@
 
 import copy
 import os
+from typing import Optional
 
 from cloudinit import log as logging
+from cloudinit.distros import Distro
+from cloudinit.helpers import Paths, Runners
 from cloudinit.reporting import events
+from cloudinit.sources import DataSource
 
 LOG = logging.getLogger(__name__)
 
@@ -25,7 +29,15 @@ LOG = logging.getLogger(__name__)
 
 
 class Cloud(object):
-    def __init__(self, datasource, paths, cfg, distro, runners, reporter=None):
+    def __init__(
+        self,
+        datasource: DataSource,
+        paths: Paths,
+        cfg: dict,
+        distro: Distro,
+        runners: Runners,
+        reporter: Optional[events.ReportEventStack] = None,
+    ):
         self.datasource = datasource
         self.paths = paths
         self.distro = distro

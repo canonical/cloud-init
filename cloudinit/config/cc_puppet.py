@@ -6,20 +6,30 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Puppet
-------
-**Summary:** install, configure and start puppet
+"""Puppet: Install, configure and start puppet"""
 
+import os
+import socket
+from io import StringIO
+from textwrap import dedent
+
+import yaml
+
+from cloudinit import helpers, subp, temp_utils, url_helper, util
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
+PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
+
+MODULE_DESCRIPTION = """\
 This module handles puppet installation and configuration. If the ``puppet``
 key does not exist in global configuration, no action will be taken. If a
 config entry for ``puppet`` is present, then by default the latest version of
-puppet will be installed. If ``install`` is set to ``false``, puppet will not
-be installed. However, this will result in an error if puppet is not already
-present on the system. The version of puppet to be installed can be specified
-under ``version``, and defaults to ``none``, which selects the latest version
-in the repos. If the ``puppet`` config key exists in the config archive, this
-module will attempt to start puppet even if no installation was performed.
+puppet will be installed. If the ``puppet`` config key exists in the config
+archive, this module will attempt to start puppet even if no installation was
+performed.
 
 The module also provides keys for configuring the new puppet 4 paths and
 installing the puppet package from the puppetlabs repositories:
@@ -28,94 +38,69 @@ The keys are ``package_name``, ``conf_file``, ``ssl_dir`` and
 ``csr_attributes_path``. If unset, their values will default to
 ones that work with puppet 3.x and with distributions that ship modified
 puppet 4.x that uses the old paths.
-
-Agent packages from the puppetlabs repositories can be installed by setting
-``install_type`` to ``aio``. Based on this setting, the default config/SSL/CSR
-paths will be adjusted accordingly. To maintain backwards compatibility this
-setting defaults to ``packages`` which will install puppet from the distro
-packages.
-
-If installing ``aio`` packages, ``collection`` can also be set to one of
-``puppet`` (rolling release), ``puppet6``, ``puppet7`` (or their nightly
-counterparts) in order to install specific release streams. By default, the
-puppetlabs repository will be purged after installation finishes; set
-``cleanup`` to ``false`` to prevent this. AIO packages are installed through a
-shell script which is downloaded on the machine and then executed; the path to
-this script can be overridden using the ``aio_install_url`` key.
-
-Puppet configuration can be specified under the ``conf`` key. The
-configuration is specified as a dictionary containing high-level ``<section>``
-keys and lists of ``<key>=<value>`` pairs within each section. Each section
-name and ``<key>=<value>`` pair is written directly to ``puppet.conf``. As
-such,  section names should be one of: ``main``, ``server``, ``agent`` or
-``user`` and keys should be valid puppet configuration options. The
-``certname`` key supports string substitutions for ``%i`` and ``%f``,
-corresponding to the instance id and fqdn of the machine respectively.
-If ``ca_cert`` is present, it will not be written to ``puppet.conf``, but
-instead will be used as the puppetserver certificate. It should be specified
-in pem format as a multi-line string (using the ``|`` yaml notation).
-
-Additionally it's possible to create a ``csr_attributes.yaml`` file for CSR
-attributes and certificate extension requests.
-See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html
-
-By default, the puppet service will be automatically enabled after installation
-and set to automatically start on boot. To override this in favor of manual
-puppet execution set ``start_service`` to ``false``.
-
-A single manual run can be triggered by setting ``exec`` to ``true``, and
-additional arguments can be passed to ``puppet agent`` via the ``exec_args``
-key (by default the agent will execute with the ``--test`` flag).
-
-**Internal name:** ``cc_puppet``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    puppet:
-        install: <true/false>
-        version: <version>
-        collection: <aio collection>
-        install_type: <packages/aio>
-        aio_install_url: 'https://git.io/JBhoQ'
-        cleanup: <true/false>
-        conf_file: '/etc/puppet/puppet.conf'
-        ssl_dir: '/var/lib/puppet/ssl'
-        csr_attributes_path: '/etc/puppet/csr_attributes.yaml'
-        package_name: 'puppet'
-        exec: <true/false>
-        exec_args: ['--test']
-        start_service: <true/false>
-        conf:
-            agent:
-                server: "puppetserver.example.org"
-                certname: "%i.%f"
-                ca_cert: |
-                    -------BEGIN CERTIFICATE-------
-                    <cert data>
-                    -------END CERTIFICATE-------
-        csr_attributes:
-            custom_attributes:
-                1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
-            extension_requests:
-                pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
-                pp_image_name: my_ami_image
-                pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
 """
 
-import os
-import socket
-from io import StringIO
+meta: MetaSchema = {
+    "id": "cc_puppet",
+    "name": "Puppet",
+    "title": "Install, configure and start puppet",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            puppet:
+                install: true
+                version: "7.7.0"
+                install_type: "aio"
+                collection: "puppet7"
+                aio_install_url: 'https://git.io/JBhoQ'
+                cleanup: true
+                conf_file: "/etc/puppet/puppet.conf"
+                ssl_dir: "/var/lib/puppet/ssl"
+                csr_attributes_path: "/etc/puppet/csr_attributes.yaml"
+                exec: true
+                exec_args: ['--test']
+                conf:
+                    agent:
+                        server: "puppetserver.example.org"
+                        certname: "%i.%f"
+                    ca_cert: |
+                        -----BEGIN CERTIFICATE-----
+                        MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
+                        Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
+                        MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
+                        b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
+                        1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
+                        qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
+                        T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
+                        BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
+                        SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
+                        +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
+                        hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
+                        -----END CERTIFICATE-----
+                csr_attributes:
+                    custom_attributes:
+                        1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
+                    extension_requests:
+                        pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
+                        pp_image_name: my_ami_image
+                        pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
+            """  # noqa: E501
+        ),
+        dedent(
+            """\
+            puppet:
+                install_type: "packages"
+                package_name: "puppet"
+                exec: false
+            """
+        ),
+    ],
+}
 
-import yaml
-
-from cloudinit import helpers, subp, temp_utils, url_helper, util
-
-AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
-PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
+__doc__ = get_meta_doc(meta)
 
 
 class PuppetConstants(object):
@@ -142,10 +127,8 @@ def _autostart_puppet(log):
             ],
             capture=False,
         )
-    elif os.path.exists("/bin/systemctl"):
-        subp.subp(
-            ["/bin/systemctl", "enable", "puppet.service"], capture=False
-        )
+    elif subp.which("systemctl"):
+        subp.subp(["systemctl", "enable", "puppet.service"], capture=False)
     elif os.path.exists("/sbin/chkconfig"):
         subp.subp(["/sbin/chkconfig", "puppet", "on"], capture=False)
     else:

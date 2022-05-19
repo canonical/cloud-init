@@ -5,13 +5,11 @@
 import copy
 import errno
 import os
-import shutil
-import tempfile
 from textwrap import dedent
 
 import pytest
 
-from cloudinit import handlers, helpers, subp, util
+from cloudinit import handlers, helpers, util
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
@@ -24,81 +22,10 @@ from cloudinit.handlers.shell_script_by_frequency import (
     get_script_folder_by_frequency,
     path_map,
 )
-from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
-from tests.unittests.helpers import (
-    CiTestCase,
-    FilesystemMockingTestCase,
-    mock,
-    skipUnlessJinja,
-)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
-
-
-class TestUpstartJobPartHandler(FilesystemMockingTestCase):
-
-    mpath = "cloudinit.handlers.upstart_job."
-
-    def test_upstart_frequency_no_out(self):
-        c_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, c_root)
-        up_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, up_root)
-        paths = helpers.Paths(
-            {
-                "cloud_dir": c_root,
-                "upstart_dir": up_root,
-            }
-        )
-        h = UpstartJobPartHandler(paths)
-        # No files should be written out when
-        # the frequency is ! per-instance
-        h.handle_part("", handlers.CONTENT_START, None, None, None)
-        h.handle_part(
-            "blah",
-            "text/upstart-job",
-            "test.conf",
-            "blah",
-            frequency=PER_ALWAYS,
-        )
-        h.handle_part("", handlers.CONTENT_END, None, None, None)
-        self.assertEqual(0, len(os.listdir(up_root)))
-
-    def test_upstart_frequency_single(self):
-        # files should be written out when frequency is ! per-instance
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-
-        self.patchOS(new_root)
-        self.patchUtils(new_root)
-        paths = helpers.Paths(
-            {
-                "upstart_dir": "/etc/upstart",
-            }
-        )
-
-        util.ensure_dir("/run")
-        util.ensure_dir("/etc/upstart")
-
-        with mock.patch(self.mpath + "SUITABLE_UPSTART", return_value=True):
-            with mock.patch.object(subp, "subp") as m_subp:
-                h = UpstartJobPartHandler(paths)
-                h.handle_part("", handlers.CONTENT_START, None, None, None)
-                h.handle_part(
-                    "blah",
-                    "text/upstart-job",
-                    "test.conf",
-                    "blah",
-                    frequency=PER_INSTANCE,
-                )
-                h.handle_part("", handlers.CONTENT_END, None, None, None)
-
-        self.assertEqual(len(os.listdir("/etc/upstart")), 1)
-
-        m_subp.assert_called_once_with(
-            ["initctl", "reload-configuration"], capture=False
-        )
 
 
 class TestJinjaTemplatePartHandler(CiTestCase):

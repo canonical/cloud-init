@@ -21,10 +21,12 @@ import setuptools
 from setuptools.command.egg_info import egg_info
 from setuptools.command.install import install
 
+# pylint: disable=W0402
 try:
     from setuptools.errors import DistutilsError
 except ImportError:
     from distutils.errors import DistutilsArgError as DistutilsError
+# pylint: enable=W0402
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
@@ -113,11 +115,13 @@ def render_tmpl(template, mode=None):
                 VARIANT,
                 template,
                 fpath,
-            ]
+            ],
+            check=True,
         )
     else:
         subprocess.run(
-            [sys.executable, "./tools/render-cloudcfg", template, fpath]
+            [sys.executable, "./tools/render-cloudcfg", template, fpath],
+            check=True,
         )
     if mode:
         os.chmod(fpath, mode)
@@ -154,7 +158,6 @@ INITSYS_FILES = {
         for f in glob("systemd/*")
         if is_f(f) and is_generator(f)
     ],
-    "upstart": [f for f in glob("upstart/*") if is_f(f)],
 }
 INITSYS_ROOTS = {
     "sysvinit": "etc/rc.d/init.d",
@@ -167,7 +170,6 @@ INITSYS_ROOTS = {
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"
     ),
-    "upstart": "etc/init/",
 }
 INITSYS_TYPES = sorted([f.partition(".")[0] for f in INITSYS_ROOTS.keys()])
 
@@ -202,7 +204,7 @@ class MyEggInfo(egg_info):
     """This makes sure to not include the rendered files in SOURCES.txt."""
 
     def find_sources(self):
-        ret = egg_info.find_sources(self)
+        egg_info.find_sources(self)
         # update the self.filelist.
         self.filelist.exclude_pattern(
             RENDERED_TMPD_PREFIX + ".*", is_regex=True
@@ -216,7 +218,6 @@ class MyEggInfo(egg_info):
                 ]
             with open(mfname, "w") as fp:
                 fp.write("".join(files))
-        return ret
 
 
 # TODO: Is there a better way to do this??

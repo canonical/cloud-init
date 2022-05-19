@@ -100,7 +100,6 @@ execution.
       00.00000s (modules-final/config-chef)
       00.00000s (modules-config/config-snap_config)
       00.00000s (modules-config/config-ntp)
-      00.00000s (modules-config/config-emit_upstart)
       00.00000s (modules-config/config-disable-ec2-metadata)
       00.00000s (init-network/setup-datasource)
 
@@ -138,7 +137,6 @@ The following is an abbreviated example of the show output:
   Finished stage: (init-network) 02.72100 seconds
 
   Starting stage: modules-config
-  |`->config-emit_upstart ran successfully @15.43100s +00.00000s
   |`->config-snap ran successfully @15.43100s +00.00100s
   ...
   |`->config-runcmd ran successfully @16.22300s +00.00100s

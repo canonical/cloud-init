@@ -141,7 +141,7 @@ def get_tools_config(section, key, defaultVal):
     cmd = ["vmware-toolbox-cmd", "config", "get", section, key]
 
     try:
-        (outText, _) = subp.subp(cmd)
+        out = subp.subp(cmd)
     except subp.ProcessExecutionError as e:
         if e.exit_code == 69:
             logger.debug(
@@ -156,7 +156,7 @@ def get_tools_config(section, key, defaultVal):
         return defaultVal
 
     retValue = defaultVal
-    m = re.match(r"([^=]+)=(.*)", outText)
+    m = re.match(r"([^=]+)=(.*)", out.stdout)
     if m:
         retValue = m.group(2).strip()
         logger.debug("Get tools config: [%s] %s = %s", section, key, retValue)

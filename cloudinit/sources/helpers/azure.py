@@ -16,24 +16,14 @@ from typing import List, Optional
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import (
-    distros,
-    stages,
-    subp,
-    temp_utils,
-    url_helper,
-    util,
-    version,
-)
-from cloudinit.net import dhcp
+from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
 
 LOG = logging.getLogger(__name__)
 
-# This endpoint matches the format as found in dhcp lease files, since this
-# value is applied if the endpoint can't be found within a lease file
-DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
+# Default Wireserver endpoint (if not found in DHCP option 245).
+DEFAULT_WIRESERVER_ENDPOINT = "168.63.129.16"
 
 BOOT_EVENT_TYPE = "boot-telemetry"
 SYSTEMINFO_EVENT_TYPE = "system-info"
@@ -115,7 +105,7 @@ def get_boot_telemetry():
 
     try:
         out, _ = subp.subp(
-            ["/bin/systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
+            ["systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
             capture=True,
         )
         tsm = None
@@ -140,7 +130,7 @@ def get_boot_telemetry():
     try:
         out, _ = subp.subp(
             [
-                "/bin/systemctl",
+                "systemctl",
                 "show",
                 "cloud-init-local",
                 "-p",
@@ -325,43 +315,39 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
-def _get_dhcp_endpoint_option_name():
-    if util.is_FreeBSD():
-        azure_endpoint = "option-245"
+def get_ip_from_lease_value(fallback_lease_value):
+    unescaped_value = fallback_lease_value.replace("\\", "")
+    if len(unescaped_value) > 4:
+        hex_string = ""
+        for hex_pair in unescaped_value.split(":"):
+            if len(hex_pair) == 1:
+                hex_pair = "0" + hex_pair
+            hex_string += hex_pair
+        packed_bytes = struct.pack(">L", int(hex_string.replace(":", ""), 16))
     else:
-        azure_endpoint = "unknown-245"
-    return azure_endpoint
+        packed_bytes = unescaped_value.encode("utf-8")
+    return socket.inet_ntoa(packed_bytes)
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(url, **kwargs) -> url_helper.UrlResponse:
-    """Wrapper around url_helper.readurl() with custom telemetry logging
-    that url_helper.readurl() does not provide.
+def http_with_retries(
+    url: str, *, headers: dict, data: Optional[str] = None
+) -> url_helper.UrlResponse:
+    """Readurl wrapper for querying wireserver.
+
+    Retries up to 40 minutes:
+    240 attempts * (5s timeout + 5s sleep)
     """
     max_readurl_attempts = 240
-    default_readurl_timeout = 5
+    readurl_timeout = 5
     sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
-    if "timeout" not in kwargs:
-        kwargs["timeout"] = default_readurl_timeout
-
-    # remove kwargs that cause url_helper.readurl to retry,
-    # since we are already implementing our own retry logic.
-    if kwargs.pop("retries", None):
-        LOG.warning(
-            "Ignoring retries kwarg passed in for "
-            "communication with Azure endpoint."
-        )
-    if kwargs.pop("infinite", None):
-        LOG.warning(
-            "Ignoring infinite kwarg passed in for communication "
-            "with Azure endpoint."
-        )
-
     for attempt in range(1, max_readurl_attempts + 1):
         try:
-            ret = url_helper.readurl(url, **kwargs)
+            ret = url_helper.readurl(
+                url, headers=headers, data=data, timeout=readurl_timeout
+            )
 
             report_diagnostic_event(
                 "Successful HTTP request with Azure endpoint %s after "
@@ -808,190 +794,14 @@ class GoalStateHealthReporter:
 
 
 class WALinuxAgentShim:
-    def __init__(self, fallback_lease_file=None, dhcp_options=None):
-        LOG.debug(
-            "WALinuxAgentShim instantiated, fallback_lease_file=%s",
-            fallback_lease_file,
-        )
-        self.dhcpoptions = dhcp_options
-        self._endpoint = None
-        self.openssl_manager = None
-        self.azure_endpoint_client = None
-        self.lease_file = fallback_lease_file
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint
+        self.openssl_manager: Optional[OpenSSLManager] = None
+        self.azure_endpoint_client: Optional[AzureEndpointHttpClient] = None
 
     def clean_up(self):
         if self.openssl_manager is not None:
             self.openssl_manager.clean_up()
-
-    @staticmethod
-    def _get_hooks_dir():
-        _paths = stages.Init()
-        return os.path.join(_paths.paths.get_runpath(), "dhclient.hooks")
-
-    @property
-    def endpoint(self):
-        if self._endpoint is None:
-            self._endpoint = self.find_endpoint(
-                self.lease_file, self.dhcpoptions
-            )
-        return self._endpoint
-
-    @staticmethod
-    def get_ip_from_lease_value(fallback_lease_value):
-        unescaped_value = fallback_lease_value.replace("\\", "")
-        if len(unescaped_value) > 4:
-            hex_string = ""
-            for hex_pair in unescaped_value.split(":"):
-                if len(hex_pair) == 1:
-                    hex_pair = "0" + hex_pair
-                hex_string += hex_pair
-            packed_bytes = struct.pack(
-                ">L", int(hex_string.replace(":", ""), 16)
-            )
-        else:
-            packed_bytes = unescaped_value.encode("utf-8")
-        return socket.inet_ntoa(packed_bytes)
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _networkd_get_value_from_leases(leases_d=None):
-        return dhcp.networkd_get_option_from_leases(
-            "OPTION_245", leases_d=leases_d
-        )
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _get_value_from_leases_file(fallback_lease_file):
-        leases = []
-        try:
-            content = util.load_file(fallback_lease_file)
-        except IOError as ex:
-            LOG.error("Failed to read %s: %s", fallback_lease_file, ex)
-            return None
-
-        LOG.debug("content is %s", content)
-        option_name = _get_dhcp_endpoint_option_name()
-        for line in content.splitlines():
-            if option_name in line:
-                # Example line from Ubuntu
-                # option unknown-245 a8:3f:81:10;
-                leases.append(line.strip(" ").split(" ", 2)[-1].strip(';\n"'))
-        # Return the "most recent" one in the list
-        if len(leases) < 1:
-            return None
-        else:
-            return leases[-1]
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _load_dhclient_json():
-        dhcp_options = {}
-        hooks_dir = WALinuxAgentShim._get_hooks_dir()
-        if not os.path.exists(hooks_dir):
-            LOG.debug("%s not found.", hooks_dir)
-            return None
-        hook_files = [
-            os.path.join(hooks_dir, x) for x in os.listdir(hooks_dir)
-        ]
-        for hook_file in hook_files:
-            try:
-                name = os.path.basename(hook_file).replace(".json", "")
-                dhcp_options[name] = json.loads(util.load_file((hook_file)))
-            except ValueError as e:
-                raise ValueError(
-                    "{_file} is not valid JSON data".format(_file=hook_file)
-                ) from e
-        return dhcp_options
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _get_value_from_dhcpoptions(dhcp_options):
-        if dhcp_options is None:
-            return None
-        # the MS endpoint server is given to us as DHPC option 245
-        _value = None
-        for interface in dhcp_options:
-            _value = dhcp_options[interface].get("unknown_245", None)
-            if _value is not None:
-                LOG.debug("Endpoint server found in dhclient options")
-                break
-        return _value
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def find_endpoint(fallback_lease_file=None, dhcp245=None):
-        """Finds and returns the Azure endpoint using various methods.
-
-        The Azure endpoint is searched in the following order:
-        1. Endpoint from dhcp options (dhcp option 245).
-        2. Endpoint from networkd.
-        3. Endpoint from dhclient hook json.
-        4. Endpoint from fallback lease file.
-        5. The default Azure endpoint.
-
-        @param fallback_lease_file: Fallback lease file that will be used
-            during endpoint search.
-        @param dhcp245: dhcp options that will be used during endpoint search.
-        @return: Azure endpoint IP address.
-        """
-        value = None
-
-        if dhcp245 is not None:
-            value = dhcp245
-            LOG.debug("Using Azure Endpoint from dhcp options")
-        if value is None:
-            report_diagnostic_event(
-                "No Azure endpoint from dhcp options. "
-                "Finding Azure endpoint from networkd...",
-                logger_func=LOG.debug,
-            )
-            value = WALinuxAgentShim._networkd_get_value_from_leases()
-        if value is None:
-            # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
-            # a dhclient exit hook that calls cloud-init-dhclient-hook
-            report_diagnostic_event(
-                "No Azure endpoint from networkd. "
-                "Finding Azure endpoint from hook json...",
-                logger_func=LOG.debug,
-            )
-            dhcp_options = WALinuxAgentShim._load_dhclient_json()
-            value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
-        if value is None:
-            # Fallback and check the leases file if unsuccessful
-            report_diagnostic_event(
-                "No Azure endpoint from dhclient logs. "
-                "Unable to find endpoint in dhclient logs. "
-                "Falling back to check lease files",
-                logger_func=LOG.debug,
-            )
-            if fallback_lease_file is None:
-                report_diagnostic_event(
-                    "No fallback lease file was specified.",
-                    logger_func=LOG.warning,
-                )
-                value = None
-            else:
-                report_diagnostic_event(
-                    "Looking for endpoint in lease file %s"
-                    % fallback_lease_file,
-                    logger_func=LOG.debug,
-                )
-                value = WALinuxAgentShim._get_value_from_leases_file(
-                    fallback_lease_file
-                )
-        if value is None:
-            value = DEFAULT_WIRESERVER_ENDPOINT
-            report_diagnostic_event(
-                "No lease found; using default endpoint: %s" % value,
-                logger_func=LOG.warning,
-            )
-
-        endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
-        report_diagnostic_event(
-            "Azure endpoint found at %s" % endpoint_ip_address,
-            logger_func=LOG.debug,
-        )
-        return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
     def eject_iso(self, iso_dev) -> None:
@@ -1088,7 +898,7 @@ class WALinuxAgentShim:
                 description="retrieve goalstate",
                 parent=azure_ds_reporter,
             ):
-                response = self.azure_endpoint_client.get(url)
+                response = self.azure_endpoint_client.get(url)  # type: ignore
         except Exception as e:
             report_diagnostic_event(
                 "failed to register with Azure and fetch GoalState XML: %s"
@@ -1112,7 +922,7 @@ class WALinuxAgentShim:
         try:
             goal_state = GoalState(
                 unparsed_goal_state_xml,
-                self.azure_endpoint_client,
+                self.azure_endpoint_client,  # type: ignore
                 need_certificate,
             )
         except Exception as e:
@@ -1161,7 +971,11 @@ class WALinuxAgentShim:
         @return: A list of the VM user's authorized pubkey values.
         """
         ssh_keys = []
-        if goal_state.certificates_xml is not None and pubkey_info is not None:
+        if (
+            goal_state.certificates_xml is not None
+            and pubkey_info is not None
+            and self.openssl_manager is not None
+        ):
             LOG.debug("Certificate XML found; parsing out public keys.")
             keys_by_fingerprint = self.openssl_manager.parse_certificates(
                 goal_state.certificates_xml
@@ -1208,11 +1022,11 @@ class WALinuxAgentShim:
 
 @azure_ds_telemetry_reporter
 def get_metadata_from_fabric(
-    fallback_lease_file=None, dhcp_opts=None, pubkey_info=None, iso_dev=None
+    endpoint: str,
+    pubkey_info: Optional[List[str]] = None,
+    iso_dev: Optional[str] = None,
 ):
-    shim = WALinuxAgentShim(
-        fallback_lease_file=fallback_lease_file, dhcp_options=dhcp_opts
-    )
+    shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         return shim.register_with_azure_and_fetch_data(
             pubkey_info=pubkey_info, iso_dev=iso_dev
@@ -1222,12 +1036,8 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(
-    fallback_lease_file=None, dhcp_opts=None, description=None
-):
-    shim = WALinuxAgentShim(
-        fallback_lease_file=fallback_lease_file, dhcp_options=dhcp_opts
-    )
+def report_failure_to_fabric(endpoint: str, description: Optional[str] = None):
+    shim = WALinuxAgentShim(endpoint=endpoint)
     if not description:
         description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
     try:

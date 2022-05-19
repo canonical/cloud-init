@@ -38,11 +38,26 @@ Userdata is accessible via the following URL:
     GET http://169.254.169.254/2009-04-04/user-data
     1234,fred,reboot,true | 4512,jimbo, | 173,,,
 
-Note that there are multiple versions of this data provided, cloud-init
-by default uses **2009-04-04** but newer versions can be supported with
-relative ease (newer versions have more data exposed, while maintaining
-backward compatibility with the previous versions).
-Version **2016-09-02** is required for secondary IP address support.
+Note that there are multiple EC2 Metadata versions of this data provided
+to instances. cloud-init will attempt to use the most recent API version it
+supports in order to get latest API features and instance-data. If a given
+API version is not exposed to the instance, those API features will be
+unavailable to the instance.
+
+
++----------------+----------------------------------------------------------+
++ EC2 version    | supported instance-data/feature                          |
++================+==========================================================+
++ **2021-03-23** | Required for Instance tag support. This feature must be  |
+|                | enabled individually on each instance.  See the          |
+|                | `EC2 tags user guide`_.                                  |
++----------------+----------------------------------------------------------+
+| **2016-09-02** | Required for secondary IP address support.               |
++----------------+----------------------------------------------------------+
+| **2009-04-04** | Minimum supports EC2 API version for meta-data and       |
+|                | user-data.                                               |
++----------------+----------------------------------------------------------+
+
 
 To see which versions are supported from your cloud provider use the following
 URL:
@@ -71,7 +86,7 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 The settings that may be configured are:
 
- * **metadata_urls**: This list of urls will be searched for an Ec2
+ * **metadata_urls**: This list of urls will be searched for an EC2
    metadata service. The first entry that successfully returns a 200 response
    for <url>/<version>/meta-data/instance-id will be selected.
    (default: ['http://169.254.169.254', 'http://instance-data:8773']).
@@ -121,4 +136,5 @@ Notes
    For example: the primary NIC will have a DHCP route-metric of 100,
    the next NIC will be 200.
 
+.. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#work-with-tags-in-IMDS
 .. vi: textwidth=79

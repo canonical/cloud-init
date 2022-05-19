@@ -12,7 +12,16 @@ import pytest
 from cloudinit import cloud, distros, helpers, util
 from cloudinit.config import cc_resolv_conf
 from cloudinit.config.cc_resolv_conf import generate_resolv_conf
-from tests.unittests import helpers as t_help
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import (
+    FilesystemMockingTestCase,
+    cloud_init_project_dir,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import MockDistro
 
 LOG = logging.getLogger(__name__)
@@ -24,7 +33,7 @@ EXPECTED_HEADER = """\
 #\n\n"""
 
 
-class TestResolvConf(t_help.FilesystemMockingTestCase):
+class TestResolvConf(FilesystemMockingTestCase):
     with_logs = True
     cfg = {"manage_resolv_conf": True, "resolv_conf": {}}
 
@@ -117,7 +126,7 @@ class TestResolvConf(t_help.FilesystemMockingTestCase):
 class TestGenerateResolvConf:
 
     dist = MockDistro()
-    tmpl_fn = t_help.cloud_init_project_dir("templates/resolv.conf.tmpl")
+    tmpl_fn = cloud_init_project_dir("templates/resolv.conf.tmpl")
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_dist_resolv_conf_fn(self, m_render_to_file):
@@ -192,6 +201,66 @@ class TestGenerateResolvConf:
         assert [
             mock.call(mock.ANY, expected_content, mode=mock.ANY)
         ] == m_write_file.call_args_list
+
+
+class TestResolvConfSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Valid
+            ({"manage_resolv_conf": False}, None),
+            ({"resolv_conf": {"options": {"any": "thing"}}}, None),
+            # Invalid
+            (
+                {"manage_resolv_conf": "asdf"},
+                "'asdf' is not of type 'boolean'",
+            ),
+            # What may be some common misunderstandings of the template
+            (
+                {"resolv_conf": {"nameserver": ["1.1.1.1"]}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"resolv_conf": {"nameservers": "1.1.1.1"}},
+                "'1.1.1.1' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"search": ["foo.com"]}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"resolv_conf": {"searchdomains": "foo.com"}},
+                "'foo.com' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"domain": ["foo.com"]}},
+                r"\['foo.com'\] is not of type 'string'",
+            ),
+            (
+                {"resolv_conf": {"sortlist": "1.2.3.4"}},
+                "'1.2.3.4' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"options": "timeout: 1"}},
+                "'timeout: 1' is not of type 'object'",
+            ),
+            (
+                {"resolv_conf": {"options": "rotate"}},
+                "'rotate' is not of type 'object'",
+            ),
+            (
+                {"resolv_conf": {"options": ["rotate"]}},
+                r"\['rotate'\] is not of type 'object'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

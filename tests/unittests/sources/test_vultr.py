@@ -141,13 +141,11 @@ VULTR_V1_2 = {
 
 SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
 
-INTERFACES = [
-    ["lo", "56:00:03:15:c4:00", "drv", "devid0"],
-    ["dummy0", "56:00:03:15:c4:01", "drv", "devid1"],
-    ["eth1", "56:00:03:15:c4:02", "drv", "devid2"],
-    ["eth0", "56:00:03:15:c4:04", "drv", "devid4"],
-    ["eth2", "56:00:03:15:c4:03", "drv", "devid3"],
-]
+INTERFACES = ["lo", "dummy0", "eth1", "eth0", "eth2"]
+
+ORDERED_INTERFACES = ["eth0", "eth1", "eth2"]
+
+FILTERED_INTERFACES = ["eth1", "eth2", "eth0"]
 
 # Expected generated objects
 
@@ -167,7 +165,10 @@ EXPECTED_VULTR_CONFIG = {
 EXPECTED_VULTR_NETWORK_1 = {
     "version": 1,
     "config": [
-        {"type": "nameserver", "address": ["108.61.10.10"]},
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
         {
             "name": "eth0",
             "type": "physical",
@@ -184,7 +185,10 @@ EXPECTED_VULTR_NETWORK_1 = {
 EXPECTED_VULTR_NETWORK_2 = {
     "version": 1,
     "config": [
-        {"type": "nameserver", "address": ["108.61.10.10"]},
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
         {
             "name": "eth0",
             "type": "physical",
@@ -224,7 +228,15 @@ INTERFACE_MAP = {
 }
 
 
-EPHERMERAL_USED = ""
+FINAL_INTERFACE_USED = ""
+
+
+# Static override, pylint doesnt like this in
+# classes without self
+def check_route(url):
+    if FINAL_INTERFACE_USED == "eth0":
+        return True
+    return False
 
 
 class TestDataSourceVultr(CiTestCase):
@@ -297,32 +309,59 @@ class TestDataSourceVultr(CiTestCase):
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_private_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
-        interf = VULTR_V1_2["interfaces"]
+        interf = VULTR_V1_2["interfaces"].copy()
 
+        # Test configuring
         self.assertEqual(
             EXPECTED_VULTR_NETWORK_2, vultr.generate_network_config(interf)
         )
 
+        # Test unconfigured
+        interf[1]["unconfigured"] = True
+        expected = EXPECTED_VULTR_NETWORK_2.copy()
+        expected["config"].pop(2)
+        self.assertEqual(expected, vultr.generate_network_config(interf))
+
+    # Override ephemeral for proper unit testing
     def ephemeral_init(self, iface="", connectivity_url_data=None):
-        global EPHERMERAL_USED
-        EPHERMERAL_USED = iface
+        global FINAL_INTERFACE_USED
+        FINAL_INTERFACE_USED = iface
         if iface == "eth0":
             return
         raise NoDHCPLeaseError("Generic for testing")
 
+    # Override ephemeral for proper unit testing
+    def ephemeral_init_always(self, iface="", connectivity_url_data=None):
+        global FINAL_INTERFACE_USED
+        FINAL_INTERFACE_USED = iface
+
+    # Override ephemeral for proper unit testing
+    def override_enter(self):
+        return
+
+    # Override ephemeral for proper unit testing
+    def override_exit(self, excp_type, excp_value, excp_traceback):
+        return
+
     # Test interface seeking to ensure we are able to find the correct one
     @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__init__", ephemeral_init)
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__enter__", override_enter)
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__exit__", override_exit)
+    @mock.patch("cloudinit.sources.helpers.vultr.check_route")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
-    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
     def test_interface_seek(
-        self, mock_get_interfaces, mock_read_metadata, mock_isvultr
+        self,
+        mock_interface_list,
+        mock_read_metadata,
+        mock_isvultr,
+        mock_check_route,
     ):
-        mock_read_metadata.side_effect = NoDHCPLeaseError(
-            "Generic for testing"
-        )
+        mock_read_metadata.return_value = {}
         mock_isvultr.return_value = True
-        mock_get_interfaces.return_value = INTERFACES
+        mock_interface_list.return_value = FILTERED_INTERFACES
+        mock_check_route.return_value = True
 
         source = DataSourceVultr.DataSourceVultr(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
@@ -333,7 +372,35 @@ class TestDataSourceVultr(CiTestCase):
         except Exception:
             pass
 
-        self.assertEqual(EPHERMERAL_USED, INTERFACES[3][0])
+        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
+
+    # Test route checking sucessful DHCPs
+    @mock.patch("cloudinit.sources.helpers.vultr.check_route", check_route)
+    @mock.patch(
+        "cloudinit.net.dhcp.EphemeralDHCPv4.__init__", ephemeral_init_always
+    )
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__enter__", override_enter)
+    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__exit__", override_exit)
+    @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
+    @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
+    @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
+    def test_interface_seek_route_check(
+        self, mock_read_metadata, mock_isvultr, mock_interface_list
+    ):
+        mock_read_metadata.return_value = {}
+        mock_interface_list.return_value = FILTERED_INTERFACES
+        mock_isvultr.return_value = True
+
+        source = DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+        )
+
+        try:
+            source._get_data()
+        except Exception:
+            pass
+
+        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
 
 
 # vi: ts=4 expandtab
