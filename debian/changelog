@@ -29,16 +29,15 @@ cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
     - tests: cc_set_passoword update for systemd, non-systemd distros  (#1449)
     - Fix bug in url_helper/dual_stack() logging (#1426)
     - schema: render schema paths from _CustomSafeLoaderWithMarks (#1391)
-      (GH: SC-929)
     - testing: Make integration tests kinetic friendly (#1441)
     - Handle error if SSH service no present. (#1422)
-      [Alberto Contreras] (GH: #1969526)
+      [Alberto Contreras] (LP: #1969526)
     - Fix network-manager activator availability and order (#1438)
     - sources/azure: remove reprovisioning marker (#1414) [Chris Patterson]
     - upstart: drop vestigial support for upstart (#1421)
     - testing: Ensure NoCloud detected in test (#1439)
     - Update .github-cla-signers kallioli [Kevin Allioli]
-    - Consistently strip top-level network key (#1417) (GH: #1906187)
+    - Consistently strip top-level network key (#1417) (LP: #1906187)
     - testing: Fix LXD VM metadata test (#1430)
     - testing: Add NoCloud setup for NoCloud test (#1425)
     - Update linters and adapt code for compatibility (#1434) [Paride Legovini]
@@ -51,9 +50,9 @@ cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
     - tests: verify_ordered_items fallback to re.escape if needed (#1420)
     - Misc module cleanup (#1418)
     - docs: Fix doc warnings and enable errors (#1419)
-      [Alberto Contreras] (GH: #1876341)
+      [Alberto Contreras] (LP: #1876341)
     - Refactor cloudinit.sources.NetworkConfigSource to enum (#1413)
-      [Alberto Contreras] (GH: #1874875)
+      [Alberto Contreras] (LP: #1874875)
     - Don't fail if IB and Ethernet devices 'collide' (#1411)
     - Use cc_* module meta defintion over hardcoded vars (SC-888) (#1385)
     - Fix cc_rsyslog.py initialization (#1404) [Alberto Contreras]
@@ -65,13 +64,13 @@ cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
     - Allow growpart to resize encrypted partitions (#1316)
     - Fix typo in integration_test.rst (#1405) [Alberto Contreras]
     - cloudinit.net refactor: apply_network_config_names (#1388)
-      [Alberto Contreras] (GH: #1884602)
+      [Alberto Contreras] (LP: #1884602)
     - tests/azure: add fixtures for hardcoded paths (markers and data_dir)
       (#1399) [Chris Patterson]
     - testing: Add responses workaround for focal/impish (#1403)
     - cc_ssh_import_id: fix is_key_in_nested_dict to avoid early False
     - Fix ds-identify not detecting NoCloud seed in config (#1381)
-      (GH: #1876375)
+      (LP: #1876375)
     - sources/azure: retry dhcp for failed processes (#1401) [Chris Patterson]
     - Move notes about refactorization out of CONTRIBUTING.rst (#1389)
     - Shave ~8ms off generator runtime (#1387)
@@ -86,28 +85,26 @@ cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
     - sources/azure: only wait for primary nic to be attached during restore
       (#1378) [Anh Vo]
     - cc_ntp: migrated legacy schema to cloud-init-schema.json (#1384)
-      (GH: SC-803)
     - Network functions refactor and bugfixes (#1383)
-    - schema: add JSON defs for modules cc_users_groups (#1379)
-      (GH: SC-928, SC-846, SC-897, #1858930)
+    - schema: add JSON defs for modules cc_users_groups (#1379) (LP: #1858930)
     - Fix doc typo (#1382) [Alberto Contreras]
     - Add support for dual stack IPv6/IPv4 IMDS to Ec2 (#1160)
-    - Fix KeyError when rendering sysconfig IPv6 routes (#1380) (GH: #1958506)
+    - Fix KeyError when rendering sysconfig IPv6 routes (#1380) (LP: #1958506)
     - Return a namedtuple from subp() (#1376)
     - Mypy stubs and other tox maintenance (SC-920) (#1374)
     - Distro Compatibility Fixes (#1375)
     - Pull in Gentoo patches (#1372)
     - schema: add json defs for modules U-Z (#1360)
-      (GH: #1858928, #1858929, #1858931, #1858932)
+      (LP: #1858928, #1858929, #1858931, #1858932)
     - util: atomically update sym links to avoid Suppress FileNotFoundError
-      when reading status (#1298) [Adam Collard] (GH: LP:1962150)
+      when reading status (#1298) [Adam Collard] (LP: LP:1962150)
     - schema: add json defs for modules scripts-timezone (SC-801) (#1365)
     - docs: Add first tutorial (SC-900) (#1368)
     - BUG 1473527: module ssh-authkey-fingerprints fails Input/output error…
-      (#1340) [Andrew Lee] (GH: #1473527)
+      (#1340) [Andrew Lee] (LP: #1473527)
     - add arch hosts template (#1371)
     - ds-identify: detect LXD for VMs launched from host with > 5.10 kernel
-      (#1370) (GH: #1968085)
+      (#1370) (LP: #1968085)
     - Support EC2 tags in instance metadata (#1309) [Eduardo Dobay]
     - schema: add json defs for modules e-install (SC-651) (#1366)
     - Improve "(no_create_home|system): true" test (#1367) [Jeffrey 'jf' Lim]
