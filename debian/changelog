@@ -1,4 +1,4 @@
-cloud-init (22.2-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/control:
     - Build-Depends: add python3-responses and python3-pytest-mock for unittests
