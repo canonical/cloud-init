@@ -1,3 +1,4 @@
+name: Lint Tests
 on:
   push:
   pull_request:
@@ -36,5 +37,5 @@ jobs:
       - name: Test
         env:
           # matrix env: not to be confused w/environment variables or testenv
-          TOXENV: ${{ matrix.env}}
+          TOXENV: ${{ matrix.env }}
         run: tox
