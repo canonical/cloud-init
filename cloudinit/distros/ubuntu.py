@@ -38,9 +38,7 @@ class Distro(debian.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
         if not self._preferred_ntp_clients:
-            self._preferred_ntp_clients = copy.deepcopy(
-                PREFERRED_NTP_CLIENTS
-            )
+            self._preferred_ntp_clients = copy.deepcopy(PREFERRED_NTP_CLIENTS)
         return self._preferred_ntp_clients
 
 

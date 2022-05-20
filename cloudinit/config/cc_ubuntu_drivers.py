@@ -5,6 +5,7 @@
 import os
 from textwrap import dedent
 
+from cloudinit import debconf
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -48,10 +49,6 @@ OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
 # 'linux-restricted-modules' deb to accept the NVIDIA EULA and the package
 # will automatically link the drivers to the running kernel.
 
-# EOL_XENIAL: can then drop this script and use python3-debconf which is only
-# available in Bionic and later. Can't use python3-debconf currently as it
-# isn't in Xenial and doesn't yet support X_LOADTEMPLATEFILE debconf command.
-
 NVIDIA_DEBCONF_CONTENT = """\
 Template: linux/nvidia/latelink
 Type: boolean
@@ -61,13 +58,8 @@ Description: Late-link NVIDIA kernel modules?
  make them available for use.
 """
 
-NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT = """\
-#!/bin/sh
-# Allow cloud-init to trigger EULA acceptance via registering a debconf
-# template to set linux/nvidia/latelink true
-. /usr/share/debconf/confmodule
-db_x_loadtemplatefile "$1" cloud-init
-"""
+
+X_LOADTEMPLATEFILE = "X_LOADTEMPLATEFILE"
 
 
 def install_drivers(cfg, pkg_install_func):
@@ -108,15 +100,12 @@ def install_drivers(cfg, pkg_install_func):
     # Register and set debconf selection linux/nvidia/latelink = true
     tdir = temp_utils.mkdtemp(needs_exe=True)
     debconf_file = os.path.join(tdir, "nvidia.template")
-    debconf_script = os.path.join(tdir, "nvidia-debconf.sh")
     try:
+        if not debconf.HAS_DEBCONF:
+            raise ValueError("python3-debconf must be installed.")
         util.write_file(debconf_file, NVIDIA_DEBCONF_CONTENT)
-        util.write_file(
-            debconf_script,
-            util.encode_text(NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT),
-            mode=0o755,
-        )
-        subp.subp([debconf_script, debconf_file])
+        with debconf.DebconfCommunicator("cloud-init") as dc:
+            dc.command(X_LOADTEMPLATEFILE, debconf_file)
     except Exception as e:
         util.logexc(
             LOG, "Failed to register NVIDIA debconf template: %s", str(e)
