@@ -155,14 +155,16 @@ Why did cloud-init never complete?
 ==================================
 
 To check if cloud-init is running still, run:
-```
-cloud-init status
-```
+
+.. code-block:: shell-session
+
+        $ cloud-init status
 
 To wait for clous-init to complete, run:
-```
-cloud-init status --wait
-```
+
+.. code-block:: shell-session
+
+        $ cloud-init status --wait
 
 There are a number of reasons that cloud-init might never complete. This list
 is not exhaustive, but attempts to enumerate potential causes:
@@ -173,9 +175,9 @@ External reasons:
 - bugs in the kernel or drivers
 - bugs in external userspace tools that are called by cloud-init
 
-## Internal reasons:
---------------------
-- a command in `bootcmd` or `runcmd` that never completes (ex: running
+Internal reasons:
+-----------------
+- a command in ``bootcmd`` or ``runcmd`` that never completes (ex: running
   `cloud-init status --wait` will wait forever on itself and never complete)
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
