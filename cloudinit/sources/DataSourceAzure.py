@@ -1741,8 +1741,7 @@ def address_ephemeral_resize(
             try:
                 os.unlink(sempath)
                 LOG.debug("%s removed.", bmsg)
-            except Exception as e:
-                # python3 throws FileNotFoundError, python2 throws OSError
+            except FileNotFoundError as e:
                 LOG.warning("%s: remove failed! (%s)", bmsg, e)
         else:
             LOG.debug("%s did not exist.", bmsg)
@@ -2086,9 +2085,8 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     seed = util.load_file(source, quiet=True, decode=False)
 
     # The seed generally contains non-Unicode characters. load_file puts
-    # them into a str (in python 2) or bytes (in python 3). In python 2,
-    # bad octets in a str cause util.json_dumps() to throw an exception. In
-    # python 3, bytes is a non-serializable type, and the handler load_file
+    # them into bytes (in python 3).
+    # bytes is a non-serializable type, and the handler load_file
     # uses applies b64 encoding *again* to handle it. The simplest solution
     # is to just b64encode the data and then decode it to a serializable
     # string. Same number of bits of entropy, just with 25% more zeroes.

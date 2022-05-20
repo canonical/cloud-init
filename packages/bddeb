@@ -156,10 +156,6 @@ def get_parser():
                         default=False,
                         action='store_true')
 
-    parser.add_argument("--python2", dest="python2",
-                        help=("build debs for python2 rather than python3"),
-                        default=False, action='store_true')
-
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
