@@ -134,7 +134,8 @@ _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
                -e 'doc/examples/cloud-config-mcollective.txt: WARNING WARNING' \
                -e 'doc/examples/cloud-config-power-state.txt: Bye Bye' \
                -e 'doc/examples/cloud-config.txt: Bye Bye' \
-               -e 'doc/rtd/topics/cli.rst: DOCS DOCS'
+               -e 'doc/rtd/topics/cli.rst: DOCS DOCS' \
+               -e 'dependant'
 
 
 # For CI we require a failing return code when spellintian finds spelling errors
