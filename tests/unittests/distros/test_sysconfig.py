@@ -65,7 +65,7 @@ USEMD5=no"""
         conf["IPV6TO4_ROUTING"] = "blah \tblah"
         contents2 = str(conf).strip()
         # Should be requoted due to whitespace
-        self.assertRegMatches(
+        self.assertRegex(
             contents2, r"IPV6TO4_ROUTING=[\']blah\s+blah[\']"
         )
 
