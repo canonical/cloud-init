@@ -164,7 +164,7 @@ To wait for clous-init to complete, run:
 cloud-init status --wait
 ```
 
-There are a number of reasons that cloud-init might "never complete. This list
+There are a number of reasons that cloud-init might never complete. This list
 is not exhaustive, but attempts to enumerate potential causes:
 
 External reasons:
@@ -179,7 +179,6 @@ External reasons:
   `cloud-init status --wait` will wait forever on itself and never complete)
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
-- cloud-init is not immune to bugs
 
 Multipass
 ---------
