@@ -147,8 +147,7 @@ matrix:
             - sudo apt-get install lintian
             - pip install tox
           script:
-            - make check_spelling
-            - tox
+            - make check_spelling && tox
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)
         - python: "3.10"
