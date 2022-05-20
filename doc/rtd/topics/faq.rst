@@ -151,6 +151,36 @@ provided to the system:
 As launching instances in the cloud can cost money and take a bit longer,
 sometimes it is easier to launch instances locally using Multipass or LXD:
 
+Why did cloud-init never complete?
+==================================
+
+To check if cloud-init is running still, run:
+```
+cloud-init status
+```
+
+To wait for clous-init to complete, run:
+```
+cloud-init status --wait
+```
+
+There are a number of reasons that cloud-init might "never complete. This list
+is not exhaustive, but attempts to enumerate potential causes:
+
+External reasons:
+-----------------
+- failed dependant services in the boot
+- bugs in the kernel or drivers
+- bugs in external userspace tools that are called by cloud-init
+
+## Internal reasons:
+--------------------
+- a command in `bootcmd` or `runcmd` that never completes (ex: running
+  `cloud-init status --wait` will wait forever on itself and never complete)
+- nonstandard configurations that disable timeouts or set extremely high
+  values ("never" is used in a loose sense here)
+- cloud-init is not immune to bugs
+
 Multipass
 ---------
 
@@ -212,17 +242,15 @@ launch this multiple times:
 The above examples all show how to pass user data. To pass other types of
 configuration data use the config option specified below:
 
-+----------------+---------------------+
-| Data           | Config Option       |
-+================+=====================+
-| user data      | user.user-data      |
-+----------------+---------------------+
-| vendor data    | user.vendor-data    |
-+----------------+---------------------+
-| metadata       | user.meta-data      |
-+----------------+---------------------+
-| network config | user.network-config |
-+----------------+---------------------+
++----------------+---------------------------+
+| Data           | Config Option             |
++================+===========================+
+| user data      | cloud-init.user-data      |
++----------------+---------------------------+
+| vendor data    | cloud-init.vendor-data    |
++----------------+---------------------------+
+| network config | cloud-init.network-config |
++----------------+---------------------------+
 
 See the LXD `Instance Configuration`_ docs for more info about configuration
 values or the LXD `Custom Network Configuration`_ document for more about
@@ -315,5 +343,6 @@ variety of sources.
 .. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
 .. Blog Post: [terraform, azure, devops, docker, dotnet, cloud-init] https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
 .. Youtube: [proxmox, cloud-init, template] https://www.youtube.com/watch?v=shiIi38cJe4
+.. Blog Post: [neovim, yaml, Language Server Protocol, jsonschema, cloud-init] https://phoenix-labs.xyz/blog/setup-neovim-cloud-init-completion/
 
 .. vi: textwidth=79
