@@ -222,7 +222,7 @@ class DataSourceEc2(sources.DataSource):
         else:
             return self.metadata["instance-id"]
 
-    def _maybe_fetch_api_token(self, mdurls, timeout=None, max_wait=None):
+    def _maybe_fetch_api_token(self, mdurls):
         """Get an API token for EC2 Instance Metadata Service.
 
         On EC2. IMDS will always answer an API token, unless
