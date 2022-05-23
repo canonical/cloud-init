@@ -346,7 +346,7 @@ def is_encrypted(blockdev, partition) -> bool:
 
 def get_underlying_partition(blockdev):
     command = ["dmsetup", "deps", "--options=devname", blockdev]
-    dep: str = subp.subp(command)[0]
+    dep: str = subp.subp(command)[0]  # pyright: ignore
     # Returned result should look something like:
     # 1 dependencies : (vdb1)
     if not dep.startswith("1 depend"):

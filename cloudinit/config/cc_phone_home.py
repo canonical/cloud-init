@@ -129,7 +129,7 @@ def handle(name, cfg, cloud, log, args):
     post_list = ph_cfg.get("post", "all")
     tries = ph_cfg.get("tries")
     try:
-        tries = int(tries)
+        tries = int(tries)  # pyright: ignore
     except ValueError:
         tries = 10
         util.logexc(
