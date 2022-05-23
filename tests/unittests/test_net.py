@@ -7533,7 +7533,7 @@ class TestGetInterfaces(CiTestCase):
             "tun0": None,
         },
     }
-    data = {}
+    data: dict = {}
 
     def _se_get_devicelist(self):
         return list(self.data["devices"])
@@ -7707,7 +7707,7 @@ class TestGetInterfacesByMac(CiTestCase):
             "tun0": None,
         },
     }
-    data = {}
+    data: dict = {}
 
     def _se_get_devicelist(self):
         return list(self.data["devices"])
@@ -7917,7 +7917,7 @@ class TestGetIBHwaddrsByInterface(CiTestCase):
         },
         "ib_hwaddr": {"ib0": {True: _ib_addr_eth_format, False: _ib_addr}},
     }
-    data = {}
+    data: dict = {}
 
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)

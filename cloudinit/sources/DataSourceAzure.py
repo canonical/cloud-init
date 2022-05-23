@@ -208,7 +208,7 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd).stdout  # type: ignore
+        return subp.subp(cmd).stdout  # pyright: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
@@ -598,9 +598,9 @@ class DataSourceAzure(sources.DataSource):
         if metadata_source == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
-                    username=imds_username,  # type: ignore
-                    hostname=imds_hostname,  # type: ignore
-                    disableSshPwd=imds_disable_password,  # type: ignore
+                    username=imds_username,  # pyright: ignore
+                    hostname=imds_hostname,  # pyright: ignore
+                    disableSshPwd=imds_disable_password,  # pyright: ignore
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
@@ -2095,7 +2095,7 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     # string. Same number of bits of entropy, just with 25% more zeroes.
     # There's no need to undo this base64-encoding when the random seed is
     # actually used in cc_seed_random.py.
-    return base64.b64encode(seed).decode()  # type: ignore
+    return base64.b64encode(seed).decode()  # pyright: ignore
 
 
 @azure_ds_telemetry_reporter

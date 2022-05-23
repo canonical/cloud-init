@@ -150,7 +150,6 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     :raise: IOError/OSError on absence of instance-data.json file or invalid
         access perms.
     """
-    paths = None
     uid = os.getuid()
     if not all([instance_data, user_data, vendor_data]):
         paths = read_cfg_paths()

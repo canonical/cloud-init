@@ -13,6 +13,7 @@ import time
 import unittest
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
 
@@ -114,7 +115,7 @@ class CiTestCase(TestCase):
     # Subclass overrides for specific test behavior
     # Whether or not a unit test needs logfile setup
     with_logs = False
-    allowed_subp = False
+    allowed_subp: ClassVar[Union[List, bool]] = False
     SUBP_SHELL_TRUE = "shell=true"
 
     @contextmanager
@@ -530,7 +531,7 @@ if not hasattr(mock.Mock, "assert_not_called"):
             )
             raise AssertionError(msg)
 
-    mock.Mock.assert_not_called = __mock_assert_not_called
+    mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
 
 
 def get_top_level_dir() -> Path:

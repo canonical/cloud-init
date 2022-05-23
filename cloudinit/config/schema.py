@@ -11,6 +11,7 @@ import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
+from typing import Optional, Tuple, cast
 
 import yaml
 
@@ -226,7 +227,7 @@ def validate_cloudconfig_schema(
         return
 
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
-    errors = ()
+    errors: Tuple[Tuple[str, str], ...] = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = ".".join([str(p) for p in error.path])
         errors += ((path, error.message),)
@@ -413,7 +414,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
         property_types.extend(
             [
                 subschema["type"]
-                for subschema in property_dict.get("oneOf")
+                for subschema in property_dict.get("oneOf", {})
                 if subschema.get("type")
             ]
         )
@@ -573,7 +574,7 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
-def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
+def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
     @param meta: Dict of metadata to render.
@@ -616,7 +617,8 @@ def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
     meta_copy["property_header"] = ""
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
-        schema = defs.get(meta["id"])
+        schema = defs.get(meta["id"], {})
+        schema = cast(dict, schema)
     try:
         meta_copy["property_doc"] = _get_property_doc(schema, defs=defs)
     except AttributeError:

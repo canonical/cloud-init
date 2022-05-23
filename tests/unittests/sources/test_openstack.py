@@ -39,7 +39,7 @@ USER_DATA = b"#!/bin/sh\necho This is user data\n"
 VENDOR_DATA = {
     "magic": "",
 }
-VENDOR_DATA2 = {"static": {}}
+VENDOR_DATA2: dict = {"static": {}}
 OSTACK_META = {
     "availability_zone": "nova",
     "files": [

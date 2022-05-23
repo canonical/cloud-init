@@ -15,7 +15,6 @@ import stat
 import tempfile
 from collections import deque
 from textwrap import dedent
-from typing import Tuple
 from unittest import mock
 
 import pytest
@@ -1141,21 +1140,11 @@ class TestIsLXD(CiTestCase):
 
 
 class TestReadCcFromCmdline:
-
-    random_string: Tuple
-
-    if hasattr(pytest, "param"):
-        random_string = pytest.param(
-            CiTestCase.random_string(), None, id="random_string"
-        )
-    else:
-        random_string = (CiTestCase.random_string(), None)
-
     @pytest.mark.parametrize(
         "cmdline,expected_cfg",
         [
             # Return None if cmdline has no cc:<YAML>end_cc content.
-            random_string,
+            pytest.param(CiTestCase.random_string(), None, id="random_string"),
             # Return None if YAML content is empty string.
             ("foo cc: end_cc bar", None),
             # Return expected dictionary without trailing end_cc marker.

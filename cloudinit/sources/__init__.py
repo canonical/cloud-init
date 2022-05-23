@@ -14,7 +14,7 @@ import json
 import os
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -149,7 +149,7 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
 
 URLParams = namedtuple(
-    "URLParms",
+    "URLParams",
     [
         "max_wait_seconds",
         "timeout_seconds",
@@ -228,7 +228,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
     # values are reset via clear_cached_attrs during any update_metadata call.
-    cached_attr_defaults = (
+    cached_attr_defaults: Tuple[Tuple[str, Any], ...] = (
         ("ec2_metadata", UNSET),
         ("network_json", UNSET),
         ("metadata", {}),
@@ -244,7 +244,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
-    sensitive_metadata_keys = (
+    sensitive_metadata_keys: Tuple[str, ...] = (
         "merged_cfg",
         "security-credentials",
     )
@@ -256,7 +256,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.distro = distro
         self.paths = paths
         self.userdata = None
-        self.metadata = {}
+        self.metadata: dict = {}
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata2 = None
@@ -445,7 +445,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
     def get_url_params(self):
-        """Return the Datasource's prefered url_read parameters.
+        """Return the Datasource's preferred url_read parameters.
 
         Subclasses may override url_max_wait, url_timeout, url_retries.
 
@@ -763,7 +763,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self.distro.get_package_mirror_info(data_source=self)
 
     def get_supported_events(self, source_event_types: List[EventType]):
-        supported_events = {}  # type: Dict[EventScope, set]
+        supported_events: Dict[EventScope, set] = {}
         for event in source_event_types:
             for (
                 update_scope,

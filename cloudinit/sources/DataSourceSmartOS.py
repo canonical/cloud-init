@@ -30,9 +30,11 @@ import random
 import re
 import socket
 
+import serial
+
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import serial, sources, subp, util
+from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
@@ -1049,7 +1051,7 @@ if __name__ == "__main__":
 
         return data[key]
 
-    data = {}
+    data: dict = {}
     for key in keys:
         load_key(client=jmc, key=key, data=data)
 

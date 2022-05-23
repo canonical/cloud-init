@@ -73,7 +73,7 @@ class TestOpenNebulaDataSource(CiTestCase):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             ret = dsrc.get_data()
             self.assertFalse(ret)
@@ -84,7 +84,7 @@ class TestOpenNebulaDataSource(CiTestCase):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -107,7 +107,7 @@ class TestOpenNebulaDataSource(CiTestCase):
                     ] = invalid_user
 
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_context_dir(self.seed_dir, {"KEY1": "val1"})
             dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -118,7 +118,7 @@ class TestOpenNebulaDataSource(CiTestCase):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_context_dir(self.seed_dir, {"KEY1": "val1"})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             ret = dsrc.get_data()

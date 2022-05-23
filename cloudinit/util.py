@@ -35,7 +35,7 @@ from base64 import b64decode, b64encode
 from collections import deque
 from errno import EACCES, ENOENT
 from functools import lru_cache
-from typing import List
+from typing import Callable, List, TypeVar
 from urllib import parse
 
 from cloudinit import importer
@@ -2618,7 +2618,17 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
         return parse_mount(path)
 
 
-def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
+T = TypeVar("T")
+
+
+def log_time(
+    logfunc,
+    msg,
+    func: Callable[..., T],
+    args=None,
+    kwargs=None,
+    get_uptime=False,
+) -> T:
     if args is None:
         args = []
     if kwargs is None:

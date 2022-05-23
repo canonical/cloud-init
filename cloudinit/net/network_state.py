@@ -7,6 +7,7 @@
 import copy
 import functools
 import logging
+from typing import Any, Dict
 
 from cloudinit import safeyaml, util
 from cloudinit.net import (
@@ -44,7 +45,7 @@ NETWORK_V2_KEY_FILTER = [
     "accept-ra",
 ]
 
-NET_CONFIG_TO_V2 = {
+NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
     "bond": {
         "bond-ad-select": "ad-select",
         "bond-arp-interval": "arp-interval",

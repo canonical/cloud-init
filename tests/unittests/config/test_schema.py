@@ -80,7 +80,7 @@ def get_modules() -> List[ModuleType]:
 
 def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
-    schemas = {}
+    schemas: dict = {}
     get_modules()
     for k, v in sys.modules.items():
         path = Path(k)
