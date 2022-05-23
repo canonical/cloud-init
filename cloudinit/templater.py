@@ -15,10 +15,14 @@
 import collections
 import re
 import sys
-from typing import TYPE_CHECKING, Type
+from typing import Type
 
-if TYPE_CHECKING:
-    JUndefined: Type
+from cloudinit import log as logging
+from cloudinit import type_utils as tu
+from cloudinit import util
+from cloudinit.atomic_helper import write_file
+
+JUndefined: Type
 try:
     from jinja2 import DebugUndefined as _DebugUndefined
     from jinja2 import Template as JTemplate
@@ -28,11 +32,6 @@ try:
 except (ImportError, AttributeError):
     JINJA_AVAILABLE = False
     JUndefined = object
-
-from cloudinit import log as logging
-from cloudinit import type_utils as tu
-from cloudinit import util
-from cloudinit.atomic_helper import write_file
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)

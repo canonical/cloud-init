@@ -14,7 +14,7 @@ import json
 import os
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -56,10 +56,6 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
 UNSET = "_unset"
-# `UnsetOrDict` should be Union[Literal["_unset"], dict] but Literal is not yet
-# supported
-UnsetOrDict = Union[str, dict]
-
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)

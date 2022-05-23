@@ -13,7 +13,7 @@ import os
 import socket
 import stat
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -134,8 +134,8 @@ class DataSourceLXD(sources.DataSource):
 
     dsname = "LXD"
 
-    _network_config: sources.UnsetOrDict = sources.UNSET
-    _crawled_metadata: sources.UnsetOrDict = sources.UNSET
+    _network_config: Optional[dict] = None
+    _crawled_metadata: Optional[dict] = None
 
     sensitive_metadata_keys = (
         "merged_cfg",
@@ -202,20 +202,18 @@ class DataSourceLXD(sources.DataSource):
 
         If none is present, then we generate fallback configuration.
         """
-        if self._network_config == sources.UNSET:
-            if self._crawled_metadata == sources.UNSET:
+        if self._network_config is None:
+            if self._crawled_metadata is None:
                 self._get_data()
-            if isinstance(
-                self._crawled_metadata, dict
-            ) and self._crawled_metadata.get("network-config"):
-                crawled_network_config = self._crawled_metadata.get(
+            if self._crawled_metadata and self._crawled_metadata.get(
+                "network-config"
+            ):
+                self._network_config = self._crawled_metadata.get(
                     "network-config"
                 )
-                if isinstance(crawled_network_config, dict):
-                    self._network_config = crawled_network_config
-            if self._network_config == sources.UNSET:
+            if self._network_config is None:
                 self._network_config = generate_fallback_network_config()
-        return cast(dict, self._network_config)
+        return self._network_config
 
 
 def is_platform_viable() -> bool:
