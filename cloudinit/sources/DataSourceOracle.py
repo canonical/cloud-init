@@ -16,7 +16,7 @@ Notes:
 import base64
 from collections import namedtuple
 from contextlib import suppress as noop
-from typing import Tuple
+from typing import Optional, Tuple
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -46,7 +46,7 @@ V2_HEADERS = {"Authorization": "Bearer Oracle"}
 OpcMetadata = namedtuple("OpcMetadata", "version instance_data vnics_data")
 
 
-def _ensure_netfailover_safe(network_config):
+def _ensure_netfailover_safe(network_config: sources.NetworkConfig) -> None:
     """
     Search network config physical interfaces to see if any of them are
     a netfailover master.  If found, we prevent matching by MAC as the other
@@ -110,7 +110,7 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.SYSTEM_CFG,
     )
 
-    _network_config = sources.UNSET
+    _network_config: Optional[dict] = None
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
@@ -123,7 +123,7 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
 
-    def _is_platform_viable(self):
+    def _is_platform_viable(self) -> bool:
         """Check platform environment to report if this datasource may run."""
         return _is_platform_viable()
 
@@ -177,7 +177,7 @@ class DataSourceOracle(sources.DataSource):
 
         return True
 
-    def check_instance_id(self, sys_cfg):
+    def check_instance_id(self, sys_cfg) -> bool:
         """quickly check (local only) if self.instance_id is still valid
 
         On Oracle, the dmi-provided system uuid differs from the instance-id
@@ -193,7 +193,7 @@ class DataSourceOracle(sources.DataSource):
 
         If none is present, then we fall back to fallback configuration.
         """
-        if self._network_config == sources.UNSET:
+        if self._network_config is None:
             # this is v1
             self._network_config = cmdline.read_initramfs_config()
 
@@ -291,21 +291,21 @@ class DataSourceOracle(sources.DataSource):
                 }
 
 
-def _read_system_uuid():
+def _read_system_uuid() -> Optional[str]:
     sys_uuid = dmi.read_dmi_data("system-uuid")
     return None if sys_uuid is None else sys_uuid.lower()
 
 
-def _is_platform_viable():
+def _is_platform_viable() -> bool:
     asset_tag = dmi.read_dmi_data("chassis-asset-tag")
     return asset_tag == CHASSIS_ASSET_TAG
 
 
-def _is_iscsi_root():
+def _is_iscsi_root() -> bool:
     return bool(cmdline.read_initramfs_config())
 
 
-def read_opc_metadata(*, fetch_vnics_data: bool = False):
+def read_opc_metadata(*, fetch_vnics_data: bool = False) -> OpcMetadata:
     """Fetch metadata from the /opc/ routes.
 
     :return:

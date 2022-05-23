@@ -28,6 +28,8 @@ from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
+NetworkConfig = dict
+
 DSMODE_DISABLED = "disabled"
 DSMODE_LOCAL = "local"
 DSMODE_NETWORK = "net"
@@ -361,7 +363,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not attr_defaults:
             self._dirty_cache = False
 
-    def get_data(self):
+    def get_data(self) -> bool:
         """Datasources implement _get_data to setup metadata and userdata_raw.
 
         Minimally, the datasource should return a boolean True on success.
@@ -442,7 +444,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         write_json(json_file, redact_sensitive_keys(processed_data))
         return True
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         """Walk metadata sources, process crawled data and save attributes."""
         raise NotImplementedError(
             "Subclasses of DataSource must implement _get_data which"
@@ -986,7 +988,7 @@ def list_sources(cfg_list, depends, pkg_list):
     return src_list
 
 
-def instance_id_matches_system_uuid(instance_id, field="system-uuid"):
+def instance_id_matches_system_uuid(instance_id, field: str = "system-uuid") -> bool:
     # quickly (local check only) if self.instance_id is still valid
     # we check kernel command line or files.
     if not instance_id:
