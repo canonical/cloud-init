@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
@@ -58,8 +59,6 @@ SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 # pyver: 3.6 -> 3.8
 # pylint: disable=E1101
 if sys.version_info >= (3, 8):
-
-    import typing
 
     class MetaSchema(typing.TypedDict):
         name: str

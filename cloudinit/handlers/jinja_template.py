@@ -4,19 +4,17 @@ import copy
 import os
 import re
 from errno import EACCES
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 
-try:
-    from jinja2.exceptions import UndefinedError as _UndefinedError
-    from jinja2.lexer import operator_re
-
+if TYPE_CHECKING:
     JUndefinedError: Type[Exception]
+try:
+    from jinja2.exceptions import UndefinedError as JUndefinedError
+    from jinja2.lexer import operator_re
 except ImportError:
     # No jinja2 dependency
     JUndefinedError = Exception
     operator_re = re.compile(r"[-.]")
-else:
-    JUndefinedError = _UndefinedError
 
 from cloudinit import handlers
 from cloudinit import log as logging

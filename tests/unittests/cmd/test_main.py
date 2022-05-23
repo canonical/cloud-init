@@ -13,7 +13,6 @@ from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
-MyPaths = namedtuple("MyPaths", "run_dir")
 MyArgs = namedtuple("MyArgs", "debug files force local reporter subcommand")
 
 

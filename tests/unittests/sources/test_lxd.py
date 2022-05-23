@@ -62,18 +62,16 @@ LXD_V1_METADATA_NO_NETWORK_CONFIG = {
 }
 
 
-@pytest.fixture
 def lxd_metadata():
     return LXD_V1_METADATA
 
 
-@pytest.fixture
 def lxd_metadata_no_network_config():
     return LXD_V1_METADATA_NO_NETWORK_CONFIG
 
 
 @pytest.fixture
-def lxd_ds(request, paths, lxd_metadata):
+def lxd_ds(request, paths):
     """
     Return an instantiated DataSourceLXD.
 
@@ -84,14 +82,16 @@ def lxd_ds(request, paths, lxd_metadata):
     (This uses the paths fixture for the required helpers.Paths object)
     """
     with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
-        with mock.patch(DS_PATH + "read_metadata", return_value=lxd_metadata):
+        with mock.patch(
+            DS_PATH + "read_metadata", return_value=lxd_metadata()
+        ):
             yield lxd.DataSourceLXD(
                 sys_cfg={}, distro=mock.Mock(), paths=paths
             )
 
 
 @pytest.fixture
-def lxd_ds_no_network_config(request, paths, lxd_metadata_no_network_config):
+def lxd_ds_no_network_config(request, paths):
     """
     Return an instantiated DataSourceLXD.
 
@@ -104,7 +104,7 @@ def lxd_ds_no_network_config(request, paths, lxd_metadata_no_network_config):
     with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
         with mock.patch(
             DS_PATH + "read_metadata",
-            return_value=lxd_metadata_no_network_config,
+            return_value=lxd_metadata_no_network_config(),
         ):
             yield lxd.DataSourceLXD(
                 sys_cfg={}, distro=mock.Mock(), paths=paths

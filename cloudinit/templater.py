@@ -10,22 +10,24 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# noqa: E402
+
 import collections
 import re
 import sys
-from typing import Type
+from typing import TYPE_CHECKING, Type
 
+if TYPE_CHECKING:
+    JUndefined: Type
 try:
     from jinja2 import DebugUndefined as _DebugUndefined
     from jinja2 import Template as JTemplate
 
-    JUndefined: Type
+    JINJA_AVAILABLE = True
+    JUndefined = _DebugUndefined
 except (ImportError, AttributeError):
     JINJA_AVAILABLE = False
     JUndefined = object
-else:
-    JINJA_AVAILABLE = True
-    JUndefined = _DebugUndefined
 
 from cloudinit import log as logging
 from cloudinit import type_utils as tu

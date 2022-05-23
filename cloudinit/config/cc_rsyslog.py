@@ -11,7 +11,6 @@
 import os
 import re
 from textwrap import dedent
-from typing import Any, Tuple, Type, Union
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -114,7 +113,7 @@ def load_config(cfg: dict) -> dict:
         if KEYNAME_LEGACY_DIR in cfg:
             mycfg[KEYNAME_DIR] = cfg[KEYNAME_LEGACY_DIR]
 
-    fillup: Tuple[Tuple[str, Any, Union[Type, Tuple[type, ...]]], ...] = (
+    fillup: tuple = (
         (KEYNAME_CONFIGS, [], list),
         (KEYNAME_DIR, DEF_DIR, str),
         (KEYNAME_FILENAME, DEF_FILENAME, str),
