@@ -72,6 +72,13 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
+def random_string(length=8):
+    """return a random lowercase string with default length of 8"""
+    return "".join(
+        random.choice(string.ascii_lowercase) for _ in range(length)
+    )
+
+
 class TestCase(unittest.TestCase):
     def reset_global_state(self):
         """Reset any global state to its original settings.
@@ -86,9 +93,13 @@ class TestCase(unittest.TestCase):
         In the future this should really be done with some registry that
         can then be cleaned in a more obvious way.
         """
-        util.PROC_CMDLINE = None
+        assert getattr(util, "PROC_CMDLINE", None) is None, getattr(
+            util, "PROC_CMDLINE", None
+        )
         util._DNS_REDIRECT_IP = None
-        util._LSB_RELEASE = {}
+        assert not getattr(util, "_LSB_RELEASE", None), getattr(
+            util, "_LSB_RELEASE", None
+        )
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -227,10 +238,7 @@ class CiTestCase(TestCase):
 
     @classmethod
     def random_string(cls, length=8):
-        """return a random lowercase string with default length of 8"""
-        return "".join(
-            random.choice(string.ascii_lowercase) for _ in range(length)
-        )
+        return random_string(length)
 
 
 class ResourceUsingTestCase(CiTestCase):
