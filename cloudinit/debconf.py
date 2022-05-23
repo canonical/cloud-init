@@ -6,12 +6,12 @@
 
 try:
     from debconf import DebconfCommunicator as _DebconfCommunicator
+
+    HAS_DEBCONF = True
+    DebconfCommunicator = _DebconfCommunicator
 except ImportError:
     HAS_DEBCONF = False
     DebconfCommunicator = None
-else:
-    HAS_DEBCONF = True
-    DebconfCommunicator = _DebconfCommunicator
 
 
 __all__ = ["DebconfCommunicator", "HAS_DEBCONF"]
