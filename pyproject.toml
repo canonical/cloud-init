@@ -17,7 +17,6 @@ exclude=[]
 module = [
   "apport.*",
   "BaseHTTPServer",
-  "debconf",
   "configobj",
   "cloudinit.feature_overrides",
   "debconf",
