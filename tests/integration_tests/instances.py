@@ -199,9 +199,9 @@ class IntegrationInstance:
             return self._ip
         try:
             self._ip = self.instance.ip
-            return self._ip
         except NotImplementedError:
-            return "Unknown"
+            self._ip = "Unknown"
+        return self._ip
 
     def __enter__(self):
         return self
