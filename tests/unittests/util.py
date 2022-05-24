@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from cloudinit import cloud, distros, helpers
+from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
 
@@ -37,7 +38,7 @@ def abstract_to_concrete(abclass):
 
 class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return "hostname"
+        return DataSourceHostname("hostname", False)
 
     def persist_instance_data(self):
         return True

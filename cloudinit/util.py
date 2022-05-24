@@ -32,7 +32,7 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from collections import deque
+from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache
 from typing import Callable, List, TypeVar
@@ -1103,6 +1103,12 @@ def dos2unix(contents):
     return contents.replace("\r\n", "\n")
 
 
+HostnameFqdnInfo = namedtuple(
+    "HostnameFqdnInfo",
+    ["hostname", "fqdn", "default_hostname"],
+)
+
+
 def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     """Get hostname and fqdn from config if present and fallback to cloud.
 
@@ -1110,9 +1116,17 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     @param cloud: Cloud instance from init.cloudify().
     @param metadata_only: Boolean, set True to only query cloud meta-data,
         returning None if not present in meta-data.
-    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+    @return: a namedtuple of
+        <hostname>, <fqdn>, <default_hostname> (str, str, bool).
+        Values can be none when
         metadata_only is True and no cfg or metadata provides hostname info.
+        default_hostname is a bool and
+        it's true only if hostname is localhost and was
+        returned by util.get_hostname() as a default.
+        This is used to differentiate with a user-defined
+        localhost hostname.
     """
+    default_hostname = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg["fqdn"]
@@ -1126,12 +1140,16 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
+            fqdn = cloud.get_hostname(
+                fqdn=True, metadata_only=metadata_only
+            ).hostname
             if "hostname" in cfg:
                 hostname = cfg["hostname"]
             else:
-                hostname = cloud.get_hostname(metadata_only=metadata_only)
-    return (hostname, fqdn)
+                hostname, default_hostname = cloud.get_hostname(
+                    metadata_only=metadata_only
+                )
+    return HostnameFqdnInfo(hostname, fqdn, default_hostname)
 
 
 def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):

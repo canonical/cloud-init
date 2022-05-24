@@ -21,6 +21,7 @@ from cloudinit import log as logging
 from cloudinit import net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
@@ -279,7 +280,7 @@ class DataSourceScaleway(sources.DataSource):
         return ssh_keys
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return self.metadata["hostname"]
+        return DataSourceHostname(self.metadata["hostname"], False)
 
     @property
     def availability_zone(self):

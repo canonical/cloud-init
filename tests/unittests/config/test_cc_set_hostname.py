@@ -183,12 +183,42 @@ class TestHostname(t_help.FilesystemMockingTestCase):
             "Non-persistently setting the system hostname to hostname2",
             self.logs.getvalue(),
         )
-        util.write_file("/etc/hostname", "")
+
+    @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
+    def test_localhost_default_hostname(self, get_hostname):
+        """
+        No hostname set. Default value returned is localhost,
+        but we shouldn't write it in /etc/hostname
+        """
+        distro = self._fetch_distro("debian")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
         ds = DataSourceNone.DataSourceNone({}, None, paths)
         cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+
+        util.write_file("/etc/hostname", "")
         cc_set_hostname.handle("cc_set_hostname", {}, cc, LOG, [])
         contents = util.load_file("/etc/hostname")
         self.assertEqual("", contents.strip())
+
+    @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
+    def test_localhost_user_given_hostname(self, get_hostname):
+        """
+        User set hostname is localhost. We should write it in /etc/hostname
+        """
+        distro = self._fetch_distro("debian")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = DataSourceNone.DataSourceNone({}, None, paths)
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+
+        # user-provided localhost should not be ignored
+        util.write_file("/etc/hostname", "")
+        cc_set_hostname.handle(
+            "cc_set_hostname", {"hostname": "localhost"}, cc, LOG, []
+        )
+        contents = util.load_file("/etc/hostname")
+        self.assertEqual("localhost", contents.strip())
 
     def test_error_on_distro_set_hostname_errors(self):
         """Raise SetHostnameError on exceptions from distro.set_hostname."""

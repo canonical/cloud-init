@@ -21,6 +21,7 @@ import pytest
 import yaml
 
 from cloudinit import importer, subp, util
+from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
 from tests.unittests.helpers import CiTestCase
@@ -335,8 +336,8 @@ class FakeCloud(object):
             myargs["metadata_only"] = metadata_only
         self.calls.append(myargs)
         if fqdn:
-            return self.fqdn
-        return self.hostname
+            return DataSourceHostname(self.fqdn, False)
+        return DataSourceHostname(self.hostname, False)
 
 
 class TestUtil:
@@ -551,7 +552,7 @@ class TestShellify(CiTestCase):
 class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_only_cfg_fqdn(self):
         """When cfg only has the fqdn key, derive hostname and fqdn from it."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -559,7 +560,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_fqdn_and_hostname(self):
         """When cfg has both fqdn and hostname keys, return them."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com", "hostname": "other"}, cloud=None
         )
         self.assertEqual("other", hostname)
@@ -567,7 +568,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_with_domain(self):
         """When cfg has only hostname key which represents a fqdn, use that."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -576,7 +577,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_cfg_hostname_without_domain(self):
         """When cfg has a hostname without a '.' query cloud.get_hostname."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost"}, cloud=mycloud
         )
         self.assertEqual("myhost", hostname)
@@ -588,7 +589,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
         self.assertEqual(
@@ -599,7 +600,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        _hn, _fqdn = util.get_hostname_fqdn(
+        _hn, _fqdn, _def_hostname = util.get_hostname_fqdn(
             cfg={}, cloud=mycloud, metadata_only=True
         )
         self.assertEqual(

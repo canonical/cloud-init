@@ -790,7 +790,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn) = util.get_hostname_fqdn(
+    (hostname, _fqdn, _) = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content

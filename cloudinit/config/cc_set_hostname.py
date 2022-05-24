@@ -91,7 +91,7 @@ def handle(name, cfg, cloud, log, _args):
     if hostname_fqdn is not None:
         cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
 
-    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn, default_hostname) = util.get_hostname_fqdn(cfg, cloud)
     # Check for previous successful invocation of set-hostname
 
     # set-hostname artifact file accounts for both hostname and fqdn
@@ -109,7 +109,7 @@ def handle(name, cfg, cloud, log, _args):
     if not hostname_changed:
         log.debug("No hostname changes. Skipping set-hostname")
         return
-    if hostname == "localhost":
+    if default_hostname and hostname == "localhost":
         # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
         log.debug("Hostname is localhost. Let other services handle this.")
         return

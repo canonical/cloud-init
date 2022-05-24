@@ -272,9 +272,11 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             "test-subclass-hostname", datasource.metadata["local-hostname"]
         )
-        self.assertEqual("test-subclass-hostname", datasource.get_hostname())
+        self.assertEqual(
+            "test-subclass-hostname", datasource.get_hostname().hostname
+        )
         datasource.metadata["local-hostname"] = "hostname.my.domain.com"
-        self.assertEqual("hostname", datasource.get_hostname())
+        self.assertEqual("hostname", datasource.get_hostname().hostname)
 
     def test_get_hostname_with_fqdn_returns_local_hostname_with_domain(self):
         """Datasource.get_hostname with fqdn set gets qualified hostname."""
@@ -285,7 +287,8 @@ class TestDataSource(CiTestCase):
         self.assertTrue(datasource.get_data())
         datasource.metadata["local-hostname"] = "hostname.my.domain.com"
         self.assertEqual(
-            "hostname.my.domain.com", datasource.get_hostname(fqdn=True)
+            "hostname.my.domain.com",
+            datasource.get_hostname(fqdn=True).hostname,
         )
 
     def test_get_hostname_without_metadata_uses_system_hostname(self):
@@ -300,10 +303,12 @@ class TestDataSource(CiTestCase):
             with mock.patch(mock_fqdn) as m_fqdn:
                 m_gethost.return_value = "systemhostname.domain.com"
                 m_fqdn.return_value = None  # No maching fqdn in /etc/hosts
-                self.assertEqual("systemhostname", datasource.get_hostname())
+                self.assertEqual(
+                    "systemhostname", datasource.get_hostname().hostname
+                )
                 self.assertEqual(
                     "systemhostname.domain.com",
-                    datasource.get_hostname(fqdn=True),
+                    datasource.get_hostname(fqdn=True).hostname,
                 )
 
     def test_get_hostname_without_metadata_returns_none(self):
@@ -316,9 +321,13 @@ class TestDataSource(CiTestCase):
         mock_fqdn = "cloudinit.sources.util.get_fqdn_from_hosts"
         with mock.patch("cloudinit.sources.util.get_hostname") as m_gethost:
             with mock.patch(mock_fqdn) as m_fqdn:
-                self.assertIsNone(datasource.get_hostname(metadata_only=True))
                 self.assertIsNone(
-                    datasource.get_hostname(fqdn=True, metadata_only=True)
+                    datasource.get_hostname(metadata_only=True).hostname
+                )
+                self.assertIsNone(
+                    datasource.get_hostname(
+                        fqdn=True, metadata_only=True
+                    ).hostname
                 )
         self.assertEqual([], m_gethost.call_args_list)
         self.assertEqual([], m_fqdn.call_args_list)
@@ -335,10 +344,12 @@ class TestDataSource(CiTestCase):
             with mock.patch(mock_fqdn) as m_fqdn:
                 m_gethost.return_value = "systemhostname.domain.com"
                 m_fqdn.return_value = "fqdnhostname.domain.com"
-                self.assertEqual("fqdnhostname", datasource.get_hostname())
+                self.assertEqual(
+                    "fqdnhostname", datasource.get_hostname().hostname
+                )
                 self.assertEqual(
                     "fqdnhostname.domain.com",
-                    datasource.get_hostname(fqdn=True),
+                    datasource.get_hostname(fqdn=True).hostname,
                 )
 
     def test_get_data_does_not_write_instance_data_on_failure(self):

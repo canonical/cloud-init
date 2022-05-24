@@ -4,6 +4,7 @@ from typing import List
 
 from cloudinit import dmi, sources
 from cloudinit.sources import DataSourceEc2 as EC2
+from cloudinit.sources import DataSourceHostname
 
 ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
@@ -18,7 +19,9 @@ class DataSourceAliYun(EC2.DataSourceEc2):
     extended_metadata_versions: List[str] = []
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return self.metadata.get("hostname", "localhost.localdomain")
+        return DataSourceHostname(
+            self.metadata.get("hostname", "localhost.localdomain"), False
+        )
 
     def get_public_ssh_keys(self):
         return parse_public_keys(self.metadata.get("public-keys", {}))
