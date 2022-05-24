@@ -3,7 +3,6 @@ import logging
 import os
 import uuid
 from enum import Enum
-from functools import cached_property
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
@@ -61,6 +60,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self._ip = ""
 
     def destroy(self):
         self.instance.delete()
@@ -194,10 +194,12 @@ class IntegrationInstance:
         assert self.execute("apt-get update -q").ok
         assert self.execute("apt-get install -qy cloud-init").ok
 
-    @cached_property
     def ip(self) -> str:
+        if self._ip:
+            return self._ip
         try:
-            return self.instance.ip
+            self._ip = self.instance.ip
+            return self._ip
         except NotImplementedError:
             return "Unknown"
 
