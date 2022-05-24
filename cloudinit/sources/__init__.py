@@ -988,7 +988,9 @@ def list_sources(cfg_list, depends, pkg_list):
     return src_list
 
 
-def instance_id_matches_system_uuid(instance_id, field: str = "system-uuid") -> bool:
+def instance_id_matches_system_uuid(
+    instance_id, field: str = "system-uuid"
+) -> bool:
     # quickly (local check only) if self.instance_id is still valid
     # we check kernel command line or files.
     if not instance_id:

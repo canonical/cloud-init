@@ -11,6 +11,13 @@ Notes:
  * Bare metal instances use iSCSI root, virtual machine instances do not.
  * Both bare metal and virtual machine instances provide a chassis-asset-tag of
    OracleCloud.com.
+
+
+TODO:
+    - Unify _add_primary_network_config_from_opc_imds and
+      _add_network_config_from_opc_imds
+    - Improve code comments and log msgs
+    - Unit-test
 """
 
 import base64
@@ -111,6 +118,7 @@ class DataSourceOracle(sources.DataSource):
     )
 
     _network_config: Optional[dict] = None
+    _primary_interface_configured: bool = False
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
@@ -135,12 +143,17 @@ class DataSourceOracle(sources.DataSource):
 
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
-        fetch_vnics_data = self.ds_cfg.get(
+        configure_secondary_nics = self.ds_cfg.get(
             "configure_secondary_nics",
             BUILTIN_DS_CONFIG["configure_secondary_nics"],
         )
         network_context = noop()
-        if not _is_iscsi_root():
+        if _has_run_net_files():
+            # TODO verify that the network is correctly configured and no
+            # extra work is needed to read_opc_metadata
+            self._network_config = cmdline.config_from_klibc_net_cfg()
+            self._primary_interface_configured = True
+        elif not _is_iscsi_root():
             network_context = dhcp.EphemeralDHCPv4(
                 iface=net.find_fallback_nic(),
                 connectivity_url_data={
@@ -148,6 +161,9 @@ class DataSourceOracle(sources.DataSource):
                     "headers": V2_HEADERS,
                 },
             )
+        fetch_vnics_data = (
+            not self._primary_interface_configured
+        ) or configure_secondary_nics
         with network_context:
             fetched_metadata = read_opc_metadata(
                 fetch_vnics_data=fetch_vnics_data
@@ -195,9 +211,18 @@ class DataSourceOracle(sources.DataSource):
         """
         if self._network_config is None:
             # this is v1
-            self._network_config = cmdline.read_initramfs_config()
-
+            if not self._primary_interface_configured:
+                try:
+                    # Use IDMS to configure the primary interface
+                    self._add_primary_network_config_from_opc_imds()
+                except Exception:
+                    util.logexc(
+                        LOG, "Failed to parse primary network configuration!"
+                    )
             if not self._network_config:
+                # If /run/net-* do not exist and there was a problem setting up
+                # the primary network_config from IMDS then fall back to best
+                # guess method
                 # this is now v2
                 self._network_config = self.distro.generate_fallback_config()
 
@@ -220,6 +245,49 @@ class DataSourceOracle(sources.DataSource):
             _ensure_netfailover_safe(self._network_config)
 
         return self._network_config
+
+    def _add_primary_network_config_from_opc_imds(self) -> bool:
+        """Generate primary NIC config from IMDS and merge it.
+
+        TODO Can this be also done in bare metal machines?
+
+        :raises:
+            Exceptions are not handled within this function.  Likely
+            exceptions are KeyError/IndexError
+            (if the IMDS returns valid JSON with unexpected contents).
+        """
+        if self._vnics_data is None:
+            LOG.warning("Primary network config not retrieved from IMDS")
+            return
+
+        interfaces_by_mac = get_interfaces_by_mac()
+
+        network_config = {"config": [], "version": 1}
+
+        for vnic_dict in self._vnics_data[:1]:
+            # We only configure the primary interface.
+            mac_address = vnic_dict["macAddr"].lower()
+            if mac_address not in interfaces_by_mac:
+                LOG.debug(
+                    "Interface with MAC %s not found; skipping", mac_address
+                )
+                continue
+            name = interfaces_by_mac[mac_address]
+
+            subnet = {
+                "type": "static",
+                "address": vnic_dict["privateIp"],
+            }
+            network_config["config"].append(
+                {
+                    "name": name,
+                    "type": "physical",
+                    "mac_address": mac_address,
+                    "mtu": MTU,
+                    "subnets": [subnet],
+                }
+            )
+            self._network_config = network_config
 
     def _add_network_config_from_opc_imds(self):
         """Generate secondary NIC config from IMDS and merge it.
@@ -299,6 +367,15 @@ def _read_system_uuid() -> Optional[str]:
 def _is_platform_viable() -> bool:
     asset_tag = dmi.read_dmi_data("chassis-asset-tag")
     return asset_tag == CHASSIS_ASSET_TAG
+
+
+def _has_run_net_files() -> bool:
+    """TODO better name and doc"""
+    # TODO maybe find a more reliable way to achieve this
+    # We force to read the /run/net* conf even if
+    # /run/initramfs/open-iscsi.interface does not exist:
+    network_config = cmdline.config_from_klibc_net_cfg()
+    return len(network_config["config"]) > 0
 
 
 def _is_iscsi_root() -> bool:
