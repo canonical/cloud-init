@@ -143,17 +143,15 @@ class DataSourceOracle(sources.DataSource):
 
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
-        configure_secondary_nics = self.ds_cfg.get(
-            "configure_secondary_nics",
-            BUILTIN_DS_CONFIG["configure_secondary_nics"],
-        )
         network_context = noop()
         if _has_run_net_files():
             # TODO verify that the network is correctly configured and no
             # extra work is needed to read_opc_metadata
             self._network_config = cmdline.config_from_klibc_net_cfg()
             self._primary_interface_configured = True
-        elif not _is_iscsi_root():
+        elif _is_iscsi_root():
+            pass  # iSCSI root is configured. No need to use dhcp.
+        else:
             network_context = dhcp.EphemeralDHCPv4(
                 iface=net.find_fallback_nic(),
                 connectivity_url_data={
@@ -161,6 +159,10 @@ class DataSourceOracle(sources.DataSource):
                     "headers": V2_HEADERS,
                 },
             )
+        configure_secondary_nics = self.ds_cfg.get(
+            "configure_secondary_nics",
+            BUILTIN_DS_CONFIG["configure_secondary_nics"],
+        )
         fetch_vnics_data = (
             not self._primary_interface_configured
         ) or configure_secondary_nics
@@ -207,22 +209,32 @@ class DataSourceOracle(sources.DataSource):
     def network_config(self):
         """Network config is read from initramfs provided files
 
+        Priority for primary network_config selection:
+        1. /run/net* conf
+        2. IMDS
+        3. iscsi
+        4. Best guess (fallback)
+
         If none is present, then we fall back to fallback configuration.
         """
         if self._network_config is None:
             # this is v1
             if not self._primary_interface_configured:
+                # Use IDMS to configure the primary interface
                 try:
-                    # Use IDMS to configure the primary interface
                     self._add_primary_network_config_from_opc_imds()
                 except Exception:
                     util.logexc(
                         LOG, "Failed to parse primary network configuration!"
                     )
+            if not self._primary_interface_configured:
+                # If IDMS fails, then use iscsi to configure the primary
+                # interface
+                self._network_config = cmdline.read_initramfs_config()
             if not self._network_config:
                 # If /run/net-* do not exist and there was a problem setting up
-                # the primary network_config from IMDS then fall back to best
-                # guess method
+                # the primary network_config from IMDS, and iscsi not present,
+                # then fall back to best guess method
                 # this is now v2
                 self._network_config = self.distro.generate_fallback_config()
 
@@ -288,6 +300,7 @@ class DataSourceOracle(sources.DataSource):
                 }
             )
             self._network_config = network_config
+            self._primary_interface_configured = True
 
     def _add_network_config_from_opc_imds(self):
         """Generate secondary NIC config from IMDS and merge it.
