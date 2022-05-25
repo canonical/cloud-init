@@ -160,7 +160,7 @@ URLParams = namedtuple(
 
 DataSourceHostname = namedtuple(
     "DataSourceHostname",
-    ["hostname", "default_hostname"],
+    ["hostname", "is_default"],
 )
 
 
@@ -713,8 +713,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if meta-data doesn't have local-hostname present.
 
         @return: a DataSourceHostname namedtuple
-            <hostname or qualified hostname>, <default_hostname> (str, bool).
-            default_hostname is a bool and
+            <hostname or qualified hostname>, <is_default> (str, bool).
+            is_default is a bool and
             it's true only if hostname is localhost and was
             returned by util.get_hostname() as a default.
             This is used to differentiate with a user-defined
@@ -725,11 +725,11 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
-        default_hostname = False
+        is_default = False
 
         if not self.metadata or not self.metadata.get("local-hostname"):
             if metadata_only:
-                return DataSourceHostname(None, default_hostname)
+                return DataSourceHostname(None, is_default)
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
@@ -738,7 +738,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             hostname = util.get_hostname()
             if hostname == "localhost":
                 # default hostname provided by socket.gethostname()
-                default_hostname = True
+                is_default = True
             hosts_fqdn = util.get_fqdn_from_hosts(hostname)
             if hosts_fqdn and hosts_fqdn.find(".") > 0:
                 toks = str(hosts_fqdn).split(".")
@@ -773,7 +773,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if fqdn and domain != defdomain:
             hostname = "%s.%s" % (hostname, domain)
 
-        return DataSourceHostname(hostname, default_hostname)
+        return DataSourceHostname(hostname, is_default)
 
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)

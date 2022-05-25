@@ -19,9 +19,12 @@ class DataSourceAliYun(EC2.DataSourceEc2):
     extended_metadata_versions: List[str] = []
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return DataSourceHostname(
-            self.metadata.get("hostname", "localhost.localdomain"), False
-        )
+        hostname = self.metadata.get("hostname")
+        is_default = False
+        if hostname is None:
+            hostname = "localhost.localdomain"
+            is_default = True
+        return DataSourceHostname(hostname, is_default)
 
     def get_public_ssh_keys(self):
         return parse_public_keys(self.metadata.get("public-keys", {}))

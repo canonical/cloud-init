@@ -1105,7 +1105,7 @@ def dos2unix(contents):
 
 HostnameFqdnInfo = namedtuple(
     "HostnameFqdnInfo",
-    ["hostname", "fqdn", "default_hostname"],
+    ["hostname", "fqdn", "is_default"],
 )
 
 
@@ -1117,16 +1117,16 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     @param metadata_only: Boolean, set True to only query cloud meta-data,
         returning None if not present in meta-data.
     @return: a namedtuple of
-        <hostname>, <fqdn>, <default_hostname> (str, str, bool).
+        <hostname>, <fqdn>, <is_default> (str, str, bool).
         Values can be none when
         metadata_only is True and no cfg or metadata provides hostname info.
-        default_hostname is a bool and
+        is_default is a bool and
         it's true only if hostname is localhost and was
         returned by util.get_hostname() as a default.
         This is used to differentiate with a user-defined
         localhost hostname.
     """
-    default_hostname = False
+    is_default = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg["fqdn"]
@@ -1146,10 +1146,10 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
             if "hostname" in cfg:
                 hostname = cfg["hostname"]
             else:
-                hostname, default_hostname = cloud.get_hostname(
+                hostname, is_default = cloud.get_hostname(
                     metadata_only=metadata_only
                 )
-    return HostnameFqdnInfo(hostname, fqdn, default_hostname)
+    return HostnameFqdnInfo(hostname, fqdn, is_default)
 
 
 def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
