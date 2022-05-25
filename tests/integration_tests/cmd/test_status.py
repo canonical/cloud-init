@@ -65,5 +65,4 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
             _remove_nocloud_dir_and_reboot(client)
         status_out = _wait_for_cloud_init(client).stdout.strip()
         assert "status: disabled" in status_out
-        assert "Cloud-init disabled by cloud-init-generator" in status_out
         assert client.execute("cloud-init status --wait").ok
