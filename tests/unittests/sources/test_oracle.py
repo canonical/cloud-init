@@ -135,15 +135,23 @@ class TestDataSourceOracle:
     def test_subplatform_before_fetch(self, oracle_ds):
         assert "unknown" == oracle_ds.subplatform
 
-    def test_platform_info_after_fetch(self, oracle_ds):
+    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".net.find_fallback_nic")
+    def test_platform_info_after_fetch(
+        self, m_find_fallback_nic, m_ephemeralDHCPv4, oracle_ds
+    ):
         oracle_ds._get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v2/)"
             == oracle_ds.subplatform
         )
 
+    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".net.find_fallback_nic")
     @pytest.mark.parametrize("metadata_version", [1])
-    def test_v1_platform_info_after_fetch(self, oracle_ds):
+    def test_v1_platform_info_after_fetch(
+        self, m_find_fallback_nic, m_ephemeralDHCPv4, oracle_ds
+    ):
         oracle_ds._get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v1/)"
@@ -190,7 +198,9 @@ class TestNetworkConfigFromOpcImds:
         # We test this by using in a non-dict to ensure that no dict
         # operations are used; failure would be seen as exceptions
         oracle_ds._network_config = object()
-        oracle_ds._add_network_config_from_opc_imds()
+        oracle_ds._add_network_config_from_opc_imds(
+            primary=False, secondary=True
+        )
 
     def test_bare_metal_machine_skipped(self, oracle_ds, caplog):
         # nicIndex in the first entry indicates a bare metal machine
@@ -198,7 +208,9 @@ class TestNetworkConfigFromOpcImds:
         # We test this by using a non-dict to ensure that no dict
         # operations are used
         oracle_ds._network_config = object()
-        oracle_ds._add_network_config_from_opc_imds()
+        oracle_ds._add_network_config_from_opc_imds(
+            primary=False, secondary=True
+        )
         assert "bare metal machine" in caplog.text
 
     @pytest.mark.parametrize(
@@ -229,12 +241,14 @@ class TestNetworkConfigFromOpcImds:
 
         oracle_ds._network_config = network_config
         with mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={}):
-            oracle_ds._add_network_config_from_opc_imds()
+            oracle_ds._add_network_config_from_opc_imds(
+                primary=False, secondary=True
+            )
 
         assert 1 == len(oracle_ds.network_config[network_config_key])
         assert (
-            "Interface with MAC 00:00:17:02:2b:b1 not found; skipping"
-            in caplog.text
+            "Secondary interface with MAC 00:00:17:02:2b:b1 not found;"
+            " skipping" in caplog.text
         )
 
     def test_secondary_nic(self, oracle_ds):
@@ -248,7 +262,9 @@ class TestNetworkConfigFromOpcImds:
             DS_PATH + ".get_interfaces_by_mac",
             return_value={mac_addr: nic_name},
         ):
-            oracle_ds._add_network_config_from_opc_imds()
+            oracle_ds._add_network_config_from_opc_imds(
+                primary=False, secondary=True
+            )
 
         # The input is mutated
         assert 2 == len(oracle_ds.network_config["config"])
@@ -275,7 +291,9 @@ class TestNetworkConfigFromOpcImds:
             DS_PATH + ".get_interfaces_by_mac",
             return_value={mac_addr: nic_name},
         ):
-            oracle_ds._add_network_config_from_opc_imds()
+            oracle_ds._add_network_config_from_opc_imds(
+                primary=False, secondary=True
+            )
 
         # The input is mutated
         assert 2 == len(oracle_ds.network_config["ethernets"])
@@ -668,13 +686,8 @@ class TestCommon_GetDataBehaviour:
                     DS_PATH + "._is_iscsi_root", return_value=is_iscsi_root
                 )
             )
-            if not is_iscsi_root:
-                stack.enter_context(
-                    mock.patch(DS_PATH + ".net.find_fallback_nic")
-                )
-                stack.enter_context(
-                    mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
-                )
+            stack.enter_context(mock.patch(DS_PATH + ".net.find_fallback_nic"))
+            stack.enter_context(mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4"))
             yield oracle_ds
 
     @mock.patch(
@@ -802,8 +815,68 @@ class TestCommon_GetDataBehaviour:
         assert [] == parameterized_oracle_ds.get_public_ssh_keys()
 
 
+DHCP_EXPECTED_1 = {
+    "name": "eth0",
+    "type": "physical",
+    "subnets": [
+        {
+            "broadcast": "192.168.122.255",
+            "control": "manual",
+            "gateway": "192.168.122.1",
+            "dns_search": ["foo.com"],
+            "type": "dhcp",
+            "netmask": "255.255.255.0",
+            "dns_nameservers": ["192.168.122.1"],
+        }
+    ],
+}
+CFG = {"version": 1, "config": [DHCP_EXPECTED_1]}
+
+
 @mock.patch(DS_PATH + "._is_iscsi_root", lambda: False)
 class TestNonIscsiRoot_GetDataBehaviour:
+    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".net.find_fallback_nic")
+    def test_run_net_files(
+        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
+    ):
+        in_context_manager = False
+
+        def enter_context_manager():
+            nonlocal in_context_manager
+            in_context_manager = True
+
+        def exit_context_manager(*args):
+            nonlocal in_context_manager
+            in_context_manager = False
+
+        m_EphemeralDHCPv4.return_value.__enter__.side_effect = (
+            enter_context_manager
+        )
+        m_EphemeralDHCPv4.return_value.__exit__.side_effect = (
+            exit_context_manager
+        )
+
+        def assert_in_context_manager(**kwargs):
+            assert in_context_manager
+            return mock.MagicMock()
+
+        with mock.patch(
+            DS_PATH + ".read_opc_metadata",
+            mock.Mock(side_effect=assert_in_context_manager),
+        ):
+            assert oracle_ds._get_data()
+
+        assert [
+            mock.call(
+                iface=m_find_fallback_nic.return_value,
+                connectivity_url_data={
+                    "headers": {"Authorization": "Bearer Oracle"},
+                    "url": "http://169.254.169.254/opc/v2/instance/",
+                },
+            )
+        ] == m_EphemeralDHCPv4.call_args_list
+
     @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
     def test_read_opc_metadata_called_with_ephemeral_dhcp(
@@ -848,34 +921,28 @@ class TestNonIscsiRoot_GetDataBehaviour:
 
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac", lambda: {})
-@mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
+@mock.patch(
+    DS_PATH + ".cmdline.config_from_klibc_net_cfg",
+    return_value=copy.deepcopy(CFG),
+)
 class TestNetworkConfig:
-    def test_network_config_cached(self, m_read_initramfs_config, oracle_ds):
+    def test_network_config_cached(
+        self, m_config_from_klibc_net_cfg, oracle_ds
+    ):
         """.network_config should be cached"""
-        assert 0 == m_read_initramfs_config.call_count
+        assert 0 == m_config_from_klibc_net_cfg.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
-        assert 1 == m_read_initramfs_config.call_count
+        assert 1 == m_config_from_klibc_net_cfg.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
-        assert 1 == m_read_initramfs_config.call_count
+        assert 1 == m_config_from_klibc_net_cfg.call_count
 
-    def test_network_cmdline(self, m_read_initramfs_config, oracle_ds):
+    def test_network_cmdline(self, m_config_from_klibc_net_cfg, oracle_ds):
         """network_config should prefer initramfs config over fallback"""
         ncfg = {"version": 1, "config": [{"a": "b"}]}
-        m_read_initramfs_config.return_value = copy.deepcopy(ncfg)
+        m_config_from_klibc_net_cfg.return_value = copy.deepcopy(ncfg)
 
         assert ncfg == oracle_ds.network_config
         assert 0 == oracle_ds.distro.generate_fallback_config.call_count
-
-    def test_network_fallback(self, m_read_initramfs_config, oracle_ds):
-        """network_config should prefer initramfs config over fallback"""
-        ncfg = {"version": 1, "config": [{"a": "b"}]}
-
-        m_read_initramfs_config.return_value = None
-        oracle_ds.distro.generate_fallback_config.return_value = copy.deepcopy(
-            ncfg
-        )
-
-        assert ncfg == oracle_ds.network_config
 
     @pytest.mark.parametrize(
         "configure_secondary_nics,expect_secondary_nics",
@@ -883,7 +950,7 @@ class TestNetworkConfig:
     )
     def test_secondary_nic_addition(
         self,
-        m_read_initramfs_config,
+        m_config_from_klibc_net_cfg,
         configure_secondary_nics,
         expect_secondary_nics,
         oracle_ds,
@@ -892,15 +959,16 @@ class TestNetworkConfig:
 
         (configure_secondary_nics=None is used to test the default behaviour.)
         """
-        m_read_initramfs_config.return_value = {"version": 1, "config": []}
+        m_config_from_klibc_net_cfg.return_value = {"version": 1, "config": []}
 
         if configure_secondary_nics is not None:
             oracle_ds.ds_cfg[
                 "configure_secondary_nics"
             ] = configure_secondary_nics
 
-        def side_effect(self):
-            self._network_config["secondary_added"] = mock.sentinel.needle
+        def side_effect(self, primary, secondary):
+            if secondary:
+                self._network_config["secondary_added"] = mock.sentinel.needle
 
         oracle_ds._vnics_data = "DummyData"
         with mock.patch.object(
@@ -913,7 +981,7 @@ class TestNetworkConfig:
 
     def test_secondary_nic_failure_isnt_blocking(
         self,
-        m_read_initramfs_config,
+        m_config_from_klibc_net_cfg,
         caplog,
         oracle_ds,
     ):
@@ -926,7 +994,7 @@ class TestNetworkConfig:
             side_effect=Exception(),
         ):
             network_config = oracle_ds.network_config
-        assert network_config == m_read_initramfs_config.return_value
+        assert network_config == m_config_from_klibc_net_cfg.return_value
         assert "Failed to parse secondary network configuration" in caplog.text
 
     def test_ds_network_cfg_preferred_over_initramfs(self, _m):
