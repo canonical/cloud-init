@@ -306,7 +306,7 @@ custom network config.
 .. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
 .. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
-Qemu
+QEMU
 ----
 
 The `cloud-localds` command from the `cloud-utils`_ package generates a disk
