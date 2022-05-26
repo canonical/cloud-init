@@ -182,6 +182,49 @@ Internal reasons:
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
 
+How can I make a module run on every boot?
+==========================================
+Modules have a default frequency that can be overridden. This is done
+by modifying the module list in ``/etc/cloud/cloud.cfg``.
+
+1. Change the module from a string (default) to a list.
+2. Set the first list item to the module name and the second item to the
+   frequency.
+
+Example
+-------
+The following example demonstrates how to log boot times to a file every boot.
+
+Update ``/etc/cloud/cloud.cfg``:
+
+.. code-block:: yaml
+   :name: /etc/cloud/cloud.cfg
+   :emphasize-lines: 5
+
+        cloud_config_modules:
+        # list shortened for brevity
+         - timezone
+         - disable-ec2-metadata
+         - [runcmd, always]
+         - byobu
+
+
+Then your userdata could then be:
+
+.. code-block:: yaml
+
+        #cloud-config
+        runcmd:
+         - 'date >> /var/log/bootcmd.log'
+
+
+How can I test cloud-init locally before deploying to the cloud?
+================================================================
+
+Several different virtual machine and containerization tools can be used for
+testing locally. Multipass, LXD, and qemu are described in this section.
+
+
 Multipass
 ---------
 
@@ -261,8 +304,8 @@ custom network config.
 .. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
 .. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
-cloud-localds
--------------
+Qemu
+----
 
 The `cloud-localds` command from the `cloud-utils`_ package generates a disk
 with user supplied data. The NoCloud datasouce allows users to provide their
@@ -312,7 +355,7 @@ check out the :ref:`datasource_nocloud` page.
 .. _cloud-utils: https://github.com/canonical/cloud-utils/
 
 Where can I learn more?
-========================================
+=======================
 
 Below are some videos, blog posts, and white papers about cloud-init from a
 variety of sources.
