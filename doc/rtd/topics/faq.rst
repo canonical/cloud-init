@@ -353,7 +353,7 @@ Whitepapers:
 
 .. _cloud-init - The cross-cloud Magic Sauce (PDF): https://events.linuxfoundation.org/wp-content/uploads/2017/12/cloud-init-The-cross-cloud-Magic-Sauce-Scott-Moser-Chad-Smith-Canonical.pdf
 .. _cloud-init - Building clouds one Linux box at a time (Video): https://www.youtube.com/watch?v=1joQfUZQcPg
-.. _cloud-init - Building clouds one Linux box at a time (PDF): https://annex.debconf.org/debconf-share/debconf17/slides/164-cloud-init_Building_clouds_one_Linux_box_at_a_time.pdf
+.. _cloud-init - Building clouds one Linux box at a time (PDF): https://web.archive.org/web/20181111020605/https://annex.debconf.org/debconf-share/debconf17/slides/164-cloud-init_Building_clouds_one_Linux_box_at_a_time.pdf
 .. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
 .. _The beauty of cloud-init: https://web.archive.org/web/20180830161317/http://brandon.fuller.name/archives/2011/05/02/06.40.57/
 .. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
