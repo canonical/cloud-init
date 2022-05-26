@@ -355,7 +355,7 @@ Whitepapers:
 .. _cloud-init - Building clouds one Linux box at a time (Video): https://www.youtube.com/watch?v=1joQfUZQcPg
 .. _cloud-init - Building clouds one Linux box at a time (PDF): https://annex.debconf.org/debconf-share/debconf17/slides/164-cloud-init_Building_clouds_one_Linux_box_at_a_time.pdf
 .. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
-.. _The beauty of cloud-init: http://brandon.fuller.name/archives/2011/05/02/06.40.57/
+.. _The beauty of cloud-init: https://web.archive.org/web/20180830161317/http://brandon.fuller.name/archives/2011/05/02/06.40.57/
 .. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
 .. _Build Azure Devops Agents With Linux cloud-init for Dotnet Development [terraform, azure, devops, docker, dotnet, cloud-init]: https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
 .. _Perfect Proxmox Template with Cloud Image and Cloud Init [proxmox, cloud-init, template]: https://www.youtube.com/watch?v=shiIi38cJe4
