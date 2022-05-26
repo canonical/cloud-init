@@ -199,14 +199,14 @@ Update ``/etc/cloud/cloud.cfg``:
 
 .. code-block:: yaml
    :name: /etc/cloud/cloud.cfg
-   :emphasize-lines: 5
+   :emphasize-lines: 3
 
-        cloud_config_modules:
+        cloud_final_modules:
         # list shortened for brevity
-         - timezone
-         - disable-ec2-metadata
-         - [runcmd, always]
-         - byobu
+         - [phone-home, always]
+         - final-message
+         - power-state-change
+
 
 
 Then your userdata could then be:
@@ -214,8 +214,10 @@ Then your userdata could then be:
 .. code-block:: yaml
 
         #cloud-config
-        runcmd:
-         - 'date >> /var/log/bootcmd.log'
+        phone_home:
+            url: http://example.com/$INSTANCE_ID/
+            post: all
+
 
 
 How can I test cloud-init locally before deploying to the cloud?
