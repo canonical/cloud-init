@@ -1437,7 +1437,7 @@ class EphemeralIPv4Network(object):
                 update_env={"LANG": "C"},
             )
         except subp.ProcessExecutionError as e:
-            if "File exists" not in e.stderr:
+            if "File exists" not in str(e.stderr):
                 raise
             LOG.debug(
                 "Skip ephemeral network setup, %s already has address %s",
@@ -1562,8 +1562,47 @@ class EphemeralIPv4Network(object):
         )
 
 
+class EphemeralIPv6Network(object):
+    """Context manager which sets up a ipv6 link local address
+
+    The linux kernel assigns link local addresses on link-up, which is
+    sufficient for link-local communication.
+    """
+
+    def __init__(
+        self,
+        interface,
+        connectivity_url_data: Dict[str, Any] = {},
+    ):
+        """Setup context manager and validate call signature.
+
+        @param interface: Name of the network interface to bring up.
+        @param ip: IP address to assign to the interface.
+        @param prefix: IPv6 uses prefixes, not netmasks
+        @param connectivity_url_data: Optionally, a URL to verify if a usable
+           connection already exists.
+        """
+        if not interface:
+            raise ValueError("Cannot init network on {0}".format(interface))
+
+        self.connectivity_url_data = connectivity_url_data
+        self.interface = interface
+
+    def __enter__(self):
+        """linux kernel does autoconfiguration even when autoconf=0
+
+        https://www.kernel.org/doc/html/latest/networking/ipv6.html
+        """
+        if read_sys_net(self.interface, "operstate") != "up":
+            subp.subp(
+                ["ip", "link", "set", "dev", self.interface, "up"],
+                capture=False,
+            )
+
+    def __exit__(self, *kwargs):
+        """No need to set the link to down state"""
+        pass
+
+
 class RendererNotFoundError(RuntimeError):
     pass
-
-
-# vi: ts=4 expandtab
