@@ -1599,7 +1599,7 @@ class EphemeralIPv6Network(object):
                 capture=False,
             )
 
-    def __exit__(self, *kwargs):
+    def __exit__(self):
         """No need to set the link to down state"""
         pass
 

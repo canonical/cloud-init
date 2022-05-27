@@ -48,4 +48,4 @@ def test_dual_stack(client: IntegrationInstance):
     client.restart()
     client.wait()
     log = client.read_from_file("/var/log/cloud-init.log")
-    assert f"Crawl of metadata service using link-local ipv6 took" in log
+    assert "Crawl of metadata service using link-local ipv6 took" in log
