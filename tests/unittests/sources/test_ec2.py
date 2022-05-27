@@ -837,13 +837,14 @@ class TestEc2(test_helpers.HttprettyTestCase):
             self.logs.getvalue(),
         )
 
+    @mock.patch("cloudinit.sources.DataSourceEc2.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     @responses.activate
     def test_ec2_local_performs_dhcp_on_non_bsd(
-        self, m_is_bsd, m_dhcp, m_fallback_nic, m_net
+        self, m_is_bsd, m_dhcp, m_fallback_nic, m_net4, m_net6
     ):
         """Ec2Local returns True for valid platform data on non-BSD with dhcp.
 
@@ -873,7 +874,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
         m_dhcp.assert_called_once_with("eth9", None)
-        m_net.assert_called_once_with(
+        m_net4.assert_called_once_with(
             broadcast="192.168.2.255",
             interface="eth9",
             ip="192.168.2.9",

@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import contextlib
 import copy
 import os
 import time
@@ -19,6 +20,7 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
+from cloudinit.net import EphemeralIPv6Network
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit.sources.helpers import ec2
 
@@ -56,9 +58,11 @@ class DataSourceEc2(sources.DataSource):
     # Default metadata urls that will be used if none are provided
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
+    v4_url = "http://169.254.169.254"
+    v6_url = "http://[fd00:ec2::254]"
     metadata_urls = [
-        "http://169.254.169.254",
-        "http://[fd00:ec2::254]",
+        v4_url,
+        v6_url,
         "http://instance-data.:8773",
     ]
 
@@ -125,12 +129,30 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
-                with EphemeralDHCPv4(self.fallback_interface):
+                # ipv6 dualstack might succeed when dhcp4 fails
+                # therefore attempt dualstack call even if dhcp4 fails
+                with contextlib.ExitStack() as stack:
+                    exception = None
+                    v6_only = ""
+                    stack.enter_context(
+                        EphemeralIPv6Network(self.fallback_interface)
+                    )
+                    try:
+                        stack.enter_context(
+                            EphemeralDHCPv4(self.fallback_interface)
+                        )
+                    except NoDHCPLeaseError as e:
+                        exception = e
+                        v6_only = " using link-local ipv6"
+
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
+                        msg="Crawl of metadata service" + v6_only,
                         func=self.crawl_metadata,
                     )
+                    if exception:
+                        raise exception
+
             except NoDHCPLeaseError:
                 return False
         else:
