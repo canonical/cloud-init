@@ -1572,20 +1572,16 @@ class EphemeralIPv6Network(object):
     def __init__(
         self,
         interface,
-        connectivity_url_data: Dict[str, Any] = {},
     ):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
         @param ip: IP address to assign to the interface.
         @param prefix: IPv6 uses prefixes, not netmasks
-        @param connectivity_url_data: Optionally, a URL to verify if a usable
-           connection already exists.
         """
         if not interface:
             raise ValueError("Cannot init network on {0}".format(interface))
 
-        self.connectivity_url_data = connectivity_url_data
         self.interface = interface
 
     def __enter__(self):
@@ -1599,9 +1595,8 @@ class EphemeralIPv6Network(object):
                 capture=False,
             )
 
-    def __exit__(self):
+    def __exit__(self, *_args):
         """No need to set the link to down state"""
-        pass
 
 
 class RendererNotFoundError(RuntimeError):
