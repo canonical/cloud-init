@@ -1193,8 +1193,8 @@ class TestEphemeralIPV4Network(CiTestCase):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
 
-class TestEphemeralIPV6Network:
 
+class TestEphemeralIPV6Network:
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.subp.subp")
     def test_ephemeral_ipv6_network_performs_setup(self, m_subp, _):
@@ -1207,6 +1207,7 @@ class TestEphemeralIPV6Network:
         ]
         with net.EphemeralIPv6Network(interface="eth0"):
             assert expected_setup_calls == m_subp.call_args_list
+
 
 class TestHasURLConnectivity(HttprettyTestCase):
     def setUp(self):
