@@ -3,6 +3,7 @@
 import base64
 import copy
 import json
+import logging
 from contextlib import ExitStack
 from unittest import mock
 
@@ -89,6 +90,23 @@ OPC_V1_METADATA = OPC_V2_METADATA.replace("ocid1.instance", "ocid2.instance")
 
 MAC_ADDR = "00:00:17:02:2b:b1"
 
+DHCP = {
+    "name": "eth0",
+    "type": "physical",
+    "subnets": [
+        {
+            "broadcast": "192.168.122.255",
+            "control": "manual",
+            "gateway": "192.168.122.1",
+            "dns_search": ["foo.com"],
+            "type": "dhcp",
+            "netmask": "255.255.255.0",
+            "dns_nameservers": ["192.168.122.1"],
+        }
+    ],
+}
+KLIBC_NET_CFG = {"version": 1, "config": [DHCP]}
+
 
 @pytest.fixture
 def metadata_version():
@@ -103,7 +121,8 @@ def oracle_ds(request, fixture_utils, paths, metadata_version):
     This also performs the mocking required for the default test case:
         * ``_read_system_uuid`` returns something,
         * ``_is_platform_viable`` returns True,
-        * ``_is_iscsi_root`` returns True (the simpler code path),
+        * ``DataSourceOracle._is_iscsi_root`` returns True,
+        * ``DataSourceOracle._get_iscsi_config`` returns an IMDS net cfg,
         * ``read_opc_metadata`` returns ``OPC_V1_METADATA``
 
     (This uses the paths fixture for the required helpers.Paths object, and the
@@ -115,16 +134,37 @@ def oracle_ds(request, fixture_utils, paths, metadata_version):
     metadata = OpcMetadata(metadata_version, json.loads(OPC_V2_METADATA), None)
     with mock.patch(DS_PATH + "._read_system_uuid", return_value="someuuid"):
         with mock.patch(DS_PATH + "._is_platform_viable", return_value=True):
-            with mock.patch(DS_PATH + "._is_iscsi_root", return_value=True):
-                with mock.patch(
-                    DS_PATH + ".read_opc_metadata",
-                    return_value=metadata,
-                ):
-                    yield oracle.DataSourceOracle(
+            with mock.patch(
+                DS_PATH + ".read_opc_metadata",
+                return_value=metadata,
+            ):
+                with mock.patch(DS_PATH + ".KlibcOracleNetworkConfigSource"):
+                    ds = oracle.DataSourceOracle(
                         sys_cfg=sys_cfg,
                         distro=mock.Mock(),
                         paths=paths,
                     )
+                    with mock.patch.object(
+                        ds, "_is_iscsi_root", return_value=True
+                    ):
+                        with mock.patch.object(
+                            ds,
+                            "_get_iscsi_config",
+                            return_value=copy.deepcopy(KLIBC_NET_CFG),
+                        ):
+                            yield ds
+
+
+@pytest.fixture
+def oracle_imds_ds(oracle_ds):
+    """Overrides oracles_ds to be a non iscsi instance"""
+    with ExitStack() as stack:
+        stack.enter_context(
+            mock.patch.object(oracle_ds, "_is_iscsi_root", return_value=False)
+        )
+        stack.enter_context(mock.patch(DS_PATH + ".net.find_fallback_nic"))
+        stack.enter_context(mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4"))
+        yield oracle_ds
 
 
 class TestDataSourceOracle:
@@ -193,22 +233,22 @@ class TestIsPlatformViable:
     mock.Mock(return_value=False),
 )
 class TestNetworkConfigFromOpcImds:
-    def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
-        oracle_ds._vnics_data = [{}]
+    def test_no_secondary_nics_does_not_mutate_input(self, oracle_imds_ds):
+        oracle_imds_ds._vnics_data = [{}]
         # We test this by using in a non-dict to ensure that no dict
         # operations are used; failure would be seen as exceptions
-        oracle_ds._network_config = object()
-        oracle_ds._add_network_config_from_opc_imds(
+        oracle_imds_ds._network_config = object()
+        oracle_imds_ds._add_network_config_from_opc_imds(
             primary=False, secondary=True
         )
 
-    def test_bare_metal_machine_skipped(self, oracle_ds, caplog):
+    def test_bare_metal_machine_skipped(self, oracle_imds_ds, caplog):
         # nicIndex in the first entry indicates a bare metal machine
-        oracle_ds._vnics_data = json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)
+        oracle_imds_ds._vnics_data = json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)
         # We test this by using a non-dict to ensure that no dict
         # operations are used
-        oracle_ds._network_config = object()
-        oracle_ds._add_network_config_from_opc_imds(
+        oracle_imds_ds._network_config = object()
+        oracle_imds_ds._add_network_config_from_opc_imds(
             primary=False, secondary=True
         )
         assert "bare metal machine" in caplog.text
@@ -235,41 +275,44 @@ class TestNetworkConfigFromOpcImds:
         ],
     )
     def test_missing_mac_skipped(
-        self, oracle_ds, network_config, network_config_key, caplog
+        self,
+        oracle_imds_ds,
+        network_config,
+        network_config_key,
+        caplog,
     ):
-        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-
-        oracle_ds._network_config = network_config
+        oracle_imds_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        oracle_imds_ds._network_config = network_config
         with mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={}):
-            oracle_ds._add_network_config_from_opc_imds(
+            oracle_imds_ds._add_network_config_from_opc_imds(
                 primary=False, secondary=True
             )
 
-        assert 1 == len(oracle_ds.network_config[network_config_key])
+        assert 1 == len(oracle_imds_ds.network_config[network_config_key])
         assert (
-            "Secondary interface with MAC 00:00:17:02:2b:b1 not found;"
+            f"Secondary interface with MAC {MAC_ADDR} not found;"
             " skipping" in caplog.text
         )
 
-    def test_secondary_nic(self, oracle_ds):
-        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config = {
+    def test_secondary_nic(self, oracle_imds_ds):
+        oracle_imds_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        oracle_imds_ds._network_config = {
             "version": 1,
             "config": [{"primary": "nic"}],
         }
-        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
+        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
             DS_PATH + ".get_interfaces_by_mac",
             return_value={mac_addr: nic_name},
         ):
-            oracle_ds._add_network_config_from_opc_imds(
+            oracle_imds_ds._add_network_config_from_opc_imds(
                 primary=False, secondary=True
             )
 
         # The input is mutated
-        assert 2 == len(oracle_ds.network_config["config"])
+        assert 2 == len(oracle_imds_ds.network_config["config"])
 
-        secondary_nic_cfg = oracle_ds.network_config["config"][1]
+        secondary_nic_cfg = oracle_imds_ds.network_config["config"][1]
         assert nic_name == secondary_nic_cfg["name"]
         assert "physical" == secondary_nic_cfg["type"]
         assert mac_addr == secondary_nic_cfg["mac_address"]
@@ -280,25 +323,25 @@ class TestNetworkConfigFromOpcImds:
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         assert "10.0.0.231" == subnet_cfg["address"]
 
-    def test_secondary_nic_v2(self, oracle_ds):
-        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config = {
+    def test_secondary_nic_v2(self, oracle_imds_ds):
+        oracle_imds_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        oracle_imds_ds._network_config = {
             "version": 2,
             "ethernets": {"primary": {"nic": {}}},
         }
-        mac_addr, nic_name = "00:00:17:02:2b:b1", "ens3"
+        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
             DS_PATH + ".get_interfaces_by_mac",
             return_value={mac_addr: nic_name},
         ):
-            oracle_ds._add_network_config_from_opc_imds(
+            oracle_imds_ds._add_network_config_from_opc_imds(
                 primary=False, secondary=True
             )
 
         # The input is mutated
-        assert 2 == len(oracle_ds.network_config["ethernets"])
+        assert 2 == len(oracle_imds_ds.network_config["ethernets"])
 
-        secondary_nic_cfg = oracle_ds.network_config["ethernets"]["ens3"]
+        secondary_nic_cfg = oracle_imds_ds.network_config["ethernets"]["ens3"]
         assert secondary_nic_cfg["dhcp4"] is False
         assert secondary_nic_cfg["dhcp6"] is False
         assert mac_addr == secondary_nic_cfg["match"]["macaddress"]
@@ -307,6 +350,51 @@ class TestNetworkConfigFromOpcImds:
         assert 1 == len(secondary_nic_cfg["addresses"])
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         assert "10.0.0.231" == secondary_nic_cfg["addresses"][0]
+
+    @pytest.mark.parametrize("error_add_network", [None, Exception])
+    @pytest.mark.parametrize(
+        "configure_secondary_nics, net_level_msg",
+        [(False, "primary"), (True, "primary and secondary")],
+    )
+    @mock.patch(DS_PATH + "._ensure_netfailover_safe")
+    def test_network_config_log_errors(
+        self,
+        m_ensure_netfailover_safe,
+        configure_secondary_nics,
+        net_level_msg,
+        error_add_network,
+        oracle_imds_ds,
+        caplog,
+        capsys,
+    ):
+        assert None is oracle_imds_ds._network_config
+        oracle_imds_ds.ds_cfg[
+            "configure_secondary_nics"
+        ] = configure_secondary_nics
+        with mock.patch.object(
+            oracle.DataSourceOracle,
+            "_add_network_config_from_opc_imds",
+        ) as m_add_network_config_from_opc_imds:
+            if error_add_network:
+                m_add_network_config_from_opc_imds.side_effect = (
+                    error_add_network
+                )
+            oracle_imds_ds.network_config  # pylint: disable=pointless-statement  # noqa: E501
+        assert [
+            mock.call(True, False)
+            == m_add_network_config_from_opc_imds.call_args_list
+        ]
+        assert 1 == oracle_imds_ds._is_iscsi_root.call_count
+        assert 1 == m_ensure_netfailover_safe.call_count
+
+        assert ("", "") == capsys.readouterr()
+        if not error_add_network:
+            assert not caplog.text
+        else:
+            assert (
+                logging.WARNING,
+                f"Failed to parse {net_level_msg} network configuration!",
+            ) == caplog.record_tuples[-2][1:]
 
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac")
@@ -663,6 +751,21 @@ class TestReadOpcMetadata:
         with expectation:
             assert expected_body == oracle.read_opc_metadata().instance_data
 
+    # No need to actually wait between retries in the tests
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
+    def test_fetch_vnics_error(self, caplog):
+        def mocked_fetch(*args, path="instance", **kwargs):
+            if path == "vnics":
+                raise UrlError("cause")
+
+        with mock.patch(DS_PATH + "._fetch", side_effect=mocked_fetch):
+            opc_metadata = oracle.read_opc_metadata(fetch_vnics_data=True)
+            assert None is opc_metadata.vnics_data
+        assert (
+            logging.WARNING,
+            "Failed to fetch IMDS network configuration!",
+        ) == caplog.record_tuples[-2][1:]
+
 
 class TestCommon_GetDataBehaviour:
     """This test class tests behaviour common to iSCSI and non-iSCSI root.
@@ -682,8 +785,8 @@ class TestCommon_GetDataBehaviour:
         is_iscsi_root = request.param
         with ExitStack() as stack:
             stack.enter_context(
-                mock.patch(
-                    DS_PATH + "._is_iscsi_root", return_value=is_iscsi_root
+                mock.patch.object(
+                    oracle_ds, "_is_iscsi_root", return_value=is_iscsi_root
                 )
             )
             stack.enter_context(mock.patch(DS_PATH + ".net.find_fallback_nic"))
@@ -815,25 +918,6 @@ class TestCommon_GetDataBehaviour:
         assert [] == parameterized_oracle_ds.get_public_ssh_keys()
 
 
-DHCP_EXPECTED_1 = {
-    "name": "eth0",
-    "type": "physical",
-    "subnets": [
-        {
-            "broadcast": "192.168.122.255",
-            "control": "manual",
-            "gateway": "192.168.122.1",
-            "dns_search": ["foo.com"],
-            "type": "dhcp",
-            "netmask": "255.255.255.0",
-            "dns_nameservers": ["192.168.122.1"],
-        }
-    ],
-}
-CFG = {"version": 1, "config": [DHCP_EXPECTED_1]}
-
-
-@mock.patch(DS_PATH + "._is_iscsi_root", lambda: False)
 class TestNonIscsiRoot_GetDataBehaviour:
     @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
@@ -880,7 +964,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
     @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
     def test_read_opc_metadata_called_with_ephemeral_dhcp(
-        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
+        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_imds_ds
     ):
         in_context_manager = False
 
@@ -907,7 +991,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(side_effect=assert_in_context_manager),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_imds_ds._get_data()
 
         assert [
             mock.call(
@@ -920,29 +1004,15 @@ class TestNonIscsiRoot_GetDataBehaviour:
         ] == m_EphemeralDHCPv4.call_args_list
 
 
-@mock.patch(DS_PATH + ".get_interfaces_by_mac", lambda: {})
-@mock.patch(
-    DS_PATH + ".cmdline.config_from_klibc_net_cfg",
-    return_value=copy.deepcopy(CFG),
-)
+@mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={})
 class TestNetworkConfig:
-    def test_network_config_cached(
-        self, m_config_from_klibc_net_cfg, oracle_ds
-    ):
+    def test_network_config_cached(self, m_get_interfaces_by_mac, oracle_ds):
         """.network_config should be cached"""
-        assert 0 == m_config_from_klibc_net_cfg.call_count
+        assert 0 == oracle_ds._get_iscsi_config.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
-        assert 1 == m_config_from_klibc_net_cfg.call_count
+        assert 1 == oracle_ds._get_iscsi_config.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
-        assert 1 == m_config_from_klibc_net_cfg.call_count
-
-    def test_network_cmdline(self, m_config_from_klibc_net_cfg, oracle_ds):
-        """network_config should prefer initramfs config over fallback"""
-        ncfg = {"version": 1, "config": [{"a": "b"}]}
-        m_config_from_klibc_net_cfg.return_value = copy.deepcopy(ncfg)
-
-        assert ncfg == oracle_ds.network_config
-        assert 0 == oracle_ds.distro.generate_fallback_config.call_count
+        assert 1 == oracle_ds._get_iscsi_config.call_count
 
     @pytest.mark.parametrize(
         "configure_secondary_nics,expect_secondary_nics",
@@ -950,7 +1020,7 @@ class TestNetworkConfig:
     )
     def test_secondary_nic_addition(
         self,
-        m_config_from_klibc_net_cfg,
+        m_get_interfaces_by_mac,
         configure_secondary_nics,
         expect_secondary_nics,
         oracle_ds,
@@ -959,7 +1029,7 @@ class TestNetworkConfig:
 
         (configure_secondary_nics=None is used to test the default behaviour.)
         """
-        m_config_from_klibc_net_cfg.return_value = {"version": 1, "config": []}
+        oracle_ds._get_iscsi_config.return_value = {"version": 1, "config": []}
 
         if configure_secondary_nics is not None:
             oracle_ds.ds_cfg[
@@ -981,7 +1051,7 @@ class TestNetworkConfig:
 
     def test_secondary_nic_failure_isnt_blocking(
         self,
-        m_config_from_klibc_net_cfg,
+        m_get_interfaces_by_mac,
         caplog,
         oracle_ds,
     ):
@@ -994,15 +1064,135 @@ class TestNetworkConfig:
             side_effect=Exception(),
         ):
             network_config = oracle_ds.network_config
-        assert network_config == m_config_from_klibc_net_cfg.return_value
+        assert network_config == oracle_ds._get_iscsi_config.return_value
         assert "Failed to parse secondary network configuration" in caplog.text
 
-    def test_ds_network_cfg_preferred_over_initramfs(self, _m):
+    def test_ds_network_cfg_preferred_over_initramfs(
+        self, m_get_interfaces_by_mac
+    ):
         """Ensure that DS net config is preferred over initramfs config"""
         config_sources = oracle.DataSourceOracle.network_config_sources
         ds_idx = config_sources.index(NetworkConfigSource.DS)
         initramfs_idx = config_sources.index(NetworkConfigSource.INITRAMFS)
         assert ds_idx < initramfs_idx
+
+    @pytest.mark.parametrize(
+        "primary, secondary, nic_level",
+        [
+            (True, True, "Primary and secondary"),
+            (True, False, "Primary"),
+            (False, True, "Secondary"),
+        ],
+    )
+    def test__add_network_config_from_opc_imds_no_vnics_data(
+        self,
+        m_get_interfaces_by_mac,
+        primary,
+        secondary,
+        nic_level,
+        oracle_ds,
+        caplog,
+    ):
+        assert None is oracle_ds._network_config
+        with mock.patch.object(oracle_ds, "_vnics_data", None):
+            oracle_ds._add_network_config_from_opc_imds(primary, secondary)
+        assert None is oracle_ds._network_config
+        assert (
+            logging.WARNING,
+            f"{nic_level} NIC data is UNSET but should not be",
+        ) == caplog.record_tuples[-1][1:]
+
+    @pytest.mark.parametrize(
+        "secondary, log_tuples",
+        [
+            (
+                True,
+                [
+                    (
+                        logging.WARNING,
+                        "Primary interface with MAC 02:00:17:05:d1:db not"
+                        " found; skipping",
+                    ),
+                    (
+                        logging.DEBUG,
+                        f"Secondary interface with MAC {MAC_ADDR} not found;"
+                        " skipping",
+                    ),
+                    (
+                        logging.WARNING,
+                        "Network config is not configured.",
+                    ),
+                ],
+            ),
+            (
+                False,
+                [
+                    (
+                        logging.WARNING,
+                        "Primary interface with MAC 02:00:17:05:d1:db not"
+                        " found; skipping",
+                    ),
+                    (
+                        logging.WARNING,
+                        "Network config is not configured.",
+                    ),
+                ],
+            ),
+        ],
+    )
+    def test_missing_mac_skipped(
+        self,
+        m_get_interfaces_by_mac,
+        secondary,
+        log_tuples,
+        oracle_ds,
+        caplog,
+    ):
+        """If no intefaces by mac found, then _network_config not setted and
+        correct logs.
+        """
+        vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        assert None is oracle_ds._network_config
+        with mock.patch.object(oracle_ds, "_vnics_data", vnics_data):
+            oracle_ds._add_network_config_from_opc_imds(True, secondary)
+        assert None is oracle_ds._network_config
+        for i, log_tuple in enumerate(log_tuples):
+            assert log_tuple == caplog.record_tuples[i][1:]
+
+    @pytest.mark.parametrize(
+        "primary, secondary, n_config",
+        [
+            (True, True, 2),
+            (True, False, 1),
+            (False, True, 2),
+        ],
+    )
+    def test_nics(
+        self,
+        m_get_interfaces_by_mac,
+        primary,
+        secondary,
+        n_config,
+        oracle_ds,
+        caplog,
+    ):
+        """Correct number of configs added"""
+        vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        if not primary:
+            # Simulate primary config was taken from iscsi
+            oracle_ds._network_config = copy.deepcopy(KLIBC_NET_CFG)
+        else:
+            assert None is oracle_ds._network_config
+        with mock.patch(
+            DS_PATH + ".get_interfaces_by_mac",
+            return_value={"02:00:17:05:d1:db": "eth_0", MAC_ADDR: "name_1"},
+        ):
+            with mock.patch.object(oracle_ds, "_vnics_data", vnics_data):
+                oracle_ds._add_network_config_from_opc_imds(primary, secondary)
+        assert n_config == len(
+            oracle_ds._network_config["config"]
+        ), "Config not added"
+        assert "" == caplog.text
 
 
 # vi: ts=4 expandtab
