@@ -1139,6 +1139,13 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
     return True
 
 
+def maybe_get_address(check_cb: Callable, address: str, **kwargs):
+    try:
+        return check_cb(address, **kwargs)
+    except ValueError:
+        return False
+
+
 def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
     """Use a function to determine whether address meets criteria.
 
@@ -1151,10 +1158,7 @@ def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
         A bool indicating if the string passed the test.
 
     """
-    try:
-        return bool(check_cb(address, **kwargs))
-    except ValueError:
-        return False
+    return bool(maybe_get_address(check_cb, address, **kwargs))
 
 
 def is_ip_address(address: str) -> bool:
