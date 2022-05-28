@@ -12,6 +12,7 @@ instance on rootbox / hyperone cloud platforms
 import errno
 import os
 import os.path
+from ipaddress import IPv4Address
 
 from cloudinit import log as logging
 from cloudinit import sources, subp, util
@@ -30,18 +31,21 @@ def get_manage_etc_hosts():
     return True
 
 
-def ip2int(addr):
-    parts = addr.split(".")
-    return (
-        (int(parts[0]) << 24)
-        + (int(parts[1]) << 16)
-        + (int(parts[2]) << 8)
-        + int(parts[3])
-    )
+def increment_ip(addr, inc: int) -> str:
+    return str(IPv4Address(int(IPv4Address(addr)) + inc))
 
 
-def int2ip(addr):
-    return ".".join([str(addr >> (i << 3) & 0xFF) for i in range(4)[::-1]])
+def get_three_ips(addr) -> list[str]:
+    """Return a list of 3 consecutive IP addresses starting with addr
+
+    @param addr: an object that is passed to IPvAddress
+    @return: list of strings
+    """
+    return [
+        addr,
+        increment_ip(addr, 1),
+        increment_ip(addr, 2),
+    ]
 
 
 def _sub_arp(cmd):
@@ -178,11 +182,7 @@ def read_user_data_callback(mount_dir):
             {"source": ip["address"], "destination": target}
             for netadp in meta_data["netadp"]
             for ip in netadp["ip"]
-            for target in [
-                netadp["network"]["gateway"],
-                int2ip(ip2int(netadp["network"]["gateway"]) + 2),
-                int2ip(ip2int(netadp["network"]["gateway"]) + 3),
-            ]
+            for target in get_three_ips(netadp["network"]["gateway"])
         ],
         "cfg": {
             "ssh_pwauth": True,
