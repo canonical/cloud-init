@@ -93,13 +93,7 @@ class TestCase(unittest.TestCase):
         In the future this should really be done with some registry that
         can then be cleaned in a more obvious way.
         """
-        assert getattr(util, "PROC_CMDLINE", None) is None, getattr(
-            util, "PROC_CMDLINE", None
-        )
         util._DNS_REDIRECT_IP = None
-        assert not getattr(util, "_LSB_RELEASE", None), getattr(
-            util, "_LSB_RELEASE", None
-        )
 
     def setUp(self):
         super(TestCase, self).setUp()
