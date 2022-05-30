@@ -22,6 +22,7 @@ from typing import Iterator, Optional, Tuple, cast
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
+from cloudinit.distros.networking import NetworkConfig
 from cloudinit.net import (
     cmdline,
     dhcp,
@@ -59,7 +60,7 @@ class KlibcOracleNetworkConfigSource(cmdline.KlibcNetworkConfigSource):
         return bool(self._files)
 
 
-def _ensure_netfailover_safe(network_config: sources.NetworkConfig) -> None:
+def _ensure_netfailover_safe(network_config: NetworkConfig) -> None:
     """
     Search network config physical interfaces to see if any of them are
     a netfailover master.  If found, we prevent matching by MAC as the other

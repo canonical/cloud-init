@@ -28,8 +28,6 @@ from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
-NetworkConfig = dict
-
 DSMODE_DISABLED = "disabled"
 DSMODE_LOCAL = "local"
 DSMODE_NETWORK = "net"
