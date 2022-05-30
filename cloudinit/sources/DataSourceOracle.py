@@ -260,10 +260,12 @@ class DataSourceOracle(sources.DataSource):
         """
         if self._network_config is None:
             self._network_config = {"config": [], "version": 1}
-        yield
-        if self._network_config == {"config": [], "version": 1}:
-            self._network_config = None
-            LOG.warning("Network config is not configured.")
+        try:
+            yield
+        finally:
+            if self._network_config == {"config": [], "version": 1}:
+                self._network_config = None
+                LOG.warning("Network config is not configured.")
 
     def _add_network_config_from_opc_imds(
         self, primary: bool, secondary: bool
