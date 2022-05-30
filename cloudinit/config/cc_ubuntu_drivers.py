@@ -101,8 +101,6 @@ def install_drivers(cfg, pkg_install_func):
     tdir = temp_utils.mkdtemp(needs_exe=True)
     debconf_file = os.path.join(tdir, "nvidia.template")
     try:
-        if not debconf.HAS_DEBCONF:
-            raise ValueError("python3-debconf must be installed.")
         util.write_file(debconf_file, NVIDIA_DEBCONF_CONTENT)
         with debconf.DebconfCommunicator("cloud-init") as dc:
             dc.command(X_LOADTEMPLATEFILE, debconf_file)

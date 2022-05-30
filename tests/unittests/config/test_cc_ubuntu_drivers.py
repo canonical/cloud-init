@@ -290,20 +290,18 @@ class TestUbuntuDrivers:
         cfg_accepted,
         install_gpgpu,
     ):
-        m_debconf.HAS_DEBCONF = False
+        m_debconf.DebconfCommunicator.side_effect = AttributeError
         m_tmp.return_value = tmpdir
         myCloud = mock.MagicMock()
         version_none_cfg = {
             "drivers": {"nvidia": {"license-accepted": True, "version": None}}
         }
-        with pytest.raises(
-            ValueError, match="python3-debconf must be installed."
-        ):
+        with pytest.raises(AttributeError):
             drivers.handle(
                 "ubuntu_drivers", version_none_cfg, myCloud, None, None
             )
         assert (
-            0 == m_debconf.DebconfCommunicator().__enter__().command.call_count
+            0 == m_debconf.DebconfCommunicator.__enter__().command.call_count
         )
         assert 0 == m_subp.call_count
 

@@ -38,8 +38,8 @@ def get_release_suffix(release):
 
     Examples:
     ---------
-    >>> get_release_suffix("xenial")
-    '~16.04.1'
+    >>> get_release_suffix("jammy")
+    '~22.04.1'
     """
     csv_path = "/usr/share/distro-info/ubuntu.csv"
     rels = {}
