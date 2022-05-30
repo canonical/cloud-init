@@ -1,6 +1,6 @@
 import pytest
 
-from tests.integration_tests.instances import IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
