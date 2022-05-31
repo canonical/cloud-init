@@ -44,7 +44,7 @@ def test_dual_stack(client: IntegrationInstance):
 
     # Force NoDHCPLeaseError (by removing dhclient) and assert ipv6 still works
     # Destructive test goes last
-    client.execute("rm /usr/sbin/dhclient").ok
+    assert client.execute("rm /usr/sbin/dhclient").ok
     client.restart()
     client.wait()
     log = client.read_from_file("/var/log/cloud-init.log")
