@@ -36,15 +36,15 @@ def increment_ip(addr, inc: int) -> str:
 
 
 def get_three_ips(addr) -> list[str]:
-    """Return a list of 3 consecutive IP addresses starting with addr
+    """Return a list of 3 IP addresses: [addr, addr + 2, addr + 3]
 
     @param addr: an object that is passed to IPvAddress
     @return: list of strings
     """
     return [
         addr,
-        increment_ip(addr, 1),
         increment_ip(addr, 2),
+        increment_ip(addr, 3),
     ]
 
 
