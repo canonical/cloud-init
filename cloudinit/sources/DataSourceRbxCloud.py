@@ -12,6 +12,7 @@ instance on rootbox / hyperone cloud platforms
 import errno
 import os
 import os.path
+import typing
 from ipaddress import IPv4Address
 
 from cloudinit import log as logging
@@ -35,7 +36,7 @@ def increment_ip(addr, inc: int) -> str:
     return str(IPv4Address(int(IPv4Address(addr)) + inc))
 
 
-def get_three_ips(addr) -> list[str]:
+def get_three_ips(addr) -> typing.List[str]:
     """Return a list of 3 IP addresses: [addr, addr + 2, addr + 3]
 
     @param addr: an object that is passed to IPvAddress
