@@ -12,6 +12,7 @@ from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.net.dhcp import EphemeralDHCPv4
+from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
@@ -122,7 +123,9 @@ class DataSourceGCE(sources.DataSource):
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
-        return self.metadata["local-hostname"].split(".")[0]
+        return DataSourceHostname(
+            self.metadata["local-hostname"].split(".")[0], False
+        )
 
     @property
     def availability_zone(self):

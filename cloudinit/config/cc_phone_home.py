@@ -143,8 +143,8 @@ def handle(name, cfg, cloud, log, args):
 
     all_keys = {}
     all_keys["instance_id"] = cloud.get_instance_id()
-    all_keys["hostname"] = cloud.get_hostname()
-    all_keys["fqdn"] = cloud.get_hostname(fqdn=True)
+    all_keys["hostname"] = cloud.get_hostname().hostname
+    all_keys["fqdn"] = cloud.get_hostname(fqdn=True).hostname
 
     pubkeys = {
         "pub_key_dsa": "/etc/ssh/ssh_host_dsa_key.pub",
