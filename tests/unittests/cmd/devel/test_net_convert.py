@@ -158,7 +158,7 @@ class TestNetConvert:
         """Assert proper output-kind artifacts are written."""
         network_data = tmpdir.join("network_data")
         network_data.write(SAMPLE_NET_V1)
-        distro = "fedora" if output_kind == "sysconfig" else "ubuntu"
+        distro = "centos" if output_kind == "sysconfig" else "ubuntu"
         args = [
             f"--directory={tmpdir.strpath}",
             f"--network-data={network_data.strpath}",
