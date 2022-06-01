@@ -139,7 +139,7 @@ def handle(name, cfg, cloud, log, _args):
         return
     elif not HAS_DEBCONF:
         log.warning(
-            "Skipping module named %s, 'python3-debconf' its not installed",
+            "Skipping module named %s, 'python3-debconf' it is not installed",
             name,
         )
         return
