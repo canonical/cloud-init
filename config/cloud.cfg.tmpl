@@ -209,7 +209,7 @@ system_info:
      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
-{# SRU_BLOCKER: do not ship network renderers on Bionic #}
+{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
    network:
      renderers: ['netplan', 'eni', 'sysconfig']
    # Automatically discover the best ntp_client

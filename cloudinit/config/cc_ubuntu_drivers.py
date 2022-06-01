@@ -5,7 +5,14 @@
 import os
 from textwrap import dedent
 
-from cloudinit import debconf
+try:
+    import debconf
+
+    HAS_DEBCONF = True
+except ImportError:
+    debconf = None
+    HAS_DEBCONF = False
+
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -129,6 +136,12 @@ def install_drivers(cfg, pkg_install_func):
 def handle(name, cfg, cloud, log, _args):
     if "drivers" not in cfg:
         log.debug("Skipping module named %s, no 'drivers' key in config", name)
+        return
+    elif not HAS_DEBCONF:
+        log.warning(
+            "Skipping module named %s, 'python3-debconf' its not installed",
+            name,
+        )
         return
 
     install_drivers(cfg["drivers"], cloud.distro.install_packages)
