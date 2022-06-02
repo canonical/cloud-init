@@ -137,9 +137,9 @@ def handle(name, cfg, cloud, log, _args):
     if "drivers" not in cfg:
         log.debug("Skipping module named %s, no 'drivers' key in config", name)
         return
-    elif not HAS_DEBCONF:
+    if not HAS_DEBCONF:
         log.warning(
-            "Skipping module named %s, 'python3-debconf' it is not installed",
+            "Skipping module named %s, 'python3-debconf' is not installed",
             name,
         )
         return

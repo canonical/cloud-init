@@ -386,8 +386,7 @@ class TestUbuntuDriversNotRun:
         assert 0 == m_install_drivers.call_count
         assert (
             mock.call(
-                "Skipping module named %s, 'python3-debconf' it is not"
-                " installed",
+                "Skipping module named %s, 'python3-debconf' is not installed",
                 "ubuntu_drivers",
             )
             == m_log.warning.call_args_list[-1]
