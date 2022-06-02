@@ -1562,17 +1562,14 @@ class EphemeralIPv4Network(object):
         )
 
 
-class EphemeralIPv6Network(object):
+class EphemeralIPv6Network:
     """Context manager which sets up a ipv6 link local address
 
     The linux kernel assigns link local addresses on link-up, which is
     sufficient for link-local communication.
     """
 
-    def __init__(
-        self,
-        interface,
-    ):
+    def __init__(self, interface):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
