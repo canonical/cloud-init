@@ -118,12 +118,16 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     """
     Return an instantiated DataSourceOracle.
 
-    This also performs the mocking required for the default test case:
+    This also performs the mocking required:
         * ``_read_system_uuid`` returns something,
         * ``_is_platform_viable`` returns True,
-        * ``DataSourceOracle._is_iscsi_root`` returns True,
-        * ``DataSourceOracle._get_iscsi_config`` returns an IMDS net cfg,
-        * ``read_opc_metadata`` returns ``OPC_V1_METADATA``
+        * ``DataSourceOracle._is_iscsi_root`` returns True by default or what
+          pytest.mark.is_iscsi gives as first param,
+        * ``DataSourceOracle._get_iscsi_config`` returns a network cfg if
+          is_iscsi else an empty network config,
+        * ``read_opc_metadata`` returns ``OPC_V1_METADATA``,
+        * ``dhcp.EphemeralDHCPv4`` and ``net.find_fallback_nic`` mocked to
+          avoid subp calls
 
     (This uses the paths fixture for the required helpers.Paths object, and the
     fixture_utils fixture for fetching markers.)
@@ -148,9 +152,11 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
         paths=paths,
     )
     mocker.patch.object(ds, "_is_iscsi_root", return_value=is_iscsi)
-    mocker.patch.object(
-        ds, "_get_iscsi_config", return_value=copy.deepcopy(KLIBC_NET_CFG)
-    )
+    if is_iscsi:
+        iscsi_config = copy.deepcopy(KLIBC_NET_CFG)
+    else:
+        iscsi_config = {"version": 1, "config": []}
+    mocker.patch.object(ds, "_get_iscsi_config", return_value=iscsi_config)
     yield ds
 
 
@@ -162,23 +168,15 @@ class TestDataSourceOracle:
     def test_subplatform_before_fetch(self, oracle_ds):
         assert "unknown" == oracle_ds.subplatform
 
-    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
-    @mock.patch(DS_PATH + ".net.find_fallback_nic")
-    def test_platform_info_after_fetch(
-        self, m_find_fallback_nic, m_ephemeralDHCPv4, oracle_ds
-    ):
+    def test_platform_info_after_fetch(self, oracle_ds):
         oracle_ds._get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v2/)"
             == oracle_ds.subplatform
         )
 
-    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
-    @mock.patch(DS_PATH + ".net.find_fallback_nic")
     @pytest.mark.parametrize("metadata_version", [1])
-    def test_v1_platform_info_after_fetch(
-        self, m_find_fallback_nic, m_ephemeralDHCPv4, oracle_ds
-    ):
+    def test_v1_platform_info_after_fetch(self, oracle_ds):
         oracle_ds._get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v1/)"
@@ -1030,14 +1028,6 @@ class TestNetworkConfig:
 
         (configure_secondary_nics=None is used to test the default behaviour.)
         """
-
-        def _get_iscsi_config(*args):
-            if is_iscsi:
-                return copy.deepcopy(KLIBC_NET_CFG)
-            else:
-                return {"version": 1, "config": []}
-
-        oracle_ds._get_iscsi_config.side_effect = _get_iscsi_config
 
         if configure_secondary_nics is not None:
             oracle_ds.ds_cfg[
