@@ -12,6 +12,7 @@ drivers:
 
 
 @pytest.mark.user_data(USER_DATA)
+@pytest.mark.adhoc  # Expensive instance type
 @pytest.mark.oci
 def test_ubuntu_drivers_installed(session_cloud: IntegrationCloud):
     with session_cloud.launch(
