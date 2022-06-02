@@ -204,7 +204,7 @@ class DataSourceOracle(sources.DataSource):
         """Return whether we are on a iscsi machine."""
         return self._network_config_source.is_applicable()
 
-    def _get_iscsi_config(self) -> Optional[dict]:
+    def _get_iscsi_config(self) -> dict:
         return self._network_config_source.render_config()
 
     @property
