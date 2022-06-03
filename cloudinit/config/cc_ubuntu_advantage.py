@@ -23,8 +23,8 @@ meta: MetaSchema = {
         enable or disable support services such as Livepatch, ESM,
         FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
         one can also specify services to enable.  When the 'enable'
-        list is present, any named service will be enabled and all absent
-        services will remain disabled.
+        list is present, any named service will supplement the contract-default
+        enabled services.
 
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
