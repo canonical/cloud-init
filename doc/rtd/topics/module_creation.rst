@@ -111,7 +111,7 @@ in the ``cloud_final_modules`` section before the ``final-message`` module.
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58
 .. _OSFAMILIES: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/distros/__init__.py#L35
 .. _settings.py: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/settings.py#L66
-.. _cloud-init-schema.json: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/cloud-init-schema.json
+.. _cloud-init-schema.json: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/schemas/versions.schema.cloud-config.json
 .. _cloud.cfg.tmpl: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl
 .. _cloud_init_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L70
 .. _cloud_config_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L101
