@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
@@ -10,19 +12,26 @@ drivers:
         license-accepted: true
 """
 
+# NOTE(VM.GPU2.1 is not in all availability_domains: use qIZq:US-ASHBURN-AD-1)
 
-@pytest.mark.user_data(USER_DATA)
+
 @pytest.mark.adhoc  # Expensive instance type
 @pytest.mark.oci
 def test_ubuntu_drivers_installed(session_cloud: IntegrationCloud):
     with session_cloud.launch(
-        launch_kwargs={"instance_type": "VM.GPU3.1"}
+        launch_kwargs={"instance_type": "VM.GPU2.1"}, user_data=USER_DATA
     ) as client:
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert 1 == log.count(
             "Installing and activating NVIDIA drivers "
-            '("nvidia/license-accepted"=True, version=latest)'
+            "(nvidia/license-accepted=True, version=latest)"
         )
-        cmd = "apt list --installed | grep -E 'nvidia-*-server'"
-        assert client.execute(cmd).ok
+        result = client.execute("dpkg -l | grep nvidia")
+        assert result.ok, "No nvidia packages found"
+        assert re.search(
+            r"ii\s+linux-modules-nvidia-\d+-server", result.stdout
+        ), (
+            f"Did not find specific nvidia drivers packages in:"
+            f" {result.stdout}"
+        )
