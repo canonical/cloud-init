@@ -23,6 +23,7 @@ module = [
   "httplib",
   "jsonpatch",
   "netifaces",
+  "oci",
   "paramiko.*",
   "pycloudlib.*",
   "responses",
