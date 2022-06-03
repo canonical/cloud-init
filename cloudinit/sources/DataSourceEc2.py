@@ -466,7 +466,7 @@ class DataSourceEc2(sources.DataSource):
         iface = self.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):
-            # SRU_BLOCKER: bionic should default
+            # SRU_BLOCKER: xenial, bionic and eoan should default
             # apply_full_imds_network_config to False to retain original
             # behavior on those releases.
             result = convert_ec2_metadata_network_config(
