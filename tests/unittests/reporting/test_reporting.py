@@ -451,6 +451,3 @@ class TestReportingEventStack(TestCase):
 class TestStatusAccess(TestCase):
     def test_invalid_status_access_raises_value_error(self):
         self.assertRaises(AttributeError, getattr, events.status, "BOGUS")
-
-
-# vi: ts=4 expandtab

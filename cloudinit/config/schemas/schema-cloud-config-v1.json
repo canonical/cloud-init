@@ -2216,6 +2216,110 @@
           "additionalProperties": false
         }
       }
+    },
+    "reporting_config": {
+      "type": "object",
+      "properties": {
+        "reporting": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {
+              "label": "<arbitrary_name>",
+              "type": "object",
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "additionalProperties": false,
+                    "type": {
+                      "type": "string",
+                      "enum": ["log"],
+                      "required": true
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+                      "default": "DEBUG",
+                      "required": false
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["print"],
+                      "required": true
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["webhook"],
+                      "required": true
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The URL to send the event to.",
+                      "required": true
+                    },
+                    "consumer_key": {
+                      "type": "string",
+                      "description": "The consumer key to use for the webhook."
+                    },
+                    "token_key": {
+                      "type": "string",
+                      "description": "The token key to use for the webhook."
+                    },
+                    "token_secret": {
+                      "type": "string",
+                      "description": "The token secret to use for the webhook."
+                    },
+                    "consumer_secret": {
+                      "type": "string",
+                      "description": "The consumer secret to use for the webhook."
+                    },
+                    "timeout": {
+                      "type": "number",
+                      "description": "The timeout in seconds to wait for a response from the webhook."
+                    },
+                    "retries": {
+                      "type": "number",
+                      "description": "The number of times to retry sending the webhook."
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["hyperv"],
+                      "required": true
+                    },
+                    "kvp_file_path": {
+                      "type": "string",
+                      "description": "The path to the KVP file to use for the hyperv reporter.",
+                      "default": "/var/lib/hyperv/.kvp_pool_1"
+                    },
+                    "event_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -2270,6 +2374,7 @@
     { "$ref": "#/$defs/cc_users_groups"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
-    { "$ref": "#/$defs/cc_zypper_add_repo"}
+    { "$ref": "#/$defs/cc_zypper_add_repo"},
+    { "$ref": "#/$defs/reporting_config"}
   ]
 }
