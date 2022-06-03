@@ -172,6 +172,13 @@ def handle(_name, cfg, cloud, log, args):
         password = util.get_cfg_option_str(cfg, "password", None)
 
     expire = True
+
+    # get_admin_pass() returns either:
+    # (None, True)
+    # or
+    # ("password", False)
+    if not password:
+        password, expire = cloud.datasource.get_admin_pass()
     plist = None
 
     if "chpasswd" in cfg:

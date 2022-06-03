@@ -361,6 +361,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not attr_defaults:
             self._dirty_cache = False
 
+    def get_admin_pass(self):
+        return (None, True)
+
     def get_data(self) -> bool:
         """Datasources implement _get_data to setup metadata and userdata_raw.
 

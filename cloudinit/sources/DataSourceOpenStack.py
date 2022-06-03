@@ -68,6 +68,12 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         return mstr
 
+    def get_admin_pass(self):
+        if self.metadata and "admin_pass" in self.metadata:
+            password = self.metadata["admin_pass"]
+            expire = False
+        return (password, expire)
+
     def wait_for_metadata_service(self):
         urls = self.ds_cfg.get("metadata_urls", [DEF_MD_URL])
         filtered = [x for x in urls if util.is_resolvable_url(x)]
