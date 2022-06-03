@@ -46,6 +46,5 @@ def test_dual_stack(client: IntegrationInstance):
     # Destructive test goes last
     assert client.execute("rm /usr/sbin/dhclient").ok
     client.restart()
-    client.wait()
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Crawl of metadata service using link-local ipv6 took" in log

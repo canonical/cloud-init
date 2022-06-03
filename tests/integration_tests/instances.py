@@ -124,9 +124,6 @@ class IntegrationInstance:
         log.info("Created new image: %s", image_id)
         return image_id
 
-    def wait(self):
-        self.instance.wait()
-
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
