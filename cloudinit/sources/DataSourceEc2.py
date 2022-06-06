@@ -8,7 +8,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import contextlib
 import copy
 import os
 import time
@@ -20,8 +19,8 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import EphemeralIPv6Network
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net import EphemeralIPNetwork
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -127,25 +126,12 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
-                # ipv6 dualstack might succeed when dhcp4 fails
-                # therefore attempt dualstack call even if dhcp4 fails
-                with contextlib.ExitStack() as stack:
-                    exception = None
-                    v6_only = ""
-                    stack.enter_context(
-                        EphemeralIPv6Network(self.fallback_interface)
-                    )
-                    try:
-                        stack.enter_context(
-                            EphemeralDHCPv4(self.fallback_interface)
-                        )
-                    except NoDHCPLeaseError as e:
-                        exception = e
-                        v6_only = " using link-local ipv6"
-
+                with EphemeralIPNetwork(
+                    self.fallback_interface, ipv6=True
+                ) as netw:
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service" + v6_only,
+                        msg="Crawl of metadata service " + netw.state_msg,
                         func=self.crawl_metadata,
                     )
 

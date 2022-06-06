@@ -5,6 +5,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import contextlib
 import errno
 import functools
 import ipaddress
@@ -15,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from cloudinit import subp, util
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
@@ -1594,6 +1596,36 @@ class EphemeralIPv6Network:
 
     def __exit__(self, *_args):
         """No need to set the link to down state"""
+
+
+class EphemeralIPNetwork:
+    """Marries together IPv4 and IPv6 ephemeral context managers"""
+
+    def __init__(self, interface, ipv6: bool = False, ipv4: bool = True):
+        self.interface = interface
+        self.ipv4 = ipv4
+        self.ipv6 = ipv6
+        self.stack = contextlib.ExitStack()
+        self.state_msg: str = ""
+
+    def __enter__(self):
+        # ipv6 dualstack might succeed when dhcp4 fails
+        # therefore catch exception unless only v4 is used
+        try:
+            if self.ipv4:
+                self.stack.enter_context(EphemeralIPv6Network(self.interface))
+            if self.ipv6:
+                self.stack.enter_context(EphemeralDHCPv4(self.interface))
+        # v6 link local might be usable
+        # caller may want to log network state
+        except NoDHCPLeaseError as e:
+            if self.ipv6:
+                self.state_msg = "using link-local ipv6"
+            else:
+                raise e
+
+    def __exit__(self, *_args):
+        self.stack.close()
 
 
 class RendererNotFoundError(RuntimeError):
