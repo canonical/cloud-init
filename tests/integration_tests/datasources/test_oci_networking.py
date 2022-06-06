@@ -14,11 +14,16 @@ DS_CFG = """\
 #cloud-config
 datasource:
   Oracle:
-    configure_secondary_nics: True
+    configure_secondary_nics: {configure_secondary_nics}
 """
 
 
-def _customize_environment(client: IntegrationInstance, iscsi: bool = True):
+def _customize_environment(
+    client: IntegrationInstance,
+    tmpdir,
+    configure_secondary_nics: bool = False,
+    iscsi: bool = True,
+):
     assert client.execute("rm -f /run/initramfs/open-iscsi.interface").ok
     if not iscsi:
         assert client.execute("rm -f /run/net-*.conf").ok
@@ -27,6 +32,14 @@ def _customize_environment(client: IntegrationInstance, iscsi: bool = True):
     assert client.execute(
         "rm -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
     ).ok
+
+    cfg = tmpdir.join("01_oracle_datasource.cfg")
+    with open(cfg, "w") as f:
+        f.write(
+            DS_CFG.format(configure_secondary_nics=configure_secondary_nics)
+        )
+    client.push_file(cfg, "/etc/cloud/cloud.cfg.d/01_oracle_datasource.cfg")
+
     client.execute("cloud-init clean --logs")
     client.restart()
 
@@ -44,8 +57,10 @@ def extract_interface_names(network_config: dict) -> Set[str]:
 
 
 @pytest.mark.oci
-def test_oci_networking_iscsi_instance(client: IntegrationInstance):
-    _customize_environment(client, iscsi=True)
+def test_oci_networking_iscsi_instance(client: IntegrationInstance, tmpdir):
+    _customize_environment(
+        client, tmpdir, configure_secondary_nics=False, iscsi=True
+    )
     result_net_files = client.execute("ls /run/net-*.conf")
     assert result_net_files.ok, "No net files found under /run"
 
@@ -84,7 +99,7 @@ def client_with_secondary_vnic(session_cloud: IntegrationCloud):
     Note: It assumes the associated compartment has at least one subnet and
     creates the vnic in the first encountered subnet.
     """
-    with session_cloud.launch(launch_kwargs={}) as client:
+    with session_cloud.launch() as client:
         compute_client = session_cloud.cloud_instance.compute_client
 
         subnet_id = (
@@ -122,12 +137,9 @@ def test_oci_networking_iscsi_instance_secondary_vnics(
     client_with_secondary_vnic, tmpdir
 ):
     client = client_with_secondary_vnic
-
-    cfg = tmpdir.join("01_oracle_datasource.cfg")
-    with open(cfg, "w") as f:
-        f.write(DS_CFG)
-    client.push_file(cfg, "/etc/cloud/cloud.cfg.d/01_oracle_datasource.cfg")
-    _customize_environment(client, iscsi=True)
+    _customize_environment(
+        client, tmpdir, configure_secondary_nics=True, iscsi=True
+    )
 
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
@@ -143,7 +155,9 @@ def test_oci_networking_iscsi_instance_secondary_vnics(
     reason="Figure out how to configure a non iscsi network instance in oci"
 )
 @pytest.mark.oci
-def test_oci_networking_non_iscsi_instance(session_cloud: IntegrationCloud):
+def test_oci_networking_non_iscsi_instance(
+    session_cloud: IntegrationCloud, tmpdir
+):
     launch_options = oci.core.models.LaunchOptions(
         boot_volume_type=oci.core.models.LaunchOptions.BOOT_VOLUME_TYPE_VFIO,
         network_type=oci.core.models.LaunchOptions.NETWORK_TYPE_VFIO,
@@ -151,7 +165,9 @@ def test_oci_networking_non_iscsi_instance(session_cloud: IntegrationCloud):
     with session_cloud.launch(
         launch_kwargs={"launch_options": launch_options}
     ) as client:
-        _customize_environment(client, iscsi=False)
+        _customize_environment(
+            client, tmpdir, configure_secondary_nics=False, iscsi=False
+        )
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert "opc/v2/vnics/" in log, f"vnics data not fetched in {log}"
