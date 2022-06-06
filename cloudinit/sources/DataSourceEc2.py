@@ -148,8 +148,6 @@ class DataSourceEc2(sources.DataSource):
                         msg="Crawl of metadata service" + v6_only,
                         func=self.crawl_metadata,
                     )
-                    if exception:
-                        raise exception
 
             except NoDHCPLeaseError:
                 return False
