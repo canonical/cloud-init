@@ -50,8 +50,6 @@ def test_oci_networking_iscsi_instance(client: IntegrationInstance):
     assert result_net_files.ok, "No net files found under /run"
 
     log = client.read_from_file("/var/log/cloud-init.log")
-    with open("oci.log", "w") as f:
-        f.write(log)
     verify_clean_log(log)
 
     assert (
@@ -132,8 +130,6 @@ def test_oci_networking_iscsi_instance_secondary_vnics(
     _customize_environment(client, iscsi=True)
 
     log = client.read_from_file("/var/log/cloud-init.log")
-    with open("oci.log", "w") as f:
-        f.write(log)
     verify_clean_log(log)
 
     assert "opc/v2/vnics/" in log, f"vnics data not fetched in {log}"
