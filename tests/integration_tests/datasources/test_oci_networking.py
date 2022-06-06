@@ -1,5 +1,5 @@
 import re
-from typing import Set
+from typing import Iterator, Set
 
 import oci
 import pytest
@@ -93,8 +93,10 @@ def test_oci_networking_iscsi_instance(client: IntegrationInstance, tmpdir):
 
 
 @pytest.fixture(scope="function")
-def client_with_secondary_vnic(session_cloud: IntegrationCloud):
-    """Attach a temporary vnic to the created instance
+def client_with_secondary_vnic(
+    session_cloud: IntegrationCloud,
+) -> Iterator[IntegrationInstance]:
+    """Create an instance client and attach a temporary vnic.
 
     Note: It assumes the associated compartment has at least one subnet and
     creates the vnic in the first encountered subnet.
@@ -134,7 +136,7 @@ def client_with_secondary_vnic(session_cloud: IntegrationCloud):
 
 @pytest.mark.oci
 def test_oci_networking_iscsi_instance_secondary_vnics(
-    client_with_secondary_vnic, tmpdir
+    client_with_secondary_vnic: IntegrationInstance, tmpdir
 ):
     client = client_with_secondary_vnic
     _customize_environment(
