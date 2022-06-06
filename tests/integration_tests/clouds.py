@@ -20,7 +20,7 @@ from pycloudlib import (
 )
 from pycloudlib.cloud import BaseCloud
 from pycloudlib.lxd.cloud import _BaseLXD
-from pycloudlib.lxd.instance import LXDInstance
+from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
 import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
@@ -126,7 +126,7 @@ class IntegrationCloud(ABC):
         except (ValueError, IndexError):
             return image.image_id
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
+    def _perform_launch(self, launch_kwargs, **kwargs) -> BaseInstance:
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 
@@ -145,10 +145,11 @@ class IntegrationCloud(ABC):
                 "Instance id: %s",
                 self.settings.EXISTING_INSTANCE_ID,
             )
-            self.instance = self.cloud_instance.get_instance(
+            pycloudlib_instance = self.cloud_instance.get_instance(
                 self.settings.EXISTING_INSTANCE_ID
             )
-            return self.instance
+            instance = self.get_instance(pycloudlib_instance, settings)
+            return instance
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
@@ -174,7 +175,9 @@ class IntegrationCloud(ABC):
                 log.info("image serial: %s", serial.split()[1])
         return instance
 
-    def get_instance(self, cloud_instance, settings=integration_settings):
+    def get_instance(
+        self, cloud_instance, settings=integration_settings
+    ) -> IntegrationInstance:
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
