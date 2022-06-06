@@ -7,7 +7,6 @@ import yaml
 from pycloudlib.oci.utils import wait_till_ready
 
 from tests.integration_tests.clouds import IntegrationCloud
-from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
