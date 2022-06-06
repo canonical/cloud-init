@@ -44,7 +44,7 @@ def run_helper(helper, args=None, strip=True):
 
 
 def read_dependencies(distro):
-    """Returns the Python package depedencies from requirements.txt files.
+    """Returns the Python package dependencies from requirements.txt files.
 
     @returns a tuple of (build_deps, run_deps, test_deps)
     """
@@ -54,10 +54,13 @@ def read_dependencies(distro):
     run_deps = run_helper(
         'read-dependencies', args=[
             '--distro', distro, '--runtime-requires']).splitlines()
-    test_deps = run_helper(
-        'read-dependencies', args=[
-            '--requirements-file', 'test-requirements.txt',
-            '--system-pkg-names']).splitlines()
+    if distro != 'suse':
+        test_deps = run_helper(
+            'read-dependencies', args=[
+                '--requirements-file', 'test-requirements.txt',
+                '--system-pkg-names']).splitlines()
+    else:
+        test_deps = []
     return (build_deps, run_deps, test_deps)
 
 
@@ -103,7 +106,6 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
         subs['systemd'] = False
 
     subs['init_sys'] = args.boot
-    subs['patches'] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
@@ -133,10 +135,6 @@ def main():
                               " the final version number"),
                         type=int,
                         default=None)
-    parser.add_argument("-p", "--patch", dest="patches",
-                        help=("include the following patch when building"),
-                        default=[],
-                        action='append')
     args = parser.parse_args()
     capture = True
     if args.verbose:
@@ -144,7 +142,8 @@ def main():
 
     workdir = None
     try:
-        workdir = tempfile.mkdtemp(prefix='rpmbuild')
+        workdir = '/dist'
+        os.makedirs(workdir, exist_ok=True)
         os.environ['HOME'] = workdir
         topdir = os.path.join(workdir, 'rpmbuild')
         build_dirs = [os.path.join(topdir, dir)
@@ -153,33 +152,43 @@ def main():
 
         version_data = read_version()
 
+        # rpm does not like '-' in the Version, so change
+        #   X.Y.Z-N-gHASH to X.Y.Z+N.gHASH
+        if "-" in version_data.get('version'):
+            ver, commits, ghash = version_data['version'].split("-")
+            rpm_upstream_version = "%s+%s.%s" % (ver, commits, ghash)
+        else:
+            rpm_upstream_version = version_data['version']
+
         # Archive the code
-        archive_fn = "cloud-init-%s.tar.gz" % version_data['version_long']
+        archive_fn = f"cloud-init-{rpm_upstream_version}.tar.gz"
         real_archive_fn = os.path.join(topdir, 'SOURCES', archive_fn)
         archive_fn = run_helper(
-            'make-tarball', ['--long', '--output=' + real_archive_fn])
-        print("Archived the code in %r" % (real_archive_fn))
+            'make-tarball', [f'--output={real_archive_fn}', f'--version={rpm_upstream_version}'])
+        print(f"Archived the code in {real_archive_fn}")
 
         # Form the spec file to be used
         tmpl_fn = util.abs_join(find_root(), 'packages',
-                                args.distro, 'cloud-init.spec.in')
+                                args.distro, 'cloud-init.spec.j2')
         contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
                                           os.path.basename(archive_fn))
         spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')
         util.write_file(spec_fn, contents)
         print("Created spec file at %r" % (spec_fn))
-        for p in args.patches:
+        for p in glob.glob('*.patch'):
             util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
 
         # Now build it!
-        print("Running 'rpmbuild' in %r" % (topdir))
-
+        subp.subp(['cat', spec_fn], capture=capture)
+        default_build_metadata, _ = subp.subp(['git', 'rev-parse', '--short', 'HEAD'], capture=True)
+        if not os.environ.get('BUILD_METADATA'):
+            os.environ['BUILD_METADATA'] = default_build_metadata.rstrip()
+        print(f"Running 'rpmbuild' in {topdir}")
         if args.srpm:
-            cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
+            cmd = ['rpmbuild', '-bs', '--define', f'_topdir {topdir}', '--nodeps', spec_fn]
         else:
-            cmd = ['rpmbuild', '-ba', spec_fn]
-
-        subp.subp(cmd, capture=capture)
+            cmd = ['rpmbuild', '-ba', '--define', f'_topdir {topdir}', spec_fn]
+        subp.subp(cmd, capture=capture, env={'BUILD_METADATA': default_build_metadata.rstrip()})
 
         # Copy the items built to our local dir
         globs = []
@@ -191,12 +200,10 @@ def main():
                                (util.abs_join(topdir, 'RPMS'))))
         globs.extend(glob.glob("%s/*.rpm" %
                                (util.abs_join(topdir, 'SRPMS'))))
-        for rpm_fn in globs:
-            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
-            shutil.move(rpm_fn, tgt_fn)
-            print("Wrote out %s package %r" % (args.distro, tgt_fn))
+        shutil.move(topdir, os.getcwd())
+        print("Wrote out %s package %r" % (args.distro, os.getcwd()))
     finally:
-        if workdir is not None:
+        if workdir is not None and not os.environ.get('KEEP_BUILD_DIR', False):
             shutil.rmtree(workdir)
 
     return 0

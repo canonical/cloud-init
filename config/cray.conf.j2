@@ -1,0 +1,42 @@
+## template: jinja
+# csm-generated config for {{ local_hostname }}. Do not modify--changes can be overwritten
+{% for pool in pools | sort -%}
+{% if local_hostname == 'ncn-m001' and pool == 'ncn-m001' %}
+{% endif %}
+{% if local_hostname != 'ncn-m001' and pool != 'ncn-m001' %}
+{% else %}
+pool {{ pool }} iburst
+{% endif %}
+{% endfor %}
+{% for server in servers | sort -%}
+{% if local_hostname == 'ncn-m001' and server == 'ncn-m001' %}
+# server {{ server }} will not be used as itself for a server
+{% else %}
+server {{ server }} iburst trust
+{% endif %}
+{% if local_hostname != 'ncn-m001' and server != 'ncn-m001' %}
+# {{ local_hostname }}
+{% endif %}
+{% endfor %}
+{% for peer in peers | sort -%}
+{% if local_hostname == peer %}
+{% else %}
+{% if loop.index <= 9 %}
+{# Only add 9 peers to prevent too much NTP traffic #}
+peer {{ peer }} minpoll -2 maxpoll 9 iburst
+{% endif %}
+{% endif %}
+{% endfor %}
+{% for net in allow | sort -%}
+allow {{ net }}
+{% endfor %}
+{% if local_hostname == 'ncn-m001' %}
+# {{ local_hostname }} has a lower stratum than other NCNs since it is the primary server
+local stratum 8 orphan
+{% else %}
+# {{ local_hostname }} has a higher stratum so it selects ncn-m001 in the event of a tie
+local stratum 10 orphan
+{% endif %}
+log measurements statistics tracking
+logchange 1.0
+makestep 0.1 3

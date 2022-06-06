@@ -5,7 +5,10 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+
 """Timezone: Set the system timezone"""
+
+from os.path import exists
 
 from cloudinit import util
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -44,5 +47,25 @@ def handle(name, cfg, cloud, log, args):
     # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)
 
+    if timezone == 'UTC':
+        pass
+    else:
+        timezone = 'LOCAL'
 
+    if exists('/etc/adjtime'):
+        log.debug("/etc/adjtime exists")
+        with open('/etc/adjtime', 'r') as file:
+            # read a list of lines into data
+            content = file.readlines()
+
+        hwclock_tz = timezone + '\n'
+
+        log.debug("Setting hwclock to %s", hwclock_tz)
+
+        # now change the 3rd line
+        content[2] = hwclock_tz
+
+        # and write everything back
+        with open('/etc/adjtime', 'w') as file:
+            file.writelines(content)
 # vi: ts=4 expandtab

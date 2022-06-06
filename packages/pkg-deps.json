@@ -52,18 +52,20 @@
          "procps",
          "rsyslog",
          "shadow-utils",
-         "sudo",
-         "hostname"
+         "sudo"
       ]
    },
    "suse" : {
       "renames" : {
+         "jinja2": "python3-Jinja2",
+         "pyyaml": "python3-PyYAML"
       },
       "build-requires" : [
          "fdupes",
          "filesystem",
-         "python-devel",
-         "python-setuptools"
+         "python3-devel",
+         "python3-pip",
+         "python3-setuptools"
       ],
       "requires" : [
          "iproute2",

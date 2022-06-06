@@ -217,8 +217,11 @@ def main(distro):
                 "Parameter --test-distro overrides --requirements-file. Use "
                 "one or the other.\n")
             sys.exit(1)
-        args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS),
-                          os.path.join(topd, 'test-' + DEFAULT_REQUIREMENTS)]
+        if distro != 'suse':
+            args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS),
+                              os.path.join(topd, 'test-' + DEFAULT_REQUIREMENTS)]
+        else:
+            args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS)]
         args.install = True
     if args.req_files is None:
         args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS)]

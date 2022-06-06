@@ -1165,6 +1165,24 @@
               "default": true,
               "description": "Attempt to enable ntp clients if set to True.  If set\nto False, ntp client will not be configured or\ninstalled"
             },
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "network/CIDR"
+              },
+              "uniqueItems": true,
+              "description": "List of allowed networks. Networks should use\nCIDR format ``10.x.x.x/XX``."
+            },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "List of peers. Hostnames or IPs."
+            },
             "config": {
               "description": "Configuration settings or overrides for the\n``ntp_client`` specified.",
               "type": "object",
