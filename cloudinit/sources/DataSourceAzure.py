@@ -1462,22 +1462,42 @@ class DataSourceAzure(sources.DataSource):
             .get("platformFaultDomain")
         )
 
+    @azure_ds_telemetry_reporter
+    def _generate_network_config(self):
+        """Generate network configuration according to configuration."""
+        # Use IMDS network metadata, if configured.
+        if (
+            self._metadata_imds
+            and self._metadata_imds != sources.UNSET
+            and self.ds_cfg.get("apply_network_config")
+        ):
+            try:
+                return generate_network_config_from_instance_network_metadata(
+                    self._metadata_imds["network"]
+                )
+            except Exception as e:
+                LOG.error(
+                    "Failed generating network config "
+                    "from IMDS network metadata: %s",
+                    str(e),
+                )
+
+        # Generate fallback configuration.
+        try:
+            return _generate_network_config_from_fallback_config()
+        except Exception as e:
+            LOG.error("Failed generating fallback network config: %s", str(e))
+
+        return {}
+
     @property
     def network_config(self):
-        """Generate a network config like net.generate_fallback_network() with
-        the following exceptions.
+        """Provide network configuration v2 dictionary."""
+        # Use cached config, if present.
+        if self._network_config and self._network_config != sources.UNSET:
+            return self._network_config
 
-        1. Probe the drivers of the net-devices present and inject them in
-           the network configuration under params: driver: <driver> value
-        2. Generate a fallback network config that does not include any of
-           the blacklisted devices.
-        """
-        if not self._network_config or self._network_config == sources.UNSET:
-            if self.ds_cfg.get("apply_network_config"):
-                nc_src = self._metadata_imds
-            else:
-                nc_src = None
-            self._network_config = parse_network_config(nc_src)
+        self._network_config = self._generate_network_config()
         return self._network_config
 
     @property
@@ -2128,40 +2148,16 @@ def load_azure_ds_dir(source_dir):
 
 
 @azure_ds_telemetry_reporter
-def parse_network_config(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata if present or generate
-    fallback network config excluding mlx4_core devices.
+def generate_network_config_from_instance_network_metadata(
+    network_metadata: dict,
+) -> dict:
+    """Convert imds network metadata dictionary to network v2 configuration.
 
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
-    """
-    if imds_metadata != sources.UNSET and imds_metadata:
-        try:
-            return _generate_network_config_from_imds_metadata(imds_metadata)
-        except Exception as e:
-            LOG.error(
-                "Failed generating network config "
-                "from IMDS network metadata: %s",
-                str(e),
-            )
-    try:
-        return _generate_network_config_from_fallback_config()
-    except Exception as e:
-        LOG.error("Failed generating fallback network config: %s", str(e))
-    return {}
+    :param: network_metadata: Dict of "network" key from instance metdata.
 
-
-@azure_ds_telemetry_reporter
-def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata.
-
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
+    :return: Dictionary containing network version 2 standard configuration.
     """
     netconfig: Dict[str, Any] = {"version": 2, "ethernets": {}}
-    network_metadata = imds_metadata["network"]
     for idx, intf in enumerate(network_metadata["interface"]):
         has_ip_address = False
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
