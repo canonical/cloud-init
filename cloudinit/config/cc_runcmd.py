@@ -24,7 +24,7 @@ from cloudinit.settings import PER_INSTANCE
 
 
 MODULE_DESCRIPTION = """\
-Run arbitrary commands at a rc.local like level with output to the
+Run arbitrary commands at a rc.local like time-frame with output to the
 console. Each item can be either a list or a string. The item type affects
 how it is executed:
 
