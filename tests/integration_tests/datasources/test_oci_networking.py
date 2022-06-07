@@ -11,7 +11,6 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
 DS_CFG = """\
-#cloud-config
 datasource:
   Oracle:
     configure_secondary_nics: {configure_secondary_nics}
@@ -23,12 +22,6 @@ def customize_environment(
     tmpdir,
     configure_secondary_nics: bool = False,
 ):
-    assert client.execute("rm -f /run/initramfs/open-iscsi.interface").ok
-    # Force network config
-    assert client.execute(
-        "rm -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
-    ).ok
-
     cfg = tmpdir.join("01_oracle_datasource.cfg")
     with open(cfg, "w") as f:
         f.write(
@@ -63,7 +56,7 @@ def test_oci_networking_iscsi_instance(client: IntegrationInstance, tmpdir):
 
     assert (
         "opc/v2/vnics/" not in log
-    ), "vnic data was fetched and it should no have been"
+    ), "vnic data was fetched and it should not have been"
 
     netplan_yaml = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
     netplan_cfg = yaml.safe_load(netplan_yaml)
