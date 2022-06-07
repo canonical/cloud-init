@@ -522,6 +522,22 @@ def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
 
+try:
+    import hypothesis_jsonschema
+
+    assert hypothesis_jsonschema  # avoid pyflakes error F401: import unused
+    _missing_hypothesis_jsonschema_dep = False
+except ImportError:
+    _missing_hypothesis_jsonschema_dep = True
+
+
+def skipUnlessHypothesisJsonSchema():
+    return skipIf(
+        _missing_hypothesis_jsonschema_dep,
+        "No python-hypothesis-jsonschema dependency present.",
+    )
+
+
 # older versions of mock do not have the useful 'assert_not_called'
 if not hasattr(mock.Mock, "assert_not_called"):
 

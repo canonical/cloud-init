@@ -16,6 +16,8 @@ from types import ModuleType
 from typing import List
 
 import pytest
+from hypothesis import given
+from hypothesis_jsonschema import from_schema
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
@@ -41,6 +43,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,
     mock,
+    skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
 
@@ -1103,3 +1106,13 @@ class TestMeta:
             assert "distros" in module.meta
             assert {module.meta["frequency"]}.issubset(FREQUENCIES)
             assert set(module.meta["distros"]).issubset(all_distros)
+
+
+class TestSchemaFuzz:
+
+    SCHEMA = get_schema()
+
+    @skipUnlessHypothesisJsonSchema()
+    @given(from_schema(SCHEMA))
+    def test_validate_full_schema(self, config):
+        validate_cloudconfig_schema(config, self.SCHEMA, strict=True)

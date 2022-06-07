@@ -1,5 +1,7 @@
 # Needed generally in tests
 httpretty>=0.7.1
+hypothesis
+hypothesis-jsonschema
 pytest
 pytest-cov
 pytest-mock
