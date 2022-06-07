@@ -33,10 +33,6 @@ how it is executed:
 * If the item is a list, the items will be executed as if passed to execve(3)
   (with the first arg as the command).
 
-
-Each item is written to ``/var/lib/cloud/instance/runcmd`` to be later
-interpreted using ``sh``.
-
 Note that the ``runcmd`` module only writes the script to be run
 later. The module that actually runs the script is ``scripts-user``
 in the :ref:`topics/boot:Final` boot stage.
