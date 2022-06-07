@@ -110,9 +110,17 @@ def _normalize_users(u_cfg, def_user_cfg=None):
         for uname, uconfig in users.items():
             c_uconfig = {}
             for k, v in uconfig.items():
-                k = k.replace("-", "_").strip()
-                if k:
-                    c_uconfig[k] = v
+                new_k = k.replace("-", "_").strip()
+                if k != new_k:
+                    LOG.warning(
+                        "User/Group key '%s' is deprecated and will be "
+                        "removed in a future version of cloud-init. Use '%s' "
+                        "instead.",
+                        k,
+                        new_k,
+                    )
+                if new_k:
+                    c_uconfig[new_k] = v
             c_users[uname] = c_uconfig
         users = c_users
 
