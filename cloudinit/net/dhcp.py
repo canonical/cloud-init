@@ -10,17 +10,13 @@ import re
 import signal
 import time
 from io import StringIO
-from typing import Any, Dict
 
 import configobj
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
-    EphemeralIPv4Network,
     find_fallback_nic,
     get_devicelist,
-    has_url_connectivity,
-    mask_and_ipv4_to_bcast_addr,
 )
 
 LOG = logging.getLogger(__name__)
@@ -48,109 +44,6 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-class EphemeralDHCPv4(object):
-    def __init__(
-        self,
-        iface=None,
-        connectivity_url_data: Dict[str, Any] = None,
-        dhcp_log_func=None,
-    ):
-        self.iface = iface
-        self._ephipv4 = None
-        self.lease = None
-        self.dhcp_log_func = dhcp_log_func
-        self.connectivity_url_data = connectivity_url_data
-
-    def __enter__(self):
-        """Setup sandboxed dhcp context, unless connectivity_url can already be
-        reached."""
-        if self.connectivity_url_data:
-            if has_url_connectivity(self.connectivity_url_data):
-                LOG.debug(
-                    "Skip ephemeral DHCP setup, instance has connectivity"
-                    " to %s",
-                    self.connectivity_url_data,
-                )
-                return
-        return self.obtain_lease()
-
-    def __exit__(self, excp_type, excp_value, excp_traceback):
-        """Teardown sandboxed dhcp context."""
-        self.clean_network()
-
-    def clean_network(self):
-        """Exit _ephipv4 context to teardown of ip configuration performed."""
-        if self.lease:
-            self.lease = None
-        if not self._ephipv4:
-            return
-        self._ephipv4.__exit__(None, None, None)
-
-    def obtain_lease(self):
-        """Perform dhcp discovery in a sandboxed environment if possible.
-
-        @return: A dict representing dhcp options on the most recent lease
-            obtained from the dhclient discovery if run, otherwise an error
-            is raised.
-
-        @raises: NoDHCPLeaseError if no leases could be obtained.
-        """
-        if self.lease:
-            return self.lease
-        leases = maybe_perform_dhcp_discovery(self.iface, self.dhcp_log_func)
-        if not leases:
-            raise NoDHCPLeaseError()
-        self.lease = leases[-1]
-        LOG.debug(
-            "Received dhcp lease on %s for %s/%s",
-            self.lease["interface"],
-            self.lease["fixed-address"],
-            self.lease["subnet-mask"],
-        )
-        nmap = {
-            "interface": "interface",
-            "ip": "fixed-address",
-            "prefix_or_mask": "subnet-mask",
-            "broadcast": "broadcast-address",
-            "static_routes": [
-                "rfc3442-classless-static-routes",
-                "classless-static-routes",
-            ],
-            "router": "routers",
-        }
-        kwargs = self.extract_dhcp_options_mapping(nmap)
-        if not kwargs["broadcast"]:
-            kwargs["broadcast"] = mask_and_ipv4_to_bcast_addr(
-                kwargs["prefix_or_mask"], kwargs["ip"]
-            )
-        if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
-                kwargs["static_routes"]
-            )
-        if self.connectivity_url_data:
-            kwargs["connectivity_url_data"] = self.connectivity_url_data
-        ephipv4 = EphemeralIPv4Network(**kwargs)
-        ephipv4.__enter__()
-        self._ephipv4 = ephipv4
-        return self.lease
-
-    def extract_dhcp_options_mapping(self, nmap):
-        result = {}
-        for internal_reference, lease_option_names in nmap.items():
-            if isinstance(lease_option_names, list):
-                self.get_first_option_value(
-                    internal_reference, lease_option_names, result
-                )
-            else:
-                result[internal_reference] = self.lease.get(lease_option_names)
-        return result
-
-    def get_first_option_value(
-        self, internal_mapping, lease_option_names, result
-    ):
-        for different_names in lease_option_names:
-            if not result.get(internal_mapping):
-                result[internal_mapping] = self.lease.get(different_names)
 
 
 def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):

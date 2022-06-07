@@ -140,7 +140,7 @@ def mock_net_dhcp_maybe_perform_dhcp_discovery():
 @pytest.fixture
 def mock_net_dhcp_EphemeralIPv4Network():
     with mock.patch(
-        "cloudinit.net.dhcp.EphemeralIPv4Network",
+        "cloudinit.net.ephemeral.EphemeralIPv4Network",
         autospec=True,
     ) as m:
         yield m
@@ -3231,7 +3231,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
 
 @mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
-@mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
 @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
@@ -3458,7 +3458,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
-@mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network", autospec=True)
+@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network", autospec=True)
 @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
 @mock.patch("requests.Session.request")
 class TestAzureDataSourcePreprovisioning(CiTestCase):

@@ -19,7 +19,7 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import EphemeralIPNetwork
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources.helpers import ec2
 

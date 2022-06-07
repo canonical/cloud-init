@@ -284,7 +284,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         m_dhcp.assert_not_called()
 
     @hp.activate
-    @test_helpers.mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @test_helpers.mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @test_helpers.mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""

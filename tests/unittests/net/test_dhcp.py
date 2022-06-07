@@ -157,7 +157,7 @@ class TestDHCPRFC3442(CiTestCase):
         write_file(lease_file, content)
         self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
 
-    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_obtain_lease_parses_static_routes(self, m_maybe, m_ipv4):
         """EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network"""
@@ -185,7 +185,7 @@ class TestDHCPRFC3442(CiTestCase):
         }
         m_ipv4.assert_called_with(**expected_kwargs)
 
-    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_obtain_centos_lease_parses_static_routes(self, m_maybe, m_ipv4):
         """

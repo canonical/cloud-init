@@ -217,7 +217,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     def test_network_configured_metadata(
         self, m_net, m_dhcp, m_fallback_nic, mock_readmd
     ):

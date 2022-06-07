@@ -837,8 +837,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
             self.logs.getvalue(),
         )
 
-    @mock.patch("cloudinit.sources.DataSourceEc2.EphemeralIPv6Network")
-    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
@@ -873,7 +873,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with("eth9", None)
         m_net4.assert_called_once_with(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -883,6 +882,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             static_routes=None,
         )
         self.assertIn("Crawl of metadata service took", self.logs.getvalue())
+        m_dhcp.assert_called_once_with("eth9", None)
 
     @responses.activate
     def test_get_instance_tags(self):
