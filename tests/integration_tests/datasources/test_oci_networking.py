@@ -1,10 +1,8 @@
 import re
 from typing import Iterator, Set
 
-import oci
 import pytest
 import yaml
-from pycloudlib.oci.utils import wait_till_ready
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
@@ -87,42 +85,11 @@ def test_oci_networking_iscsi_instance(client: IntegrationInstance, tmpdir):
 def client_with_secondary_vnic(
     session_cloud: IntegrationCloud,
 ) -> Iterator[IntegrationInstance]:
-    """Create an instance client and attach a temporary vnic.
-
-    Note: It assumes the associated compartment has at least one subnet and
-    creates the vnic in the first encountered subnet.
-    """
+    """Create an instance client and attach a temporary vnic"""
     with session_cloud.launch() as client:
-        compute_client = session_cloud.cloud_instance.compute_client
-
-        subnet_id = (
-            client.instance.network_client.list_subnets(
-                client.instance.compartment_id, limit=1
-            )
-            .data[0]
-            .id
-        )
-        create_vnic_details = oci.core.models.CreateVnicDetails(
-            assign_private_dns_record=False,
-            assign_public_ip=False,
-            subnet_id=subnet_id,
-        )
-        attach_vnic_details = oci.core.models.AttachVnicDetails(
-            create_vnic_details=create_vnic_details,
-            instance_id=client.instance.instance_id,
-        )
-        vnic_data = compute_client.attach_vnic(attach_vnic_details).data
-
-        wait_till_ready(
-            func=compute_client.get_vnic_attachment,
-            current_data=vnic_data,
-            desired_state=vnic_data.LIFECYCLE_STATE_ATTACHED,
-        )
+        ip_address = client.instance.add_network_interface()
         yield client
-        response = compute_client.detach_vnic(vnic_data.id)
-        assert (
-            response.status == 204
-        ), f"Attached vnic not deleted: {vnic_data.id}"
+        client.instance.remove_network_interface(ip_address)
 
 
 @pytest.mark.oci
