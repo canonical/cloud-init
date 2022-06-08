@@ -800,28 +800,6 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             os.dup2(new_fp.fileno(), o_err.fileno())
 
 
-def make_url(
-    scheme, host, port=None, path="", params="", query="", fragment=""
-):
-
-    pieces = [scheme or ""]
-
-    netloc = ""
-    if host:
-        netloc = str(host)
-
-    if port is not None:
-        netloc += ":" + "%s" % (port)
-
-    pieces.append(netloc or "")
-    pieces.append(path or "")
-    pieces.append(params or "")
-    pieces.append(query or "")
-    pieces.append(fragment or "")
-
-    return parse.urlunparse(pieces)
-
-
 def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
