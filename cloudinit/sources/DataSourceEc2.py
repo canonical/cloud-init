@@ -477,12 +477,6 @@ class DataSourceEc2(sources.DataSource):
                 ),
             )
 
-            # RELEASE_BLOCKER: xenial should drop the below if statement,
-            # because the issue being addressed doesn't exist pre-netplan.
-            # (This datasource doesn't implement check_instance_id() so the
-            # datasource object is recreated every boot; this means we don't
-            # need to modify update_events on cloud-init upgrade.)
-
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():

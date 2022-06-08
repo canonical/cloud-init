@@ -110,14 +110,14 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
 
     def test_no_arguments_shows_error_message(self):
         exit_code = self._call_main()
-        missing_subcommand_message = [
-            "too few arguments",  # python2.7 msg
-            "the following arguments are required: subcommand",  # python3 msg
-        ]
+        missing_subcommand_message = (
+            "the following arguments are required: subcommand"
+        )
         error = self.stderr.getvalue()
-        matches = [msg in error for msg in missing_subcommand_message]
-        self.assertTrue(
-            any(matches), "Did not find error message for missing subcommand"
+        self.assertIn(
+            missing_subcommand_message,
+            error,
+            "Did not find error message for missing subcommand",
         )
         self.assertEqual(2, exit_code)
 

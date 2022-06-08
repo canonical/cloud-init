@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import textwrap
 import typing
 from collections import defaultdict
 from copy import deepcopy
@@ -563,9 +564,7 @@ def _get_examples(meta: MetaSchema) -> str:
         return ""
     rst_content = SCHEMA_EXAMPLES_HEADER
     for count, example in enumerate(examples):
-        # Python2.6 is missing textwrapper.indent
-        lines = example.split("\n")
-        indented_lines = ["    {0}".format(line) for line in lines]
+        indented_lines = textwrap.indent(example, "    ").split("\n")
         if rst_content != SCHEMA_EXAMPLES_HEADER:
             indented_lines.insert(
                 0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1)

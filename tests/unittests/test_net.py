@@ -443,7 +443,7 @@ network:
             macaddress: 68:05:ca:64:d3:6c
             mtu: 9000
             parameters:
-                gratuitious-arp: 1
+                gratuitous-arp: 1
         bond1:
             interfaces:
             - ens4
@@ -2987,7 +2987,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      parameters:
                          down-delay: 10
                          fail-over-mac-policy: active
-                         gratuitious-arp: 5
+                         gratuitous-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
                          primary: bond0s0
@@ -3095,7 +3095,7 @@ iface bond0 inet6 static
                 parameters:
                     down-delay: 10
                     fail-over-mac-policy: active
-                    gratuitious-arp: 5
+                    gratuitous-arp: 5
                     mii-monitor-interval: 100
                     mode: active-backup
                     primary: bond0s0
@@ -3128,7 +3128,7 @@ iface bond0 inet6 static
                      parameters:
                          down-delay: 10
                          fail-over-mac-policy: active
-                         gratuitious-arp: 5
+                         gratuitous-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
                          primary: bond0s0
@@ -6782,7 +6782,7 @@ class TestNetplanRoundTrip(CiTestCase):
         entry = {
             "yaml": NETPLAN_BOND_GRAT_ARP,
             "expected_netplan": NETPLAN_BOND_GRAT_ARP.replace(
-                "gratuitous", "gratuitious"
+                "gratuitious", "gratuitous"
             ),
         }
         network_config = yaml.load(entry["yaml"]).get("network")
