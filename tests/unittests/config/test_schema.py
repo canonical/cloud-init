@@ -17,7 +17,6 @@ from typing import List
 
 import pytest
 from hypothesis import given
-from hypothesis_jsonschema import from_schema
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
@@ -39,6 +38,7 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.util import load_file, write_file
+from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,

@@ -30,6 +30,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
 
@@ -522,18 +523,9 @@ def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
 
-try:
-    import hypothesis_jsonschema
-
-    assert hypothesis_jsonschema  # avoid pyflakes error F401: import unused
-    _missing_hypothesis_jsonschema_dep = False
-except ImportError:
-    _missing_hypothesis_jsonschema_dep = True
-
-
 def skipUnlessHypothesisJsonSchema():
     return skipIf(
-        _missing_hypothesis_jsonschema_dep,
+        not HAS_HYPOTHESIS_JSONSCHEMA,
         "No python-hypothesis-jsonschema dependency present.",
     )
 
