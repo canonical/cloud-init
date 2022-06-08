@@ -250,7 +250,7 @@ def has_netfail_standby_feature(devname):
     return features[62] == "1"
 
 
-def is_netfail_master(devname, driver=None):
+def is_netfail_master(devname, driver=None) -> bool:
     """A device is a "netfail master" device if:
 
     - The device does NOT have the 'master' sysfs attribute

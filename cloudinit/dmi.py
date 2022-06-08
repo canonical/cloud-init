@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 from collections import namedtuple
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp
@@ -58,7 +59,7 @@ DMIDECODE_TO_KERNEL = {
 }
 
 
-def _read_dmi_syspath(key):
+def _read_dmi_syspath(key: str) -> Optional[str]:
     """
     Reads dmi data from /sys/class/dmi/id
     """
@@ -96,7 +97,7 @@ def _read_dmi_syspath(key):
     return None
 
 
-def _read_kenv(key):
+def _read_kenv(key: str) -> Optional[str]:
     """
     Reads dmi data from FreeBSD's kenv(1)
     """
@@ -114,12 +115,11 @@ def _read_kenv(key):
         return result
     except subp.ProcessExecutionError as e:
         LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
-        return None
 
     return None
 
 
-def _call_dmidecode(key, dmidecode_path):
+def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
     """
     Calls out to dmidecode to get the data out. This is mostly for supporting
     OS's without /sys/class/dmi/id support.
@@ -137,7 +137,7 @@ def _call_dmidecode(key, dmidecode_path):
         return None
 
 
-def read_dmi_data(key):
+def read_dmi_data(key: str) -> Optional[str]:
     """
     Wrapper for reading DMI data.
 

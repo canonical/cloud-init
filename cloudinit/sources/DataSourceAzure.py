@@ -100,7 +100,7 @@ class PPSType(Enum):
 PLATFORM_ENTROPY_SOURCE: Optional[str] = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
-# stock ubuntu suported images.
+# stock ubuntu supported images.
 UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
     "/etc/netplan/90-hotplug-azure.yaml",
     "/usr/local/sbin/ephemeral_eth.sh",
