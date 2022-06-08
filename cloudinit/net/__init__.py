@@ -1139,15 +1139,9 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
     return True
 
 
-def maybe_get_address(check_cb: Callable, address: str, **kwargs):
-    try:
-        return check_cb(address, **kwargs)
-    except ValueError:
-        return False
-
-
-def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
-    """Use a function to determine whether address meets criteria.
+def maybe_get_address(convert_to_address: Callable, address: str, **kwargs):
+    """Use a function to return an address. If conversion throws a ValueError
+    exception return False.
 
     :param check_cb:
         Test function, must return a truthy value
@@ -1155,10 +1149,13 @@ def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
         The string to test.
 
     :return:
-        A bool indicating if the string passed the test.
+        Address or False
 
     """
-    return bool(maybe_get_address(check_cb, address, **kwargs))
+    try:
+        return convert_to_address(address, **kwargs)
+    except ValueError:
+        return False
 
 
 def is_ip_address(address: str) -> bool:
@@ -1170,7 +1167,7 @@ def is_ip_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IP address or not.
     """
-    return network_validator(ipaddress.ip_address, address)
+    return bool(maybe_get_address(ipaddress.ip_address, address))
 
 
 def is_ipv4_address(address: str) -> bool:
@@ -1182,7 +1179,7 @@ def is_ipv4_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv4Address, address)
+    return bool(maybe_get_address(ipaddress.IPv4Address, address))
 
 
 def is_ipv6_address(address: str) -> bool:
@@ -1194,7 +1191,7 @@ def is_ipv6_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv6Address, address)
+    return bool(maybe_get_address(ipaddress.IPv6Address, address))
 
 
 def is_ip_network(address: str) -> bool:
@@ -1206,7 +1203,7 @@ def is_ip_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.ip_network, address, strict=False)
+    return bool(maybe_get_address(ipaddress.ip_network, address))
 
 
 def is_ipv4_network(address: str) -> bool:
@@ -1218,7 +1215,7 @@ def is_ipv4_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv4Network, address, strict=False)
+    return bool(maybe_get_address(ipaddress.IPv4Network, address))
 
 
 def is_ipv6_network(address: str) -> bool:
@@ -1230,7 +1227,7 @@ def is_ipv6_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv6Network, address, strict=False)
+    return bool(maybe_get_address(ipaddress.IPv6Network, address, strict=False))
 
 
 def subnet_is_ipv6(subnet) -> bool:
