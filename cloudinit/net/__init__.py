@@ -1215,7 +1215,9 @@ def is_ipv4_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return bool(maybe_get_address(ipaddress.IPv4Network, address, strict=False))
+    return bool(
+        maybe_get_address(ipaddress.IPv4Network, address, strict=False)
+    )
 
 
 def is_ipv6_network(address: str) -> bool:
@@ -1227,7 +1229,9 @@ def is_ipv6_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return bool(maybe_get_address(ipaddress.IPv6Network, address, strict=False))
+    return bool(
+        maybe_get_address(ipaddress.IPv6Network, address, strict=False)
+    )
 
 
 def subnet_is_ipv6(subnet) -> bool:
