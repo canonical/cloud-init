@@ -46,6 +46,7 @@ from tests.unittests.helpers import (
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
+from tests.unittests.schema import JsonLocalResolver
 
 
 def get_schemas() -> dict:
@@ -462,7 +463,7 @@ class TestValidateCloudConfigFile:
 
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_sctrictly_validates_schema(
+    def test_validateconfig_file_strictly_validates_schema(
         self, annotate, tmpdir
     ):
         """validate_cloudconfig_file raises errors on invalid schema."""
@@ -1110,7 +1111,7 @@ class TestMeta:
 
 class TestSchemaFuzz:
 
-    SCHEMA = get_schema()
+    SCHEMA = JsonLocalResolver(get_schema()).resolve()
 
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
