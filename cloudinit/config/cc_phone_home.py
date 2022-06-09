@@ -130,7 +130,7 @@ def handle(name, cfg, cloud, log, args):
     tries = ph_cfg.get("tries")
     try:
         tries = int(tries)  # type: ignore
-    except ValueError:
+    except (ValueError, TypeError):
         tries = 10
         util.logexc(
             log,
@@ -141,10 +141,11 @@ def handle(name, cfg, cloud, log, args):
     if post_list == "all":
         post_list = POST_LIST_ALL
 
-    all_keys = {}
-    all_keys["instance_id"] = cloud.get_instance_id()
-    all_keys["hostname"] = cloud.get_hostname()
-    all_keys["fqdn"] = cloud.get_hostname(fqdn=True)
+    all_keys = {
+        "instance_id": cloud.get_instance_id(),
+        "hostname": cloud.get_hostname(),
+        "fqdn": cloud.get_hostname(fqdn=True),
+    }
 
     pubkeys = {
         "pub_key_dsa": "/etc/ssh/ssh_host_dsa_key.pub",
@@ -190,7 +191,7 @@ def handle(name, cfg, cloud, log, args):
         url_helper.read_file_or_url(
             url,
             data=real_submit_keys,
-            retries=tries,
+            retries=tries - 1,
             sec_between=3,
             ssl_details=util.fetch_ssl_details(cloud.paths),
         )
