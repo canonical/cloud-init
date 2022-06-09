@@ -761,7 +761,9 @@ class TestDataSource(CiTestCase):
         """Validate get_hostname signature on all subclasses of DataSource."""
         base_args = inspect.getfullargspec(DataSource.get_hostname)
         # Import all DataSource subclasses so we can inspect them.
-        modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
+        modules = util.get_modules_from_dir(
+            os.path.dirname(os.path.dirname(__file__))
+        )
         for _loc, name in modules.items():
             mod_locs, _ = importer.find_module(name, ["cloudinit.sources"], [])
             if mod_locs:
