@@ -2289,7 +2289,8 @@
                       "description": "The timeout in seconds to wait for a response from the webhook."
                     },
                     "retries": {
-                      "type": "number",
+                      "type": "integer",
+                      "minimum": 0,
                       "description": "The number of times to retry sending the webhook."
                     }
                   }
