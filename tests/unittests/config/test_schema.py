@@ -1111,6 +1111,7 @@ class TestMeta:
 
 class TestSchemaFuzz:
 
+    # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
     SCHEMA = JsonLocalResolver(get_schema()).resolve()
 
     @skipUnlessHypothesisJsonSchema()
