@@ -1,3 +1,10 @@
+cloud-init (22.2-0ubuntu1~18.04.2) bionic; urgency=medium
+
+  * cherry-pick a2e62738: Fix cc_phone_home requiring 'tries' (#1500)
+    (LP: #1977952)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 09 Jun 2022 16:56:33 -0500
+
 cloud-init (22.2-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/control:
