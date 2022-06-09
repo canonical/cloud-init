@@ -576,7 +576,7 @@ class Init(object):
             # Attempts to register any handler modules under the given path.
             if not path or not os.path.isdir(path):
                 return
-            potential_handlers = util.find_modules(path)
+            potential_handlers = util.get_modules_from_dir(path)
             for (fname, mod_name) in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
