@@ -8,10 +8,10 @@ _hypothesis_profiles = {
 }
 try:
     for name, kwargs in _hypothesis_profiles.items():
-        settings.register_profile(name, **kwargs)
+        settings.register_profile(name, parent=None, **kwargs)
 except TypeError:
     # Drop except when hypothesis>=3.47
     # https://hypothesis.readthedocs.io/en/latest/changes.html#v3-47-0
     for name, kwargs in _hypothesis_profiles.items():
-        settings.register_profile(name, settings(**kwargs))
+        settings.register_profile(name, settings(**kwargs))  # type: ignore
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
