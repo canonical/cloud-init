@@ -1974,6 +1974,20 @@
             "token": {
               "type": "string",
               "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+            },
+            "config": {
+              "type": "object",
+              "description": "Configuration settings or override Ubuntu Advantage config",
+              "properties": {
+                "http_proxy": {
+                  "type": "string",
+                  "description": "Ubuntu Advantage HTTP Proxy"
+                },
+                "https_proxy": {
+                  "type": "string",
+                  "description": "Ubuntu Advantage HTTPS Proxy"
+                }
+              }
             }
           },
           "required": ["token"],

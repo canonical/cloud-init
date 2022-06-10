@@ -11,6 +11,8 @@ from cloudinit.settings import PER_INSTANCE
 
 UA_URL = "https://ubuntu.com/advantage"
 
+UA_CONFIG = {"http_proxy": None, "https_proxy": None}
+
 distros = ["ubuntu"]
 
 meta: MetaSchema = {
@@ -69,6 +71,19 @@ meta: MetaSchema = {
           - fips
         """
         ),
+        dedent(
+            """\
+        # Set a http(s) proxy before attaching the machine to an
+        # Ubuntu Advantage support contract and enabling the FIPS service.
+        ubuntu_advantage:
+          token: <ua_contract_token>
+          config:
+            http_proxy: <http_proxy>
+            https_proxy: <https_proxy>
+          enable:
+          - fips
+        """
+        ),
     ],
     "frequency": PER_INSTANCE,
 }
@@ -78,7 +93,40 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-def configure_ua(token=None, enable=None):
+def supplemental_schema_validation(ua_config):
+    """Validate user-provided ua:config option values.
+
+    This function supplements flexible jsonschema validation with specific
+    value checks to aid in triage of invalid user-provided configuration.
+
+    @param ua_config: Dictionary of config value under 'ubuntu_advantage'.
+
+    @raises: ValueError describing invalid values provided.
+    """
+    errors = []
+    for key, value in sorted(ua_config.items()):
+        keypath = "ua:config:" + key
+        if key == "http_proxy":
+            if not isinstance(value, str):
+                errors.append(
+                    "Expected a url for {keypath}."
+                    " Found ({value})".format(keypath=keypath, value=value)
+                )
+        elif key == "https_proxy":
+            if not isinstance(value, str):
+                errors.append(
+                    "Expected a url for {keypath}."
+                    " Found ({value})".format(keypath=keypath, value=value)
+                )
+    if errors:
+        raise ValueError(
+            r"Invalid ubuntu_advantage configuration:\n{errors}".format(
+                errors="\n".join(errors)
+            )
+        )
+
+
+def configure_ua(token=None, enable=None, config=None):
     """Call ua commandline client to attach or enable services."""
     error = None
     if not token:
@@ -102,6 +150,39 @@ def configure_ua(token=None, enable=None):
         )
         enable = []
 
+    if config is None:
+        config = dict()
+    elif not isinstance(config, dict):
+        LOG.warning(
+            "ubuntu_advantage: config should be a dict, not"
+            " a %s; skipping enabling config parameters",
+            type(config).__name__,
+        )
+        config = dict()
+
+    enable_errors = []
+
+    # UA Config
+    for key, value in sorted(config.items()):
+        config_cmd = ["ua", "config", "set", key + "=" + value]
+        LOG.debug("Set Ubuntu Advantage config parameter %s=%s", key, value)
+        try:
+            subp.subp(config_cmd)
+        except subp.ProcessExecutionError as e:
+            enable_errors.append((key, e))
+
+    if enable_errors:
+        for param, error in enable_errors:
+            msg = 'Failure enabling "{param}":\n{error}'.format(
+                param=param, error=str(error)
+            )
+            util.logexc(LOG, msg)
+        raise RuntimeError(
+            "Failure enabling Ubuntu Advantage config(s): {}".format(
+                ", ".join('"{}"'.format(param) for param, _ in enable_errors)
+            )
+        )
+    enable_errors = []
     attach_cmd = ["ua", "attach", token]
     LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(attach_cmd))
     try:
@@ -176,9 +257,16 @@ def handle(name, cfg, cloud, log, args):
         LOG.error(msg)
         raise RuntimeError(msg)
 
+    config = ua_section.get("config")
+
+    if config is not None:
+        supplemental_schema_validation(config)
+
     maybe_install_ua_tools(cloud)
     configure_ua(
-        token=ua_section.get("token"), enable=ua_section.get("enable")
+        token=ua_section.get("token"),
+        enable=ua_section.get("enable"),
+        config=config,
     )
 
 
