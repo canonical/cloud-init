@@ -664,7 +664,7 @@ class TestCommon_GetDataBehaviour:
                     mock.patch(DS_PATH + ".net.find_fallback_nic")
                 )
                 stack.enter_context(
-                    mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+                    mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
                 )
             yield oracle_ds
 
@@ -795,7 +795,7 @@ class TestCommon_GetDataBehaviour:
 
 @mock.patch(DS_PATH + "._is_iscsi_root", lambda: False)
 class TestNonIscsiRoot_GetDataBehaviour:
-    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
     def test_read_opc_metadata_called_with_ephemeral_dhcp(
         self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds

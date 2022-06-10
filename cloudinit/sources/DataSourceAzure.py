@@ -23,8 +23,8 @@ from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.net.dhcp import (
-    EphemeralDHCPv4,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
