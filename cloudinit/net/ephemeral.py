@@ -321,7 +321,7 @@ class EphemeralDHCPv4(object):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
         reached."""
         if self.connectivity_url_data:
-            if has_url_connectivity(self.connectivity_url_data):
+            if net.has_url_connectivity(self.connectivity_url_data):
                 LOG.debug(
                     "Skip ephemeral DHCP setup, instance has connectivity"
                     " to %s",
