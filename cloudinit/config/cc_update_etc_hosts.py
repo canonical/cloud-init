@@ -104,7 +104,7 @@ def handle(name, cfg, cloud, log, _args):
                 "DEPRECATED: please use manage_etc_hosts: true instead of"
                 " 'template'"
             )
-        (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             log.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"
@@ -126,7 +126,7 @@ def handle(name, cfg, cloud, log, _args):
         )
 
     elif manage_hosts == "localhost":
-        (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             log.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"

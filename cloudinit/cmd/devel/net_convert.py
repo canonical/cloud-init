@@ -7,6 +7,8 @@ import json
 import os
 import sys
 
+import yaml
+
 from cloudinit import distros, log, safeyaml
 from cloudinit.net import (
     eni,
@@ -132,9 +134,7 @@ def handle_args(name, args):
     ns = network_state.parse_net_config_data(pre_ns)
 
     if args.debug:
-        sys.stderr.write(
-            "\n".join(["", "Internal State", safeyaml.dumps(ns), ""])
-        )
+        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
     config = {}

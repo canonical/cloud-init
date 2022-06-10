@@ -12,8 +12,6 @@ In cases where product_uuid changes case, ensure cloud-init doesn't
 recreate ssh hostkeys across reboot (due to detecting an instance_id change).
 
 This currently only affects linux-azure-fips -> linux-azure on Bionic.
-This test won't run on Xenial because both linux-azure-fips and linux-azure
-report uppercase product_uuids.
 
 The test will launch a specific Bionic Ubuntu PRO FIPS image which has a
 linux-azure-fips kernel known to report product_uuid as uppercase. Then upgrade

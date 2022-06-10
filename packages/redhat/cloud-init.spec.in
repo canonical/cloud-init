@@ -48,11 +48,6 @@ BuildRequires:  {{r}}
 Requires:       dmidecode
 %endif
 
-# python2.6 needs argparse
-%if "%{?el6}" == "1"
-Requires:  python-argparse
-%endif
-
 
 # Install 'dynamic' runtime reqs from *requirements.txt and pkg-deps.json.
 # Install them as BuildRequires too as they're used for testing.

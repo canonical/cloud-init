@@ -116,7 +116,7 @@ class TestDataSourceHetzner(CiTestCase):
 
         self.assertTrue(m_readmd.called)
 
-        self.assertEqual(METADATA.get("hostname"), ds.get_hostname())
+        self.assertEqual(METADATA.get("hostname"), ds.get_hostname().hostname)
 
         self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
 

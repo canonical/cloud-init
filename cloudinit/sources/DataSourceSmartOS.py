@@ -713,8 +713,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
         if self.is_b64_encoded(key):
             try:
                 val = base64.b64decode(val.encode()).decode()
-            # Bogus input produces different errors in Python 2 and 3
-            except (TypeError, binascii.Error):
+            except binascii.Error:
                 LOG.warning("Failed base64 decoding key '%s': %s", key, val)
 
         if strip:

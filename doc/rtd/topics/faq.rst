@@ -182,6 +182,51 @@ Internal reasons:
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
 
+How can I make a module run on every boot?
+==========================================
+Modules have a default frequency that can be overridden. This is done
+by modifying the module list in ``/etc/cloud/cloud.cfg``.
+
+1. Change the module from a string (default) to a list.
+2. Set the first list item to the module name and the second item to the
+   frequency.
+
+Example
+-------
+The following example demonstrates how to log boot times to a file every boot.
+
+Update ``/etc/cloud/cloud.cfg``:
+
+.. code-block:: yaml
+   :name: /etc/cloud/cloud.cfg
+   :emphasize-lines: 3
+
+        cloud_final_modules:
+        # list shortened for brevity
+         - [phone-home, always]
+         - final-message
+         - power-state-change
+
+
+
+Then your userdata could then be:
+
+.. code-block:: yaml
+
+        #cloud-config
+        phone_home:
+            url: http://example.com/$INSTANCE_ID/
+            post: all
+
+
+
+How can I test cloud-init locally before deploying to the cloud?
+================================================================
+
+Several different virtual machine and containerization tools can be used for
+testing locally. Multipass, LXD, and qemu are described in this section.
+
+
 Multipass
 ---------
 
@@ -261,8 +306,8 @@ custom network config.
 .. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
 .. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
-cloud-localds
--------------
+QEMU
+----
 
 The `cloud-localds` command from the `cloud-utils`_ package generates a disk
 with user supplied data. The NoCloud datasouce allows users to provide their
@@ -312,38 +357,56 @@ check out the :ref:`datasource_nocloud` page.
 .. _cloud-utils: https://github.com/canonical/cloud-utils/
 
 Where can I learn more?
-========================================
+=======================
 
 Below are some videos, blog posts, and white papers about cloud-init from a
 variety of sources.
 
+Videos:
+
 - `cloud-init - The Good Parts`_
-- `cloud-init Summit 2019`_
-- `Utilising cloud-init on Microsoft Azure (Whitepaper)`_
-- `Cloud Instance Initialization with cloud-init (Whitepaper)`_
-- `cloud-init Summit 2018`_
-- `cloud-init - The cross-cloud Magic Sauce (PDF)`_
-- `cloud-init Summit 2017`_
+- `Perfect Proxmox Template with Cloud Image and Cloud Init [proxmox, cloud-init, template]`_
 - `cloud-init - Building clouds one Linux box at a time (Video)`_
-- `cloud-init - Building clouds one Linux box at a time (PDF)`_
 - `Metadata and cloud-init`_
-- `The beauty of cloud-init`_
 - `Introduction to cloud-init`_
 
+Blog Posts:
+
+- `cloud-init - The cross-cloud Magic Sauce (PDF)`_
+- `cloud-init - Building clouds one Linux box at a time (PDF)`_
+- `The beauty of cloud-init`_
+- `Cloud-init Getting Started [fedora, libvirt, cloud-init]`_
+- `Build Azure Devops Agents With Linux cloud-init for Dotnet Development [terraform, azure, devops, docker, dotnet, cloud-init]`_
+- `Cloud-init Getting Started [fedora, libvirt, cloud-init]`_
+- `Setup Neovim cloud-init Completion [neovim, yaml, Language Server Protocol, jsonschema, cloud-init]`_
+
+Events:
+
+- `cloud-init Summit 2019`_
+- `cloud-init Summit 2018`_
+- `cloud-init Summit 2017`_
+
+
+Whitepapers:
+
+- `Utilising cloud-init on Microsoft Azure (Whitepaper)`_
+- `Cloud Instance Initialization with cloud-init (Whitepaper)`_
+
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
-.. _cloud-init Summit 2019: https://powersj.io/post/cloud-init-summit19/
 .. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper
 .. _Cloud Instance Initialization with cloud-init (Whitepaper): https://ubuntu.com/blog/cloud-instance-initialisation-with-cloud-init
-.. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
-.. _cloud-init - The cross-cloud Magic Sauce (PDF): https://events.linuxfoundation.org/wp-content/uploads/2017/12/cloud-init-The-cross-cloud-Magic-Sauce-Scott-Moser-Chad-Smith-Canonical.pdf
-.. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/
-.. _cloud-init - Building clouds one Linux box at a time (Video): https://www.youtube.com/watch?v=1joQfUZQcPg
-.. _cloud-init - Building clouds one Linux box at a time (PDF): https://annex.debconf.org/debconf-share/debconf17/slides/164-cloud-init_Building_clouds_one_Linux_box_at_a_time.pdf
-.. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
-.. _The beauty of cloud-init: http://brandon.fuller.name/archives/2011/05/02/06.40.57/
-.. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
-.. Blog Post: [terraform, azure, devops, docker, dotnet, cloud-init] https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
-.. Youtube: [proxmox, cloud-init, template] https://www.youtube.com/watch?v=shiIi38cJe4
-.. Blog Post: [neovim, yaml, Language Server Protocol, jsonschema, cloud-init] https://phoenix-labs.xyz/blog/setup-neovim-cloud-init-completion/
 
-.. vi: textwidth=79
+.. _cloud-init - The cross-cloud Magic Sauce (PDF): https://events.linuxfoundation.org/wp-content/uploads/2017/12/cloud-init-The-cross-cloud-Magic-Sauce-Scott-Moser-Chad-Smith-Canonical.pdf
+.. _cloud-init - Building clouds one Linux box at a time (Video): https://www.youtube.com/watch?v=1joQfUZQcPg
+.. _cloud-init - Building clouds one Linux box at a time (PDF): https://web.archive.org/web/20181111020605/https://annex.debconf.org/debconf-share/debconf17/slides/164-cloud-init_Building_clouds_one_Linux_box_at_a_time.pdf
+.. _Metadata and cloud-init: https://www.youtube.com/watch?v=RHVhIWifVqU
+.. _The beauty of cloud-init: https://web.archive.org/web/20180830161317/http://brandon.fuller.name/archives/2011/05/02/06.40.57/
+.. _Introduction to cloud-init: http://www.youtube.com/watch?v=-zL3BdbKyGY
+.. _Build Azure Devops Agents With Linux cloud-init for Dotnet Development [terraform, azure, devops, docker, dotnet, cloud-init]: https://codingsoul.org/2022/04/25/build-azure-devops-agents-with-linux-cloud-init-for-dotnet-development/
+.. _Perfect Proxmox Template with Cloud Image and Cloud Init [proxmox, cloud-init, template]: https://www.youtube.com/watch?v=shiIi38cJe4
+.. _Cloud-init Getting Started [fedora, libvirt, cloud-init]: https://blog.while-true-do.io/cloud-init-getting-started/
+.. _Setup Neovim cloud-init Completion [neovim, yaml, Language Server Protocol, jsonschema, cloud-init]: https://phoenix-labs.xyz/blog/setup-neovim-cloud-init-completion/
+
+.. _cloud-init Summit 2019: https://powersj.io/post/cloud-init-summit19/
+.. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
+.. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/

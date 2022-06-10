@@ -158,6 +158,11 @@ URLParams = namedtuple(
     ],
 )
 
+DataSourceHostname = namedtuple(
+    "DataSourceHostname",
+    ["hostname", "is_default"],
+)
+
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
@@ -301,7 +306,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
-        local_hostname = self.get_hostname()
+        local_hostname = self.get_hostname().hostname
         instance_id = self.get_instance_id()
         availability_zone = self.availability_zone
         # In the event of upgrade from existing cloudinit, pickled datasource
@@ -356,7 +361,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not attr_defaults:
             self._dirty_cache = False
 
-    def get_data(self):
+    def get_data(self) -> bool:
         """Datasources implement _get_data to setup metadata and userdata_raw.
 
         Minimally, the datasource should return a boolean True on success.
@@ -437,7 +442,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         write_json(json_file, redact_sensitive_keys(processed_data))
         return True
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         """Walk metadata sources, process crawled data and save attributes."""
         raise NotImplementedError(
             "Subclasses of DataSource must implement _get_data which"
@@ -707,22 +712,33 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @param metadata_only: Boolean, set True to avoid looking up hostname
             if meta-data doesn't have local-hostname present.
 
-        @return: hostname or qualified hostname. Optionally return None when
+        @return: a DataSourceHostname namedtuple
+            <hostname or qualified hostname>, <is_default> (str, bool).
+            is_default is a bool and
+            it's true only if hostname is localhost and was
+            returned by util.get_hostname() as a default.
+            This is used to differentiate with a user-defined
+            localhost hostname.
+            Optionally return (None, False) when
             metadata_only is True and local-hostname data is not available.
         """
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
+        is_default = False
 
         if not self.metadata or not self.metadata.get("local-hostname"):
             if metadata_only:
-                return None
+                return DataSourceHostname(None, is_default)
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
             # but instead, basically look up the existing hostname
             toks = []
             hostname = util.get_hostname()
+            if hostname == "localhost":
+                # default hostname provided by socket.gethostname()
+                is_default = True
             hosts_fqdn = util.get_fqdn_from_hosts(hostname)
             if hosts_fqdn and hosts_fqdn.find(".") > 0:
                 toks = str(hosts_fqdn).split(".")
@@ -755,9 +771,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             hostname = toks[0]
 
         if fqdn and domain != defdomain:
-            return "%s.%s" % (hostname, domain)
-        else:
-            return hostname
+            hostname = "%s.%s" % (hostname, domain)
+
+        return DataSourceHostname(hostname, is_default)
 
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
@@ -970,7 +986,9 @@ def list_sources(cfg_list, depends, pkg_list):
     return src_list
 
 
-def instance_id_matches_system_uuid(instance_id, field="system-uuid"):
+def instance_id_matches_system_uuid(
+    instance_id, field: str = "system-uuid"
+) -> bool:
     # quickly (local check only) if self.instance_id is still valid
     # we check kernel command line or files.
     if not instance_id:

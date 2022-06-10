@@ -2089,7 +2089,7 @@
               },
               "content": {
                 "type": "string",
-                "default": "",
+                "default": "''",
                 "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
               "owner": {
@@ -2099,7 +2099,7 @@
               },
               "permissions": {
                 "type": "string",
-                "default": "0o644",
+                "default": "'0o644'",
                 "description": "Optional file permissions to set on ``path`` represented as an octal string '0###'. Default: ``0o644``"
               },
               "encoding": {
