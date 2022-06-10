@@ -7,7 +7,6 @@ from textwrap import dedent
 import httpretty
 import pytest
 
-import cloudinit.net as net
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError,
     NoDHCPLeaseError,
