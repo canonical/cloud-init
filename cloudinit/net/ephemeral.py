@@ -7,12 +7,12 @@ import logging
 from typing import Any, Dict, List
 
 import cloudinit.net as net
+from cloudinit import subp
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
     parse_static_routes,
 )
-from cloudinit.subp import subp
 
 LOG = logging.getLogger(__name__)
 
@@ -385,7 +385,7 @@ class EphemeralDHCPv4(object):
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = net.parse_static_routes(
+            kwargs["static_routes"] = parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:

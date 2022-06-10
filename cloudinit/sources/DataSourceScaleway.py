@@ -20,11 +20,9 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
-
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceHostname
-
 
 LOG = logging.getLogger(__name__)
 
