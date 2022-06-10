@@ -19,7 +19,8 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -125,12 +126,15 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
-                with EphemeralDHCPv4(self.fallback_interface):
+                with EphemeralIPNetwork(
+                    self.fallback_interface, ipv6=True
+                ) as netw:
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
+                        msg="Crawl of metadata service " + netw.state_msg,
                         func=self.crawl_metadata,
                     )
+
             except NoDHCPLeaseError:
                 return False
         else:

@@ -126,7 +126,7 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
         * ``DataSourceOracle._get_iscsi_config`` returns a network cfg if
           is_iscsi else an empty network config,
         * ``read_opc_metadata`` returns ``OPC_V1_METADATA``,
-        * ``dhcp.EphemeralDHCPv4`` and ``net.find_fallback_nic`` mocked to
+        * ``ephemeral.EphemeralDHCPv4`` and ``net.find_fallback_nic`` mocked to
           avoid subp calls
 
     (This uses the paths fixture for the required helpers.Paths object, and the
@@ -141,7 +141,7 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     metadata = OpcMetadata(metadata_version, json.loads(OPC_V2_METADATA), None)
 
     mocker.patch(DS_PATH + ".net.find_fallback_nic")
-    mocker.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    mocker.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
     mocker.patch(DS_PATH + "._read_system_uuid", return_value="someuuid")
     mocker.patch(DS_PATH + "._is_platform_viable", return_value=True)
     mocker.patch(DS_PATH + ".read_opc_metadata", return_value=metadata)
@@ -890,7 +890,7 @@ class TestCommon_GetDataBehaviour:
 
 @pytest.mark.is_iscsi(False)
 class TestNonIscsiRoot_GetDataBehaviour:
-    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
     def test_run_net_files(
         self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
@@ -932,7 +932,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
-    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
     @mock.patch(DS_PATH + ".net.find_fallback_nic")
     def test_read_opc_metadata_called_with_ephemeral_dhcp(
         self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds

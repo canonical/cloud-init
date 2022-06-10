@@ -24,11 +24,11 @@ from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
-    EphemeralDHCPv4,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
 )
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (

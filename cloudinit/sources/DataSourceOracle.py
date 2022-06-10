@@ -23,7 +23,7 @@ from cloudinit import net, sources, util
 from cloudinit.distros.networking import NetworkConfig
 from cloudinit.net import (
     cmdline,
-    dhcp,
+    ephemeral,
     get_interfaces_by_mac,
     is_netfail_master,
 )
@@ -149,7 +149,7 @@ class DataSourceOracle(sources.DataSource):
 
         self.system_uuid = _read_system_uuid()
 
-        network_context = dhcp.EphemeralDHCPv4(
+        network_context = ephemeral.EphemeralDHCPv4(
             iface=net.find_fallback_nic(),
             connectivity_url_data={
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
