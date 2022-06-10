@@ -2,15 +2,20 @@
 
 """Module for ephemeral network context managers
 """
-from typing import Any, Dict, List
-import logging
 import contextlib
+import logging
+from typing import Any, Dict, List
 
 import cloudinit.net as net
-from cloudinit.net.dhcp import NoDHCPLeaseError, maybe_perform_dhcp_discovery
+from cloudinit.net.dhcp import (
+    NoDHCPLeaseError,
+    maybe_perform_dhcp_discovery,
+    parse_static_routes,
+)
 from cloudinit.subp import subp
 
 LOG = logging.getLogger(__name__)
+
 
 class EphemeralIPv4Network(object):
     """Context manager which sets up temporary static network configuration.
@@ -376,11 +381,11 @@ class EphemeralDHCPv4(object):
         }
         kwargs = self.extract_dhcp_options_mapping(nmap)
         if not kwargs["broadcast"]:
-            kwargs["broadcast"] = mask_and_ipv4_to_bcast_addr(
+            kwargs["broadcast"] = net.mask_and_ipv4_to_bcast_addr(
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
+            kwargs["static_routes"] = net.parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:
@@ -438,5 +443,3 @@ class EphemeralIPNetwork:
 
     def __exit__(self, *_args):
         self.stack.close()
-
-

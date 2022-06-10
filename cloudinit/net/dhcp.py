@@ -14,10 +14,7 @@ from io import StringIO
 import configobj
 
 from cloudinit import subp, temp_utils, util
-from cloudinit.net import (
-    find_fallback_nic,
-    get_devicelist,
-)
+from cloudinit.net import find_fallback_nic, get_devicelist
 
 LOG = logging.getLogger(__name__)
 
@@ -42,8 +39,6 @@ class NoDHCPLeaseInterfaceError(NoDHCPLeaseError):
 
 class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
-
-
 
 
 def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
