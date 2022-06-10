@@ -19,6 +19,7 @@ from cloudinit.net.dhcp import (
     parse_dhcp_lease_file,
     parse_static_routes,
 )
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import (
     CiTestCase,
@@ -158,7 +159,7 @@ class TestDHCPRFC3442(CiTestCase):
         self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_parses_static_routes(self, m_maybe, m_ipv4):
         """EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network"""
         lease = [
@@ -173,7 +174,7 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = net.ephemeral.EphemeralDHCPv4()
+        eph = EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -186,7 +187,7 @@ class TestDHCPRFC3442(CiTestCase):
         m_ipv4.assert_called_with(**expected_kwargs)
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_centos_lease_parses_static_routes(self, m_maybe, m_ipv4):
         """
         EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network
@@ -204,7 +205,7 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = net.ephemeral.EphemeralDHCPv4()
+        eph = EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -776,7 +777,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         url = "http://example.org/index.html"
 
         httpretty.register_uri(httpretty.GET, url)
-        with net.ephemeral.EphemeralDHCPv4(
+        with EphemeralDHCPv4(
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertIsNone(lease)
@@ -784,7 +785,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         m_dhcp.assert_not_called()
 
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_setup_network_if_url_connectivity(
         self, m_dhcp, m_subp
     ):
@@ -799,7 +800,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         m_subp.return_value = ("", "")
 
         httpretty.register_uri(httpretty.GET, url, body={}, status=404)
-        with net.ephemeral.EphemeralDHCPv4(
+        with EphemeralDHCPv4(
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertEqual(fake_lease, lease)
@@ -816,38 +817,38 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
     ],
 )
 class TestEphemeralDhcpLeaseErrors:
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_raises_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            net.ephemeral.EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4().obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            net.ephemeral.EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4().obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_ctx_mgr_raises_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            with net.ephemeral.EphemeralDHCPv4():
+            with EphemeralDHCPv4():
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
 
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_ctx_mgr_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            with net.ephemeral.EphemeralDHCPv4():
+            with EphemeralDHCPv4():
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
