@@ -11,8 +11,6 @@ from cloudinit.settings import PER_INSTANCE
 
 UA_URL = "https://ubuntu.com/advantage"
 
-UA_CONFIG = {"http_proxy": None, "https_proxy": None}
-
 distros = ["ubuntu"]
 
 meta: MetaSchema = {
