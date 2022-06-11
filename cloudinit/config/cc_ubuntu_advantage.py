@@ -165,7 +165,7 @@ def configure_ua(token=None, enable=None, config=None):
     # UA Config
     for key, value in sorted(config.items()):
         config_cmd = ["ua", "config", "set", key + "=" + value]
-        LOG.debug("Set Ubuntu Advantage config parameter %s=%s", key, value)
+        LOG.debug("Setting UA config %s=%s", key, value)
         try:
             subp.subp(config_cmd)
         except subp.ProcessExecutionError as e:
