@@ -167,6 +167,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
 
 
 def handle(_name, cfg, cloud, log, args):
+    distro: Distro = cloud.distro
     if args:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
@@ -198,7 +199,7 @@ def handle(_name, cfg, cloud, log, args):
         expire = util.get_cfg_option_bool(chfg, "expire", expire)
 
     if not plist and password:
-        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, distro)
         (user, _user_config) = ug_util.extract_default(users)
         if user:
             plist = ["%s:%s" % (user, password)]
@@ -218,7 +219,7 @@ def handle(_name, cfg, cloud, log, args):
         for line in plist:
             u, p = line.split(":", 1)
             if prog.match(p) is not None and ":" not in p:
-                hashed_plist_in.append(line)
+                hashed_plist_in.append((u, p))
                 hashed_users.append(u)
             else:
                 # in this else branch, we potentially change the password
@@ -226,24 +227,22 @@ def handle(_name, cfg, cloud, log, args):
                 if p == "R" or p == "RANDOM":
                     p = rand_user_password()
                     randlist.append("%s:%s" % (u, p))
-                plist_in.append("%s:%s" % (u, p))
+                plist_in.append((u, p))
                 users.append(u)
-        ch_in = "\n".join(plist_in) + "\n"
         if users:
             try:
                 log.debug("Changing password for %s:", users)
-                chpasswd(cloud.distro, ch_in)
+                distro.chpasswd(plist_in, hashed=False)
             except Exception as e:
                 errors.append(e)
                 util.logexc(
                     log, "Failed to set passwords with chpasswd for %s", users
                 )
 
-        hashed_ch_in = "\n".join(hashed_plist_in) + "\n"
         if hashed_users:
             try:
                 log.debug("Setting hashed password for %s:", hashed_users)
-                chpasswd(cloud.distro, hashed_ch_in, hashed=True)
+                distro.chpasswd(hashed_plist_in, hashed=True)
             except Exception as e:
                 errors.append(e)
                 util.logexc(
@@ -265,7 +264,7 @@ def handle(_name, cfg, cloud, log, args):
             expired_users = []
             for u in users:
                 try:
-                    cloud.distro.expire_passwd(u)
+                    distro.expire_passwd(u)
                     expired_users.append(u)
                 except Exception as e:
                     errors.append(e)
@@ -273,7 +272,7 @@ def handle(_name, cfg, cloud, log, args):
             if expired_users:
                 log.debug("Expired passwords for: %s users", expired_users)
 
-    handle_ssh_pwauth(cfg.get("ssh_pwauth"), cloud.distro)
+    handle_ssh_pwauth(cfg.get("ssh_pwauth"), distro)
 
     if len(errors):
         log.debug("%s errors occurred, re-raising the last one", len(errors))
@@ -282,16 +281,3 @@ def handle(_name, cfg, cloud, log, args):
 
 def rand_user_password(pwlen=20):
     return util.rand_str(pwlen, select_from=PW_SET)
-
-
-def chpasswd(distro, plist_in, hashed=False):
-    if util.is_BSD():
-        for pentry in plist_in.splitlines():
-            u, p = pentry.split(":")
-            distro.set_passwd(u, p, hashed=hashed)
-    else:
-        cmd = ["chpasswd"] + (["-e"] if hashed else [])
-        subp.subp(cmd, plist_in)
-
-
-# vi: ts=4 expandtab

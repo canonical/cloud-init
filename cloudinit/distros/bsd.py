@@ -134,3 +134,7 @@ class BSD(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
+
+    def chpasswd(self, plist_in: list, hashed: bool):
+        for name, password in plist_in:
+            self.set_passwd(name, password, hashed=hashed)
