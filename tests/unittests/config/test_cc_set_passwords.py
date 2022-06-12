@@ -370,6 +370,34 @@ class TestSetPasswordsSchema:
             ({"ssh_pwauth": "yes"}, None),
             ({"ssh_pwauth": "unchanged"}, None),
             ({"chpasswd": {"list": "blah"}}, None),
+            ({"chpasswd": {"users": [
+                {
+                    "name": "what-if-1",
+                    "type": "text",
+                    "password": "correct-horse-battery-staple"
+                },{
+                    "name": "what-if-2",
+                    "type": "hash",
+                    "password": "no-magic-parsing-done-here"
+                },{
+                    "name": "what-if-3",
+                    "password": "type-is-optional-default-value-is-hash"
+                },
+                ]}}, None),
+            ({"chpasswd": {"users": [
+                {
+                    "name": "what-if-1",
+                    "type": "plaintext",
+                    "password": "type-has-two-legal-values: {'hash', 'text'}"
+                }]}}, "is not one of"),
+            ({"chpasswd": {"users": [
+                {
+                    "password": "."
+                }]}}, "'name' is a required property"),
+            ({"chpasswd": {"users": [
+                {
+                    "name": "."
+                }]}}, "'password' is a required property"),
             # Test regex
             ({"chpasswd": {"list": ["user:pass"]}}, None),
             # Test valid
