@@ -56,16 +56,20 @@ meta: MetaSchema = {
             # Disable ssh password authentication
             # Don't require users to change their passwords on next login
             # Set the password for user1 to be 'password1' (OS does hashing)
-            # Set the password for user2 to be a randomly generated password,
-            #   which will be written to the system console
-            # Set the password for user3 to a pre-hashed password
+            # Set the password for user2 to a pre-hashed password
+            # Set the password for user3 to be a randomly generated password,
+            #   which will be written to the system console (DEPRECATED)
             ssh_pwauth: false
             chpasswd:
               expire: false
+              users:
+                - name: user1
+                  password: password1
+                  type: text
+                - name: user2
+                  password: $6$rounds=4096$5DJ8a9WMTEzIo5J4$Yms6imfeBvf3Yfu84mQBerh18l7OR1Wm1BJXZqFSpJ6BVas0AYJqIjP7czkOaAZHZi1kxQ5Y1IhgWN8K9NgxR1
               list:
-                - user1:password1
-                - user2:RANDOM
-                - user3:$6$rounds=4096$5DJ8a9WMTEzIo5J4$Yms6imfeBvf3Yfu84mQBerh18l7OR1Wm1BJXZqFSpJ6BVas0AYJqIjP7czkOaAZHZi1kxQ5Y1IhgWN8K9NgxR1
+                - user3:RANDOM
             """  # noqa
         ),
     ],
