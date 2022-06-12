@@ -83,6 +83,12 @@ LOG = logging.getLogger(__name__)
 PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
+def get_users_by_type(users_list: list, pw_type: str) -> list:
+    return [] if not users_list else [
+        (item["name"], item["password"])
+        for item in users_list if item["type"] is pw_type
+    ]
+
 def handle_ssh_pwauth(pw_auth, distro: Distro):
     """Apply sshd PasswordAuthentication changes.
 
@@ -177,11 +183,18 @@ def handle(_name, cfg, cloud, log, args):
         password = util.get_cfg_option_str(cfg, "password", None)
 
     expire = True
-    plist = None
+    plist = []
+    users_list = None
 
     if "chpasswd" in cfg:
         chfg = cfg["chpasswd"]
+        users_list = util.get_cfg_option_list(chfg, "users")
         if "list" in chfg and chfg["list"]:
+            log.warning(
+                "DEPRECATION: The list key is "
+                "deprecated and will be removed from a future version of "
+                "cloud-init. Use the users key instead."
+            )
             if isinstance(chfg["list"], list):
                 log.debug("Handling input for chpasswd as list.")
                 plist = util.get_cfg_option_list(chfg, "list", plist)
@@ -198,7 +211,7 @@ def handle(_name, cfg, cloud, log, args):
 
         expire = util.get_cfg_option_bool(chfg, "expire", expire)
 
-    if not plist and password:
+    if not (users_list or plist) and password:
         (users, _groups) = ug_util.normalize_users_groups(cfg, distro)
         (user, _user_config) = ug_util.extract_default(users)
         if user:
@@ -207,12 +220,12 @@ def handle(_name, cfg, cloud, log, args):
             log.warning("No default or defined user to change password for.")
 
     errors = []
-    if plist:
-        plist_in = []
-        hashed_plist_in = []
-        hashed_users = []
+    if plist or users_list:
+        plist_in = get_users_by_type(users_list, "text")
+        users = [user for user, _ in plist_in]
+        hashed_plist_in = get_users_by_type(users_list, "hash")
+        hashed_users = [user for user, _ in hashed_plist_in]
         randlist = []
-        users = []
         # N.B. This regex is included in the documentation (i.e. the module
         # docstring), so any changes to it should be reflected there.
         prog = re.compile(r"\$(1|2a|2y|5|6)(\$.+){2}")
