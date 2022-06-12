@@ -283,7 +283,7 @@ class TestSetPasswordsHandle(CiTestCase):
             "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
         ]
         cfg = {"chpasswd": {"list": valid_hashed_pwds}}
-        with mock.patch.object(setpass, "chpasswd") as chpasswd:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
             setpass.handle(
                 "IGNORED", cfg=cfg, cloud=cloud, log=self.logger, args=[]
             )
@@ -294,9 +294,9 @@ class TestSetPasswordsHandle(CiTestCase):
             "DEBUG: Setting hashed password for ['root', 'ubuntu']",
             self.logs.getvalue(),
         )
-        valid = "\n".join(valid_hashed_pwds) + "\n"
-        called = chpasswd.call_args[0][1]
-        self.assertEqual(valid, called)
+        first_arg = chpasswd.call_args[0]
+        for i, val in enumerate(*first_arg):
+            self.assertEqual(valid_hashed_pwds[i], ":".join(val))
 
     @mock.patch(MODPATH + "util.is_BSD", return_value=True)
     @mock.patch(MODPATH + "subp.subp")
@@ -335,7 +335,7 @@ class TestSetPasswordsHandle(CiTestCase):
         cloud = self.tmp_cloud(distro="ubuntu")
         valid_random_pwds = ["root:R", "ubuntu:RANDOM"]
         cfg = {"chpasswd": {"expire": "false", "list": valid_random_pwds}}
-        with mock.patch.object(setpass, "chpasswd") as chpasswd:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
             setpass.handle(
                 "IGNORED", cfg=cfg, cloud=cloud, log=self.logger, args=[]
             )
@@ -343,13 +343,7 @@ class TestSetPasswordsHandle(CiTestCase):
             "DEBUG: Handling input for chpasswd as list.", self.logs.getvalue()
         )
         self.assertEqual(1, chpasswd.call_count)
-        passwords, _ = chpasswd.call_args
-        user_pass = {
-            user: password
-            for user, password in (
-                line.split(":") for line in passwords[1].splitlines()
-            )
-        }
+        user_pass = dict(*chpasswd.call_args[0])
 
         self.assertEqual(1, m_multi_log.call_count)
         self.assertEqual(
