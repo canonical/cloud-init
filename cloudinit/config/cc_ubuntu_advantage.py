@@ -71,6 +71,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "skippable": True,
 }
 
 __doc__ = get_meta_doc(meta)

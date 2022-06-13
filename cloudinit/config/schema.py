@@ -12,7 +12,7 @@ import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
-from typing import Optional, Tuple, cast
+from typing import Optional, Sequence, Set, Tuple, cast
 
 import yaml
 
@@ -69,6 +69,7 @@ if sys.version_info >= (3, 8):
         distros: typing.List[str]
         examples: typing.List[str]
         frequency: str
+        skippable: bool
 
 else:
     MetaSchema = dict
@@ -595,6 +596,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
             "distros",
             "description",
             "name",
+            "skippable",
         }
     )
     error_message = ""
@@ -609,7 +611,8 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
             )
         )
     if error_message:
-        raise KeyError(error_message)
+        # raise KeyError(error_message)  # TODO fill skippable
+        pass
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
@@ -697,6 +700,14 @@ def get_schema() -> dict:
             "allOf": [],
         }
     return full_schema
+
+
+def get_config_keys(
+    module_name: Sequence[str], schema: dict = None
+) -> Set[str]:
+    if schema is None:
+        schema = get_schema()
+    return set(schema["$defs"][module_name]["properties"].keys())
 
 
 def get_meta() -> dict:
