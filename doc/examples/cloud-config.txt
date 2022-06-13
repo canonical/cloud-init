@@ -428,10 +428,15 @@ syslog_fix_perms: syslog:root
 # to set hashed password, here account 'user3' has a password it set to
 # 'cloud-init', hashed with SHA-256:
 # chpasswd:
+#   users:
+#    - name: user1
+#      password: password1
+#      type: text
+#    - user3
+#      password: $5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#      type: hash
 #   list: |
-#     user1:password1
 #     user2:RANDOM
-#     user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
