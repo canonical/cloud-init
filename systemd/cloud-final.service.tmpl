@@ -25,6 +25,7 @@ ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
  out=$(systemctl show --property=SubState $u) || exit; \
  [ "$out" = "SubState=running" ] || exit 0; \
  systemctl reload-or-try-restart $u'
+ExecStartPost=/usr/sbin/vgimportdevices -a
 {% else %}
 TasksMax=infinity
 {% endif %}
