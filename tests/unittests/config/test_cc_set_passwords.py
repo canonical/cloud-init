@@ -379,8 +379,7 @@ class TestSetPasswordsHandle(CiTestCase):
             {
                 "name": "ubuntu",
                 "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR5"
-                "2"
-                "qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
+                "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
             },
             {
                 "name": "dog",
@@ -461,6 +460,15 @@ class TestSetPasswordsSchema:
             (
                 {"chpasswd": {"users": [{"password": "."}]}},
                 "'name' is a required property",
+            ),
+            (
+                {"chpasswd": {"users": [
+                    {
+                        "name": "sonata",
+                        "password": "dit",
+                        "dat": "dot",
+                    }]}},
+                "Additional properties are not allowed",
             ),
             (
                 {"chpasswd": {"users": [{"name": "."}]}},
