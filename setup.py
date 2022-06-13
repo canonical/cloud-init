@@ -302,6 +302,11 @@ data_files = [
     ),
 ]
 if not platform.system().endswith("BSD"):
+
+    RULES_PATH = LIB
+    if os.path.isfile("/etc/redhat-release"):
+        RULES_PATH = "/usr/lib"
+
     data_files.extend(
         [
             (
@@ -309,7 +314,7 @@ if not platform.system().endswith("BSD"):
                 ["tools/hook-network-manager"],
             ),
             (ETC + "/dhcp/dhclient-exit-hooks.d/", ["tools/hook-dhclient"]),
-            (LIB + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
+            (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],
