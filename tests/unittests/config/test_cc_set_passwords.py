@@ -462,12 +462,17 @@ class TestSetPasswordsSchema:
                 "'name' is a required property",
             ),
             (
-                {"chpasswd": {"users": [
-                    {
-                        "name": "sonata",
-                        "password": "dit",
-                        "dat": "dot",
-                    }]}},
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "sonata",
+                                "password": "dit",
+                                "dat": "dot",
+                            }
+                        ]
+                    }
+                },
                 "Additional properties are not allowed",
             ),
             (
