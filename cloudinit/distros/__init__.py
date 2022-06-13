@@ -717,12 +717,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return True
 
     def chpasswd(self, plist_in: list, hashed: bool):
-        payload = "\n".join(
-            (
-                ":".join([name, password])
-                for name, password in plist_in
+        payload = (
+            "\n".join(
+                (":".join([name, password]) for name, password in plist_in)
             )
-        ) + "\n"
+            + "\n"
+        )
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, payload)
 

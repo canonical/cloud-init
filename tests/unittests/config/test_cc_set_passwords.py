@@ -360,7 +360,6 @@ class TestSetPasswordsHandle(CiTestCase):
             else:
                 self.fail("Password not emitted to console")
 
-
     def test_chpasswd_parity(self):
         cloud = self.tmp_cloud(distro="ubuntu")
         list_def = [
@@ -376,17 +375,19 @@ class TestSetPasswordsHandle(CiTestCase):
                 "name": "root",
                 "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW."
                 "BrPx/Dlew1Va",
-            },{
+            },
+            {
                 "name": "ubuntu",
-                "password":
-                "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52"
+                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR5"
+                "2"
                 "qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-            },{
+            },
+            {
                 "name": "dog",
                 "type": "hash",
                 "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR5"
                 "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-            }
+            },
         ]
         d_cfg = {"chpasswd": {"list": list_def}}
         n_cfg = {"chpasswd": {"users": users_def}}
@@ -395,7 +396,11 @@ class TestSetPasswordsHandle(CiTestCase):
             with mock.patch(MODPATH + "subp.subp") as subp:
                 with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
                     setpass.handle(
-                        "IGNORED", cfg=cfg, cloud=cloud, log=self.logger, args=[]
+                        "IGNORED",
+                        cfg=cfg,
+                        cloud=cloud,
+                        log=self.logger,
+                        args=[],
                     )
             return chpasswd.call_args[0], subp.call_args
 
@@ -414,34 +419,53 @@ class TestSetPasswordsSchema:
             ({"ssh_pwauth": "yes"}, None),
             ({"ssh_pwauth": "unchanged"}, None),
             ({"chpasswd": {"list": "blah"}}, None),
-            ({"chpasswd": {"users": [
+            (
                 {
-                    "name": "what-if-1",
-                    "type": "text",
-                    "password": "correct-horse-battery-staple"
-                },{
-                    "name": "what-if-2",
-                    "type": "hash",
-                    "password": "no-magic-parsing-done-here"
-                },{
-                    "name": "what-if-3",
-                    "password": "type-is-optional-default-value-is-hash"
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "text",
+                                "password": "correct-horse-battery-staple",
+                            },
+                            {
+                                "name": "what-if-2",
+                                "type": "hash",
+                                "password": "no-magic-parsing-done-here",
+                            },
+                            {
+                                "name": "what-if-3",
+                                "password": "type-is-optional-default-"
+                                "value-is-hash",
+                            },
+                        ]
+                    }
                 },
-                ]}}, None),
-            ({"chpasswd": {"users": [
+                None,
+            ),
+            (
                 {
-                    "name": "what-if-1",
-                    "type": "plaintext",
-                    "password": "type-has-two-legal-values: {'hash', 'text'}"
-                }]}}, "is not one of"),
-            ({"chpasswd": {"users": [
-                {
-                    "password": "."
-                }]}}, "'name' is a required property"),
-            ({"chpasswd": {"users": [
-                {
-                    "name": "."
-                }]}}, "'password' is a required property"),
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "plaintext",
+                                "password": "type-has-two-legal-values: "
+                                "{'hash', 'text'}",
+                            }
+                        ]
+                    }
+                },
+                "is not one of",
+            ),
+            (
+                {"chpasswd": {"users": [{"password": "."}]}},
+                "'name' is a required property",
+            ),
+            (
+                {"chpasswd": {"users": [{"name": "."}]}},
+                "'password' is a required property",
+            ),
             # Test regex
             ({"chpasswd": {"list": ["user:pass"]}}, None),
             # Test valid

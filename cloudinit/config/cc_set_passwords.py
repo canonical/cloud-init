@@ -84,10 +84,16 @@ PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
-    return [] if not users_list else [
-        (item["name"], item["password"])
-        for item in users_list if item.get("type", "hash") is pw_type
-    ]
+    return (
+        []
+        if not users_list
+        else [
+            (item["name"], item["password"])
+            for item in users_list
+            if item.get("type", "hash") is pw_type
+        ]
+    )
+
 
 def handle_ssh_pwauth(pw_auth, distro: Distro):
     """Apply sshd PasswordAuthentication changes.
