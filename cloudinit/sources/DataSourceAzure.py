@@ -1907,9 +1907,7 @@ def read_azure_ovf(contents):
 
         attrs = dict([(k, v) for k, v in child.attributes.items()])
 
-        # we accept either UserData or CustomData.  If both are present
-        # then behavior is undefined.
-        if name == "userdata" or name == "customdata":
+        if name == "customdata":
             if attrs.get("encoding") in (None, "base64"):
                 ud = base64.b64decode("".join(value.split()))
             else:

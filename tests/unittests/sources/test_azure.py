@@ -323,7 +323,7 @@ def construct_valid_ovf_env(
         content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
 
     if userdata:
-        content += "<UserData>%s</UserData>\n" % (b64e(userdata))
+        content += "<CustomData>%s</CustomData>\n" % (b64e(userdata))
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
@@ -1311,7 +1311,7 @@ scbus-1 on xpt0 bus 0
         odata = {
             "HostName": "myhost",
             "UserName": "myuser",
-            "UserData": {"text": "FOOBAR", "encoding": "plain"},
+            "CustomData": {"text": "FOOBAR", "encoding": "plain"},
             "dscfg": {"text": yaml_cfg, "encoding": "plain"},
         }
         data = {
@@ -1711,7 +1711,7 @@ scbus-1 on xpt0 bus 0
 
     def test_userdata_plain(self):
         mydata = "FOOBAR"
-        odata = {"UserData": {"text": mydata, "encoding": "plain"}}
+        odata = {"CustomData": {"text": mydata, "encoding": "plain"}}
         data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -1721,7 +1721,7 @@ scbus-1 on xpt0 bus 0
 
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {"UserData": {"text": b64e(mydata), "encoding": "base64"}}
+        odata = {"CustomData": {"text": b64e(mydata), "encoding": "base64"}}
         data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -2434,7 +2434,7 @@ scbus-1 on xpt0 bus 0
         odata = {
             "HostName": "myhost",
             "UserName": "myuser",
-            "UserData": {"text": b64e(userdataOVF), "encoding": "base64"},
+            "CustomData": {"text": b64e(userdataOVF), "encoding": "base64"},
         }
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
