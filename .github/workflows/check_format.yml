@@ -1,6 +1,5 @@
 name: Lint Tests
 on:
-  push:
   pull_request:
 
 concurrency:

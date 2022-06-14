@@ -2,6 +2,7 @@
 
 import copy
 import os
+import textwrap
 from typing import cast
 
 from cloudinit import log as logging
@@ -430,7 +431,7 @@ class Renderer(renderer.Renderer):
                     explicit_end=False,
                     noalias=True,
                 )
-                txt = util.indent(dump, " " * 4)
+                txt = textwrap.indent(dump, " " * 4)
                 return [txt]
             return []
 

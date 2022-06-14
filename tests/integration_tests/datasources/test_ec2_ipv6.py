@@ -41,3 +41,10 @@ def test_dual_stack(client: IntegrationInstance):
     # Block IPv6 requests
     assert client.execute("ip6tables -I OUTPUT -d fd00:ec2::254 -j REJECT").ok
     _test_crawl(client, "http://169.254.169.254")
+
+    # Force NoDHCPLeaseError (by removing dhclient) and assert ipv6 still works
+    # Destructive test goes last
+    assert client.execute("rm /usr/sbin/dhclient").ok
+    client.restart()
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert "Crawl of metadata service using link-local ipv6 took" in log

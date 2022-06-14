@@ -19,7 +19,8 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -125,12 +126,15 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
-                with EphemeralDHCPv4(self.fallback_interface):
+                with EphemeralIPNetwork(
+                    self.fallback_interface, ipv6=True
+                ) as netw:
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
+                        msg="Crawl of metadata service " + netw.state_msg,
                         func=self.crawl_metadata,
                     )
+
             except NoDHCPLeaseError:
                 return False
         else:
@@ -476,12 +480,6 @@ class DataSourceEc2(sources.DataSource):
                     self.ds_cfg, "apply_full_imds_network_config", True
                 ),
             )
-
-            # RELEASE_BLOCKER: xenial should drop the below if statement,
-            # because the issue being addressed doesn't exist pre-netplan.
-            # (This datasource doesn't implement check_instance_id() so the
-            # datasource object is recreated every boot; this means we don't
-            # need to modify update_events on cloud-init upgrade.)
 
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.

@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import textwrap
 import typing
 from collections import defaultdict
 from copy import deepcopy
@@ -17,7 +18,7 @@ import yaml
 
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.util import error, find_modules, load_file
+from cloudinit.util import error, get_modules_from_dir, load_file
 
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
@@ -563,9 +564,7 @@ def _get_examples(meta: MetaSchema) -> str:
         return ""
     rst_content = SCHEMA_EXAMPLES_HEADER
     for count, example in enumerate(examples):
-        # Python2.6 is missing textwrapper.indent
-        lines = example.split("\n")
-        indented_lines = ["    {0}".format(line) for line in lines]
+        indented_lines = textwrap.indent(example, "    ").split("\n")
         if rst_content != SCHEMA_EXAMPLES_HEADER:
             indented_lines.insert(
                 0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1)
@@ -636,7 +635,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
 
 def get_modules() -> dict:
     configs_dir = os.path.dirname(os.path.abspath(__file__))
-    return find_modules(configs_dir)
+    return get_modules_from_dir(configs_dir)
 
 
 def load_doc(requested_modules: list) -> str:

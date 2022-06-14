@@ -57,7 +57,7 @@ NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
         "bond-miimon": "mii-monitor-interval",
         "bond-min-links": "min-links",
         "bond-mode": "mode",
-        "bond-num-grat-arp": "gratuitious-arp",
+        "bond-num-grat-arp": "gratuitous-arp",
         "bond-primary": "primary",
         "bond-primary-reselect": "primary-reselect-policy",
         "bond-updelay": "up-delay",
@@ -796,13 +796,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 for (key, value) in item_cfg.items()
                 if key not in NETWORK_V2_KEY_FILTER
             )
-            # we accept the fixed spelling, but write the old for compatibility
-            # Xenial does not have an updated netplan which supports the
-            # correct spelling.  LP: #1756701
+            # We accept both spellings (as netplan does).  LP: #1756701
+            # Normalize internally to the new spelling:
             params = item_params.get("parameters", {})
-            grat_value = params.pop("gratuitous-arp", None)
+            grat_value = params.pop("gratuitious-arp", None)
             if grat_value:
-                params["gratuitious-arp"] = grat_value
+                params["gratuitous-arp"] = grat_value
 
             v1_cmd = {
                 "type": cmd_type,

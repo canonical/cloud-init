@@ -250,7 +250,7 @@ def has_netfail_standby_feature(devname):
     return features[62] == "1"
 
 
-def is_netfail_master(devname, driver=None):
+def is_netfail_master(devname, driver=None) -> bool:
     """A device is a "netfail master" device if:
 
     - The device does NOT have the 'master' sysfs attribute
@@ -1139,8 +1139,9 @@ def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
     return True
 
 
-def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
-    """Use a function to determine whether address meets criteria.
+def maybe_get_address(convert_to_address: Callable, address: str, **kwargs):
+    """Use a function to return an address. If conversion throws a ValueError
+    exception return False.
 
     :param check_cb:
         Test function, must return a truthy value
@@ -1148,11 +1149,11 @@ def network_validator(check_cb: Callable, address: str, **kwargs) -> bool:
         The string to test.
 
     :return:
-        A bool indicating if the string passed the test.
+        Address or False
 
     """
     try:
-        return bool(check_cb(address, **kwargs))
+        return convert_to_address(address, **kwargs)
     except ValueError:
         return False
 
@@ -1166,7 +1167,7 @@ def is_ip_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IP address or not.
     """
-    return network_validator(ipaddress.ip_address, address)
+    return bool(maybe_get_address(ipaddress.ip_address, address))
 
 
 def is_ipv4_address(address: str) -> bool:
@@ -1178,7 +1179,7 @@ def is_ipv4_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv4Address, address)
+    return bool(maybe_get_address(ipaddress.IPv4Address, address))
 
 
 def is_ipv6_address(address: str) -> bool:
@@ -1190,7 +1191,7 @@ def is_ipv6_address(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv6Address, address)
+    return bool(maybe_get_address(ipaddress.IPv6Address, address))
 
 
 def is_ip_network(address: str) -> bool:
@@ -1202,7 +1203,7 @@ def is_ip_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.ip_network, address, strict=False)
+    return bool(maybe_get_address(ipaddress.ip_network, address, strict=False))
 
 
 def is_ipv4_network(address: str) -> bool:
@@ -1214,7 +1215,9 @@ def is_ipv4_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv4Network, address, strict=False)
+    return bool(
+        maybe_get_address(ipaddress.IPv4Network, address, strict=False)
+    )
 
 
 def is_ipv6_network(address: str) -> bool:
@@ -1226,7 +1229,9 @@ def is_ipv6_network(address: str) -> bool:
     :return:
         A bool indicating if the string is an IPv4 address or not.
     """
-    return network_validator(ipaddress.IPv6Network, address, strict=False)
+    return bool(
+        maybe_get_address(ipaddress.IPv6Network, address, strict=False)
+    )
 
 
 def subnet_is_ipv6(subnet) -> bool:
@@ -1304,266 +1309,5 @@ def mask_and_ipv4_to_bcast_addr(mask: str, ip: str) -> str:
     )
 
 
-class EphemeralIPv4Network(object):
-    """Context manager which sets up temporary static network configuration.
-
-    No operations are performed if the provided interface already has the
-    specified configuration.
-    This can be verified with the connectivity_url_data.
-    If unconnected, bring up the interface with valid ip, prefix and broadcast.
-    If router is provided setup a default route for that interface. Upon
-    context exit, clean up the interface leaving no configuration behind.
-    """
-
-    def __init__(
-        self,
-        interface,
-        ip,
-        prefix_or_mask,
-        broadcast,
-        router=None,
-        connectivity_url_data: Dict[str, Any] = None,
-        static_routes=None,
-    ):
-        """Setup context manager and validate call signature.
-
-        @param interface: Name of the network interface to bring up.
-        @param ip: IP address to assign to the interface.
-        @param prefix_or_mask: Either netmask of the format X.X.X.X or an int
-            prefix.
-        @param broadcast: Broadcast address for the IPv4 network.
-        @param router: Optionally the default gateway IP.
-        @param connectivity_url_data: Optionally, a URL to verify if a usable
-           connection already exists.
-        @param static_routes: Optionally a list of static routes from DHCP
-        """
-        if not all([interface, ip, prefix_or_mask, broadcast]):
-            raise ValueError(
-                "Cannot init network on {0} with {1}/{2} and bcast {3}".format(
-                    interface, ip, prefix_or_mask, broadcast
-                )
-            )
-        try:
-            self.prefix = ipv4_mask_to_net_prefix(prefix_or_mask)
-        except ValueError as e:
-            raise ValueError(
-                "Cannot setup network, invalid prefix or "
-                "netmask: {0}".format(e)
-            ) from e
-
-        self.connectivity_url_data = connectivity_url_data
-        self.interface = interface
-        self.ip = ip
-        self.broadcast = broadcast
-        self.router = router
-        self.static_routes = static_routes
-        # List of commands to run to cleanup state.
-        self.cleanup_cmds: List[str] = []
-
-    def __enter__(self):
-        """Perform ephemeral network setup if interface is not connected."""
-        if self.connectivity_url_data:
-            if has_url_connectivity(self.connectivity_url_data):
-                LOG.debug(
-                    "Skip ephemeral network setup, instance has connectivity"
-                    " to %s",
-                    self.connectivity_url_data["url"],
-                )
-                return
-
-        self._bringup_device()
-
-        # rfc3442 requires us to ignore the router config *if* classless static
-        # routes are provided.
-        #
-        # https://tools.ietf.org/html/rfc3442
-        #
-        # If the DHCP server returns both a Classless Static Routes option and
-        # a Router option, the DHCP client MUST ignore the Router option.
-        #
-        # Similarly, if the DHCP server returns both a Classless Static Routes
-        # option and a Static Routes option, the DHCP client MUST ignore the
-        # Static Routes option.
-        if self.static_routes:
-            self._bringup_static_routes()
-        elif self.router:
-            self._bringup_router()
-
-    def __exit__(self, excp_type, excp_value, excp_traceback):
-        """Teardown anything we set up."""
-        for cmd in self.cleanup_cmds:
-            subp.subp(cmd, capture=True)
-
-    def _delete_address(self, address, prefix):
-        """Perform the ip command to remove the specified address."""
-        subp.subp(
-            [
-                "ip",
-                "-family",
-                "inet",
-                "addr",
-                "del",
-                "%s/%s" % (address, prefix),
-                "dev",
-                self.interface,
-            ],
-            capture=True,
-        )
-
-    def _bringup_device(self):
-        """Perform the ip comands to fully setup the device."""
-        cidr = "{0}/{1}".format(self.ip, self.prefix)
-        LOG.debug(
-            "Attempting setup of ephemeral network on %s with %s brd %s",
-            self.interface,
-            cidr,
-            self.broadcast,
-        )
-        try:
-            subp.subp(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "addr",
-                    "add",
-                    cidr,
-                    "broadcast",
-                    self.broadcast,
-                    "dev",
-                    self.interface,
-                ],
-                capture=True,
-                update_env={"LANG": "C"},
-            )
-        except subp.ProcessExecutionError as e:
-            if "File exists" not in e.stderr:
-                raise
-            LOG.debug(
-                "Skip ephemeral network setup, %s already has address %s",
-                self.interface,
-                self.ip,
-            )
-        else:
-            # Address creation success, bring up device and queue cleanup
-            subp.subp(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    self.interface,
-                    "up",
-                ],
-                capture=True,
-            )
-            self.cleanup_cmds.append(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    self.interface,
-                    "down",
-                ]
-            )
-            self.cleanup_cmds.append(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "addr",
-                    "del",
-                    cidr,
-                    "dev",
-                    self.interface,
-                ]
-            )
-
-    def _bringup_static_routes(self):
-        # static_routes = [("169.254.169.254/32", "130.56.248.255"),
-        #                  ("0.0.0.0/0", "130.56.240.1")]
-        for net_address, gateway in self.static_routes:
-            via_arg = []
-            if gateway != "0.0.0.0":
-                via_arg = ["via", gateway]
-            subp.subp(
-                ["ip", "-4", "route", "append", net_address]
-                + via_arg
-                + ["dev", self.interface],
-                capture=True,
-            )
-            self.cleanup_cmds.insert(
-                0,
-                ["ip", "-4", "route", "del", net_address]
-                + via_arg
-                + ["dev", self.interface],
-            )
-
-    def _bringup_router(self):
-        """Perform the ip commands to fully setup the router if needed."""
-        # Check if a default route exists and exit if it does
-        out, _ = subp.subp(["ip", "route", "show", "0.0.0.0/0"], capture=True)
-        if "default" in out:
-            LOG.debug(
-                "Skip ephemeral route setup. %s already has default route: %s",
-                self.interface,
-                out.strip(),
-            )
-            return
-        subp.subp(
-            [
-                "ip",
-                "-4",
-                "route",
-                "add",
-                self.router,
-                "dev",
-                self.interface,
-                "src",
-                self.ip,
-            ],
-            capture=True,
-        )
-        self.cleanup_cmds.insert(
-            0,
-            [
-                "ip",
-                "-4",
-                "route",
-                "del",
-                self.router,
-                "dev",
-                self.interface,
-                "src",
-                self.ip,
-            ],
-        )
-        subp.subp(
-            [
-                "ip",
-                "-4",
-                "route",
-                "add",
-                "default",
-                "via",
-                self.router,
-                "dev",
-                self.interface,
-            ],
-            capture=True,
-        )
-        self.cleanup_cmds.insert(
-            0, ["ip", "-4", "route", "del", "default", "dev", self.interface]
-        )
-
-
 class RendererNotFoundError(RuntimeError):
     pass
-
-
-# vi: ts=4 expandtab

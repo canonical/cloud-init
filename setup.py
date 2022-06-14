@@ -91,9 +91,8 @@ def render_tmpl(template, mode=None):
     in that file if user had something there. b.) debuild will complain
     that files are different outside of the debian directory."""
 
-    # older versions of tox use bdist (xenial), and then install from there.
     # newer versions just use install.
-    if not (sys.argv[1] == "install" or sys.argv[1].startswith("bdist*")):
+    if not (sys.argv[1] == "install"):
         return template
 
     tmpl_ext = ".tmpl"

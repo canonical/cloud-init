@@ -344,9 +344,15 @@ class TestDataSourceVultr(CiTestCase):
         return
 
     # Test interface seeking to ensure we are able to find the correct one
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__init__", ephemeral_init)
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__enter__", override_enter)
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__exit__", override_exit)
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__", ephemeral_init
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
+    )
     @mock.patch("cloudinit.sources.helpers.vultr.check_route")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
@@ -377,10 +383,15 @@ class TestDataSourceVultr(CiTestCase):
     # Test route checking sucessful DHCPs
     @mock.patch("cloudinit.sources.helpers.vultr.check_route", check_route)
     @mock.patch(
-        "cloudinit.net.dhcp.EphemeralDHCPv4.__init__", ephemeral_init_always
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
+        ephemeral_init_always,
     )
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__enter__", override_enter)
-    @mock.patch("cloudinit.net.dhcp.EphemeralDHCPv4.__exit__", override_exit)
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
+    )
     @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")

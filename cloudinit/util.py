@@ -368,7 +368,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir) -> dict:
+def get_modules_from_dir(root_dir: str) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):
@@ -798,28 +798,6 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 
         if o_err:
             os.dup2(new_fp.fileno(), o_err.fileno())
-
-
-def make_url(
-    scheme, host, port=None, path="", params="", query="", fragment=""
-):
-
-    pieces = [scheme or ""]
-
-    netloc = ""
-    if host:
-        netloc = str(host)
-
-    if port is not None:
-        netloc += ":" + "%s" % (port)
-
-    pieces.append(netloc or "")
-    pieces.append(path or "")
-    pieces.append(params or "")
-    pieces.append(query or "")
-    pieces.append(fragment or "")
-
-    return parse.urlunparse(pieces)
 
 
 def mergemanydict(srcs, reverse=False) -> dict:
@@ -1741,37 +1719,15 @@ def json_serialize_default(_obj):
         return "Warning: redacted unserializable type {0}".format(type(_obj))
 
 
-def json_preserialize_binary(data):
-    """Preserialize any discovered binary values to avoid json.dumps issues.
-
-    Used only on python 2.7 where default type handling is not honored for
-    failure to encode binary data. LP: #1801364.
-    TODO(Drop this function when py2.7 support is dropped from cloud-init)
-    """
-    data = obj_copy.deepcopy(data)
-    for key, value in data.items():
-        if isinstance(value, (dict)):
-            data[key] = json_preserialize_binary(value)
-        if isinstance(value, bytes):
-            data[key] = "ci-b64:{0}".format(b64e(value))
-    return data
-
-
 def json_dumps(data):
     """Return data in nicely formatted json."""
-    try:
-        return json.dumps(
-            data,
-            indent=1,
-            sort_keys=True,
-            separators=(",", ": "),
-            default=json_serialize_default,
-        )
-    except UnicodeDecodeError:
-        if sys.version_info[:2] == (2, 7):
-            data = json_preserialize_binary(data)
-            return json.dumps(data)
-        raise
+    return json.dumps(
+        data,
+        indent=1,
+        sort_keys=True,
+        separators=(",", ": "),
+        default=json_serialize_default,
+    )
 
 
 def ensure_dir(path, mode=None):
@@ -2826,14 +2782,6 @@ def system_is_snappy():
     if os.path.isdir("/etc/system-image/config.d/"):
         return True
     return False
-
-
-def indent(text, prefix):
-    """replacement for indent from textwrap that is not available in 2.7."""
-    lines = []
-    for line in text.splitlines(True):
-        lines.append(prefix + line)
-    return "".join(lines)
 
 
 def rootdev_from_cmdline(cmdline):

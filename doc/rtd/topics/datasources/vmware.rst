@@ -7,7 +7,7 @@ This datasource is for use with systems running on a VMware platform such as
 vSphere and currently supports the following data transports:
 
 
-* `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md#vmchange>`_ keys
+* `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md>`_ keys
 
 Configuration
 -------------

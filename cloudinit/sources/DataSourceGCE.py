@@ -11,7 +11,7 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.distros import ug_util
-from cloudinit.net.dhcp import EphemeralDHCPv4
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
