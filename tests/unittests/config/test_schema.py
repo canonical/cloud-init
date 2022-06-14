@@ -16,7 +16,6 @@ from types import ModuleType
 from typing import List
 
 import pytest
-from hypothesis import given
 
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
@@ -38,6 +37,7 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.util import load_file, write_file
+from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
@@ -1109,12 +1109,12 @@ class TestMeta:
             assert set(module.meta["distros"]).issubset(all_distros)
 
 
+@pytest.mark.hypothesis_slow
 class TestSchemaFuzz:
 
     # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
     SCHEMA = JsonLocalResolver(get_schema()).resolve()
 
-    @pytest.mark.hypothesis_long
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):
