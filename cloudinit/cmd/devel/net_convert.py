@@ -126,7 +126,9 @@ def handle_args(name, args):
             json.loads(net_data), known_macs=known_macs
         )
     elif args.kind == "azure-imds":
-        pre_ns = azure.parse_network_config(json.loads(net_data))
+        pre_ns = azure.generate_network_config_from_instance_network_metadata(
+            json.loads(net_data)["network"]
+        )
     elif args.kind == "vmware-imc":
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)

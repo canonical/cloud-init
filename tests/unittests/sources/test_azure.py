@@ -87,6 +87,25 @@ def mock_azure_report_failure_to_fabric():
 
 
 @pytest.fixture
+def mock_device_driver():
+    with mock.patch(
+        MOCKPATH + "device_driver",
+        autospec=True,
+        return_value=None,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_generate_fallback_config():
+    with mock.patch(
+        MOCKPATH + "net.generate_fallback_config",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_time():
     with mock.patch(
         MOCKPATH + "time",
@@ -441,7 +460,7 @@ IMDS_NETWORK_METADATA = {
 EXAMPLE_UUID = "d0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8"
 
 
-class TestParseNetworkConfig(CiTestCase):
+class TestNetworkConfig:
 
     maxDiff = None
     fallback_config = {
@@ -457,11 +476,8 @@ class TestParseNetworkConfig(CiTestCase):
         ],
     }
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_single_ipv4_nic_configuration(self, m_driver):
-        """parse_network_config emits dhcp on single nic with ipv4"""
+    def test_single_ipv4_nic_configuration(self, azure_ds, mock_device_driver):
+        """Network config emits dhcp on single nic with ipv4"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -474,13 +490,14 @@ class TestParseNetworkConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        azure_ds._metadata_imds = NETWORK_METADATA
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_increases_route_metric_for_non_primary_nics(self, m_driver):
-        """parse_network_config increases route-metric for each nic"""
+        assert azure_ds.network_config == expected
+
+    def test_increases_route_metric_for_non_primary_nics(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config increases route-metric for each nic"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -514,70 +531,14 @@ class TestParseNetworkConfig(CiTestCase):
         third_intf["ipv4"]["subnet"][0]["address"] = "10.0.2.0"
         third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
         imds_data["network"]["interface"].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv4_and_ipv6_route_metrics_match_for_nics(self, m_driver):
-        """parse_network_config emits matching ipv4 and ipv6 route-metrics."""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "addresses": ["10.0.0.5/24", "2001:dead:beef::2/128"],
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 100},
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                },
-                "eth1": {
-                    "set-name": "eth1",
-                    "match": {"macaddress": "22:0d:3a:04:75:98"},
-                    "dhcp4": True,
-                    "dhcp6": False,
-                    "dhcp4-overrides": {"route-metric": 200},
-                },
-                "eth2": {
-                    "set-name": "eth2",
-                    "match": {"macaddress": "33:0d:3a:04:75:98"},
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 300},
-                },
-            },
-            "version": 2,
-        }
-        imds_data = copy.deepcopy(NETWORK_METADATA)
-        nic1 = imds_data["network"]["interface"][0]
-        nic1["ipv4"]["ipAddress"].append({"privateIpAddress": "10.0.0.5"})
+        assert azure_ds.network_config == expected
 
-        nic1["ipv6"] = {
-            "subnet": [{"address": "2001:dead:beef::16"}],
-            "ipAddress": [
-                {"privateIpAddress": "2001:dead:beef::1"},
-                {"privateIpAddress": "2001:dead:beef::2"},
-            ],
-        }
-        imds_data["network"]["interface"].append(SECONDARY_INTERFACE)
-        third_intf = copy.deepcopy(SECONDARY_INTERFACE)
-        third_intf["macAddress"] = third_intf["macAddress"].replace("22", "33")
-        third_intf["ipv4"]["subnet"][0]["address"] = "10.0.2.0"
-        third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
-        third_intf["ipv6"] = {
-            "subnet": [{"prefix": "64", "address": "2001:dead:beef::2"}],
-            "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}],
-        }
-        imds_data["network"]["interface"].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
-
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv4_secondary_ips_will_be_static_addrs(self, m_driver):
-        """parse_network_config emits primary ipv4 as dhcp others are static"""
+    def test_ipv4_secondary_ips_will_be_static_addrs(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config emits primary ipv4 as dhcp others are static"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -600,13 +561,14 @@ class TestParseNetworkConfig(CiTestCase):
             "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
             "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}],
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv6_secondary_ips_will_be_static_cidrs(self, m_driver):
-        """parse_network_config emits primary ipv6 as dhcp others are static"""
+        assert azure_ds.network_config == expected
+
+    def test_ipv6_secondary_ips_will_be_static_cidrs(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config emits primary ipv6 as dhcp others are static"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -633,14 +595,13 @@ class TestParseNetworkConfig(CiTestCase):
                 {"privateIpAddress": "2001:dead:beef::2"},
             ],
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver",
-        return_value="hv_netvsc",
-    )
-    def test_match_driver_for_netvsc(self, m_driver):
-        """parse_network_config emits driver when using netvsc."""
+        assert azure_ds.network_config == expected
+
+    def test_match_driver_for_netvsc(self, azure_ds, mock_device_driver):
+        """Network config emits driver when using netvsc."""
+        mock_device_driver.return_value = "hv_netvsc"
         expected = {
             "ethernets": {
                 "eth0": {
@@ -656,16 +617,31 @@ class TestParseNetworkConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        azure_ds._metadata_imds = NETWORK_METADATA
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_parse_network_config_uses_fallback_cfg_when_no_network_metadata(
-        self, m_fallback_config, m_driver
+        assert azure_ds.network_config == expected
+
+    def test_uses_fallback_cfg_when_apply_network_config_is_false(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
     ):
-        """parse_network_config generates fallback network config when the
+        azure_ds.ds_cfg["apply_network_config"] = False
+        azure_ds._metadata_imds = NETWORK_METADATA
+        mock_generate_fallback_config.return_value = self.fallback_config
+
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_imds_metadata_unset(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+    ):
+        azure_ds._metadata_imds = UNSET
+        mock_generate_fallback_config.return_value = self.fallback_config
+
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_no_network_metadata(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+    ):
+        """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network metadata is not present.
         """
@@ -673,20 +649,15 @@ class TestParseNetworkConfig(CiTestCase):
             NETWORK_METADATA
         )
         del imds_metadata_missing_network_metadata["network"]
-        m_fallback_config.return_value = self.fallback_config
-        self.assertEqual(
-            self.fallback_config,
-            dsaz.parse_network_config(imds_metadata_missing_network_metadata),
-        )
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._metadata_imds = imds_metadata_missing_network_metadata
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_parse_network_config_uses_fallback_cfg_when_no_interface_metadata(
-        self, m_fallback_config, m_driver
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_no_interface_metadata(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
     ):
-        """parse_network_config generates fallback network config when the
+        """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network interface metadata is not present.
         """
@@ -694,13 +665,10 @@ class TestParseNetworkConfig(CiTestCase):
             NETWORK_METADATA
         )
         del imds_metadata_missing_interface_metadata["network"]["interface"]
-        m_fallback_config.return_value = self.fallback_config
-        self.assertEqual(
-            self.fallback_config,
-            dsaz.parse_network_config(
-                imds_metadata_missing_interface_metadata
-            ),
-        )
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._metadata_imds = imds_metadata_missing_interface_metadata
+
+        assert azure_ds.network_config == self.fallback_config
 
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):
@@ -2078,119 +2046,6 @@ scbus-1 on xpt0 bus 0
         )
         self.assertEqual(
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list
-        )
-
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_imds_network_config(self, mock_fallback, m_driver):
-        """Network config is generated from IMDS network data when present."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": sys_cfg,
-        }
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-
-        expected_cfg = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
-
-        self.assertEqual(expected_cfg, dsrc.network_config)
-        mock_fallback.assert_not_called()
-
-    @mock.patch("cloudinit.net.get_interface_mac")
-    @mock.patch("cloudinit.net.get_devicelist")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_imds_network_ignored_when_apply_network_config_false(
-        self, mock_fallback, mock_dd, mock_devlist, mock_get_mac
-    ):
-        """When apply_network_config is False, use fallback instead of IMDS."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": False}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": sys_cfg,
-        }
-        fallback_config = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "eth0",
-                    "mac_address": "00:11:22:33:44:55",
-                    "params": {"driver": "hv_netsvc"},
-                    "subnets": [{"type": "dhcp"}],
-                }
-            ],
-        }
-        mock_fallback.return_value = fallback_config
-
-        mock_devlist.return_value = ["eth0"]
-        mock_dd.return_value = ["hv_netsvc"]
-        mock_get_mac.return_value = "00:11:22:33:44:55"
-
-        dsrc = self._get_ds(data)
-        self.assertTrue(dsrc.get_data())
-        self.assertEqual(dsrc.network_config, fallback_config)
-
-    @mock.patch("cloudinit.net.get_interface_mac")
-    @mock.patch("cloudinit.net.get_devicelist")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net.generate_fallback_config", autospec=True)
-    def test_fallback_network_config(
-        self, mock_fallback, mock_dd, mock_devlist, mock_get_mac
-    ):
-        """On absent IMDS network data, generate network fallback config."""
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": {},
-        }
-
-        fallback_config = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "eth0",
-                    "mac_address": "00:11:22:33:44:55",
-                    "params": {"driver": "hv_netsvc"},
-                    "subnets": [{"type": "dhcp"}],
-                }
-            ],
-        }
-        mock_fallback.return_value = fallback_config
-
-        mock_devlist.return_value = ["eth0"]
-        mock_dd.return_value = ["hv_netsvc"]
-        mock_get_mac.return_value = "00:11:22:33:44:55"
-
-        dsrc = self._get_ds(data)
-        # Represent empty response from network imds
-        self.m_get_metadata_from_imds.return_value = {}
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-
-        netconfig = dsrc.network_config
-        self.assertEqual(netconfig, fallback_config)
-        mock_fallback.assert_called_with(
-            blacklist_drivers=["mlx4_core", "mlx5_core"], config_driver=True
         )
 
     @mock.patch(MOCKPATH + "net.get_interfaces", autospec=True)
