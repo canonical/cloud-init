@@ -454,7 +454,9 @@ def main_init(name, args):
 
     # Validate user-data adheres to schema definition
     if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
-        validate_cloudconfig_schema(config=init.cfg, strict=False)
+        validate_cloudconfig_schema(
+            config=init.cfg, strict=False, log_details=False
+        )
     else:
         LOG.debug("Skipping user-data validation. No user-data found.")
 

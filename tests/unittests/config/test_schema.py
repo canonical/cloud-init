@@ -304,8 +304,29 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
+            "Invalid cloud-config provided: \np1: -1 is not of type 'string'"
             == log_msg
+        )
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_sensitive(self, caplog):
+        """When log_details=False, ensure details are omitted"""
+        schema = {
+            "properties": {"hashed_password": {"type": "string"}},
+            "additionalProperties": False,
+        }
+        validate_cloudconfig_schema(
+            {"hashed-password": "secret"},
+            schema,
+            strict=False,
+            log_details=False,
+        )
+        [(module, log_level, log_msg)] = caplog.record_tuples
+        assert "cloudinit.config.schema" == module
+        assert logging.WARNING == log_level
+        assert (
+            "Invalid cloud-config provided: Please run 'sudo cloud-init "
+            "schema --system' to see the schema errors." == log_msg
         )
 
     @skipUnlessJsonSchema()
