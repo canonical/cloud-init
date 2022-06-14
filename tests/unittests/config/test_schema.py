@@ -1114,6 +1114,7 @@ class TestSchemaFuzz:
     # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
     SCHEMA = JsonLocalResolver(get_schema()).resolve()
 
+    @pytest.mark.hypothesis_long
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):

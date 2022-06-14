@@ -35,8 +35,7 @@ script:
 
 env:
   TOXENV=py3
-  PYTEST_ADDOPTS=-v
-  HYPOTHESIS_PROFILE=ci
+  PYTEST_ADDOPTS=-v  # List all tests run by pytest
 
 matrix:
     fast_finish: true
@@ -129,8 +128,7 @@ matrix:
         - python: 3.6
           env:
             TOXENV=lowest-supported
-            PYTEST_ADDOPTS=-v
-            HYPOTHESIS_PROFILE=ci
+            PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: bionic
         - python: 3.6
           env: TOXENV=flake8
