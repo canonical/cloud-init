@@ -866,17 +866,16 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
 def fetch_ssl_details(paths=None):
     ssl_details = {}
     # Lookup in these locations for ssl key/cert files
-    ssl_cert_paths = [
-        "/var/lib/cloud/data/ssl",
-        "/var/lib/cloud/instance/data/ssl",
-    ]
-    if paths:
-        ssl_cert_paths.extend(
-            [
-                os.path.join(paths.get_ipath_cur("data"), "ssl"),
-                os.path.join(paths.get_cpath("data"), "ssl"),
-            ]
-        )
+    if not paths:
+        ssl_cert_paths = [
+            "/var/lib/cloud/data/ssl",
+            "/var/lib/cloud/instance/data/ssl",
+        ]
+    else:
+        ssl_cert_paths = [
+            os.path.join(paths.get_ipath_cur("data"), "ssl"),
+            os.path.join(paths.get_cpath("data"), "ssl"),
+        ]
     ssl_cert_paths = uniq_merge(ssl_cert_paths)
     ssl_cert_paths = [d for d in ssl_cert_paths if d and os.path.isdir(d)]
     cert_file = None

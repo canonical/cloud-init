@@ -1064,7 +1064,7 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
     return default
 
 
-def fetch(name) -> Type[Distro]:
+def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
         raise ImportError(
