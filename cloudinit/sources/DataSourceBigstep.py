@@ -6,6 +6,8 @@
 
 import errno
 import json
+import os
+from functools import lru_cache
 
 from cloudinit import sources, url_helper, util
 
@@ -15,13 +17,13 @@ class DataSourceBigstep(sources.DataSource):
     dsname = "Bigstep"
 
     def __init__(self, sys_cfg, distro, paths):
-        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        super().__init__(sys_cfg, distro, paths)
         self.metadata = {}
         self.vendordata_raw = ""
         self.userdata_raw = ""
 
-    def _get_data(self, apply_filter=False):
-        url = get_url_from_file()
+    def _get_data(self, apply_filter=False) -> bool:
+        url = self._get_url_from_file()
         if url is None:
             return False
         response = url_helper.readurl(url)
@@ -31,22 +33,26 @@ class DataSourceBigstep(sources.DataSource):
         self.userdata_raw = decoded["userdata_raw"]
         return True
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         """Return the subplatform metadata source details."""
-        return "metadata (%s)" % get_url_from_file()
+        return f"metadata ({self._get_url_from_file()})"
 
-
-def get_url_from_file():
-    try:
-        content = util.load_file("/var/lib/cloud/data/seed/bigstep/url")
-    except IOError as e:
-        # If the file doesn't exist, then the server probably isn't a Bigstep
-        # instance; otherwise, another problem exists which needs investigation
-        if e.errno == errno.ENOENT:
-            return None
-        else:
-            raise
-    return content
+    @lru_cache(maxsize=1, typed=False)
+    def _get_url_from_file(self):
+        url_file = os.path.join(
+            self.paths.cloud_dir, "data", "seed", "bigstep", "url"
+        )
+        try:
+            content = util.load_file(url_file)
+        except IOError as e:
+            # If the file doesn't exist, then the server probably isn't a
+            # Bigstep instance; otherwise, another problem exists which needs
+            # investigation
+            if e.errno == errno.ENOENT:
+                return None
+            else:
+                raise
+        return content
 
 
 # Used to match classes to dependencies
