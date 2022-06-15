@@ -33,7 +33,7 @@ disable_root: true
 {% endif %}
 
 {% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
-                  "fedora", "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+                  "fedora", "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "virtuozzo"] %}
 {% if variant == "rhel" %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
@@ -43,7 +43,7 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 resize_rootfs: noblock
 {% endif %}
 resize_rootfs_tmp: /dev
-ssh_pwauth:   0
+ssh_pwauth:   false
 
 {% endif %}
 # This will cause the set+update hostname module to not operate (if true)
@@ -125,7 +125,7 @@ cloud_config_modules:
 {% if variant in ["rhel"] %}
  - rh_subscription
 {% endif %}
-{% if variant in ["rhel", "fedora", "photon"] %}
+{% if variant in ["rhel", "fedora", "openmandriva", "photon"] %}
 {% if variant not in ["photon"] %}
  - spacewalk
 {% endif %}
@@ -192,7 +192,7 @@ system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
                   "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "miraclelinux", "openbsd", "openEuler",
-                  "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
+                  "openmandriva", "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -245,7 +245,7 @@ system_info:
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
 {% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "eurolinux",
-                    "fedora", "gentoo", "miraclelinux", "openEuler", "rhel", "rocky", "suse", "virtuozzo"] %}
+                    "fedora", "gentoo", "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "suse", "virtuozzo"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
@@ -271,6 +271,8 @@ system_info:
      groups: [adm, sudo]
 {% elif variant == "arch" %}
      groups: [wheel, users]
+{% elif variant == "openmandriva" %}
+     groups: [wheel, users, systemd-journal]
 {% elif variant == "rhel" %}
      groups: [adm, systemd-journal]
 {% else %}
@@ -352,4 +354,7 @@ system_info:
 {% elif variant in ["rhel", "fedora"] %}
    network:
       renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
+{% elif variant == "openmandriva" %}
+   network:
+      renderers: ['network-manager', 'networkd']
 {% endif %}

@@ -28,6 +28,7 @@ KNOWN_DISTROS = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "openmandriva",
     "rhel",
     "rocky",
     "suse",

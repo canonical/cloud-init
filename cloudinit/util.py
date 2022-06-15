@@ -601,6 +601,7 @@ def _get_variant(info):
             "fedora",
             "miraclelinux",
             "openeuler",
+            "openmandriva",
             "photon",
             "rhel",
             "rocky",
