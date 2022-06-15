@@ -24,9 +24,7 @@ class TestBigstep:
     @httpretty.activate
     @pytest.mark.parametrize("custom_paths", [False, True])
     @mock.patch(M_PATH + "util.load_file", return_value=IMDS_URL)
-    def test_get_data_honor_cloud_dir(
-        self, m_load_file, custom_paths, tmpdir
-    ):
+    def test_get_data_honor_cloud_dir(self, m_load_file, custom_paths, tmpdir):
         httpretty.register_uri(httpretty.GET, IMDS_URL, body=METADATA_BODY)
 
         paths = {}

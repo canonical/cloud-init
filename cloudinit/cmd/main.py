@@ -661,7 +661,9 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        init = stages.Init(ds_deps=[], reporter=None)
+        init.read_cfg(extract_fns(args))
+        data_d = init.paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
