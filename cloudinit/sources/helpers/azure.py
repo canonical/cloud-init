@@ -1055,4 +1055,195 @@ def dhcp_log_cb(out, err):
     )
 
 
+class BrokenAzureDataSource(Exception):
+    pass
+
+
+class NonAzureDataSource(Exception):
+    pass
+
+
+class OvfEnvXml:
+    NAMESPACES = {
+        "ovf": "http://schemas.dmtf.org/ovf/environment/1",
+        "wa": "http://schemas.microsoft.com/windowsazure",
+    }
+
+    def __init__(
+        self,
+        *,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        hostname: Optional[str] = None,
+        custom_data: Optional[bytes] = None,
+        disable_ssh_password_auth: Optional[bool] = None,
+        public_keys: Optional[List[dict]] = None,
+        preprovisioned_vm: bool = False,
+        preprovisioned_vm_type: Optional[str] = None,
+    ) -> None:
+        self.username = username
+        self.password = password
+        self.hostname = hostname
+        self.custom_data = custom_data
+        self.disable_ssh_password_auth = disable_ssh_password_auth
+        self.public_keys: List[dict] = public_keys or []
+        self.preprovisioned_vm = preprovisioned_vm
+        self.preprovisioned_vm_type = preprovisioned_vm_type
+
+    def __eq__(self, other) -> bool:
+        return self.__dict__ == other.__dict__
+
+    @classmethod
+    def parse_text(cls, ovf_env_xml: str) -> "OvfEnvXml":
+        """Parser for ovf-env.xml data.
+
+        :raises NonAzureDataSource: if XML is not in Azure's format.
+        :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+        """
+        try:
+            root = ElementTree.fromstring(ovf_env_xml)
+        except ElementTree.ParseError as e:
+            error_str = "Invalid ovf-env.xml: %s" % e
+            raise BrokenAzureDataSource(error_str) from e
+
+        # If there's no provisioning section, it's not Azure ovf-env.xml.
+        if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
+            raise NonAzureDataSource(
+                "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
+            )
+
+        instance = OvfEnvXml()
+        instance._parse_linux_configuration_set_section(root)
+        instance._parse_platform_settings_section(root)
+
+        return instance
+
+    def _find(
+        self,
+        node,
+        name: str,
+        namespace: str = "wa",
+        error_if_missing: bool = True,
+    ):
+        matches = node.findall(
+            "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
+        )
+        if len(matches) == 0:
+            msg = "No ovf-env.xml configuration for %r" % name
+            LOG.debug(msg)
+            if error_if_missing:
+                raise BrokenAzureDataSource(msg)
+            return None
+        elif len(matches) > 1:
+            raise BrokenAzureDataSource(
+                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+                % (name, len(matches))
+            )
+
+        return matches[0]
+
+    def _parse_property(
+        self,
+        node,
+        name: str,
+        decode_base64: bool = False,
+        error_if_missing: bool = False,
+        parse_bool: bool = False,
+        default=None,
+    ):
+        matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
+        if len(matches) == 0:
+            msg = "No ovf-env.xml configuration for %r" % name
+            LOG.debug(msg)
+            if error_if_missing:
+                raise BrokenAzureDataSource(msg)
+            return default
+        elif len(matches) > 1:
+            raise BrokenAzureDataSource(
+                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+                % (name, len(matches))
+            )
+
+        value = matches[0].text
+
+        # Empty string may be None.
+        if value is None:
+            value = default
+
+        if decode_base64 and value is not None:
+            value = base64.b64decode("".join(value.split()))
+
+        if parse_bool:
+            value = util.translate_bool(value)
+
+        return value
+
+    def _parse_linux_configuration_set_section(self, root):
+        provisioning_section = self._find(root, "ProvisioningSection")
+        config_set = self._find(
+            provisioning_section,
+            "LinuxProvisioningConfigurationSet",
+        )
+
+        self.custom_data = self._parse_property(
+            config_set, "CustomData", decode_base64=True
+        )
+        self.username = self._parse_property(
+            config_set, "UserName", error_if_missing=True
+        )
+        self.password = self._parse_property(config_set, "UserPassword")
+        self.hostname = self._parse_property(
+            config_set, "HostName", error_if_missing=True
+        )
+        self.disable_ssh_password_auth = self._parse_property(
+            config_set,
+            "DisableSshPasswordAuthentication",
+            parse_bool=True,
+        )
+
+        self._parse_ssh_section(config_set)
+
+    def _parse_platform_settings_section(self, root):
+        platform_settings_section = self._find(root, "PlatformSettingsSection")
+        platform_settings = self._find(
+            platform_settings_section, "PlatformSettings"
+        )
+
+        self.preprovisioned_vm = self._parse_property(
+            platform_settings,
+            "PreprovisionedVm",
+            parse_bool=True,
+            default=False,
+        )
+        self.preprovisioned_vm_type = self._parse_property(
+            platform_settings, "PreprovisionedVMType"
+        )
+
+    def _parse_ssh_section(self, config_set):
+        self.public_keys = []
+
+        ssh_section = self._find(config_set, "SSH", error_if_missing=False)
+        if ssh_section is None:
+            return
+
+        public_keys_section = self._find(
+            ssh_section, "PublicKeys", error_if_missing=False
+        )
+        if public_keys_section is None:
+            return
+
+        for public_key in public_keys_section.findall(
+            "./wa:PublicKey", OvfEnvXml.NAMESPACES
+        ):
+            fingerprint = self._parse_property(public_key, "Fingerprint")
+            path = self._parse_property(public_key, "Path")
+            value = self._parse_property(public_key, "Value", default="")
+            ssh_key = {
+                "fingerprint": fingerprint,
+                "path": path,
+                "value": value,
+            }
+            self.public_keys.append(ssh_key)
+
+
 # vi: ts=4 expandtab
