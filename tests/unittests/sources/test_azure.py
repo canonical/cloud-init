@@ -315,17 +315,16 @@ def construct_valid_ovf_env(
         pubkeys = {}
 
     content = """<?xml version="1.0" encoding="utf-8"?>
-<Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
- xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
- xmlns:wa="http://schemas.microsoft.com/windowsazure"
+<ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+ xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+ xmlns:ns1="http://schemas.microsoft.com/windowsazure"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
- <wa:ProvisioningSection><wa:Version>1.0</wa:Version>
- <LinuxProvisioningConfigurationSet
-  xmlns="http://schemas.microsoft.com/windowsazure"
-  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-  <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
-    """
+<ns1:ProvisioningSection>
+<ns1:Version>1.0</ns1:Version>
+<ns1:LinuxProvisioningConfigurationSet>
+<ns1:ConfigurationSetType>LinuxProvisioningConfiguration</ns1:ConfigurationSetType>
+"""
     for key, dval in data.items():
         if isinstance(dval, dict):
             val = dict(dval).get("text")
@@ -339,40 +338,42 @@ def construct_valid_ovf_env(
         else:
             val = dval
             attrs = ""
-        content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
+        content += "<ns1:%s%s>%s</ns1:%s>\n" % (key, attrs, val, key)
 
     if userdata:
-        content += "<CustomData>%s</CustomData>\n" % (b64e(userdata))
+        content += "<ns1:CustomData>%s</ns1:CustomData>\n" % (b64e(userdata))
 
     if pubkeys:
-        content += "<SSH><PublicKeys>\n"
+        content += "<ns1:SSH>\n<ns1:PublicKeys>\n"
         for fp, path, value in pubkeys:
-            content += " <PublicKey>"
+            content += "<ns1:PublicKey>"
             if fp and path:
-                content += "<Fingerprint>%s</Fingerprint><Path>%s</Path>" % (
-                    fp,
-                    path,
-                )
+                content += "<ns1:Fingerprint>%s</ns1:Fingerprint>\n" % fp
+                content += "<ns1:Path>%s</ns1:Path>\n" % path
+
             if value:
-                content += "<Value>%s</Value>" % value
-            content += "</PublicKey>\n"
-        content += "</PublicKeys></SSH>"
-    content += """
- </LinuxProvisioningConfigurationSet>
- </wa:ProvisioningSection>
- <wa:PlatformSettingsSection><wa:Version>1.0</wa:Version>
- <PlatformSettings xmlns="http://schemas.microsoft.com/windowsazure"
-  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
- <KmsServerHostname>kms.core.windows.net</KmsServerHostname>
- <ProvisionGuestAgent>false</ProvisionGuestAgent>
- <GuestAgentPackageName i:nil="true" />"""
+                content += "<ns1:Value>%s</ns1:Value>\n" % value
+            content += "</ns1:PublicKey>\n"
+        content += "</ns1:PublicKeys>\n</ns1:SSH>\n"
+    content += """\
+</ns1:LinuxProvisioningConfigurationSet>
+</ns1:ProvisioningSection>
+<ns1:PlatformSettingsSection>
+<ns1:Version>1.0</ns1:Version>
+<ns1:PlatformSettings>
+<ns1:KmsServerHostname>kms.core.windows.net</ns1:KmsServerHostname>
+<ns1:ProvisionGuestAgent>false</ns1:ProvisionGuestAgent>
+<ns1:GuestAgentPackageName xsi:nil="true" />
+"""
     if platform_settings:
         for k, v in platform_settings.items():
-            content += "<%s>%s</%s>\n" % (k, v, k)
+            content += "<ns1:%s>%s</ns1:%s>\n" % (k, v, k)
         if "PreprovisionedVMType" not in platform_settings:
-            content += """<PreprovisionedVMType i:nil="true" />"""
-    content += """</PlatformSettings></wa:PlatformSettingsSection>
-</Environment>"""
+            content += '<ns1:PreprovisionedVMType xsi:nil="true" />'
+    content += """\
+</ns1:PlatformSettings>
+</ns1:PlatformSettingsSection>
+</ns0:Environment>"""
 
     return content
 
@@ -1314,7 +1315,7 @@ scbus-1 on xpt0 bus 0
             list(crawled_metadata["files"].keys()), ["ovf-env.xml"]
         )
         self.assertIn(
-            b"<HostName>myhost</HostName>",
+            b"<ns1:HostName>myhost</ns1:HostName>",
             crawled_metadata["files"]["ovf-env.xml"],
         )
         self.assertEqual(crawled_metadata["metadata"], expected_metadata)
