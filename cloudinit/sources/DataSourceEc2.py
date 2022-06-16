@@ -129,9 +129,10 @@ class DataSourceEc2(sources.DataSource):
                 with EphemeralIPNetwork(
                     self.fallback_interface, ipv6=True
                 ) as netw:
+                    state_msg = f" {netw.state_msg}" if netw.state_msg else ""
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service " + netw.state_msg,
+                        msg=f"Crawl of metadata service{state_msg}",
                         func=self.crawl_metadata,
                     )
 
