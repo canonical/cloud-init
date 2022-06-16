@@ -12,7 +12,6 @@ from pathlib import Path
 import httpretty
 import pytest
 import requests
-import yaml
 
 from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
@@ -1276,12 +1275,10 @@ scbus-1 on xpt0 bus 0
 
     def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
         """Return all structured metadata and cache no class attributes."""
-        yaml_cfg = ""
         odata = {
             "HostName": "myhost",
             "UserName": "myuser",
             "CustomData": {"text": "FOOBAR", "encoding": "plain"},
-            "dscfg": {"text": yaml_cfg, "encoding": "plain"},
         }
         data = {
             "ovfcontent": construct_valid_ovf_env(data=odata),
@@ -1291,7 +1288,6 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
-            "datasource": {"Azure": {}},
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
@@ -1751,31 +1747,6 @@ scbus-1 on xpt0 bus 0
 
             assert "disk_setup" not in cfg
             assert "fs_setup" not in cfg
-
-    def test_provide_disk_aliases(self):
-        # Make sure that user can affect disk aliases
-        dscfg = {"disk_aliases": {"ephemeral0": "/dev/sdc"}}
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "dscfg": {"text": b64e(yaml.dump(dscfg)), "encoding": "base64"},
-        }
-        usercfg = {
-            "disk_setup": {
-                "/dev/sdc": {"something": "..."},
-                "ephemeral0": False,
-            }
-        }
-        userdata = "#cloud-config" + yaml.dump(usercfg) + "\n"
-
-        ovfcontent = construct_valid_ovf_env(data=odata, userdata=userdata)
-        data = {"ovfcontent": ovfcontent, "sys_cfg": {}}
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
-        self.assertTrue(cfg)
 
     def test_userdata_arrives(self):
         userdata = "This is my user-data"
