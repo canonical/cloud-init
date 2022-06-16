@@ -12,7 +12,8 @@ Architecture: all
 Depends: ${misc:Depends},
          ${python3:Depends},
          iproute2,
-         isc-dhcp-client
+         isc-dhcp-client,
+         python3-debconf
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 Suggests: ssh-import-id, openssh-server
 Description: Init scripts for cloud instances
