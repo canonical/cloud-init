@@ -60,7 +60,6 @@ RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
-REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
 
@@ -331,6 +330,9 @@ class DataSourceAzure(sources.DataSource):
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        self._reported_ready_marker_file = os.path.join(
+            paths.cloud_dir, "data", "reported_ready"
+        )
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -944,7 +946,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
-        path = REPORTED_READY_MARKER_FILE
+        path = self._reported_ready_marker_file
         LOG.info("Creating a marker file to report ready: %s", path)
         util.write_file(
             path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
@@ -1149,7 +1151,9 @@ class DataSourceAzure(sources.DataSource):
         )
         headers = {"Metadata": "true"}
         nl_sock = None
-        report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
+        report_ready = bool(
+            not os.path.isfile(self._reported_ready_marker_file)
+        )
         self.imds_logging_threshold = 1
         self.imds_poll_counter = 1
         dhcp_attempts = 0
@@ -1379,7 +1383,7 @@ class DataSourceAzure(sources.DataSource):
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
-        if os.path.isfile(REPORTED_READY_MARKER_FILE):
+        if os.path.isfile(self._reported_ready_marker_file):
             pps_type = PPSType.UNKNOWN
         elif (
             ovf_cfg.get("PreprovisionedVMType", None) == PPSType.SAVABLE.value
@@ -1437,7 +1441,7 @@ class DataSourceAzure(sources.DataSource):
 
     def _cleanup_markers(self):
         """Cleanup any marker files."""
-        util.del_file(REPORTED_READY_MARKER_FILE)
+        util.del_file(self._reported_ready_marker_file)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
