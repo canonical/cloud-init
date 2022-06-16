@@ -50,6 +50,9 @@ CONFGROUPNAME_GUESTCUSTOMIZATION = "deployPkg"
 GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS = "enable-custom-scripts"
 VMWARE_IMC_DIR = "/var/run/vmware-imc"
 
+class GuestCustScriptDisabledException(Exception):
+    """Specifies explicit exception for GUESTCUST_ERROR_SCRIPT_DISABLED"""
+    pass
 
 class DataSourceOVF(sources.DataSource):
 
@@ -270,11 +273,19 @@ class DataSourceOVF(sources.DataSource):
                             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                             GuestCustErrorEnum.GUESTCUST_ERROR_SCRIPT_DISABLED,
                         )
-                        raise RuntimeError(msg)
+                        raise GuestCustScriptDisabledException(msg)
 
                 ccScriptsDir = os.path.join(
                     self.paths.get_cpath("scripts"), "per-instance"
                 )
+            except GuestCustScriptDisabledException as e:
+                LOG.debug("GuestCustScriptDisabledException")
+                _raise_error_status(
+                    "Error parsing the customization Config File",
+                    e,
+                    GuestCustErrorEnum.GUESTCUST_ERROR_SCRIPT_DISABLED,
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
             except Exception as e:
                 _raise_error_status(
                     "Error parsing the customization Config File",
