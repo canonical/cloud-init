@@ -1291,9 +1291,6 @@ scbus-1 on xpt0 bus 0
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
-            "azure_data": {
-                "configurationsettype": "LinuxProvisioningConfiguration"
-            },
             "imds": NETWORK_METADATA,
             "instance-id": EXAMPLE_UUID,
             "local-hostname": "myhost",

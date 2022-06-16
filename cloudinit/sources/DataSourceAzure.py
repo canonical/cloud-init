@@ -1898,8 +1898,7 @@ def read_azure_ovf(contents):
     if not lpcs.hasChildNodes():
         raise BrokenAzureDataSource("no child nodes of configuration set")
 
-    md_props = "seedfrom"
-    md: Dict[str, Any] = {"azure_data": {}}
+    md: Dict[str, Any] = {}
     cfg = {}
     ud = ""
     password = None
@@ -1911,13 +1910,11 @@ def read_azure_ovf(contents):
 
         name = child.localName.lower()
 
-        simple = False
         value = ""
         if (
             len(child.childNodes) == 1
             and child.childNodes[0].nodeType == dom.TEXT_NODE
         ):
-            simple = True
             value = child.childNodes[0].wholeText
 
         attrs = dict([(k, v) for k, v in child.attributes.items()])
@@ -1937,11 +1934,6 @@ def read_azure_ovf(contents):
             cfg["_pubkeys"] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":
             cfg["ssh_pwauth"] = util.is_false(value)
-        elif simple:
-            if name in md_props:
-                md[name] = value
-            else:
-                md["azure_data"][name] = value
 
     defuser = {}
     if username:
