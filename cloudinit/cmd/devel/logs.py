@@ -24,7 +24,7 @@ CLOUDINIT_RUN_DIR = "/run/cloud-init"
 
 def _get_user_data_file() -> str:
     paths = read_cfg_paths()
-    return paths.get_ipath("userdata_raw")
+    return paths.get_ipath_cur("userdata_raw")
 
 
 def get_parser(parser=None):
