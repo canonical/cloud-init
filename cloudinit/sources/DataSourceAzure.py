@@ -747,9 +747,6 @@ class DataSourceAzure(sources.DataSource):
         )
         self.userdata_raw = crawled_data["userdata_raw"]
 
-        user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
-        self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
-
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
         write_files(
@@ -1936,12 +1933,6 @@ def read_azure_ovf(contents):
             password = value
         elif name == "hostname":
             md["local-hostname"] = value
-        elif name == "dscfg":
-            if attrs.get("encoding") in (None, "base64"):
-                dscfg = base64.b64decode("".join(value.split()))
-            else:
-                dscfg = value
-            cfg["datasource"] = {DS_NAME: util.load_yaml(dscfg, default={})}
         elif name == "ssh":
             cfg["_pubkeys"] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":
