@@ -10,4 +10,5 @@ from cloudinit.distros import fedora
 class Distro(fedora.Distro):
     pass
 
+
 # vi: ts=4 expandtab

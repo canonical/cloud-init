@@ -337,7 +337,8 @@ OS_RELEASE_OPENMANDRIVA = dedent(
     BUG_REPORT_URL="http://issues.openmandriva.org/"\n
     SUPPORT_URL="https://forum.openmandriva.org"\n
     PRIVACY_POLICY_URL="https://www.openmandriva.org/tos"\n
-""")
+"""
+)
 
 
 class FakeCloud(object):
