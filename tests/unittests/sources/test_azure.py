@@ -22,7 +22,6 @@ from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
     b64e,
-    decode_binary,
     json_dumps,
     load_file,
     load_json,
@@ -1278,10 +1277,11 @@ scbus-1 on xpt0 bus 0
         odata = {
             "HostName": "myhost",
             "UserName": "myuser",
-            "CustomData": {"text": "FOOBAR", "encoding": "plain"},
         }
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_valid_ovf_env(
+                data=odata, userdata="FOOBAR"
+            ),
             "sys_cfg": {},
         }
         dsrc = self._get_ds(data)
@@ -1312,7 +1312,7 @@ scbus-1 on xpt0 bus 0
             crawled_metadata["files"]["ovf-env.xml"],
         )
         self.assertEqual(crawled_metadata["metadata"], expected_metadata)
-        self.assertEqual(crawled_metadata["userdata_raw"], "FOOBAR")
+        self.assertEqual(crawled_metadata["userdata_raw"], b"FOOBAR")
         self.assertEqual(dsrc.userdata_raw, None)
         self.assertEqual(dsrc.metadata, {})
         self.assertEqual(dsrc._metadata_imds, UNSET)
@@ -1671,20 +1671,11 @@ scbus-1 on xpt0 bus 0
         self.assertIn("lock_passwd", defuser)
         self.assertFalse(defuser["lock_passwd"])
 
-    def test_userdata_plain(self):
-        mydata = "FOOBAR"
-        odata = {"CustomData": {"text": mydata, "encoding": "plain"}}
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(decode_binary(dsrc.userdata_raw), mydata)
-
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {"CustomData": {"text": b64e(mydata), "encoding": "base64"}}
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
+        data = {
+            "ovfcontent": construct_valid_ovf_env(data={}, userdata=mydata)
+        }
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -2258,11 +2249,12 @@ scbus-1 on xpt0 bus 0
         odata = {
             "HostName": "myhost",
             "UserName": "myuser",
-            "CustomData": {"text": b64e(userdataOVF), "encoding": "base64"},
         }
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_valid_ovf_env(
+                data=odata, userdata=userdataOVF
+            ),
             "sys_cfg": sys_cfg,
         }
 

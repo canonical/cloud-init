@@ -1917,13 +1917,8 @@ def read_azure_ovf(contents):
         ):
             value = child.childNodes[0].wholeText
 
-        attrs = dict([(k, v) for k, v in child.attributes.items()])
-
         if name == "customdata":
-            if attrs.get("encoding") in (None, "base64"):
-                ud = base64.b64decode("".join(value.split()))
-            else:
-                ud = value
+            ud = base64.b64decode("".join(value.split()))
         elif name == "username":
             username = value
         elif name == "userpassword":
