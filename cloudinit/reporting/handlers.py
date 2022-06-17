@@ -106,8 +106,8 @@ class WebHookHandler(ReportingHandler):
         consecutive_failed = 0
         while True:
             if self.flush_requested and consecutive_failed > 2:
-                # Flushing generally happens when cloud-init is ready to
-                # exit, so if we have a queue of events piled up and recent
+                # At this point the main thread is waiting for the queue to
+                # drain. If we have a queue of events piled up and recent
                 # events have failed, lets not waste time trying to post
                 # the rest, especially since a long timeout could block
                 # cloud-init for quite a long time.

@@ -174,7 +174,8 @@ Configuration
         token_secret: <OAuth token secret>
         consumer_secret: <OAuth consumer secret>
 
-``endpoint`` is the only required key for the ``webhook`` configuration.
+``endpoint`` is the only additional required key when specifying
+``type: webhook``.
 
 **log**
 
