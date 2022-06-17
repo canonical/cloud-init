@@ -25,6 +25,7 @@ def main():
         "netbsd",
         "openbsd",
         "openEuler",
+        "openmandriva",
         "photon",
         "rhel",
         "suse",

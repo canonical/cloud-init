@@ -29,6 +29,7 @@ distros = [
     "eurolinux",
     "fedora",
     "openEuler",
+    "openmandriva",
     "photon",
     "rhel",
     "rocky",

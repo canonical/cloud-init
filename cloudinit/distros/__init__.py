@@ -47,6 +47,7 @@ OSFAMILIES = {
         "fedora",
         "miraclelinux",
         "openEuler",
+        "openmandriva",
         "photon",
         "rhel",
         "rocky",
