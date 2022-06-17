@@ -130,16 +130,6 @@ matrix:
             TOXENV=lowest-supported
             PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: bionic
-        - python: 3.6
-          env: TOXENV=flake8
-        - python: 3.6
-          env: TOXENV=mypy
-        - python: 3.6
-          env: TOXENV=pylint
-        - python: 3.6
-          env: TOXENV=black
-        - python: 3.6
-          env: TOXENV=isort
         - python: 3.7
           env: TOXENV=doc
           install:
