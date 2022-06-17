@@ -68,7 +68,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         return mstr
 
-    def wait_for_metadata_service(self):
+    def wait_for_metadata_service(self, retries=5):
         urls = self.ds_cfg.get("metadata_urls", [DEF_MD_URL])
         filtered = [x for x in urls if util.is_resolvable_url(x)]
         if set(filtered) != set(urls):
@@ -91,18 +91,27 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         url_params = self.get_url_params()
         start_time = time.time()
-        avail_url, _response = url_helper.wait_for_url(
-            urls=md_urls,
-            max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds,
-        )
+        tries_left = retries
+        avail_url = None
+        while not avail_url and tries_left > 0:
+            avail_url, _response = url_helper.wait_for_url(
+                urls=md_urls,
+                max_wait=url_params.max_wait_seconds,
+                timeout=url_params.timeout_seconds,
+            )
+            tries_left -= 1
+
         if avail_url:
             LOG.debug("Using metadata source: '%s'", url2base[avail_url])
         else:
             LOG.debug(
-                "Giving up on OpenStack md from %s after %s seconds",
+                (
+                    "Giving up on OpenStack md from %s after %s seconds and "
+                    "%s retries"
+                ),
                 md_urls,
                 int(time.time() - start_time),
+                retries,
             )
 
         self.metadata_address = url2base.get(avail_url)
@@ -203,8 +212,11 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         @raise: InvalidMetaDataException on unreadable or broken
             metadata.
         """
+        url_params = self.get_url_params()
         try:
-            if not self.wait_for_metadata_service():
+            if not self.wait_for_metadata_service(
+                retries=url_params.num_retries
+            ):
                 raise sources.InvalidMetaDataException(
                     "No active metadata service found"
                 )
@@ -214,8 +226,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                     error=str(e)
                 )
             )
-
-        url_params = self.get_url_params()
 
         try:
             result = util.log_time(
