@@ -19,7 +19,7 @@
           {"required": ["name"]},
           {"required": ["snapuser"]}
       ],
-      "properties": {
+      "additionalProperties": {
         "name": {
           "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
           "type": "string"
@@ -130,8 +130,7 @@
           "description": "The user's ID. Default is next available value.",
           "type": "integer"
         }
-      },
-      "additionalProperties": false
+      }
     },
     "apt_configure.mirror": {
       "type": "array",
