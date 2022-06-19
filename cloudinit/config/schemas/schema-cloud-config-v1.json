@@ -1980,12 +1980,32 @@
               "description": "Configuration settings or override Ubuntu Advantage config",
               "properties": {
                 "http_proxy": {
-                  "type": "string",
-                  "description": "Ubuntu Advantage HTTP Proxy"
+                  "type": "uri",
+                  "description": "Ubuntu Advantage HTTP Proxy URL"
                 },
                 "https_proxy": {
+                  "type": "uri",
+                  "description": "Ubuntu Advantage HTTPS Proxy URL"
+                },
+                "global_apt_http_proxy": {
                   "type": "string",
-                  "description": "Ubuntu Advantage HTTPS Proxy"
+                  "format": "uri",
+                  "description": "HTTP Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                },
+                "global_apt_https_proxy": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "HTTPS Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                },
+                "ua_apt_http_proxy": {
+                  "type": "string",
+                  "format": "uri",
+                   "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                },
+                "ua_apt_https_proxy": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 }
               }
             }

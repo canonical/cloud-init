@@ -76,8 +76,12 @@ meta: MetaSchema = {
         ubuntu_advantage:
           token: <ua_contract_token>
           config:
-            http_proxy: <http_proxy>
-            https_proxy: <https_proxy>
+            http_proxy: 'http://some-proxy:8088'
+            https_proxy: 'https://some-proxy:8088'
+            global_apt_https_proxy: 'http://some-global-apt-proxy:8088/'
+            global_apt_http_proxy: 'https://some-global-a'pt-proxy:8088/'          
+            ua_apt_http_proxy: 'http://10.0.10.10:3128'
+            ua_apt_https_proxy: 'https://10.0.10.10:3128'
           enable:
           - fips
         """
@@ -156,13 +160,18 @@ def configure_ua(token=None, enable=None, config=None):
 
     # UA Config
     for key, value in sorted(config.items()):
-        config_cmd = ["ua", "config", "set", key + "=" + value]
-        LOG.debug("Setting UA config %s=%s", key, value)
+        if value is None:
+            LOG.debug("Unsetting UA config for %s", key)
+            config_cmd = ["ua", "config", "unset", key]
+        else:
+            LOG.debug("Setting UA config %s=%s", key, value)
+            config_cmd = ["ua", "config", "set", f"{key}='{value}'"]
+        
         try:
             subp.subp(config_cmd)
         except subp.ProcessExecutionError as e:
             enable_errors.append((key, e))
-
+        
     if enable_errors:
         for param, error in enable_errors:
             msg = 'Failure enabling "{param}":\n{error}'.format(
