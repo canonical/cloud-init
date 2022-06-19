@@ -103,26 +103,20 @@ def supplemental_schema_validation(ua_config):
     """
     errors = []
     for key, value in sorted(ua_config.items()):
-        keypath = "ua:config:" + key
         if key == "http_proxy":
             if not isinstance(value, str):
                 errors.append(
-                    "Expected a url for {keypath}."
-                    " Found ({value})".format(keypath=keypath, value=value)
+                    f"Expected a url for ua:config:{key}. Found: {value}"
                 )
         elif key == "https_proxy":
             if not isinstance(value, str):
                 errors.append(
-                    "Expected a url for {keypath}."
-                    " Found ({value})".format(keypath=keypath, value=value)
+                    f"Expected a url for ua:config:{key}. Found: {value}"
                 )
     if errors:
         raise ValueError(
-            r"Invalid ubuntu_advantage configuration:\n{errors}".format(
-                errors="\n".join(errors)
-            )
+            f"Invalid ubuntu_advantage configuration:\n{'\n'.join(errors)}"
         )
-
 
 def configure_ua(token=None, enable=None, config=None):
     """Call ua commandline client to attach or enable services."""
