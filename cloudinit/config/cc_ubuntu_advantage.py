@@ -79,7 +79,7 @@ meta: MetaSchema = {
             http_proxy: 'http://some-proxy:8088'
             https_proxy: 'https://some-proxy:8088'
             global_apt_https_proxy: 'http://some-global-apt-proxy:8088/'
-            global_apt_http_proxy: 'https://some-global-a'pt-proxy:8088/'          
+            global_apt_http_proxy: 'https://some-global-apt-proxy:8088/'
             ua_apt_http_proxy: 'http://10.0.10.10:3128'
             ua_apt_https_proxy: 'https://10.0.10.10:3128'
           enable:
@@ -106,6 +106,7 @@ def supplemental_schema_validation(ua_config):
     @raises: ValueError describing invalid values provided.
     """
     errors = []
+    nl = "\n"
     for key, value in sorted(ua_config.items()):
         if key == "http_proxy":
             if not isinstance(value, str):
@@ -119,8 +120,9 @@ def supplemental_schema_validation(ua_config):
                 )
     if errors:
         raise ValueError(
-            f"Invalid ubuntu_advantage configuration:\n{'\n'.join(errors)}"
+            f"Invalid ubuntu_advantage configuration:{nl}{nl.join(errors)}"
         )
+
 
 def configure_ua(token=None, enable=None, config=None):
     """Call ua commandline client to attach or enable services."""
@@ -166,12 +168,12 @@ def configure_ua(token=None, enable=None, config=None):
         else:
             LOG.debug("Setting UA config %s=%s", key, value)
             config_cmd = ["ua", "config", "set", f"{key}='{value}'"]
-        
+
         try:
             subp.subp(config_cmd)
         except subp.ProcessExecutionError as e:
             enable_errors.append((key, e))
-        
+
     if enable_errors:
         for param, error in enable_errors:
             msg = 'Failure enabling "{param}":\n{error}'.format(
