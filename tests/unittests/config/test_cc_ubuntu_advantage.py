@@ -208,8 +208,8 @@ class TestConfigureUA(CiTestCase):
         """ValueError raised for any values expected as string type."""
         cfg = {"http_proxy": ["no-proxy"], "https_proxy": ["no-proxy2"]}
         errors = [
-            "Expected a url for ua:config:http_proxy. Found (['no-proxy'])",
-            "Expected a url for ua:config:https_proxy. Found (['no-proxy2'])",
+            "Expected a url for ua:config:http_proxy. Found: ['no-proxy']",
+            "Expected a url for ua:config:https_proxy. Found: ['no-proxy2']",
         ]
         with self.assertRaises(ValueError) as context_manager:
             supplemental_schema_validation(cfg)
