@@ -166,7 +166,7 @@ fi
 
 %files
 
-/lib/udev/rules.d/66-azure-ephemeral.rules
+%{_udevrulesdir}/66-azure-ephemeral.rules
 
 %if "%{init_system}" == "systemd"
 /usr/lib/systemd/system-generators/cloud-init-generator
