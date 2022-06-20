@@ -1616,6 +1616,8 @@ scbus-1 on xpt0 bus 0
             dsrc.cfg["system_info"]["default_user"]["name"], "myuser"
         )
 
+        assert "ssh_pwauth" not in dsrc.cfg
+
     def test_password_given(self):
         data = {
             "ovfcontent": construct_ovf_env(
@@ -1643,6 +1645,89 @@ scbus-1 on xpt0 bus 0
 
         # the same hashed value should also be present in cfg['password']
         self.assertEqual(defuser["passwd"], dsrc.cfg["password"])
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_password_with_disable_ssh_pw_auth_true(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=True,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is False
+
+    def test_password_with_disable_ssh_pw_auth_false(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=False,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_password_with_disable_ssh_pw_auth_unspecified(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=None,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_no_password_with_disable_ssh_pw_auth_true(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=True,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is False
+
+    def test_no_password_with_disable_ssh_pw_auth_false(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=False,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_no_password_with_disable_ssh_pw_auth_unspecified(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=None,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert "ssh_pwauth" not in dsrc.cfg
 
     def test_user_not_locked_if_password_redacted(self):
         data = {
