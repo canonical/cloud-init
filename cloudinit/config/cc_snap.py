@@ -113,7 +113,6 @@ __doc__ = get_meta_doc(meta)
 SNAP_CMD = "snap"
 
 
-
 def add_assertions(assertions, assertions_file):
     """Import list of assertions.
 

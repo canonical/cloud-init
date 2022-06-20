@@ -3,8 +3,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Cloud-init apport interface"""
+from cloudinit.cmd.devel import read_cfg_paths
 
 try:
+
     from apport.hookutils import (
         attach_file,
         attach_root_command_outputs,
@@ -53,7 +55,11 @@ KNOWN_CLOUD_NAMES = [
 # Potentially clear text collected logs
 CLOUDINIT_LOG = "/var/log/cloud-init.log"
 CLOUDINIT_OUTPUT_LOG = "/var/log/cloud-init-output.log"
-USER_DATA_FILE = "/var/lib/cloud/instance/user-data.txt"  # Optional
+
+
+def _get_user_data_file() -> str:
+    paths = read_cfg_paths()
+    return paths.get_ipath_cur("userdata_raw")
 
 
 def attach_cloud_init_logs(report, ui=None):
@@ -106,18 +112,19 @@ def attach_cloud_info(report, ui=None):
 def attach_user_data(report, ui=None):
     """Optionally provide user-data if desired."""
     if ui:
+        user_data_file = _get_user_data_file()
         prompt = (
             "Your user-data or cloud-config file can optionally be provided"
             " from {0} and could be useful to developers when addressing this"
             " bug. Do you wish to attach user-data to this bug?".format(
-                USER_DATA_FILE
+                user_data_file
             )
         )
         response = ui.yesno(prompt)
         if response is None:
             raise StopIteration  # User cancelled
         if response:
-            attach_file(report, USER_DATA_FILE, "user_data.txt")
+            attach_file(report, user_data_file, "user_data.txt")
 
 
 def add_bug_tags(report):

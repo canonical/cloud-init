@@ -1,27 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+import os
 import re
 from io import StringIO
-import os
+
 import pytest
-import logging
+
 from cloudinit import helpers, util
-from cloudinit.config.cc_snap import (
-    add_assertions,
-    handle,
-    run_commands,
-)
+from cloudinit.config.cc_snap import add_assertions, handle, run_commands
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    CiTestCase,
-    mock,
-    skipUnlessJsonSchema,
-    wrap_and_call,
-)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_snap."
@@ -98,10 +91,9 @@ oG3Ie3WOHrVjCLXIdYslpL1O4nadqR6Xv58pHj6k"""
 def fake_cloud(tmpdir):
     paths = helpers.Paths(
         {
-            "cloud_dir": tmpdir.join("cloud"), 
-            "run_dir": tmpdir.join("cloud-init"), 
-            "templates_dir": tmpdir.join("templates"), 
-            
+            "cloud_dir": tmpdir.join("cloud"),
+            "run_dir": tmpdir.join("cloud-init"),
+            "templates_dir": tmpdir.join("templates"),
         }
     )
     cloud = get_cloud(paths=paths)
@@ -109,7 +101,6 @@ def fake_cloud(tmpdir):
 
 
 class TestAddAssertions:
-
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_add_assertions_on_empty_list(self, m_subp, caplog, tmpdir):
         """When provided with an empty list, add_assertions does nothing."""
@@ -122,40 +113,51 @@ class TestAddAssertions:
         """When provided an invalid type, add_assertions raises an error."""
         assert_file = tmpdir.join("snapd.assertions")
         with pytest.raises(
-            TypeError, 
-            match="assertion parameter was not a list or dict: I'm Not Valid"
+            TypeError,
+            match="assertion parameter was not a list or dict: I'm Not Valid",
         ):
             add_assertions("I'm Not Valid", assert_file)
 
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    def test_add_assertions_adds_assertions_as_list(self, m_subp, caplog, tmpdir):
+    def test_add_assertions_adds_assertions_as_list(
+        self, m_subp, caplog, tmpdir
+    ):
         """When provided with a list, add_assertions adds all assertions."""
         assert_file = tmpdir.join("snapd.assertions")
         assertions = [SYSTEM_USER_ASSERTION, ACCOUNT_ASSERTION]
         add_assertions(assertions, assert_file)
         assert "Importing user-provided snap assertions" in caplog.text
         assert "sertions" in caplog.text
-        assert (
-            [mock.call(["snap", "ack", assert_file], capture=True)] ==
-            m_subp.call_args_list
-        )
+        assert [
+            mock.call(["snap", "ack", assert_file], capture=True)
+        ] == m_subp.call_args_list
         compare_file = tmpdir.join("comparison")
         util.write_file(compare_file, "\n".join(assertions).encode("utf-8"))
         assert util.load_file(compare_file) == util.load_file(assert_file)
 
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    def test_add_assertions_adds_assertions_as_dict(self, m_subp, caplog, tmpdir):
+    def test_add_assertions_adds_assertions_as_dict(
+        self, m_subp, caplog, tmpdir
+    ):
         """When provided with a dict, add_assertions adds all assertions."""
         assert_file = tmpdir.join("snapd.assertions")
         assertions = {"00": SYSTEM_USER_ASSERTION, "01": ACCOUNT_ASSERTION}
         add_assertions(assertions, assert_file)
         assert "Importing user-provided snap assertions" in caplog.text
-        assert (M_PATH[:-1], logging.DEBUG, "Snap acking: ['type: system-user', 'authority-id: LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp']") in caplog.record_tuples
-        assert (M_PATH[:-1], logging.DEBUG, "Snap acking: ['type: account-key', 'authority-id: canonical']") in caplog.record_tuples
         assert (
-            [mock.call(["snap", "ack", assert_file], capture=True)] ==
-            m_subp.call_args_list
-        )
+            M_PATH[:-1],
+            logging.DEBUG,
+            "Snap acking: ['type: system-user', 'authority-id: "
+            "LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp']",
+        ) in caplog.record_tuples
+        assert (
+            M_PATH[:-1],
+            logging.DEBUG,
+            "Snap acking: ['type: account-key', 'authority-id: canonical']",
+        ) in caplog.record_tuples
+        assert [
+            mock.call(["snap", "ack", assert_file], capture=True)
+        ] == m_subp.call_args_list
         compare_file = tmpdir.join("comparison")
         combined = "\n".join(assertions.values())
         util.write_file(compare_file, combined.encode("utf-8"))
@@ -317,22 +319,17 @@ class TestSnapSchema:
 
 
 class TestHandle:
-
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_handle_adds_assertions(self, m_subp, fake_cloud, tmpdir):
         """Any configured snap assertions are provided to add_assertions."""
-        assert_file = os.path.join(fake_cloud.paths.get_ipath_cur(), "snapd.assertions")
+        assert_file = os.path.join(
+            fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
+        )
         compare_file = tmpdir.join("comparison")
         cfg = {
             "snap": {"assertions": [SYSTEM_USER_ASSERTION, ACCOUNT_ASSERTION]}
         }
-        handle(
-            "snap",
-            cfg=cfg,
-            cloud=fake_cloud,
-            log=mock.Mock(),
-            args=None
-        )
+        handle("snap", cfg=cfg, cloud=fake_cloud, log=mock.Mock(), args=None)
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
         assert util.load_file(compare_file) == util.load_file(assert_file)
