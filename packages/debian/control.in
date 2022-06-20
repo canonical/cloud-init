@@ -3,7 +3,8 @@ Source: cloud-init
 Section: admin
 Priority: optional
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: ${build_depends}
+Build-Depends: ${build_depends},
+               python3-debconf
 XS-Python-Version: all
 Standards-Version: 3.9.6
 
