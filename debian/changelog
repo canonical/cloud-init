@@ -1,3 +1,9 @@
+cloud-init (22.2-0ubuntu1~22.10.2) UNRELEASED; urgency=medium
+
+  * d/control: add python3-debconf as Depends and Build-Depends
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 20 Jun 2022 10:54:54 +0200
+
 cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * d/control:
