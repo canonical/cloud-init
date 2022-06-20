@@ -36,6 +36,7 @@ def custom_client(
 
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
+@pytest.mark.azure
 class TestLp1976564:
     def verify_log_and_files(self, custom_client):
         log_content = custom_client.read_from_file("/var/log/cloud-init.log")

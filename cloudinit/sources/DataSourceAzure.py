@@ -1445,8 +1445,10 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
+        instance_dir = self.paths.get_ipath_cur()
         try:
             address_ephemeral_resize(
+                instance_dir,
                 is_new_instance=is_new_instance,
                 preserve_ntfs=self.ds_cfg.get(DS_CFG_KEY_PRESERVE_NTFS, False),
             )
@@ -1730,7 +1732,10 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 @azure_ds_telemetry_reporter
 def address_ephemeral_resize(
-    devpath=RESOURCE_DISK_PATH, is_new_instance=False, preserve_ntfs=False
+    instance_dir: str,
+    devpath: str = RESOURCE_DISK_PATH,
+    is_new_instance: bool = False,
+    preserve_ntfs: bool = False,
 ):
     if not os.path.exists(devpath):
         report_diagnostic_event(
@@ -1756,7 +1761,7 @@ def address_ephemeral_resize(
         return
 
     for mod in ["disk_setup", "mounts"]:
-        sempath = "/var/lib/cloud/instance/sem/config_" + mod
+        sempath = os.path.join(instance_dir, "sem", "config_" + mod)
         bmsg = 'Marker "%s" for module "%s"' % (sempath, mod)
         if os.path.exists(sempath):
             try:
