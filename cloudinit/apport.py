@@ -6,7 +6,6 @@
 from cloudinit.cmd.devel import read_cfg_paths
 
 try:
-
     from apport.hookutils import (
         attach_file,
         attach_root_command_outputs,
