@@ -18,6 +18,7 @@ jobs:
         lint-with:
           - {tip-versions: false, os: ubuntu-18.04}
           - {tip-versions: true, os: ubuntu-latest}
+    name: ${{ matrix.lint-with.tip-versions && 'Check format (tip)' || 'Check format (pinned)' }}
     runs-on: ${{ matrix.lint-with.os }}
     steps:
       - name: "Checkout #1"
