@@ -1763,26 +1763,43 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
             },
             "users": {
-              "description": "List of existing users to set passwords for. Each list item contains the following required keys: ``name`` and ``password``. An optional ``type`` key may be used to specify password type as ``text`` rather than the default (``hash``). This replaces the deprecated ``list`` key.",
+              "description": "Replaces the deprecated ``list`` key. This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``.",
               "type": "array",
               "items": {
                 "minItems": 1,
                 "type": "object",
-                "additionalProperties": false,
-                "required": ["name", "password"],
-                "properties": {
-                  "name": {
-                    "type": "string"
+                "anyOf": [
+                  {
+                    "required": ["name", "type"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": ["RANDOM"],
+                        "type": "string"
+                      }
+                    }
                   },
-                  "type": {
-                    "enum": ["hash", "text"],
-                    "default": "hash",
-                    "type": "string"
-                  },
-                  "password": {
-                    "type": "string"
+                  {
+                    "required": ["name", "password"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": ["hash", "text"],
+                        "default": "hash",
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      }
+                    }
                   }
-                }
+		]
               }
             },
             "list": {

@@ -418,6 +418,7 @@ class TestSetPasswordsSchema:
             ({"ssh_pwauth": "yes"}, None),
             ({"ssh_pwauth": "unchanged"}, None),
             ({"chpasswd": {"list": "blah"}}, None),
+            # Valid combinations
             (
                 {
                     "chpasswd": {
@@ -437,6 +438,10 @@ class TestSetPasswordsSchema:
                                 "password": "type-is-optional-default-"
                                 "value-is-hash",
                             },
+                            {
+                                "name": "what-if-4",
+                                "type": "RANDOM",
+                            },
                         ]
                     }
                 },
@@ -455,12 +460,41 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                "is not one of",
+                "is not valid under any of the given schemas",
+            ),
+            (
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "RANDOM",
+                                "password": "but you want random?",
+                            }
+                        ]
+                    }
+                },
+                "is not valid under any of the given schemas",
             ),
             (
                 {"chpasswd": {"users": [{"password": "."}]}},
-                "'name' is a required property",
+                "is not valid under any of the given schemas",
             ),
+            # when type != RANDOM, password is a required key
+            (
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "hash"
+                            }
+                        ]
+                    }
+                },
+                "is not valid under any of the given schemas",
+            ),
+            # dat is an additional property
             (
                 {
                     "chpasswd": {
@@ -473,11 +507,11 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                "Additional properties are not allowed",
+                "is not valid under any of the given schemas",
             ),
             (
                 {"chpasswd": {"users": [{"name": "."}]}},
-                "'password' is a required property",
+                "is not valid under any of the given schemas",
             ),
             # Test regex
             ({"chpasswd": {"list": ["user:pass"]}}, None),

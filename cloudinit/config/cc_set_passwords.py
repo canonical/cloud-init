@@ -58,7 +58,7 @@ meta: MetaSchema = {
             # Set the password for user1 to be 'password1' (OS does hashing)
             # Set the password for user2 to a pre-hashed password
             # Set the password for user3 to be a randomly generated password,
-            #   which will be written to the system console (DEPRECATED)
+            #   which will be written to the system console
             ssh_pwauth: false
             chpasswd:
               expire: false
@@ -68,8 +68,8 @@ meta: MetaSchema = {
                   type: text
                 - name: user2
                   password: $6$rounds=4096$5DJ8a9WMTEzIo5J4$Yms6imfeBvf3Yfu84mQBerh18l7OR1Wm1BJXZqFSpJ6BVas0AYJqIjP7czkOaAZHZi1kxQ5Y1IhgWN8K9NgxR1
-              list:
-                - user3:RANDOM
+                - name: user3
+                  type: RANDOM
             """  # noqa
         ),
     ],
@@ -84,11 +84,12 @@ PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
+    """either password or type is required"""
     return (
         []
         if not users_list
         else [
-            (item["name"], item["password"])
+            (item["name"], item.get("password", "RANDOM"))
             for item in users_list
             if item.get("type", "hash") is pw_type
         ]
@@ -231,7 +232,7 @@ def handle(_name, cfg, cloud, log, args):
         users = [user for user, _ in plist_in]
         hashed_plist_in = get_users_by_type(users_list, "hash")
         hashed_users = [user for user, _ in hashed_plist_in]
-        randlist = []
+        randlist = get_users_by_type(users_list, "RANDOM")
         # N.B. This regex is included in the documentation (i.e. the module
         # docstring), so any changes to it should be reflected there.
         prog = re.compile(r"\$(1|2a|2y|5|6)(\$.+){2}")
