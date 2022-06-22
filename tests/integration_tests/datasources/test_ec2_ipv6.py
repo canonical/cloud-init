@@ -42,7 +42,8 @@ def test_dual_stack(client: IntegrationInstance):
 
     # Force NoDHCPLeaseError (by removing dhclient) and assert ipv6 still works
     # Destructive test goes last
-    assert client.execute("rm /usr/sbin/dhclient").ok
+    # dhclient is at /sbin/dhclient on bionic but /usr/sbin/dhclient elseware
+    assert client.execute("rm $(which dhclient)").ok
     client.restart()
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Crawl of metadata service using link-local ipv6 took" in log
