@@ -249,6 +249,19 @@ class TestHandleSSHPwauth:
         assert cloud.distro.uses_systemd.call_count == 1
 
 
+def get_chpasswd_calls(cfg, cloud, log):
+    with mock.patch(MODPATH + "subp.subp") as subp:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
+            setpass.handle(
+                "IGNORED",
+                cfg=cfg,
+                cloud=cloud,
+                log=log,
+                args=[],
+            )
+    return chpasswd.call_args[0], subp.call_args
+
+
 @pytest.mark.usefixtures("mock_uses_systemd")
 class TestSetPasswordsHandle(CiTestCase):
     """Test cc_set_passwords.handle"""
@@ -361,52 +374,148 @@ class TestSetPasswordsHandle(CiTestCase):
                 self.fail("Password not emitted to console")
 
     def test_chpasswd_parity(self):
-        cloud = self.tmp_cloud(distro="ubuntu")
-        list_def = [
-            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/"
-            "Dlew1Va",
-            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q"
-            "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-            "dog:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q"
-            "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-        ]
-        users_def = [
-            {
-                "name": "root",
-                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW."
-                "BrPx/Dlew1Va",
-            },
-            {
-                "name": "ubuntu",
-                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR5"
-                "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-            },
-            {
-                "name": "dog",
-                "type": "hash",
-                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR5"
-                "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
-            },
-        ]
-        d_cfg = {"chpasswd": {"list": list_def}}
-        n_cfg = {"chpasswd": {"users": users_def}}
+        """Assert that two different configs cause identical calls"""
+        params = (
+            # demonstrate that new addition matches current behavior
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "dog:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC"
+                            "7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
+                            "3oo1",
+                            "Till:RANDOM",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "dog",
+                                "type": "hash",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "Till",
+                                "type": "RANDOM",
+                            },
+                        ]
+                    }
+                },
+            ),
+            # Duplicate user: demonstrate no change in current duplicate
+            # behavior
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                        ]
+                    }
+                },
+            ),
+            # Duplicate user: demonstrate duplicate across users/list doesn't
+            # change
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR5"
+                                "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
+                                "3oo1",
+                            },
+                        ],
+                        "list": [
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ],
+                    }
+                },
+            ),
+        )
+        for list_def, users_def in params:
+            cloud = self.tmp_cloud(distro="ubuntu")
 
-        def get_calls(cfg):
-            with mock.patch(MODPATH + "subp.subp") as subp:
-                with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
-                    setpass.handle(
-                        "IGNORED",
-                        cfg=cfg,
-                        cloud=cloud,
-                        log=self.logger,
-                        args=[],
-                    )
-            return chpasswd.call_args[0], subp.call_args
-
-        deprecated, d_subp = get_calls(d_cfg)
-        new, n_subp = get_calls(n_cfg)
-        assert deprecated == new
-        assert d_subp == n_subp
+            def_1 = get_chpasswd_calls(list_def, cloud, self.logger)
+            def_2 = get_chpasswd_calls(users_def, cloud, self.logger)
+            assert def_1 == def_2
+            assert def_1[-1] == mock.call(
+                ["systemctl", "status", "ssh"], capture=True
+            )
+            for val in def_1:
+                assert val
 
 
 class TestSetPasswordsSchema:

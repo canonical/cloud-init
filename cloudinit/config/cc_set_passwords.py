@@ -84,7 +84,7 @@ PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
-    """either password or type is required"""
+    """either password or type: RANDOM is required, user is always required"""
     return (
         []
         if not users_list
@@ -232,7 +232,10 @@ def handle(_name, cfg, cloud, log, args):
         users = [user for user, _ in plist_in]
         hashed_plist_in = get_users_by_type(users_list, "hash")
         hashed_users = [user for user, _ in hashed_plist_in]
-        randlist = get_users_by_type(users_list, "RANDOM")
+        randlist = [
+            f"{user}:{password}"
+            for user, password in get_users_by_type(users_list, "RANDOM")
+        ]
         # N.B. This regex is included in the documentation (i.e. the module
         # docstring), so any changes to it should be reflected there.
         prog = re.compile(r"\$(1|2a|2y|5|6)(\$.+){2}")
