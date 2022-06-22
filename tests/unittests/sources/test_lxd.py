@@ -10,6 +10,7 @@ from unittest import mock
 import pytest
 import yaml
 
+from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
 
@@ -166,8 +167,8 @@ class TestDataSourceLXD:
 
     def test__get_data(self, lxd_ds):
         """get_data calls read_metadata, setting appropiate instance attrs."""
-        assert None is lxd_ds._crawled_metadata
-        assert None is lxd_ds._network_config
+        assert UNSET == lxd_ds._crawled_metadata
+        assert UNSET == lxd_ds._network_config
         assert None is lxd_ds.userdata_raw
         assert True is lxd_ds._get_data()
         assert LXD_V1_METADATA == lxd_ds._crawled_metadata
@@ -181,14 +182,14 @@ class TestDataSourceLXD:
         """network_config is correctly computed when _network_config and
         _crawled_metadata are unset.
         """
-        assert None is lxd_ds._crawled_metadata
-        assert None is lxd_ds._network_config
+        assert UNSET == lxd_ds._crawled_metadata
+        assert UNSET == lxd_ds._network_config
         assert None is lxd_ds.userdata_raw
         # network-config is dumped from YAML
         assert NETWORK_V1 == lxd_ds.network_config
         assert LXD_V1_METADATA == lxd_ds._crawled_metadata
 
-    def test_network_config_crawled_metadata_no_newtwork_config(
+    def test_network_config_crawled_metadata_no_network_config(
         self, lxd_ds_no_network_config
     ):
         """network_config is correctly computed when _network_config is unset
@@ -197,8 +198,8 @@ class TestDataSourceLXD:
         lxd.generate_fallback_network_config = mock.Mock(
             return_value=NETWORK_V1
         )
-        assert None is lxd_ds_no_network_config._crawled_metadata
-        assert None is lxd_ds_no_network_config._network_config
+        assert UNSET == lxd_ds_no_network_config._crawled_metadata
+        assert UNSET == lxd_ds_no_network_config._network_config
         assert None is lxd_ds_no_network_config.userdata_raw
         # network-config is dumped from YAML
         assert NETWORK_V1 == lxd_ds_no_network_config.network_config
