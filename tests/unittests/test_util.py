@@ -21,6 +21,7 @@ import pytest
 import yaml
 
 from cloudinit import importer, subp, util
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
@@ -461,6 +462,23 @@ class TestUtil:
         if create_confd:
             assert [mock.call(confd_fn)] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
+
+    @pytest.mark.parametrize("custom_cloud_dir", [True, False])
+    @mock.patch(M_PATH + "os.path.isfile", return_value=True)
+    @mock.patch(M_PATH + "os.path.isdir", return_value=True)
+    def test_fetch_ssl_details(
+        self, m_isdir, m_isfile, custom_cloud_dir, tmpdir
+    ):
+        cloud_dir = "/var/lib/cloud"
+        if custom_cloud_dir:
+            cloud_dir = tmpdir.join("cloud")
+        cert = os.path.join(cloud_dir, "instance", "data", "ssl", "cert.pem")
+        key = os.path.join(cloud_dir, "instance", "data", "ssl", "key.pem")
+
+        paths = Paths({"cloud_dir": cloud_dir})
+        ssl_details = util.fetch_ssl_details(paths)
+        assert {"cert_file": cert, "key_file": key} == ssl_details
+        assert 2 == m_isdir.call_count == m_isfile.call_count
 
 
 class TestSymlink(CiTestCase):

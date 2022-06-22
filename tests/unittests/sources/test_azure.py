@@ -296,10 +296,10 @@ def patched_markers_dir_path(tmpdir):
 
 
 @pytest.fixture
-def patched_reported_ready_marker_path(patched_markers_dir_path):
+def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
     reported_ready_marker = patched_markers_dir_path / "reported_ready"
-    with mock.patch(
-        MOCKPATH + "REPORTED_READY_MARKER_FILE", str(reported_ready_marker)
+    with mock.patch.object(
+        azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
 
@@ -2858,7 +2858,7 @@ class TestDeterminePPSTypeScenarios:
             == dsaz.PPSType.UNKNOWN
         )
         assert is_file.mock_calls == [
-            mock.call(dsaz.REPORTED_READY_MARKER_FILE)
+            mock.call(azure_ds._reported_ready_marker_file)
         ]
 
 
@@ -2911,7 +2911,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
-            dsaz.REPORTED_READY_MARKER_FILE, mock.ANY
+            dsa._reported_ready_marker_file, mock.ANY
         )
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
@@ -3146,7 +3146,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_request.side_effect = fake_timeout_once
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
 
         assert m_report_ready.mock_calls == [mock.call()]
@@ -3174,7 +3176,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._ephemeral_dhcp_ctx = mock.Mock(lease={})
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(0, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
@@ -3211,8 +3215,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        with mock.patch(
-            MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
         ), mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
             m_dhcp_ctx.obtain_lease.return_value = "Dummy lease"
             dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
@@ -3246,7 +3250,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         ]
         m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 0)
 
@@ -3274,7 +3280,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertTrue(os.path.exists(report_file))
@@ -3304,7 +3312,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_report_ready.side_effect = [Exception("fail")]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             self.assertRaises(InvalidMetaDataException, dsa._poll_imds)
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertFalse(os.path.exists(report_file))

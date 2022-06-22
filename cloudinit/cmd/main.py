@@ -47,6 +47,7 @@ from cloudinit import atomic_helper
 
 from cloudinit.config import cc_set_hostname
 from cloudinit import dhclient_hook
+from cloudinit.cmd.devel import read_cfg_paths
 
 
 # Welcome message template
@@ -661,7 +662,8 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        paths = read_cfg_paths()
+        data_d = paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
