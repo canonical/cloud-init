@@ -9,11 +9,11 @@ import logging
 import os
 import re
 import sys
-from copy import copy
+from copy import copy, deepcopy
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
-from typing import List
+from typing import List, Optional, Sequence, Set
 
 import pytest
 
@@ -46,7 +46,6 @@ from tests.unittests.helpers import (
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
-from tests.unittests.schema import JsonLocalResolver
 
 
 def get_schemas() -> dict:
@@ -1109,13 +1108,48 @@ class TestMeta:
             assert set(module.meta["distros"]).issubset(all_distros)
 
 
+def remove_modules(schema, modules: Set[str]) -> dict:
+    indices_to_delete = set()
+    for module in set(modules):
+        for index, ref_dict in enumerate(schema["allOf"]):
+            if ref_dict["$ref"] == f"#/$defs/{module}":
+                indices_to_delete.add(index)
+                continue  # module found
+    for index in indices_to_delete:
+        schema["allOf"].pop(index)
+    return schema
+
+
+def remove_defs(schema, defs: Set[str]) -> dict:
+    defs_to_delete = set(schema["$defs"].keys()).intersection(set(defs))
+    for key in defs_to_delete:
+        del schema["$defs"][key]
+    return schema
+
+
+def clean_schema(
+    schema=None,
+    modules: Optional[Sequence[str]] = None,
+    defs: Optional[Sequence[str]] = None,
+):
+    schema = deepcopy(schema or get_schema())
+    if modules:
+        remove_modules(schema, set(modules))
+    if defs:
+        remove_defs(schema, set(defs))
+    return schema
+
+
 @pytest.mark.hypothesis_slow
 class TestSchemaFuzz:
 
     # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
-    SCHEMA = JsonLocalResolver(get_schema()).resolve()
+    SCHEMA = clean_schema(
+        modules=["cc_users_groups"],
+        defs=["users_groups.groups_by_groupname", "users_groups.user"],
+    )
 
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):
-        validate_cloudconfig_schema(config, self.SCHEMA, strict=True)
+        validate_cloudconfig_schema(config, strict=True)
