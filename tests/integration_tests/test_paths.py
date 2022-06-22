@@ -1,7 +1,3 @@
-"""Integration test for LP: #1976564
-
-cloud-init must honor the cloud-dir configured in /etc/cloud/cloud.cfg.d
-"""
 import re
 from typing import Iterator
 
@@ -24,20 +20,16 @@ CUSTOM_CLOUD_DIR_FN = "95-custom-cloud-dir.cfg"
 def custom_client(
     client: IntegrationInstance, tmpdir
 ) -> Iterator[IntegrationInstance]:
-    cfg = tmpdir.join(CUSTOM_CLOUD_DIR_FN)
-    with open(cfg, "w") as f:
-        f.write(CUSTOM_CLOUD_DIR)
-    client.push_file(cfg, f"/etc/cloud/cloud.cfg.d/{CUSTOM_CLOUD_DIR_FN}")
+    client.write_to_file(
+        f"/etc/cloud/cloud.cfg.d/{CUSTOM_CLOUD_DIR_FN}", CUSTOM_CLOUD_DIR
+    )
     client.execute(f"rm -rf {DEFAULT_CLOUD_DIR}")  # Remove previous cloud_dir
     client.execute("cloud-init clean --logs")
     client.restart()
     yield client
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
-@pytest.mark.azure
-class TestLp1976564:
+class TestHonorCloudDir:
     def verify_log_and_files(self, custom_client):
         log_content = custom_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
@@ -58,6 +50,11 @@ class TestLp1976564:
             collect_logs_result.ok
         ), f"collect-logs error: {collect_logs_result.stderr}"
 
-    def test_lp1976564(self, custom_client: IntegrationInstance):
+    def test_honor_could_dir(self, custom_client: IntegrationInstance):
+        """Integration test for LP: #1976564
+
+        cloud-init must honor the cloud-dir configured in
+        /etc/cloud/cloud.cfg.d
+        """
         self.verify_log_and_files(custom_client)
         self.collect_logs(custom_client)

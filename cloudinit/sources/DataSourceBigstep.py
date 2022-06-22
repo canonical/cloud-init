@@ -7,7 +7,6 @@
 import errno
 import json
 import os
-from functools import lru_cache
 
 from cloudinit import sources, url_helper, util
 
@@ -37,7 +36,6 @@ class DataSourceBigstep(sources.DataSource):
         """Return the subplatform metadata source details."""
         return f"metadata ({self._get_url_from_file()})"
 
-    @lru_cache(maxsize=1, typed=False)
     def _get_url_from_file(self):
         url_file = os.path.join(
             self.paths.cloud_dir, "data", "seed", "bigstep", "url"
