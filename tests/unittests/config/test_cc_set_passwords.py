@@ -484,12 +484,7 @@ class TestSetPasswordsSchema:
             (
                 {
                     "chpasswd": {
-                        "users": [
-                            {
-                                "name": "what-if-1",
-                                "type": "hash"
-                            }
-                        ]
+                        "users": [{"name": "what-if-1", "type": "hash"}]
                     }
                 },
                 "is not valid under any of the given schemas",
