@@ -2222,6 +2222,7 @@
       "properties": {
         "reporting": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^.+$": {
               "label": "<arbitrary_name>",
@@ -2230,43 +2231,40 @@
                 {
                   "additionalProperties": false,
                   "properties": {
-                    "additionalProperties": false,
+                    "required": ["type"],
                     "type": {
                       "type": "string",
-                      "enum": ["log"],
-                      "required": true
+                      "enum": ["log"]
                     },
                     "level": {
                       "type": "string",
                       "enum": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
-                      "default": "DEBUG",
-                      "required": false
+                      "default": "DEBUG"
                     }
                   }
                 },
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "required": ["type"],
                     "type": {
                       "type": "string",
-                      "enum": ["print"],
-                      "required": true
+                      "enum": ["print"]
                     }
                   }
                 },
                 {
                   "additionalProperties": false,
+                  "required": ["type", "endpoint"],
                   "properties": {
                     "type": {
                       "type": "string",
-                      "enum": ["webhook"],
-                      "required": true
+                      "enum": ["webhook"]
                     },
                     "endpoint": {
                       "type": "string",
                       "format": "uri",
-                      "description": "The URL to send the event to.",
-                      "required": true
+                      "description": "The URL to send the event to."
                     },
                     "consumer_key": {
                       "type": "string",
@@ -2299,10 +2297,10 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "required": ["type"],
                     "type": {
                       "type": "string",
-                      "enum": ["hyperv"],
-                      "required": true
+                      "enum": ["hyperv"]
                     },
                     "kvp_file_path": {
                       "type": "string",
