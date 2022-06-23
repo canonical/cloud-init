@@ -28,6 +28,8 @@ install:
     # Required so `git describe` will definitely find a tag; see
     # https://github.com/travis-ci/travis-ci/issues/7422
     - git fetch --unshallow
+    # See https://github.com/pypa/setuptools/issues/3118
+    - pip install setuptools==59.6.0
     - pip install tox
 
 script:
@@ -134,6 +136,8 @@ matrix:
           env: TOXENV=doc
           install:
             - git fetch --unshallow
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==59.6.0
             - sudo apt-get install lintian
             - pip install tox
           script:
