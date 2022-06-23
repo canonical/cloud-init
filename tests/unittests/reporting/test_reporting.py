@@ -555,6 +555,9 @@ class TestReportingSchema:
             ),
             ({"reporting": {"a": {"type": "hyperv", "a": "b"}}}, "not valid"),
             # BAD: missing required properties
+            ({"reporting": {"a": {"level": "FATAL"}}}, "not valid"),
+            ({"reporting": {"a": {"endpoint": "http://a"}}}, "not valid"),
+            ({"reporting": {"a": {"kvp_file_path": "/a/b"}}}, "not valid"),
             ({"reporting": {"a": {"type": "webhook"}}}, "not valid"),
         ],
     )

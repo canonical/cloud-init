@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from threading import Event
 from typing import Union
 
 from cloudinit import log as logging
@@ -96,7 +97,7 @@ class WebHookHandler(ReportingHandler):
         self.retries = retries
         self.ssl_details = util.fetch_ssl_details()
 
-        self.flush_requested = False
+        self.flush_requested = Event()
         self.queue = queue.Queue()
         self.event_processor = threading.Thread(target=self.process_requests)
         self.event_processor.daemon = True
@@ -105,7 +106,7 @@ class WebHookHandler(ReportingHandler):
     def process_requests(self):
         consecutive_failed = 0
         while True:
-            if self.flush_requested and consecutive_failed > 2:
+            if self.flush_requested.is_set() and consecutive_failed > 2:
                 # At this point the main thread is waiting for the queue to
                 # drain. If we have a queue of events piled up and recent
                 # events have failed, lets not waste time trying to post
@@ -151,10 +152,10 @@ class WebHookHandler(ReportingHandler):
         )
 
     def flush(self):
-        self.flush_requested = True
+        self.flush_requested.set()
         LOG.debug("WebHookHandler flushing remaining events")
         self.queue.join()
-        self.flush_requested = False
+        self.flush_requested.clear()
 
 
 class HyperVKvpReportingHandler(ReportingHandler):

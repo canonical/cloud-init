@@ -2230,8 +2230,8 @@
               "oneOf": [
                 {
                   "additionalProperties": false,
+                  "required": ["type"],
                   "properties": {
-                    "required": ["type"],
                     "type": {
                       "type": "string",
                       "enum": ["log"]
@@ -2245,8 +2245,8 @@
                 },
                 {
                   "additionalProperties": false,
+                  "required": ["type"],
                   "properties": {
-                    "required": ["type"],
                     "type": {
                       "type": "string",
                       "enum": ["print"]
@@ -2296,8 +2296,8 @@
                 },
                 {
                   "additionalProperties": false,
+                  "required": ["type"],
                   "properties": {
-                    "required": ["type"],
                     "type": {
                       "type": "string",
                       "enum": ["hyperv"]
