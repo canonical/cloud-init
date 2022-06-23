@@ -214,7 +214,7 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
                 else:
                     reason = "unrecognized"
                 log.warning(
-                    "Skipping %s ssh_keys" + ' entry: "%s"', reason, key
+                    'Skipping %s ssh_keys entry: "%s"', reason, key
                 )
                 continue
             tgt_fn = CONFIG_KEY_TO_FILE[key][0]
