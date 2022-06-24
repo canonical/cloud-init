@@ -135,7 +135,8 @@ matrix:
           install:
             - git fetch --unshallow
             - sudo apt-get install lintian
-            - pip install tox
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==60.8.2 tox
           script:
             - make check_spelling && tox
         # Test all supported Python versions (but at the end, so we schedule
@@ -144,4 +145,12 @@ matrix:
         - python: "3.10"
         - python: 3.9
         - python: 3.8
+          install:
+            - git fetch --unshallow
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==60.8.2 tox
         - python: 3.7
+          install:
+            - git fetch --unshallow
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==60.8.2 tox
