@@ -2472,6 +2472,7 @@
     }
   },
   "allOf": [
+    { "$ref": "#/$defs/cc_ansible" },
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
