@@ -28,6 +28,9 @@ install:
     # Required so `git describe` will definitely find a tag; see
     # https://github.com/travis-ci/travis-ci/issues/7422
     - git fetch --unshallow
+    # Not pinning setuptools can cause failures on python 3.7 and 3.8 builds
+    # See https://github.com/pypa/setuptools/issues/3118
+    - pip install setuptools==59.6.0
     - pip install tox
 
 script:
@@ -134,6 +137,9 @@ matrix:
           env: TOXENV=doc
           install:
             - git fetch --unshallow
+            # Not pinning setuptools can cause failures on python 3.7 and 3.8 builds
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==59.6.0
             - sudo apt-get install lintian
             - pip install tox
           script:
