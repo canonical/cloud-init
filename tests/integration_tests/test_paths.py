@@ -50,7 +50,13 @@ class TestHonorCloudDir:
             collect_logs_result.ok
         ), f"collect-logs error: {collect_logs_result.stderr}"
 
-    def test_honor_could_dir(self, custom_client: IntegrationInstance):
+    # LXD inserts some agent setup code into VMs on Bionic under
+    # /var/lib/cloud. The inserted script will cause this test to fail
+    # because the test ensures nothing is running under /var/lib/cloud.
+    # Since LXD is doing this and not cloud-init, we should just not run
+    # on Bionic to avoid it.
+    @pytest.mark.not_bionic
+    def test_honor_cloud_dir(self, custom_client: IntegrationInstance):
         """Integration test for LP: #1976564
 
         cloud-init must honor the cloud-dir configured in
