@@ -44,10 +44,10 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
     # TODO: Remove this before PR
     if not name or not cfg or not cloud or not log or args:
         raise ValueError(f"Configuration not supported: {name} {cfg} {cloud} {log} {args}")
-    ansible_cfg = cfg.get("ansible", {})
-    pull = ansible_cfg.get("ansible-pull")
-    local = ansible_cfg.get("ansible-local")
-    install = ansible_cfg.get("install", False)
+    ansible_cfg: dict = cfg.get("ansible", {})
+    pull: dict = ansible_cfg.get("pull", {})
+    local: dict = ansible_cfg.get("local", {})
+    install: bool = ansible_cfg.get("install", False)
     log.debug(f"Hi from module {name} with args {args}, cloud {cloud} and cfg {cfg}")
     if not (pull or local):
         return
@@ -83,10 +83,18 @@ def install_ansible(distro: Distro):
 
 def run_ansible_pull(cfg: dict, log: Logger):
     try:
-        stdout, stderr = subp(["ansible-pull", *[
-            f"--{key}={value}" if value else
-            f"--{key}" for key, value in cfg]
-        ])
+        playbook_name = cfg.get("playbook-name")
+        if not playbook_name:
+            raise ValueError("Missing required key: 'playbook-name'")
+
+        stdout, stderr = subp(
+            ["ansible-pull",
+                *[
+                    f"--{key}={value}" if value else
+                    f"--{key}" for key, value in cfg.items()
+                    if key != "playbook-name"],
+                playbook_name]
+        )
         if stderr:
             log.warn(f"{stderr}")
         if stdout:
