@@ -34,8 +34,10 @@
           "type": "string"
         },
         "groups": {
-          "description": "Optional comma-separated string of groups to add the user to.",
-          "type": "string"
+          "description": "Optional comma-separated string or list of groups to add the user to.",
+          "type": ["string", "array"],
+          "items": {"type": "string"},
+          "minItems": 1
         },
         "homedir": {
           "description": "Optional home dir for user. Default: ``/home/<username>``",
