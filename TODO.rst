@@ -38,6 +38,6 @@ Things that cloud-init may do (better) someday
   packages of ``ubuntu`` modules, packages of ``rhel`` specific modules that
   people can add instead of having them all under the  cloud-init ``root``
   tree? This might encourage more development of other modules instead of
-  having to go edit the cloud-init code to accomplish this.
+  having to go edit the cloud-init code to accomplish this..
 
 .. _netcf: https://fedorahosted.org/netcf/

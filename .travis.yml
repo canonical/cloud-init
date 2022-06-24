@@ -1,5 +1,5 @@
 language: python
-dist: bionic
+dist: focal
 
 # We use two different caching strategies.  The default is to cache pip
 # packages (as most of our jobs use pip packages), which is configured here.
