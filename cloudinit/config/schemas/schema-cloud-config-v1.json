@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
     "users_groups.groups_by_groupname": {
+      "additionalProperties": false,
       "patternProperties": {
         "^.+$": {
           "label": "<group_name>",
@@ -19,6 +20,7 @@
           {"required": ["name"]},
           {"required": ["snapuser"]}
       ],
+      "additionalProperties": false,
       "properties": {
         "name": {
           "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
@@ -132,15 +134,14 @@
           "description": "The user's ID. Default is next available value.",
           "type": "integer"
         }
-      },
-      "additionalProperties": false
+      }
     },
     "apt_configure.mirror": {
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": false,
         "required": ["arches"],
+        "additionalProperties": false,
         "properties": {
           "arches": {
             "type": "array",
@@ -165,6 +166,7 @@
     },
     "ca_certs.properties": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "remove-defaults": {
           "description": "DEPRECATED. Use ``remove_defaults``. ",
@@ -184,7 +186,6 @@
           "minItems": 1
         }
       },
-      "additionalProperties": false,
       "minProperties": 1
     },
     "cc_apk_configure": {
@@ -192,6 +193,8 @@
       "properties": {
         "apk_repos": {
           "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
           "properties": {
             "preserve_repositories": {
               "type": "boolean",
@@ -200,6 +203,7 @@
             },
             "alpine_repo": {
               "type": ["object", "null"],
+              "additionalProperties": false,
               "properties": {
                 "base_url": {
                   "type": "string",
@@ -222,16 +226,13 @@
                 }
               },
               "required": ["version"],
-              "minProperties": 1,
-              "additionalProperties": false
+              "minProperties": 1
             },
             "local_repo_base_url": {
               "type": "string",
                 "description": "The base URL of an Alpine repository containing unofficial packages"
             }
-          },
-          "minProperties": 1,
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -239,8 +240,8 @@
       "properties": {
         "apt": {
           "type": "object",
-          "additionalProperties": false,
           "minProperties": 1,
+          "additionalProperties": false,
           "properties": {
             "preserve_sources_list": {
               "type": "boolean",
@@ -270,6 +271,7 @@
             "debconf_selections": {
               "type": "object",
               "minProperties": 1,
+              "additionalProperties": false,
               "patternProperties": {
                 "^.+$": {
                   "type": "string"
@@ -303,9 +305,11 @@
             },
             "sources": {
               "type": "object",
+              "additionalProperties": false,
               "patternProperties": {
                 "^.+$": {
                   "type": "object",
+                  "additionalProperties": false,
                   "properties": {
                       "source": {
                           "type": "string"
@@ -323,7 +327,6 @@
                           "type": "string"
                       }
                   },
-                  "additionalProperties": false,
                   "minProperties": 1
                 }
               },
@@ -395,8 +398,8 @@
       "properties": {
         "chef": {
           "type": "object",
-          "additionalProperties": false,
           "minProperties": 1,
+          "additionalProperties": false,
           "properties": {
             "directories": {
               "type": "array",
@@ -542,9 +545,9 @@
       "type": "object",
       "properties": {
         "debug": {
-          "additionalProperties": false,
           "minProperties": 1,
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "verbose": {
               "description": "Should always be true for this module",
@@ -573,6 +576,7 @@
       "properties": {
         "device_aliases": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^.+$": {
               "label": "<alias_name>",
@@ -583,6 +587,7 @@
         },
         "disk_setup": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^.+$": {
               "label": "<alias name/path>",
@@ -683,8 +688,8 @@
       "properties": {
         "fan": {
           "type": "object",
-          "additionalProperties": false,
           "required": ["config"],
+          "additionalProperties": false,
           "properties": {
             "config": {
               "type": "string",
@@ -779,10 +784,8 @@
               "properties": {
                 "when": {
                   "type": "array",
-                  "additionalProperties": false,
                   "items": {
                     "type": "string",
-                    "additionalProperties": false,
                     "enum": [
                       "boot-new-instance",
                       "boot-legacy",
@@ -802,6 +805,7 @@
       "properties": {
         "keyboard": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "layout": {
               "type": "string",
@@ -821,8 +825,7 @@
               "description": "Optional. Keyboard options. Corresponds to XKBOPTIONS."
             }
           },
-          "required": ["layout"],
-          "additionalProperties": false
+          "required": ["layout"]
         }
       }
     },
@@ -831,6 +834,7 @@
       "properties": {
         "ssh": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "emit_keys_to_console": {
               "type": "boolean",
@@ -838,7 +842,6 @@
               "description": "Set false to avoid printing SSH keys to system console. Default: ``true``."
             }
            },
-           "additionalProperties": false,
            "required": ["emit_keys_to_console"]
         },
         "ssh_key_console_blacklist": {
@@ -862,9 +865,11 @@
         "landscape": {
           "type": "object",
           "required": ["client"],
+          "additionalProperties": false,
           "properties": {
             "client": {
               "type": "object",
+              "additionalProperties": true,
               "properties": {
                 "url": {
                   "type": "string",
@@ -887,7 +892,7 @@
                   "enum": ["debug", "info", "warning", "error", "critical"],
                   "description": "The log level for the client. Default: ``info``."
                 },
-                "computer_tite": {
+                "computer_title": {
                   "type": "string",
                   "description": "The title of this computer."
                 },
@@ -936,9 +941,11 @@
         "lxd": {
           "type": "object",
           "minProperties": 1,
+          "additionalProperties": false,
           "properties": {
             "init": {
               "type": "object",
+              "additionalProperties": false,
               "properties": {
                 "network_address": {
                   "type": "string",
@@ -975,6 +982,7 @@
             "bridge": {
               "type": "object",
               "required": ["mode"],
+              "additionalProperties": false,
               "properties": {
                 "mode": {
                   "type": "string",
@@ -1030,8 +1038,7 @@
                 }
               }
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -1040,9 +1047,11 @@
       "properties": {
         "mcollective": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "conf": {
               "type": "object",
+              "additionalProperties": false,
               "properties": {
                 "public-cert": {
                   "type": "string",
@@ -1064,8 +1073,7 @@
                 }
               }
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -1108,6 +1116,7 @@
         },
         "swap": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "filename": {
               "type": "string",
@@ -1128,8 +1137,7 @@
               ],
               "description": "The maxsize in bytes of the swap file"
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -1138,6 +1146,7 @@
       "properties": {
         "ntp": {
           "type": ["null", "object"],
+          "additionalProperties": false,
           "properties": {
             "pools": {
               "type": "array",
@@ -1170,6 +1179,8 @@
             "config": {
               "description": "Configuration settings or overrides for the\n``ntp_client`` specified.",
               "type": "object",
+              "minProperties": 1,
+              "additionalProperties": false,
               "properties": {
                 "confpath": {
                   "type": "string",
@@ -1195,12 +1206,9 @@
                   "type": "string",
                   "description": "Inline template allowing users to define their\nown ``ntp_client`` configuration template.\nThe value must start with '## template:jinja'\nto enable use of templating support.\n"
                 }
-              },
-              "minProperties": 1,
-              "additionalProperties": false
+              }
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -1258,8 +1266,8 @@
       "properties": {
         "phone_home": {
           "type": "object",
-          "additionalProperties": false,
           "required": ["url"],
+          "additionalProperties": false,
           "properties": {
             "url": {
               "type": "string",
@@ -1301,8 +1309,8 @@
       "properties": {
         "power_state": {
           "type": "object",
-          "additionalProperties": false,
           "required": ["mode"],
+          "additionalProperties": false,
           "properties": {
             "delay": {
               "description": "Time in minutes to delay after cloud-init has finished. Can be ``now`` or an integer specifying the number of minutes to delay. Default: ``now``",
@@ -1579,8 +1587,8 @@
                   {"type": "string"},
                   {
                     "type": "object",
-                    "additionalProperties": false,
                     "required": ["content"],
+                    "additionalProperties": false,
                     "properties": {
                       "filename": {
                         "type": "string"
@@ -1790,12 +1798,12 @@
       "properties": {
         "snap": {
           "type": "object",
-          "additionalProperties": false,
           "minProperties": 1,
+          "additionalProperties": false,
           "properties": {
             "assertions": {
-              "type": ["object", "array"],
               "description": "Properly-signed snap assertions which will run before and snap ``commands``.",
+              "type": ["object", "array"],
               "items": {"type": "string"},
               "additionalItems": false,
               "minItems": 1,
@@ -1882,13 +1890,13 @@
         "ssh_keys": {
           "type": "object",
           "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax.",
+          "additionalProperties": false,
           "patternProperties": {
             "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
               "label": "<key_type>",
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         "ssh_authorized_keys": {
           "type": "array",
@@ -1967,6 +1975,8 @@
       "properties": {
         "ubuntu_advantage": {
           "type": "object",
+          "required": ["token"],
+          "additionalProperties": false,
           "properties": {
             "enable": {
               "type": "array",
@@ -1977,9 +1987,7 @@
               "type": "string",
               "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
             }
-          },
-          "required": ["token"],
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -1992,10 +2000,10 @@
           "properties": {
             "nvidia": {
               "type": "object",
-              "additionalProperties": false,
               "required": [
                 "license-accepted"
               ],
+              "additionalProperties": false,
               "properties": {
                 "license-accepted": {
                   "type": "boolean",
@@ -2084,6 +2092,8 @@
           "type": "array",
           "items": {
             "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
             "properties": {
               "path": {
                 "type": "string",
@@ -2120,9 +2130,7 @@
                 "default": false,
                 "description": "Defer writing the file until 'final' stage, after users were created, and packages were installed. Default: ``false``."
               }
-            },
-            "required": ["path"],
-            "additionalProperties": false
+            }
           },
           "minItems": 1
         }
@@ -2139,11 +2147,13 @@
         "yum_repos": {
           "type": "object",
           "minProperties": 1,
+          "additionalProperties": false,
           "patternProperties": {
             "^[0-9a-zA-Z -_]+$": {
               "label": "<repo_name>",
               "type": "object",
               "description": "Object keyed on unique yum repo IDs. The key used will be used to write yum repo config files in ``yum_repo_dir``/<repo_key_id>.repo.",
+              "additionalProperties": false,
               "properties": {
                 "baseurl": {
                     "type": "string",
@@ -2173,8 +2183,7 @@
               },
               "required": ["baseurl"]
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     },
@@ -2183,11 +2192,14 @@
       "properties": {
         "zypper": {
           "type": "object",
+          "minProperties": 1,
+          "additionalProperties": true,
           "properties": {
             "repos": {
               "type": "array",
               "items": {
                 "type": "object",
+                "additionalProperties": true,
                 "properties": {
                   "id": {
                     "type": "string",
@@ -2202,8 +2214,7 @@
                 "required": [
                   "id",
                   "baseurl"
-                ],
-                "additionalProperties": true
+                ]
               },
               "minItems": 1
             },
@@ -2211,9 +2222,7 @@
               "type": "object",
               "description": "Any supported zypo.conf key is written to ``/etc/zypp/zypp.conf``"
             }
-          },
-          "minProperties": 1,
-          "additionalProperties": false
+          }
         }
       }
     },
