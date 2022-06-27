@@ -282,7 +282,7 @@ class TestDualStack:
     """
 
     @pytest.mark.parametrize(
-        "func," "addresses," "stagger_delay," "timeout," "expected_val,",
+        ["func", "addresses", "stagger_delay", "timeout", "expected_val"],
         [
             # Assert order based on timeout
             (lambda x, _: x, ("one", "two"), 1, 1, "one"),
@@ -346,12 +346,14 @@ class TestDualStack:
         event.set()
 
     @pytest.mark.parametrize(
-        "func,"
-        "addresses,"
-        "stagger_delay,"
-        "timeout,"
-        "message,"
-        "expected_exc",
+        [
+            "func",
+            "addresses",
+            "stagger_delay",
+            "timeout",
+            "message",
+            "expected_exc",
+        ],
         [
             (
                 lambda _a, _b: 1 / 0,
@@ -370,7 +372,7 @@ class TestDualStack:
                 ZeroDivisionError,
             ),
             (
-                lambda _a, _b: [][0],
+                lambda _a, _b: [][0],  # pylint: disable=E0643
                 ("matter", "these"),
                 0,
                 1,
@@ -479,7 +481,7 @@ class TestUrlHelper:
         return (200, {"request-id": "0"}, cls.success)
 
     @pytest.mark.parametrize(
-        "addresses," "expected_address_index," "response,",
+        ["addresses", "expected_address_index", "response"],
         [
             # Use timeout to test ordering happens as expected
             ((ADDR1, SLEEP1), 0, "SUCCESS"),
