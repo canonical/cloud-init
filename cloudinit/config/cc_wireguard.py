@@ -10,6 +10,7 @@ from cloudinit.settings import PER_INSTANCE
 
 import subprocess
 import time
+import re
 
 MODULE_DESCRIPTION = """\
 Module to set up Wireguard conneciton
@@ -62,9 +63,9 @@ def enablewg(wg_section:dict, log: Logger) -> bool:
 
 def wait(log: Logger) -> bool:
     log.debug("Waiting for Wireguard Hub connection")
-    reslen=0
-    while reslen < 1:
-        reslen = len(subprocess.check_output("wg show all peers",shell=True).decode())
+    while True:
+        if re.match(r'wg\d\s\S+\s+\d{10,}',subprocess.check_output("wg show all latest-handshakes",shell=True).decode()):
+            break
         time.sleep(10)
     log.debug("Connection to Wireguard Hub ok")
     return True
