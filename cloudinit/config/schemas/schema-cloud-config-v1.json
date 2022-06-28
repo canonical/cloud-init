@@ -2007,7 +2007,7 @@
                 "ua_apt_https_proxy": {
                   "type": "string",
                   "format": "uri",
-                  "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 }
               }
             }

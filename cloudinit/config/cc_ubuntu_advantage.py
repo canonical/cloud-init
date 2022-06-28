@@ -108,12 +108,14 @@ def supplemental_schema_validation(ua_config):
     errors = []
     nl = "\n"
     for key, value in sorted(ua_config.items()):
-        if key == "http_proxy":
-            if not isinstance(value, str):
-                errors.append(
-                    f"Expected a url for ua:config:{key}. Found: {value}"
-                )
-        elif key == "https_proxy":
+        if (
+            key == "http_proxy"
+            or key == "https_proxy"
+            or key == "global_apt_http_proxy"
+            or key == "global_apt_https_proxy"
+            or key == "ua_apt_http_proxy"
+            or key == "ua_apt_https_proxy"
+        ):
             if not isinstance(value, str):
                 errors.append(
                     f"Expected a url for ua:config:{key}. Found: {value}"
