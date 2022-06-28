@@ -2,15 +2,15 @@
 """Wireguard"""
 
 from logging import Logger
+import string
 
+from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 import subprocess
-import time
-import re
 
 MODULE_DESCRIPTION = """\
 Module to set up Wireguard conneciton
@@ -33,26 +33,18 @@ __doc__ = get_meta_doc(meta)
 
 def writeconfig(wg_section:dict, log: Logger) -> bool:
     log.debug(f"Writing wg config files")
-    for i in wg_section['interfaces']:
+    for i in wg_section['wg_interfaces']:
         log.debug("Configuring interface {}".format(str(i['name'])))
         try:
             with open(i['config_path'], 'w', encoding="utf-8") as wgconfig:
-                wgconfig.write("[Interface]\n")
-                wgconfig.write("PrivateKey = {}\n".format(wg_section['wg_private_key']))
-                wgconfig.write("Address = {}\n".format(i['interface']['address']))
-                wgconfig.write("Table = off\n")
-                wgconfig.write("[Peer]\n")
-                wgconfig.write("PublicKey = {}\n".format(i['peer']['public_key']))
-                wgconfig.write("Endpoint = {}:{}\n".format(i['peer']['endpoint'],i['peer']['port']))
-                wgconfig.write("AllowedIPs = {}\n".format(i['peer']['allowedips']))
-                wgconfig.write("PersistentKeepalive = 25\n")
+                wgconfig.write(i['content'])
         except Exception as e:
             return False
     return True
 
 def enablewg(wg_section:dict, log: Logger) -> bool:
     log.debug(f"Enable wg interface(s)")
-    for i in wg_section['interfaces']:
+    for i in wg_section['wg_interfaces']:
         try:
             log.debug("Running: systemctl enable wg-quick@{}".format(str(i['name'])))
             subprocess.call("systemctl enable wg-quick@{}".format(str(i['name'])), shell=True)
@@ -61,14 +53,21 @@ def enablewg(wg_section:dict, log: Logger) -> bool:
             return False
     return True
 
-def wait(log: Logger) -> bool:
-    log.debug("Waiting for Wireguard Hub connection")
-    while True:
-        if re.match(r'wg\d\s\S+\s+\d{10,}',subprocess.check_output("wg show all latest-handshakes",shell=True).decode()):
-            break
-        time.sleep(10)
-    log.debug("Connection to Wireguard Hub ok")
+def readynessprobe(wg_section:dict, log: Logger, cloud: Cloud) -> bool:
+    for c in wg_section['readynessprobe']:
+        if isinstance(c,str):
+            subp.subp(c, capture=True, shell=True)
     return True
+
+
+# def wait(log: Logger) -> bool:
+#     log.debug("Waiting for Wireguard Hub connection")
+#     while True:
+#         if re.match(r'wg\d\s\S+\s+\d{10,}',subprocess.check_output("wg show all latest-handshakes",shell=True).decode()):
+#             break
+#         time.sleep(10)
+#     log.debug("Connection to Wireguard Hub ok")
+#     return True
 
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
     log.debug(f"Starting clound-init module {name}")
@@ -98,12 +97,21 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
         log.error("Enable wg interface(s) failed")
         raise RuntimeError("Enable wg interface(s) failed")
 
-    #wait for connection
-    if wg_section['wait_for_connection']:
-        log.debug("Waiting for connection")
-        state = wait(log)
+    #run readyness probe, if any
+    if 'readynessprobe' in wg_section and wg_section['readynessprobe'] is not None:
+        state = readynessprobe(wg_section, log, cloud)
         if not state:
-            log.error("Error during waiting ... ")
-            raise RuntimeError("Error during waiting ...")
+            log.error("Error during readynessprobe")
+            raise RuntimeError("Error during readynessprobe")
     else:
-        log.debug("Not waiting for connection")
+        log.debug("Skipping readynessprobe - no checks defined")
+
+    # #wait for connection
+    # if wg_section['wait_for_connection']:
+    #     log.debug("Waiting for connection")
+    #     state = wait(log)
+    #     if not state:
+    #         log.error("Error during waiting ... ")
+    #         raise RuntimeError("Error during waiting ...")
+    # else:
+    #     log.debug("Not waiting for connection")
