@@ -432,11 +432,11 @@ syslog_fix_perms: syslog:root
 #    - name: user1
 #      password: password1
 #      type: text
+#    - user2
+#      type: RANDOM
 #    - user3
 #      password: $5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
 #      type: hash
-#   list: |
-#     user2:RANDOM
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #

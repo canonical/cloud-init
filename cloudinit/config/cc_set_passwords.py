@@ -10,9 +10,11 @@
 import re
 from string import ascii_letters, digits
 from textwrap import dedent
+from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -26,13 +28,14 @@ The ``ssh_pwauth`` config key determines whether or not sshd will be configured
 to accept password authentication.
 
 The ``chpasswd`` config key accepts a dictionary containing either or both of
-``list`` and ``expire``. The ``list`` key is used to assign a password to a
-to a corresponding pre-existing user. The ``expire`` key is used to set
+``users`` and ``expire``. The ``users`` key is used to assign a password to a
+corresponding pre-existing user. The ``expire`` key is used to set
 whether to expire all user passwords such that a password will need to be reset
 on the user's next login.
 
 ``password`` config key is used to set the default user's password. It is
-ignored if the ``chpasswd`` ``list`` is used.
+ignored if the ``chpasswd`` ``users`` is used. Note: the ``list`` keyword is
+deprecated in favor of ``users``.
 """
 
 meta: MetaSchema = {
@@ -179,7 +182,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         LOG.debug("Not restarting SSH service: service is stopped.")
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
     distro: Distro = cloud.distro
     if args:
         # if run from command line, and give args, wipe the chpasswd['list']
