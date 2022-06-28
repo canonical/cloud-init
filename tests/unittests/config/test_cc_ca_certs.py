@@ -421,7 +421,10 @@ class TestCACertsSchema:
         "config, error_msg",
         (
             # Valid, yet deprecated schemas
-            ({"ca-certs": {"remove-defaults": True}}, None),
+            (
+                {"ca-certs": {"remove-defaults": True}},
+                "",  # No errors, TODO check deprecations
+            ),
             # Invalid schemas
             (
                 {"ca_certs": 1},

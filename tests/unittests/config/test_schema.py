@@ -384,7 +384,7 @@ class TestValidateCloudConfigSchema:
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("log_deprecations", [True, False])
     def test_validateconfig_logs_deprecations(self, log_deprecations, caplog):
-        description = "DEPRECATED: Use foo_bar"
+        description = "Use foo_bar"
         schema = {
             "$schema": "http://json-schema.org/draft-04/schema#",
             "properties": {
@@ -406,6 +406,113 @@ class TestValidateCloudConfigSchema:
             M_PATH[:-1],
             logging.WARNING,
             f"Deprecated cloud-config provided:\nfoo-bar: {description}",
+        )
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
+
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    def test_validateconfig_logs_deprecation_oneof(self, log_deprecations, caplog):
+        description = "depre"
+        schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "properties": {
+                "delay": {
+                    "oneOf": [
+                        {"type": "integer"},
+                        {
+                            "type": "string",
+                            "deprecated": True,
+                            "description": description,
+                        }
+                    ]
+                },
+            },
+        }
+        validate_cloudconfig_schema(
+            {"delay": "+5"},
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        log_record = (
+            M_PATH[:-1],
+            logging.WARNING,
+            f"Deprecated cloud-config provided:\ndelay: {description}",
+        )
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
+
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    def test_validateconfig_logs_deprecation_allOf(self, log_deprecations, caplog):
+        description = "depre"
+        schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "properties": {
+                "delay": {
+                    "allOf": [
+                        {"type": "string"},
+                        {
+                            "deprecated": True,
+                            "description": description,
+                        }
+                    ]
+                },
+            },
+        }
+        validate_cloudconfig_schema(
+            {"delay": "5"},
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        log_record = (
+            M_PATH[:-1],
+            logging.WARNING,
+            f"Deprecated cloud-config provided:\ndelay: {description}",
+        )
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
+
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    def test_validateconfig_logs_deprecation_anyOf(self, log_deprecations, caplog):
+        description = "depre"
+        schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "properties": {
+                "delay": {
+                    "anyOf": [
+                        {"type": "integer"},
+                        {
+                            "type": "string",
+                            "deprecated": True,
+                            "description": description,
+                        }
+                    ]
+                },
+            },
+        }
+        validate_cloudconfig_schema(
+            {"delay": "5"},
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        log_record = (
+            M_PATH[:-1],
+            logging.WARNING,
+            f"Deprecated cloud-config provided:\ndelay: {description}",
         )
         if log_deprecations:
             assert log_record == caplog.record_tuples[-1]
@@ -887,6 +994,19 @@ class TestSchemaDocMarkdown:
         assert "prop1" not in meta_doc
         assert ".*" not in meta_doc
 
+    def test_get_meta_doc_render_deprecated_info(self):
+        """get_meta_doc delimits multiple property types with a '/'."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": ["string", "integer"],
+                    "deprecated": True,
+                    "description": "<description>",
+                }
+            }
+        }
+        assert "**prop1:** (string/integer) DEPRECATED. <description>" in get_meta_doc(self.meta, schema)
+
 
 class TestAnnotatedCloudconfigFile:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
@@ -1216,7 +1336,56 @@ class TestHandleSchemaArgs:
 
     Args = namedtuple("Args", "config_file docs system annotate")
 
-    def test_handle_schema_args(self, tmpdir):
+    def test_handle_schema_args_annotate_deprecated_config(
+        self, tmpdir, caplog, capsys
+    ):
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true
+                    apt_upgrade: true
+                    apt_reboot_if_required: true
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=True,
+            docs=None,
+            system=None,
+        )
+        handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        expected_output = dedent(
+            f"""\
+            #cloud-config
+            packages:
+            - htop
+            apt_update: true		# D1
+            apt_upgrade: true		# D2
+            apt_reboot_if_required: true		# D3
+
+            # Deprecations: -------------
+            # D1: Use ``package_update``. Default: ``false``
+            # D2: Use ``package_upgrade``. Default: ``false``
+            # D3: Use ``package_reboot_if_required``. Default: ``false``
+
+
+            Valid cloud-config: {user_data_fn}
+            """
+        )
+        assert expected_output == out
+        assert not err
+        assert "deprec" not in caplog.text
+
+    def test_handle_schema_args_validate_deprecated_config(
+        self, tmpdir, caplog, capsys
+    ):
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
             f.write(
@@ -1238,3 +1407,17 @@ class TestHandleSchemaArgs:
             system=None,
         )
         handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        expected_output = dedent(
+            f"""\
+            Cloud config schema deprecations: \
+apt_reboot_if_required: Use ``package_reboot_if_required``. \
+Default: ``false``, \
+apt_update: Use ``package_update``. Default: ``false``, \
+apt_upgrade: Use ``package_upgrade``. Default: ``false``
+            Valid cloud-config: {user_data_fn}
+            """
+        )
+        assert expected_output == out
+        assert not err
+        assert "deprec" not in caplog.text

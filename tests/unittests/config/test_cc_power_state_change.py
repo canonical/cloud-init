@@ -173,12 +173,12 @@ class TestPowerStateChangeSchema:
                 r"'test' is not one of \['poweroff', 'reboot', 'halt'\]",
             ),
             # Delay can be a number, a +number, or "now"
-            ({"power_state": {"mode": "halt", "delay": "5"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "5"}}, ""),  # TODO check deprecation error
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
-            ({"power_state": {"mode": "halt", "delay": "+5"}}, None),
+            ({"power_state": {"mode": "halt", "delay": "+5"}}, ""),  # TODO check deprecation error
             ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
             ({"power_state": {"mode": "halt", "delay": "++5"}}, ""),
-            ({"power_state": {"mode": "halt", "delay": "-5"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "-5"}},  ""),  # TODO check deprecation error
             ({"power_state": {"mode": "halt", "delay": "test"}}, ""),
             # Condition
             ({"power_state": {"mode": "halt", "condition": False}}, None),

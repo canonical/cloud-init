@@ -15,7 +15,6 @@ from functools import partial
 from typing import List, Optional, Tuple, Union, cast
 
 import yaml
-from jsonschema import ValidationError
 
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
@@ -55,6 +54,7 @@ SCHEMA_LIST_ITEM_TMPL = (
 )
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
+DEPRECATED_SCHEMA_KEY = "deprecated"
 
 
 # annotations add value for development, but don't break old versions
@@ -88,7 +88,7 @@ class SchemaValidationError(ValueError):
             ((flat.config.key, msg),)
         """
         error_messages = [
-            "{0}: {1}".format(config_key, message)
+            "{0}: {1}".format(config_key, message)  # TODO factor this
             for config_key, message in schema_errors
         ]
         message = "Cloud config schema errors: {0}".format(
@@ -116,6 +116,12 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
+# TODO error handling
+from jsonschema import ValidationError
+class SchemaDeprecationError(ValidationError):
+    pass
+
+
 def validator_deprecated(validator, deprecated: bool, instance, schema: dict):
     """
     TODO
@@ -126,7 +132,56 @@ def validator_deprecated(validator, deprecated: bool, instance, schema: dict):
     raise:
     """
     if deprecated:
-        yield ValidationError(schema.get("description", "DEPRECATED"))
+        yield SchemaDeprecationError(schema.get("description", "DEPRECATED"))
+
+
+def anyOf(validator, anyOf, instance, schema):
+    all_errors = []
+    all_deprecations = []
+    for index, subschema in enumerate(anyOf):
+        all_errs = list(validator.descend(instance, subschema, schema_path=index))
+        errs = list(filter(lambda e: not isinstance(e, SchemaDeprecationError), all_errs))
+        deprecations = list(filter(lambda e: isinstance(e, SchemaDeprecationError), all_errs))
+        if not errs:
+            all_deprecations.extend(deprecations)
+            break
+        all_errors.extend(errs)
+    else:
+        yield ValidationError(
+            "%r is not valid under any of the given schemas" % (instance,),
+            context=all_errors,
+        )
+    yield from all_deprecations
+
+
+def oneOf(validator, oneOf, instance, schema):
+    subschemas = enumerate(oneOf)
+    all_errors = []
+    all_deprecations = []
+    for index, subschema in subschemas:
+        all_errs = list(validator.descend(instance, subschema, schema_path=index))
+        errs = list(filter(lambda e: not isinstance(e, SchemaDeprecationError), all_errs))
+        deprecations = list(filter(lambda e: isinstance(e, SchemaDeprecationError), all_errs))
+        if not errs:
+            first_valid = subschema
+            all_deprecations.extend(deprecations)
+            break
+        all_errors.extend(errs)
+    else:
+        yield ValidationError(
+            "%r is not valid under any of the given schemas" % (instance,),
+            context=all_errors,
+        )
+
+    more_valid = [s for i, s in subschemas if validator.is_valid(instance, s)]
+    if more_valid:
+        more_valid.append(first_valid)
+        reprs = ", ".join(repr(schema) for schema in more_valid)
+        yield ValidationError(
+            "%r is valid under each of %s" % (instance, reprs)
+        )
+    else:
+        yield from all_deprecations
 
 
 def get_jsonschema_validator():
@@ -173,7 +228,9 @@ def get_jsonschema_validator():
         validator_kwargs = {"default_types": types}
 
     validators = dict(Draft4Validator.VALIDATORS)
-    validators["deprecated"] = validator_deprecated
+    validators[DEPRECATED_SCHEMA_KEY] = validator_deprecated
+    validators["oneOf"] = oneOf
+    validators["anyOf"] = anyOf
 
     cloudinitValidator = create(
         meta_schema=strict_metaschema,
@@ -181,6 +238,15 @@ def get_jsonschema_validator():
         version="draft4",
         **validator_kwargs,
     )
+
+    def is_valid(self, instance, _schema=None, **__):
+        errors = filter(
+            lambda e: not isinstance(e, SchemaDeprecationError),
+            self.iter_errors(instance, _schema),
+        )
+        return next(errors, None) is None
+    cloudinitValidator.is_valid = is_valid
+
     return (cloudinitValidator, FormatChecker)
 
 
@@ -258,15 +324,16 @@ def validate_cloudconfig_schema(
         return
 
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
-    deprecations: Tuple[Tuple[str, str], ...] = ()
+    
     errors: Tuple[Tuple[str, str], ...] = ()
+    deprecations: Tuple[Tuple[str, str], ...] = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = ".".join([str(p) for p in error.path])
-        new_exception = ((path, error.message),)
-        if error.validator == "deprecated":
-            deprecations += new_exception
+        new_error = ((path, error.message),)
+        if isinstance(error, SchemaDeprecationError):
+            deprecations += new_error
         else:
-            errors += new_exception
+            errors += ((path, error.message),)
 
     if log_deprecations and deprecations:
         messages = ["{0}: {1}".format(k, msg) for k, msg in deprecations]
@@ -509,7 +576,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
             raise RuntimeError("Cloud-config is not a YAML dict.")
     try:
         validate_cloudconfig_schema(
-            cloudconfig, schema, strict=True, log_deprecations=not annotate
+            cloudconfig, schema, strict=True, log_deprecations=False
         )
     except SchemaValidationError as e:
         if annotate:
@@ -522,6 +589,15 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                     e.schema_deprecations,
                 )
             )
+        else:
+            deprecation_messages = [
+                "{0}: {1}".format(config_key, message)  # TODO factor this
+                for config_key, message in e.schema_deprecations
+            ]
+            message = "Cloud config schema deprecations: {0}".format(
+                ", ".join(deprecation_messages)
+            )
+            print(message)
         if e.has_errors():
             raise
 
@@ -642,8 +718,14 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
             _flatten_schema_refs(prop_config, defs)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
-            # Define prop_name and description for SCHEMA_PROPERTY_TMPL
+
+            deprecated = bool(prop_config.get(DEPRECATED_SCHEMA_KEY, False))
             description = prop_config.get("description", "")
+            if deprecated:
+                if not description:
+                    description = "DEPRECATED."
+                else:
+                    description = f"DEPRECATED. {description}"
             if description:
                 description = " " + description
 
@@ -726,17 +808,15 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
-    expected = set(
-        {
-            "id",
-            "title",
-            "examples",
-            "frequency",
-            "distros",
-            "description",
-            "name",
-        }
-    )
+    expected = {
+        "id",
+        "title",
+        "examples",
+        "frequency",
+        "distros",
+        "description",
+        "name",
+    }
     error_message = ""
     if expected - keys:
         error_message = "Missing expected keys in module meta: {}".format(

@@ -169,7 +169,7 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "description": "DEPRECATED. Use ``remove_defaults``. ",
+          "description": "Use ``remove_defaults``.",
           "deprecated": true,
           "type": "boolean",
           "default": false
@@ -1244,19 +1244,19 @@
             "apt_update": {
                 "type": "boolean",
                 "default": false,
-                "description": "DEPRECATED. Use ``package_update``. Default: ``false``",
+                "description": "Use ``package_update``. Default: ``false``",
                 "deprecated": true
             },
             "apt_upgrade": {
                 "type": "boolean",
                 "default": false,
-                "description": "DEPRECATED. Use ``package_upgrade``. Default: ``false``",
+                "description": "Use ``package_upgrade``. Default: ``false``",
                 "deprecated": true
             },
             "apt_reboot_if_required": {
                 "type": "boolean",
                 "default": false,
-                "description": "DEPRECATED. Use ``package_reboot_if_required``. Default: ``false``",
+                "description": "Use ``package_reboot_if_required``. Default: ``false``",
                 "deprecated": true
             }
         }
@@ -1317,7 +1317,11 @@
               "default": "now",
               "oneOf": [
                 {"type": "integer", "minimum": 0},
-                {"type": "string", "pattern": "^\\+?[0-9]+$"},
+                {
+                    "type": "string",
+                    "pattern": "^\\+?[0-9]+$",
+                    "deprecated": true
+                },
                 {"enum": ["now"]}
               ]
             },
