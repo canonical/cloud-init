@@ -8,9 +8,10 @@
 """Set Passwords: Set user passwords and enable/disable SSH password auth"""
 
 import re
+from logging import Logger
 from string import ascii_letters, digits
 from textwrap import dedent
-from logging import Logger
+from typing import List
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -193,8 +194,8 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
         password = util.get_cfg_option_str(cfg, "password", None)
 
     expire = True
-    plist = []
-    users_list = None
+    plist: List = []
+    users_list: List = []
 
     if "chpasswd" in cfg:
         chfg = cfg["chpasswd"]
@@ -215,9 +216,9 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
                     "cloud-init. Use the list format instead."
                 )
                 log.debug("Handling input for chpasswd as multiline string.")
-                plist = util.get_cfg_option_str(chfg, "list", plist)
-                if plist:
-                    plist = plist.splitlines()
+                multiline = util.get_cfg_option_str(chfg, "list")
+                if multiline:
+                    plist = multiline.splitlines()
 
         expire = util.get_cfg_option_bool(chfg, "expire", expire)
 
