@@ -9,8 +9,6 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-import subprocess
-
 MODULE_DESCRIPTION = """\
 Module to set up Wireguard conneciton
 """
@@ -44,8 +42,8 @@ def enablewg(wg_section:dict, log: Logger) -> bool:
     for i in wg_section['interfaces']:
         try:
             log.debug("Running: systemctl enable wg-quick@{}".format(str(i['name'])))
-            subprocess.call("systemctl enable wg-quick@{}".format(str(i['name'])), shell=True)
-            subprocess.call("systemctl start wg-quick@{}".format(str(i['name'])), shell=True)
+            subp.subp("systemctl enable wg-quick@{}".format(str(i['name'])), capture=True, shell=True)
+            subp.subp("systemctl start wg-quick@{}".format(str(i['name'])), capture=True, shell=True)
         except Exception as e:
             return False
     return True
@@ -72,6 +70,10 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
             name,
         )
         raise RuntimeError("Skipping Wireguard module")
+
+    #install wireguard tools, enable kernel module
+    cloud.distro.install_packages(("wireguard-tools",))
+    subp.subp("modprobe wireguard", capture=True, shell=True)
 
     #write wg config files
     state = writeconfig(wg_section, log)
