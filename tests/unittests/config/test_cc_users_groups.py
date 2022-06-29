@@ -298,26 +298,22 @@ class TestHandleUsersGroups(CiTestCase):
 
 class TestUsersGroupsSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, problem_msg, has_errors",
         [
             # Validate default settings not covered by examples
-            ({"groups": ["anygrp"]}, None),
-            ({"groups": "anygrp,anyothergroup"}, None),  # DEPRECATED
+            ({"groups": ["anygrp"]}, None, False),
+            ({"groups": "anygrp,anyothergroup"}, None, False),  # DEPRECATED
             # Create anygrp with user1 as member
-            ({"groups": [{"anygrp": "user1"}]}, None),
+            ({"groups": [{"anygrp": "user1"}]}, None, False),
             # Create anygrp with user1 as member using object/string syntax
-            ({"groups": {"anygrp": "user1"}}, None),
+            ({"groups": {"anygrp": "user1"}}, None, False),
             # Create anygrp with user1 as member using object/list syntax
-            ({"groups": {"anygrp": ["user1"]}}, None),
-            ({"groups": [{"anygrp": ["user1", "user2"]}]}, None),
+            ({"groups": {"anygrp": ["user1"]}}, None, False),
+            ({"groups": [{"anygrp": ["user1", "user2"]}]}, None, False),
             # Make default username "olddefault": DEPRECATED
-            ({"user": "olddefault"}, None),
+            ({"user": "olddefault"}, None, False),
             # Create multiple users, and include default user. DEPRECATED
-            ({"users": "oldstyle,default"}, None),
-            ({"users": ["default"]}, None),
-            ({"users": ["default", ["aaa", "bbb"]]}, None),
-            ({"users": ["foobar"]}, None),  # no default user creation
-            ({"users": [{"name": "bbsw"}]}, None),
+            ({"users": [{"name": "bbsw"}]}, None, False),
             (
                 {"users": [{"name": "bbsw", "garbage-key": None}]},
                 "is not valid under any of the given schemas",
@@ -326,22 +322,78 @@ class TestUsersGroupsSchema:
             (
                 {"users": [{"name": "bbsw", "groups": ["anygrp"]}]},
                 None,
+                False,
             ),  # user with a list of groups
-            ({"groups": [{"yep": ["user1"]}]}, None),
+            ({"groups": [{"yep": ["user1"]}]}, None, False),
+            ({"users": "oldstyle,default"}, None, False),
+            ({"users": ["default"]}, None, False),
+            ({"users": ["default", ["aaa", "bbb"]]}, None, False),
+            ({"users": ["foobar"]}, None, False),  # no default user creation
+            (
+                {"users": [{"name": "bbsw", "lock-passwd": True}]},
+                "users.0.lock-passwd: DEPRECATED."
+                " Dropped in EOL Ubuntu bionic. Use ``lock_passwd``."
+                " Default: ``true``",
+                False,
+            ),
+            # users.groups supports comma-delimited str, list and object type
+            (
+                {"users": [{"name": "bbsw", "groups": "adm, sudo"}]},
+                None,
+                False,
+            ),
+            (
+                {
+                    "users": [
+                        {"name": "bbsw", "groups": {"adm": None, "sudo": None}}
+                    ]
+                },
+                "Cloud config schema deprecations: users.0.groups.adm:"
+                " DEPRECATED. When providing an object for"
+                " users.groups the ``<group_name>`` keys are the groups to"
+                " add this user to,",
+                False,
+            ),
+            ({"groups": [{"yep": ["user1"]}]}, None, False),
             (
                 {"user": ["no_list_allowed"]},
                 re.escape("user: ['no_list_allowed'] is not valid "),
+                True,
             ),
             (
                 {"groups": {"anygrp": 1}},
                 "groups.anygrp: 1 is not of type 'string', 'array'",
+                True,
+            ),
+            (
+                {
+                    "users": [{"inactive": True, "name": "cloudy"}],
+                },
+                "errors: users.0: {'inactive': True",
+                True,
+            ),
+            (
+                {
+                    "users": [
+                        {
+                            "expiredate": "2038-01-19",
+                            "groups": "users",
+                            "name": "foobar",
+                        }
+                    ]
+                },
+                None,
+                False,
             ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, problem_msg, has_errors):
+        if problem_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
+            with pytest.raises(
+                SchemaValidationError, match=problem_msg
+            ) as exc_info:
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+            assert has_errors == exc_info.value.has_errors()

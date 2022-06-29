@@ -40,10 +40,30 @@
           "type": "string"
         },
         "groups": {
-          "description": "Optional comma-separated string or list of groups to add the user to.",
-          "type": ["string", "array"],
-          "items": {"type": "string"},
-          "minItems": 1
+          "description": "Optional comma-separated string of groups to add the user to.",
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "array",
+              "items": {
+                "type": ["string"]
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.+$": {
+                  "label": "<group_name>",
+                  "description": "When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to",
+                  "deprecated": true,
+                  "type": ["null"],
+                  "minItems": 1
+                }
+              },
+              "hidden": ["patternProperties"]
+            }
+          ]
         },
         "homedir": {
           "description": "Optional home dir for user. Default: ``/home/<username>``",
@@ -53,6 +73,16 @@
         "inactive": {
           "description": "Optional string representing the number of days until the user is disabled. ",
           "type": "string"
+        },
+        "lock-passwd": {
+          "allOf": [
+            {
+              "default": true,
+              "description": "Use ``lock_passwd``. Default: ``true``",
+              "type": "boolean"
+            },
+            {"$ref": "#/$defs/eol_bionic"}
+          ]
         },
         "lock_passwd": {
           "default": true,

@@ -35,8 +35,16 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         index = matched.start()
 
 
-def verify_clean_log(log):
+def verify_clean_log(log: str, ignore_deprecations: bool = True):
     """Assert no unexpected tracebacks or warnings in logs"""
+    if ignore_deprecations:
+        is_deprecated = re.compile("deprecat", flags=re.IGNORECASE)
+        log_lines = log.split("\n")
+        log_lines = list(
+            filter(lambda line: not is_deprecated.search(line), log_lines)
+        )
+        log = "\n".join(log_lines)
+
     warning_count = log.count("WARN")
     expected_warnings = 0
     traceback_count = log.count("Traceback")
