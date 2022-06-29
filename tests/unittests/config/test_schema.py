@@ -1450,87 +1450,64 @@ class TestHandleSchemaArgs:
 
     Args = namedtuple("Args", "config_file docs system annotate")
 
-    def test_handle_schema_args_annotate_deprecated_config(
-        self, tmpdir, caplog, capsys
-    ):
-        user_data_fn = tmpdir.join("user-data")
-        with open(user_data_fn, "w") as f:
-            f.write(
+    @pytest.mark.parametrize(
+        "args, expected_output",
+        [
+            (
+                dict(annotate=True, docs=None, system=None),
                 dedent(
                     """\
                     #cloud-config
                     packages:
                     - htop
-                    apt_update: true
-                    apt_upgrade: true
-                    apt_reboot_if_required: true
-                    """
-                )
-            )
-        args = self.Args(
-            config_file=str(user_data_fn),
-            annotate=True,
-            docs=None,
-            system=None,
-        )
-        handle_schema_args("unused", args)
-        out, err = capsys.readouterr()
-        expected_output = dedent(
-            f"""\
-            #cloud-config
-            packages:
-            - htop
-            apt_update: true		# D1
-            apt_upgrade: true		# D2
-            apt_reboot_if_required: true		# D3
+                    apt_update: true		# D1
+                    apt_upgrade: true		# D2
+                    apt_reboot_if_required: true		# D3
 
-            # Deprecations: -------------
-            # D1: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``
-            # D2: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
-            # D3: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``
+                    # Deprecations: -------------
+                    # D1: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``
+                    # D2: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
+                    # D3: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``
 
 
-            Valid cloud-config: {user_data_fn}
-            """  # noqa: E501
-        )
-        assert expected_output == out
-        assert not err
-        assert "deprec" not in caplog.text
-
-    def test_handle_schema_args_validate_deprecated_config(
-        self, tmpdir, caplog, capsys
-    ):
-        user_data_fn = tmpdir.join("user-data")
-        with open(user_data_fn, "w") as f:
-            f.write(
+                    Valid cloud-config: {}
+                    """  # noqa: E501
+                ),
+            ),
+            (
+                dict(annotate=False, docs=None, system=None),
                 dedent(
                     """\
-                    #cloud-config
-                    packages:
-                    - htop
-                    apt_update: true
-                    apt_upgrade: true
-                    apt_reboot_if_required: true
-                    """
-                )
-            )
-        args = self.Args(
-            config_file=str(user_data_fn),
-            annotate=False,
-            docs=None,
-            system=None,
-        )
-        handle_schema_args("unused", args)
-        out, err = capsys.readouterr()
-        expected_output = dedent(
-            f"""\
-            Cloud config schema deprecations: \
+                    Cloud config schema deprecations: \
 apt_reboot_if_required: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``, \
 apt_update: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``, \
 apt_upgrade: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
-            Valid cloud-config: {user_data_fn}
-            """  # noqa: E501
-        )
-        assert expected_output == out
+                    Valid cloud-config: {}
+                    """  # noqa: E501
+                ),
+            ),
+        ],
+    )
+    def test_handle_schema_args_annotate_deprecated_config(
+        self, args, expected_output, caplog, capsys, tmpdir
+    ):
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true
+                    apt_upgrade: true
+                    apt_reboot_if_required: true
+                    """
+                )
+            )
+        args = self.Args(config_file=str(user_data_fn), **args)
+        handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        assert expected_output.format(user_data_fn) == out
         assert not err
         assert "deprec" not in caplog.text

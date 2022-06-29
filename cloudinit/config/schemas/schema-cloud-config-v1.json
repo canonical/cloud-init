@@ -397,7 +397,10 @@
             "$ref": "#/$defs/ca_certs.properties"
         },
         "ca-certs": {
-            "$ref": "#/$defs/ca_certs.properties"
+            "allOf": [
+              {"$ref": "#/$defs/ca_certs.properties"},
+              {"$ref": "#/$defs/eol_bionic"}
+            ]
         }
       }
     },

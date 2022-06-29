@@ -353,7 +353,6 @@ def get_jsonschema_validator():
         # assignment-operation pylint warning which appears because this
         # code path isn't written against the latest jsonschema).
         types["string"] = (str, bytes)  # pylint: disable=E1137
-        # pylint: disable=E1123
         validator_kwargs = {"default_types": types}
 
     # Add deprecation handling
@@ -375,6 +374,10 @@ def get_jsonschema_validator():
 
     # Add deprecation handling
     def is_valid(self, instance, _schema=None, **__):
+        """Override version of `is_valid`.
+
+        It does ignore instances of `SchemaDeprecationError`.
+        """
         errors = filter(
             lambda e: not isinstance(  # pylint: disable=W1116
                 e, SchemaDeprecationError
@@ -511,7 +514,7 @@ class _Annotator:
         self._schemamarks = schemamarks
 
     @staticmethod
-    def _build_header(title: str, content: List[str]) -> str:
+    def _build_footer(title: str, content: List[str]) -> str:
         body = "\n".join(content)
         return f"# {title}: -------------\n{body}\n\n"
 
@@ -578,7 +581,7 @@ class _Annotator:
 
         annotated_content.extend(
             map(
-                lambda seq: self._build_header(*seq),
+                lambda seq: self._build_footer(*seq),
                 filter(
                     lambda seq: bool(seq[1]),
                     (
@@ -603,7 +606,7 @@ class _Annotator:
             return "\n".join(
                 lines
                 + [
-                    self._build_header(
+                    self._build_footer(
                         "Errors", ["# E1: Cloud-config is not a YAML dict."]
                     )
                 ]
@@ -745,7 +748,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                 prefix="Cloud config schema deprecations: ", separator=", "
             )
             print(message)
-        if e.has_errors():
+        if e.has_errors():  # We do not consider deprecations as error
             raise
 
 
