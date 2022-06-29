@@ -1,7 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Wireguard"""
-from textwrap import dedent
 from logging import Logger
+from textwrap import dedent
+
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -17,7 +18,7 @@ meta: MetaSchema = {
     "name": "Wireguard",
     "title": "Module to configure Wireguard tunnel",
     "description": MODULE_DESCRIPTION,
-    "distros": [ALL_DISTROS],
+    "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(
@@ -49,38 +50,52 @@ meta: MetaSchema = {
         - 'service example restart'
         - 'curl https://webhook.endpoint/example'
     """
-            ),
-        ],
+        ),
+    ],
 }
 
 __doc__ = get_meta_doc(meta)
 
-def writeconfig(wg_section:dict, log: Logger) -> bool:
-    for i in wg_section['interfaces']:
-        log.debug("Configuring Wireguard interface {}".format(str(i['name'])))
+
+def writeconfig(wg_section: dict, log: Logger) -> bool:
+    for i in wg_section["interfaces"]:
+        log.debug("Configuring Wireguard interface {}".format(str(i["name"])))
         try:
-            with open(i['config_path'], 'w', encoding="utf-8") as wgconfig:
-                wgconfig.write(i['content'])
+            with open(i["config_path"], "w", encoding="utf-8") as wgconfig:
+                wgconfig.write(i["content"])
         except Exception as e:
             return False
     return True
 
-def enablewg(wg_section:dict, log: Logger) -> bool:
-    for i in wg_section['interfaces']:
+
+def enablewg(wg_section: dict, log: Logger) -> bool:
+    for i in wg_section["interfaces"]:
         try:
-            log.debug("Running: systemctl enable wg-quick@{}".format(str(i['name'])))
-            subp.subp("systemctl enable wg-quick@{}".format(str(i['name'])), capture=True, shell=True)
-            subp.subp("systemctl start wg-quick@{}".format(str(i['name'])), capture=True, shell=True)
+            log.debug(
+                "Running: systemctl enable wg-quick@{}".format(str(i["name"]))
+            )
+            subp.subp(
+                "systemctl enable wg-quick@{}".format(str(i["name"])),
+                capture=True,
+                shell=True,
+            )
+            subp.subp(
+                "systemctl start wg-quick@{}".format(str(i["name"])),
+                capture=True,
+                shell=True,
+            )
         except Exception as e:
             return False
     return True
 
-def readinessprobe(wg_section:dict, log: Logger, cloud: Cloud) -> bool:
-    for c in wg_section['readinessprobe']:
-        if isinstance(c,str):
+
+def readinessprobe(wg_section: dict, log: Logger, cloud: Cloud) -> bool:
+    for c in wg_section["readinessprobe"]:
+        if isinstance(c, str):
             log.debug("Running readinessprobe: '{}'".format(str(c)))
             subp.subp(c, capture=True, shell=True)
     return True
+
 
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
     log.debug(f"Starting clound-init module {name}")
@@ -92,30 +107,32 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
 
     if wg_section is None:
         log.debug(
-            "Skipping module named %s,"
-            " no 'wireguard' configuration found",
+            "Skipping module named %s," " no 'wireguard' configuration found",
             name,
         )
         raise RuntimeError("Skipping Wireguard module")
 
-    #install wireguard tools, enable kernel module
+    # install wireguard tools, enable kernel module
     cloud.distro.install_packages(("wireguard-tools",))
     subp.subp("modprobe wireguard", capture=True, shell=True)
 
-    #write wg config files
+    # write wg config files
     state = writeconfig(wg_section, log)
     if not state:
         log.error("Writing Wireguard configuration file failed")
         raise RuntimeError("Writing Wireguard configuration file failed")
 
-    #enable wg interfaces
+    # enable wg interfaces
     state = enablewg(wg_section, log)
     if not state:
         log.error("Enable Wireguard interface(s) failed")
         raise RuntimeError("Enable Wireguard interface(s) failed")
 
-    #run readinessprobe probe, if any
-    if 'readinessprobe' in wg_section and wg_section['readinessprobe'] is not None:
+    # run readinessprobe probe, if any
+    if (
+        "readinessprobe" in wg_section
+        and wg_section["readinessprobe"] is not None
+    ):
         state = readinessprobe(wg_section, log, cloud)
         if not state:
             log.error("Error during readinessprobe")
