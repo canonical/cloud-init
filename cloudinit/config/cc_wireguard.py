@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Wireguard"""
-
+from textwrap import dedent
 from logging import Logger
-
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -10,7 +9,7 @@ from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
-Module to set up Wireguard conneciton
+Module to set up Wireguard connection. Including installation and configuration of WG interfaces. In addition certain readinessprobes can be provided.
 """
 
 meta: MetaSchema = {
@@ -21,9 +20,37 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [
-        "example_key: example_value",
-        "example_other_key: ['value', 2]",
-    ],
+        dedent(
+            """\
+    # Configure one or more Wireguard interfaces and provide optinal readinessprobes
+    wireguard:
+    interfaces:
+        - name: <interface_name>
+        config_path: <path_to_interface_configuration_file>
+        content: |
+            [Interface]
+            PrivateKey = <private_key>
+            Address = <address>
+            [Peer]
+            PublicKey = <public_key>
+            Endpoint = <endpoint_ip>:<endpoint_ip_port>
+            AllowedIPs = <allowedips>
+        - name: <interface_name>
+        config_path:  <path_to_interface_configuration_file>
+        content: |
+            [Interface]
+            PrivateKey = <private_key>
+            Address = <address>
+            [Peer]
+            PublicKey = <public_key>
+            Endpoint = <endpoint_ip>:<endpoint_ip_port>
+            AllowedIPs = <allowedips>
+    readinessprobe:
+        - 'service example restart'
+        - 'curl https://webhook.endpoint/example'
+    """
+            ),
+        ],
 }
 
 __doc__ = get_meta_doc(meta)
