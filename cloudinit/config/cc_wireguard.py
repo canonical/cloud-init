@@ -25,8 +25,8 @@ meta: MetaSchema = {
     # Configure one or more Wireguard interfaces and provide optinal readinessprobes
     wireguard:
     interfaces:
-        - name: <interface_name>
-        config_path: <path_to_interface_configuration_file>
+        - name: <interface_name_wg0>
+        config_path: <path_to_interface_configuration_file_wg0>
         content: |
             [Interface]
             PrivateKey = <private_key>
@@ -35,8 +35,8 @@ meta: MetaSchema = {
             PublicKey = <public_key>
             Endpoint = <endpoint_ip>:<endpoint_ip_port>
             AllowedIPs = <allowedips>
-        - name: <interface_name>
-        config_path:  <path_to_interface_configuration_file>
+        - name: <interface_name_wg1>
+        config_path:  <path_to_interface_configuration_file_wg1>
         content: |
             [Interface]
             PrivateKey = <private_key>
