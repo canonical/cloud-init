@@ -55,7 +55,8 @@ SCHEMA_LIST_ITEM_TMPL = (
 )
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
-DEPRECATED_SCHEMA_KEY = "deprecated"
+DEPRECATED_KEY = "deprecated"
+DEPRECATED_TIME_KEY = "deprecated.time"
 
 
 # annotations add value for development, but don't break old versions
@@ -154,6 +155,22 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
+def _add_deprecation_msg(
+    description: Optional[str] = None,
+    deprecated_time: Optional[str] = None,
+):
+    msg = "DEPRECATED."
+    if deprecated_time:
+        if msg:
+            msg += " "
+        msg += f"Dropped in {deprecated_time}."
+    if description:
+        if msg:
+            msg += " "
+        msg += f"{description}"
+    return msg
+
+
 def _validator_deprecated(
     _validator,
     deprecated: bool,
@@ -167,7 +184,10 @@ def _validator_deprecated(
     otherwise the instance is consider faulty.
     """
     if deprecated:
-        yield error_type(schema.get("description", "DEPRECATED"))
+        deprecated_time = schema.get(DEPRECATED_TIME_KEY)
+        description = schema.get("description")
+        msg = _add_deprecation_msg(description, deprecated_time)
+        yield error_type(msg)
 
 
 def _anyOf(validator, anyOf, instance, _schema, error_type: Type[Exception]):
@@ -239,6 +259,32 @@ def _oneOf(validator, oneOf, instance, _schema, error_type: Type[Exception]):
         )
     else:
         yield from all_deprecations
+
+
+def _append_description(error, allOf, error_type):
+    if not isinstance(error, error_type):
+        return
+    description = ""
+    for sub_schema in allOf:
+        desc = sub_schema.get("description")
+        if desc:
+            description = desc
+            break
+    else:
+        return
+    if description not in error.message:
+        error.message = " ".join((error.message, description))
+
+
+def _allOf(validator, allOf, instance, _schema, error_type: Type[Exception]):
+    """Jsonschema validator for `allOf`.
+
+    It appends the description to the error if found in a parallel sub-schema.
+    """
+    for index, subschema in enumerate(allOf):
+        for error in validator.descend(instance, subschema, schema_path=index):
+            _append_description(error, allOf, error_type)
+            yield error
 
 
 class _DeprecationErrorCreator:
@@ -313,11 +359,12 @@ def get_jsonschema_validator():
     # Add deprecation handling
     SchemaDeprecationError = _DeprecationErrorCreator().error_type
     validators = dict(Draft4Validator.VALIDATORS)
-    validators[DEPRECATED_SCHEMA_KEY] = partial(
+    validators[DEPRECATED_KEY] = partial(
         _validator_deprecated, error_type=SchemaDeprecationError
     )
     validators["oneOf"] = partial(_oneOf, error_type=SchemaDeprecationError)
     validators["anyOf"] = partial(_anyOf, error_type=SchemaDeprecationError)
+    validators["allOf"] = partial(_allOf, error_type=SchemaDeprecationError)
 
     cloudinitValidator = create(
         meta_schema=strict_metaschema,
@@ -790,14 +837,31 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
             # Update the references in subschema for doc rendering
             src_cfg["items"].update(defs[reference])
         if "oneOf" in src_cfg["items"]:
-            for alt_schema in src_cfg["items"]["oneOf"]:
-                if "$ref" in alt_schema:
-                    reference = alt_schema.pop("$ref").replace("#/$defs/", "")
-                    alt_schema.update(defs[reference])
-    for alt_schema in src_cfg.get("oneOf", []):
-        if "$ref" in alt_schema:
-            reference = alt_schema.pop("$ref").replace("#/$defs/", "")
-            alt_schema.update(defs[reference])
+            for sub_schema in src_cfg["items"]["oneOf"]:
+                if "$ref" in sub_schema:
+                    reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+                    sub_schema.update(defs[reference])
+    for sub_schema in chain(
+        src_cfg.get("oneOf", []),
+        src_cfg.get("anyOf", []),
+        src_cfg.get("allOf", []),
+    ):
+        if "$ref" in sub_schema:
+            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+            sub_schema.update(defs[reference])
+
+
+def _flatten_schema_all_of(src_cfg: dict):
+    """Flatten schema: Merge allOf.
+
+    If a schema as allOf, then all of the sub-schemas must hold. Therefore
+    it is safe to merge them.
+    """
+    sub_schemas = src_cfg.pop("allOf", None)
+    if not sub_schemas:
+        return
+    for sub_schema in sub_schemas:
+        src_cfg.update(sub_schema)
 
 
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
@@ -816,16 +880,17 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     for prop_schema in property_schemas:
         for prop_key, prop_config in prop_schema.items():
             _flatten_schema_refs(prop_config, defs)
+            _flatten_schema_all_of(prop_config)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 
-            deprecated = bool(prop_config.get(DEPRECATED_SCHEMA_KEY, False))
+            deprecated = bool(prop_config.get(DEPRECATED_KEY))
             description = prop_config.get("description", "")
             if deprecated:
-                if not description:
-                    description = "DEPRECATED."
-                else:
-                    description = f"DEPRECATED. {description}"
+                deprecated_time = prop_config.get(DEPRECATED_TIME_KEY)
+                description = _add_deprecation_msg(
+                    description, deprecated_time
+                )
             if description:
                 description = " " + description
 

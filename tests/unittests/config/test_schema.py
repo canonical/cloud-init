@@ -389,140 +389,156 @@ class TestValidateCloudConfigSchema:
 
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecations(self, log_deprecations, caplog):
-        description = "Use foo_bar"
-        schema = {
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "properties": {
-                "foo-bar": {
-                    "type": "string",
-                    "deprecated": True,
-                    "description": description,
-                },
-                "foo_bar": {"type": "string"},
-            },
-        }
-        validate_cloudconfig_schema(
-            {"foo-bar": "asdf"},
-            schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
-        log_record = (
-            M_PATH[:-1],
-            logging.WARNING,
-            f"Deprecated cloud-config provided:\nfoo-bar: {description}",
-        )
-        if log_deprecations:
-            assert log_record == caplog.record_tuples[-1]
-        else:
-            assert log_record not in caplog.record_tuples
-
-    @skipUnlessJsonSchema()
-    @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_oneof(
-        self, log_deprecations, caplog
-    ):
-        description = "depre"
-        schema = {
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "properties": {
-                "delay": {
-                    "oneOf": [
-                        {"type": "integer"},
-                        {
+    @pytest.mark.parametrize(
+        "schema,config,expected_msg",
+        [
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "a-b": {
                             "type": "string",
                             "deprecated": True,
-                            "description": description,
+                            "description": "<desc>",
                         },
-                    ]
+                        "a_b": {"type": "string"},
+                    },
                 },
-            },
-        }
-        validate_cloudconfig_schema(
-            {"delay": "+5"},
-            schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
-        log_record = (
-            M_PATH[:-1],
-            logging.WARNING,
-            f"Deprecated cloud-config provided:\ndelay: {description}",
-        )
-        if log_deprecations:
-            assert log_record == caplog.record_tuples[-1]
-        else:
-            assert log_record not in caplog.record_tuples
-
-    @skipUnlessJsonSchema()
-    @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_allOf(
-        self, log_deprecations, caplog
-    ):
-        description = "depre"
-        schema = {
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "properties": {
-                "delay": {
-                    "allOf": [
-                        {"type": "string"},
-                        {
-                            "deprecated": True,
-                            "description": description,
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "delay": {
+                            "oneOf": [
+                                {"type": "integer"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
                         },
-                    ]
+                    },
                 },
-            },
-        }
-        validate_cloudconfig_schema(
-            {"delay": "5"},
-            schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
-        log_record = (
-            M_PATH[:-1],
-            logging.WARNING,
-            f"Deprecated cloud-config provided:\ndelay: {description}",
-        )
-        if log_deprecations:
-            assert log_record == caplog.record_tuples[-1]
-        else:
-            assert log_record not in caplog.record_tuples
-
-    @skipUnlessJsonSchema()
-    @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_anyOf(
-        self, log_deprecations, caplog
-    ):
-        description = "depre"
-        schema = {
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "properties": {
-                "delay": {
-                    "anyOf": [
-                        {"type": "integer"},
-                        {
+                {"delay": "+5"},
+                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "delay": {
+                            "allOf": [
+                                {"type": "string"},
+                                {
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"delay": "5"},
+                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "delay": {
+                            "anyOf": [
+                                {"type": "integer"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"delay": "5"},
+                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "delay": {
                             "type": "string",
                             "deprecated": True,
-                            "description": description,
+                            "deprecated.time": "<time>",
+                            "description": "<desc>",
                         },
-                    ]
+                    },
                 },
-            },
-        }
+                {"delay": "+5"},
+                "Deprecated cloud-config provided:\ndelay: "
+                "DEPRECATED. Dropped in <time>. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "eol_bionic": {
+                            "deprecated": True,
+                            "deprecated.time": "<time>",
+                            "description": "<desc>",
+                        }
+                    },
+                    "properties": {
+                        "delay": {
+                            "allOf": [
+                                {"type": "string"},
+                                {"$ref": "#/$defs/eol_bionic"},
+                            ]
+                        },
+                    },
+                },
+                {"delay": "+5"},
+                "Deprecated cloud-config provided:\ndelay: "
+                "DEPRECATED. Dropped in <time>. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "eol_bionic": {
+                            "deprecated": True,
+                            "deprecated.time": "<time>",
+                        }
+                    },
+                    "properties": {
+                        "delay": {
+                            "allOf": [
+                                {
+                                    "type": "string",
+                                    "description": "<desc>",
+                                },
+                                {"$ref": "#/$defs/eol_bionic"},
+                            ]
+                        },
+                    },
+                },
+                {"delay": "+5"},
+                "Deprecated cloud-config provided:\ndelay: "
+                "DEPRECATED. Dropped in <time>. <desc>",
+            ),
+        ],
+    )
+    def test_validateconfig_logs_deprecations(
+        self, schema, config, expected_msg, log_deprecations, caplog
+    ):
         validate_cloudconfig_schema(
-            {"delay": "5"},
+            config,
             schema,
             strict_metaschema=True,
             log_deprecations=log_deprecations,
         )
-        log_record = (
-            M_PATH[:-1],
-            logging.WARNING,
-            f"Deprecated cloud-config provided:\ndelay: {description}",
-        )
+        log_record = (M_PATH[:-1], logging.WARNING, expected_msg)
         if log_deprecations:
             assert log_record == caplog.record_tuples[-1]
         else:
@@ -1003,21 +1019,92 @@ class TestSchemaDocMarkdown:
         assert "prop1" not in meta_doc
         assert ".*" not in meta_doc
 
-    def test_get_meta_doc_render_deprecated_info(self):
-        """get_meta_doc delimits multiple property types with a '/'."""
-        schema = {
-            "properties": {
-                "prop1": {
-                    "type": ["string", "integer"],
-                    "deprecated": True,
-                    "description": "<description>",
-                }
-            }
-        }
-        assert (
-            "**prop1:** (string/integer) DEPRECATED. <description>"
-            in get_meta_doc(self.meta, schema)
-        )
+    @pytest.mark.parametrize(
+        "schema,expected_doc",
+        [
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "deprecated": True,
+                            "description": "<description>",
+                        }
+                    }
+                },
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "description": "<description>",
+                            "deprecated": True,
+                            "deprecated.time": "EOL Ubuntu bionic",
+                        },
+                    },
+                },
+                (
+                    "**prop1:** (string/integer) DEPRECATED. "
+                    "Dropped in EOL Ubuntu bionic. <description>"
+                ),
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "eol_bionic": {
+                            "deprecated": True,
+                            "deprecated.time": "EOL Ubuntu bionic",
+                        }
+                    },
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description>",
+                                },
+                                {"$ref": "#/$defs/eol_bionic"},
+                            ]
+                        }
+                    },
+                },
+                (
+                    "**prop1:** (string/integer) DEPRECATED. "
+                    "Dropped in EOL Ubuntu bionic. <description>"
+                ),
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "eol_bionic": {
+                            "deprecated": True,
+                            "deprecated.time": "EOL Ubuntu bionic",
+                            "description": "<description>",
+                        }
+                    },
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {"type": ["string", "integer"]},
+                                {"$ref": "#/$defs/eol_bionic"},
+                            ]
+                        }
+                    },
+                },
+                (
+                    "**prop1:** (string/integer) DEPRECATED. "
+                    "Dropped in EOL Ubuntu bionic. <description>"
+                ),
+            ),
+        ],
+    )
+    def test_get_meta_doc_render_deprecated_info(self, schema, expected_doc):
+        assert expected_doc in get_meta_doc(self.meta, schema)
 
 
 class TestAnnotatedCloudconfigFile:
@@ -1398,13 +1485,13 @@ class TestHandleSchemaArgs:
             apt_reboot_if_required: true		# D3
 
             # Deprecations: -------------
-            # D1: Use ``package_update``. Default: ``false``
-            # D2: Use ``package_upgrade``. Default: ``false``
-            # D3: Use ``package_reboot_if_required``. Default: ``false``
+            # D1: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``
+            # D2: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
+            # D3: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``
 
 
             Valid cloud-config: {user_data_fn}
-            """
+            """  # noqa: E501
         )
         assert expected_output == out
         assert not err
@@ -1438,12 +1525,11 @@ class TestHandleSchemaArgs:
         expected_output = dedent(
             f"""\
             Cloud config schema deprecations: \
-apt_reboot_if_required: Use ``package_reboot_if_required``. \
-Default: ``false``, \
-apt_update: Use ``package_update``. Default: ``false``, \
-apt_upgrade: Use ``package_upgrade``. Default: ``false``
+apt_reboot_if_required: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``, \
+apt_update: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``, \
+apt_upgrade: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
             Valid cloud-config: {user_data_fn}
-            """
+            """  # noqa: E501
         )
         assert expected_output == out
         assert not err

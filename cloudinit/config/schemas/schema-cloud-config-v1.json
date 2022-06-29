@@ -1,6 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "eol_bionic": {
+      "deprecated": true,
+      "deprecated.time": "EOL Ubuntu bionic"
+    },
     "users_groups.groups_by_groupname": {
       "additionalProperties": false,
       "patternProperties": {
@@ -169,10 +173,14 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "description": "Use ``remove_defaults``.",
-          "deprecated": true,
-          "type": "boolean",
-          "default": false
+          "allOf": [
+            {
+              "description": "Use ``remove_defaults``.",
+              "type": "boolean",
+              "default": false
+            },
+            {"$ref": "#/$defs/eol_bionic"}
+          ]
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: false",
@@ -1242,22 +1250,34 @@
                 "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
             },
             "apt_update": {
-                "type": "boolean",
-                "default": false,
-                "description": "Use ``package_update``. Default: ``false``",
-                "deprecated": true
+              "allOf": [
+                {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Use ``package_update``. Default: ``false``"
+                },
+                {"$ref": "#/$defs/eol_bionic"}
+              ]
             },
             "apt_upgrade": {
-                "type": "boolean",
-                "default": false,
-                "description": "Use ``package_upgrade``. Default: ``false``",
-                "deprecated": true
+              "allOf": [
+                {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Use ``package_upgrade``. Default: ``false``"
+                },
+                {"$ref": "#/$defs/eol_bionic"}
+              ]
             },
             "apt_reboot_if_required": {
-                "type": "boolean",
-                "default": false,
-                "description": "Use ``package_reboot_if_required``. Default: ``false``",
-                "deprecated": true
+              "allOf": [
+                {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Use ``package_reboot_if_required``. Default: ``false``"
+                },
+                {"$ref": "#/$defs/eol_bionic"}
+              ]
             }
         }
     },
