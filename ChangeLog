@@ -1,3 +1,5 @@
+22.2.2
+ - Remove schema errors from log (#1551)
 22.2.1
  - Fix cc_phone_home requiring 'tries' (#1500)
 22.2
