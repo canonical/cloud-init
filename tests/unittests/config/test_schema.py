@@ -299,7 +299,7 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided: \np1: -1 is not of type 'string'"
+            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
             == log_msg
         )
 
