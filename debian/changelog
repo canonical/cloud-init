@@ -1,6 +1,8 @@
 cloud-init (22.2-0ubuntu1~22.10.2) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf as Depends and Build-Depends
+  * d/gbp.conf d/gbp_format_changelog:
+    + git-buildpackage customization for debian/changelog generation
 
  -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 20 Jun 2022 10:54:54 +0200
 
