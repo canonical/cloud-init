@@ -128,6 +128,12 @@ deb-src:
 doc:
 	tox -e doc
 
+fmt:
+	tox -e do_format && tox -e check_format
+
+fmt-tip:
+	tox -e do_format_tip && tox -e check_format_tip
+
 # Spell check && filter false positives
 _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
        grep -v -e 'doc/rtd/topics/cli.rst: modules modules' \
