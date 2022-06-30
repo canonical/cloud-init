@@ -22,6 +22,8 @@ from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
+    SchemaProblem,
+    SchemaProblems,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
@@ -247,9 +249,13 @@ class SchemaValidationErrorTest(CiTestCase):
 
     def test_schema_validation_error_expects_schema_errors(self):
         """SchemaValidationError is initialized from schema_errors."""
-        errors = (
-            ("key.path", 'unexpected key "junk"'),
-            ("key2.path", '"-123" is not a valid "hostname" format'),
+        errors = SchemaProblems(
+            (
+                SchemaProblem("key.path", 'unexpected key "junk"'),
+                SchemaProblem(
+                    "key2.path", '"-123" is not a valid "hostname" format'
+                ),
+            )
         )
         exception = SchemaValidationError(schema_errors=errors)
         self.assertIsInstance(exception, Exception)
@@ -412,10 +418,11 @@ class TestValidateCloudConfigSchema:
         else:
             assert log_record not in caplog.record_tuples
 
-
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_oneof(self, log_deprecations, caplog):
+    def test_validateconfig_logs_deprecation_oneof(
+        self, log_deprecations, caplog
+    ):
         description = "depre"
         schema = {
             "$schema": "http://json-schema.org/draft-04/schema#",
@@ -427,7 +434,7 @@ class TestValidateCloudConfigSchema:
                             "type": "string",
                             "deprecated": True,
                             "description": description,
-                        }
+                        },
                     ]
                 },
             },
@@ -448,10 +455,11 @@ class TestValidateCloudConfigSchema:
         else:
             assert log_record not in caplog.record_tuples
 
-
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_allOf(self, log_deprecations, caplog):
+    def test_validateconfig_logs_deprecation_allOf(
+        self, log_deprecations, caplog
+    ):
         description = "depre"
         schema = {
             "$schema": "http://json-schema.org/draft-04/schema#",
@@ -462,7 +470,7 @@ class TestValidateCloudConfigSchema:
                         {
                             "deprecated": True,
                             "description": description,
-                        }
+                        },
                     ]
                 },
             },
@@ -483,10 +491,11 @@ class TestValidateCloudConfigSchema:
         else:
             assert log_record not in caplog.record_tuples
 
-
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("log_deprecations", [True, False])
-    def test_validateconfig_logs_deprecation_anyOf(self, log_deprecations, caplog):
+    def test_validateconfig_logs_deprecation_anyOf(
+        self, log_deprecations, caplog
+    ):
         description = "depre"
         schema = {
             "$schema": "http://json-schema.org/draft-04/schema#",
@@ -498,7 +507,7 @@ class TestValidateCloudConfigSchema:
                             "type": "string",
                             "deprecated": True,
                             "description": description,
-                        }
+                        },
                     ]
                 },
             },
@@ -1005,7 +1014,10 @@ class TestSchemaDocMarkdown:
                 }
             }
         }
-        assert "**prop1:** (string/integer) DEPRECATED. <description>" in get_meta_doc(self.meta, schema)
+        assert (
+            "**prop1:** (string/integer) DEPRECATED. <description>"
+            in get_meta_doc(self.meta, schema)
+        )
 
 
 class TestAnnotatedCloudconfigFile:
@@ -1014,7 +1026,10 @@ class TestAnnotatedCloudconfigFile:
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
         parse_cfg, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            parse_cfg, content, schema_errors=[], schemamarks=schemamarks
+            parse_cfg,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=SchemaProblems(),
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -1036,8 +1051,10 @@ class TestAnnotatedCloudconfigFile:
         assert expected == annotated_cloudconfig_file(
             None,
             content,
-            schema_errors=[("", "None is not of type 'object'")],
             schemamarks={},
+            schema_errors=SchemaProblems(
+                (SchemaProblem("", "None is not of type 'object'"),)
+            ),
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -1065,13 +1082,18 @@ class TestAnnotatedCloudconfigFile:
             """
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
-        schema_errors = [
-            ("ntp", "Some type error"),
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
-        ]
+        schema_errors = SchemaProblems(
+            (
+                SchemaProblem("ntp", "Some type error"),
+                SchemaProblem("ntp.pools.0", "-99 is not a string"),
+                SchemaProblem("ntp.pools.1", "75 is not a string"),
+            )
+        )
         assert expected == annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
@@ -1095,12 +1117,17 @@ class TestAnnotatedCloudconfigFile:
             """
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
-        schema_errors = [
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
-        ]
+        schema_errors = SchemaProblems(
+            (
+                SchemaProblem("ntp.pools.0", "-99 is not a string"),
+                SchemaProblem("ntp.pools.1", "75 is not a string"),
+            )
+        )
         assert expected in annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
 
