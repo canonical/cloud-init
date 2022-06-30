@@ -1,10 +1,102 @@
-cloud-init (22.2-0ubuntu1~22.10.2) UNRELEASED; urgency=medium
+cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf as Depends and Build-Depends
   * d/gbp.conf d/gbp_format_changelog:
     + git-buildpackage customization for debian/changelog generation
+  * New upstream snapshot.
+    + tests: mock dns lookup that causes long timeouts (#1555)
+    + tox: add unpinned env for do_format and check_format (#1554)
+    + cc_ssh_import_id: Substitute deprecated warn (#1553)
+      [Alberto Contreras]
+    + Remove schema errors from log (#1551) (LP: #1978422)
+    + Update WebHookHandler to run as background thread (SC-456) (#1491)
+      (LP: #1910552)
+    + testing: Don't run custom cloud dir test on Bionic (#1542)
+    + bash completion: update schema command (#1543) (LP: #1979547)
+    + CI: add non-blocking run against the linters tip versions (#1531)
+      [Paride Legovini]
+    + Change groups within the users schema to support lists and strings
+      (#1545) [RedKrieg]
+    + make it clear which username should go in the contributing doc (#1546)
+    + Pin setuptools for Travis (SC-1136) (#1540)
+    + Fix LXD datasource crawl when BOOT enabled (#1537)
+    + testing: Fix wrong path in dual stack test (#1538)
+    + cloud-config: honor cloud_dir setting (#1523) (LP: #1976564)
+      [Alberto Contreras]
+    + Add python3-debconf to pkg-deps.json Build-Depends (#1535)
+      [Alberto Contreras]
+    + redhat spec: udev/rules.d lives under /usr/lib on rhel-based systems
+      (#1536)
+    + tests/azure: add test coverage for DisableSshPasswordAuthentication
+      (#1534) [Chris Patterson]
+    + summary: Add david-caro to the cla signers (#1527) [David Caro]
+    + Add support for OpenMandriva (https://openmandriva.org/) (#1520)
+      [Bernhard Rosenkraenzer]
+    + tests/azure: refactor ovf creation (#1533) [Chris Patterson]
+    + Improve DataSourceOVF error reporting when script disabled (#1525)
+      [rong]
+    + tox: integration-tests-jenkins: softfail if only some test failed
+      (#1528) [Paride Legovini]
+    + CI: drop linters from Travis CI (moved to GH Actions) (#1530)
+      [Paride Legovini]
+    + sources/azure: remove unused encoding support for customdata (#1526)
+      [Chris Patterson]
+    + sources/azure: remove unused metadata captured when parsing ovf
+      (#1524) [Chris Patterson]
+    + sources/azure: remove dscfg parsing from ovf-env.xml (#1522)
+      [Chris Patterson]
+    + Remove extra space from ec2 dual stack crawl message (#1521)
+    + tests/azure: use namespaces in generated ovf-env.xml documents (#1519)
+      [Chris Patterson]
+    + setup.py: adjust udev/rules default path (#1513)
+      [Emanuele Giuseppe Esposito]
+    + Add python3-deconf dependency (#1506) [Alberto Contreras]
+    + Change match macadress param for network v2 config (#1518)
+      [Henrique Caricatti Capozzi]
+    + sources/azure: remove unused userdata property from ovf (#1516)
+      [Chris Patterson]
+    + sources/azure: minor refactoring to network config generation (#1497)
+      [Chris Patterson]
+    + net: Implement link-local ephemeral ipv6
+    + Rename function to avoid confusion (#1501)
+    + Fix cc_phone_home requiring 'tries' (#1500) (LP: #1977952)
+    + datasources: replace networking functions with stdlib and
+    cloudinit.net code
+    + Remove xenial references (#1472) [Alberto Contreras]
+    + Oracle ds changes (#1474) (LP: #1967942) [Alberto Contreras]
+    + improve runcmd docs (#1498)
+    + add 3.11-dev to Travis CI (#1493)
+    + Only run github actions on pull request (#1496)
+    + Fix integration test client creation (#1494) [Alberto Contreras]
+    + tox: add link checker environment, fix links (#1480)
+    + cc_ubuntu_advantage: Fix doc (#1487) [Alberto Contreras]
+    + cc_yum_add_repo: Fix repo id canonicalization (#1489) (LP: #1975818)
+      [Alberto Contreras]
+    + Add linitio as contributor in the project (#1488) [Kevin Allioli]
+    + net-convert: use yaml.dump for debugging python NetworkState obj
+      (#1484) (LP: #1975907)
+    + test_schema: no relative $ref URLs, replace $ref with local path
+      (#1486)
+    + cc_set_hostname: do not write "localhost" when no hostname is given
+      (#1453) [Emanuele Giuseppe Esposito]
+    + Update .github-cla-signers (#1478) [rong]
+    + schema: write_files defaults, versions $ref full URL and add vscode
+      (#1479)
+    + docs: fix external links, add one more to the list (#1477)
+    + doc: Document how to change module frequency (#1481)
+    + tests: bump pycloudlib (#1482)
+    + tests: bump pycloudlib pinned commit for kinetic Azure (#1476)
+    + testing: fix test_status.py (#1475)
+    + integration tests: If KEEP_INSTANCE = True, log IP (#1473)
+    + Drop mypy excluded files (#1454) [Alberto Contreras]
+    + Docs additions (#1470)
+    + Add "formatting tests" to Github Actions
+    + Remove unused arguments in function signature (#1471)
+    + Changelog: correct errant classification of LP issues as GH (#1464)
+    + Use Network-Manager and Netplan as default renderers for RHEL and
+      Fedora (#1465) [Emanuele Giuseppe Esposito]
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 20 Jun 2022 10:54:54 +0200
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 30 Jun 2022 17:17:24 -0600
 
 cloud-init (22.2-0ubuntu1~22.10.1) kinetic; urgency=medium
 
@@ -3635,7 +3727,7 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - net/cmdline: Further adjustments to ipv6 support [LaMont Jones]
-     (LP: #1621615)
+      (LP: #1621615)
     - Add coverage dependency to bddeb to fix package build.
     - doc: improve HACKING.rst file
     - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
