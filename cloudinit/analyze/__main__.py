@@ -192,6 +192,10 @@ def analyze_boot(name, args):
     }
 
     outfh.write(status_map[status_code].format(**kwargs))
+    if outfh != sys.stdout:
+        outfh.close()
+    if infh != sys.stdin:
+        infh.close()
     return status_code
 
 
