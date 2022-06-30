@@ -12,6 +12,7 @@ from typing import Any, Dict
 from cloudinit import safeyaml, util
 from cloudinit.net import (
     get_interfaces_by_mac,
+    get_interface_from_mac,
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ip_network,
@@ -700,15 +701,14 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             #   * interface name looked up by mac
             #   * value of "eth" key from this loop
             name = eth
-            set_name = cfg.get("set-name", None)
+            set_name = cfg.get("set-name")
             if set_name:
                 name = set_name
             elif mac_address and ifaces_by_mac:
                 lcase_mac_address = mac_address.lower()
-                for iface_mac, iface_name in ifaces_by_mac.items():
-                    if lcase_mac_address == iface_mac.lower():
-                        name = iface_name
-                        break
+                mac = get_interface_from_mac(lcase_mac_address)
+                if mac:
+                    name = mac
             phy_cmd["name"] = name
 
             driver = match.get("driver", None)
@@ -780,6 +780,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 if len(dns) > 0:
                     name_cmd.update({"address": dns})
                 self.handle_nameserver(name_cmd)
+
+                mac_address = dev_cfg.get("match", {}).get("macaddress")
+                real_if_name = get_interface_from_mac(mac_address)
+                if real_if_name:
+                    iface = real_if_name
+
                 self._handle_individual_nameserver(name_cmd, iface)
 
     def _handle_bond_bridge(self, command, cmd_type=None):
