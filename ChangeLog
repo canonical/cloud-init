@@ -1,3 +1,5 @@
+22.2.1
+ - Fix cc_phone_home requiring 'tries' (#1500)
 22.2
  - Fix test due to caplog incompatibility (#1461) [Alberto Contreras]
  - Align rhel custom files with upstream (#1431)
