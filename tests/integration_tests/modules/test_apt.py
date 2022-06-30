@@ -7,6 +7,7 @@ from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -355,3 +356,23 @@ def test_apt_proxy(client: IntegrationInstance):
     assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
     assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
     assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out
+
+
+APT_DEPRECATED_DATA = """\
+#cloud-config
+apt_update: false
+apt_upgrade: false
+apt_reboot_if_required: false
+"""
+
+
+@pytest.mark.ubuntu
+@pytest.mark.user_data(APT_DEPRECATED_DATA)
+def test_deprecated_logs(client: IntegrationInstance):
+    """Test the deprecated messages are emitted."""
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log, ignore_deprecations=True)
+    assert "WARNING]: Deprecated cloud-config provided:" in log
+    assert "apt_reboot_if_required: DEPRECATED." in log
+    assert "apt_update: DEPRECATED." in log
+    assert "apt_upgrade: DEPRECATED." in log
