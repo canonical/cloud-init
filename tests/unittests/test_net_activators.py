@@ -35,7 +35,7 @@ ethernets:
     dhcp4: true
 """
 
-NETPLAN_CALL_LIST = [
+NETPLAN_CALL_LIST: list = [
     ((["netplan", "apply"],), {}),
 ]
 
@@ -156,12 +156,12 @@ class TestActivatorsAvailable:
         assert available_mocks.m_which.call_args_list == available_calls
 
 
-IF_UP_DOWN_BRING_UP_CALL_LIST = [
+IF_UP_DOWN_BRING_UP_CALL_LIST: list = [
     ((["ifup", "eth0"],), {}),
     ((["ifup", "eth1"],), {}),
 ]
 
-NETWORK_MANAGER_BRING_UP_CALL_LIST = [
+NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
     (
         (
             [
@@ -230,7 +230,7 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST = [
     ),
 ]
 
-NETWORKD_BRING_UP_CALL_LIST = [
+NETWORKD_BRING_UP_CALL_LIST: list = [
     ((["ip", "link", "set", "up", "eth0"],), {}),
     ((["ip", "link", "set", "up", "eth1"],), {}),
     ((["systemctl", "restart", "systemd-networkd", "systemd-resolved"],), {}),
@@ -286,17 +286,17 @@ class TestActivatorsBringUp:
             assert call in expected_call_list
 
 
-IF_UP_DOWN_BRING_DOWN_CALL_LIST = [
+IF_UP_DOWN_BRING_DOWN_CALL_LIST: list = [
     ((["ifdown", "eth0"],), {}),
     ((["ifdown", "eth1"],), {}),
 ]
 
-NETWORK_MANAGER_BRING_DOWN_CALL_LIST = [
+NETWORK_MANAGER_BRING_DOWN_CALL_LIST: list = [
     ((["nmcli", "device", "disconnect", "eth0"],), {}),
     ((["nmcli", "device", "disconnect", "eth1"],), {}),
 ]
 
-NETWORKD_BRING_DOWN_CALL_LIST = [
+NETWORKD_BRING_DOWN_CALL_LIST: list = [
     ((["ip", "link", "set", "down", "eth0"],), {}),
     ((["ip", "link", "set", "down", "eth1"],), {}),
 ]

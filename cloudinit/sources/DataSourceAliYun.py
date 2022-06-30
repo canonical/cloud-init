@@ -1,7 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from typing import List
+
 from cloudinit import dmi, sources
 from cloudinit.sources import DataSourceEc2 as EC2
+from cloudinit.sources import DataSourceHostname
 
 ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
@@ -13,10 +16,15 @@ class DataSourceAliYun(EC2.DataSourceEc2):
 
     # The minimum supported metadata_version from the ec2 metadata apis
     min_metadata_version = "2016-01-01"
-    extended_metadata_versions = []
+    extended_metadata_versions: List[str] = []
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return self.metadata.get("hostname", "localhost.localdomain")
+        hostname = self.metadata.get("hostname")
+        is_default = False
+        if hostname is None:
+            hostname = "localhost.localdomain"
+            is_default = True
+        return DataSourceHostname(hostname, is_default)
 
     def get_public_ssh_keys(self):
         return parse_public_keys(self.metadata.get("public-keys", {}))

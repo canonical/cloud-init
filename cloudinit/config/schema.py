@@ -7,16 +7,18 @@ import logging
 import os
 import re
 import sys
+import textwrap
 import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
+from typing import Optional, Tuple, cast
 
 import yaml
 
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.util import error, find_modules, load_file
+from cloudinit.util import error, get_modules_from_dir, load_file
 
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
@@ -196,6 +198,7 @@ def validate_cloudconfig_schema(
     schema: dict = None,
     strict: bool = False,
     strict_metaschema: bool = False,
+    log_details: bool = True,
 ):
     """Validate provided config meets the schema definition.
 
@@ -208,6 +211,9 @@ def validate_cloudconfig_schema(
        logging warnings.
     @param strict_metaschema: Boolean, when True validates schema using strict
        metaschema definition at runtime (currently unused)
+    @param log_details: Boolean, when True logs details of validation errors.
+       If there are concerns about logging sensitive userdata, this should
+       be set to False.
 
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
@@ -226,18 +232,23 @@ def validate_cloudconfig_schema(
         return
 
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
-    errors = ()
+    errors: Tuple[Tuple[str, str], ...] = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = ".".join([str(p) for p in error.path])
         errors += ((path, error.message),)
     if errors:
         if strict:
+            # This could output/log sensitive data
             raise SchemaValidationError(errors)
-        else:
+        if log_details:
             messages = ["{0}: {1}".format(k, msg) for k, msg in errors]
-            LOG.warning(
-                "Invalid cloud-config provided:\n%s", "\n".join(messages)
+            details = "\n" + "\n".join(messages)
+        else:
+            details = (
+                "Please run 'sudo cloud-init schema --system' to "
+                "see the schema errors."
             )
+        LOG.warning("Invalid cloud-config provided: %s", details)
 
 
 def annotated_cloudconfig_file(
@@ -413,7 +424,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
         property_types.extend(
             [
                 subschema["type"]
-                for subschema in property_dict.get("oneOf")
+                for subschema in property_dict.get("oneOf", {})
                 if subschema.get("type")
             ]
         )
@@ -562,9 +573,7 @@ def _get_examples(meta: MetaSchema) -> str:
         return ""
     rst_content = SCHEMA_EXAMPLES_HEADER
     for count, example in enumerate(examples):
-        # Python2.6 is missing textwrapper.indent
-        lines = example.split("\n")
-        indented_lines = ["    {0}".format(line) for line in lines]
+        indented_lines = textwrap.indent(example, "    ").split("\n")
         if rst_content != SCHEMA_EXAMPLES_HEADER:
             indented_lines.insert(
                 0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1)
@@ -573,7 +582,7 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
-def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
+def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
     @param meta: Dict of metadata to render.
@@ -616,7 +625,8 @@ def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
     meta_copy["property_header"] = ""
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
-        schema = defs.get(meta["id"])
+        schema = defs.get(meta["id"], {})
+        schema = cast(dict, schema)
     try:
         meta_copy["property_doc"] = _get_property_doc(schema, defs=defs)
     except AttributeError:
@@ -634,7 +644,7 @@ def get_meta_doc(meta: MetaSchema, schema: dict = None) -> str:
 
 def get_modules() -> dict:
     configs_dir = os.path.dirname(os.path.abspath(__file__))
-    return find_modules(configs_dir)
+    return get_modules_from_dir(configs_dir)
 
 
 def load_doc(requested_modules: list) -> str:

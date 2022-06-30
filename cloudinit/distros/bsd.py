@@ -1,4 +1,5 @@
 import platform
+from typing import List, Optional
 
 from cloudinit import distros, helpers
 from cloudinit import log as logging
@@ -20,12 +21,12 @@ class BSD(distros.Distro):
     shutdown_options_map = {"halt": "-H", "poweroff": "-p", "reboot": "-r"}
 
     # Set in BSD distro subclasses
-    group_add_cmd_prefix = []
-    pkg_cmd_install_prefix = []
-    pkg_cmd_remove_prefix = []
+    group_add_cmd_prefix: List[str] = []
+    pkg_cmd_install_prefix: List[str] = []
+    pkg_cmd_remove_prefix: List[str] = []
     # There is no update/upgrade on OpenBSD
-    pkg_cmd_update_prefix = None
-    pkg_cmd_upgrade_prefix = None
+    pkg_cmd_update_prefix: Optional[List[str]] = None
+    pkg_cmd_upgrade_prefix: Optional[List[str]] = None
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)

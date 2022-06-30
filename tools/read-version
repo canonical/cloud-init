@@ -11,19 +11,11 @@ if "avoid-pep8-E402-import-not-top-of-file":
     from cloudinit import version as ci_version
 
 
-def tiny_p(cmd, capture=True):
-    # python 2.6 doesn't have check_output
-    stdout = subprocess.PIPE
+def tiny_p(cmd):
     stderr = subprocess.PIPE
-    sp = subprocess.Popen(cmd, stdout=stdout,
-                          stderr=stderr, stdin=None,
-                          universal_newlines=True)
-    (out, err) = sp.communicate()
-    ret = sp.returncode
-    if ret not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
-                           (cmd, ret, out, err))
-    return out
+    return subprocess.check_output(
+        cmd, stderr=stderr, stdin=None, universal_newlines=True
+    )
 
 
 def which(program):

@@ -14,7 +14,7 @@ Summary
 Before any pull request can be accepted, you must do the following:
 
 * Sign the Canonical `contributor license agreement`_
-* Add yourself (alphabetically) to the in-repository list that we use
+* Add your Github username (alphabetically) to the in-repository list that we use
   to track CLA signatures:
   `tools/.github-cla-signers`_
 * Add or update any `unit tests`_ accordingly
@@ -80,7 +80,7 @@ Follow these steps to submit your first pull request to cloud-init:
 * Read through the cloud-init `Code Review Process`_, so you understand
   how your changes will end up in cloud-init's codebase.
 
-* Submit your first cloud-init pull request, adding yourself to the
+* Submit your first cloud-init pull request, adding your Github username to the
   in-repository list that we use to track CLA signatures:
   `tools/.github-cla-signers`_
 

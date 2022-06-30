@@ -2,7 +2,6 @@
 ##
 ## The following sets up 2 reporting end points.
 ## A 'webhook' and a 'log' type.
-## It also disables the built in default 'log'
 reporting:
   smtest:
     type: webhook
@@ -14,4 +13,3 @@ reporting:
   smlogger:
     type: log
     level: WARN
-  log: null

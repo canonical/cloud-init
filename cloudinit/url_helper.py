@@ -443,7 +443,7 @@ def dual_stack(
             "Timed out waiting for addresses: %s, "
             "exception(s) raised while waiting: %s",
             " ".join(addresses),
-            " ".join(exceptions),
+            " ".join(exceptions),  # type: ignore
         )
     finally:
         executor.shutdown(wait=False)
@@ -460,7 +460,7 @@ def wait_for_url(
     headers_redact=None,
     sleep_time: int = 1,
     exception_cb: Callable = None,
-    sleep_time_cb: Callable = None,
+    sleep_time_cb: Callable[[Any, int], int] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,
@@ -503,7 +503,7 @@ def wait_for_url(
     A value of None for max_wait will retry indefinitely.
     """
 
-    def default_sleep_time(_, loop_number: int):
+    def default_sleep_time(_, loop_number: int) -> int:
         return int(loop_number / 5) + 1
 
     def timeup(max_wait, start_time):
@@ -631,9 +631,7 @@ def wait_for_url(
         read_url_serial if connect_synchronously else read_url_parallel
     )
 
-    calculate_sleep_time = (
-        default_sleep_time if not sleep_time_cb else sleep_time_cb
-    )
+    calculate_sleep_time = sleep_time_cb or default_sleep_time
 
     loop_n: int = 0
     response = None

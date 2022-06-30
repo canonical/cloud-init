@@ -3,7 +3,7 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 
 
-def _customize_envionment(client: IntegrationInstance):
+def _customize_environment(client: IntegrationInstance):
     # Insert our "disable_network_activation" file here
     client.write_to_file(
         "/etc/cloud/cloud.cfg.d/99-disable-network-activation.cfg",
@@ -19,7 +19,7 @@ def _customize_envionment(client: IntegrationInstance):
 @pytest.mark.ubuntu  # Because netplan
 def test_network_activation_disabled(client: IntegrationInstance):
     """Test that the network is not activated during init mode."""
-    _customize_envionment(client)
+    _customize_environment(client)
     result = client.execute("systemctl status google-guest-agent.service")
     if not result.ok:
         raise AssertionError(

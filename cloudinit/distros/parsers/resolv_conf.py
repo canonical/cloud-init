@@ -36,6 +36,13 @@ class ResolvConf(object):
             return dm[0]
         return None
 
+    @local_domain.setter
+    def local_domain(self, domain):
+        self.parse()
+        self._remove_option("domain")
+        self._contents.append(("option", ["domain", str(domain), ""]))
+        return domain
+
     @property
     def search_domains(self):
         self.parse()
@@ -132,13 +139,6 @@ class ResolvConf(object):
         self._remove_option("search")
         self._contents.append(("option", ["search", s_list, ""]))
         return flat_sds
-
-    @local_domain.setter
-    def local_domain(self, domain):
-        self.parse()
-        self._remove_option("domain")
-        self._contents.append(("option", ["domain", str(domain), ""]))
-        return domain
 
     def _parse(self, contents):
         entries = []

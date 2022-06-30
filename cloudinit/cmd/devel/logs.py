@@ -12,6 +12,7 @@ import shutil
 import sys
 from datetime import datetime
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
@@ -19,7 +20,11 @@ from cloudinit.util import chdir, copy, ensure_dir, write_file
 
 CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
-USER_DATA_FILE = "/var/lib/cloud/instance/user-data.txt"  # Optional
+
+
+def _get_user_data_file() -> str:
+    paths = read_cfg_paths()
+    return paths.get_ipath_cur("userdata_raw")
 
 
 def get_parser(parser=None):
@@ -53,6 +58,7 @@ def get_parser(parser=None):
             " Default: cloud-init.tar.gz"
         ),
     )
+    user_data_file = _get_user_data_file()
     parser.add_argument(
         "--include-userdata",
         "-u",
@@ -61,7 +67,7 @@ def get_parser(parser=None):
         dest="userdata",
         help=(
             "Optionally include user-data from {0} which could contain"
-            " sensitive information.".format(USER_DATA_FILE)
+            " sensitive information.".format(user_data_file)
         ),
     )
     return parser
@@ -104,7 +110,7 @@ def _collect_file(path, out_dir, verbosity):
         _debug("file %s did not exist\n" % path, 2, verbosity)
 
 
-def collect_logs(tarfile, include_userdata, verbosity=0):
+def collect_logs(tarfile, include_userdata: bool, verbosity=0):
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
     @param tarfile: The path of the tar-gzipped file to create.
@@ -152,7 +158,8 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
         for log in CLOUDINIT_LOGS:
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
-            _collect_file(USER_DATA_FILE, log_dir, verbosity)
+            user_data_file = _get_user_data_file()
+            _collect_file(user_data_file, log_dir, verbosity)
         run_dir = os.path.join(log_dir, "run")
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):

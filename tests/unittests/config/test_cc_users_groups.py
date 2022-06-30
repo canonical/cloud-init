@@ -318,6 +318,10 @@ class TestUsersGroupsSchema:
             ({"users": ["default", ["aaa", "bbb"]]}, None),
             ({"users": ["foobar"]}, None),  # no default user creation
             ({"users": [{"name": "bbsw"}]}, None),
+            (
+                {"users": [{"name": "bbsw", "groups": ["anygrp"]}]},
+                None,
+            ),  # user with a list of groups
             ({"groups": [{"yep": ["user1"]}]}, None),
             (
                 {"user": ["no_list_allowed"]},
