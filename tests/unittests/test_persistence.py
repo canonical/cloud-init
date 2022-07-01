@@ -25,6 +25,7 @@ simple metaclass, ``_Collector``, to gather them up.
 """
 
 import pickle
+from typing import List, Type
 from unittest import mock
 
 import pytest
@@ -35,7 +36,7 @@ from cloudinit.persistence import CloudInitPickleMixin
 class _Collector(type):
     """Any class using this as a metaclass will be stored in test_classes."""
 
-    test_classes = []
+    test_classes: List[Type] = []
 
     def __new__(cls, *args):
         new_cls = super().__new__(cls, *args)

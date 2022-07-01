@@ -24,11 +24,11 @@ from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
-    EphemeralDHCPv4,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
 )
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
@@ -60,7 +60,6 @@ RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
-REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
 
@@ -100,7 +99,7 @@ class PPSType(Enum):
 PLATFORM_ENTROPY_SOURCE: Optional[str] = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
-# stock ubuntu suported images.
+# stock ubuntu supported images.
 UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
     "/etc/netplan/90-hotplug-azure.yaml",
     "/usr/local/sbin/ephemeral_eth.sh",
@@ -208,7 +207,7 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
-        return subp.subp(cmd).stdout  # type: ignore
+        return subp.subp(cmd).stdout  # pyright: ignore
     except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", " ".join(cmd))
         return fail_ret
@@ -285,7 +284,6 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
 }
-# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
     "disk_setup": {
@@ -332,6 +330,9 @@ class DataSourceAzure(sources.DataSource):
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        self._reported_ready_marker_file = os.path.join(
+            paths.cloud_dir, "data", "reported_ready"
+        )
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -598,9 +599,9 @@ class DataSourceAzure(sources.DataSource):
         if metadata_source == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
-                    username=imds_username,  # type: ignore
-                    hostname=imds_hostname,  # type: ignore
-                    disableSshPwd=imds_disable_password,  # type: ignore
+                    username=imds_username,  # pyright: ignore
+                    hostname=imds_hostname,  # pyright: ignore
+                    disableSshPwd=imds_disable_password,  # pyright: ignore
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
@@ -747,9 +748,6 @@ class DataSourceAzure(sources.DataSource):
             [crawled_data["metadata"], DEFAULT_METADATA]
         )
         self.userdata_raw = crawled_data["userdata_raw"]
-
-        user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
-        self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
@@ -948,7 +946,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
-        path = REPORTED_READY_MARKER_FILE
+        path = self._reported_ready_marker_file
         LOG.info("Creating a marker file to report ready: %s", path)
         util.write_file(
             path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
@@ -1153,7 +1151,9 @@ class DataSourceAzure(sources.DataSource):
         )
         headers = {"Metadata": "true"}
         nl_sock = None
-        report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
+        report_ready = bool(
+            not os.path.isfile(self._reported_ready_marker_file)
+        )
         self.imds_logging_threshold = 1
         self.imds_poll_counter = 1
         dhcp_attempts = 0
@@ -1383,7 +1383,7 @@ class DataSourceAzure(sources.DataSource):
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
-        if os.path.isfile(REPORTED_READY_MARKER_FILE):
+        if os.path.isfile(self._reported_ready_marker_file):
             pps_type = PPSType.UNKNOWN
         elif (
             ovf_cfg.get("PreprovisionedVMType", None) == PPSType.SAVABLE.value
@@ -1441,12 +1441,14 @@ class DataSourceAzure(sources.DataSource):
 
     def _cleanup_markers(self):
         """Cleanup any marker files."""
-        util.del_file(REPORTED_READY_MARKER_FILE)
+        util.del_file(self._reported_ready_marker_file)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
+        instance_dir = self.paths.get_ipath_cur()
         try:
             address_ephemeral_resize(
+                instance_dir,
                 is_new_instance=is_new_instance,
                 preserve_ntfs=self.ds_cfg.get(DS_CFG_KEY_PRESERVE_NTFS, False),
             )
@@ -1462,22 +1464,42 @@ class DataSourceAzure(sources.DataSource):
             .get("platformFaultDomain")
         )
 
+    @azure_ds_telemetry_reporter
+    def _generate_network_config(self):
+        """Generate network configuration according to configuration."""
+        # Use IMDS network metadata, if configured.
+        if (
+            self._metadata_imds
+            and self._metadata_imds != sources.UNSET
+            and self.ds_cfg.get("apply_network_config")
+        ):
+            try:
+                return generate_network_config_from_instance_network_metadata(
+                    self._metadata_imds["network"]
+                )
+            except Exception as e:
+                LOG.error(
+                    "Failed generating network config "
+                    "from IMDS network metadata: %s",
+                    str(e),
+                )
+
+        # Generate fallback configuration.
+        try:
+            return _generate_network_config_from_fallback_config()
+        except Exception as e:
+            LOG.error("Failed generating fallback network config: %s", str(e))
+
+        return {}
+
     @property
     def network_config(self):
-        """Generate a network config like net.generate_fallback_network() with
-        the following exceptions.
+        """Provide network configuration v2 dictionary."""
+        # Use cached config, if present.
+        if self._network_config and self._network_config != sources.UNSET:
+            return self._network_config
 
-        1. Probe the drivers of the net-devices present and inject them in
-           the network configuration under params: driver: <driver> value
-        2. Generate a fallback network config that does not include any of
-           the blacklisted devices.
-        """
-        if not self._network_config or self._network_config == sources.UNSET:
-            if self.ds_cfg.get("apply_network_config"):
-                nc_src = self._metadata_imds
-            else:
-                nc_src = None
-            self._network_config = parse_network_config(nc_src)
+        self._network_config = self._generate_network_config()
         return self._network_config
 
     @property
@@ -1710,7 +1732,10 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 @azure_ds_telemetry_reporter
 def address_ephemeral_resize(
-    devpath=RESOURCE_DISK_PATH, is_new_instance=False, preserve_ntfs=False
+    instance_dir: str,
+    devpath: str = RESOURCE_DISK_PATH,
+    is_new_instance: bool = False,
+    preserve_ntfs: bool = False,
 ):
     if not os.path.exists(devpath):
         report_diagnostic_event(
@@ -1736,14 +1761,13 @@ def address_ephemeral_resize(
         return
 
     for mod in ["disk_setup", "mounts"]:
-        sempath = "/var/lib/cloud/instance/sem/config_" + mod
+        sempath = os.path.join(instance_dir, "sem", "config_" + mod)
         bmsg = 'Marker "%s" for module "%s"' % (sempath, mod)
         if os.path.exists(sempath):
             try:
                 os.unlink(sempath)
                 LOG.debug("%s removed.", bmsg)
-            except Exception as e:
-                # python3 throws FileNotFoundError, python2 throws OSError
+            except FileNotFoundError as e:
                 LOG.warning("%s: remove failed! (%s)", bmsg, e)
         else:
             LOG.debug("%s did not exist.", bmsg)
@@ -1883,8 +1907,7 @@ def read_azure_ovf(contents):
     if not lpcs.hasChildNodes():
         raise BrokenAzureDataSource("no child nodes of configuration set")
 
-    md_props = "seedfrom"
-    md: Dict[str, Any] = {"azure_data": {}}
+    md: Dict[str, Any] = {}
     cfg = {}
     ud = ""
     password = None
@@ -1896,45 +1919,25 @@ def read_azure_ovf(contents):
 
         name = child.localName.lower()
 
-        simple = False
         value = ""
         if (
             len(child.childNodes) == 1
             and child.childNodes[0].nodeType == dom.TEXT_NODE
         ):
-            simple = True
             value = child.childNodes[0].wholeText
 
-        attrs = dict([(k, v) for k, v in child.attributes.items()])
-
-        # we accept either UserData or CustomData.  If both are present
-        # then behavior is undefined.
-        if name == "userdata" or name == "customdata":
-            if attrs.get("encoding") in (None, "base64"):
-                ud = base64.b64decode("".join(value.split()))
-            else:
-                ud = value
+        if name == "customdata":
+            ud = base64.b64decode("".join(value.split()))
         elif name == "username":
             username = value
         elif name == "userpassword":
             password = value
         elif name == "hostname":
             md["local-hostname"] = value
-        elif name == "dscfg":
-            if attrs.get("encoding") in (None, "base64"):
-                dscfg = base64.b64decode("".join(value.split()))
-            else:
-                dscfg = value
-            cfg["datasource"] = {DS_NAME: util.load_yaml(dscfg, default={})}
         elif name == "ssh":
             cfg["_pubkeys"] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":
             cfg["ssh_pwauth"] = util.is_false(value)
-        elif simple:
-            if name in md_props:
-                md[name] = value
-            else:
-                md["azure_data"][name] = value
 
     defuser = {}
     if username:
@@ -2087,15 +2090,14 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     seed = util.load_file(source, quiet=True, decode=False)
 
     # The seed generally contains non-Unicode characters. load_file puts
-    # them into a str (in python 2) or bytes (in python 3). In python 2,
-    # bad octets in a str cause util.json_dumps() to throw an exception. In
-    # python 3, bytes is a non-serializable type, and the handler load_file
+    # them into bytes (in python 3).
+    # bytes is a non-serializable type, and the handler load_file
     # uses applies b64 encoding *again* to handle it. The simplest solution
     # is to just b64encode the data and then decode it to a serializable
     # string. Same number of bits of entropy, just with 25% more zeroes.
     # There's no need to undo this base64-encoding when the random seed is
     # actually used in cc_seed_random.py.
-    return base64.b64encode(seed).decode()  # type: ignore
+    return base64.b64encode(seed).decode()  # pyright: ignore
 
 
 @azure_ds_telemetry_reporter
@@ -2128,40 +2130,16 @@ def load_azure_ds_dir(source_dir):
 
 
 @azure_ds_telemetry_reporter
-def parse_network_config(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata if present or generate
-    fallback network config excluding mlx4_core devices.
+def generate_network_config_from_instance_network_metadata(
+    network_metadata: dict,
+) -> dict:
+    """Convert imds network metadata dictionary to network v2 configuration.
 
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
-    """
-    if imds_metadata != sources.UNSET and imds_metadata:
-        try:
-            return _generate_network_config_from_imds_metadata(imds_metadata)
-        except Exception as e:
-            LOG.error(
-                "Failed generating network config "
-                "from IMDS network metadata: %s",
-                str(e),
-            )
-    try:
-        return _generate_network_config_from_fallback_config()
-    except Exception as e:
-        LOG.error("Failed generating fallback network config: %s", str(e))
-    return {}
+    :param: network_metadata: Dict of "network" key from instance metdata.
 
-
-@azure_ds_telemetry_reporter
-def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata.
-
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
+    :return: Dictionary containing network version 2 standard configuration.
     """
     netconfig: Dict[str, Any] = {"version": 2, "ethernets": {}}
-    network_metadata = imds_metadata["network"]
     for idx, intf in enumerate(network_metadata["interface"]):
         has_ip_address = False
         # First IPv4 and/or IPv6 address will be obtained via DHCP.

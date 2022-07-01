@@ -12,7 +12,6 @@ from pathlib import Path
 import httpretty
 import pytest
 import requests
-import yaml
 
 from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
@@ -23,7 +22,6 @@ from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
     b64e,
-    decode_binary,
     json_dumps,
     load_file,
     load_json,
@@ -87,6 +85,25 @@ def mock_azure_report_failure_to_fabric():
 
 
 @pytest.fixture
+def mock_device_driver():
+    with mock.patch(
+        MOCKPATH + "device_driver",
+        autospec=True,
+        return_value=None,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_generate_fallback_config():
+    with mock.patch(
+        MOCKPATH + "net.generate_fallback_config",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_time():
     with mock.patch(
         MOCKPATH + "time",
@@ -122,7 +139,7 @@ def mock_ephemeral_dhcp_v4():
 @pytest.fixture
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
-        "cloudinit.net.dhcp.maybe_perform_dhcp_discovery",
+        "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
         return_value=[
             {
                 "unknown-245": "0a:0b:0c:0d",
@@ -140,7 +157,7 @@ def mock_net_dhcp_maybe_perform_dhcp_discovery():
 @pytest.fixture
 def mock_net_dhcp_EphemeralIPv4Network():
     with mock.patch(
-        "cloudinit.net.dhcp.EphemeralIPv4Network",
+        "cloudinit.net.ephemeral.EphemeralIPv4Network",
         autospec=True,
     ) as m:
         yield m
@@ -279,83 +296,101 @@ def patched_markers_dir_path(tmpdir):
 
 
 @pytest.fixture
-def patched_reported_ready_marker_path(patched_markers_dir_path):
+def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
     reported_ready_marker = patched_markers_dir_path / "reported_ready"
-    with mock.patch(
-        MOCKPATH + "REPORTED_READY_MARKER_FILE", str(reported_ready_marker)
+    with mock.patch.object(
+        azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
 
 
-def construct_valid_ovf_env(
-    data=None, pubkeys=None, userdata=None, platform_settings=None
+def construct_ovf_env(
+    *,
+    custom_data=None,
+    hostname="test-host",
+    username="test-user",
+    password=None,
+    public_keys=None,
+    disable_ssh_password_auth=None,
+    preprovisioned_vm=None,
+    preprovisioned_vm_type=None,
 ):
-    if data is None:
-        data = {"HostName": "FOOHOST"}
-    if pubkeys is None:
-        pubkeys = {}
+    content = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"',
+        'xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"',
+        'xmlns:ns1="http://schemas.microsoft.com/windowsazure"',
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+        "<ns1:ProvisioningSection>",
+        "<ns1:Version>1.0</ns1:Version>",
+        "<ns1:LinuxProvisioningConfigurationSet>",
+        "<ns1:ConfigurationSetType>"
+        "LinuxProvisioningConfiguration"
+        "</ns1:ConfigurationSetType>",
+    ]
+    if hostname is not None:
+        content.append("<ns1:HostName>%s</ns1:HostName>" % hostname)
+    if username is not None:
+        content.append("<ns1:UserName>%s</ns1:UserName>" % username)
+    if password is not None:
+        content.append("<ns1:UserPassword>%s</ns1:UserPassword>" % password)
+    if custom_data is not None:
+        content.append(
+            "<ns1:CustomData>%s</ns1:CustomData>" % (b64e(custom_data))
+        )
+    if disable_ssh_password_auth is not None:
+        content.append(
+            "<ns1:DisableSshPasswordAuthentication>%s"
+            % str(disable_ssh_password_auth).lower()
+            + "</ns1:DisableSshPasswordAuthentication>"
+        )
+    if public_keys is not None:
+        content += ["<ns1:SSH>", "<ns1:PublicKeys>"]
+        for public_key in public_keys:
+            content.append("<ns1:PublicKey>")
+            fp = public_key.get("fingerprint")
+            if fp is not None:
+                content.append("<ns1:Fingerprint>%s</ns1:Fingerprint>" % fp)
+            path = public_key.get("path")
+            if path is not None:
+                content.append("<ns1:Path>%s</ns1:Path>" % path)
+            value = public_key.get("value")
+            if value is not None:
+                content.append("<ns1:Value>%s</ns1:Value>" % value)
+            content.append("</ns1:PublicKey>")
+        content += ["</ns1:PublicKeys>", "</ns1:SSH>"]
+    content += [
+        "</ns1:LinuxProvisioningConfigurationSet>",
+        "</ns1:ProvisioningSection>",
+        "<ns1:PlatformSettingsSection>",
+        "<ns1:Version>1.0</ns1:Version>",
+        "<ns1:PlatformSettings>",
+        "<ns1:KmsServerHostname>"
+        "kms.core.windows.net"
+        "</ns1:KmsServerHostname>",
+        "<ns1:ProvisionGuestAgent>false</ns1:ProvisionGuestAgent>",
+        '<ns1:GuestAgentPackageName xsi:nil="true" />',
+    ]
+    if preprovisioned_vm is not None:
+        content.append(
+            "<ns1:PreprovisionedVm>%s</ns1:PreprovisionedVm>"
+            % str(preprovisioned_vm).lower()
+        )
 
-    content = """<?xml version="1.0" encoding="utf-8"?>
-<Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
- xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
- xmlns:wa="http://schemas.microsoft.com/windowsazure"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    if preprovisioned_vm_type is None:
+        content.append('<ns1:PreprovisionedVMType xsi:nil="true" />')
+    else:
+        content.append(
+            "<ns1:PreprovisionedVMType>%s</ns1:PreprovisionedVMType>"
+            % preprovisioned_vm_type
+        )
+    content += [
+        "</ns1:PlatformSettings>",
+        "</ns1:PlatformSettingsSection>",
+        "</ns0:Environment>",
+    ]
 
- <wa:ProvisioningSection><wa:Version>1.0</wa:Version>
- <LinuxProvisioningConfigurationSet
-  xmlns="http://schemas.microsoft.com/windowsazure"
-  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-  <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
-    """
-    for key, dval in data.items():
-        if isinstance(dval, dict):
-            val = dict(dval).get("text")
-            attrs = " " + " ".join(
-                [
-                    "%s='%s'" % (k, v)
-                    for k, v in dict(dval).items()
-                    if k != "text"
-                ]
-            )
-        else:
-            val = dval
-            attrs = ""
-        content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
-
-    if userdata:
-        content += "<UserData>%s</UserData>\n" % (b64e(userdata))
-
-    if pubkeys:
-        content += "<SSH><PublicKeys>\n"
-        for fp, path, value in pubkeys:
-            content += " <PublicKey>"
-            if fp and path:
-                content += "<Fingerprint>%s</Fingerprint><Path>%s</Path>" % (
-                    fp,
-                    path,
-                )
-            if value:
-                content += "<Value>%s</Value>" % value
-            content += "</PublicKey>\n"
-        content += "</PublicKeys></SSH>"
-    content += """
- </LinuxProvisioningConfigurationSet>
- </wa:ProvisioningSection>
- <wa:PlatformSettingsSection><wa:Version>1.0</wa:Version>
- <PlatformSettings xmlns="http://schemas.microsoft.com/windowsazure"
-  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
- <KmsServerHostname>kms.core.windows.net</KmsServerHostname>
- <ProvisionGuestAgent>false</ProvisionGuestAgent>
- <GuestAgentPackageName i:nil="true" />"""
-    if platform_settings:
-        for k, v in platform_settings.items():
-            content += "<%s>%s</%s>\n" % (k, v, k)
-        if "PreprovisionedVMType" not in platform_settings:
-            content += """<PreprovisionedVMType i:nil="true" />"""
-    content += """</PlatformSettings></wa:PlatformSettingsSection>
-</Environment>"""
-
-    return content
+    return "\n".join(content)
 
 
 NETWORK_METADATA = {
@@ -441,7 +476,7 @@ IMDS_NETWORK_METADATA = {
 EXAMPLE_UUID = "d0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8"
 
 
-class TestParseNetworkConfig(CiTestCase):
+class TestNetworkConfig:
 
     maxDiff = None
     fallback_config = {
@@ -457,11 +492,8 @@ class TestParseNetworkConfig(CiTestCase):
         ],
     }
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_single_ipv4_nic_configuration(self, m_driver):
-        """parse_network_config emits dhcp on single nic with ipv4"""
+    def test_single_ipv4_nic_configuration(self, azure_ds, mock_device_driver):
+        """Network config emits dhcp on single nic with ipv4"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -474,13 +506,14 @@ class TestParseNetworkConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        azure_ds._metadata_imds = NETWORK_METADATA
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_increases_route_metric_for_non_primary_nics(self, m_driver):
-        """parse_network_config increases route-metric for each nic"""
+        assert azure_ds.network_config == expected
+
+    def test_increases_route_metric_for_non_primary_nics(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config increases route-metric for each nic"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -514,70 +547,14 @@ class TestParseNetworkConfig(CiTestCase):
         third_intf["ipv4"]["subnet"][0]["address"] = "10.0.2.0"
         third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
         imds_data["network"]["interface"].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv4_and_ipv6_route_metrics_match_for_nics(self, m_driver):
-        """parse_network_config emits matching ipv4 and ipv6 route-metrics."""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "addresses": ["10.0.0.5/24", "2001:dead:beef::2/128"],
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 100},
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                },
-                "eth1": {
-                    "set-name": "eth1",
-                    "match": {"macaddress": "22:0d:3a:04:75:98"},
-                    "dhcp4": True,
-                    "dhcp6": False,
-                    "dhcp4-overrides": {"route-metric": 200},
-                },
-                "eth2": {
-                    "set-name": "eth2",
-                    "match": {"macaddress": "33:0d:3a:04:75:98"},
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 300},
-                },
-            },
-            "version": 2,
-        }
-        imds_data = copy.deepcopy(NETWORK_METADATA)
-        nic1 = imds_data["network"]["interface"][0]
-        nic1["ipv4"]["ipAddress"].append({"privateIpAddress": "10.0.0.5"})
+        assert azure_ds.network_config == expected
 
-        nic1["ipv6"] = {
-            "subnet": [{"address": "2001:dead:beef::16"}],
-            "ipAddress": [
-                {"privateIpAddress": "2001:dead:beef::1"},
-                {"privateIpAddress": "2001:dead:beef::2"},
-            ],
-        }
-        imds_data["network"]["interface"].append(SECONDARY_INTERFACE)
-        third_intf = copy.deepcopy(SECONDARY_INTERFACE)
-        third_intf["macAddress"] = third_intf["macAddress"].replace("22", "33")
-        third_intf["ipv4"]["subnet"][0]["address"] = "10.0.2.0"
-        third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
-        third_intf["ipv6"] = {
-            "subnet": [{"prefix": "64", "address": "2001:dead:beef::2"}],
-            "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}],
-        }
-        imds_data["network"]["interface"].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
-
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv4_secondary_ips_will_be_static_addrs(self, m_driver):
-        """parse_network_config emits primary ipv4 as dhcp others are static"""
+    def test_ipv4_secondary_ips_will_be_static_addrs(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config emits primary ipv4 as dhcp others are static"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -600,13 +577,14 @@ class TestParseNetworkConfig(CiTestCase):
             "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
             "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}],
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_ipv6_secondary_ips_will_be_static_cidrs(self, m_driver):
-        """parse_network_config emits primary ipv6 as dhcp others are static"""
+        assert azure_ds.network_config == expected
+
+    def test_ipv6_secondary_ips_will_be_static_cidrs(
+        self, azure_ds, mock_device_driver
+    ):
+        """Network config emits primary ipv6 as dhcp others are static"""
         expected = {
             "ethernets": {
                 "eth0": {
@@ -633,14 +611,13 @@ class TestParseNetworkConfig(CiTestCase):
                 {"privateIpAddress": "2001:dead:beef::2"},
             ],
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        azure_ds._metadata_imds = imds_data
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver",
-        return_value="hv_netvsc",
-    )
-    def test_match_driver_for_netvsc(self, m_driver):
-        """parse_network_config emits driver when using netvsc."""
+        assert azure_ds.network_config == expected
+
+    def test_match_driver_for_netvsc(self, azure_ds, mock_device_driver):
+        """Network config emits driver when using netvsc."""
+        mock_device_driver.return_value = "hv_netvsc"
         expected = {
             "ethernets": {
                 "eth0": {
@@ -656,16 +633,31 @@ class TestParseNetworkConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        azure_ds._metadata_imds = NETWORK_METADATA
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_parse_network_config_uses_fallback_cfg_when_no_network_metadata(
-        self, m_fallback_config, m_driver
+        assert azure_ds.network_config == expected
+
+    def test_uses_fallback_cfg_when_apply_network_config_is_false(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
     ):
-        """parse_network_config generates fallback network config when the
+        azure_ds.ds_cfg["apply_network_config"] = False
+        azure_ds._metadata_imds = NETWORK_METADATA
+        mock_generate_fallback_config.return_value = self.fallback_config
+
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_imds_metadata_unset(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+    ):
+        azure_ds._metadata_imds = UNSET
+        mock_generate_fallback_config.return_value = self.fallback_config
+
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_no_network_metadata(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+    ):
+        """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network metadata is not present.
         """
@@ -673,20 +665,15 @@ class TestParseNetworkConfig(CiTestCase):
             NETWORK_METADATA
         )
         del imds_metadata_missing_network_metadata["network"]
-        m_fallback_config.return_value = self.fallback_config
-        self.assertEqual(
-            self.fallback_config,
-            dsaz.parse_network_config(imds_metadata_missing_network_metadata),
-        )
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._metadata_imds = imds_metadata_missing_network_metadata
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_parse_network_config_uses_fallback_cfg_when_no_interface_metadata(
-        self, m_fallback_config, m_driver
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_uses_fallback_cfg_when_no_interface_metadata(
+        self, azure_ds, mock_device_driver, mock_generate_fallback_config
     ):
-        """parse_network_config generates fallback network config when the
+        """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network interface metadata is not present.
         """
@@ -694,13 +681,10 @@ class TestParseNetworkConfig(CiTestCase):
             NETWORK_METADATA
         )
         del imds_metadata_missing_interface_metadata["network"]["interface"]
-        m_fallback_config.return_value = self.fallback_config
-        self.assertEqual(
-            self.fallback_config,
-            dsaz.parse_network_config(
-                imds_metadata_missing_interface_metadata
-            ),
-        )
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._metadata_imds = imds_metadata_missing_interface_metadata
+
+        assert azure_ds.network_config == self.fallback_config
 
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):
@@ -1201,16 +1185,15 @@ scbus-1 on xpt0 bus 0
             )
 
     def test_basic_seed_dir(self):
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(hostname="myhost"),
             "sys_cfg": {},
         }
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, "")
-        self.assertEqual(dsrc.metadata["local-hostname"], odata["HostName"])
+        self.assertEqual(dsrc.metadata["local-hostname"], "myhost")
         self.assertTrue(
             os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
         )
@@ -1221,9 +1204,8 @@ scbus-1 on xpt0 bus 0
         )
 
     def test_data_dir_without_imds_data(self):
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(hostname="myhost"),
             "sys_cfg": {},
         }
         dsrc = self._get_ds(
@@ -1240,7 +1222,7 @@ scbus-1 on xpt0 bus 0
 
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, "")
-        self.assertEqual(dsrc.metadata["local-hostname"], odata["HostName"])
+        self.assertEqual(dsrc.metadata["local-hostname"], "myhost")
         self.assertTrue(
             os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
         )
@@ -1269,9 +1251,10 @@ scbus-1 on xpt0 bus 0
 
     def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
         """get_data on non-Ubuntu will not remove ubuntu net scripts."""
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(
+                hostname="myhost", username="myuser"
+            ),
             "sys_cfg": {},
         }
 
@@ -1282,9 +1265,8 @@ scbus-1 on xpt0 bus 0
     def test_get_data_on_ubuntu_will_remove_network_scripts(self):
         """get_data will remove ubuntu net scripts on Ubuntu distro."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
 
@@ -1295,9 +1277,8 @@ scbus-1 on xpt0 bus 0
     def test_get_data_on_ubuntu_will_not_remove_network_scripts_disabled(self):
         """When apply_network_config false, do not remove scripts on Ubuntu."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": False}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
 
@@ -1307,28 +1288,19 @@ scbus-1 on xpt0 bus 0
 
     def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
         """Return all structured metadata and cache no class attributes."""
-        yaml_cfg = ""
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "UserData": {"text": "FOOBAR", "encoding": "plain"},
-            "dscfg": {"text": yaml_cfg, "encoding": "plain"},
-        }
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(
+                hostname="myhost", username="myuser", custom_data="FOOBAR"
+            ),
             "sys_cfg": {},
         }
         dsrc = self._get_ds(data)
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
-            "datasource": {"Azure": {}},
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
-            "azure_data": {
-                "configurationsettype": "LinuxProvisioningConfiguration"
-            },
             "imds": NETWORK_METADATA,
             "instance-id": EXAMPLE_UUID,
             "local-hostname": "myhost",
@@ -1346,11 +1318,11 @@ scbus-1 on xpt0 bus 0
             list(crawled_metadata["files"].keys()), ["ovf-env.xml"]
         )
         self.assertIn(
-            b"<HostName>myhost</HostName>",
+            b"<ns1:HostName>myhost</ns1:HostName>",
             crawled_metadata["files"]["ovf-env.xml"],
         )
         self.assertEqual(crawled_metadata["metadata"], expected_metadata)
-        self.assertEqual(crawled_metadata["userdata_raw"], "FOOBAR")
+        self.assertEqual(crawled_metadata["userdata_raw"], b"FOOBAR")
         self.assertEqual(dsrc.userdata_raw, None)
         self.assertEqual(dsrc.metadata, {})
         self.assertEqual(dsrc._metadata_imds, UNSET)
@@ -1372,9 +1344,7 @@ scbus-1 on xpt0 bus 0
 
     def test_crawl_metadata_call_imds_once_no_reprovision(self):
         """If reprovisioning, report ready at the end"""
-        ovfenv = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "False"}
-        )
+        ovfenv = construct_ovf_env(preprovisioned_vm=False)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
         dsrc = self._get_ds(data)
@@ -1390,9 +1360,7 @@ scbus-1 on xpt0 bus 0
         self, poll_imds_func, m_report_ready, m_write
     ):
         """If reprovisioning, imds metadata will be fetched twice"""
-        ovfenv = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "True"}
-        )
+        ovfenv = construct_ovf_env(preprovisioned_vm=True)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
         dsrc = self._get_ds(data)
@@ -1409,9 +1377,7 @@ scbus-1 on xpt0 bus 0
         self, poll_imds_func, m_report_ready, m_write
     ):
         """If reprovisioning, report ready at the end"""
-        ovfenv = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "True"}
-        )
+        ovfenv = construct_ovf_env(preprovisioned_vm=True)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
         dsrc = self._get_ds(data)
@@ -1432,11 +1398,8 @@ scbus-1 on xpt0 bus 0
         self, detect_nics, poll_imds_func, report_ready_func, m_write
     ):
         """If reprovisioning, report ready at the end"""
-        ovfenv = construct_valid_ovf_env(
-            platform_settings={
-                "PreprovisionedVMType": "Savable",
-                "PreprovisionedVm": "True",
-            }
+        ovfenv = construct_ovf_env(
+            preprovisioned_vm=True, preprovisioned_vm_type="Savable"
         )
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
@@ -1459,9 +1422,7 @@ scbus-1 on xpt0 bus 0
         self, m_readurl, m_report_ready, m_media_switch, m_write
     ):
         """If reprovisioning, report ready using the obtained lease"""
-        ovfenv = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "True"}
-        )
+        ovfenv = construct_ovf_env(preprovisioned_vm=True)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
         dsrc = self._get_ds(data)
@@ -1476,7 +1437,7 @@ scbus-1 on xpt0 bus 0
         self.m_dhcp.return_value.obtain_lease.return_value = lease
         m_media_switch.return_value = None
 
-        reprovision_ovfenv = construct_valid_ovf_env()
+        reprovision_ovfenv = construct_ovf_env()
         m_readurl.return_value = url_helper.StringResponse(
             reprovision_ovfenv.encode("utf-8")
         )
@@ -1490,7 +1451,7 @@ scbus-1 on xpt0 bus 0
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertTrue(os.path.isdir(self.waagent_d))
@@ -1502,9 +1463,8 @@ scbus-1 on xpt0 bus 0
     def test_network_config_set_from_imds(self, m_driver):
         """Datasource.network_config returns IMDS network data."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         expected_network_config = {
@@ -1531,9 +1491,8 @@ scbus-1 on xpt0 bus 0
     ):
         """Datasource.network_config adds route-metric to secondary nics."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         expected_network_config = {
@@ -1583,9 +1542,8 @@ scbus-1 on xpt0 bus 0
     ):
         """If an IP address is empty then there should no config for it."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         expected_network_config = {
@@ -1610,9 +1568,8 @@ scbus-1 on xpt0 bus 0
     def test_availability_zone_set_from_imds(self):
         """Datasource.availability returns IMDS platformFaultDomain."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -1622,9 +1579,8 @@ scbus-1 on xpt0 bus 0
     def test_region_set_from_imds(self):
         """Datasource.region returns IMDS region location."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -1638,7 +1594,7 @@ scbus-1 on xpt0 bus 0
             }
         }
         data = {
-            "ovfcontent": construct_valid_ovf_env(data={}),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
 
@@ -1651,8 +1607,7 @@ scbus-1 on xpt0 bus 0
         )
 
     def test_username_used(self):
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
+        data = {"ovfcontent": construct_ovf_env(username="myuser")}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -1661,13 +1616,14 @@ scbus-1 on xpt0 bus 0
             dsrc.cfg["system_info"]["default_user"]["name"], "myuser"
         )
 
+        assert "ssh_pwauth" not in dsrc.cfg
+
     def test_password_given(self):
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "UserPassword": "mypass",
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser", password="mypass"
+            )
         }
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -1676,7 +1632,7 @@ scbus-1 on xpt0 bus 0
         defuser = dsrc.cfg["system_info"]["default_user"]
 
         # default user should be updated username and should not be locked.
-        self.assertEqual(defuser["name"], odata["UserName"])
+        self.assertEqual(defuser["name"], "myuser")
         self.assertFalse(defuser["lock_passwd"])
         # passwd is crypt formated string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
@@ -1684,19 +1640,102 @@ scbus-1 on xpt0 bus 0
         pos = defuser["passwd"].rfind("$") + 1
         self.assertEqual(
             defuser["passwd"],
-            crypt.crypt(odata["UserPassword"], defuser["passwd"][0:pos]),
+            crypt.crypt("mypass", defuser["passwd"][0:pos]),
         )
 
         # the same hashed value should also be present in cfg['password']
         self.assertEqual(defuser["passwd"], dsrc.cfg["password"])
 
-    def test_user_not_locked_if_password_redacted(self):
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "UserPassword": dsaz.DEF_PASSWD_REDACTION,
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_password_with_disable_ssh_pw_auth_true(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=True,
+            )
         }
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is False
+
+    def test_password_with_disable_ssh_pw_auth_false(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=False,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_password_with_disable_ssh_pw_auth_unspecified(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password="mypass",
+                disable_ssh_password_auth=None,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_no_password_with_disable_ssh_pw_auth_true(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=True,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is False
+
+    def test_no_password_with_disable_ssh_pw_auth_false(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=False,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert dsrc.cfg["ssh_pwauth"] is True
+
+    def test_no_password_with_disable_ssh_pw_auth_unspecified(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                disable_ssh_password_auth=None,
+            )
+        }
+
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        assert "ssh_pwauth" not in dsrc.cfg
+
+    def test_user_not_locked_if_password_redacted(self):
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser",
+                password=dsaz.DEF_PASSWD_REDACTION,
+            )
+        }
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -1705,24 +1744,13 @@ scbus-1 on xpt0 bus 0
         defuser = dsrc.cfg["system_info"]["default_user"]
 
         # default user should be updated username and should not be locked.
-        self.assertEqual(defuser["name"], odata["UserName"])
+        self.assertEqual(defuser["name"], "myuser")
         self.assertIn("lock_passwd", defuser)
         self.assertFalse(defuser["lock_passwd"])
 
-    def test_userdata_plain(self):
-        mydata = "FOOBAR"
-        odata = {"UserData": {"text": mydata, "encoding": "plain"}}
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(decode_binary(dsrc.userdata_raw), mydata)
-
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {"UserData": {"text": b64e(mydata), "encoding": "base64"}}
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
+        data = {"ovfcontent": construct_ovf_env(custom_data=mydata)}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -1731,9 +1759,8 @@ scbus-1 on xpt0 bus 0
 
     def test_default_ephemeral_configs_ephemeral_exists(self):
         # make sure the ephemeral configs are correct if disk present
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": {},
         }
 
@@ -1761,9 +1788,8 @@ scbus-1 on xpt0 bus 0
 
     def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
         # make sure the ephemeral configs are correct if disk not present
-        odata = {}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": {},
         }
 
@@ -1783,34 +1809,9 @@ scbus-1 on xpt0 bus 0
             assert "disk_setup" not in cfg
             assert "fs_setup" not in cfg
 
-    def test_provide_disk_aliases(self):
-        # Make sure that user can affect disk aliases
-        dscfg = {"disk_aliases": {"ephemeral0": "/dev/sdc"}}
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "dscfg": {"text": b64e(yaml.dump(dscfg)), "encoding": "base64"},
-        }
-        usercfg = {
-            "disk_setup": {
-                "/dev/sdc": {"something": "..."},
-                "ephemeral0": False,
-            }
-        }
-        userdata = "#cloud-config" + yaml.dump(usercfg) + "\n"
-
-        ovfcontent = construct_valid_ovf_env(data=odata, userdata=userdata)
-        data = {"ovfcontent": ovfcontent, "sys_cfg": {}}
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
-        self.assertTrue(cfg)
-
     def test_userdata_arrives(self):
         userdata = "This is my user-data"
-        xml = construct_valid_ovf_env(data={}, userdata=userdata)
+        xml = construct_ovf_env(custom_data=userdata)
         data = {"ovfcontent": xml}
         dsrc = self._get_ds(data)
         dsrc.get_data()
@@ -1818,12 +1819,11 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(userdata.encode("us-ascii"), dsrc.userdata_raw)
 
     def test_password_redacted_in_ovf(self):
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "UserPassword": "mypass",
+        data = {
+            "ovfcontent": construct_ovf_env(
+                username="myuser", password="mypass"
+            )
         }
-        data = {"ovfcontent": construct_valid_ovf_env(data=odata)}
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
 
@@ -1846,7 +1846,7 @@ scbus-1 on xpt0 bus 0
                 self.assertEqual(dsaz.DEF_PASSWD_REDACTION, elem.text)
 
     def test_ovf_env_arrives_in_waagent_dir(self):
-        xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
+        xml = construct_ovf_env(custom_data="FOODATA")
         dsrc = self._get_ds({"ovfcontent": xml})
         dsrc.get_data()
 
@@ -1857,18 +1857,18 @@ scbus-1 on xpt0 bus 0
         self.xml_equals(xml, load_file(ovf_env_path))
 
     def test_ovf_can_include_unicode(self):
-        xml = construct_valid_ovf_env(data={})
+        xml = construct_ovf_env()
         xml = "\ufeff{0}".format(xml)
         dsrc = self._get_ds({"ovfcontent": xml})
         dsrc.get_data()
 
     def test_dsaz_report_ready_returns_true_when_report_succeeds(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         assert dsrc._report_ready() == []
 
     @mock.patch(MOCKPATH + "report_diagnostic_event")
     def test_dsaz_report_ready_failure_reports_telemetry(self, m_report_diag):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.side_effect = Exception("foo")
 
         with pytest.raises(Exception):
@@ -1883,7 +1883,7 @@ scbus-1 on xpt0 bus 0
         ]
 
     def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -1895,7 +1895,7 @@ scbus-1 on xpt0 bus 0
     def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
         self,
     ):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(
             dsrc, "crawl_metadata"
@@ -1923,7 +1923,7 @@ scbus-1 on xpt0 bus 0
             self.assertEqual(2, self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_description_msg(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -1936,7 +1936,7 @@ scbus-1 on xpt0 bus 0
             )
 
     def test_dsaz_report_failure_no_description_msg(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
@@ -1947,7 +1947,7 @@ scbus-1 on xpt0 bus 0
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(
             dsrc, "crawl_metadata"
@@ -1965,7 +1965,7 @@ scbus-1 on xpt0 bus 0
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -1988,13 +1988,13 @@ scbus-1 on xpt0 bus 0
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.side_effect = Exception
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
 
     def test_fabric_data_included_in_metadata(self):
-        dsrc = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.return_value = ["ssh-key-value"]
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
@@ -2006,7 +2006,7 @@ scbus-1 on xpt0 bus 0
         upper_iid = EXAMPLE_UUID.upper()
         # lowercase current UUID
         ds = self._get_ds(
-            {"ovfcontent": construct_valid_ovf_env()}, instance_id=lower_iid
+            {"ovfcontent": construct_ovf_env()}, instance_id=lower_iid
         )
         # UPPERCASE previous
         write_file(
@@ -2018,7 +2018,7 @@ scbus-1 on xpt0 bus 0
 
         # UPPERCASE current UUID
         ds = self._get_ds(
-            {"ovfcontent": construct_valid_ovf_env()}, instance_id=upper_iid
+            {"ovfcontent": construct_ovf_env()}, instance_id=upper_iid
         )
         # lowercase previous
         write_file(
@@ -2030,7 +2030,7 @@ scbus-1 on xpt0 bus 0
 
     def test_instance_id_endianness(self):
         """Return the previous iid when dmi uuid is the byteswapped iid."""
-        ds = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         # byte-swapped previous
         write_file(
             os.path.join(self.paths.cloud_dir, "data", "instance-id"),
@@ -2049,12 +2049,12 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
     def test_instance_id_from_dmidecode_used(self):
-        ds = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
     def test_instance_id_from_dmidecode_used_for_builtin(self):
-        ds = self._get_ds({"ovfcontent": construct_valid_ovf_env()})
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
@@ -2080,126 +2080,12 @@ scbus-1 on xpt0 bus 0
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list
         )
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_imds_network_config(self, mock_fallback, m_driver):
-        """Network config is generated from IMDS network data when present."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": sys_cfg,
-        }
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-
-        expected_cfg = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
-
-        self.assertEqual(expected_cfg, dsrc.network_config)
-        mock_fallback.assert_not_called()
-
-    @mock.patch("cloudinit.net.get_interface_mac")
-    @mock.patch("cloudinit.net.get_devicelist")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_imds_network_ignored_when_apply_network_config_false(
-        self, mock_fallback, mock_dd, mock_devlist, mock_get_mac
-    ):
-        """When apply_network_config is False, use fallback instead of IMDS."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": False}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": sys_cfg,
-        }
-        fallback_config = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "eth0",
-                    "mac_address": "00:11:22:33:44:55",
-                    "params": {"driver": "hv_netsvc"},
-                    "subnets": [{"type": "dhcp"}],
-                }
-            ],
-        }
-        mock_fallback.return_value = fallback_config
-
-        mock_devlist.return_value = ["eth0"]
-        mock_dd.return_value = ["hv_netsvc"]
-        mock_get_mac.return_value = "00:11:22:33:44:55"
-
-        dsrc = self._get_ds(data)
-        self.assertTrue(dsrc.get_data())
-        self.assertEqual(dsrc.network_config, fallback_config)
-
-    @mock.patch("cloudinit.net.get_interface_mac")
-    @mock.patch("cloudinit.net.get_devicelist")
-    @mock.patch("cloudinit.net.device_driver")
-    @mock.patch("cloudinit.net.generate_fallback_config", autospec=True)
-    def test_fallback_network_config(
-        self, mock_fallback, mock_dd, mock_devlist, mock_get_mac
-    ):
-        """On absent IMDS network data, generate network fallback config."""
-        odata = {"HostName": "myhost", "UserName": "myuser"}
-        data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
-            "sys_cfg": {},
-        }
-
-        fallback_config = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "eth0",
-                    "mac_address": "00:11:22:33:44:55",
-                    "params": {"driver": "hv_netsvc"},
-                    "subnets": [{"type": "dhcp"}],
-                }
-            ],
-        }
-        mock_fallback.return_value = fallback_config
-
-        mock_devlist.return_value = ["eth0"]
-        mock_dd.return_value = ["hv_netsvc"]
-        mock_get_mac.return_value = "00:11:22:33:44:55"
-
-        dsrc = self._get_ds(data)
-        # Represent empty response from network imds
-        self.m_get_metadata_from_imds.return_value = {}
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-
-        netconfig = dsrc.network_config
-        self.assertEqual(netconfig, fallback_config)
-        mock_fallback.assert_called_with(
-            blacklist_drivers=["mlx4_core", "mlx5_core"], config_driver=True
-        )
-
     @mock.patch(MOCKPATH + "net.get_interfaces", autospec=True)
     def test_blacklist_through_distro(self, m_net_get_interfaces):
         """Verify Azure DS updates blacklist drivers in the distro's
         networking object."""
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": {},
         }
 
@@ -2221,9 +2107,8 @@ scbus-1 on xpt0 bus 0
     )
     def test_get_public_ssh_keys_with_imds(self, m_parse_certificates):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -2256,9 +2141,8 @@ scbus-1 on xpt0 bus 0
         imds_data["compute"]["publicKeys"][0]["keyData"] = "no-openssh-format"
         m_get_metadata_from_imds.return_value = imds_data
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -2272,9 +2156,8 @@ scbus-1 on xpt0 bus 0
     def test_get_public_ssh_keys_without_imds(self, m_get_metadata_from_imds):
         m_get_metadata_from_imds.return_value = dict()
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -2295,9 +2178,8 @@ scbus-1 on xpt0 bus 0
 
         m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_eff
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -2326,9 +2208,8 @@ scbus-1 on xpt0 bus 0
     )
     def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         dsrc = self._get_ds(data)
@@ -2348,9 +2229,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_hostname_from_imds(self, m_get_metadata_from_imds):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
@@ -2367,9 +2247,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_username_from_imds(self, m_get_metadata_from_imds):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
@@ -2388,9 +2267,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_disable_password_from_imds(self, m_get_metadata_from_imds):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
@@ -2407,9 +2285,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_userdata_from_imds(self, m_get_metadata_from_imds):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        odata = {"HostName": "myhost", "UserName": "myuser"}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
         userdata = "userdataImds"
@@ -2431,14 +2308,9 @@ scbus-1 on xpt0 bus 0
         self, m_get_metadata_from_imds
     ):
         userdataOVF = "userdataOVF"
-        odata = {
-            "HostName": "myhost",
-            "UserName": "myuser",
-            "UserData": {"text": b64e(userdataOVF), "encoding": "base64"},
-        }
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
-            "ovfcontent": construct_valid_ovf_env(data=odata),
+            "ovfcontent": construct_ovf_env(custom_data=userdataOVF),
             "sys_cfg": sys_cfg,
         }
 
@@ -2487,18 +2359,17 @@ class TestLoadAzureDsDir(CiTestCase):
 
 class TestReadAzureOvf(CiTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
-        invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
+        invalid_xml = "<foo>" + construct_ovf_env()
         self.assertRaises(
             dsaz.BrokenAzureDataSource, dsaz.read_azure_ovf, invalid_xml
         )
 
     def test_load_with_pubkeys(self):
-        mypklist = [{"fingerprint": "fp1", "path": "path1", "value": ""}]
-        pubkeys = [(x["fingerprint"], x["path"], x["value"]) for x in mypklist]
-        content = construct_valid_ovf_env(pubkeys=pubkeys)
+        public_keys = [{"fingerprint": "fp1", "path": "path1", "value": ""}]
+        content = construct_ovf_env(public_keys=public_keys)
         (_md, _ud, cfg) = dsaz.read_azure_ovf(content)
-        for mypk in mypklist:
-            self.assertIn(mypk, cfg["_pubkeys"])
+        for pk in public_keys:
+            self.assertIn(pk, cfg["_pubkeys"])
 
 
 class TestCanDevBeReformatted(CiTestCase):
@@ -2866,9 +2737,7 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_with_true_flag(self):
         """The read_azure_ovf method should set the PreprovisionedVM
         cfg flag if the proper setting is present."""
-        content = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "True"}
-        )
+        content = construct_ovf_env(preprovisioned_vm=True)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
         self.assertTrue(cfg["PreprovisionedVm"])
@@ -2876,9 +2745,7 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_with_false_flag(self):
         """The read_azure_ovf method should set the PreprovisionedVM
         cfg flag to false if the proper setting is false."""
-        content = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "False"}
-        )
+        content = construct_ovf_env(preprovisioned_vm=False)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
         self.assertFalse(cfg["PreprovisionedVm"])
@@ -2886,7 +2753,7 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_without_flag(self):
         """The read_azure_ovf method should not set the
         PreprovisionedVM cfg flag."""
-        content = construct_valid_ovf_env()
+        content = construct_ovf_env()
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
         self.assertFalse(cfg["PreprovisionedVm"])
@@ -2895,11 +2762,8 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_with_running_type(self):
         """The read_azure_ovf method should set PreprovisionedVMType
         cfg flag to Running."""
-        content = construct_valid_ovf_env(
-            platform_settings={
-                "PreprovisionedVMType": "Running",
-                "PreprovisionedVm": "True",
-            }
+        content = construct_ovf_env(
+            preprovisioned_vm=True, preprovisioned_vm_type="Running"
         )
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
@@ -2909,11 +2773,8 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_with_savable_type(self):
         """The read_azure_ovf method should set PreprovisionedVMType
         cfg flag to Savable."""
-        content = construct_valid_ovf_env(
-            platform_settings={
-                "PreprovisionedVMType": "Savable",
-                "PreprovisionedVm": "True",
-            }
+        content = construct_ovf_env(
+            preprovisioned_vm=True, preprovisioned_vm_type="Savable"
         )
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
@@ -2997,7 +2858,7 @@ class TestDeterminePPSTypeScenarios:
             == dsaz.PPSType.UNKNOWN
         )
         assert is_file.mock_calls == [
-            mock.call(dsaz.REPORTED_READY_MARKER_FILE)
+            mock.call(azure_ds._reported_ready_marker_file)
         ]
 
 
@@ -3014,10 +2875,7 @@ class TestReprovision(CiTestCase):
     def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
         """_reprovision will poll IMDS."""
         isfile.return_value = False
-        hostname = "myhost"
-        username = "myuser"
-        odata = {"HostName": hostname, "UserName": username}
-        _poll_imds.return_value = construct_valid_ovf_env(data=odata)
+        _poll_imds.return_value = construct_ovf_env()
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         dsa._reprovision()
         _poll_imds.assert_called_with()
@@ -3053,7 +2911,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
-            dsaz.REPORTED_READY_MARKER_FILE, mock.ANY
+            dsa._reported_ready_marker_file, mock.ANY
         )
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
@@ -3231,8 +3089,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
 
 @mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
-@mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
-@mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+@mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
@@ -3288,7 +3146,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_request.side_effect = fake_timeout_once
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
 
         assert m_report_ready.mock_calls == [mock.call()]
@@ -3316,7 +3176,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._ephemeral_dhcp_ctx = mock.Mock(lease={})
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(0, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
@@ -3353,8 +3215,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        with mock.patch(
-            MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
         ), mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
             m_dhcp_ctx.obtain_lease.return_value = "Dummy lease"
             dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
@@ -3388,7 +3250,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         ]
         m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 0)
 
@@ -3416,7 +3280,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertTrue(os.path.exists(report_file))
@@ -3446,7 +3312,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_report_ready.side_effect = [Exception("fail")]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + "REPORTED_READY_MARKER_FILE", report_file):
+        with mock.patch.object(
+            dsa, "_reported_ready_marker_file", report_file
+        ):
             self.assertRaises(InvalidMetaDataException, dsa._poll_imds)
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertFalse(os.path.exists(report_file))
@@ -3458,8 +3326,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
-@mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network", autospec=True)
-@mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network", autospec=True)
+@mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
 @mock.patch("requests.Session.request")
 class TestAzureDataSourcePreprovisioning(CiTestCase):
     def setUp(self):
@@ -3535,8 +3403,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         full_url = url.format(host)
         hostname = "myhost"
         username = "myuser"
-        odata = {"HostName": hostname, "UserName": username}
-        content = construct_valid_ovf_env(data=odata)
+        content = construct_ovf_env(username=username, hostname=hostname)
         m_request.return_value = mock.MagicMock(
             status_code=200, text=content, content=content
         )
@@ -4203,15 +4070,12 @@ class TestProvisioning:
 
     def test_running_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Running"
-        ovf_data = {"HostName": "myhost", "UserName": "myuser"}
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(
-                contents=construct_valid_ovf_env(data=ovf_data).encode()
-            ),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
@@ -4293,7 +4157,6 @@ class TestProvisioning:
 
     def test_savable_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
-        ovf_data = {"HostName": "myhost", "UserName": "myuser"}
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
@@ -4306,9 +4169,7 @@ class TestProvisioning:
             mock.MagicMock(
                 contents=json.dumps(self.imds_md["network"]).encode()
             ),
-            mock.MagicMock(
-                contents=construct_valid_ovf_env(data=ovf_data).encode()
-            ),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
@@ -4402,13 +4263,10 @@ class TestProvisioning:
     def test_recovery_pps(self, pps_type):
         self.patched_reported_ready_marker_path.write_text("")
         self.imds_md["extended"]["compute"]["ppsType"] = pps_type
-        ovf_data = {"HostName": "myhost", "UserName": "myuser"}
 
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(
-                contents=construct_valid_ovf_env(data=ovf_data).encode()
-            ),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []

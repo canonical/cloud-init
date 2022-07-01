@@ -32,10 +32,10 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from collections import deque
+from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache
-from typing import List
+from typing import Callable, List, TypeVar
 from urllib import parse
 
 from cloudinit import importer
@@ -368,7 +368,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir) -> dict:
+def get_modules_from_dir(root_dir: str) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):
@@ -601,6 +601,7 @@ def _get_variant(info):
             "fedora",
             "miraclelinux",
             "openeuler",
+            "openmandriva",
             "photon",
             "rhel",
             "rocky",
@@ -800,28 +801,6 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             os.dup2(new_fp.fileno(), o_err.fileno())
 
 
-def make_url(
-    scheme, host, port=None, path="", params="", query="", fragment=""
-):
-
-    pieces = [scheme or ""]
-
-    netloc = ""
-    if host:
-        netloc = str(host)
-
-    if port is not None:
-        netloc += ":" + "%s" % (port)
-
-    pieces.append(netloc or "")
-    pieces.append(path or "")
-    pieces.append(params or "")
-    pieces.append(query or "")
-    pieces.append(fragment or "")
-
-    return parse.urlunparse(pieces)
-
-
 def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
@@ -887,17 +866,16 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
 def fetch_ssl_details(paths=None):
     ssl_details = {}
     # Lookup in these locations for ssl key/cert files
-    ssl_cert_paths = [
-        "/var/lib/cloud/data/ssl",
-        "/var/lib/cloud/instance/data/ssl",
-    ]
-    if paths:
-        ssl_cert_paths.extend(
-            [
-                os.path.join(paths.get_ipath_cur("data"), "ssl"),
-                os.path.join(paths.get_cpath("data"), "ssl"),
-            ]
-        )
+    if not paths:
+        ssl_cert_paths = [
+            "/var/lib/cloud/data/ssl",
+            "/var/lib/cloud/instance/data/ssl",
+        ]
+    else:
+        ssl_cert_paths = [
+            os.path.join(paths.get_ipath_cur("data"), "ssl"),
+            os.path.join(paths.get_cpath("data"), "ssl"),
+        ]
     ssl_cert_paths = uniq_merge(ssl_cert_paths)
     ssl_cert_paths = [d for d in ssl_cert_paths if d and os.path.isdir(d)]
     cert_file = None
@@ -1103,6 +1081,12 @@ def dos2unix(contents):
     return contents.replace("\r\n", "\n")
 
 
+HostnameFqdnInfo = namedtuple(
+    "HostnameFqdnInfo",
+    ["hostname", "fqdn", "is_default"],
+)
+
+
 def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     """Get hostname and fqdn from config if present and fallback to cloud.
 
@@ -1110,9 +1094,17 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     @param cloud: Cloud instance from init.cloudify().
     @param metadata_only: Boolean, set True to only query cloud meta-data,
         returning None if not present in meta-data.
-    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+    @return: a namedtuple of
+        <hostname>, <fqdn>, <is_default> (str, str, bool).
+        Values can be none when
         metadata_only is True and no cfg or metadata provides hostname info.
+        is_default is a bool and
+        it's true only if hostname is localhost and was
+        returned by util.get_hostname() as a default.
+        This is used to differentiate with a user-defined
+        localhost hostname.
     """
+    is_default = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg["fqdn"]
@@ -1126,12 +1118,16 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
+            fqdn = cloud.get_hostname(
+                fqdn=True, metadata_only=metadata_only
+            ).hostname
             if "hostname" in cfg:
                 hostname = cfg["hostname"]
             else:
-                hostname = cloud.get_hostname(metadata_only=metadata_only)
-    return (hostname, fqdn)
+                hostname, is_default = cloud.get_hostname(
+                    metadata_only=metadata_only
+                )
+    return HostnameFqdnInfo(hostname, fqdn, is_default)
 
 
 def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
@@ -1723,37 +1719,15 @@ def json_serialize_default(_obj):
         return "Warning: redacted unserializable type {0}".format(type(_obj))
 
 
-def json_preserialize_binary(data):
-    """Preserialize any discovered binary values to avoid json.dumps issues.
-
-    Used only on python 2.7 where default type handling is not honored for
-    failure to encode binary data. LP: #1801364.
-    TODO(Drop this function when py2.7 support is dropped from cloud-init)
-    """
-    data = obj_copy.deepcopy(data)
-    for key, value in data.items():
-        if isinstance(value, (dict)):
-            data[key] = json_preserialize_binary(value)
-        if isinstance(value, bytes):
-            data[key] = "ci-b64:{0}".format(b64e(value))
-    return data
-
-
 def json_dumps(data):
     """Return data in nicely formatted json."""
-    try:
-        return json.dumps(
-            data,
-            indent=1,
-            sort_keys=True,
-            separators=(",", ": "),
-            default=json_serialize_default,
-        )
-    except UnicodeDecodeError:
-        if sys.version_info[:2] == (2, 7):
-            data = json_preserialize_binary(data)
-            return json.dumps(data)
-        raise
+    return json.dumps(
+        data,
+        indent=1,
+        sort_keys=True,
+        separators=(",", ": "),
+        default=json_serialize_default,
+    )
 
 
 def ensure_dir(path, mode=None):
@@ -2618,7 +2592,17 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
         return parse_mount(path)
 
 
-def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
+T = TypeVar("T")
+
+
+def log_time(
+    logfunc,
+    msg,
+    func: Callable[..., T],
+    args=None,
+    kwargs=None,
+    get_uptime=False,
+) -> T:
     if args is None:
         args = []
     if kwargs is None:
@@ -2798,14 +2782,6 @@ def system_is_snappy():
     if os.path.isdir("/etc/system-image/config.d/"):
         return True
     return False
-
-
-def indent(text, prefix):
-    """replacement for indent from textwrap that is not available in 2.7."""
-    lines = []
-    for line in text.splitlines(True):
-        lines.append(prefix + line)
-    return "".join(lines)
 
 
 def rootdev_from_cmdline(cmdline):

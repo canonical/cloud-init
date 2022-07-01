@@ -34,8 +34,10 @@
           "type": "string"
         },
         "groups": {
-          "description": "Optional comma-separated string of groups to add the user to.",
-          "type": "string"
+          "description": "Optional comma-separated string or list of groups to add the user to.",
+          "type": ["string", "array"],
+          "items": {"type": "string"},
+          "minItems": 1
         },
         "homedir": {
           "description": "Optional home dir for user. Default: ``/home/<username>``",
@@ -2089,7 +2091,7 @@
               },
               "content": {
                 "type": "string",
-                "default": "",
+                "default": "''",
                 "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
               "owner": {
@@ -2099,7 +2101,7 @@
               },
               "permissions": {
                 "type": "string",
-                "default": "0o644",
+                "default": "'0o644'",
                 "description": "Optional file permissions to set on ``path`` represented as an octal string '0###'. Default: ``0o644``"
               },
               "encoding": {
@@ -2214,6 +2216,110 @@
           "additionalProperties": false
         }
       }
+    },
+    "reporting_config": {
+      "type": "object",
+      "properties": {
+        "reporting": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^.+$": {
+              "label": "<arbitrary_name>",
+              "type": "object",
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["log"]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+                      "default": "DEBUG"
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["print"]
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "required": ["type", "endpoint"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["webhook"]
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The URL to send the event to."
+                    },
+                    "consumer_key": {
+                      "type": "string",
+                      "description": "The consumer key to use for the webhook."
+                    },
+                    "token_key": {
+                      "type": "string",
+                      "description": "The token key to use for the webhook."
+                    },
+                    "token_secret": {
+                      "type": "string",
+                      "description": "The token secret to use for the webhook."
+                    },
+                    "consumer_secret": {
+                      "type": "string",
+                      "description": "The consumer secret to use for the webhook."
+                    },
+                    "timeout": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "The timeout in seconds to wait for a response from the webhook."
+                    },
+                    "retries": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "The number of times to retry sending the webhook."
+                    }
+                  }
+                },
+                {
+                  "additionalProperties": false,
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["hyperv"]
+                    },
+                    "kvp_file_path": {
+                      "type": "string",
+                      "description": "The path to the KVP file to use for the hyperv reporter.",
+                      "default": "/var/lib/hyperv/.kvp_pool_1"
+                    },
+                    "event_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -2268,6 +2374,7 @@
     { "$ref": "#/$defs/cc_users_groups"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
-    { "$ref": "#/$defs/cc_zypper_add_repo"}
+    { "$ref": "#/$defs/cc_zypper_add_repo"},
+    { "$ref": "#/$defs/reporting_config"}
   ]
 }

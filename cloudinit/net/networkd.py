@@ -7,7 +7,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import os
 from collections import OrderedDict
 
 from cloudinit import log as logging
@@ -219,15 +218,15 @@ class Renderer(renderer.Renderer):
         util.chownbyname(net_fn, net_fn_owner, net_fn_owner)
 
     def render_network_state(self, network_state, templates=None, target=None):
-        fp_nwkd = self.network_conf_dir
+        network_dir = self.network_conf_dir
         if target:
-            fp_nwkd = subp.target_path(target) + fp_nwkd
+            network_dir = subp.target_path(target) + network_dir
 
-        util.ensure_dir(os.path.dirname(fp_nwkd))
+        util.ensure_dir(network_dir)
 
         ret_dict = self._render_content(network_state)
         for k, v in ret_dict.items():
-            self.create_network_file(k, v, fp_nwkd)
+            self.create_network_file(k, v, network_dir)
 
     def _render_content(self, ns):
         ret_dict = {}

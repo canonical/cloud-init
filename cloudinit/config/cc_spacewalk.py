@@ -99,7 +99,7 @@ def handle(name, cfg, cloud, log, _args):
         if not is_registered():
             do_register(
                 spacewalk_server,
-                cloud.datasource.get_hostname(fqdn=True),
+                cloud.datasource.get_hostname(fqdn=True).hostname,
                 proxy=cfg.get("proxy"),
                 log=log,
                 activation_key=cfg.get("activation_key"),

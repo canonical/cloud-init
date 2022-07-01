@@ -13,6 +13,7 @@ from cloudinit import subp, util
 from cloudinit.helpers import Paths
 from cloudinit.safeyaml import YAMLError
 from cloudinit.sources import DataSourceOVF as dsovf
+from cloudinit.sources.DataSourceOVF import GuestCustScriptDisabled
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptNotFound,
 )
@@ -447,7 +448,7 @@ class TestDatasourceOVF(CiTestCase):
             with mock.patch(
                 MPATH + "set_customization_status", return_value=("msg", b"")
             ):
-                with self.assertRaises(RuntimeError) as context:
+                with self.assertRaises(GuestCustScriptDisabled) as context:
                     wrap_and_call(
                         "cloudinit.sources.DataSourceOVF",
                         {

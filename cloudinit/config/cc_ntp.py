@@ -30,6 +30,7 @@ distros = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "openmandriva",
     "opensuse",
     "photon",
     "rhel",
@@ -90,6 +91,18 @@ DISTRO_CLIENT_CONFIG = {
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
+    "openmandriva": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/lib/systemd/systemd-timesyncd",
         },
     },
     "opensuse": {

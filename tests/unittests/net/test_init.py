@@ -13,6 +13,7 @@ import pytest
 import requests
 
 import cloudinit.net as net
+from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase
@@ -767,7 +768,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             params = copy.deepcopy(required_params)
             params[key] = None
             with self.assertRaises(ValueError) as context_manager:
-                net.EphemeralIPv4Network(**params)
+                EphemeralIPv4Network(**params)
             error = context_manager.exception
             self.assertIn("Cannot init network on", str(error))
             self.assertEqual(0, m_subp.call_count)
@@ -783,7 +784,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         for error_val in invalid_masks:
             params["prefix_or_mask"] = error_val
             with self.assertRaises(ValueError) as context_manager:
-                with net.EphemeralIPv4Network(**params):
+                with EphemeralIPv4Network(**params):
                     pass
             error = context_manager.exception
             self.assertIn(
@@ -849,7 +850,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
         }
-        with net.EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
@@ -867,7 +868,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "connectivity_url_data": {"url": "http://example.org/index.html"},
         }
 
-        with net.EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(**params):
             self.assertEqual(
                 [mock.call(url="http://example.org/index.html", timeout=5)],
                 m_readurl.call_args_list,
@@ -907,7 +908,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                 update_env={"LANG": "C"},
             )
         ]
-        with net.EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(**params):
             pass
         self.assertEqual(expected_calls, m_subp.call_args_list)
         self.assertIn(
@@ -925,7 +926,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         }
         for prefix_val in ["24", 16]:  # prefix can be int or string
             params["prefix_or_mask"] = prefix_val
-            with net.EphemeralIPv4Network(**params):
+            with EphemeralIPv4Network(**params):
                 pass
         m_subp.assert_has_calls(
             [
@@ -1050,7 +1051,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             ),
         ]
 
-        with net.EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
@@ -1189,9 +1190,24 @@ class TestEphemeralIPV4Network(CiTestCase):
                 capture=True,
             ),
         ]
-        with net.EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
+
+
+class TestEphemeralIPV6Network:
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.subp.subp")
+    def test_ephemeral_ipv6_network_performs_setup(self, m_subp, _):
+        """EphemeralIPv4Network performs teardown on the device if setup."""
+        expected_setup_calls = [
+            mock.call(
+                ["ip", "link", "set", "dev", "eth0", "up"],
+                capture=False,
+            ),
+        ]
+        with EphemeralIPv6Network(interface="eth0"):
+            assert expected_setup_calls == m_subp.call_args_list
 
 
 class TestHasURLConnectivity(HttprettyTestCase):
