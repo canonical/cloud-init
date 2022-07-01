@@ -4,9 +4,16 @@
 
 from unittest import mock
 
+import pytest
+
 from cloudinit import reporting
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from cloudinit.reporting import events, handlers
-from tests.unittests.helpers import TestCase
+from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
 
 
 def _fake_registry():
@@ -453,4 +460,110 @@ class TestStatusAccess(TestCase):
         self.assertRaises(AttributeError, getattr, events.status, "BOGUS")
 
 
-# vi: ts=4 expandtab
+@skipUnlessJsonSchema()
+class TestReportingSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # GOOD: Minimum valid parameters
+            ({"reporting": {"a": {"type": "print"}}}, None),
+            ({"reporting": {"a": {"type": "log"}}}, None),
+            (
+                {
+                    "reporting": {
+                        "a": {"type": "webhook", "endpoint": "http://a"}
+                    }
+                },
+                None,
+            ),
+            ({"reporting": {"a": {"type": "hyperv"}}}, None),
+            # GOOD: All valid parameters
+            ({"reporting": {"a": {"type": "log", "level": "WARN"}}}, None),
+            (
+                {
+                    "reporting": {
+                        "a": {
+                            "type": "webhook",
+                            "endpoint": "http://a",
+                            "timeout": 1,
+                            "retries": 1,
+                            "consumer_key": "somekey",
+                            "token_key": "somekey",
+                            "token_secret": "somesecret",
+                            "consumer_secret": "somesecret",
+                        }
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "reporting": {
+                        "a": {
+                            "type": "hyperv",
+                            "kvp_file_path": "/some/path",
+                            "event_types": ["a", "b"],
+                        }
+                    }
+                },
+                None,
+            ),
+            # GOOD: All combined together
+            (
+                {
+                    "reporting": {
+                        "a": {"type": "print"},
+                        "b": {"type": "log", "level": "WARN"},
+                        "c": {
+                            "type": "webhook",
+                            "endpoint": "http://a",
+                            "timeout": 1,
+                            "retries": 1,
+                            "consumer_key": "somekey",
+                            "token_key": "somekey",
+                            "token_secret": "somesecret",
+                            "consumer_secret": "somesecret",
+                        },
+                        "d": {
+                            "type": "hyperv",
+                            "kvp_file_path": "/some/path",
+                            "event_types": ["a", "b"],
+                        },
+                    }
+                },
+                None,
+            ),
+            # BAD: no top level objects
+            ({"reporting": "a"}, "'a' is not of type 'object'"),
+            ({"reporting": {"a": "b"}}, "'b' is not of type 'object'"),
+            # BAD: invalid type
+            ({"reporting": {"a": {"type": "b"}}}, "not valid"),
+            # BAD: invalid additional properties
+            ({"reporting": {"a": {"type": "print", "a": "b"}}}, "not valid"),
+            ({"reporting": {"a": {"type": "log", "a": "b"}}}, "not valid"),
+            (
+                {
+                    "reporting": {
+                        "a": {
+                            "type": "webhook",
+                            "endpoint": "http://a",
+                            "a": "b",
+                        }
+                    }
+                },
+                "not valid",
+            ),
+            ({"reporting": {"a": {"type": "hyperv", "a": "b"}}}, "not valid"),
+            # BAD: missing required properties
+            ({"reporting": {"a": {"level": "FATAL"}}}, "not valid"),
+            ({"reporting": {"a": {"endpoint": "http://a"}}}, "not valid"),
+            ({"reporting": {"a": {"kvp_file_path": "/a/b"}}}, "not valid"),
+            ({"reporting": {"a": {"type": "webhook"}}}, "not valid"),
+        ],
+    )
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

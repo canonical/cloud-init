@@ -47,6 +47,7 @@ from cloudinit import atomic_helper
 
 from cloudinit.config import cc_set_hostname
 from cloudinit import dhclient_hook
+from cloudinit.cmd.devel import read_cfg_paths
 
 
 # Welcome message template
@@ -454,7 +455,9 @@ def main_init(name, args):
 
     # Validate user-data adheres to schema definition
     if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
-        validate_cloudconfig_schema(config=init.cfg, strict=False)
+        validate_cloudconfig_schema(
+            config=init.cfg, strict=False, log_details=False
+        )
     else:
         LOG.debug("Skipping user-data validation. No user-data found.")
 
@@ -661,7 +664,8 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        paths = read_cfg_paths()
+        data_d = paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
@@ -790,7 +794,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn) = util.get_hostname_fqdn(
+    (hostname, _fqdn, _) = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content

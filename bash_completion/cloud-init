@@ -10,7 +10,7 @@ _cloudinit_complete()
     cur_word="${COMP_WORDS[COMP_CWORD]}"
     prev_word="${COMP_WORDS[COMP_CWORD-1]}"
 
-    subcmds="analyze clean collect-logs devel dhclient-hook features init modules query single status"
+    subcmds="analyze clean collect-logs devel dhclient-hook features init modules query schema single status"
     base_params="--help --file --version --debug --force"
     case ${COMP_CWORD} in
         1)
@@ -28,7 +28,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
                     ;;
                 devel)
-                    COMPREPLY=($(compgen -W "--help hotplug-hook schema net-convert" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help hotplug-hook net-convert" -- $cur_word))
                     ;;
                 dhclient-hook)
                     COMPREPLY=($(compgen -W "--help up down" -- $cur_word))

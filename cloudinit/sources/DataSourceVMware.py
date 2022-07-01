@@ -73,7 +73,7 @@ import netifaces
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources, util
+from cloudinit import net, sources, util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
 PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
@@ -685,20 +685,10 @@ def is_valid_ip_addr(val):
     Returns false if the address is loopback, link local or unspecified;
     otherwise true is returned.
     """
-    # TODO(extend cloudinit.net.is_ip_addr exclude link_local/loopback etc)
-    # TODO(migrate to use cloudinit.net.is_ip_addr)#
-
-    addr = None
-    try:
-        addr = ipaddress.ip_address(val)
-    except ipaddress.AddressValueError:
-        addr = ipaddress.ip_address(str(val))
-    except Exception:
-        return None
-
-    if addr.is_link_local or addr.is_loopback or addr.is_unspecified:
-        return False
-    return True
+    addr = net.maybe_get_address(ipaddress.ip_address, val)
+    return addr and not (
+        addr.is_link_local or addr.is_loopback or addr.is_unspecified
+    )
 
 
 def get_host_info():

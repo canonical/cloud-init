@@ -4,6 +4,7 @@
 
 """Snap: Install, configure and manage snapd and snap packages."""
 
+import os
 import sys
 from textwrap import dedent
 
@@ -110,10 +111,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 SNAP_CMD = "snap"
-ASSERTIONS_FILE = "/var/lib/cloud/instance/snapd.assertions"
 
 
-def add_assertions(assertions):
+def add_assertions(assertions, assertions_file):
     """Import list of assertions.
 
     Import assertions by concatenating each assertion into a
@@ -133,14 +133,14 @@ def add_assertions(assertions):
             )
         )
 
-    snap_cmd = [SNAP_CMD, "ack"]
+    snap_cmd = [SNAP_CMD, "ack", assertions_file]
     combined = "\n".join(assertions)
 
     for asrt in assertions:
         LOG.debug("Snap acking: %s", asrt.split("\n")[0:2])
 
-    util.write_file(ASSERTIONS_FILE, combined.encode("utf-8"))
-    subp.subp(snap_cmd + [ASSERTIONS_FILE], capture=True)
+    util.write_file(assertions_file, combined.encode("utf-8"))
+    subp.subp(snap_cmd, capture=True)
 
 
 def run_commands(commands):
@@ -190,7 +190,10 @@ def handle(name, cfg, cloud, log, args):
         )
         return
 
-    add_assertions(cfgin.get("assertions", []))
+    add_assertions(
+        cfgin.get("assertions", []),
+        os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
+    )
     run_commands(cfgin.get("commands", []))
 
 

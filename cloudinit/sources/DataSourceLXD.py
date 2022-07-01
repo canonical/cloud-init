@@ -13,22 +13,14 @@ import os
 import socket
 import stat
 from json.decoder import JSONDecodeError
+from typing import Any, Dict, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
 
-# pylint fails to import the two modules below.
-# These are imported via requests.packages rather than urllib3 because:
-#  a.) the provider of the requests package should ensure that urllib3
-#      contained in it is consistent/correct.
-#  b.) cloud-init does not specifically have a dependency on urllib3
-#
-# For future reference, see:
-#   https://github.com/kennethreitz/requests/pull/2375
-#   https://github.com/requests/requests/issues/4104
-# pylint: disable=E0401
-from requests.packages.urllib3.connection import HTTPConnection
-from requests.packages.urllib3.connectionpool import HTTPConnectionPool
+# Note: `urllib3` is transitively installed by `requests`.
+from urllib3.connection import HTTPConnection
+from urllib3.connectionpool import HTTPConnectionPool
 
 from cloudinit import log as logging
 from cloudinit import sources, subp, util
@@ -51,7 +43,7 @@ CONFIG_KEY_ALIASES = {
 
 def generate_fallback_network_config() -> dict:
     """Return network config V1 dict representing instance network config."""
-    network_v1 = {
+    network_v1: Dict[str, Any] = {
         "version": 1,
         "config": [
             {
@@ -142,8 +134,8 @@ class DataSourceLXD(sources.DataSource):
 
     dsname = "LXD"
 
-    _network_config = sources.UNSET
-    _crawled_metadata = sources.UNSET
+    _network_config: Union[Dict, str] = sources.UNSET
+    _crawled_metadata: Union[Dict, str] = sources.UNSET
 
     sensitive_metadata_keys = (
         "merged_cfg",
@@ -211,13 +203,17 @@ class DataSourceLXD(sources.DataSource):
         If none is present, then we generate fallback configuration.
         """
         if self._network_config == sources.UNSET:
-            if self._crawled_metadata.get("network-config"):
+            if self._crawled_metadata == sources.UNSET:
+                self._get_data()
+            if isinstance(
+                self._crawled_metadata, dict
+            ) and self._crawled_metadata.get("network-config"):
                 self._network_config = self._crawled_metadata.get(
-                    "network-config"
+                    "network-config", {}
                 )
             else:
                 self._network_config = generate_fallback_network_config()
-        return self._network_config
+        return cast(dict, self._network_config)
 
 
 def is_platform_viable() -> bool:
@@ -257,7 +253,7 @@ def read_metadata(
         configuration keys and values provided to the container surfaced by
         the socket under the /1.0/config/ route.
     """
-    md = {}
+    md: dict = {}
     lxd_url = "http://lxd"
     version_url = lxd_url + "/" + api_version + "/"
     with requests.Session() as session:

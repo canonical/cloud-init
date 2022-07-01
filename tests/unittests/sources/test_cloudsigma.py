@@ -58,12 +58,14 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
 
     def test_get_hostname(self):
         self.datasource.get_data()
-        self.assertEqual("test_server", self.datasource.get_hostname())
+        self.assertEqual(
+            "test_server", self.datasource.get_hostname().hostname
+        )
         self.datasource.metadata["name"] = ""
-        self.assertEqual("65b2fb23", self.datasource.get_hostname())
+        self.assertEqual("65b2fb23", self.datasource.get_hostname().hostname)
         utf8_hostname = b"\xd1\x82\xd0\xb5\xd1\x81\xd1\x82".decode("utf-8")
         self.datasource.metadata["name"] = utf8_hostname
-        self.assertEqual("65b2fb23", self.datasource.get_hostname())
+        self.assertEqual("65b2fb23", self.datasource.get_hostname().hostname)
 
     def test_get_public_ssh_keys(self):
         self.datasource.get_data()

@@ -15,13 +15,14 @@ import stat
 import tempfile
 from collections import deque
 from textwrap import dedent
-from typing import Tuple
 from unittest import mock
 
 import pytest
 import yaml
 
 from cloudinit import importer, subp, util
+from cloudinit.helpers import Paths
+from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
 from tests.unittests.helpers import CiTestCase
@@ -321,6 +322,25 @@ OS_RELEASE_PHOTON = """\
         BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """
 
+OS_RELEASE_OPENMANDRIVA = dedent(
+    """\
+    NAME="OpenMandriva Lx"\n
+    VERSION="4.90 (Nickel) Cooker"\n
+    ID="openmandriva"\n
+    VERSION_ID="4.90"\n
+    PRETTY_NAME="OpenMandriva Lx 4.90 (Nickel) Cooker"\n
+    BUILD_ID="20220606.19"\n
+    VERSION_CODENAME="nickel"\n
+    ANSI_COLOR="1;43"\n
+    LOGO="openmandriva"\n
+    CPE_NAME="cpe:/o:openmandriva:openmandriva_lx:4.90"\n
+    HOME_URL="http://openmandriva.org/"\n
+    BUG_REPORT_URL="http://issues.openmandriva.org/"\n
+    SUPPORT_URL="https://forum.openmandriva.org"\n
+    PRIVACY_POLICY_URL="https://www.openmandriva.org/tos"\n
+"""
+)
+
 
 class FakeCloud(object):
     def __init__(self, hostname, fqdn):
@@ -336,8 +356,8 @@ class FakeCloud(object):
             myargs["metadata_only"] = metadata_only
         self.calls.append(myargs)
         if fqdn:
-            return self.fqdn
-        return self.hostname
+            return DataSourceHostname(self.fqdn, False)
+        return DataSourceHostname(self.hostname, False)
 
 
 class TestUtil:
@@ -442,6 +462,23 @@ class TestUtil:
         if create_confd:
             assert [mock.call(confd_fn)] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
+
+    @pytest.mark.parametrize("custom_cloud_dir", [True, False])
+    @mock.patch(M_PATH + "os.path.isfile", return_value=True)
+    @mock.patch(M_PATH + "os.path.isdir", return_value=True)
+    def test_fetch_ssl_details(
+        self, m_isdir, m_isfile, custom_cloud_dir, tmpdir
+    ):
+        cloud_dir = "/var/lib/cloud"
+        if custom_cloud_dir:
+            cloud_dir = tmpdir.join("cloud")
+        cert = os.path.join(cloud_dir, "instance", "data", "ssl", "cert.pem")
+        key = os.path.join(cloud_dir, "instance", "data", "ssl", "key.pem")
+
+        paths = Paths({"cloud_dir": cloud_dir})
+        ssl_details = util.fetch_ssl_details(paths)
+        assert {"cert_file": cert, "key_file": key} == ssl_details
+        assert 2 == m_isdir.call_count == m_isfile.call_count
 
 
 class TestSymlink(CiTestCase):
@@ -552,7 +589,7 @@ class TestShellify(CiTestCase):
 class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_only_cfg_fqdn(self):
         """When cfg only has the fqdn key, derive hostname and fqdn from it."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -560,7 +597,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_fqdn_and_hostname(self):
         """When cfg has both fqdn and hostname keys, return them."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com", "hostname": "other"}, cloud=None
         )
         self.assertEqual("other", hostname)
@@ -568,7 +605,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_with_domain(self):
         """When cfg has only hostname key which represents a fqdn, use that."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -577,7 +614,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_cfg_hostname_without_domain(self):
         """When cfg has a hostname without a '.' query cloud.get_hostname."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost"}, cloud=mycloud
         )
         self.assertEqual("myhost", hostname)
@@ -589,7 +626,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
         self.assertEqual(
@@ -600,7 +637,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
         mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        _hn, _fqdn = util.get_hostname_fqdn(
+        _hn, _fqdn, _def_hostname = util.get_hostname_fqdn(
             cfg={}, cloud=mycloud, metadata_only=True
         )
         self.assertEqual(
@@ -754,9 +791,7 @@ class TestUdevadmSettle(CiTestCase):
 @mock.patch("os.path.exists")
 class TestGetLinuxDistro(CiTestCase):
     def setUp(self):
-        # python2 has no lru_cache, and therefore, no cache_clear()
-        if hasattr(util.get_linux_distro, "cache_clear"):
-            util.get_linux_distro.cache_clear()
+        util.get_linux_distro.cache_clear()
 
     @classmethod
     def os_release_exists(self, path):
@@ -1027,6 +1062,14 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("photon", "4.0", "VMware Photon OS/Linux"), dist)
 
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on OpenMandriva"""
+        m_os_release.return_value = OS_RELEASE_OPENMANDRIVA
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)
     def test_get_linux_distro_no_data(
@@ -1141,21 +1184,11 @@ class TestIsLXD(CiTestCase):
 
 
 class TestReadCcFromCmdline:
-
-    random_string: Tuple
-
-    if hasattr(pytest, "param"):
-        random_string = pytest.param(
-            CiTestCase.random_string(), None, id="random_string"
-        )
-    else:
-        random_string = (CiTestCase.random_string(), None)
-
     @pytest.mark.parametrize(
         "cmdline,expected_cfg",
         [
             # Return None if cmdline has no cc:<YAML>end_cc content.
-            random_string,
+            pytest.param(CiTestCase.random_string(), None, id="random_string"),
             # Return None if YAML content is empty string.
             ("foo cc: end_cc bar", None),
             # Return expected dictionary without trailing end_cc marker.

@@ -188,6 +188,15 @@ generated configuration into an internal network configuration state. From
 this state `Cloud-init`_ delegates rendering of the configuration to Distro
 supported formats.  The following ``renderers`` are supported in cloud-init:
 
+- **NetworkManager**
+
+`NetworkManager <https://networkmanager.dev>`_ is the standard Linux network
+configuration tool suite. It supports a wide range of networking setups.
+Configuration is typically stored in ``/etc/NetworkManager``.
+
+It is the default for a number of Linux distributions, notably Fedora;
+CentOS/RHEL; and derivatives.
+
 - **ENI**
 
 /etc/network/interfaces or ``ENI`` is supported by the ``ifupdown`` package
@@ -215,6 +224,7 @@ is as follows:
 - ENI
 - Sysconfig
 - Netplan
+- NetworkManager
 
 When applying the policy, `Cloud-init`_ checks if the current instance has the
 correct binaries and paths to support the renderer.  The first renderer that
@@ -223,7 +233,7 @@ supplying an updated configuration in cloud-config. ::
 
   system_info:
     network:
-      renderers: ['netplan', 'eni', 'sysconfig', 'freebsd', 'netbsd', 'openbsd']
+      renderers: ['netplan', 'network-manager', 'eni', 'sysconfig', 'freebsd', 'netbsd', 'openbsd']
 
 
 Network Configuration Tools
@@ -280,7 +290,7 @@ Example output converting V2 to sysconfig:
 
 
 .. _Cloud-init: https://launchpad.net/cloud-init
-.. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/#network-interfaces-index
+.. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
 .. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service

@@ -95,7 +95,7 @@ def handle(name, cfg, cloud, log, args):
         "Datasource: %s\n" % (type_utils.obj_name(cloud.datasource))
     )
     to_print.write("Distro: %s\n" % (type_utils.obj_name(cloud.distro)))
-    to_print.write("Hostname: %s\n" % (cloud.get_hostname(True)))
+    to_print.write("Hostname: %s\n" % (cloud.get_hostname(True).hostname))
     to_print.write("Instance ID: %s\n" % (cloud.get_instance_id()))
     to_print.write("Locale: %s\n" % (cloud.get_locale()))
     to_print.write("Launch IDX: %s\n" % (cloud.launch_index))

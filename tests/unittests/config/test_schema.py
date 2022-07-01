@@ -7,14 +7,14 @@ import itertools
 import json
 import logging
 import os
+import re
 import sys
-from copy import copy, deepcopy
+from copy import copy
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
 from typing import List
 
-import jsonschema
 import pytest
 
 from cloudinit.config.schema import (
@@ -80,7 +80,7 @@ def get_modules() -> List[ModuleType]:
 
 def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
-    schemas = {}
+    schemas: dict = {}
     get_modules()
     for k, v in sys.modules.items():
         path = Path(k)
@@ -96,16 +96,6 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestVersionedSchemas:
-    def _relative_ref_to_local_file_path(self, source_schema):
-        """Replace known relative ref URLs with full file path."""
-        # jsonschema 2.6.0 doesn't support relative URLs in $refs (bionic)
-        full_path_schema = deepcopy(source_schema)
-        relative_ref = full_path_schema["oneOf"][0]["allOf"][1]["$ref"]
-        full_local_filepath = get_schema_dir() + relative_ref[1:]
-        file_ref = f"file://{full_local_filepath}"
-        full_path_schema["oneOf"][0]["allOf"][1]["$ref"] = file_ref
-        return full_path_schema
-
     @pytest.mark.parametrize(
         "schema,error_msg",
         (
@@ -119,39 +109,30 @@ class TestVersionedSchemas:
     def test_versioned_cloud_config_schema_is_valid_json(
         self, schema, error_msg
     ):
+        schema_dir = get_schema_dir()
         version_schemafile = os.path.join(
-            get_schema_dir(), VERSIONED_USERDATA_SCHEMA_FILE
+            schema_dir, VERSIONED_USERDATA_SCHEMA_FILE
         )
-        version_schema = json.loads(load_file(version_schemafile))
-        # To avoid JSON resolver trying to pull the reference from our
-        # upstream raw file in github.
-        version_schema["$id"] = f"file://{version_schemafile}"
+        # Point to local schema files avoid JSON resolver trying to pull the
+        # reference from our upstream raw file in github.
+        version_schema = json.loads(
+            re.sub(
+                r"https:\/\/raw.githubusercontent.com\/canonical\/"
+                r"cloud-init\/main\/cloudinit\/config\/schemas\/",
+                f"file://{schema_dir}/",
+                load_file(version_schemafile),
+            )
+        )
         if error_msg:
             with pytest.raises(SchemaValidationError) as context_mgr:
-                try:
-                    validate_cloudconfig_schema(
-                        schema, schema=version_schema, strict=True
-                    )
-                except jsonschema.exceptions.RefResolutionError:
-                    full_path_schema = self._relative_ref_to_local_file_path(
-                        version_schema
-                    )
-                    validate_cloudconfig_schema(
-                        schema, schema=full_path_schema, strict=True
-                    )
-            assert error_msg in str(context_mgr.value)
-        else:
-            try:
                 validate_cloudconfig_schema(
                     schema, schema=version_schema, strict=True
                 )
-            except jsonschema.exceptions.RefResolutionError:
-                full_path_schema = self._relative_ref_to_local_file_path(
-                    version_schema
-                )
-                validate_cloudconfig_schema(
-                    schema, schema=full_path_schema, strict=True
-                )
+            assert error_msg in str(context_mgr.value)
+        else:
+            validate_cloudconfig_schema(
+                schema, schema=version_schema, strict=True
+            )
 
 
 class TestGetSchema:
@@ -224,6 +205,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_write_files"},
             {"$ref": "#/$defs/cc_yum_add_repo"},
             {"$ref": "#/$defs/cc_zypper_add_repo"},
+            {"$ref": "#/$defs/reporting_config"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -304,8 +286,29 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
+            "Invalid cloud-config provided: \np1: -1 is not of type 'string'"
             == log_msg
+        )
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_sensitive(self, caplog):
+        """When log_details=False, ensure details are omitted"""
+        schema = {
+            "properties": {"hashed_password": {"type": "string"}},
+            "additionalProperties": False,
+        }
+        validate_cloudconfig_schema(
+            {"hashed-password": "secret"},
+            schema,
+            strict=False,
+            log_details=False,
+        )
+        [(module, log_level, log_msg)] = caplog.record_tuples
+        assert "cloudinit.config.schema" == module
+        assert logging.WARNING == log_level
+        assert (
+            "Invalid cloud-config provided: Please run 'sudo cloud-init "
+            "schema --system' to see the schema errors." == log_msg
         )
 
     @skipUnlessJsonSchema()

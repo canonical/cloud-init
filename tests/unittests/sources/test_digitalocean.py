@@ -178,7 +178,7 @@ class TestDataSourceDigitalOcean(CiTestCase):
         self.assertEqual(DO_META.get("vendor_data"), ds.get_vendordata_raw())
         self.assertEqual(DO_META.get("region"), ds.availability_zone)
         self.assertEqual(DO_META.get("droplet_id"), ds.get_instance_id())
-        self.assertEqual(DO_META.get("hostname"), ds.get_hostname())
+        self.assertEqual(DO_META.get("hostname"), ds.get_hostname().hostname)
 
         # Single key
         self.assertEqual(

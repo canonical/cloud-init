@@ -236,7 +236,7 @@ class TestDataSourceScaleway(HttprettyTestCase):
             ].sort(),
         )
         self.assertEqual(
-            self.datasource.get_hostname(),
+            self.datasource.get_hostname().hostname,
             MetadataResponses.FAKE_METADATA["hostname"],
         )
         self.assertEqual(
