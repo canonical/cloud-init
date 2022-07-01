@@ -41,7 +41,7 @@ if the hostname is set by metadata or user data on the local system.
 
 This will occur on datasources like nocloud and ovf where metadata and user
 data are available locally. This ensures that the desired hostname is applied
-before any DHCP requests are preformed on these platforms where dynamic DNS is
+before any DHCP requests are performed on these platforms where dynamic DNS is
 based on initial hostname.
 """
 
