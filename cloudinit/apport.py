@@ -1,6 +1,6 @@
 # Copyright (C) 2017 Canonical Ltd.
 #
-# This file is part of cloud-init. See LICENSE file for license information.
+# This file is part of cloud-init. See LICENSE file for license information.asdfasdf
 
 """Cloud-init apport interface"""
 from cloudinit.cmd.devel import read_cfg_paths
