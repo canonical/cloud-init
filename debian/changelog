@@ -1,4 +1,4 @@
-cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * d/control: add python3-debconf as Depends and Build-Depends
   * d/gbp.conf d/gbp_format_changelog:
