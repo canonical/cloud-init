@@ -6,12 +6,13 @@ from textwrap import dedent
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-MODULE_DESCRIPTION = """\
-Module to set up Wireguard connection. Including installation and configuration of WG interfaces. In addition certain readinessprobes can be provided.
-"""
+MODULE_DESCRIPTION = dedent("""\
+Module to set up Wireguard connection.
+Including installation and configuration of WG interfaces.
+In addition certain readinessprobes can be provided.
+""")
 
 meta: MetaSchema = {
     "id": "cc_wireguard",
@@ -23,7 +24,7 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
-    # Configure one or more Wireguard interfaces and provide optinal readinessprobes
+    # Configure one or more WG interfaces and provide optinal readinessprobes
     wireguard:
     interfaces:
         - name: <interface_name_wg0>
@@ -63,7 +64,7 @@ def writeconfig(wg_section: dict, log: Logger) -> bool:
         try:
             with open(i["config_path"], "w", encoding="utf-8") as wgconfig:
                 wgconfig.write(i["content"])
-        except Exception as e:
+        except Exception:
             return False
     return True
 
@@ -84,7 +85,7 @@ def enablewg(wg_section: dict, log: Logger) -> bool:
                 capture=True,
                 shell=True,
             )
-        except Exception as e:
+        except Exception:
             return False
     return True
 
