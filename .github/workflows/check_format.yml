@@ -38,7 +38,7 @@ jobs:
         run: python3 --version
 
       - name: Test
-        if: matrix.lint-with.tip-versions
+        if: ${{ !matrix.lint-with.tip-versions }}
         env:
           # matrix env: not to be confused w/environment variables or testenv
           TOXENV: ${{ matrix.env }}
