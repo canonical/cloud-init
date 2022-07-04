@@ -333,26 +333,56 @@ class TestConfigureUA:
 
 class TestUbuntuAdvantageSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         [
-            ({"ubuntu_advantage": {}}, "'token' is a required property"),
+            ({"ubuntu_advantage": {}}, does_not_raise()),
             # Strict keys
             (
                 {"ubuntu_advantage": {"token": "win", "invalidkey": ""}},
-                re.escape(
-                    "ubuntu_advantage: Additional properties are not allowed"
-                    " ('invalidkey"
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "ubuntu_advantage: Additional properties are not allowed"
+                        " ('invalidkey"
+                    ),
                 ),
+            ),
+            ({"ubuntu_advantage": {"disable_auto_attach": True}}, does_not_raise()),
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"ignore_enable_by_default": True}
+                    }
+                },
+                does_not_raise()
+            ),
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"ignore_enable_by_default": True},
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                    }
+                },
+                does_not_raise()
+            ),
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False},
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                does_not_raise()
             ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, expectation):
+        with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 class TestHandle:
@@ -499,6 +529,8 @@ class TestHandle:
 
 @mock.patch(f"{MPATH}.subp.which")
 class TestMaybeInstallUATools:
+
+    @pytest.mark.parametrize("pro", [False, True])
     @pytest.mark.parametrize(
         [
             "which_return",
@@ -544,6 +576,7 @@ class TestMaybeInstallUATools:
         update_side_effect,
         install_side_effect,
         expectation,
+        pro,
         log_msg,
         caplog,
     ):
@@ -557,7 +590,7 @@ class TestMaybeInstallUATools:
             cloud.distro.update_package_sources.return_value = None
             cloud.distro.install_packages.side_effect = install_side_effect
         with expectation:
-            maybe_install_ua_tools(cloud=cloud)
+            maybe_install_ua_tools(cloud=cloud, pro=pro)
         if log_msg is not None:
             assert log_msg in caplog.text
 
