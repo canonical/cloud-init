@@ -65,55 +65,66 @@ __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 
-REQUIRED_WG_KEYS = frozenset(["interfaces"])
+REQUIRED_WG_INT_KEYS = frozenset(["name", "config_path", "content"])
 
 
-def supplemental_schema_validation(wg_section: dict):
-    """Validate user-provided wireguard option values.
+def supplemental_schema_validation(wg_int: dict):
+    """Validate user-provided wg:interfaces option values.
 
     This function supplements flexible jsonschema validation with specific
     value checks to aid in triage of invalid user-provided configuration.
 
-    @param wg_section: Dictionary of configuration value under 'wireguard'.
+    @param wg_int: Dict of configuration value under 'wg:interfaces'.
 
     @raises: ValueError describing invalid values provided.
     """
-    missing = REQUIRED_WG_KEYS.difference(set(wg_section.keys()))
+    errors = []
+    missing = REQUIRED_WG_INT_KEYS.difference(set(wg_int.keys()))
     if missing:
         keys = ", ".join(sorted(missing))
-        raise RuntimeError(f"Missing required wireguard keys: {keys}")
+        errors.append(f"Missing required wg:interfaces keys: {keys}")
+
+    for key, value in sorted(wg_int.items()):
+        if key == "name" or key == "config_path" or key == "content":
+            if not isinstance(value, str):
+                errors.append(
+                    f"Expected a str for wg:interfaces:{key}. Found: {value}"
+                )
+
+    if errors:
+        raise ValueError(
+            f"Invalid wireguard interface configuration:{NL}{NL.join(errors)}"
+        )
 
 
-def write_config(wg_section: dict):
-    for i in wg_section["interfaces"]:
-        LOG.debug("Configuring Wireguard interface %s", i["name"])
-        try:
-            with open(i["config_path"], "w", encoding="utf-8") as wgconfig:
-                wgconfig.write(i["content"])
-        except Exception as e:
-            raise RuntimeError(
-                f"Failure writing Wireguard configuration file:" f"{e}"
-            ) from e
+def write_config(wg_int: dict):
+    LOG.debug("Configuring Wireguard interface %s", wg_int["name"])
+    try:
+        with open(wg_int["config_path"], "w", encoding="utf-8") as wgconfig:
+            wgconfig.write(wg_int["content"])
+    except Exception as e:
+        raise RuntimeError(
+            f"Failure writing Wireguard configuration file:" f"{e}"
+        ) from e
 
 
-def enable_wg(wg_section: dict):
-    for i in wg_section["interfaces"]:
-        try:
-            LOG.debug("Running: systemctl enable wg-quick@%s", {i["name"]})
-            subp.subp(
-                f'systemctl enable wg-quick@{i["name"]}',
-                capture=True,
-                shell=True,
-            )
-            subp.subp(
-                f'systemctl start wg-quick@{i["name"]}',
-                capture=True,
-                shell=True,
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed enabling Wireguard interface(s):" f"{e}"
-            ) from e
+def enable_wg(wg_int: dict):
+    try:
+        LOG.debug("Running: systemctl enable wg-quick@%s", {wg_int["name"]})
+        subp.subp(
+            f'systemctl enable wg-quick@{wg_int["name"]}',
+            capture=True,
+            shell=True,
+        )
+        subp.subp(
+            f'systemctl start wg-quick@{wg_int["name"]}',
+            capture=True,
+            shell=True,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed enabling Wireguard interface(s):" f"{e}"
+        ) from e
 
 
 def readinessprobe_command_validation(wg_section: dict):
@@ -167,14 +178,15 @@ def handle(name: str, cfg: dict, cloud: Cloud, args: list):
     subp.subp("modprobe wireguard", capture=True, shell=True)
 
     try:
-        # check schema
-        supplemental_schema_validation(wg_section)
+        for wg_int in wg_section["interfaces"]:
+            # check schema
+            supplemental_schema_validation(wg_int)
 
-        # write wg config files
-        write_config(wg_section)
+            # write wg config files
+            write_config(wg_int)
 
-        # enable wg interfaces
-        enable_wg(wg_section)
+            # enable wg interfaces
+            enable_wg(wg_int)
 
         # parse and run readinessprobe paremeters
         if (
@@ -185,5 +197,5 @@ def handle(name: str, cfg: dict, cloud: Cloud, args: list):
             readinessprobe(wg_section, cloud)
         else:
             LOG.debug("Skipping readinessprobe - no checks defined")
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         util.logexc(LOG, e)
