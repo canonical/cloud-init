@@ -2079,12 +2079,11 @@
       "type": "object",
       "properties": {
         "wireguard": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "interfaces": {
-                "description": "Configuration of one or more WG interfaces",
+          "type": "object",
+          "properties": {
+            "interfaces": {
+              "type": "array",
+              "items": {
                 "type": "object",
                 "properties": {
                   "name": {
@@ -2100,20 +2099,21 @@
                     "description": "Wireguard interface configuration. Contains key, peer, ..."
                   }
                 },
-                "additionalProperties": false
+                "additionalProperties": true
               },
-              "readinessprobe": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "uniqueItems": true,
-                "description": "List of shell commands to be executed as probes."
-              }
+              "minItems": 1
             },
-            "required": ["interfaces"],
-            "additionalProperties": false
-          }
+            "readinessprobe": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of shell commands to be executed as probes."
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
         }
       }
     },
