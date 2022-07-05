@@ -2075,6 +2075,48 @@
         }
       }
     },
+    "cc_wireguard": {
+      "type": "object",
+      "properties": {
+        "wireguard": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "interfaces": {
+                "description": "Configuration of one or more WG interfaces",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the interface. Typically wgx (example: wg0)"
+                  },
+                  "config_path": {
+                    "type": "string",
+                    "description": "Path to configuration file of Wireguard interface"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Wireguard interface configuration. Contains key, peer, ..."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "readinessprobe": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true,
+                "description": "List of shell commands to be executed as probes."
+              }
+            },
+            "required": ["interfaces"],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
