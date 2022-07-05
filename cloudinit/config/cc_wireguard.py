@@ -158,6 +158,22 @@ def readinessprobe(wg_section: dict, cloud: Cloud):
         )
 
 
+def maybe_install_wireguard_tools(cloud: Cloud):
+    """Install wireguard-tools if not present."""
+    if subp.which("wg"):
+        return
+    try:
+        cloud.distro.update_package_sources()
+    except Exception:
+        util.logexc(LOG, "Package update failed")
+        raise
+    try:
+        cloud.distro.install_packages(["wireguard-tools"])
+    except Exception:
+        util.logexc(LOG, "Failed to install wireguard-tools")
+        raise
+
+
 def handle(name: str, cfg: dict, cloud: Cloud, args: list):
     LOG.debug("Starting clound-init module %s", name)
     wg_section = None
@@ -174,8 +190,11 @@ def handle(name: str, cfg: dict, cloud: Cloud, args: list):
         raise RuntimeError("Skipping Wireguard module")
 
     # install wireguard tools, enable kernel module
-    cloud.distro.install_packages(("wireguard-tools",))
-    subp.subp("modprobe wireguard", capture=True, shell=True)
+    maybe_install_wireguard_tools(cloud)
+    try:
+        subp.subp("modprobe wireguard", capture=True, shell=True)
+    except subp.ProcessExecutionError as e:
+        util.logexc(LOG, f"Could not load wireguard module: {e}")
 
     try:
         for wg_int in wg_section["interfaces"]:
