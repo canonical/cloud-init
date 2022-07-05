@@ -25,12 +25,14 @@ meta: MetaSchema = {
             """\
         ansible:
           pull:
+            url: "don't forget to set required properties in schema"
             """
         ),
         dedent(
             """\
         ansible:
           local:
+            TODO: next
             """
         )
     ],
