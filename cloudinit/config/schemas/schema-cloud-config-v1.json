@@ -2076,7 +2076,7 @@
       }
     },
     "cc_wireguard": {
-      "type": "object",
+      "type": ["null", "object"],
       "properties": {
         "wireguard": {
           "type": "object",
@@ -2099,7 +2099,7 @@
                     "description": "Wireguard interface configuration. Contains key, peer, ..."
                   }
                 },
-                "additionalProperties": true
+                "additionalProperties": false
               },
               "minItems": 1
             },

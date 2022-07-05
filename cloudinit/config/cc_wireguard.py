@@ -65,8 +65,26 @@ __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 
+REQUIRED_WG_KEYS = frozenset(["interfaces"])
 
-def writeconfig(wg_section: dict):
+
+def supplemental_schema_validation(wg_section: dict):
+    """Validate user-provided wireguard option values.
+
+    This function supplements flexible jsonschema validation with specific
+    value checks to aid in triage of invalid user-provided configuration.
+
+    @param wg_section: Dictionary of configuration value under 'wireguard'.
+
+    @raises: ValueError describing invalid values provided.
+    """
+    missing = REQUIRED_WG_KEYS.difference(set(wg_section.keys()))
+    if missing:
+        keys = ", ".join(sorted(missing))
+        raise RuntimeError(f"Missing required wireguard keys: {keys}")
+
+
+def write_config(wg_section: dict):
     for i in wg_section["interfaces"]:
         LOG.debug("Configuring Wireguard interface %s", i["name"])
         try:
@@ -78,7 +96,7 @@ def writeconfig(wg_section: dict):
             ) from e
 
 
-def enablewg(wg_section: dict):
+def enable_wg(wg_section: dict):
     for i in wg_section["interfaces"]:
         try:
             LOG.debug("Running: systemctl enable wg-quick@%s", {i["name"]})
@@ -149,11 +167,14 @@ def handle(name: str, cfg: dict, cloud: Cloud, args: list):
     subp.subp("modprobe wireguard", capture=True, shell=True)
 
     try:
+        # check schema
+        supplemental_schema_validation(wg_section)
+
         # write wg config files
-        writeconfig(wg_section)
+        write_config(wg_section)
 
         # enable wg interfaces
-        enablewg(wg_section)
+        enable_wg(wg_section)
 
         # parse and run readinessprobe paremeters
         if (
