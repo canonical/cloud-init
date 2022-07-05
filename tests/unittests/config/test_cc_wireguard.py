@@ -1,16 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import re
-
 import pytest
 
-from cloudinit import subp
-from cloudinit.config.cc_wireguard import (
-    enable_wg,
-    handle,
-    readinessprobe,
-    readinessprobe_command_validation,
-    write_config,
-)
+from cloudinit import helpers, util
+from cloudinit.config import cc_wireguard
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -23,13 +15,31 @@ from tests.unittests.helpers import (
     skipUnlessJsonSchema,
 )
 
-# Module path used in mocks
-MPATH = "cloudinit.config.cc_wireguard"
 
+class TestSupplementalSchemaValidation(CiTestCase):
+    def test_error_on_missing_keys(self):
+        """ValueError raised reporting any missing required wg:interfaces keys"""
+        cfg = {}
+        match = (
+            r"Invalid wireguard interface configuration:\\n"
+            " Missing required wg:interfaces keys: config_path, content, name"
+        )
+        with self.assertRaisesRegex(ValueError, match):
+            cc_wireguard.supplemental_schema_validation(cfg)
 
-class FakeCloud(object):
-    def __init__(self, distro):
-        self.distro = distro
+    def test_error_on_non_string_values(self):
+        """ValueError raised for any values expected as string type."""
+        cfg = {"name": 1, "config_path": 2, "content": 3}
+        errors = [
+            "Expected a str for wg:interfaces:config_path. Found: 2",
+            "Expected a str for wg:interfaces:content. Found: 3",
+            "Expected a str for wg:interfaces:name. Found: 1",
+        ]
+        with self.assertRaises(ValueError) as context_mgr:
+            cc_wireguard.supplemental_schema_validation(cfg)
+        error_msg = str(context_mgr.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
 
 
 class TestWireguardSchema:
@@ -38,24 +48,6 @@ class TestWireguardSchema:
         [
             # Allow empty wireguard config
             ({"wireguard": None}, None),
-            #        (
-            #                {
-            #                    "wireguard": {
-            #                        "invalidkey": 1,
-            #                        "interfaces": [
-            #                            {
-            #                                "name": "wg0",
-            #                                "config_path": "/etc/wireguard/wg0.conf",
-            #                                "config": "this is a test"
-            #                            }
-            #                        ]
-            #                    }
-            #                },
-            #                re.escape(
-            #                    "wireguard.0: Additional properties are not allowed"
-            #                    " ('invalidkey'"
-            #                )
-            #            )
         ],
     )
     @skipUnlessJsonSchema()
