@@ -319,6 +319,11 @@ class TestUsersGroupsSchema:
             ({"users": ["foobar"]}, None),  # no default user creation
             ({"users": [{"name": "bbsw"}]}, None),
             (
+                {"users": [{"name": "bbsw", "garbage-key": None}]},
+                "is not valid under any of the given schemas",
+            ),
+            ({"groups": {"": "bbsw"}}, "does not match any of the regexes"),
+            (
                 {"users": [{"name": "bbsw", "groups": ["anygrp"]}]},
                 None,
             ),  # user with a list of groups

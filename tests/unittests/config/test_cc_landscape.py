@@ -186,6 +186,15 @@ class TestLandscapeSchema:
             # tags are comma-delimited
             ({"landscape": {"client": {"tags": "1,2,3"}}}, None),
             ({"landscape": {"client": {"tags": "1"}}}, None),
+            (
+                {
+                    "landscape": {
+                        "client": {},
+                        "random-config-value": {"tags": "1"},
+                    }
+                },
+                "Additional properties are not allowed",
+            ),
             # Require client key
             ({"landscape": {}}, "'client' is a required property"),
             # tags are not whitespace-delimited
