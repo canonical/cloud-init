@@ -1,3 +1,5 @@
+# Author: Fabian Lichtenegger-Lukas <fabian.lichtenegger-lukas@nts.eu>
+# Author: Josef Tschiggerl <josef.tschiggerl@nts.eu>
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Wireguard"""
