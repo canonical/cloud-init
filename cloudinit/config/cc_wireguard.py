@@ -223,25 +223,22 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: logging, args: list):
     except subp.ProcessExecutionError as e:
         util.logexc(LOG, f"Could not load wireguard module: {e}")
 
-    try:
-        for wg_int in wg_section["interfaces"]:
-            # check schema
-            supplemental_schema_validation(wg_int)
+    for wg_int in wg_section["interfaces"]:
+        # check schema
+        supplemental_schema_validation(wg_int)
 
-            # write wg config files
-            write_config(wg_int)
+        # write wg config files
+        write_config(wg_int)
 
-            # enable wg interfaces
-            enable_wg(wg_int)
+        # enable wg interfaces
+        enable_wg(wg_int)
 
-        # parse and run readinessprobe parameters
-        if (
-            "readinessprobe" in wg_section
-            and wg_section["readinessprobe"] is not None
-        ):
-            readinessprobe_command_validation(wg_section)
-            readinessprobe(wg_section)
-        else:
-            LOG.debug("Skipping readinessprobe - no checks defined")
-    except (RuntimeError, ValueError) as e:
-        util.logexc(LOG, e)
+    # parse and run readinessprobe parameters
+    if (
+        "readinessprobe" in wg_section
+        and wg_section["readinessprobe"] is not None
+    ):
+        readinessprobe_command_validation(wg_section)
+        readinessprobe(wg_section)
+    else:
+        LOG.debug("Skipping readinessprobe - no checks defined")
