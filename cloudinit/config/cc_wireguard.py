@@ -98,6 +98,13 @@ def supplemental_schema_validation(wg_int: dict):
 
 
 def write_config(wg_int: dict):
+    """Writing user-provided configuration into Wirguard
+    interface configuration file.
+
+    @param wg_int: Dict of configuration value under 'wg:interfaces'.
+
+    @raises: RuntimeError for issues writing of configuration file.
+    """
     LOG.debug("Configuring Wireguard interface %s", wg_int["name"])
     try:
         with open(wg_int["config_path"], "w", encoding="utf-8") as wgconfig:
@@ -109,6 +116,12 @@ def write_config(wg_int: dict):
 
 
 def enable_wg(wg_int: dict):
+    """Enable and start Wireguard interface
+
+    @param wg_int: Dict of configuration value under 'wg:interfaces'.
+
+    @raises: RuntimeError for issues enabling WG interface.
+    """
     try:
         LOG.debug("Running: systemctl enable wg-quick@%s", {wg_int["name"]})
         subp.subp(
@@ -128,6 +141,12 @@ def enable_wg(wg_int: dict):
 
 
 def readinessprobe_command_validation(wg_section: dict):
+    """Basic validation of user-provided probes
+
+    @param wg_section: Dict of readinessprobe probe(s) under 'wireguard'.
+
+    @raises: ValueError of wrong datatype provided for probes.
+    """
     errors = []
     pos = 0
     for c in wg_section["readinessprobe"]:
@@ -144,6 +163,12 @@ def readinessprobe_command_validation(wg_section: dict):
 
 
 def readinessprobe(wg_section: dict):
+    """Execute provided readiness probe(s)
+
+    @param wg_section: Dict of readinessprobe probe(s) under 'wireguard'.
+
+    @raises: ProcessExecutionError for issues during execution of probes.
+    """
     errors = []
     for c in wg_section["readinessprobe"]:
         try:
