@@ -23,7 +23,6 @@ from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
     SchemaProblem,
-    SchemaProblems,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
@@ -249,14 +248,12 @@ class SchemaValidationErrorTest(CiTestCase):
 
     def test_schema_validation_error_expects_schema_errors(self):
         """SchemaValidationError is initialized from schema_errors."""
-        errors = SchemaProblems(
-            (
-                SchemaProblem("key.path", 'unexpected key "junk"'),
-                SchemaProblem(
-                    "key2.path", '"-123" is not a valid "hostname" format'
-                ),
-            )
-        )
+        errors = [
+            SchemaProblem("key.path", 'unexpected key "junk"'),
+            SchemaProblem(
+                "key2.path", '"-123" is not a valid "hostname" format'
+            ),
+        ]
         exception = SchemaValidationError(schema_errors=errors)
         self.assertIsInstance(exception, Exception)
         self.assertEqual(exception.schema_errors, errors)
@@ -1116,7 +1113,7 @@ class TestAnnotatedCloudconfigFile:
             parse_cfg,
             content,
             schemamarks=schemamarks,
-            schema_errors=SchemaProblems(),
+            schema_errors=[],
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -1139,9 +1136,7 @@ class TestAnnotatedCloudconfigFile:
             None,
             content,
             schemamarks={},
-            schema_errors=SchemaProblems(
-                (SchemaProblem("", "None is not of type 'object'"),)
-            ),
+            schema_errors=[SchemaProblem("", "None is not of type 'object'")],
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -1169,13 +1164,11 @@ class TestAnnotatedCloudconfigFile:
             """
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
-        schema_errors = SchemaProblems(
-            (
-                SchemaProblem("ntp", "Some type error"),
-                SchemaProblem("ntp.pools.0", "-99 is not a string"),
-                SchemaProblem("ntp.pools.1", "75 is not a string"),
-            )
-        )
+        schema_errors = [
+            SchemaProblem("ntp", "Some type error"),
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
+        ]
         assert expected == annotated_cloudconfig_file(
             parsed_config,
             content,
@@ -1204,12 +1197,10 @@ class TestAnnotatedCloudconfigFile:
             """
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
-        schema_errors = SchemaProblems(
-            (
-                SchemaProblem("ntp.pools.0", "-99 is not a string"),
-                SchemaProblem("ntp.pools.1", "75 is not a string"),
-            )
-        )
+        schema_errors = [
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
+        ]
         assert expected in annotated_cloudconfig_file(
             parsed_config,
             content,
