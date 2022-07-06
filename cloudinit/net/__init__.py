@@ -928,10 +928,11 @@ def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
         )
 
 
-def get_interface_from_mac(mac: str):
+def find_interface_name_from_mac(mac: str) -> Optional[str]:
     for interface_mac, interface_name in get_interfaces_by_mac().items():
-        if mac == interface_mac.lower():
+        if mac.lower() == interface_mac.lower():
             return interface_name
+    return None
 
 
 def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict:

@@ -11,8 +11,8 @@ from typing import Any, Dict
 
 from cloudinit import safeyaml, util
 from cloudinit.net import (
+    find_interface_name_from_mac,
     get_interfaces_by_mac,
-    get_interface_from_mac,
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ip_network,
@@ -706,7 +706,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 name = set_name
             elif mac_address and ifaces_by_mac:
                 lcase_mac_address = mac_address.lower()
-                mac = get_interface_from_mac(lcase_mac_address)
+                mac = find_interface_name_from_mac(lcase_mac_address)
                 if mac:
                     name = mac
             phy_cmd["name"] = name
@@ -782,7 +782,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 self.handle_nameserver(name_cmd)
 
                 mac_address = dev_cfg.get("match", {}).get("macaddress")
-                real_if_name = get_interface_from_mac(mac_address)
+                real_if_name = find_interface_name_from_mac(mac_address)
                 if real_if_name:
                     iface = real_if_name
 
