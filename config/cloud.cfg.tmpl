@@ -85,6 +85,9 @@ cloud_init_modules:
  - seed_random
 {% endif %}
  - bootcmd
+{% if variant in ["ubuntu"] %}
+ - wireguard
+{% endif %}
  - write-files
 {% if variant not in ["netbsd", "openbsd"] %}
  - growpart
