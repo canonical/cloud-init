@@ -201,7 +201,7 @@ def maybe_install_wireguard_tools(cloud: Cloud):
         raise
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, args: list):
+def handle(name: str, cfg: dict, cloud: Cloud, log: logging, args: list):
     LOG.debug("Starting clound-init module %s", name)
     wg_section = None
 
