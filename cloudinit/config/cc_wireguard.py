@@ -130,7 +130,7 @@ def enable_wg(wg_int: dict):
 def readinessprobe_command_validation(wg_section: dict):
     errors = []
     pos = 0
-    for c in wg_section[readinessprobe]:
+    for c in wg_section["readinessprobe"]:
         if not isinstance(c, str):
             errors.append(
                 f"Expected a string for readinessprobe at {pos}. Found {c}"
@@ -143,7 +143,7 @@ def readinessprobe_command_validation(wg_section: dict):
         )
 
 
-def readinessprobe(wg_section: dict, cloud: Cloud):
+def readinessprobe(wg_section: dict):
     errors = []
     for c in wg_section["readinessprobe"]:
         try:
@@ -207,13 +207,13 @@ def handle(name: str, cfg: dict, cloud: Cloud, args: list):
             # enable wg interfaces
             enable_wg(wg_int)
 
-        # parse and run readinessprobe paremeters
+        # parse and run readinessprobe parameters
         if (
             "readinessprobe" in wg_section
             and wg_section["readinessprobe"] is not None
         ):
             readinessprobe_command_validation(wg_section)
-            readinessprobe(wg_section, cloud)
+            readinessprobe(wg_section)
         else:
             LOG.debug("Skipping readinessprobe - no checks defined")
     except (RuntimeError, ValueError) as e:
