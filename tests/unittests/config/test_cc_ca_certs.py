@@ -424,9 +424,10 @@ class TestCACertsSchema:
             (
                 {"ca-certs": {"remove-defaults": True}},
                 "Cloud config schema deprecations: "
-                "ca-certs: DEPRECATED. Dropped in EOL Ubuntu bionic., "
+                "ca-certs: DEPRECATED. Dropped after April 2027. "
+                "Use ``ca_certs``., "
                 "ca-certs.remove-defaults: DEPRECATED. "
-                "Dropped in EOL Ubuntu bionic. Use ``remove_defaults``.",
+                "Dropped after April 2027. Use ``remove_defaults``.",
             ),
             # Invalid schemas
             (

@@ -64,7 +64,6 @@ SCHEMA_LIST_ITEM_TMPL = (
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 DEPRECATED_KEY = "deprecated"
-DEPRECATED_TIME_KEY = "deprecated.time"
 
 
 # annotations add value for development, but don't break old versions
@@ -158,13 +157,8 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecation_msg(
-    description: Optional[str] = None,
-    deprecated_time: Optional[str] = None,
-):
+def _add_deprecation_msg(description: Optional[str] = None):
     msg = "DEPRECATED."
-    if deprecated_time:
-        msg += f" Dropped in {deprecated_time}."
     if description:
         msg += f" {description}"
     return msg
@@ -183,9 +177,8 @@ def _validator_deprecated(
     otherwise the instance is consider faulty.
     """
     if deprecated:
-        deprecated_time = schema.get(DEPRECATED_TIME_KEY)
         description = schema.get("description")
-        msg = _add_deprecation_msg(description, deprecated_time)
+        msg = _add_deprecation_msg(description)
         yield error_type(msg)
 
 
@@ -260,32 +253,6 @@ def _oneOf(validator, oneOf, instance, _schema, error_type: Type[Exception]):
         yield from all_deprecations
 
 
-def _append_description(error, allOf, error_type):
-    if not isinstance(error, error_type):
-        return
-    description = ""
-    for sub_schema in allOf:
-        desc = sub_schema.get("description")
-        if desc:
-            description = desc
-            break
-    else:
-        return
-    if description not in error.message:
-        error.message = " ".join((error.message, description))
-
-
-def _allOf(validator, allOf, instance, _schema, error_type: Type[Exception]):
-    """Jsonschema validator for `allOf`.
-
-    It appends the description to the error if found in a parallel sub-schema.
-    """
-    for index, subschema in enumerate(allOf):
-        for error in validator.descend(instance, subschema, schema_path=index):
-            _append_description(error, allOf, error_type)
-            yield error
-
-
 class SchemaDeprecationError(ValidationError):
     pass
 
@@ -339,7 +306,6 @@ def get_jsonschema_validator():
     )
     validators["oneOf"] = partial(_oneOf, error_type=SchemaDeprecationError)
     validators["anyOf"] = partial(_anyOf, error_type=SchemaDeprecationError)
-    validators["allOf"] = partial(_allOf, error_type=SchemaDeprecationError)
 
     cloudinitValidator = create(
         meta_schema=strict_metaschema,
@@ -863,10 +829,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
             deprecated = bool(prop_config.get(DEPRECATED_KEY))
             description = prop_config.get("description", "")
             if deprecated:
-                deprecated_time = prop_config.get(DEPRECATED_TIME_KEY)
-                description = _add_deprecation_msg(
-                    description, deprecated_time
-                )
+                description = _add_deprecation_msg(description)
             if description:
                 description = " " + description
 

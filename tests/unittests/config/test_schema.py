@@ -398,7 +398,7 @@ class TestValidateCloudConfigSchema:
                             "deprecated": True,
                             "description": "<desc>",
                         },
-                        "a_b": {"type": "string"},
+                        "a_b": {"type": "string", "description": "noop"},
                     },
                 },
                 {"a-b": "asdf"},
@@ -408,9 +408,9 @@ class TestValidateCloudConfigSchema:
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
-                        "delay": {
+                        "x": {
                             "oneOf": [
-                                {"type": "integer"},
+                                {"type": "integer", "description": "noop"},
                                 {
                                     "type": "string",
                                     "deprecated": True,
@@ -420,16 +420,16 @@ class TestValidateCloudConfigSchema:
                         },
                     },
                 },
-                {"delay": "+5"},
-                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
-                        "delay": {
+                        "x": {
                             "allOf": [
-                                {"type": "string"},
+                                {"type": "string", "description": "noop"},
                                 {
                                     "deprecated": True,
                                     "description": "<desc>",
@@ -438,16 +438,16 @@ class TestValidateCloudConfigSchema:
                         },
                     },
                 },
-                {"delay": "5"},
-                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
-                        "delay": {
+                        "x": {
                             "anyOf": [
-                                {"type": "integer"},
+                                {"type": "integer", "description": "noop"},
                                 {
                                     "type": "string",
                                     "deprecated": True,
@@ -457,72 +457,80 @@ class TestValidateCloudConfigSchema:
                         },
                     },
                 },
-                {"delay": "5"},
-                "Deprecated cloud-config provided:\ndelay: DEPRECATED. <desc>",
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
-                        "delay": {
+                        "x": {
                             "type": "string",
                             "deprecated": True,
-                            "deprecated.time": "<time>",
                             "description": "<desc>",
                         },
                     },
                 },
-                {"delay": "+5"},
-                "Deprecated cloud-config provided:\ndelay: "
-                "DEPRECATED. Dropped in <time>. <desc>",
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "type": "string",
+                            "deprecated": False,
+                            "description": "<desc>",
+                        },
+                    },
+                },
+                {"x": "+5"},
+                None,
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "$defs": {
-                        "eol_bionic": {
+                        "my_ref": {
                             "deprecated": True,
-                            "deprecated.time": "<time>",
                             "description": "<desc>",
                         }
                     },
                     "properties": {
-                        "delay": {
+                        "x": {
                             "allOf": [
-                                {"type": "string"},
-                                {"$ref": "#/$defs/eol_bionic"},
+                                {"type": "string", "description": "noop"},
+                                {"$ref": "#/$defs/my_ref"},
                             ]
                         },
                     },
                 },
-                {"delay": "+5"},
-                "Deprecated cloud-config provided:\ndelay: "
-                "DEPRECATED. Dropped in <time>. <desc>",
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "$defs": {
-                        "eol_bionic": {
+                        "my_ref": {
                             "deprecated": True,
-                            "deprecated.time": "<time>",
                         }
                     },
                     "properties": {
-                        "delay": {
+                        "x": {
                             "allOf": [
                                 {
                                     "type": "string",
-                                    "description": "<desc>",
+                                    "description": "noop",
                                 },
-                                {"$ref": "#/$defs/eol_bionic"},
+                                {"$ref": "#/$defs/my_ref"},
                             ]
                         },
                     },
                 },
-                {"delay": "+5"},
-                "Deprecated cloud-config provided:\ndelay: "
-                "DEPRECATED. Dropped in <time>. <desc>",
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED.",
             ),
         ],
     )
@@ -535,6 +543,8 @@ class TestValidateCloudConfigSchema:
             strict_metaschema=True,
             log_deprecations=log_deprecations,
         )
+        if expected_msg is None:
+            return
         log_record = (M_PATH[:-1], logging.WARNING, expected_msg)
         if log_deprecations:
             assert log_record == caplog.record_tuples[-1]
@@ -1039,24 +1049,15 @@ class TestSchemaDocMarkdown:
                             "type": ["string", "integer"],
                             "description": "<description>",
                             "deprecated": True,
-                            "deprecated.time": "EOL Ubuntu bionic",
                         },
                     },
                 },
-                (
-                    "**prop1:** (string/integer) DEPRECATED. "
-                    "Dropped in EOL Ubuntu bionic. <description>"
-                ),
+                ("**prop1:** (string/integer) DEPRECATED. <description>"),
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
-                    "$defs": {
-                        "eol_bionic": {
-                            "deprecated": True,
-                            "deprecated.time": "EOL Ubuntu bionic",
-                        }
-                    },
+                    "$defs": {"eol_bionic": {"deprecated": True}},
                     "properties": {
                         "prop1": {
                             "allOf": [
@@ -1069,10 +1070,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                (
-                    "**prop1:** (string/integer) DEPRECATED. "
-                    "Dropped in EOL Ubuntu bionic. <description>"
-                ),
+                ("**prop1:** (string/integer) DEPRECATED. <description>"),
             ),
             (
                 {
@@ -1080,7 +1078,6 @@ class TestSchemaDocMarkdown:
                     "$defs": {
                         "eol_bionic": {
                             "deprecated": True,
-                            "deprecated.time": "EOL Ubuntu bionic",
                             "description": "<description>",
                         }
                     },
@@ -1093,10 +1090,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                (
-                    "**prop1:** (string/integer) DEPRECATED. "
-                    "Dropped in EOL Ubuntu bionic. <description>"
-                ),
+                ("**prop1:** (string/integer) DEPRECATED. <description>"),
             ),
         ],
     )
@@ -1456,9 +1450,9 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true		# D3
 
                     # Deprecations: -------------
-                    # D1: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``
-                    # D2: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
-                    # D3: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``
+                    # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
+                    # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+                    # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
                     Valid cloud-config: {}
@@ -1470,9 +1464,9 @@ class TestHandleSchemaArgs:
                 dedent(
                     """\
                     Cloud config schema deprecations: \
-apt_reboot_if_required: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``, \
-apt_update: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``, \
-apt_upgrade: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
+apt_reboot_if_required: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
+apt_update: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``, \
+apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
                     Valid cloud-config: {}
                     """  # noqa: E501
                 ),

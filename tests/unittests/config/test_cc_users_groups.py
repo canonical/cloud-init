@@ -332,7 +332,7 @@ class TestUsersGroupsSchema:
             (
                 {"users": [{"name": "bbsw", "lock-passwd": True}]},
                 "users.0.lock-passwd: DEPRECATED."
-                " Dropped in EOL Ubuntu bionic. Use ``lock_passwd``."
+                " Dropped after April 2027. Use ``lock_passwd``."
                 " Default: ``true``",
                 False,
             ),

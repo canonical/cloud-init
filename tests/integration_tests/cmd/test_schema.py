@@ -40,9 +40,9 @@ def test_schema_deprecations(client: IntegrationInstance):
         apt_reboot_if_required: false\t\t# D3
 
         # Deprecations: -------------
-        # D1: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_update``. Default: ``false``
-        # D2: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_upgrade``. Default: ``false``
-        # D3: DEPRECATED. Dropped in EOL Ubuntu bionic. Use ``package_reboot_if_required``. Default: ``false``
+        # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
+        # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+        # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
         Valid cloud-config: /root/user-data"""  # noqa: E501

@@ -1,10 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
-    "eol_bionic": {
-      "deprecated": true,
-      "deprecated.time": "EOL Ubuntu bionic"
-    },
     "users_groups.groups_by_groupname": {
       "additionalProperties": false,
       "patternProperties": {
@@ -75,14 +71,10 @@
           "type": "string"
         },
         "lock-passwd": {
-          "allOf": [
-            {
-              "default": true,
-              "description": "Use ``lock_passwd``. Default: ``true``",
-              "type": "boolean"
-            },
-            {"$ref": "#/$defs/eol_bionic"}
-          ]
+          "default": true,
+          "description": "Dropped after April 2027. Use ``lock_passwd``. Default: ``true``",
+          "type": "boolean",
+          "deprecated": true
         },
         "lock_passwd": {
           "default": true,
@@ -203,14 +195,10 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "allOf": [
-            {
-              "description": "Use ``remove_defaults``.",
-              "type": "boolean",
-              "default": false
-            },
-            {"$ref": "#/$defs/eol_bionic"}
-          ]
+          "description": "Dropped after April 2027. Use ``remove_defaults``.",
+          "type": "boolean",
+          "default": false,
+          "deprecated": true
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: false",
@@ -429,7 +417,10 @@
         "ca-certs": {
             "allOf": [
               {"$ref": "#/$defs/ca_certs.properties"},
-              {"$ref": "#/$defs/eol_bionic"}
+              {
+                "deprecated": true,
+                "description": "Dropped after April 2027. Use ``ca_certs``."
+              }
             ]
         }
       }
@@ -1283,34 +1274,22 @@
                 "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
             },
             "apt_update": {
-              "allOf": [
-                {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Use ``package_update``. Default: ``false``"
-                },
-                {"$ref": "#/$defs/eol_bionic"}
-              ]
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_update``. Default: ``false``",
+              "deprecated": true
             },
             "apt_upgrade": {
-              "allOf": [
-                {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Use ``package_upgrade``. Default: ``false``"
-                },
-                {"$ref": "#/$defs/eol_bionic"}
-              ]
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_upgrade``. Default: ``false``",
+              "deprecated": true
             },
             "apt_reboot_if_required": {
-              "allOf": [
-                {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Use ``package_reboot_if_required``. Default: ``false``"
-                },
-                {"$ref": "#/$defs/eol_bionic"}
-              ]
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``",
+              "deprecated": true
             }
         }
     },
