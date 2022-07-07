@@ -9,7 +9,9 @@ from cloudinit.net import network_state
 class TestNetDns:
     @mock.patch("cloudinit.net.network_state.get_interfaces_by_mac")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_system_mac_address_does_not_break_dns_parsing(self, by_mac_state, by_mac_init):
+    def test_system_mac_address_does_not_break_dns_parsing(
+            self, by_mac_state, by_mac_init
+    ):
         by_mac_state.return_value = {"00:11:22:33:44:55": "foobar"}
         by_mac_init.return_value = {"00:11:22:33:44:55": "foobar"}
         state = network_state.parse_net_config_data(
