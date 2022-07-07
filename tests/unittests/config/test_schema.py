@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+from collections import namedtuple
 from copy import copy, deepcopy
 from pathlib import Path
 from textwrap import dedent
@@ -27,6 +28,7 @@ from cloudinit.config.schema import (
     get_meta_doc,
     get_schema,
     get_schema_dir,
+    handle_schema_args,
     load_doc,
     main,
     validate_cloudconfig_file,
@@ -46,6 +48,8 @@ from tests.unittests.helpers import (
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
+
+M_PATH = "cloudinit.config.schema."
 
 
 def get_schemas() -> dict:
@@ -376,6 +380,37 @@ class TestValidateCloudConfigSchema:
             "Meta-schema validation failed, attempting to validate config"
             in caplog.text
         )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    def test_validateconfig_logs_deprecations(self, log_deprecations, caplog):
+        description = "DEPRECATED: Use foo_bar"
+        schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "properties": {
+                "foo-bar": {
+                    "type": "string",
+                    "deprecated": True,
+                    "description": description,
+                },
+                "foo_bar": {"type": "string"},
+            },
+        }
+        validate_cloudconfig_schema(
+            {"foo-bar": "asdf"},
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        log_record = (
+            M_PATH[:-1],
+            logging.WARNING,
+            f"Deprecated cloud-config provided:\nfoo-bar: {description}",
+        )
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
 
 
 class TestCloudConfigExamples:
@@ -1175,3 +1210,31 @@ class TestSchemaFuzz:
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):
         validate_cloudconfig_schema(config, strict=True)
+
+
+class TestHandleSchemaArgs:
+
+    Args = namedtuple("Args", "config_file docs system annotate")
+
+    def test_handle_schema_args(self, tmpdir):
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true
+                    apt_upgrade: true
+                    apt_reboot_if_required: true
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=False,
+            docs=None,
+            system=None,
+        )
+        handle_schema_args("unused", args)
