@@ -1428,7 +1428,11 @@ class TestSchemaFuzz:
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):
-        validate_cloudconfig_schema(config, strict=True)
+        try:
+            validate_cloudconfig_schema(config, strict=True)
+        except SchemaValidationError as ex:
+            if ex.has_errors():
+                raise
 
 
 class TestHandleSchemaArgs:
@@ -1436,10 +1440,10 @@ class TestHandleSchemaArgs:
     Args = namedtuple("Args", "config_file docs system annotate")
 
     @pytest.mark.parametrize(
-        "args, expected_output",
+        "annotate, expected_output",
         [
             (
-                dict(annotate=True, docs=None, system=None),
+                True,
                 dedent(
                     """\
                     #cloud-config
@@ -1460,7 +1464,7 @@ class TestHandleSchemaArgs:
                 ),
             ),
             (
-                dict(annotate=False, docs=None, system=None),
+                False,
                 dedent(
                     """\
                     Cloud config schema deprecations: \
@@ -1474,7 +1478,7 @@ apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Defa
         ],
     )
     def test_handle_schema_args_annotate_deprecated_config(
-        self, args, expected_output, caplog, capsys, tmpdir
+        self, annotate, expected_output, caplog, capsys, tmpdir
     ):
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
@@ -1490,7 +1494,12 @@ apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Defa
                     """
                 )
             )
-        args = self.Args(config_file=str(user_data_fn), **args)
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=annotate,
+            docs=None,
+            system=None,
+        )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
         assert expected_output.format(user_data_fn) == out
