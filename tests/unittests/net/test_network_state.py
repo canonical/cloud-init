@@ -99,7 +99,8 @@ class TestNetworkStateParseConfig(CiTestCase):
 
 
 class TestNetworkStateParseConfigV2(CiTestCase):
-    def test_version_2_ignores_renderer_key(self):
+    @mock.patch("cloudinit.net.network_state.get_interfaces_by_mac")
+    def test_version_2_ignores_renderer_key(self, m_subp):
         ncfg = {"version": 2, "renderer": "networkd", "ethernets": {}}
         nsi = network_state.NetworkStateInterpreter(
             version=ncfg["version"], config=ncfg
@@ -110,8 +111,9 @@ class TestNetworkStateParseConfigV2(CiTestCase):
 
 class TestNetworkStateParseNameservers:
     def _parse_network_state_from_config(self, config):
-        yaml = safeyaml.load(config)
-        return network_state.parse_net_config_data(yaml["network"])
+        with mock.patch("cloudinit.net.network_state.get_interfaces_by_mac"):
+            yaml = safeyaml.load(config)
+            return network_state.parse_net_config_data(yaml["network"])
 
     def test_v1_nameservers_valid(self):
         config = self._parse_network_state_from_config(
@@ -136,7 +138,9 @@ class TestNetworkStateParseNameservers:
                 V1_CONFIG_NAMESERVERS_INVALID
             )
 
-    def test_v2_nameservers(self):
+    @mock.patch("cloudinit.net.network_state.get_interfaces_by_mac")
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_v2_nameservers(self, *_):
         config = self._parse_network_state_from_config(V2_CONFIG_NAMESERVERS)
 
         # Ensure DNS defined on interface exists on interface
