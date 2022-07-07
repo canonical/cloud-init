@@ -1122,8 +1122,8 @@ class OvfEnvXml:
         self,
         node,
         name: str,
+        required: bool,
         namespace: str = "wa",
-        error_if_missing: bool = True,
     ):
         matches = node.findall(
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
@@ -1131,7 +1131,7 @@ class OvfEnvXml:
         if len(matches) == 0:
             msg = "No ovf-env.xml configuration for %r" % name
             LOG.debug(msg)
-            if error_if_missing:
+            if required:
                 raise BrokenAzureDataSource(msg)
             return None
         elif len(matches) > 1:
@@ -1146,8 +1146,8 @@ class OvfEnvXml:
         self,
         node,
         name: str,
+        required: bool,
         decode_base64: bool = False,
-        error_if_missing: bool = False,
         parse_bool: bool = False,
         default=None,
     ):
@@ -1155,7 +1155,7 @@ class OvfEnvXml:
         if len(matches) == 0:
             msg = "No ovf-env.xml configuration for %r" % name
             LOG.debug(msg)
-            if error_if_missing:
+            if required:
                 raise BrokenAzureDataSource(msg)
             return default
         elif len(matches) > 1:
@@ -1179,34 +1179,45 @@ class OvfEnvXml:
         return value
 
     def _parse_linux_configuration_set_section(self, root):
-        provisioning_section = self._find(root, "ProvisioningSection")
+        provisioning_section = self._find(
+            root, "ProvisioningSection", required=True
+        )
         config_set = self._find(
             provisioning_section,
             "LinuxProvisioningConfigurationSet",
+            required=True,
         )
 
         self.custom_data = self._parse_property(
-            config_set, "CustomData", decode_base64=True
+            config_set,
+            "CustomData",
+            decode_base64=True,
+            required=False,
         )
         self.username = self._parse_property(
-            config_set, "UserName", error_if_missing=True
+            config_set, "UserName", required=True
         )
-        self.password = self._parse_property(config_set, "UserPassword")
+        self.password = self._parse_property(
+            config_set, "UserPassword", required=False
+        )
         self.hostname = self._parse_property(
-            config_set, "HostName", error_if_missing=True
+            config_set, "HostName", required=True
         )
         self.disable_ssh_password_auth = self._parse_property(
             config_set,
             "DisableSshPasswordAuthentication",
             parse_bool=True,
+            required=False,
         )
 
         self._parse_ssh_section(config_set)
 
     def _parse_platform_settings_section(self, root):
-        platform_settings_section = self._find(root, "PlatformSettingsSection")
+        platform_settings_section = self._find(
+            root, "PlatformSettingsSection", required=True
+        )
         platform_settings = self._find(
-            platform_settings_section, "PlatformSettings"
+            platform_settings_section, "PlatformSettings", required=True
         )
 
         self.preprovisioned_vm = self._parse_property(
@@ -1214,20 +1225,23 @@ class OvfEnvXml:
             "PreprovisionedVm",
             parse_bool=True,
             default=False,
+            required=False,
         )
         self.preprovisioned_vm_type = self._parse_property(
-            platform_settings, "PreprovisionedVMType"
+            platform_settings,
+            "PreprovisionedVMType",
+            required=False,
         )
 
     def _parse_ssh_section(self, config_set):
         self.public_keys = []
 
-        ssh_section = self._find(config_set, "SSH", error_if_missing=False)
+        ssh_section = self._find(config_set, "SSH", required=False)
         if ssh_section is None:
             return
 
         public_keys_section = self._find(
-            ssh_section, "PublicKeys", error_if_missing=False
+            ssh_section, "PublicKeys", required=False
         )
         if public_keys_section is None:
             return
@@ -1235,9 +1249,13 @@ class OvfEnvXml:
         for public_key in public_keys_section.findall(
             "./wa:PublicKey", OvfEnvXml.NAMESPACES
         ):
-            fingerprint = self._parse_property(public_key, "Fingerprint")
-            path = self._parse_property(public_key, "Path")
-            value = self._parse_property(public_key, "Value", default="")
+            fingerprint = self._parse_property(
+                public_key, "Fingerprint", required=False
+            )
+            path = self._parse_property(public_key, "Path", required=False)
+            value = self._parse_property(
+                public_key, "Value", default="", required=False
+            )
             ssh_key = {
                 "fingerprint": fingerprint,
                 "path": path,
