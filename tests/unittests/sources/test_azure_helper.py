@@ -14,6 +14,8 @@ from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
+from .test_azure import construct_ovf_env
+
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
 <GoalState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -1412,6 +1414,261 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         self.m_shim.assert_called_once_with(
             endpoint="test_endpoint",
         )
+
+
+class TestOvfEnvXml:
+    @pytest.mark.parametrize(
+        "ovf,expected",
+        [
+            # Defaults for construct_ovf_env() with explicit OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=None,
+                    disable_ssh_password_auth=None,
+                    public_keys=[],
+                    preprovisioned_vm=False,
+                    preprovisioned_vm_type=None,
+                ),
+            ),
+            # Defaults for construct_ovf_env() with default OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host"
+                ),
+            ),
+            # Username.
+            (
+                construct_ovf_env(username="other-user"),
+                azure_helper.OvfEnvXml(
+                    username="other-user", hostname="test-host"
+                ),
+            ),
+            # Password.
+            (
+                construct_ovf_env(password="test-password"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="test-password",
+                ),
+            ),
+            # Hostname.
+            (
+                construct_ovf_env(hostname="other-host"),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="other-host"
+                ),
+            ),
+            # Empty public keys.
+            (
+                construct_ovf_env(public_keys=[]),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host", public_keys=[]
+                ),
+            ),
+            # One public key.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ],
+                ),
+            ),
+            # Two public keys.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ],
+                ),
+            ),
+            # Custom data.
+            (
+                construct_ovf_env(custom_data="foo"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=b"foo",
+                ),
+            ),
+            # Disable ssh password auth.
+            (
+                construct_ovf_env(disable_ssh_password_auth=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    disable_ssh_password_auth=True,
+                ),
+            ),
+            # Preprovisioned vm.
+            (
+                construct_ovf_env(preprovisioned_vm=False),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=False,
+                ),
+            ),
+            (
+                construct_ovf_env(preprovisioned_vm=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=True,
+                ),
+            ),
+            # Preprovisioned vm type.
+            (
+                construct_ovf_env(preprovisioned_vm_type="testpps"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm_type="testpps",
+                ),
+            ),
+        ],
+    )
+    def test_valid_ovf_scenarios(self, ovf, expected):
+        assert azure_helper.OvfEnvXml.parse_text(ovf) == expected
+
+    @pytest.mark.parametrize(
+        "ovf,error",
+        [
+            (
+                construct_ovf_env(username=None),
+                "No ovf-env.xml configuration for 'UserName'",
+            ),
+            (
+                construct_ovf_env(hostname=None),
+                "No ovf-env.xml configuration for 'HostName'",
+            ),
+        ],
+    )
+    def test_missing_required_fields(self, ovf, error):
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert str(exc_info.value) == error
+
+    def test_multiple_sections_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:ProvisioningSection>
+            </ns1:ProvisioningSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Multiple configuration matches in ovf-exml.xml "
+            "for 'ProvisioningSection' (2)"
+        )
+
+    def test_multiple_properties_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            <ns1:HostName>test-host</ns1:HostName>
+            <ns1:HostName>test-host2</ns1:HostName>
+            <ns1:UserName>test-user</ns1:UserName>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+            </ns1:PlatformSettings>
+            </ns1:PlatformSettingsSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Multiple configuration matches in ovf-exml.xml "
+            "for 'HostName' (2)"
+        )
+
+    def test_non_azure_ovf(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.NonAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
+        )
+
+    @pytest.mark.parametrize(
+        "ovf,error",
+        [
+            ("", "Invalid ovf-env.xml: no element found: line 1, column 0"),
+            (
+                "<!!!!>",
+                "Invalid ovf-env.xml: not well-formed (invalid token): "
+                "line 1, column 2",
+            ),
+            ("badxml", "Invalid ovf-env.xml: syntax error: line 1, column 0"),
+        ],
+    )
+    def test_invalid_xml(self, ovf, error):
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert str(exc_info.value) == error
 
 
 # vi: ts=4 expandtab
