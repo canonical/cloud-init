@@ -45,7 +45,7 @@ meta: MetaSchema = {
             Endpoint = <endpoint_ip>:<endpoint_ip_port>
             AllowedIPs = <allowedip1>, <allowedip2>, ...
         - name: wg1
-          config_path: /opt/etc/wireguard/wg1.conf
+          config_path: /etc/wireguard/wg1.conf
           content: |
             [Interface]
             PrivateKey = <private_key>
