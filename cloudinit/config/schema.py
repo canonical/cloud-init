@@ -85,6 +85,10 @@ else:
 # pylint: enable=E1101
 
 
+class SchemaDeprecationError(ValidationError):
+    pass
+
+
 class SchemaProblem(NamedTuple):
     path: str
     message: str
@@ -169,7 +173,7 @@ def _validator_deprecated(
     deprecated: bool,
     _instance,
     schema: dict,
-    error_type: Type[Exception],
+    error_type: Type[Exception] = SchemaDeprecationError,
 ):
     """Jsonschema validator for `deprecated` items.
 
@@ -182,7 +186,13 @@ def _validator_deprecated(
         yield error_type(msg)
 
 
-def _anyOf(validator, anyOf, instance, _schema, error_type: Type[Exception]):
+def _anyOf(
+    validator,
+    anyOf,
+    instance,
+    _schema,
+    error_type: Type[Exception] = SchemaDeprecationError,
+):
     """Jsonschema validator for `anyOf`.
 
     It treats occurrences of `error_type` as non-errors, but yield them for
@@ -212,7 +222,13 @@ def _anyOf(validator, anyOf, instance, _schema, error_type: Type[Exception]):
     yield from all_deprecations
 
 
-def _oneOf(validator, oneOf, instance, _schema, error_type: Type[Exception]):
+def _oneOf(
+    validator,
+    oneOf,
+    instance,
+    _schema,
+    error_type: Type[Exception] = SchemaDeprecationError,
+):
     """Jsonschema validator for `oneOf`.
 
     It treats occurrences of `error_type` as non-errors, but yield them for
@@ -251,10 +267,6 @@ def _oneOf(validator, oneOf, instance, _schema, error_type: Type[Exception]):
         )
     else:
         yield from all_deprecations
-
-
-class SchemaDeprecationError(ValidationError):
-    pass
 
 
 def get_jsonschema_validator():
@@ -301,11 +313,9 @@ def get_jsonschema_validator():
 
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
-    validators[DEPRECATED_KEY] = partial(
-        _validator_deprecated, error_type=SchemaDeprecationError
-    )
-    validators["oneOf"] = partial(_oneOf, error_type=SchemaDeprecationError)
-    validators["anyOf"] = partial(_anyOf, error_type=SchemaDeprecationError)
+    validators[DEPRECATED_KEY] = _validator_deprecated
+    validators["oneOf"] = _oneOf
+    validators["anyOf"] = _anyOf
 
     cloudinitValidator = create(
         meta_schema=strict_metaschema,

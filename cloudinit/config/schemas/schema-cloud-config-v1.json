@@ -1352,7 +1352,8 @@
                 {
                     "type": "string",
                     "pattern": "^\\+?[0-9]+$",
-                    "deprecated": true
+                    "deprecated": true,
+                    "description": "Dropped after April 2027. Use ``now`` or integer type."
                 },
                 {"enum": ["now"]}
               ]

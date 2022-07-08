@@ -10,7 +10,6 @@ import pytest
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -26,7 +25,7 @@ users:
     gecos: Foo B. Bar
     primary_group: foobar
     groups: users
-    expiredate: "2038-01-19"
+    expiredate: 2038-01-19
     lock_passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYe\
 AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
@@ -34,14 +33,14 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     gecos: Bar B. Foo
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: [cloud-users, secret]
-    lock-passwd: true
+    lock_passwd: true
   - name: cloudy
     gecos: Magic Cloud App Daemon User
     system: true
   - name: eric
     uid: 1742
   - name: archivist
-    uid: 1743
+    uid: '1743'
 """
 
 
@@ -94,18 +93,6 @@ class TestUsersGroups:
                 " ".join(getent_args), result.stdout, regex
             )
         )
-
-    def test_user_groups_no_errors_on_deprecated_keys(
-        self, client: IntegrationInstance
-    ):
-        """Expect no schema warnings on userdata even with deprecated keys.
-
-        lock-passwd is a schema-documented deprecation that must generate
-        warnings.
-        """
-        log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log, ignore_deprecations=True)
-        assert "WARNING]: Deprecated cloud-config provided:" in log
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""

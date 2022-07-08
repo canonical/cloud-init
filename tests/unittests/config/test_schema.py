@@ -532,6 +532,20 @@ class TestValidateCloudConfigSchema:
                 {"x": "+5"},
                 "Deprecated cloud-config provided:\nx: DEPRECATED.",
             ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                            "description": "<desc>",
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+            ),
         ],
     )
     def test_validateconfig_logs_deprecations(
@@ -1052,12 +1066,12 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                ("**prop1:** (string/integer) DEPRECATED. <description>"),
+                "**prop1:** (string/integer) DEPRECATED. <description>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
-                    "$defs": {"eol_bionic": {"deprecated": True}},
+                    "$defs": {"my_ref": {"deprecated": True}},
                     "properties": {
                         "prop1": {
                             "allOf": [
@@ -1065,18 +1079,18 @@ class TestSchemaDocMarkdown:
                                     "type": ["string", "integer"],
                                     "description": "<description>",
                                 },
-                                {"$ref": "#/$defs/eol_bionic"},
+                                {"$ref": "#/$defs/my_ref"},
                             ]
                         }
                     },
                 },
-                ("**prop1:** (string/integer) DEPRECATED. <description>"),
+                "**prop1:** (string/integer) DEPRECATED. <description>",
             ),
             (
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "$defs": {
-                        "eol_bionic": {
+                        "my_ref": {
                             "deprecated": True,
                             "description": "<description>",
                         }
@@ -1085,12 +1099,51 @@ class TestSchemaDocMarkdown:
                         "prop1": {
                             "allOf": [
                                 {"type": ["string", "integer"]},
-                                {"$ref": "#/$defs/eol_bionic"},
+                                {"$ref": "#/$defs/my_ref"},
                             ]
                         }
                     },
                 },
-                ("**prop1:** (string/integer) DEPRECATED. <description>"),
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "description": "<description>",
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                            ],
+                        },
+                    },
+                },
+                "**prop1:** (UNDEFINED) <description>\n",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "number",
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (UNDEFINED)\n",
             ),
         ],
     )

@@ -385,6 +385,15 @@ class TestUsersGroupsSchema:
                 None,
                 False,
             ),
+            (
+                {"user": {"name": "aciba", "groups": {"sbuild": None}}},
+                (
+                    "deprecations: user.groups.sbuild: DEPRECATED. "
+                    "When providing an object for users.groups the "
+                    "``<group_name>`` keys are the groups to add this user to"
+                ),
+                False,
+            ),
         ],
     )
     @skipUnlessJsonSchema()
