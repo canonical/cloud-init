@@ -8,6 +8,7 @@ from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua,
     handle,
     maybe_install_ua_tools,
+    supplemental_schema_validation,
 )
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -172,6 +173,56 @@ class TestConfigureUA(CiTestCase):
             self.logs.getvalue(),
         )
 
+    @mock.patch("%s.subp.subp" % MPATH)
+    def test_configure_ua_config_with_weird_params(self, m_subp):
+        """When configs not string or list, warn but still attach"""
+        configure_ua(
+            token="SomeToken", config=["http_proxy=http://some-proxy.net:3128"]
+        )
+        self.assertEqual(
+            m_subp.call_args_list, [mock.call(["ua", "attach", "SomeToken"])]
+        )
+        self.assertEqual(
+            "WARNING: ubuntu_advantage: config should be a dict, not a"
+            " list; skipping enabling config parameters\n"
+            "DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("%s.subp.subp" % MPATH)
+    def test_configure_ua_config_error_invalid_url(self, m_subp):
+        """Errors from ua config command are raised."""
+        m_subp.side_effect = subp.ProcessExecutionError(
+            'Failure enabling "http_proxy"'
+        )
+        with self.assertRaises(RuntimeError) as context_manager:
+            configure_ua(
+                token="SomeToken", config={"http_proxy": "not-a-valid-url"}
+            )
+        self.assertEqual(
+            'Failure enabling Ubuntu Advantage config(s): "http_proxy"',
+            str(context_manager.exception),
+        )
+
+    def test_configure_ua_config_error_non_string_values(self):
+        """ValueError raised for any values expected as string type."""
+        cfg = {
+            "global_apt_http_proxy": "noscheme",
+            "http_proxy": ["no-proxy"],
+            "https_proxy": 1,
+        }
+        errors = [
+            "Expected URL scheme http/https for"
+            " ua:config:global_apt_http_proxy. Found: noscheme",
+            "Expected a URL for ua:config:http_proxy. Found: ['no-proxy']",
+            "Expected a URL for ua:config:https_proxy. Found: 1",
+        ]
+        with self.assertRaises(ValueError) as context_manager:
+            supplemental_schema_validation(cfg)
+        error_msg = str(context_manager.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
+
 
 class TestUbuntuAdvantageSchema:
     @pytest.mark.parametrize(
@@ -236,7 +287,9 @@ class TestHandle(CiTestCase):
         """All ubuntu_advantage config keys are passed to configure_ua."""
         cfg = {"ubuntu_advantage": {"token": "token", "enable": ["esm"]}}
         handle("nomatter", cfg=cfg, cloud=None, log=self.logger, args=None)
-        m_configure_ua.assert_called_once_with(token="token", enable=["esm"])
+        m_configure_ua.assert_called_once_with(
+            token="token", enable=["esm"], config=None
+        )
 
     @mock.patch("%s.maybe_install_ua_tools" % MPATH, mock.MagicMock())
     @mock.patch("%s.configure_ua" % MPATH)
@@ -252,7 +305,9 @@ class TestHandle(CiTestCase):
             " will attempt to continue.",
             self.logs.getvalue().splitlines()[0],
         )
-        m_configure_ua.assert_called_once_with(token="token", enable=["esm"])
+        m_configure_ua.assert_called_once_with(
+            token="token", enable=["esm"], config=None
+        )
 
     def test_handle_error_on_deprecated_commands_key_dashed(self):
         """Error when commands is present in ubuntu-advantage key."""
@@ -291,7 +346,9 @@ class TestHandle(CiTestCase):
             " will attempt to continue.",
             self.logs.getvalue().splitlines()[0],
         )
-        m_configure_ua.assert_called_once_with(token="token", enable=["esm"])
+        m_configure_ua.assert_called_once_with(
+            token="token", enable=["esm"], config=None
+        )
 
 
 class TestMaybeInstallUATools(CiTestCase):
