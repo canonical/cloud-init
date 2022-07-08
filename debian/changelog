@@ -1,8 +1,21 @@
 cloud-init (22.2-0ubuntu1~20.04.2) UNRELEASED; urgency=medium
 
-  * d/control: add python3-debconf to Depends and Build-Depends
+  * d/control:
+    - add python3-debconf to Depends and Build-Depends
+    - Build-Depends: bump debhelper-compat to v10
+  * d/control: lintian fixes:
+    + upgrade debhelper-compat to 10 and move it to d/control
+    + d/compat: removed in favor of d/control
+  * d/cloud-init.postinst: lintian fixes:
+    + Disable uses-dpkg-database-directly on legit use of it in
+      distros/debian.py
+  * d/cloud-init.postinst: lintian fixes:
+    + Fix command-with-path-in-maintainer-script for grub-install
+  * d/source/lintian-overrides: lintian fixes:
+    + silence binary-nmu-debian-revision-in-source bug:
+      https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 20 Jun 2022 11:18:53 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 08 Jul 2022 12:47:16 +0200
 
 cloud-init (22.2-0ubuntu1~20.04.1) focal; urgency=medium
 
