@@ -1,0 +1,2 @@
+# Silence lintian bug: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
+cloud-init source: binary-nmu-debian-revision-in-source
