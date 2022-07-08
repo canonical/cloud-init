@@ -1,8 +1,15 @@
 cloud-init (22.2-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
+  * d/cloud-init.lintian-overrides: lintian fixes:
+    + Fix systemd-service-file-refers-to-unusual-wantedby-target format.
+  * d/cloud-init.postinst: lintian fixes:
+    + Fix command-with-path-in-maintainer-script for grub-install.
+  * d/source/lintian-overrides: lintian fixes:
+    + silence binary-nmu-debian-revision-in-source bug:
+      https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 20 Jun 2022 11:09:32 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 08 Jul 2022 13:04:32 +0200
 
 cloud-init (22.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
