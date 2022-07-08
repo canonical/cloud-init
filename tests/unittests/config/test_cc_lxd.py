@@ -292,6 +292,15 @@ class TestLXDSchema:
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
             ({"lxd": {}}, "does not have enough properties"),
+            # No additionalProperties
+            (
+                {"lxd": {"init": {"invalid": None}}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"lxd": {"bridge": {"mode": None, "garbage": None}}},
+                "Additional properties are not allowed",
+            ),
         ],
     )
     @t_help.skipUnlessJsonSchema()
