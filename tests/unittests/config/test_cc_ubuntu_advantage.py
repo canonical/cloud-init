@@ -206,10 +206,16 @@ class TestConfigureUA(CiTestCase):
 
     def test_configure_ua_config_error_non_string_values(self):
         """ValueError raised for any values expected as string type."""
-        cfg = {"http_proxy": ["no-proxy"], "https_proxy": ["no-proxy2"]}
+        cfg = {
+            "global_apt_http_proxy": "noscheme",
+            "http_proxy": ["no-proxy"],
+            "https_proxy": 1,
+        }
         errors = [
-            "Expected a url for ua:config:http_proxy. Found: ['no-proxy']",
-            "Expected a url for ua:config:https_proxy. Found: ['no-proxy2']",
+            "Expected URL scheme http/https for"
+            " ua:config:global_apt_http_proxy. Found: noscheme",
+            "Expected a URL for ua:config:http_proxy. Found: ['no-proxy']",
+            "Expected a URL for ua:config:https_proxy. Found: 1",
         ]
         with self.assertRaises(ValueError) as context_manager:
             supplemental_schema_validation(cfg)

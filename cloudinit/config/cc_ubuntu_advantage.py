@@ -2,7 +2,9 @@
 
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
+import re
 from textwrap import dedent
+from urllib.parse import urlparse
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -108,18 +110,26 @@ def supplemental_schema_validation(ua_config):
     errors = []
     nl = "\n"
     for key, value in sorted(ua_config.items()):
-        if (
-            key == "http_proxy"
-            or key == "https_proxy"
-            or key == "global_apt_http_proxy"
-            or key == "global_apt_https_proxy"
-            or key == "ua_apt_http_proxy"
-            or key == "ua_apt_https_proxy"
+        if key in (
+            "http_proxy",
+            "https_proxy",
+            "global_apt_http_proxy",
+            "global_apt_https_proxy",
+            "ua_apt_http_proxy",
+            "ua_apt_https_proxy",
         ):
-            if not isinstance(value, str):
+            try:
+                parsed_url = urlparse(value)
+                if parsed_url.scheme not in ("http", "https"):
+                    errors.append(
+                        f"Expected URL scheme http/https for ua:config:{key}."
+                        f" Found: {value}"
+                    )
+            except (AttributeError, ValueError):
                 errors.append(
-                    f"Expected a url for ua:config:{key}. Found: {value}"
+                    f"Expected a URL for ua:config:{key}. Found: {value}"
                 )
+
     if errors:
         raise ValueError(
             f"Invalid ubuntu_advantage configuration:{nl}{nl.join(errors)}"
@@ -169,7 +179,11 @@ def configure_ua(token=None, enable=None, config=None):
             config_cmd = ["ua", "config", "unset", key]
         else:
             LOG.debug("Setting UA config %s=%s", key, value)
-            config_cmd = ["ua", "config", "set", f"{key}='{value}'"]
+            if re.search(r"\s", value):
+                key_value = f"{key}={re.escape(value)}"
+            else:
+                key_value = f"{key}={value}"
+            config_cmd = ["ua", "config", "set", key_value]
 
         try:
             subp.subp(config_cmd)
@@ -178,16 +192,16 @@ def configure_ua(token=None, enable=None, config=None):
 
     if enable_errors:
         for param, error in enable_errors:
-            msg = 'Failure enabling "{param}":\n{error}'.format(
-                param=param, error=str(error)
+            LOG.warning(
+                'Failure enabling "{param}":\n{error}'.format(
+                    param=param, error=str(error)
+                )
             )
-            util.logexc(LOG, msg)
         raise RuntimeError(
             "Failure enabling Ubuntu Advantage config(s): {}".format(
                 ", ".join('"{}"'.format(param) for param, _ in enable_errors)
             )
         )
-    enable_errors = []
     attach_cmd = ["ua", "attach", token]
     LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(attach_cmd))
     try:
