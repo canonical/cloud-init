@@ -192,11 +192,7 @@ def configure_ua(token=None, enable=None, config=None):
 
     if enable_errors:
         for param, error in enable_errors:
-            LOG.warning(
-                'Failure enabling "{param}":\n{error}'.format(
-                    param=param, error=str(error)
-                )
-            )
+            LOG.warning('Failure enabling "%s":\n%s', param, error)
         raise RuntimeError(
             "Failure enabling Ubuntu Advantage config(s): {}".format(
                 ", ".join('"{}"'.format(param) for param, _ in enable_errors)
