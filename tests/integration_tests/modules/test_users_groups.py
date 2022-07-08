@@ -36,6 +36,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     lock_passwd: true
   - name: cloudy
     gecos: Magic Cloud App Daemon User
+    inactive: true
     system: true
   - name: eric
     uid: 1742
