@@ -164,6 +164,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
+            {"$ref": "#/$defs/cc_autoinstall"},
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
