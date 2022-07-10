@@ -23,31 +23,29 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 System configuration:
 
-.. code-block:: yaml
-
-   disable_vmware_customization: true(disable) or false(enable) the vmware
-   customization. (default: true)
+``disable_vmware_customization``:
+true(disable) or false(enable) the vmware customization. (default: true)
 
 Datasource configuration:
 
-.. code-block:: yaml
-
-  allow_raw_data: true(enable) or false(disable) the vmware customization
-   using cloud-init metadata and userdata directly. Since vSphere 7.0 Update 3
-   version, user can create a Linux customizatino specification with barely
-   cloud-init metadata and userdata and apply this kind specification to a
-   virtual machine, this datasource will parse the metadata and userdata and
-   configure virtual machine with them. See `Guest Customization Using
-   cloud-init <https://developer.vmware.com/docs/14558/vsphere-web-services-sdk-programming-guide--7-0-update-3-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
-
-   vmware_cust_file_max_wait: the maximum amount of clock time in seconds
-   that should be spent waiting for vmware customization files. (default: 15)
+``allow_raw_data``:
+true(enable) or false(disable) the vmware customization using cloud-init
+metadata and userdata directly. Since vSphere 7.0 Update 3 version, user
+can create a Linux customizatino specification with barely cloud-init
+metadata and userdata and apply this kind specification to a virtual
+machine, this datasource will parse the metadata and userdata and
+configure virtual machine with them. See `Guest Customization Using
+cloud-init <https://developer.vmware.com/docs/14558/vsphere-web-services-sdk-programming-guide--7-0-update-3-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
+ 
+``vmware_cust_file_max_wait``:
+The maximum amount of clock time in seconds that should be spent waiting
+for vmware customization files. (default: 15)
 
 Configuration examples:
 
 1. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
-   below content will enable vmware customization, the maximum of waiting for
-   vmware customization file is set to 10 seconds:
+   below content will enable vmware customization, and set the maximum time of
+   waiting for vmware customization file to 10 seconds:
 
 .. code-block:: yaml
 
@@ -55,7 +53,6 @@ Configuration examples:
    datasource:
      VMware:
        vmware_cust_file_max_wait: 10
-
 
 2. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
    below content will enable vmware customization, but only try to apply a
@@ -81,15 +78,14 @@ the VMware Tools configuration options with command:
 The following VMware Tools configuration option affects this datasource's
 behavior when applying customization configuration with custom script:
 
-.. code-block:: yaml
+``[deploypkg] enable-custom-scripts``:
 
-   [deploypkg] enable-custom-scripts
-   If this option is absent in VMware Tools configuration, the custom script is
-   disabled by default for security reasons. Some VMware products could change
-   this default behavior (for example: enabled by default) via customization
-   specification settings.
+If this option is absent in VMware Tools configuration, the custom script is
+disabled by default for security reasons. Some VMware products could change
+this default behavior (for example: enabled by default) via customization
+specification settings.
 
-VMWare admin can refer to `customization configuration <https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py>`_ and set the customization specification settings.
+VMware admin can refer to `customization configuration <https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py>`_ and set the customization specification settings.
 
 For more information, see `VMware vSphere Product Documentation <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html>`_ and specific VMware Tools configuration options.
 
