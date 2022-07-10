@@ -23,25 +23,33 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 System configuration:
 
- * ``disable_vmware_customization``: true(disable) or false(enable) the vmware
+.. code-block:: yaml
+
+   disable_vmware_customization: true(disable) or false(enable) the vmware
    customization. (default: true)
 
 Datasource configuration:
- * ``allow_raw_data``: true(enable) or false(disable) the vmware customization
+
+.. code-block:: yaml
+
+  allow_raw_data: true(enable) or false(disable) the vmware customization
    using cloud-init metadata and userdata directly. Since vSphere 7.0 Update 3
    version, user can create a Linux customizatino specification with barely
    cloud-init metadata and userdata and apply this kind specification to a
    virtual machine, this datasource will parse the metadata and userdata and
    configure virtual machine with them. See `Guest Customization Using
    cloud-init <https://developer.vmware.com/docs/14558/vsphere-web-services-sdk-programming-guide--7-0-update-3-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
- * ``vmware_cust_file_max_wait``: the maximum amount of clock time in seconds
+
+   vmware_cust_file_max_wait: the maximum amount of clock time in seconds
    that should be spent waiting for vmware customization files. (default: 15)
 
 Configuration examples:
 
 1. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
    below content will enable vmware customization, the maximum of waiting for
-   vmware customization file is set to 10 seconds::
+   vmware customization file is set to 10 seconds:
+
+.. code-block:: yaml
 
    disable_vmware_customization: false
    datasource:
@@ -51,7 +59,9 @@ Configuration examples:
 
 2. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
    below content will enable vmware customization, but only try to apply a
-   traditional Linux guest customization configuration::
+   traditional Linux guest customization configuration:
+
+.. code-block:: yaml
 
    disable_vmware_customization: false
    datasource:
@@ -62,14 +72,18 @@ VMware Tools configuration:
 
 `VMware Tools <https://docs.vmware.com/en/VMware-Tools/index.html>`_ is required for this datasource configuration
 settings as well as vCloud and vSphere admin configuration. User could change
-the VMware Tools configuration options with command::
+the VMware Tools configuration options with command:
+
+.. code-block:: shell
 
     vmware-toolbox-cmd config set <section> <key> <value>
 
 The following VMware Tools configuration option affects this datasource's
 behavior when applying customization configuration with custom script:
 
- * ``[deploypkg] enable-custom-scripts``
+.. code-block:: yaml
+
+   [deploypkg] enable-custom-scripts
    If this option is absent in VMware Tools configuration, the custom script is
    disabled by default for security reasons. Some VMware products could change
    this default behavior (for example: enabled by default) via customization
