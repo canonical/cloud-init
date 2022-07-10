@@ -927,7 +927,7 @@ dscheck_UpCloud() {
     return ${DS_NOT_FOUND}
 }
 
-ovf_vmware_guest_customization() {
+vmware_guest_customization() {
     # vmware guest customization
 
     # virt provider must be vmware
@@ -1040,8 +1040,6 @@ dscheck_OVF() {
     ovf_vmware_transport_guestinfo && return "${DS_FOUND}"
 
     has_ovf_cdrom && return "${DS_FOUND}"
-
-    ovf_vmware_guest_customization && return "${DS_FOUND}"
 
     return ${DS_NOT_FOUND}
 }
@@ -1449,6 +1447,7 @@ dscheck_VMware() {
     # Checks to see if there is valid data for the VMware datasource.
     # The data transports are checked in the following order:
     #
+    #   * vmware-imc (VMware Guest Customization)
     #   * envvars
     #   * guestinfo
     #
@@ -1458,6 +1457,8 @@ dscheck_VMware() {
 
     # Check to see if running in a container and the VMware
     # datasource is configured via environment variables.
+    vmware_guest_customization && return "${DS_FOUND}"
+
     if vmware_has_envvar_vmx_guestinfo; then
         if vmware_has_envvar_vmx_guestinfo_metadata || \
             vmware_has_envvar_vmx_guestinfo_userdata || \

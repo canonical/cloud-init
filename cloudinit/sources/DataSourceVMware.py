@@ -1,9 +1,10 @@
 # Cloud-Init DataSource for VMware
 #
-# Copyright (c) 2018-2021 VMware, Inc. All Rights Reserved.
+# Copyright (c) 2018-2022 VMware, Inc. All Rights Reserved.
 #
 # Authors: Anish Swaminathan <anishs@vmware.com>
 #          Andrew Kutz <akutz@vmware.com>
+#          Pengpeng Sun <pengpengs@vmware.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -12,6 +13,7 @@
 This module provides a cloud-init datasource for VMware systems and supports
 multiple transports types, including:
 
+    * VMware-imc (VMware Guest Customization)
     * EnvVars
     * GuestInfo
 
@@ -73,7 +75,34 @@ import netifaces
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import net, sources, util
+from cloudinit import net, safeyaml, sources, util
+from cloudinit.sources.helpers.vmware.imc.config import Config
+from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
+    CustomScriptNotFound,
+    PostCustomScript,
+    PreCustomScript,
+)
+from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
+from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.config_passwd import (
+    PasswordConfigurator,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_error import (
+    GuestCustErrorEnum,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_event import (
+    GuestCustEventEnum as GuestCustEvent,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_state import (
+    GuestCustStateEnum,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    enable_nics,
+    get_nics_to_enable,
+    get_tools_config,
+    set_customization_status,
+    set_gc_status,
+)
 from cloudinit.subp import ProcessExecutionError, subp, which
 
 PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
@@ -81,6 +110,8 @@ PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
 LOG = logging.getLogger(__name__)
 NOVAL = "No value found"
 
+# Data transports names
+DATA_ACCESS_METHOD_VMWARE_IMC = "vmware-imc"
 DATA_ACCESS_METHOD_ENVVAR = "envvar"
 DATA_ACCESS_METHOD_GUESTINFO = "guestinfo"
 
@@ -95,6 +126,9 @@ LOCAL_IPV6 = "local-ipv6"
 WAIT_ON_NETWORK = "wait-on-network"
 WAIT_ON_NETWORK_IPV4 = "ipv4"
 WAIT_ON_NETWORK_IPV6 = "ipv6"
+
+GUEST_CUSTOMIZATION_CONF_GROUPNAME = "deployPkg"
+GUEST_CUSTOMIZATION_ENABLE_CUST_SCRIPTS = "enable-custom-scripts"
 
 
 class DataSourceVMware(sources.DataSource):
@@ -116,11 +150,19 @@ class DataSourceVMware(sources.DataSource):
             Network Config Version 2 - http://bit.ly/cloudinit-net-conf-v2
 
         For example, CentOS 7's official cloud-init package is version
-        0.7.9 and does not support Network Config Version 2. However,
-        this datasource still supports supplying Network Config Version 2
-        data as long as the Linux distro's cloud-init package is new
-        enough to parse the data.
+        0.7.9 and does not support Network Config Version 2.
 
+        vmware-imc transport:
+        Either Network Config Version 1 or Network Config Version 2 is
+        supported which depends on the customization type.
+        For LinuxPrep customization, Network config Version 1 data is
+        parsed from the customization specification.
+        For CloudinitPrep customization, Network config Version 2 data
+        is parsed from the customization specification.
+
+        envvar and guestinfo tranports:
+        Network Config Version 2 data is supported as long as the Linux
+        distro's cloud-init package is new enough to parse the data.
         The metadata key "network.encoding" may be used to indicate the
         format of the metadata key "network". Valid encodings are base64
         and gzip+base64.
@@ -131,14 +173,33 @@ class DataSourceVMware(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
 
+        self.cfg = {}
         self.data_access_method = None
         self.vmware_rpctool = VMWARE_RPCTOOL
+
+        # A list includes all possible data transports, each tuple represents
+        # one data transport type. This datasource will try to get data from
+        # each of transports follows the tuples order in this list.
+        # A tuple has 3 elements which are:
+        # 1. The transport name
+        # 2. The function name to get data for the transport
+        # 3. A boolean tells whether the transport requires VMware platform
+        self.possible_data_access_method_list = [
+            (DATA_ACCESS_METHOD_VMWARE_IMC, self.get_vmware_imc_data_fn, True),
+            (DATA_ACCESS_METHOD_ENVVAR, self.get_envvar_data_fn, False),
+            (DATA_ACCESS_METHOD_GUESTINFO, self.get_guestinfo_data_fn, True),
+        ]
+
+    def __str__(self):
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s]" % (root, self.data_access_method)
 
     def _get_data(self):
         """
         _get_data loads the metadata, userdata, and vendordata from one of
         the following locations in the given order:
 
+            * vmware-imc
             * envvars
             * guestinfo
 
@@ -152,35 +213,18 @@ class DataSourceVMware(sources.DataSource):
         # access method.
         md, ud, vd = None, None, None
 
-        # First check to see if there is data via env vars.
-        if os.environ.get(VMX_GUESTINFO, ""):
-            md = guestinfo_envvar("metadata")
-            ud = guestinfo_envvar("userdata")
-            vd = guestinfo_envvar("vendordata")
-
+        # Crawl data from all possible data transports
+        for (
+            data_access_method,
+            get_data_fn,
+            require_vmware_platform,
+        ) in self.possible_data_access_method_list:
+            if require_vmware_platform and not is_vmware_platform():
+                continue
+            (md, ud, vd) = get_data_fn()
             if md or ud or vd:
-                self.data_access_method = DATA_ACCESS_METHOD_ENVVAR
-
-        # At this point, all additional data transports are valid only on
-        # a VMware platform.
-        if not self.data_access_method:
-            system_type = dmi.read_dmi_data("system-product-name")
-            if system_type is None:
-                LOG.debug("No system-product-name found")
-                return False
-            if "vmware" not in system_type.lower():
-                LOG.debug("Not a VMware platform")
-                return False
-
-        # If no data was detected, check the guestinfo transport next.
-        if not self.data_access_method:
-            if self.vmware_rpctool:
-                md = guestinfo("metadata", self.vmware_rpctool)
-                ud = guestinfo("userdata", self.vmware_rpctool)
-                vd = guestinfo("vendordata", self.vmware_rpctool)
-
-                if md or ud or vd:
-                    self.data_access_method = DATA_ACCESS_METHOD_GUESTINFO
+                self.data_access_method = data_access_method
+                break
 
         if not self.data_access_method:
             LOG.error("failed to find a valid data access method")
@@ -189,7 +233,7 @@ class DataSourceVMware(sources.DataSource):
         LOG.info("using data access method %s", self._get_subplatform())
 
         # Get the metadata.
-        self.metadata = process_metadata(load_json_or_yaml(md))
+        self.metadata = process_metadata(md)
 
         # Get the user data.
         self.userdata_raw = ud
@@ -237,7 +281,9 @@ class DataSourceVMware(sources.DataSource):
 
     def _get_subplatform(self):
         get_key_name_fn = None
-        if self.data_access_method == DATA_ACCESS_METHOD_ENVVAR:
+        if self.data_access_method == DATA_ACCESS_METHOD_VMWARE_IMC:
+            get_key_name_fn = get_vmware_imc_key_name
+        elif self.data_access_method == DATA_ACCESS_METHOD_ENVVAR:
             get_key_name_fn = get_guestinfo_envvar_key_name
         elif self.data_access_method == DATA_ACCESS_METHOD_GUESTINFO:
             get_key_name_fn = get_guestinfo_key_name
@@ -248,6 +294,12 @@ class DataSourceVMware(sources.DataSource):
             self.data_access_method,
             get_key_name_fn("metadata"),
         )
+
+    # The data sources' config_obj is a cloud-config formatted
+    # object that came to it from ways other than cloud-config
+    # because cloud-config content would be handled elsewhere
+    def get_config_obj(self):
+        return self.cfg
 
     @property
     def network_config(self):
@@ -291,6 +343,543 @@ class DataSourceVMware(sources.DataSource):
 
         if self.data_access_method == DATA_ACCESS_METHOD_GUESTINFO:
             guestinfo_redact_keys(keys_to_redact, self.vmware_rpctool)
+
+    def get_envvar_data_fn(self):
+        """
+        check to see if there is data via env vars
+        """
+        md, ud, vd = None, None, None
+        if os.environ.get(VMX_GUESTINFO, ""):
+            md_in_json_or_yaml = guestinfo_envvar("metadata")
+            ud = guestinfo_envvar("userdata")
+            vd = guestinfo_envvar("vendordata")
+
+            if md_in_json_or_yaml:
+                md = load_json_or_yaml(md_in_json_or_yaml)
+        return (md, ud, vd)
+
+    def get_guestinfo_data_fn(self):
+        """
+        check to see if there is data via the guestinfo transport
+        """
+        md, ud, vd = None, None, None
+        if self.vmware_rpctool:
+            md_in_json_or_yaml = guestinfo("metadata", self.vmware_rpctool)
+            ud = guestinfo("userdata", self.vmware_rpctool)
+            vd = guestinfo("vendordata", self.vmware_rpctool)
+
+            if md_in_json_or_yaml:
+                md = load_json_or_yaml(md_in_json_or_yaml)
+        return (md, ud, vd)
+
+    def get_vmware_imc_data_fn(self):
+        """
+        check to see if there is data via vmware guest customization
+        """
+        md, ud, vd = None, None, None
+
+        # Check if vmware guest customization is enabled.
+        allow_vmware_cust = self.is_vmware_cust_enabled()
+        allow_raw_data_cust = self.is_raw_data_cust_enabled()
+        if not allow_vmware_cust and not allow_raw_data_cust:
+            LOG.debug("Customization for VMware platform is disabled")
+            return (md, ud, vd)
+
+        # Check if "VMware Tools" plugin is available.
+        if not is_cust_plugin_available():
+            return (md, ud, vd)
+
+        # Wait for vmware guest customization configuration file.
+        cust_cfg_file = self.get_cust_cfg_file()
+        if cust_cfg_file is None:
+            return (md, ud, vd)
+
+        # Check what type of guest customization is this.
+        cust_cfg_dir = os.path.dirname(cust_cfg_file)
+        cust_cfg = parse_cust_cfg(cust_cfg_file)
+        (is_vmware_cust_cfg, is_raw_data_cust_cfg) = get_cust_cfg_type(
+            cust_cfg
+        )
+
+        # Get data only if guest customization type and flag matches.
+        if is_vmware_cust_cfg and allow_vmware_cust:
+            LOG.debug("Getting data via VMware customization configuration")
+            (md, ud, vd) = self.get_data_from_vmware_cust_cfg(
+                cust_cfg, cust_cfg_dir
+            )
+        elif is_raw_data_cust_cfg and allow_raw_data_cust:
+            LOG.debug(
+                "Getting data via VMware raw cloudinit data "
+                "customization configuration"
+            )
+            (md, ud, vd) = self.get_data_from_raw_data_cust_cfg(cust_cfg)
+        else:
+            LOG.debug("No allowed customization configuration data found")
+
+        # Clean customization configuration file and directory
+        util.del_dir(cust_cfg_dir)
+        return (md, ud, vd)
+
+    def is_vmware_cust_enabled(self):
+        return not util.get_cfg_option_bool(
+            self.sys_cfg, "disable_vmware_customization", True
+        )
+
+    def is_raw_data_cust_enabled(self):
+        return util.get_cfg_option_bool(self.ds_cfg, "allow_raw_data", True)
+
+    def get_cust_cfg_file(self):
+        # When the VM is powered on, the "VMware Tools" daemon
+        # copies the customization specification file to
+        # /var/run/vmware-imc directory. cloud-init code needs
+        # to search for the file in that directory which indicates
+        # that required metadata and userdata files are now
+        # present.
+        max_wait = get_max_wait_from_cfg(self.ds_cfg)
+        cust_cfg_file_path = util.log_time(
+            logfunc=LOG.debug,
+            msg="Waiting for VMware customization configuration file",
+            func=wait_for_cust_cfg_file,
+            args=("cust.cfg", max_wait),
+        )
+        if cust_cfg_file_path:
+            LOG.debug(
+                "Found VMware customization configuration file at %s",
+                cust_cfg_file_path,
+            )
+            return cust_cfg_file_path
+        else:
+            LOG.debug("No VMware customization configuration file found")
+        return None
+
+    def get_data_from_vmware_cust_cfg(self, cust_cfg, cust_cfg_dir):
+        md = {}
+        ud, vd = None, None
+
+        set_gc_status(cust_cfg, "Started")
+        (md, self.cfg) = get_non_network_data_from_vmware_cust_cfg(cust_cfg)
+
+        is_special_customization = self.check_markers(cust_cfg)
+        if is_special_customization:
+            if not self.do_special_customization(cust_cfg, cust_cfg_dir):
+                return (None, None, None)
+        if not self.recheck_markers(cust_cfg):
+            return (None, None, None)
+
+        try:
+            LOG.debug("Preparing the Network configuration")
+            md["network"] = get_network_data_from_vmware_cust_cfg(
+                cust_cfg, True, True, self.distro.osfamily
+            )
+        except Exception as e:
+            set_cust_error_status(
+                "Error preparing Network Configuration",
+                str(e),
+                GuestCustEvent.GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
+                cust_cfg,
+            )
+            return (None, None, None)
+
+        connect_nics(cust_cfg_dir)
+        set_customization_status(
+            GuestCustStateEnum.GUESTCUST_STATE_DONE,
+            GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS,
+        )
+        set_gc_status(cust_cfg, "Successful")
+        return (md, ud, vd)
+
+    def get_data_from_raw_data_cust_cfg(self, cust_cfg):
+        set_gc_status(cust_cfg, "Started")
+        md, ud, vd = None, None, None
+        md_file = cust_cfg.meta_data_name
+        if md_file:
+            md_path = os.path.join(get_vmware_imc_dir(), md_file)
+            if not os.path.exists(md_path):
+                set_cust_error_status(
+                    "Error locating the cloud-init meta data file",
+                    "Meta data file is not found: %s" % md_path,
+                    GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                    cust_cfg,
+                )
+                return (None, None, None)
+            try:
+                md = safeload_yaml_or_dict(util.load_file(md_path))
+            except safeyaml.YAMLError as e:
+                set_cust_error_status(
+                    "Error parsing the cloud-init meta data",
+                    str(e),
+                    GuestCustErrorEnum.GUESTCUST_ERROR_WRONG_META_FORMAT,
+                    cust_cfg,
+                )
+                return (None, None, None)
+            except Exception as e:
+                set_cust_error_status(
+                    "Error loading cloud-init customization configuration",
+                    str(e),
+                    GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                    cust_cfg,
+                )
+                return (None, None, None)
+
+            ud_file = cust_cfg.user_data_name
+            if ud_file:
+                ud_path = os.path.join(get_vmware_imc_dir(), ud_file)
+                if not os.path.exists(ud_path):
+                    set_cust_error_status(
+                        "Error locating the cloud-init userdata file",
+                        "Userdata file is not found: %s" % ud_path,
+                        GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                        cust_cfg,
+                    )
+                    return (None, None, None)
+                ud = util.load_file(ud_path).replace("\r", "")
+
+        set_customization_status(
+            GuestCustStateEnum.GUESTCUST_STATE_DONE,
+            GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS,
+        )
+        set_gc_status(cust_cfg, "Successful")
+        return (md, ud, vd)
+
+    def check_markers(self, cust_cfg):
+        product_marker = cust_cfg.marker_id
+        has_marker_file = check_marker_exists(
+            product_marker, os.path.join(self.paths.cloud_dir, "data")
+        )
+        return product_marker and not has_marker_file
+
+    def do_special_customization(self, cust_cfg, cust_cfg_dir):
+        is_pre_custom_successful = False
+        is_password_custom_successful = False
+        is_post_custom_successful = False
+        is_custom_script_enabled = False
+        custom_script = cust_cfg.custom_script_name
+        if custom_script:
+            is_custom_script_enabled = check_custom_script_enablement(cust_cfg)
+            if is_custom_script_enabled:
+                is_pre_custom_successful = do_pre_custom_script(
+                    cust_cfg, custom_script, cust_cfg_dir
+                )
+        is_password_custom_successful = do_password_customization(
+            cust_cfg, self.distro
+        )
+        if custom_script and is_custom_script_enabled:
+            ccScriptsDir = os.path.join(
+                self.paths.get_cpath("scripts"), "per-instance"
+            )
+            is_post_custom_successful = do_post_custom_script(
+                cust_cfg, custom_script, cust_cfg_dir, ccScriptsDir
+            )
+        if custom_script:
+            return (
+                is_pre_custom_successful
+                and is_password_custom_successful
+                and is_post_custom_successful
+            )
+        return is_password_custom_successful
+
+    def recheck_markers(self, cust_cfg):
+        product_marker = cust_cfg.marker_id
+        if product_marker:
+            cloud_dir = self.paths.cloud_dir
+            if not create_marker_file(cust_cfg, cloud_dir):
+                return False
+        return True
+
+
+def is_vmware_platform():
+    system_type = dmi.read_dmi_data("system-product-name")
+    if system_type is None:
+        LOG.debug("No system-product-name found")
+        return False
+    elif "vmware" not in system_type.lower():
+        LOG.debug("Not a VMware platform")
+        return False
+    return True
+
+
+def get_vmware_imc_dir():
+    return "/var/run/vmware-imc"
+
+
+def get_non_network_data_from_vmware_cust_cfg(cust_cfg):
+    md = {}
+    cfg = {}
+    if cust_cfg.host_name:
+        if cust_cfg.domain_name:
+            md["local-hostname"] = (
+                cust_cfg.host_name + "." + cust_cfg.domain_name
+            )
+        else:
+            md["local-hostname"] = cust_cfg.host_name
+    if cust_cfg.timezone:
+        cfg["timezone"] = cust_cfg.timezone
+    if cust_cfg.instance_id:
+        md["instance-id"] = cust_cfg.instance_id
+    return (md, cfg)
+
+
+def do_pre_custom_script(cust_cfg, custom_script, cust_cfg_dir):
+    try:
+        precust = PreCustomScript(custom_script, cust_cfg_dir)
+        precust.execute()
+    except CustomScriptNotFound as e:
+        set_cust_error_status(
+            "Error executing pre-customization script",
+            str(e),
+            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
+    return True
+
+
+def do_post_custom_script(cust_cfg, custom_script, cust_cfg_dir, ccScriptsDir):
+    try:
+        postcust = PostCustomScript(custom_script, cust_cfg_dir, ccScriptsDir)
+        postcust.execute()
+    except CustomScriptNotFound as e:
+        set_cust_error_status(
+            "Error executing post-customization script",
+            str(e),
+            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
+    return True
+
+
+def do_password_customization(cust_cfg, distro):
+    LOG.debug("Applying password customization")
+    pwdConfigurator = PasswordConfigurator()
+    admin_pwd = cust_cfg.admin_password
+    try:
+        reset_pwd = cust_cfg.reset_password
+        if admin_pwd or reset_pwd:
+            pwdConfigurator.configure(admin_pwd, reset_pwd, distro)
+        else:
+            LOG.debug("Changing password is not needed")
+    except Exception as e:
+        set_cust_error_status(
+            "Error applying password configuration",
+            str(e),
+            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
+    return True
+
+
+def create_marker_file(cust_cfg, cloud_dir):
+    try:
+        setup_marker_files(cust_cfg.marker_id, os.path.join(cloud_dir, "data"))
+    except Exception as e:
+        set_cust_error_status(
+            "Error creating marker files",
+            str(e),
+            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
+    return True
+
+
+def setup_marker_files(marker_id, marker_dir):
+    """
+    Create a new marker file.
+    Marker files are unique to a full customization workflow in VMware
+    environment.
+    @param marker_id: is an unique string representing a particular product
+                      marker.
+    @param: marker_dir: The directory in which markers exist.
+    """
+    LOG.debug("Handle marker creation")
+    marker_file = os.path.join(marker_dir, ".markerfile-" + marker_id + ".txt")
+    for fname in os.listdir(marker_dir):
+        if fname.startswith(".markerfile"):
+            util.del_file(os.path.join(marker_dir, fname))
+    open(marker_file, "w").close()
+
+
+def check_custom_script_enablement(cust_cfg):
+    is_custom_script_enabled = False
+    default_value = "false"
+    if cust_cfg.default_run_post_script:
+        LOG.debug(
+            "Set default value to true due to customization " "configuration."
+        )
+        default_value = "true"
+    custom_script_enablement = get_tools_config(
+        GUEST_CUSTOMIZATION_CONF_GROUPNAME,
+        GUEST_CUSTOMIZATION_ENABLE_CUST_SCRIPTS,
+        default_value,
+    )
+    if custom_script_enablement.lower() != "true":
+        set_cust_error_status(
+            "Custom script is disabled by VM Administrator",
+            "Error checking custom script enablement",
+            GuestCustErrorEnum.GUESTCUST_ERROR_SCRIPT_DISABLED,
+            cust_cfg,
+        )
+    else:
+        is_custom_script_enabled = True
+    return is_custom_script_enabled
+
+
+def check_marker_exists(markerid, marker_dir):
+    """
+    Check the existence of a marker file.
+    Presence of marker file determines whether a certain code path is to be
+    executed. It is needed for partial guest customization in VMware.
+    @param markerid: is an unique string representing a particular product
+                     marker.
+    @param: marker_dir: The directory in which markers exist.
+    """
+    if not markerid:
+        return False
+    markerfile = os.path.join(marker_dir, ".markerfile-" + markerid + ".txt")
+    if os.path.exists(markerfile):
+        return True
+    return False
+
+
+def get_network_data_from_vmware_cust_cfg(
+    cust_cfg, use_system_devices=True, configure=False, osfamily=None
+):
+    nicConfigurator = NicConfigurator(cust_cfg.nics, use_system_devices)
+    nics_cfg_list = nicConfigurator.generate(configure, osfamily)
+
+    return get_v1_network_config(
+        nics_cfg_list, cust_cfg.name_servers, cust_cfg.dns_suffixes
+    )
+
+
+def get_v1_network_config(nics_cfg_list=None, nameservers=None, search=None):
+    config_list = nics_cfg_list
+
+    if nameservers or search:
+        config_list.append(
+            {"type": "nameserver", "address": nameservers, "search": search}
+        )
+
+    return {"version": 1, "config": config_list}
+
+
+def set_cust_error_status(prefix, error, event, cust_cfg):
+    """
+    Set customization status to the underlying VMware Virtualization Platform
+    """
+    util.logexc(LOG, "%s: %s", prefix, error)
+    set_customization_status(GuestCustStateEnum.GUESTCUST_STATE_RUNNING, event)
+    set_gc_status(cust_cfg, prefix)
+
+
+def parse_cust_cfg(cfg_file):
+    return Config(ConfigFile(cfg_file))
+
+
+def get_cust_cfg_type(cust_cfg):
+    is_vmware_cust_cfg, is_raw_data_cust_cfg = False, False
+    if cust_cfg.meta_data_name:
+        is_raw_data_cust_cfg = True
+        LOG.debug("raw cloudinit data cust cfg found")
+    else:
+        is_vmware_cust_cfg = True
+        LOG.debug("vmware cust cfg found")
+    return (is_vmware_cust_cfg, is_raw_data_cust_cfg)
+
+
+def get_max_wait_from_cfg(ds_cfg):
+    default_max_wait = 15
+    max_wait_cfg_option = "vmware_cust_file_max_wait"
+    max_wait = default_max_wait
+
+    if not ds_cfg:
+        return max_wait
+
+    try:
+        max_wait = int(ds_cfg.get(max_wait_cfg_option, default_max_wait))
+    except ValueError:
+        LOG.warning(
+            "Failed to get '%s', using %s",
+            max_wait_cfg_option,
+            default_max_wait,
+        )
+
+    if max_wait < 0:
+        LOG.warning(
+            "Invalid value '%s' for '%s', using '%s' instead",
+            max_wait,
+            max_wait_cfg_option,
+            default_max_wait,
+        )
+        max_wait = default_max_wait
+
+    return max_wait
+
+
+def wait_for_cust_cfg_file(
+    filename, maxwait=180, naplen=5, dirpath="/var/run/vmware-imc"
+):
+    waited = 0
+    if maxwait <= naplen:
+        naplen = 1
+
+    while waited < maxwait:
+        fileFullPath = os.path.join(dirpath, filename)
+        if os.path.isfile(fileFullPath):
+            return fileFullPath
+        LOG.debug("Waiting for VMware customization configuration file")
+        time.sleep(naplen)
+        waited += naplen
+    return None
+
+
+def is_cust_plugin_available():
+    search_paths = (
+        "/usr/lib/vmware-tools",
+        "/usr/lib64/vmware-tools",
+        "/usr/lib/open-vm-tools",
+        "/usr/lib64/open-vm-tools",
+        "/usr/lib/x86_64-linux-gnu/open-vm-tools",
+        "/usr/lib/aarch64-linux-gnu/open-vm-tools",
+    )
+    cust_plugin = "libdeployPkgPlugin.so"
+    for path in search_paths:
+        cust_plugin_path = search_file(path, cust_plugin)
+        if cust_plugin_path:
+            LOG.debug("Found the customization plugin at %s", cust_plugin_path)
+            return True
+    return False
+
+
+def search_file(dirpath, filename):
+    if not dirpath or not filename:
+        return None
+
+    for root, _dirs, files in os.walk(dirpath):
+        if filename in files:
+            return os.path.join(root, filename)
+
+    return None
+
+
+def connect_nics(cust_cfg_dir):
+    nics_file = os.path.join(cust_cfg_dir, "nics.txt")
+    if os.path.exists(nics_file):
+        LOG.debug("%s file found, to connect nics", nics_file)
+        enable_nics(get_nics_to_enable(nics_file))
+
+
+def safeload_yaml_or_dict(data):
+    """
+    The meta data could be JSON or YAML. Since YAML is a strict superset of
+    JSON, we will unmarshal the data as YAML. If data is None then a new
+    dictionary is returned.
+    """
+    if not data:
+        return {}
+    return safeyaml.load(data)
 
 
 def decode(key, enc_type, data):
@@ -365,6 +954,10 @@ def handle_returned_guestinfo_val(key, val):
         return val
     LOG.debug("No value found for key %s", key)
     return None
+
+
+def get_vmware_imc_key_name(key):
+    return "vmware-tools"
 
 
 def get_guestinfo_key_name(key):
@@ -523,6 +1116,8 @@ def process_metadata(data):
     process_metadata processes metadata and loads the optional network
     configuration.
     """
+    if not data:
+        return {}
     network = None
     if "network" in data:
         network = data["network"]

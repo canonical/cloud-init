@@ -19,7 +19,7 @@ from cloudinit.net import (
     sysconfig,
 )
 from cloudinit.sources import DataSourceAzure as azure
-from cloudinit.sources import DataSourceOVF as ovf
+from cloudinit.sources import DataSourceVMware as vmware
 from cloudinit.sources.helpers import openstack
 
 NAME = "net-convert"
@@ -130,8 +130,8 @@ def handle_args(name, args):
             json.loads(net_data)["network"]
         )
     elif args.kind == "vmware-imc":
-        config = ovf.Config(ovf.ConfigFile(args.network_data.name))
-        pre_ns = ovf.get_network_config_from_conf(config, False)
+        config = vmware.Config(vmware.ConfigFile(args.network_data.name))
+        pre_ns = vmware.get_network_data_from_vmware_cust_cfg(config, False)
 
     ns = network_state.parse_net_config_data(pre_ns)
 
