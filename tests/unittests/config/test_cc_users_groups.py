@@ -317,8 +317,13 @@ class TestUsersGroupsSchema:
             (
                 {"users": [{"name": "bbsw", "garbage-key": None}]},
                 "is not valid under any of the given schemas",
+                True,
             ),
-            ({"groups": {"": "bbsw"}}, "does not match any of the regexes"),
+            (
+                {"groups": {"": "bbsw"}},
+                "does not match any of the regexes",
+                True,
+            ),
             (
                 {"users": [{"name": "bbsw", "groups": ["anygrp"]}]},
                 None,
