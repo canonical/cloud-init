@@ -526,7 +526,7 @@ class TestSetPasswordsSchema:
             ({"ssh_pwauth": True}, None),
             ({"ssh_pwauth": "yes"}, None),
             ({"ssh_pwauth": "unchanged"}, None),
-            ({"chpasswd": {"list": "blah"}}, None),
+            ({"chpasswd": {"list": "blah"}}, "DEPRECATED"),
             # Valid combinations
             (
                 {
@@ -618,7 +618,7 @@ class TestSetPasswordsSchema:
                 "is not valid under any of the given schemas",
             ),
             # Test regex
-            ({"chpasswd": {"list": ["user:pass"]}}, None),
+            ({"chpasswd": {"list": ["user:pass"]}}, "DEPRECATED"),
             # Test valid
             ({"password": "pass"}, None),
             # Test invalid values
