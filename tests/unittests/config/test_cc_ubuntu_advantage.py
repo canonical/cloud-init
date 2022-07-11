@@ -17,14 +17,10 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import does_not_raise, mock, skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
-
-
-class FakeCloud(object):
-    def __init__(self, distro):
-        self.distro = distro
 
 
 @mock.patch(f"{MPATH}.subp.subp")
@@ -185,6 +181,7 @@ class TestConfigureUA:
             " while running command.\nCommand: -\nExit code: -\nReason: -\n"
             "Stdout: Invalid CC credentials\nStderr: -",
         ) in caplog.record_tuples
+        assert 'Failure enabling "fips"' not in caplog.text
 
     def test_configure_ua_config_with_weird_params(self, m_subp, caplog):
         """When configs not string or list, warn but still attach"""
@@ -265,12 +262,12 @@ class TestUbuntuAdvantageSchema:
 
 class TestHandle:
 
-    mycloud = FakeCloud(None)
+    cloud = get_cloud()
 
     @pytest.mark.parametrize(
         [
             "cfg",
-            "handle_kwargs",
+            "cloud",
             "log_record_tuples",
             "maybe_install_call_args_list",
             "configure_ua_call_args_list",
@@ -279,7 +276,7 @@ class TestHandle:
             # When no ua-related configuration is provided, nothing happens.
             pytest.param(
                 {},
-                dict(cloud=None, log=None, args=None),
+                None,
                 [
                     (
                         MPATH,
@@ -295,25 +292,25 @@ class TestHandle:
             # If ubuntu_advantage is provided, try installing ua-tools package.
             pytest.param(
                 {"ubuntu_advantage": {"token": "valid"}},
-                dict(cloud=mycloud, log=None, args=None),
+                cloud,
                 [],
-                [mock.call(mycloud)],
+                [mock.call(cloud)],
                 None,
                 id="tries_to_install_ubuntu_advantage_tools",
             ),
             # All ubuntu_advantage config keys are passed to configure_ua.
             pytest.param(
                 {"ubuntu_advantage": {"token": "token", "enable": ["esm"]}},
-                dict(cloud=mycloud, log=None, args=None),
+                cloud,
                 [],
-                None,
+                [mock.call(cloud)],
                 [mock.call(token="token", enable=["esm"], config=None)],
                 id="passes_credentials_and_services_to_configure_ua",
             ),
             # Warning when ubuntu-advantage key is present with new config
             pytest.param(
                 {"ubuntu-advantage": {"token": "token", "enable": ["esm"]}},
-                dict(cloud=None, log=None, args=None),
+                None,
                 [
                     (
                         MPATH,
@@ -333,7 +330,7 @@ class TestHandle:
                     "ubuntu-advantage": {"token": "nope", "enable": ["wrong"]},
                     "ubuntu_advantage": {"token": "token", "enable": ["esm"]},
                 },
-                dict(cloud=None, log=None, args=None),
+                None,
                 [
                     (
                         MPATH,
@@ -356,13 +353,13 @@ class TestHandle:
         m_maybe_install_ua_tools,
         m_configure_ua,
         cfg,
-        handle_kwargs,
+        cloud,
         log_record_tuples,
         maybe_install_call_args_list,
         configure_ua_call_args_list,
         caplog,
     ):
-        handle("nomatter", cfg=cfg, **handle_kwargs)
+        handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
         if maybe_install_call_args_list is not None:
@@ -392,7 +389,7 @@ class TestHandle:
                     'Deprecated configuration "ubuntu-advantage: commands" '
                     'provided. Expected "token"'
                 ),
-                id="key_dashed",
+                id="key_underscore",
             ),
         ],
     )
@@ -456,26 +453,30 @@ class TestMaybeInstallUATools:
         caplog,
     ):
         m_which.return_value = which_return
-        distro = mock.MagicMock()
+        cloud = mock.MagicMock()
         if install_side_effect is None:
-            distro.update_package_sources.side_effect = update_side_effect
+            cloud.distro.update_package_sources.side_effect = (
+                update_side_effect
+            )
         else:
-            distro.update_package_sources.return_value = None
-            distro.install_packages.side_effect = install_side_effect
+            cloud.distro.update_package_sources.return_value = None
+            cloud.distro.install_packages.side_effect = install_side_effect
         with expectation:
-            maybe_install_ua_tools(cloud=FakeCloud(distro))
+            maybe_install_ua_tools(cloud=cloud)
         if log_msg is not None:
             assert log_msg in caplog.text
 
     def test_maybe_install_ua_tools_happy_path(self, m_which):
         """maybe_install_ua_tools installs ubuntu-advantage-tools."""
         m_which.return_value = None
-        distro = mock.MagicMock()  # No errors raised
-        maybe_install_ua_tools(cloud=FakeCloud(distro))
-        assert [mock.call()] == distro.update_package_sources.call_args_list
+        cloud = mock.MagicMock()  # No errors raised
+        maybe_install_ua_tools(cloud=cloud)
+        assert [
+            mock.call()
+        ] == cloud.distro.update_package_sources.call_args_list
         assert [
             mock.call(["ubuntu-advantage-tools"])
-        ] == distro.install_packages.call_args_list
+        ] == cloud.distro.install_packages.call_args_list
 
 
 # vi: ts=4 expandtab
