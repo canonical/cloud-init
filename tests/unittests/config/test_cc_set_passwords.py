@@ -598,8 +598,7 @@ class TestSetPasswordsSchema:
                 },
                 "is not valid under any of the given schemas",
             ),
-            # dat is an additional property
-            (
+            pytest.param(
                 {
                     "chpasswd": {
                         "users": [
@@ -612,7 +611,8 @@ class TestSetPasswordsSchema:
                     }
                 },
                 "is not valid under any of the given schemas",
-            ),
+                id="dat_is_an_additional_property"
+            )
             (
                 {"chpasswd": {"users": [{"name": "."}]}},
                 "is not valid under any of the given schemas",
