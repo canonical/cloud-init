@@ -558,7 +558,7 @@ class TestValidateCloudConfigSchema:
                 },
                 {"a-b": "asdf"},
                 "Deprecated cloud-config provided:\na-b: DEPRECATED",
-                id="deprecated_pattern_property_without_description"
+                id="deprecated_pattern_property_without_description",
             ),
         ],
     )
