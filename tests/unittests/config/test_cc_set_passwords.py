@@ -611,8 +611,8 @@ class TestSetPasswordsSchema:
                     }
                 },
                 "is not valid under any of the given schemas",
-                id="dat_is_an_additional_property"
-            )
+                id="dat_is_an_additional_property",
+            ),
             (
                 {"chpasswd": {"users": [{"name": "."}]}},
                 "is not valid under any of the given schemas",
