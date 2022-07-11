@@ -6,7 +6,7 @@ import argparse
 import re
 import sys
 from datetime import datetime
-from typing import List, IO
+from typing import IO
 
 from cloudinit.util import json_dumps
 
