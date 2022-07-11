@@ -249,6 +249,19 @@ class TestHandleSSHPwauth:
         assert cloud.distro.uses_systemd.call_count == 1
 
 
+def get_chpasswd_calls(cfg, cloud, log):
+    with mock.patch(MODPATH + "subp.subp") as subp:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
+            setpass.handle(
+                "IGNORED",
+                cfg=cfg,
+                cloud=cloud,
+                log=log,
+                args=[],
+            )
+    return chpasswd.call_args[0], subp.call_args
+
+
 @pytest.mark.usefixtures("mock_uses_systemd")
 class TestSetPasswordsHandle(CiTestCase):
     """Test cc_set_passwords.handle"""
@@ -283,7 +296,7 @@ class TestSetPasswordsHandle(CiTestCase):
             "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
         ]
         cfg = {"chpasswd": {"list": valid_hashed_pwds}}
-        with mock.patch.object(setpass, "chpasswd") as chpasswd:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
             setpass.handle(
                 "IGNORED", cfg=cfg, cloud=cloud, log=self.logger, args=[]
             )
@@ -294,9 +307,9 @@ class TestSetPasswordsHandle(CiTestCase):
             "DEBUG: Setting hashed password for ['root', 'ubuntu']",
             self.logs.getvalue(),
         )
-        valid = "\n".join(valid_hashed_pwds) + "\n"
-        called = chpasswd.call_args[0][1]
-        self.assertEqual(valid, called)
+        first_arg = chpasswd.call_args[0]
+        for i, val in enumerate(*first_arg):
+            self.assertEqual(valid_hashed_pwds[i], ":".join(val))
 
     @mock.patch(MODPATH + "util.is_BSD", return_value=True)
     @mock.patch(MODPATH + "subp.subp")
@@ -335,7 +348,7 @@ class TestSetPasswordsHandle(CiTestCase):
         cloud = self.tmp_cloud(distro="ubuntu")
         valid_random_pwds = ["root:R", "ubuntu:RANDOM"]
         cfg = {"chpasswd": {"expire": "false", "list": valid_random_pwds}}
-        with mock.patch.object(setpass, "chpasswd") as chpasswd:
+        with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
             setpass.handle(
                 "IGNORED", cfg=cfg, cloud=cloud, log=self.logger, args=[]
             )
@@ -343,13 +356,7 @@ class TestSetPasswordsHandle(CiTestCase):
             "DEBUG: Handling input for chpasswd as list.", self.logs.getvalue()
         )
         self.assertEqual(1, chpasswd.call_count)
-        passwords, _ = chpasswd.call_args
-        user_pass = {
-            user: password
-            for user, password in (
-                line.split(":") for line in passwords[1].splitlines()
-            )
-        }
+        user_pass = dict(*chpasswd.call_args[0])
 
         self.assertEqual(1, m_multi_log.call_count)
         self.assertEqual(
@@ -366,6 +373,150 @@ class TestSetPasswordsHandle(CiTestCase):
             else:
                 self.fail("Password not emitted to console")
 
+    def test_chpasswd_parity(self):
+        """Assert that two different configs cause identical calls"""
+        params = (
+            # demonstrate that new addition matches current behavior
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "dog:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC"
+                            "7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
+                            "3oo1",
+                            "Till:RANDOM",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "dog",
+                                "type": "hash",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "Till",
+                                "type": "RANDOM",
+                            },
+                        ]
+                    }
+                },
+            ),
+            # Duplicate user: demonstrate no change in current duplicate
+            # behavior
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSw"
+                                "OlbOQSW/HpXazGGx3oo1",
+                            },
+                        ]
+                    }
+                },
+            ),
+            # Duplicate user: demonstrate duplicate across users/list doesn't
+            # change
+            (
+                {
+                    "chpasswd": {
+                        "list": [
+                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                            "pUW.BrPx/Dlew1Va",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ]
+                    }
+                },
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "root",
+                                "password": "$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y"
+                                "5WojbXWqnqYpUW.BrPx/Dlew1Va",
+                            },
+                            {
+                                "name": "ubuntu",
+                                "password": "$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9"
+                                "acWCVEoakMMC7dR5"
+                                "2qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
+                                "3oo1",
+                            },
+                        ],
+                        "list": [
+                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                            "GGx3oo1",
+                        ],
+                    }
+                },
+            ),
+        )
+        for list_def, users_def in params:
+            cloud = self.tmp_cloud(distro="ubuntu")
+
+            def_1 = get_chpasswd_calls(list_def, cloud, self.logger)
+            def_2 = get_chpasswd_calls(users_def, cloud, self.logger)
+            assert def_1 == def_2
+            assert def_1[-1] == mock.call(
+                ["systemctl", "status", "ssh"], capture=True
+            )
+            for val in def_1:
+                assert val
+
 
 class TestSetPasswordsSchema:
     @pytest.mark.parametrize(
@@ -375,9 +526,99 @@ class TestSetPasswordsSchema:
             ({"ssh_pwauth": True}, None),
             ({"ssh_pwauth": "yes"}, None),
             ({"ssh_pwauth": "unchanged"}, None),
-            ({"chpasswd": {"list": "blah"}}, None),
+            ({"chpasswd": {"list": "blah"}}, "DEPRECATED"),
+            # Valid combinations
+            (
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "text",
+                                "password": "correct-horse-battery-staple",
+                            },
+                            {
+                                "name": "what-if-2",
+                                "type": "hash",
+                                "password": "no-magic-parsing-done-here",
+                            },
+                            {
+                                "name": "what-if-3",
+                                "password": "type-is-optional-default-"
+                                "value-is-hash",
+                            },
+                            {
+                                "name": "what-if-4",
+                                "type": "RANDOM",
+                            },
+                        ]
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "plaintext",
+                                "password": "type-has-two-legal-values: "
+                                "{'hash', 'text'}",
+                            }
+                        ]
+                    }
+                },
+                "is not valid under any of the given schemas",
+            ),
+            (
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "what-if-1",
+                                "type": "RANDOM",
+                                "password": "but you want random?",
+                            }
+                        ]
+                    }
+                },
+                "is not valid under any of the given schemas",
+            ),
+            (
+                {"chpasswd": {"users": [{"password": "."}]}},
+                "is not valid under any of the given schemas",
+            ),
+            # when type != RANDOM, password is a required key
+            (
+                {
+                    "chpasswd": {
+                        "users": [{"name": "what-if-1", "type": "hash"}]
+                    }
+                },
+                "is not valid under any of the given schemas",
+            ),
+            pytest.param(
+                {
+                    "chpasswd": {
+                        "users": [
+                            {
+                                "name": "sonata",
+                                "password": "dit",
+                                "dat": "dot",
+                            }
+                        ]
+                    }
+                },
+                "is not valid under any of the given schemas",
+                id="dat_is_an_additional_property",
+            ),
+            (
+                {"chpasswd": {"users": [{"name": "."}]}},
+                "is not valid under any of the given schemas",
+            ),
             # Test regex
-            ({"chpasswd": {"list": ["user:pass"]}}, None),
+            ({"chpasswd": {"list": ["user:pass"]}}, "DEPRECATED"),
             # Test valid
             ({"password": "pass"}, None),
             # Test invalid values
