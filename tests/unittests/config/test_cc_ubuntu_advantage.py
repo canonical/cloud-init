@@ -397,9 +397,9 @@ class TestHandle:
     def test_handle_error_on_deprecated_commands_key_dashed(
         self, m_configure_ua, cfg, handle_kwargs, match
     ):
-        """All ubuntu_advantage config keys are passed to configure_ua."""
         with pytest.raises(RuntimeError, match=match):
             handle("nomatter", cfg=cfg, log=mock.Mock(), **handle_kwargs)
+        assert 0 == m_configure_ua.call_count
 
 
 @mock.patch(f"{MPATH}.subp.which")
