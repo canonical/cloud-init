@@ -36,10 +36,30 @@
           "type": "string"
         },
         "groups": {
-          "description": "Optional comma-separated string or list of groups to add the user to.",
-          "type": ["string", "array"],
-          "items": {"type": "string"},
-          "minItems": 1
+          "description": "Optional comma-separated string of groups to add the user to.",
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "array",
+              "items": {
+                "type": ["string"]
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^.+$": {
+                  "label": "<group_name>",
+                  "description": "When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to",
+                  "deprecated": true,
+                  "type": ["null"],
+                  "minItems": 1
+                }
+              },
+              "hidden": ["patternProperties"]
+            }
+          ]
         },
         "homedir": {
           "description": "Optional home dir for user. Default: ``/home/<username>``",
@@ -49,6 +69,12 @@
         "inactive": {
           "description": "Optional string representing the number of days until the user is disabled. ",
           "type": "string"
+        },
+        "lock-passwd": {
+          "default": true,
+          "description": "Dropped after April 2027. Use ``lock_passwd``. Default: ``true``",
+          "type": "boolean",
+          "deprecated": true
         },
         "lock_passwd": {
           "default": true,
@@ -169,10 +195,10 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "description": "DEPRECATED. Use ``remove_defaults``. ",
-          "deprecated": true,
+          "description": "Dropped after April 2027. Use ``remove_defaults``.",
           "type": "boolean",
-          "default": false
+          "default": false,
+          "deprecated": true
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: false",
@@ -389,7 +415,13 @@
             "$ref": "#/$defs/ca_certs.properties"
         },
         "ca-certs": {
-            "$ref": "#/$defs/ca_certs.properties"
+            "allOf": [
+              {"$ref": "#/$defs/ca_certs.properties"},
+              {
+                "deprecated": true,
+                "description": "Dropped after April 2027. Use ``ca_certs``."
+              }
+            ]
         }
       }
     },
@@ -1242,22 +1274,22 @@
                 "description": "Set ``true`` to reboot the system if required by presence of `/var/run/reboot-required`. Default: ``false``"
             },
             "apt_update": {
-                "type": "boolean",
-                "default": false,
-                "description": "DEPRECATED. Use ``package_update``. Default: ``false``",
-                "deprecated": true
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_update``. Default: ``false``",
+              "deprecated": true
             },
             "apt_upgrade": {
-                "type": "boolean",
-                "default": false,
-                "description": "DEPRECATED. Use ``package_upgrade``. Default: ``false``",
-                "deprecated": true
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_upgrade``. Default: ``false``",
+              "deprecated": true
             },
             "apt_reboot_if_required": {
-                "type": "boolean",
-                "default": false,
-                "description": "DEPRECATED. Use ``package_reboot_if_required``. Default: ``false``",
-                "deprecated": true
+              "type": "boolean",
+              "default": false,
+              "description": "Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``",
+              "deprecated": true
             }
         }
     },
@@ -1317,7 +1349,12 @@
               "default": "now",
               "oneOf": [
                 {"type": "integer", "minimum": 0},
-                {"type": "string", "pattern": "^\\+?[0-9]+$"},
+                {
+                    "type": "string",
+                    "pattern": "^\\+?[0-9]+$",
+                    "deprecated": true,
+                    "description": "Dropped after April 2027. Use ``now`` or integer type."
+                },
                 {"enum": ["now"]}
               ]
             },

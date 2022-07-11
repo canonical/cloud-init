@@ -510,6 +510,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if isinstance(groups, str):
                 groups = groups.split(",")
 
+            if isinstance(groups, dict):
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'groups' config value of"
+                    " type dict which is deprecated and will be removed in a"
+                    " future version of cloud-init. Use a comma-delimited"
+                    " string or array instead: group1,group2.",
+                    name,
+                )
+
             # remove any white spaces in group names, most likely
             # that came in as a string like: groups: group1, group2
             groups = [g.strip() for g in groups]
