@@ -546,6 +546,20 @@ class TestValidateCloudConfigSchema:
                 {"a-b": "asdf"},
                 "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
             ),
+            pytest.param(
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED",
+                id="deprecated_pattern_property_without_description"
+            ),
         ],
     )
     def test_validateconfig_logs_deprecations(
