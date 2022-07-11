@@ -227,7 +227,8 @@
           },
           "required": ["version"]
         }
-      }
+      },
+      "additionalProperties": true
     },
     "cc_apk_configure": {
       "type": "object",
