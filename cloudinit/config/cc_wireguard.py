@@ -213,7 +213,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
             "Skipping module named %s," " no 'wireguard' configuration found",
             name,
         )
-        raise RuntimeError("Skipping Wireguard module")
+        return
 
     # install wireguard tools, enable kernel module
     maybe_install_wireguard_tools(cloud)
