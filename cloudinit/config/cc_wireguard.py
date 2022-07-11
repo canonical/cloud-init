@@ -110,10 +110,11 @@ def write_config(wg_int: dict):
     LOG.debug("Configuring Wireguard interface %s", wg_int["name"])
     try:
         with open(wg_int["config_path"], "w", encoding="utf-8") as wgconfig:
+            LOG.debug(f'Writing wireguard config to file {wg_int["config_path"]}')
             wgconfig.write(wg_int["content"])
     except Exception as e:
         raise RuntimeError(
-            f"Failure writing Wireguard configuration file:" f"{e}"
+            f'Failure writing Wireguard configuration file {wg_int["config_path"]}:' f"{e}"
         ) from e
 
 
@@ -129,12 +130,10 @@ def enable_wg(wg_int: dict):
         subp.subp(
             f'systemctl enable wg-quick@{wg_int["name"]}',
             capture=True,
-            shell=True,
         )
         subp.subp(
             f'systemctl start wg-quick@{wg_int["name"]}',
             capture=True,
-            shell=True,
         )
     except Exception as e:
         raise RuntimeError(
