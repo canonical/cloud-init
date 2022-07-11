@@ -202,9 +202,7 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
         users_list = util.get_cfg_option_list(chfg, "users")
         if "list" in chfg and chfg["list"]:
             log.warning(
-                "DEPRECATION: The list key is "
-                "deprecated and will be removed from a future version of "
-                "cloud-init. Use the users key instead."
+                "DEPRECATION: key 'lists' is now deprecated. Use 'users'."
             )
             if isinstance(chfg["list"], list):
                 log.debug("Handling input for chpasswd as list.")
