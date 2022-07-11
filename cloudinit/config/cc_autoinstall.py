@@ -90,7 +90,7 @@ def handle(name, cfg, cloud, log, _args):
             ", ".join(LIVE_INSTALLER_SNAPS),
         )
         return
-    validate_config_schema(cfg["autoinstall"])
+    validate_config_schema(cfg)
     LOG.debug(
         "Valid autoinstall schema. Config will be processed by %s",
         installer_present,

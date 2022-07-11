@@ -23,6 +23,18 @@ Name                     Version                     Rev    Tracking      ...
 core20                   20220527                    1518   latest/stable ...
 lxd                      git-69dc707                 23315  latest/edge   ...
 """
+SAMPLE_SNAP_LIST_SUBIQUITY = (
+    SAMPLE_SNAP_LIST_OUTPUT
+    + """
+subiquity                22.06.01                 23315  latest/stable   ...
+"""
+)
+SAMPLE_SNAP_LIST_DESKTOP_INSTALLER = (
+    SAMPLE_SNAP_LIST_OUTPUT
+    + """
+ubuntu-desktop-installer 22.06.01                 23315  latest/stable   ...
+"""
+)
 
 
 class TestvalidateConfigSchema:
@@ -57,16 +69,18 @@ class TestHandleAutoinstall:
     """Test cc_autoinstall handling of config."""
 
     @pytest.mark.parametrize(
-        "cfg,subp_calls,logs",
+        "cfg,snap_list,subp_calls,logs",
         [
             pytest.param(
                 {},
+                SAMPLE_SNAP_LIST_OUTPUT,
                 [],
                 ["Skipping module named name, no 'autoinstall' key"],
                 id="skip_no_cfg",
             ),
             pytest.param(
                 {"autoinstall": {"version": 1}},
+                SAMPLE_SNAP_LIST_OUTPUT,
                 [mock.call(["snap", "list"])],
                 [
                     "Skipping autoinstall module. Expected one of the Ubuntu"
@@ -75,10 +89,42 @@ class TestHandleAutoinstall:
                 ],
                 id="valid_autoinstall_schema_checks_snaps",
             ),
+            pytest.param(
+                {"autoinstall": {"version": 1}},
+                SAMPLE_SNAP_LIST_SUBIQUITY,
+                [mock.call(["snap", "list"])],
+                [
+                    "Valid autoinstall schema. Config will be processed by"
+                    " subiquity"
+                ],
+                id="valid_autoinstall_schema_sees_subiquity",
+            ),
+            pytest.param(
+                {"autoinstall": {"version": 1}},
+                SAMPLE_SNAP_LIST_DESKTOP_INSTALLER,
+                [mock.call(["snap", "list"])],
+                [
+                    "Valid autoinstall schema. Config will be processed by"
+                    " ubuntu-desktop-installer"
+                ],
+                id="valid_autoinstall_schema_sees_desktop_installer",
+            ),
+            pytest.param(
+                {"autoinstall": {"version": 1}},
+                SAMPLE_SNAP_LIST_SUBIQUITY,
+                [mock.call(["snap", "list"])],
+                [
+                    "Valid autoinstall schema. Config will be processed by"
+                    " subiquity"
+                ],
+                id="valid_autoinstall_schema_sees_subiquity",
+            ),
         ],
     )
-    def test_handle_autoinstall_cfg(self, subp, cfg, subp_calls, logs, caplog):
-        subp.return_value = SAMPLE_SNAP_LIST_OUTPUT, ""
+    def test_handle_autoinstall_cfg(
+        self, subp, cfg, snap_list, subp_calls, logs, caplog
+    ):
+        subp.return_value = snap_list, ""
         cloud = get_cloud(distro="ubuntu")
         cc_autoinstall.handle("name", cfg, cloud, LOG, None)
         assert subp_calls == subp.call_args_list
