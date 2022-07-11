@@ -1,13 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import math
 import os.path
 import re
+from collections import namedtuple
 from unittest import mock
 
 import pytest
+from pytest import approx
 
 from cloudinit.config import cc_mounts
-from cloudinit.config.cc_mounts import create_swapfile
+from cloudinit.config.cc_mounts import (
+    GB,
+    MB,
+    create_swapfile,
+    suggested_swapsize,
+)
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -523,6 +531,35 @@ class TestCreateSwapfile:
 
         msg = "fallocate swap creation failed, will attempt with dd"
         assert msg in caplog.text
+
+    # See https://help.ubuntu.com/community/SwapFaq
+    @pytest.mark.parametrize(
+        "memsize,expected",
+        [
+            (256 * MB, 256 * MB),
+            (512 * MB, 512 * MB),
+            (1 * GB, 1 * GB),
+            (2 * GB, 2 * GB),
+            (4 * GB, 4 * GB),
+            (8 * GB, 4 * GB),
+            (16 * GB, 4 * GB),
+            (32 * GB, 6 * GB),
+            (64 * GB, 8 * GB),
+            (128 * GB, 11 * GB),
+            (256 * GB, 16 * GB),
+            (512 * GB, 23 * GB),
+        ],
+    )
+    def test_suggested_swapsize(self, memsize, expected, mocker):
+        mock_stat = namedtuple("mock_stat", "f_frsize f_bfree")
+        mocker.patch(
+            "os.statvfs",
+            # Don't care about available disk space for the purposes of this
+            # test
+            return_value=mock_stat(math.inf, math.inf),
+        )
+        size = suggested_swapsize(memsize, math.inf, "dontcare")
+        assert expected == approx(size)
 
 
 class TestMountsSchema:
