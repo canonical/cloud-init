@@ -259,7 +259,7 @@ def handle(_name, cfg, cloud, log, args):
 
         if expire:
             expired_users = []
-            for u in users:
+            for u in users + hashed_users:
                 try:
                     cloud.distro.expire_passwd(u)
                     expired_users.append(u)

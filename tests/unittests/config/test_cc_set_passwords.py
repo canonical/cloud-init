@@ -305,7 +305,10 @@ class TestSetPasswordsHandle(CiTestCase):
     ):
         """BSD don't use chpasswd"""
         cloud = get_cloud(distro="freebsd")
-        valid_pwds = ["ubuntu:passw0rd"]
+        valid_pwds = [
+            "ubuntu:passw0rd",
+            "sadegh:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/"
+        ]
         cfg = {"chpasswd": {"list": valid_pwds}}
         with mock.patch.object(
             cloud.distro, "uses_systemd", return_value=False
@@ -320,7 +323,13 @@ class TestSetPasswordsHandle(CiTestCase):
                     data="passw0rd",
                     logstring="chpasswd for ubuntu",
                 ),
+                mock.call(
+                    ["pw", "usermod", "sadegh", "-H", "0"],
+                    data="$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/",
+                    logstring="chpasswd for sadegh",
+                ),
                 mock.call(["pw", "usermod", "ubuntu", "-p", "01-Jan-1970"]),
+                mock.call(["pw", "usermod", "sadegh", "-p", "01-Jan-1970"]),
                 mock.call(["service", "sshd", "status"], capture=True),
             ],
             m_subp.call_args_list,
