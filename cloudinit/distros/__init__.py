@@ -76,6 +76,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None

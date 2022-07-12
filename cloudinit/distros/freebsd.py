@@ -26,6 +26,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     """
 
     networking_cls = FreeBSDNetworking
+    default_owner = "root:wheel"
     usr_lib_exec = "/usr/local/lib"
     login_conf_fn = "/etc/login.conf"
     login_conf_fn_bak = "/etc/login.conf.orig"
