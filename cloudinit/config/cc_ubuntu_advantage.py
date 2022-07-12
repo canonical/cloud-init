@@ -328,7 +328,7 @@ def handle(
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
     features: dict = ua_section.get("features", {})
-    disable_auto_attach = bool(features.get("disable_auto_attach", True))
+    disable_auto_attach = bool(features.get("disable_auto_attach", False))
     is_pro_cfg = not disable_auto_attach
 
     is_pro = None

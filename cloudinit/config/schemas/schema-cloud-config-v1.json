@@ -2222,8 +2222,8 @@
               "properties": {
                 "disable_auto_attach": {
                   "type": "boolean",
-                  "description": "Optional boolean for controlling if auto attach (in Ubuntu Pro instances) will be performed. Default: ``true``",
-                  "default": true
+                  "description": "Optional boolean for controlling if auto attach (in Ubuntu Pro instances) will be performed. Default: ``false``",
+                  "default": false
                 },
                 "ignore_enable_by_default": {
                   "type": "boolean",

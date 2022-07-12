@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import re
-from copy import deepcopy
 
 import pytest
 
@@ -405,13 +404,6 @@ class TestHandle:
     cloud = get_cloud()
 
     @pytest.mark.parametrize(
-        "with_disable_auto_attach",
-        [
-            pytest.param(False, id="no_disable_auto_attach"),
-            pytest.param(True, id="disable_auto_attach"),
-        ],
-    )
-    @pytest.mark.parametrize(
         [
             "cfg",
             "cloud",
@@ -508,12 +500,10 @@ class TestHandle:
         log_record_tuples,
         maybe_install_call_args_list,
         configure_ua_call_args_list,
-        with_disable_auto_attach,
         caplog,
     ):
-        if with_disable_auto_attach:
-            cfg = deepcopy(cfg)
-            cfg["features"] = {"disable_auto_attach": True}
+        """Non-Pro schemas and instance."""
+        m_auto_attach_short.side_effect = NotAProInstance
         handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
@@ -524,9 +514,6 @@ class TestHandle:
             )
         if configure_ua_call_args_list is not None:
             assert configure_ua_call_args_list == m_configure_ua.call_args_list
-        assert (
-            0 == m_auto_attach_short.call_count
-        ), "Unexpected call to `auto_attach_short`"
         assert (
             0 == m_auto_attach_long.call_count
         ), "Unexpected call to `auto_attach_long`"
