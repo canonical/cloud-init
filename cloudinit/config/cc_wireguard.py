@@ -90,7 +90,7 @@ def supplemental_schema_validation(wg_int: dict):
         if key == "name" or key == "config_path" or key == "content":
             if not isinstance(value, str):
                 errors.append(
-                    f"Expected a str for wg:interfaces:{key}. Found: {value}"
+                    f"Expected a string for wg:interfaces:{key}. Found {value}"
                 )
 
     if errors:
@@ -100,21 +100,24 @@ def supplemental_schema_validation(wg_int: dict):
 
 
 def write_config(wg_int: dict):
-    """Writing user-provided configuration into Wirguard
+    """Writing user-provided configuration into Wireguard
     interface configuration file.
 
     @param wg_int: Dict of configuration value under 'wg:interfaces'.
 
     @raises: RuntimeError for issues writing of configuration file.
     """
-    LOG.debug("Configuring Wireguard interface %s", wg_int["name"])
+    LOG.debug("Configuring Wireguard interface %s", {wg_int["name"]})
     try:
         with open(wg_int["config_path"], "w", encoding="utf-8") as wgconfig:
-            LOG.debug(f'Writing wireguard config to file {wg_int["config_path"]}')
+            LOG.debug(
+                "Writing wireguard config to file %s", {wg_int["config_path"]}
+            )
             wgconfig.write(wg_int["content"])
     except Exception as e:
         raise RuntimeError(
-            f'Failure writing Wireguard configuration file {wg_int["config_path"]}:' f"{e}"
+            "Failure writing Wireguard configuration file"
+            f' {wg_int["config_path"]}:{NL}{str(e)}'
         ) from e
 
 
@@ -137,20 +140,20 @@ def enable_wg(wg_int: dict):
         )
     except Exception as e:
         raise RuntimeError(
-            f"Failed enabling Wireguard interface(s):" f"{e}"
+            f"Failed enabling Wireguard interface(s):{NL}{str(e)}"
         ) from e
 
 
-def readinessprobe_command_validation(wg_section: dict):
+def readinessprobe_command_validation(wg_readinessprobes: list):
     """Basic validation of user-provided probes
 
-    @param wg_section: Dict of readinessprobe probe(s) under 'wireguard'.
+    @param wg_readinessprobes: List of readinessprobe probe(s).
 
     @raises: ValueError of wrong datatype provided for probes.
     """
     errors = []
     pos = 0
-    for c in wg_section["readinessprobe"]:
+    for c in wg_readinessprobes:
         if not isinstance(c, str):
             errors.append(
                 f"Expected a string for readinessprobe at {pos}. Found {c}"
@@ -163,17 +166,17 @@ def readinessprobe_command_validation(wg_section: dict):
         )
 
 
-def readinessprobe(wg_section: dict):
+def readinessprobe(wg_readinessprobes: list):
     """Execute provided readiness probe(s)
 
-    @param wg_section: Dict of readinessprobe probe(s) under 'wireguard'.
+    @param wg_readinessprobes: List of readinessprobe probe(s).
 
     @raises: ProcessExecutionError for issues during execution of probes.
     """
     errors = []
-    for c in wg_section["readinessprobe"]:
+    for c in wg_readinessprobes:
         try:
-            LOG.debug("Running readinessprobe: '%s'", str(c))
+            LOG.debug("Running readinessprobe: '%s'", {str(c)})
             subp.subp(c, capture=True, shell=True)
         except subp.ProcessExecutionError as e:
             errors.append(f"{c}: {e}")
@@ -236,7 +239,8 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
         "readinessprobe" in wg_section
         and wg_section["readinessprobe"] is not None
     ):
-        readinessprobe_command_validation(wg_section)
-        readinessprobe(wg_section)
+        wg_readinessprobes = wg_section["readinessprobe"]
+        readinessprobe_command_validation(wg_readinessprobes)
+        readinessprobe(wg_readinessprobes)
     else:
         LOG.debug("Skipping readinessprobe - no checks defined")

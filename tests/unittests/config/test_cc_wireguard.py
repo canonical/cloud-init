@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import pytest
 
+from cloudinit import subp
 from cloudinit.config import cc_wireguard
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -19,8 +20,30 @@ class FakeCloud(object):
         self.distro = distro
 
 
-class TestSupplementalSchemaValidation(CiTestCase):
-    def test_error_on_missing_keys(self):
+class TestWireGuard(CiTestCase):
+
+    with_logs = True
+    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+
+    def setUp(self):
+        super(TestWireGuard, self).setUp()
+        self.tmp = self.tmp_dir()
+
+    def test_readiness_probe_schema_non_string_values(self):
+        """ValueError raised for any values expected as string type."""
+        wg_readinessprobes = [1, ["not-a-valid-command"]]
+        errors = [
+            "Expected a string for readinessprobe at 0. Found 1",
+            "Expected a string for readinessprobe at 1."
+            " Found ['not-a-valid-command']",
+        ]
+        with self.assertRaises(ValueError) as context_mgr:
+            cc_wireguard.readinessprobe_command_validation(wg_readinessprobes)
+        error_msg = str(context_mgr.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
+
+    def test_suppl_schema_error_on_missing_keys(self):
         """ValueError raised reporting any missing required keys"""
         cfg = {}
         match = (
@@ -30,13 +53,13 @@ class TestSupplementalSchemaValidation(CiTestCase):
         with self.assertRaisesRegex(ValueError, match):
             cc_wireguard.supplemental_schema_validation(cfg)
 
-    def test_error_on_non_string_values(self):
+    def test_suppl_schema_error_on_non_string_values(self):
         """ValueError raised for any values expected as string type."""
         cfg = {"name": 1, "config_path": 2, "content": 3}
         errors = [
-            "Expected a str for wg:interfaces:config_path. Found: 2",
-            "Expected a str for wg:interfaces:content. Found: 3",
-            "Expected a str for wg:interfaces:name. Found: 1",
+            "Expected a string for wg:interfaces:config_path. Found 2",
+            "Expected a string for wg:interfaces:content. Found 3",
+            "Expected a string for wg:interfaces:name. Found 1",
         ]
         with self.assertRaises(ValueError) as context_mgr:
             cc_wireguard.supplemental_schema_validation(cfg)
@@ -44,15 +67,60 @@ class TestSupplementalSchemaValidation(CiTestCase):
         for error in errors:
             self.assertIn(error, error_msg)
 
+    def test_write_config_failed(self):
+        """Errors when writing config are raised."""
+        wg_int = {"name": "wg0", "config_path": "/no/valid/path"}
 
-class TestWireGuard(CiTestCase):
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_wireguard.write_config(wg_int)
+        self.assertIn(
+            "Failure writing Wireguard configuration file /no/valid/path:\n",
+            str(context_mgr.exception),
+        )
 
-    with_logs = True
-    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+    @mock.patch("%s.subp.subp" % MPATH)
+    def test_readiness_probe_invalid_command(self, m_subp):
+        """Errors when executing readinessprobes are raised."""
+        wg_readinessprobes = ["not-a-valid-command"]
 
-    def setUp(self):
-        super(TestWireGuard, self).setUp()
-        self.tmp = self.tmp_dir()
+        def fake_subp(cmd, capture=None, shell=None):
+            fail_cmds = ["not-a-valid-command"]
+            if cmd in fail_cmds and capture and shell:
+                raise subp.ProcessExecutionError(
+                    "not-a-valid-command: command not found"
+                )
+
+        m_subp.side_effect = fake_subp
+
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_wireguard.readinessprobe(wg_readinessprobes)
+        self.assertIn(
+            "Failed running readinessprobe command:\n"
+            "not-a-valid-command: Unexpected error while"
+            " running command.\n"
+            "Command: -\nExit code: -\nReason: -\n"
+            "Stdout: not-a-valid-command: command not found\nStderr: -",
+            str(context_mgr.exception),
+        )
+
+    @mock.patch("%s.subp.subp" % MPATH)
+    def test_enable_wg_on_error(self, m_subp):
+        """Errors when enabling wireguard interfaces are raised."""
+        wg_int = {"name": "wg0"}
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "systemctl start wg-quik@wg0 failed: exit code 1"
+        )
+
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_wireguard.enable_wg(wg_int)
+        self.assertEqual(
+            "Failed enabling Wireguard interface(s):\n"
+            "Unexpected error while running command.\n"
+            "Command: -\nExit code: -\nReason: -\n"
+            "Stdout: systemctl start wg-quik@wg0 failed: exit code 1\n"
+            "Stderr: -",
+            str(context_mgr.exception),
+        )
 
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wg_tools_noop_when_wg_tools_present(self, m_which):
@@ -105,7 +173,7 @@ class TestWireGuard(CiTestCase):
 
     def test_readiness_probe_with_non_string_values(self):
         """ValueError raised for any values expected as string type."""
-        cfg = {"readinessprobe": [1, 2]}
+        cfg = [1, 2]
         errors = [
             "Expected a string for readinessprobe at 0. Found 1",
             "Expected a string for readinessprobe at 1. Found 2",
