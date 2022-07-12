@@ -107,14 +107,15 @@ class TestWireGuard(CiTestCase):
     def test_enable_wg_on_error(self, m_subp):
         """Errors when enabling wireguard interfaces are raised."""
         wg_int = {"name": "wg0"}
-        m_subp.side_effect = subp.ProcessExecutionError(
+        distro = mock.MagicMock()  # No errors raised
+        distro.manage_service.side_effect = subp.ProcessExecutionError(
             "systemctl start wg-quik@wg0 failed: exit code 1"
         )
-
+        mycloud = FakeCloud(distro)
         with self.assertRaises(RuntimeError) as context_mgr:
-            cc_wireguard.enable_wg(wg_int)
+            cc_wireguard.enable_wg(wg_int, mycloud)
         self.assertEqual(
-            "Failed enabling Wireguard interface(s):\n"
+            "Failed enabling/starting Wireguard interface(s):\n"
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
             "Stdout: systemctl start wg-quik@wg0 failed: exit code 1\n"
@@ -162,6 +163,31 @@ class TestWireGuard(CiTestCase):
             "Failed to install wireguard-tools\n", self.logs.getvalue()
         )
 
+    @mock.patch("%s.subp.subp" % MPATH)
+    @mock.patch("%s.subp.which" % MPATH)
+    def test_maybe_install_wg_failed_load_module(self, m_which, m_subp):
+        """maybe_install_wireguard_tools logs and raises
+        kernel modules loading error."""
+        m_which.return_value = None
+        distro = mock.MagicMock()
+        distro.update_package_sources.return_value = None
+        distro.install_packages.return_value = None
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "Some kernel module load error"
+        )
+        with self.assertRaises(subp.ProcessExecutionError) as context_manager:
+            cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+        self.assertEqual(
+            "Unexpected error while running command.\n"
+            "Command: -\nExit code: -\nReason: -\n"
+            "Stdout: Some kernel module load error\n"
+            "Stderr: -",
+            str(context_manager.exception),
+        )
+        self.assertIn(
+            "WARNING: Could not load wireguard module:\n", self.logs.getvalue()
+        )
+
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wg_tools_happy_path(self, m_which):
         """maybe_install_wireguard_tools installs wireguard-tools."""
@@ -170,6 +196,20 @@ class TestWireGuard(CiTestCase):
         cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
         distro.update_package_sources.assert_called_once_with()
         distro.install_packages.assert_called_once_with(["wireguard-tools"])
+
+    @mock.patch("%s.maybe_install_wireguard_tools" % MPATH)
+    def test_handle_no_config(self, m_maybe_install_wireguard_tools):
+        """When no wireguard configuration is provided, nothing happens."""
+        cfg = {}
+        cc_wireguard.handle(
+            "wg", cfg=cfg, cloud=None, log=self.logger, args=None
+        )
+        self.assertIn(
+            "DEBUG: Skipping module named wg, no 'wireguard'"
+            " configuration found",
+            self.logs.getvalue(),
+        )
+        self.assertEqual(m_maybe_install_wireguard_tools.call_count, 0)
 
     def test_readiness_probe_with_non_string_values(self):
         """ValueError raised for any values expected as string type."""

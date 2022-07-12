@@ -121,7 +121,7 @@ def write_config(wg_int: dict):
         ) from e
 
 
-def enable_wg(wg_int: dict):
+def enable_wg(wg_int: dict, cloud: Cloud):
     """Enable and start Wireguard interface
 
     @param wg_int: Dict of configuration value under 'wg:interfaces'.
@@ -129,18 +129,13 @@ def enable_wg(wg_int: dict):
     @raises: RuntimeError for issues enabling WG interface.
     """
     try:
-        LOG.debug("Running: systemctl enable wg-quick@%s", {wg_int["name"]})
-        subp.subp(
-            f'systemctl enable wg-quick@{wg_int["name"]}',
-            capture=True,
-        )
-        subp.subp(
-            f'systemctl start wg-quick@{wg_int["name"]}',
-            capture=True,
-        )
-    except Exception as e:
+        LOG.debug("Enabling %s at boot", {wg_int["name"]})
+        cloud.distro.manage_service("enable", wg_int["name"])
+        LOG.debug("Bringing up interface %s", {wg_int["name"]})
+        cloud.distro.manage_service("start", wg_int["name"])
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
-            f"Failed enabling Wireguard interface(s):{NL}{str(e)}"
+            f"Failed enabling/starting Wireguard interface(s):{NL}{str(e)}"
         ) from e
 
 
@@ -201,6 +196,11 @@ def maybe_install_wireguard_tools(cloud: Cloud):
     except Exception:
         util.logexc(LOG, "Failed to install wireguard-tools")
         raise
+    try:
+        subp.subp("modprobe wireguard", capture=True, shell=True)
+    except subp.ProcessExecutionError as e:
+        util.logexc(LOG, f"Could not load wireguard module:{NL}{str(e)}")
+        raise
 
 
 def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
@@ -219,10 +219,6 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
 
     # install wireguard tools, enable kernel module
     maybe_install_wireguard_tools(cloud)
-    try:
-        subp.subp("modprobe wireguard", capture=True, shell=True)
-    except subp.ProcessExecutionError as e:
-        util.logexc(LOG, f"Could not load wireguard module: {e}")
 
     for wg_int in wg_section["interfaces"]:
         # check schema
@@ -232,7 +228,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
         write_config(wg_int)
 
         # enable wg interfaces
-        enable_wg(wg_int)
+        enable_wg(wg_int, cloud)
 
     # parse and run readinessprobe parameters
     if (
