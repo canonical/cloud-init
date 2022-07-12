@@ -307,7 +307,7 @@ class TestSetPasswordsHandle(CiTestCase):
         cloud = get_cloud(distro="freebsd")
         valid_pwds = [
             "ubuntu:passw0rd",
-            "sadegh:$6$cTpht$Z2pSYxleRWK8IrsynFzHcrnPlpUhA7N9AM/"
+            "sadegh:$6$cTpht$Z2pSYxleRWK8IrsynFzHcrnPlpUhA7N9AM/",
         ]
         cfg = {"chpasswd": {"list": valid_pwds}}
         with mock.patch.object(
