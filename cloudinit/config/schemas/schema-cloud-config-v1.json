@@ -989,7 +989,7 @@
                 },
                 "storage_backend": {
                   "type": "string",
-                  "enum": ["zfs", "dir"],
+                  "enum": ["zfs", "dir", "lvm", "btrfs"],
                   "default": "dir",
                   "description": "Storage backend to use. Default: ``dir``."
                 },
