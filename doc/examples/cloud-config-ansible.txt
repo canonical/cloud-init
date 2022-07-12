@@ -1,3 +1,16 @@
 #cloud-config
+version: v1
+packages_update: true
+packages_upgrade: true
+
+# if you're already installing other packages, you may
+# wish to manually install ansible to avoid multiple calls
+# to your package manager
+packages:
+  - ansible
+  - git
 ansible:
-    install: true
+  install: false
+  pull:
+    url: "https://github.com/holmanb/vmboot.git"
+    playbook-name: ubuntu.yml

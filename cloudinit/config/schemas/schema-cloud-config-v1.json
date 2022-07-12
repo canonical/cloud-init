@@ -242,8 +242,9 @@
               "default": false
             },
             "pull": {
+              "required": ["url", "playbook-name"],
               "type": "object",
-          	  "additionalProperties": false,
+              "additionalProperties": false,
               "properties": {
                 "accept-host-key": {
                   "type": "boolean",
@@ -310,11 +311,6 @@
                   "type": "string"
                 }
               }
-            },
-            "local": {
-              "type": "object",
-              "additionalProperties": true,
-              "description": "TODO"
             }
           }
         }

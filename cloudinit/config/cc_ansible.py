@@ -1,8 +1,8 @@
 """ansible enables running on first boot either ansible-pull"""
 
-from logging import Logger, getLogger
+from logging import Logger
 from textwrap import dedent
-from typing import Callable, Tuple
+from typing import Tuple
 
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -16,23 +16,27 @@ meta: MetaSchema = {
     "title": "Configure ansible for instance",
     "description": dedent(
         """\
-        This module provides ansible-pull integration
+        This module provides ansible integration.``
+
+        Ansible is often used agentless and in parallel
+        across multiple hosts simultaneously. This
+        doesn't fit the model of cloud-init: a single
+        host configuring itself during boot. Instead,
+        this module installs ansible during boot and
+        then uses ``ansible-pull`` to run the playbook
+        repository at the remote URL.
         """
     ),
     "distros": [ALL_DISTROS],
     "examples": [
         dedent(
             """\
-        ansible:
-          pull:
-            url: "don't forget to set required properties in schema"
-            """
-        ),
-        dedent(
-            """\
-        ansible:
-          local:
-            TODO: next
+            #cloud-config
+            ansible:
+              install: true
+              pull:
+                url: "https://github.com/holmanb/vmboot.git"
+                playbook-name: ubuntu.yml
             """
         ),
     ],
@@ -43,44 +47,25 @@ __doc__ = get_meta_doc(meta)
 
 
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
-
-    # TODO: Remove this before PR
-    if not all([name, cfg, cloud, log]):
-        raise ValueError(
-            f"Configuration not supported: {name} {cfg} {cloud} {log}"
-        )
-
-    install, ansible_config, run_ansible = get_and_validate_config(cfg)
-    install_ansible(cloud.distro, install)
-    run_ansible(ansible_config, log)
-
-
-def get_and_validate_config(
-    cfg: dict
-) -> Tuple[bool, dict, Callable[[dict, Logger], None]]:
     ansible_cfg: dict = cfg.get("ansible", {})
-    pull: dict = ansible_cfg.get("pull", {})
-    local: dict = ansible_cfg.get("local", {})
-    install: bool = ansible_cfg.get("install", False)
-    if all([pull, local]):
+    if ansible_cfg:
+        install, ansible_config = get_and_validate_config(ansible_cfg)
+        install_ansible(cloud.distro, install)
+        run_ansible_pull(ansible_config, log)
+
+
+def get_and_validate_config(cfg: dict) -> Tuple[bool, dict]:
+    pull: dict = cfg.get("pull", {})
+    install: bool = cfg.get("install", False)
+    if not all([pull.get("playbook-name"), pull.get("url")]):
         raise ValueError(
-            "Both ansible-pull and ansible-local configured."
-            "Simultaneous use not supported"
+            "Missing required key: playbook-name and "
+            "url keys required for ansible module"
         )
-    if pull:
-        return (
-            install,
-            pull,
-            run_ansible_pull,
-        )
-    elif local:
-        return (
-            install,
-            local,
-            run_ansible_local,
-        )
-    raise ValueError(
-        "ansible module key missing (requires either 'pull' or 'local')")
+    return (
+        install,
+        pull,
+    )
 
 
 def install_ansible(distro: Distro, install: bool):
@@ -95,7 +80,7 @@ def check_deps(dep: str):
     if not which(dep):
         raise ValueError(
             f"command: {dep} is not available, please set"
-            "ansible.install: True in your config or ensure that"
+            "ansible.install: True in your config or otherwise ensure that"
             "it is installed (either in your base image or in a package"
             "install module)"
         )
@@ -104,11 +89,8 @@ def check_deps(dep: str):
 def run_ansible_pull(cfg: dict, log: Logger):
     cmd = "ansible-pull"
     check_deps(cmd)
-    log.warn("in run_ansible_pull")
+    playbook_name: str = cfg.pop("playbook-name")
     try:
-        playbook_name = cfg.get("playbook-name")
-        if not playbook_name:
-            raise ValueError("Missing required key: 'playbook-name'")
 
         stdout, stderr = subp(
             [
@@ -116,7 +98,6 @@ def run_ansible_pull(cfg: dict, log: Logger):
                 *[
                     f"--{key}={value}" if value else f"--{key}"
                     for key, value in cfg.items()
-                    if key != "playbook-name"
                 ],
                 playbook_name,
             ]
@@ -127,10 +108,3 @@ def run_ansible_pull(cfg: dict, log: Logger):
             log.warn(f"{stdout}")
     except ProcessExecutionError as err:
         log.warn(f"Error executing ansible-pull, {err}")
-
-
-def run_ansible_local(cfg: dict, log: Logger):
-    """TODO: ansible-playbook playbook.yml --connection=local"""
-    cmd = "ansible-playbook"
-    check_deps(cmd)
-    raise NotImplementedError()
