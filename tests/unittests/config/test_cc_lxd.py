@@ -48,7 +48,6 @@ class TestLxd(t_help.CiTestCase):
                 self.assertTrue(mock_subp.which.called)
                 # no bridge config, so maybe_cleanup should not be called.
                 self.assertFalse(m_maybe_clean.called)
-                print(mock_subp.subp.call_args_list)
                 self.assertEqual(
                     [
                         mock.call(["lxd", "waitready", "--timeout=300"]),
