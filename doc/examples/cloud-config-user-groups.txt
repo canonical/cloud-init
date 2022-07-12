@@ -24,7 +24,7 @@ users:
       - lp:falcojr
       - gh:TheRealFalcon
     lock_passwd: false
-    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+    passwd: "$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/"
   - name: barfoo
     gecos: Bar B. Foo
     sudo: ALL=(ALL) NOPASSWD:ALL
