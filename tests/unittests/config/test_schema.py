@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+from collections import namedtuple
 from copy import copy, deepcopy
 from pathlib import Path
 from textwrap import dedent
@@ -21,12 +22,14 @@ from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
+    SchemaProblem,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
     get_schema,
     get_schema_dir,
+    handle_schema_args,
     load_doc,
     main,
     validate_cloudconfig_file,
@@ -46,6 +49,8 @@ from tests.unittests.helpers import (
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
+
+M_PATH = "cloudinit.config.schema."
 
 
 def get_schemas() -> dict:
@@ -243,10 +248,12 @@ class SchemaValidationErrorTest(CiTestCase):
 
     def test_schema_validation_error_expects_schema_errors(self):
         """SchemaValidationError is initialized from schema_errors."""
-        errors = (
-            ("key.path", 'unexpected key "junk"'),
-            ("key2.path", '"-123" is not a valid "hostname" format'),
-        )
+        errors = [
+            SchemaProblem("key.path", 'unexpected key "junk"'),
+            SchemaProblem(
+                "key2.path", '"-123" is not a valid "hostname" format'
+            ),
+        ]
         exception = SchemaValidationError(schema_errors=errors)
         self.assertIsInstance(exception, Exception)
         self.assertEqual(exception.schema_errors, errors)
@@ -289,7 +296,7 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided: \np1: -1 is not of type 'string'"
+            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
             == log_msg
         )
 
@@ -376,6 +383,201 @@ class TestValidateCloudConfigSchema:
             "Meta-schema validation failed, attempting to validate config"
             in caplog.text
         )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    @pytest.mark.parametrize(
+        "schema,config,expected_msg",
+        [
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "a-b": {
+                            "type": "string",
+                            "deprecated": True,
+                            "description": "<desc>",
+                        },
+                        "a_b": {"type": "string", "description": "noop"},
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "oneOf": [
+                                {"type": "integer", "description": "noop"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {"type": "string", "description": "noop"},
+                                {
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "anyOf": [
+                                {"type": "integer", "description": "noop"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "type": "string",
+                            "deprecated": True,
+                            "description": "<desc>",
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "type": "string",
+                            "deprecated": False,
+                            "description": "<desc>",
+                        },
+                    },
+                },
+                {"x": "+5"},
+                None,
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                            "description": "<desc>",
+                        }
+                    },
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {"type": "string", "description": "noop"},
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                        }
+                    },
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {
+                                    "type": "string",
+                                    "description": "noop",
+                                },
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: DEPRECATED.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                            "description": "<desc>",
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+            ),
+            pytest.param(
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: DEPRECATED.",
+                id="deprecated_pattern_property_without_description",
+            ),
+        ],
+    )
+    def test_validateconfig_logs_deprecations(
+        self, schema, config, expected_msg, log_deprecations, caplog
+    ):
+        validate_cloudconfig_schema(
+            config,
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        if expected_msg is None:
+            return
+        log_record = (M_PATH[:-1], logging.WARNING, expected_msg)
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
 
 
 class TestCloudConfigExamples:
@@ -852,6 +1054,116 @@ class TestSchemaDocMarkdown:
         assert "prop1" not in meta_doc
         assert ".*" not in meta_doc
 
+    @pytest.mark.parametrize(
+        "schema,expected_doc",
+        [
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "deprecated": True,
+                            "description": "<description>",
+                        }
+                    }
+                },
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "description": "<description>",
+                            "deprecated": True,
+                        },
+                    },
+                },
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {"my_ref": {"deprecated": True}},
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description>",
+                                },
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        }
+                    },
+                },
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                            "description": "<description>",
+                        }
+                    },
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {"type": ["string", "integer"]},
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        }
+                    },
+                },
+                "**prop1:** (string/integer) DEPRECATED. <description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "description": "<description>",
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                            ],
+                        },
+                    },
+                },
+                "**prop1:** (UNDEFINED) <description>\n",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "number",
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (UNDEFINED)\n",
+            ),
+        ],
+    )
+    def test_get_meta_doc_render_deprecated_info(self, schema, expected_doc):
+        assert expected_doc in get_meta_doc(self.meta, schema)
+
 
 class TestAnnotatedCloudconfigFile:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
@@ -859,7 +1171,10 @@ class TestAnnotatedCloudconfigFile:
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
         parse_cfg, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            parse_cfg, content, schema_errors=[], schemamarks=schemamarks
+            parse_cfg,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=[],
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -881,8 +1196,8 @@ class TestAnnotatedCloudconfigFile:
         assert expected == annotated_cloudconfig_file(
             None,
             content,
-            schema_errors=[("", "None is not of type 'object'")],
             schemamarks={},
+            schema_errors=[SchemaProblem("", "None is not of type 'object'")],
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -911,12 +1226,15 @@ class TestAnnotatedCloudconfigFile:
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
-            ("ntp", "Some type error"),
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
+            SchemaProblem("ntp", "Some type error"),
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected == annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
@@ -941,11 +1259,14 @@ class TestAnnotatedCloudconfigFile:
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected in annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
 
@@ -1174,4 +1495,80 @@ class TestSchemaFuzz:
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
     def test_validate_full_schema(self, config):
-        validate_cloudconfig_schema(config, strict=True)
+        try:
+            validate_cloudconfig_schema(config, strict=True)
+        except SchemaValidationError as ex:
+            if ex.has_errors():
+                raise
+
+
+class TestHandleSchemaArgs:
+
+    Args = namedtuple("Args", "config_file docs system annotate")
+
+    @pytest.mark.parametrize(
+        "annotate, expected_output",
+        [
+            (
+                True,
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true		# D1
+                    apt_upgrade: true		# D2
+                    apt_reboot_if_required: true		# D3
+
+                    # Deprecations: -------------
+                    # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
+                    # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+                    # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
+
+
+                    Valid cloud-config: {}
+                    """  # noqa: E501
+                ),
+            ),
+            (
+                False,
+                dedent(
+                    """\
+                    Cloud config schema deprecations: \
+apt_reboot_if_required: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
+apt_update: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``, \
+apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+                    Valid cloud-config: {}
+                    """  # noqa: E501
+                ),
+            ),
+        ],
+    )
+    def test_handle_schema_args_annotate_deprecated_config(
+        self, annotate, expected_output, caplog, capsys, tmpdir
+    ):
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true
+                    apt_upgrade: true
+                    apt_reboot_if_required: true
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=annotate,
+            docs=None,
+            system=None,
+        )
+        handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        assert expected_output.format(user_data_fn) == out
+        assert not err
+        assert "deprec" not in caplog.text

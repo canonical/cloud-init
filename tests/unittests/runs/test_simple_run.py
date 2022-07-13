@@ -23,7 +23,10 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             "datasource_list": ["None"],
             "runcmd": ["ls /etc"],  # test ALL_DISTROS
             "spacewalk": {},  # test non-ubuntu distros module definition
-            "system_info": {"paths": {"run_dir": self.new_root}},
+            "system_info": {
+                "paths": {"run_dir": self.new_root},
+                "distro": "ubuntu",
+            },
             "write_files": [
                 {
                     "path": "/etc/blah.ini",
