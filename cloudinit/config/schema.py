@@ -8,12 +8,11 @@ import os
 import re
 import sys
 import textwrap
-import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import chain
-from typing import List, NamedTuple, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
 import yaml
 
@@ -66,12 +65,14 @@ SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 DEPRECATED_KEY = "deprecated"
 
 
-# annotations add value for development, but don't break old versions
-# pyver: 3.6 -> 3.8
-# pylint: disable=E1101
-if sys.version_info >= (3, 8):
+# type-annotate only if type-checking.
+# Consider to add `type_extensions` as a dependency when Bionic is EOL.
+if TYPE_CHECKING:
+    import typing
 
-    class MetaSchema(typing.TypedDict):
+    from typing_extensions import TypedDict
+
+    class MetaSchema(TypedDict):
         name: str
         id: str
         title: str
@@ -82,7 +83,6 @@ if sys.version_info >= (3, 8):
 
 else:
     MetaSchema = dict
-# pylint: enable=E1101
 
 
 class SchemaDeprecationError(ValidationError):
