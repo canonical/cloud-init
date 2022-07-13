@@ -9,6 +9,7 @@ from xml.sax.saxutils import escape, unescape
 
 import pytest
 
+from cloudinit import url_helper
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
@@ -84,6 +85,25 @@ HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
 )
 
 HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
+MOCKPATH = "cloudinit.sources.helpers.azure."
+
+
+@pytest.fixture
+def mock_readurl():
+    with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_sleep():
+    with mock.patch(MOCKPATH + "sleep", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_time():
+    with mock.patch(MOCKPATH + "time", autospec=True) as m:
+        yield m
 
 
 class SentinelException(Exception):
@@ -333,145 +353,99 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
 
-class TestAzureHelperHttpWithRetries(CiTestCase):
+class TestHttpWithRetries:
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_readurl, mock_sleep, mock_time):
+        self.m_readurl = mock_readurl
+        self.m_sleep = mock_sleep
+        self.m_time = mock_time
+        self.m_time.return_value = 0
 
-    with_logs = True
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_timeouts(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
+    ):
+        error = url_helper.UrlError("retry", code=404)
+        self.m_readurl.side_effect = error
+        self.m_time.side_effect = times
 
-    max_readurl_attempts = 240
-    default_readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
-
-    def setUp(self):
-        super(TestAzureHelperHttpWithRetries, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.m_readurl = patches.enter_context(
-            mock.patch.object(
-                azure_helper.url_helper, "readurl", mock.MagicMock()
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+                retry_sleep=retry_sleep,
+                timeout_minutes=timeout_minutes,
             )
-        )
-        self.m_sleep = patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", autospec=True)
-        )
 
-    def test_http_with_retries(self):
-        self.m_readurl.return_value = "TestResp"
-        self.assertEqual(
-            azure_helper.http_with_retries("testurl", headers={}),
-            self.m_readurl.return_value,
-        )
-        self.assertEqual(self.m_readurl.call_count, 1)
+        assert exc_info.value == error
+        assert self.m_readurl.call_count == try_count
+        for i in range(1, try_count + 1):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
+        assert self.m_time.mock_calls == (try_count + 1) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(self):
-        self.m_readurl.side_effect = SentinelException
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_success(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
+    ):
+        self.m_readurl.side_effect = (try_count - 1) * [
+            url_helper.UrlError("retry", code=404)
+        ] + ["data"]
+        self.m_time.side_effect = times
 
-        self.assertRaises(
-            SentinelException,
-            azure_helper.http_with_retries,
+        resp = azure_helper.http_with_retries(
             "testurl",
             headers={},
-        )
-        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
-
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
+            retry_sleep=retry_sleep,
+            timeout_minutes=timeout_minutes,
         )
 
-    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
-        self,
-    ):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
+        assert resp == "data"
+        assert self.m_readurl.call_count == try_count
+        assert self.m_time.mock_calls == (try_count) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-        response = azure_helper.http_with_retries("testurl", headers={})
-        self.assertEqual(response, self.m_readurl.return_value)
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
+        for i in range(1, try_count):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
 
-        # Ensure that cloud-init did sleep between each failed request
-        self.assertEqual(
-            self.m_sleep.call_count, self.periodic_logging_attempts
-        )
-        self.m_sleep.assert_called_with(self.sleep_duration_between_retries)
-
-    def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
-
-        azure_helper.http_with_retries("testurl", headers={})
-
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
-
-    def test_http_with_retries_short_delay_does_not_log_periodic_failure_msg(
-        self,
-    ):
-        self.m_readurl.side_effect = [SentinelException] * (
-            self.periodic_logging_attempts - 1
-        ) + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
-
-        azure_helper.http_with_retries("testurl", headers={})
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts
-        )
-
-        self.assertIsNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
-
-    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
-        testurl = mock.MagicMock()
-        kwargs = {
-            "headers": mock.MagicMock(),
-            "data": mock.MagicMock(),
-        }
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **kwargs, timeout=5)
+        assert (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Successful HTTP request with Azure endpoint testurl after "
+            "%d attempts" % try_count,
+        ) in caplog.record_tuples
 
 
 class TestOpenSSLManager(CiTestCase):
@@ -586,7 +560,7 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.addCleanup(patches.close)
 
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
         self.read_file_or_url = patches.enter_context(
             mock.patch.object(azure_helper.url_helper, "read_file_or_url")
@@ -995,7 +969,7 @@ class TestWALinuxAgentShim(CiTestCase):
             mock.patch.object(azure_helper, "OpenSSLManager", autospec=True)
         )
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
 
         self.test_incarnation = "TestIncarnation"
@@ -1228,58 +1202,58 @@ class TestWALinuxAgentShim(CiTestCase):
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
-        self.GoalState.side_effect = SentinelException
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
         self,
     ):
-        self.GoalState.side_effect = SentinelException
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_failure_to_send_report_ready_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_failure_to_send_report_failure_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
@@ -1307,11 +1281,11 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
-        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = (  # noqa: E501
-            SentinelException
+        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = url_helper.UrlError(  # noqa: E501
+            "retry", code=404
         )
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             azure_helper.get_metadata_from_fabric,
             "test_endpoint",
         )
