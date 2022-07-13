@@ -13,7 +13,7 @@ from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = dedent(
     """\
-Wireguard module provides a dynamic interface for configuring 
+Wireguard module provides a dynamic interface for configuring
 Wireguard (as a peer or server) in an easy way.
 
 This module takes care of..
@@ -24,18 +24,19 @@ This module takes care of..
   - executing readiness probes
 
 What's a readiness probe?
-The idea behind readiness probes is to ensure Wireguard connectivity 
-before continuing the cloud-init process. This could be useful if you 
-need access to specific services like an internal APT Repository Server 
+The idea behind readiness probes is to ensure Wireguard connectivity
+before continuing the cloud-init process. This could be useful if you
+need access to specific services like an internal APT Repository Server
 (e.g Landscape) to install/update packages.
 
 Example:
-An edge device can't access the internet but uses cloud-init modules that 
-will install packages (e.g landscape, packages, ubuntu_advantage). Those modules 
-will fail due to missing internet connection. The "wireguard" module fixes that 
-problem as it waits until all readinessprobes (which can be arbitrary commands - 
-e.g. checking if a proxy server is reachable over Wireguard network) are finished 
-before continuing the cloud-init "config" stage.
+An edge device can't access the internet but uses cloud-init modules that
+will install packages (e.g landscape, packages, ubuntu_advantage). Those
+modules will fail due to missing internet connection. The "wireguard" module
+fixes that problem as it waits until all readinessprobes (which can be
+arbitrary commands - e.g. checking if a proxy server is reachable over
+Wireguard network) are finished before continuing the cloud-init
+"config" stage.
 """
 )
 
