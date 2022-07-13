@@ -8,6 +8,7 @@ from textwrap import dedent
 from cloudinit import log as logging
 from cloudinit.config.schema import (
     MetaSchema,
+    SchemaProblem,
     SchemaValidationError,
     get_meta_doc,
 )
@@ -115,26 +116,26 @@ def validate_config_schema(cfg):
     autoinstall_cfg = cfg["autoinstall"]
     if not isinstance(autoinstall_cfg, dict):
         raise SchemaValidationError(
-            (
-                (
+            [
+                SchemaProblem(
                     "autoinstall",
                     "Expected dict type but found:"
                     f" {type(autoinstall_cfg).__name__}",
-                ),
-            )
+                )
+            ]
         )
 
     if "version" not in autoinstall_cfg:
         raise SchemaValidationError(
-            (("autoinstall", "Missing required 'version' key"),)
+            [SchemaProblem("autoinstall", "Missing required 'version' key")]
         )
     elif not isinstance(autoinstall_cfg.get("version"), int):
         raise SchemaValidationError(
-            (
-                (
+            [
+                SchemaProblem(
                     "autoinstall.version",
                     f"Expected int type but found:"
                     f" {type(autoinstall_cfg['version']).__name__}",
-                ),
-            )
+                )
+            ]
         )

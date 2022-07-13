@@ -109,16 +109,6 @@ class TestHandleAutoinstall:
                 ],
                 id="valid_autoinstall_schema_sees_desktop_installer",
             ),
-            pytest.param(
-                {"autoinstall": {"version": 1}},
-                SAMPLE_SNAP_LIST_SUBIQUITY,
-                [mock.call(["snap", "list"])],
-                [
-                    "Valid autoinstall schema. Config will be processed by"
-                    " subiquity"
-                ],
-                id="valid_autoinstall_schema_sees_subiquity",
-            ),
         ],
     )
     def test_handle_autoinstall_cfg(
