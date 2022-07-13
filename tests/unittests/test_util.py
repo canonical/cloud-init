@@ -2081,7 +2081,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         logged_string = "something very important"
         util.multi_log(logged_string)
-        self.assertEqual(logged_string, open("/dev/console").read())
+        with open("/dev/console") as f:
+            self.assertEqual(logged_string, f.read())
 
     def test_logs_dont_go_to_stdout_if_console_exists(self):
         self._createConsole(self.root)
