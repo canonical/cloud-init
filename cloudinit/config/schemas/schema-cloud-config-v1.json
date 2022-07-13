@@ -2078,10 +2078,10 @@
       }
     },
     "cc_wireguard": {
-      "type": ["null", "object"],
+      "type": "object",
       "properties": {
         "wireguard": {
-          "type": "object",
+          "type": ["null", "object"],
           "properties": {
             "interfaces": {
               "type": "array",
@@ -2114,6 +2114,7 @@
               "description": "List of shell commands to be executed as probes."
             }
           },
+          "required": ["interfaces"],
           "minProperties": 1,
           "additionalProperties": false
         }
@@ -2414,6 +2415,7 @@
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
     { "$ref": "#/$defs/cc_users_groups"},
+    { "$ref": "#/$defs/cc_wireguard"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
     { "$ref": "#/$defs/cc_zypper_add_repo"},

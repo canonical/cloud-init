@@ -13,9 +13,29 @@ from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = dedent(
     """\
-Module to set up Wireguard connection.
-Including installation and configuration of WG interfaces.
-In addition certain readinessprobes can be provided.
+Wireguard module provides a dynamic interface for configuring 
+Wireguard (as a peer or server) in an easy way.
+
+This module takes care of..
+  - writing interface configuration files
+  - enabling and starting interfaces
+  - installing wireguard-tools package
+  - loading wireguard kernel module
+  - executing readiness probes
+
+What's a readiness probe?
+The idea behind readiness probes is to ensure Wireguard connectivity 
+before continuing the cloud-init process. This could be useful if you 
+need access to specific services like an internal APT Repository Server 
+(e.g Landscape) to install/update packages.
+
+Example:
+An edge device can't access the internet but uses cloud-init modules that 
+will install packages (e.g landscape, packages, ubuntu_advantage). Those modules 
+will fail due to missing internet connection. The "wireguard" module fixes that 
+problem as it waits until all readinessprobes (which can be arbitrary commands - 
+e.g. checking if a proxy server is reachable over Wireguard network) are finished 
+before continuing the cloud-init "config" stage.
 """
 )
 
@@ -31,7 +51,7 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
-    # Configure one or more WG interfaces and provide optinal readinessprobes
+    # Configure one or more WG interfaces and provide optional readinessprobes
     wireguard:
       interfaces:
         - name: wg0
@@ -183,7 +203,13 @@ def readinessprobe(wg_readinessprobes: list):
 
 
 def maybe_install_wireguard_tools(cloud: Cloud):
-    """Install wireguard-tools if not present."""
+    """Install wireguard tools
+
+    @param cloud: Cloud object
+
+    @raises: Exception for issues during package
+    installation.
+    """
     if subp.which("wg"):
         return
     try:
@@ -196,6 +222,13 @@ def maybe_install_wireguard_tools(cloud: Cloud):
     except Exception:
         util.logexc(LOG, "Failed to install wireguard-tools")
         raise
+
+
+def load_wireguard_kernel_module():
+    """Load wireguard kernel module
+
+    @raises: ProcessExecutionError for issues modprobe
+    """
     try:
         subp.subp("modprobe wireguard", capture=True, shell=True)
     except subp.ProcessExecutionError as e:
@@ -209,8 +242,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
     if "wireguard" in cfg:
         LOG.debug("Found Wireguard section in config")
         wg_section = cfg["wireguard"]
-
-    if wg_section is None:
+    else:
         LOG.debug(
             "Skipping module named %s," " no 'wireguard' configuration found",
             name,
@@ -218,6 +250,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
         return
 
     # install wireguard tools, enable kernel module
+    load_wireguard_kernel_module()
     maybe_install_wireguard_tools(cloud)
 
     for wg_int in wg_section["interfaces"]:

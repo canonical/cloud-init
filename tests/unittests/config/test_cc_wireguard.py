@@ -164,19 +164,14 @@ class TestWireGuard(CiTestCase):
         )
 
     @mock.patch("%s.subp.subp" % MPATH)
-    @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wg_failed_load_module(self, m_which, m_subp):
-        """maybe_install_wireguard_tools logs and raises
+    def test_load_wg_module_failed(self, m_subp):
+        """load_wireguard_kernel_module logs and raises
         kernel modules loading error."""
-        m_which.return_value = None
-        distro = mock.MagicMock()
-        distro.update_package_sources.return_value = None
-        distro.install_packages.return_value = None
         m_subp.side_effect = subp.ProcessExecutionError(
             "Some kernel module load error"
         )
         with self.assertRaises(subp.ProcessExecutionError) as context_manager:
-            cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+            cc_wireguard.load_wireguard_kernel_module()
         self.assertEqual(
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
@@ -229,8 +224,21 @@ class TestWireguardSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         [
-            # Allow empty wireguard config
-            ({"wireguard": None}, None),
+            # Valid schemas
+            (
+                {
+                    "wireguard": {
+                        "interfaces": [
+                            {
+                                "name": "wg0",
+                                "config_path": "/etc/wireguard/wg0.conf",
+                                "content": "test",
+                            }
+                        ]
+                    }
+                },
+                None,
+            ),
         ],
     )
     @skipUnlessJsonSchema()
