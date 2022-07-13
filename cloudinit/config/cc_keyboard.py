@@ -48,6 +48,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "skippable": True,
 }
 
 

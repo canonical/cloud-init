@@ -50,6 +50,7 @@ meta: MetaSchema = {
         "apt_pipelining: os",
         "apt_pipelining: 3",
     ],
+    "skippable": False,
 }
 
 __doc__ = get_meta_doc(meta)

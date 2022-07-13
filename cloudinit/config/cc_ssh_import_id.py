@@ -43,6 +43,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "skippable": True,
 }
 
 __doc__ = get_meta_doc(meta)

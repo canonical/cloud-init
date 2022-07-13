@@ -8,11 +8,12 @@
 
 import copy
 from collections import namedtuple
-from typing import List
+from typing import List, Optional
 
 from cloudinit import config, importer
 from cloudinit import log as logging
 from cloudinit import type_utils, util
+from cloudinit.config.schema import get_config_keys, get_schema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack
@@ -63,6 +64,18 @@ def validate_module(mod, name):
             f"Module '{mod}' with name '{name}' has a JSON 'schema' attribute "
             "defined. Please define schema in cloud-init-schema,json."
         )
+
+
+def _is_applicable(
+    module_details: ModuleDetails, cfg: dict, schema: Optional[dict] = None
+) -> bool:
+    if not module_details.module.meta.get("skippable", False):
+        return True
+    normalized_name = f"cc_{module_details.name}".replace("-", "_")
+    config_keys = get_config_keys(normalized_name, schema=schema)
+    if not config_keys.intersection(cfg.keys()):
+        return False
+    return True
 
 
 class Modules(object):
@@ -155,7 +168,7 @@ class Modules(object):
     def _fixup_modules(self, raw_mods) -> List[ModuleDetails]:
         """Convert list of returned from _read_modules() into new format.
 
-        Invalid modules and arguments are ingnored.
+        Invalid modules and arguments are ignored.
         Also ensures that the module has the required meta fields.
         """
         mostly_mods = []
@@ -265,16 +278,21 @@ class Modules(object):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
         distro_name = self.init.distro.name
+        schema = get_schema()
 
         skipped = []
         forced = []
         overridden = self.cfg.get("unverified_modules", [])
+        inapplicable_mods = []
         active_mods = []
-        for (mod, name, _freq, _args) in mostly_mods:
+        for module_details in mostly_mods:
+            (mod, name, _freq, _args) = module_details
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]
-
+            if not _is_applicable(module_details, self.cfg, schema=schema):
+                inapplicable_mods.append(name)
+                continue
             # Skip only when the following conditions are all met:
             #  - distros are defined in the module != ALL_DISTROS
             #  - the current d_name isn't in distros
@@ -288,6 +306,12 @@ class Modules(object):
                     forced.append(name)
             active_mods.append([mod, name, _freq, _args])
 
+        if inapplicable_mods:
+            LOG.info(
+                "Skipping modules '%s' because no applicable user-data config "
+                "is provided.",
+                ",".join(inapplicable_mods),
+            )
         if skipped:
             LOG.info(
                 "Skipping modules '%s' because they are not verified "
