@@ -342,7 +342,7 @@ def maybe_cleanup_default(
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
-def get_required_packages(cfg: dict):
+def get_required_packages(cfg: dict) -> List[str]:
     """identify required packages for install"""
     packages = []
     if not subp.which("lxd"):
