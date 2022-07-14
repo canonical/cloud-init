@@ -151,9 +151,9 @@ def enable_wg(wg_int: dict, cloud: Cloud):
     """
     try:
         LOG.debug("Enabling wg-quick@%s at boot", {wg_int["name"]})
-        cloud.distro.manage_service("enable", f'wg-quick@wg_int["name"]')
+        cloud.distro.manage_service("enable", f'wg-quick@{wg_int["name"]}')
         LOG.debug("Bringing up interface wg-quick@%s", {wg_int["name"]})
-        cloud.distro.manage_service("start", f'wg-quick@wg_int["name"]')
+        cloud.distro.manage_service("start", f'wg-quick@{wg_int["name"]}')
     except subp.ProcessExecutionError as e:
         raise RuntimeError(
             f"Failed enabling/starting Wireguard interface(s):{NL}{str(e)}"
