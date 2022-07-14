@@ -41,7 +41,7 @@ class TestLxd(t_help.CiTestCase):
         "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
     )
     def test_lxd_init(self, m_maybe_clean, m_which, m_subp):
-        cc = get_cloud()
+        cc = get_cloud(mocked_distro=True)
         m_install = cc.distro.install_packages
 
         for backend, cmd, package in self.backend_def:
