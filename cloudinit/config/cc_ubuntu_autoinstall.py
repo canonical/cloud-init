@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 distros = ["ubuntu"]
 
 meta: MetaSchema = {
-    "id": "cc_autoinstall",
+    "id": "cc_ubuntu_autoinstall",
     "name": "Autoinstall",
     "title": "Support Ubuntu live-server install syntax",
     "description": dedent(

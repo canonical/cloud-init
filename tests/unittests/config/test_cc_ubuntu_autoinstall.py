@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.config import cc_autoinstall
+from cloudinit.config import cc_ubuntu_autoinstall
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -16,7 +16,7 @@ from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
-MODPATH = "cloudinit.config.cc_autoinstall."
+MODPATH = "cloudinit.config.cc_ubuntu_autoinstall."
 
 SAMPLE_SNAP_LIST_OUTPUT = """
 Name                     Version                     Rev    Tracking      ...
@@ -61,12 +61,12 @@ class TestvalidateConfigSchema:
     def test_runtime_validation_errors(self, src_cfg, error_msg):
         """cloud-init raises errors at runtime on invalid autoinstall config"""
         with pytest.raises(SchemaValidationError, match=error_msg):
-            cc_autoinstall.validate_config_schema(src_cfg)
+            cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
 
 
 @mock.patch(MODPATH + "subp")
 class TestHandleAutoinstall:
-    """Test cc_autoinstall handling of config."""
+    """Test cc_ubuntu_autoinstall handling of config."""
 
     @pytest.mark.parametrize(
         "cfg,snap_list,subp_calls,logs",
@@ -116,7 +116,7 @@ class TestHandleAutoinstall:
     ):
         subp.return_value = snap_list, ""
         cloud = get_cloud(distro="ubuntu")
-        cc_autoinstall.handle("name", cfg, cloud, LOG, None)
+        cc_ubuntu_autoinstall.handle("name", cfg, cloud, LOG, None)
         assert subp_calls == subp.call_args_list
         for log in logs:
             assert log in caplog.text
