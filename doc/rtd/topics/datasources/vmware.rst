@@ -24,7 +24,7 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 System configuration:
 
 ``disable_vmware_customization``:
-true(disable) or false(enable) the vmware customization. (default: true)
+true(disable) or false(enable) the vmware traditional Linux guest customization. Traditional Linux guest customization is customizing a Linux virtual machine with a `traditional Linux customization specification <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html>`_. Also set this configuration to false is required to make sure this datasource is found in ds-identify when using guest os customization transport. (default: true)
 
 Datasource configuration:
 
@@ -56,7 +56,8 @@ Configuration examples:
 
 2. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
    below content will enable vmware customization, but only try to apply a
-   traditional Linux guest customization configuration:
+   traditional Linux guest customization configuration, and set the maximum time of
+   waiting for vmware customization file to 10 seconds:
 
 .. code-block:: yaml
 
@@ -64,6 +65,7 @@ Configuration examples:
    datasource:
      VMware:
        allow_raw_data: false
+       vmware_cust_file_max_wait: 10
 
 VMware Tools configuration:
 
