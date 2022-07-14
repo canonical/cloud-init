@@ -8,6 +8,7 @@
 
 import os
 from textwrap import dedent
+from typing import List
 
 from cloudinit import log as logging
 from cloudinit import subp, util

@@ -28,42 +28,65 @@ class TestLxd(t_help.CiTestCase):
             }
         }
     }
-    backends = [
-        "zfs",
-        "btrfs",
-        "lvm",
-        "dir",
-    ]
+    backend_def = (
+        ("zfs", "zfs", "zfsutils-linux"),
+        ("btrfs", "mkfs.btrfs", "btrfs-progs"),
+        ("lvm", "lvcreate", "lvm2"),
+        ("dir", None, None),
+    )
 
-    @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    def test_lxd_init(self, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp.subp", return_value=True)
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    @mock.patch(
+        "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
+    )
+    def test_lxd_init(self, m_maybe_clean, m_which, m_subp):
         cc = get_cloud()
-        m_maybe_clean.return_value = None
-        for backend in self.backends:
-            with mock.patch("cloudinit.config.cc_lxd.subp") as mock_subp:
-                mock_subp.which.return_value = True
-                lxd_cfg = deepcopy(self.lxd_cfg)
-                lxd_cfg["lxd"]["init"]["storage_backend"] = backend
-                cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
-                self.assertTrue(mock_subp.which.called)
-                # no bridge config, so maybe_cleanup should not be called.
-                self.assertFalse(m_maybe_clean.called)
-                self.assertEqual(
-                    [
-                        mock.call(["lxd", "waitready", "--timeout=300"]),
-                        mock.call(
-                            [
-                                "lxd",
-                                "init",
-                                "--auto",
-                                "--network-address=0.0.0.0",
-                                f"--storage-backend={backend}",
-                                "--storage-pool=poolname",
-                            ]
-                        ),
-                    ],
-                    mock_subp.subp.call_args_list,
-                )
+        m_install = cc.distro.install_packages
+
+        for backend, cmd, package in self.backend_def:
+            lxd_cfg = deepcopy(self.lxd_cfg)
+            lxd_cfg["lxd"]["init"]["storage_backend"] = backend
+            m_subp.call_args_list = []
+            m_install.call_args_list = []
+            cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
+            if cmd:
+                m_which.assert_called_with(cmd)
+            # no bridge config, so maybe_cleanup should not be called.
+            self.assertFalse(m_maybe_clean.called)
+            self.assertEqual(
+                [
+                    mock.call(list(filter(None, ["lxd", package]))),
+                ],
+                m_install.call_args_list,
+            )
+            self.assertEqual(
+                [
+                    mock.call(["lxd", "waitready", "--timeout=300"]),
+                    mock.call(
+                        [
+                            "lxd",
+                            "init",
+                            "--auto",
+                            "--network-address=0.0.0.0",
+                            f"--storage-backend={backend}",
+                            "--storage-pool=poolname",
+                        ]
+                    ),
+                ],
+                m_subp.call_args_list,
+            )
+
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    def test_lxd_package_install(self, m_which):
+        for backend, _, package in self.backend_def:
+            lxd_cfg = deepcopy(self.lxd_cfg)
+            lxd_cfg["lxd"]["init"]["storage_backend"] = backend
+
+            packages = cc_lxd.get_required_packages(lxd_cfg["lxd"]["init"])
+            assert "lxd" in packages
+            if package:
+                assert package in packages
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
