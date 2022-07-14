@@ -28,6 +28,7 @@ jobs:
         run: |
           git fetch --unshallow
           git remote add upstream https://git.launchpad.net/cloud-init
+          echo "CHANGED_PY_FILES=$(git diff --name-only ${{ github.event.before }}..${{ github.event.after }} | grep py$)" >> $GITHUB_ENV
 
       - name: Dependencies
         run: |
@@ -48,4 +49,6 @@ jobs:
         continue-on-error: true
         env:
           TOXENV: tip-${{ matrix.env }}
-        run: tox
+
+        run: |
+            tox $CHANGED_PY_FILES
