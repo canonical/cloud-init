@@ -1643,9 +1643,6 @@ scbus-1 on xpt0 bus 0
             crypt.crypt("mypass", defuser["passwd"][0:pos]),
         )
 
-        # the same hashed value should also be present in cfg['password']
-        self.assertEqual(defuser["passwd"], dsrc.cfg["password"])
-
         assert dsrc.cfg["ssh_pwauth"] is True
 
     def test_password_with_disable_ssh_pw_auth_true(self):
