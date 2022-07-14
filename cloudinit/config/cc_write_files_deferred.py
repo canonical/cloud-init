@@ -5,6 +5,7 @@
 """Write Files Deferred: Defer writing certain files"""
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
 from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
@@ -33,7 +34,7 @@ meta: MetaSchema = {
 __doc__ = ""
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud: Cloud, log, _args):
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -47,4 +48,4 @@ def handle(name, cfg, _cloud, log, _args):
             name,
         )
         return
-    write_files(name, filtered_files)
+    write_files(name, filtered_files, cloud.distro.default_owner)
