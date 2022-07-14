@@ -256,6 +256,10 @@ system_info:
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User
+{% elif variant == "openmandriva" %}
+     name: omv
+     lock_passwd: True
+     gecos: OpenMandriva admin
 {% else %}
      name: {{ variant }}
      lock_passwd: True
