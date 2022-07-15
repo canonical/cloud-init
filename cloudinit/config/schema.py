@@ -58,7 +58,7 @@ SCHEMA_DOC_TMPL = """
 
 **Supported distros:** {distros}
 
-{property_header}
+{skip_by_schema}{property_header}
 {property_doc}
 
 {examples}
@@ -918,6 +918,13 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
+def _get_skip_by_schema(meta: MetaSchema) -> str:
+    if not meta.get("skip_by_schema"):
+        return ""
+    schema_keys = ", ".join(meta["skip_by_schema"])
+    return f"**Skipped if keys not present:** {schema_keys}\n\n"
+
+
 def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
@@ -973,6 +980,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
+    meta_copy["skip_by_schema"] = _get_skip_by_schema(meta)
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 

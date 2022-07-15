@@ -726,7 +726,10 @@ class TestSchemaDocMarkdown:
         ],
     }
 
-    def test_get_meta_doc_returns_restructured_text(self):
+    @pytest.mark.parametrize(
+        "meta_update", [None, {"skip_by_schema": None}, {"skip_by_schema": []}]
+    )
+    def test_get_meta_doc_returns_restructured_text(self, meta_update):
         """get_meta_doc returns restructured text for a cloudinit schema."""
         full_schema = copy(self.required_schema)
         full_schema.update(
@@ -740,8 +743,11 @@ class TestSchemaDocMarkdown:
                 }
             }
         )
+        meta = copy(self.meta)
+        if meta_update:
+            meta.update(meta_update)
 
-        doc = get_meta_doc(self.meta, full_schema)
+        doc = get_meta_doc(meta, full_schema)
         assert (
             dedent(
                 """
@@ -756,6 +762,55 @@ class TestSchemaDocMarkdown:
             **Module frequency:** frequency
 
             **Supported distros:** debian, rhel
+
+            **Config schema**:
+                **prop1:** (array of integer) prop-description
+
+            **Examples**::
+
+                ex1:
+                    [don't, expand, "this"]
+                # --- Example2 ---
+                ex2: true
+        """
+            )
+            == doc
+        )
+
+    def test_get_meta_doc_full_with_skip_by_schema(self):
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {
+                "properties": {
+                    "prop1": {
+                        "type": "array",
+                        "description": "prop-description",
+                        "items": {"type": "integer"},
+                    }
+                },
+            }
+        )
+
+        meta = copy(self.meta)
+        meta["skip_by_schema"] = ["key_0", "key_1"]
+
+        doc = get_meta_doc(meta, full_schema)
+        assert (
+            dedent(
+                """
+            name
+            ----
+            **Summary:** title
+
+            description
+
+            **Internal name:** ``id``
+
+            **Module frequency:** frequency
+
+            **Supported distros:** debian, rhel
+
+            **Skipped if keys not present:** key_0, key_1
 
             **Config schema**:
                 **prop1:** (array of integer) prop-description
