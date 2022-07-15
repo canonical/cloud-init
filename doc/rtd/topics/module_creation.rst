@@ -34,6 +34,7 @@ Example
         "description": MODULE_DESCRIPTION,
         "distros": [ALL_DISTROS],
         "frequency": PER_INSTANCE,
+        "skip_by_schema": ["example_key, example_other_key"],
         "examples": [
             "example_key: example_value",
             "example_other_key: ['value', 2]",
@@ -82,6 +83,8 @@ Guidelines
       would be a significant change to the instance metadata. An example
       could be an instance being moved to a different subnet.
 
+  * ``skip_by_schema``: (Not required) Defines config keys that if not present,
+    then the module execution can be skipped.
   * ``examples``: Lists examples of any cloud-config keys this module reacts
     to. These examples will be rendered in the module reference documentation
     and will automatically be tested against the defined schema

@@ -12,15 +12,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import chain
-from typing import (
-    TYPE_CHECKING,
-    List,
-    NamedTuple,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
 import yaml
 
