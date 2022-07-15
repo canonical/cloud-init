@@ -1637,10 +1637,10 @@ scbus-1 on xpt0 bus 0
         # passwd is crypt formated string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
         # should equal that after the '$'
-        pos = defuser["passwd"].rfind("$") + 1
+        pos = defuser["hashed_passwd"].rfind("$") + 1
         self.assertEqual(
-            defuser["passwd"],
-            crypt.crypt("mypass", defuser["passwd"][0:pos]),
+            defuser["hashed_passwd"],
+            crypt.crypt("mypass", defuser["hashed_passwd"][0:pos]),
         )
 
         assert dsrc.cfg["ssh_pwauth"] is True
