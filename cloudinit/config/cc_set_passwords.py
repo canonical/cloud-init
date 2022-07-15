@@ -77,7 +77,6 @@ meta: MetaSchema = {
             """  # noqa
         ),
     ],
-    "skippable": False,
 }
 
 __doc__ = get_meta_doc(meta)

@@ -118,7 +118,6 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
-    "skippable": False,
 }
 
 __doc__ = get_meta_doc(meta)

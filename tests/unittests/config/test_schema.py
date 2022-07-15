@@ -45,6 +45,7 @@ from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,
+    does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
@@ -998,7 +999,8 @@ class TestSchemaDocMarkdown:
             in get_meta_doc(self.meta, schema)
         )
 
-    def test_get_meta_doc_raises_key_errors(self):
+    @pytest.mark.parametrize("key", meta.keys())
+    def test_get_meta_doc_raises_key_errors(self, key):
         """get_meta_doc raises KeyErrors on missing keys."""
         schema = {
             "properties": {
@@ -1010,12 +1012,45 @@ class TestSchemaDocMarkdown:
                 }
             }
         }
-        for key in self.meta:
-            invalid_meta = copy(self.meta)
-            invalid_meta.pop(key)
-            with pytest.raises(KeyError) as context_mgr:
-                get_meta_doc(invalid_meta, schema)
-            assert key in str(context_mgr.value)
+        invalid_meta = copy(self.meta)
+        invalid_meta.pop(key)
+        with pytest.raises(
+            KeyError,
+            match=f"Missing expected keys in module meta: {{'{key}'}}",
+        ):
+            get_meta_doc(invalid_meta, schema)
+
+    @pytest.mark.parametrize(
+        "key,expectation",
+        [
+            ("skip_by_schema", does_not_raise()),
+            (
+                "additional_key",
+                pytest.raises(
+                    KeyError,
+                    match=(
+                        "Additional unexpected keys found in module meta:"
+                        " {'additional_key'}"
+                    ),
+                ),
+            ),
+        ],
+    )
+    def test_get_meta_doc_additional_keys(self, key, expectation):
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                    },
+                }
+            }
+        }
+        invalid_meta = copy(self.meta)
+        invalid_meta[key] = []
+        with expectation:
+            get_meta_doc(invalid_meta, schema)
 
     def test_label_overrides_property_name(self):
         """get_meta_doc overrides property name with label."""

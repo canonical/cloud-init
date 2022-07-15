@@ -105,7 +105,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
-    "skippable": True,
+    "skip_by_schema": ["snap"],
 }
 
 

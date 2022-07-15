@@ -7,13 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-from collections import namedtuple
-from typing import List, Optional
+from types import ModuleType
+from typing import List, NamedTuple
 
 from cloudinit import config, importer
 from cloudinit import log as logging
 from cloudinit import type_utils, util
-from cloudinit.config.schema import get_config_keys, get_schema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack
@@ -27,9 +26,13 @@ LOG = logging.getLogger(__name__)
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
-ModuleDetails = namedtuple(
-    "ModuleDetails", ["module", "name", "frequency", "run_args"]
-)
+
+
+class ModuleDetails(NamedTuple):
+    module: ModuleType
+    name: str
+    frequency: str
+    run_args: List[str]
 
 
 def form_module_name(name):
@@ -66,16 +69,15 @@ def validate_module(mod, name):
         )
 
 
-def _is_applicable(
-    module_details: ModuleDetails, cfg: dict, schema: Optional[dict] = None
-) -> bool:
-    if not module_details.module.meta.get("skippable", False):
-        return True
-    normalized_name = f"cc_{module_details.name}".replace("-", "_")
-    config_keys = get_config_keys(normalized_name, schema=schema)
-    if not config_keys.intersection(cfg.keys()):
+def _is_inapplicable(module_details: ModuleDetails, cfg: dict) -> bool:
+    skip_by_schema_keys = frozenset(
+        module_details.module.meta.get("skip_by_schema", {})
+    )
+    if not skip_by_schema_keys:
         return False
-    return True
+    if not skip_by_schema_keys.intersection(cfg.keys()):
+        return True
+    return False
 
 
 class Modules(object):
@@ -278,7 +280,6 @@ class Modules(object):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
         distro_name = self.init.distro.name
-        schema = get_schema()
 
         skipped = []
         forced = []
@@ -290,7 +291,7 @@ class Modules(object):
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]
-            if not _is_applicable(module_details, self.cfg, schema=schema):
+            if _is_inapplicable(module_details, self.cfg):
                 inapplicable_mods.append(name)
                 continue
             # Skip only when the following conditions are all met:
@@ -308,7 +309,7 @@ class Modules(object):
 
         if inapplicable_mods:
             LOG.info(
-                "Skipping modules '%s' because no applicable user-data config "
+                "Skipping modules '%s' because no applicable config "
                 "is provided.",
                 ",".join(inapplicable_mods),
             )
