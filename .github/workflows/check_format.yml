@@ -32,7 +32,7 @@ jobs:
           git fetch github
           git config --global user.name "Gitbot"
           git config --global user.email "dev@null.com"
-          git merge github/main
+          git rebase github/main
 
       - name: Dependencies
         run: |
