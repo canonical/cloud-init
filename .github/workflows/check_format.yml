@@ -28,7 +28,7 @@ jobs:
         run: |
           git fetch --unshallow
           git remote add upstream https://git.launchpad.net/cloud-init
-          echo "CHANGED_PY_FILES=$(git diff --name-only ${{ github.event.before }}..${{ github.event.after }} | grep py$)" >> $GITHUB_ENV
+          echo "CHANGED_PY_FILES=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep .ts$ | xargs) >> $GITHUB_ENV
 
       - name: Dependencies
         run: |
