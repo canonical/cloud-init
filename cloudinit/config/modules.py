@@ -8,7 +8,7 @@
 
 import copy
 from types import ModuleType
-from typing import List, NamedTuple
+from typing import Dict, List, NamedTuple
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -108,21 +108,21 @@ class Modules(object):
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
 
-    def _read_modules(self, name):
+    def _read_modules(self, name) -> List[Dict]:
         """Read the modules from the config file given the specified name.
 
         Returns a list of module definitions. E.g.,
         [
             {
                 "mod": "bootcmd",
-                "freq": "always"
+                "freq": "always",
                 "args": "some_arg",
             }
         ]
 
         Note that in the default case, only "mod" will be set.
         """
-        module_list = []
+        module_list: List[dict] = []
         if name not in self.cfg:
             return module_list
         cfg_mods = self.cfg.get(name)
