@@ -12,7 +12,7 @@ from cloudinit.config.schema import (
     SchemaValidationError,
     get_meta_doc,
 )
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ONCE
 from cloudinit.subp import subp
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ meta: MetaSchema = {
         """
         )
     ],
-    "frequency": PER_INSTANCE,
+    "frequency": PER_ONCE,
 }
 
 __doc__ = get_meta_doc(meta)
