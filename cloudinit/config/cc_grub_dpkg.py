@@ -133,11 +133,6 @@ def handle(name, cfg, _cloud, log, _args):
     if idevs_empty is None:
         idevs_empty = not idevs
     elif not isinstance(idevs_empty, bool):
-        log.warning(
-            "DEPRECATED: grub_dpkg: grub-pc/install_devices_empty value of "
-            f"'{idevs_empty}' is not boolean. Use of non-boolean values "
-            "will be removed in a future version of cloud-init."
-        )
         idevs_empty = util.translate_bool(idevs_empty)
     idevs_empty = str(idevs_empty).lower()
 
