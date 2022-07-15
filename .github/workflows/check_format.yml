@@ -27,7 +27,12 @@ jobs:
       - name: "Checkout #2 (for tools/read-version)"
         run: |
           git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
+          git remote add launchpad https://git.launchpad.net/cloud-init
+          git remote add -t main github https://github.com/canonical/cloud-init.git
+          git fetch github
+          git config --global user.name "Gitbot"
+          git config --global user.email "dev@null.com"
+          git merge github/main
 
       - name: Dependencies
         run: |
