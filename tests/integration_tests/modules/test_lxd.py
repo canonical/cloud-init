@@ -58,7 +58,7 @@ class TestLxdBridge:
 def validate_storage(validate_client):
     verify_clean_log(
         validate_client.read_from_file("/var/log/cloud-init.log"),
-        ignore_deprecations=False
+        ignore_deprecations=False,
     )
 
 
@@ -69,9 +69,7 @@ def test_storage_btrfs(client):
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(
-    STORAGE_USER_DATA.format(
-        "lvm2", "lvm"))
+@pytest.mark.user_data(STORAGE_USER_DATA.format("lvm2", "lvm"))
 def test_storage_lvm(client):
     validate_storage(client)
 
