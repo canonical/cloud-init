@@ -57,9 +57,9 @@ class TestLxdBridge:
 
 
 def validate_storage(validate_client):
-    cloud_init_log = validate_client.read_from_file("/var/log/cloud-init.log")
-    assert not any(
-        problem in cloud_init_log for problem in ("WARN", "ERR", "Traceback")
+    verify_clean_log(
+        validate_client.read_from_file("/var/log/cloud-init.log"),
+        ignore_deprecations=False
     )
 
 
