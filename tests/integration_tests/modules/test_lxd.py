@@ -28,7 +28,6 @@ lxd:
 STORAGE_USER_DATA = """\
 #cloud-config
 bootcmd: [ "apt-get --yes remove {}" ]
-{}
 lxd:
   init:
     storage_backend: {}
@@ -64,7 +63,7 @@ def validate_storage(validate_client):
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs-progs", "", "btrfs"))
+@pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs-progs", "btrfs"))
 def test_storage_btrfs(client):
     validate_storage(client)
 
@@ -72,12 +71,12 @@ def test_storage_btrfs(client):
 @pytest.mark.no_container
 @pytest.mark.user_data(
     STORAGE_USER_DATA.format(
-        "lvm2", "packages:\n [ thin-provisioning-tools ] ", "lvm"))
+        "lvm2", "lvm"))
 def test_storage_lvm(client):
     validate_storage(client)
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_USER_DATA.format("zfsutils-linux", "", "zfs"))
+@pytest.mark.user_data(STORAGE_USER_DATA.format("zfsutils-linux", "zfs"))
 def test_storage_zfs(client):
     validate_storage(client)
