@@ -10,9 +10,10 @@ from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
+bootcmd: [ "apt-get --yes remove btrfs-progs" ]
 lxd:
   init:
-    storage_backend: dir
+    storage_backend: btrfs
   bridge:
     mode: new
     name: lxdbr0
