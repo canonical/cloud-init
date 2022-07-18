@@ -8,9 +8,8 @@ import yaml
 
 from tests.integration_tests.util import verify_clean_log
 
-USER_DATA = """\
+BRIDGE_USER_DATA = """\
 #cloud-config
-bootcmd: [ "apt-get --yes remove btrfs-progs" ]
 lxd:
   init:
     storage_backend: btrfs
@@ -26,9 +25,18 @@ lxd:
     mtu: 9000
 """
 
+STORAGE_USER_DATA = """\
+#cloud-config
+bootcmd: [ "apt-get --yes remove {}" ]
+{}
+lxd:
+  init:
+    storage_backend: {}
+"""
+
 
 @pytest.mark.no_container
-@pytest.mark.user_data(USER_DATA)
+@pytest.mark.user_data(BRIDGE_USER_DATA)
 class TestLxdBridge:
     @pytest.mark.parametrize("binary_name", ["lxc", "lxd"])
     def test_binaries_installed(self, class_client, binary_name):
@@ -46,3 +54,30 @@ class TestLxdBridge:
         raw_network_config = class_client.execute("lxc network show lxdbr0")
         network_config = yaml.safe_load(raw_network_config)
         assert "10.100.100.1/24" == network_config["config"]["ipv4.address"]
+
+
+def validate_storage(validate_client):
+    cloud_init_log = validate_client.read_from_file("/var/log/cloud-init.log")
+    assert not any(
+        problem in cloud_init_log for problem in ("WARN", "ERR", "Traceback")
+    )
+
+
+@pytest.mark.no_container
+@pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs-progs", "", "btrfs"))
+def test_storage_btrfs(client):
+    validate_storage(client)
+
+
+@pytest.mark.no_container
+@pytest.mark.user_data(
+    STORAGE_USER_DATA.format(
+        "lvm2", "packages:\n [ thin-provisioning-tools ] ", "lvm"))
+def test_storage_lvm(client):
+    validate_storage(client)
+
+
+@pytest.mark.no_container
+@pytest.mark.user_data(STORAGE_USER_DATA.format("zfsutils-linux", "", "zfs"))
+def test_storage_zfs(client):
+    validate_storage(client)
