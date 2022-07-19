@@ -124,31 +124,36 @@ class TestWireGuard(CiTestCase):
         )
 
     @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wg_tools_noop_when_wg_tools_present(self, m_which):
+    def test_maybe_install_wg_packages_noop_when_wg_tools_present(
+        self, m_which
+    ):
         """Do nothing if wireguard-tools already exists."""
         m_which.return_value = "/usr/bin/wg"  # already installed
         distro = mock.MagicMock()
         distro.update_package_sources.side_effect = RuntimeError(
             "Some apt error"
         )
-        cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+        cc_wireguard.maybe_install_wireguard_packages(cloud=FakeCloud(distro))
 
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wf_tools_raises_update_errors(self, m_which):
-        """maybe_install_wireguard_tools logs and raises apt update errors."""
+        """maybe_install_wireguard_packages logs and raises
+        apt update errors."""
         m_which.return_value = None
         distro = mock.MagicMock()
         distro.update_package_sources.side_effect = RuntimeError(
             "Some apt error"
         )
         with self.assertRaises(RuntimeError) as context_manager:
-            cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+            cc_wireguard.maybe_install_wireguard_packages(
+                cloud=FakeCloud(distro)
+            )
         self.assertEqual("Some apt error", str(context_manager.exception))
         self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
 
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wg_raises_install_errors(self, m_which):
-        """maybe_install_wireguard_tools logs and raises package
+        """maybe_install_wireguard_packages logs and raises package
         install errors."""
         m_which.return_value = None
         distro = mock.MagicMock()
@@ -157,7 +162,9 @@ class TestWireGuard(CiTestCase):
             "Some install error"
         )
         with self.assertRaises(RuntimeError) as context_manager:
-            cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+            cc_wireguard.maybe_install_wireguard_packages(
+                cloud=FakeCloud(distro)
+            )
         self.assertEqual("Some install error", str(context_manager.exception))
         self.assertIn(
             "Failed to install wireguard-tools\n", self.logs.getvalue()
@@ -184,16 +191,17 @@ class TestWireGuard(CiTestCase):
         )
 
     @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wg_tools_happy_path(self, m_which):
-        """maybe_install_wireguard_tools installs wireguard-tools."""
+    def test_maybe_install_wg_packages_happy_path(self, m_which):
+        """maybe_install_wireguard_packages installs wireguard-tools.
+        Assuming a kernel version higher than 5.6"""
         m_which.return_value = None
         distro = mock.MagicMock()  # No errors raised
-        cc_wireguard.maybe_install_wireguard_tools(cloud=FakeCloud(distro))
+        cc_wireguard.maybe_install_wireguard_packages(cloud=FakeCloud(distro))
         distro.update_package_sources.assert_called_once_with()
         distro.install_packages.assert_called_once_with(["wireguard-tools"])
 
-    @mock.patch("%s.maybe_install_wireguard_tools" % MPATH)
-    def test_handle_no_config(self, m_maybe_install_wireguard_tools):
+    @mock.patch("%s.maybe_install_wireguard_packages" % MPATH)
+    def test_handle_no_config(self, m_maybe_install_wireguard_packages):
         """When no wireguard configuration is provided, nothing happens."""
         cfg = {}
         cc_wireguard.handle(
@@ -204,7 +212,7 @@ class TestWireGuard(CiTestCase):
             " configuration found",
             self.logs.getvalue(),
         )
-        self.assertEqual(m_maybe_install_wireguard_tools.call_count, 0)
+        self.assertEqual(m_maybe_install_wireguard_packages.call_count, 0)
 
     def test_readiness_probe_with_non_string_values(self):
         """ValueError raised for any values expected as string type."""
