@@ -88,7 +88,7 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 REQUIRED_WG_INT_KEYS = frozenset(["name", "config_path", "content"])
-WG_CONFIG_FILE_MODE = 600
+WG_CONFIG_FILE_MODE = 0o600
 NL = "\n"
 MIN_KERNEL_VERSION = (5, 6)
 
@@ -136,7 +136,7 @@ def write_config(wg_int: dict):
             "Writing wireguard config to file %s", {wg_int["config_path"]}
         )
         util.write_file(
-            wg_int["config_path"], wg_int["content"], WG_CONFIG_FILE_MODE
+            wg_int["config_path"], wg_int["content"], mode=WG_CONFIG_FILE_MODE
         )
     except Exception as e:
         raise RuntimeError(
