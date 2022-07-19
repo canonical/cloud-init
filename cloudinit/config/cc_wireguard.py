@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Wireguard"""
+import re
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -241,7 +242,10 @@ def load_wireguard_kernel_module():
     @raises: ProcessExecutionError for issues modprobe
     """
     try:
-        subp.subp("modprobe wireguard", capture=True, shell=True)
+        out = subp.subp("lsmod | grep wireguard", capture=True, shell=True)
+        if not re.match(r"^wireguard", out.stdout.strip()):
+            LOG.debug("Loading wireguard kernel module")
+            subp.subp("modprobe wireguard", capture=True, shell=True)
     except subp.ProcessExecutionError as e:
         util.logexc(LOG, f"Could not load wireguard module:{NL}{str(e)}")
         raise
