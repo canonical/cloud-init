@@ -5,9 +5,11 @@ import os
 import shutil
 import tempfile
 
+import pytest
+
 from cloudinit import handlers, helpers, settings, url_helper, util
 from cloudinit.cmd import main
-from tests.unittests.helpers import CiTestCase, ExitStack, TestCase, mock
+from tests.unittests.helpers import ExitStack, TestCase, mock
 
 
 class FakeModule(handlers.Handler):
@@ -218,65 +220,62 @@ class TestHandlerHandlePart(TestCase):
         )
 
 
-class TestCmdlineUrl(CiTestCase):
+class TestCmdlineUrl:
     def test_parse_cmdline_url_nokey_raises_keyerror(self):
-        self.assertRaises(
-            KeyError, main.parse_cmdline_url, "root=foo bar single"
-        )
+        with pytest.raises(KeyError):
+            main.parse_cmdline_url("root=foo bar single")
 
     def test_parse_cmdline_url_found(self):
         cmdline = "root=foo bar single url=http://example.com arg1 -v"
-        self.assertEqual(
-            ("url", "http://example.com"), main.parse_cmdline_url(cmdline)
-        )
+        assert ("url", "http://example.com") == main.parse_cmdline_url(cmdline)
 
     @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
-    def test_invalid_content(self, m_read):
+    def test_invalid_content(self, m_read, tmpdir):
         key = "cloud-config-url"
         url = "http://example.com/foo"
         cmdline = "ro %s=%s bar=1" % (key, url)
         m_read.return_value = url_helper.StringResponse(b"unexpected blob")
 
-        fpath = self.tmp_path("ccfile")
+        fpath = tmpdir.join("ccfile")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
-        self.assertEqual(logging.WARN, lvl)
-        self.assertIn(url, msg)
-        self.assertFalse(os.path.exists(fpath))
+        assert logging.WARN == lvl
+        assert url in msg
+        assert False is os.path.exists(fpath)
 
     @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
-    def test_valid_content(self, m_read):
+    def test_valid_content(self, m_read, tmpdir):
         url = "http://example.com/foo"
         payload = b"#cloud-config\nmydata: foo\nbar: wark\n"
         cmdline = "ro %s=%s bar=1" % ("cloud-config-url", url)
 
         m_read.return_value = url_helper.StringResponse(payload)
-        fpath = self.tmp_path("ccfile")
+        fpath = tmpdir.join("ccfile")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
-        self.assertEqual(util.load_file(fpath, decode=False), payload)
-        self.assertEqual(logging.INFO, lvl)
-        self.assertIn(url, msg)
+        assert util.load_file(fpath, decode=False) == payload
+        assert logging.INFO == lvl
+        assert url in msg
 
     @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
-    def test_no_key_found(self, m_read):
+    def test_no_key_found(self, m_read, tmpdir):
         cmdline = "ro mykey=http://example.com/foo root=foo"
-        fpath = self.tmp_path("ccpath")
+        fpath = tmpdir.join("ccfile")
         lvl, _msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
 
         m_read.assert_not_called()
-        self.assertFalse(os.path.exists(fpath))
-        self.assertEqual(logging.DEBUG, lvl)
+        assert False is os.path.exists(fpath)
+        assert logging.DEBUG == lvl
 
     @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
-    def test_exception_warns(self, m_read):
+    def test_exception_warns(self, m_read, tmpdir):
         url = "http://example.com/foo"
         cmdline = "ro cloud-config-url=%s root=LABEL=bar" % url
-        fpath = self.tmp_path("ccfile")
+        fpath = tmpdir.join("ccfile")
         m_read.side_effect = url_helper.UrlError(
             cause="Unexpected Error", url="http://example.com/foo"
         )
@@ -284,9 +283,9 @@ class TestCmdlineUrl(CiTestCase):
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
-        self.assertEqual(logging.WARN, lvl)
-        self.assertIn(url, msg)
-        self.assertFalse(os.path.exists(fpath))
+        assert logging.WARN == lvl
+        assert url in msg
+        assert False is os.path.exists(fpath)
 
 
 # vi: ts=4 expandtab
