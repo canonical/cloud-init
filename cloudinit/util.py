@@ -2894,13 +2894,13 @@ def get_proc_ppid(pid):
     ppid = 0
     try:
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
+        if contents:
+            parts = contents.split(" ", 4)
+            # man proc says
+            #  ppid %d     (4) The PID of the parent.
+            ppid = int(parts[3])
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
-    if contents:
-        parts = contents.split(" ", 4)
-        # man proc says
-        #  ppid %d     (4) The PID of the parent.
-        ppid = int(parts[3])
     return ppid
 
 
