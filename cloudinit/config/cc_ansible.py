@@ -86,6 +86,20 @@ def check_deps(dep: str):
         )
 
 
+def filter_args(cfg: dict) -> dict:
+    """remove value from boolean args should not be passed to ansible-pull
+    flags
+    """
+    out: dict = {}
+    for key, value in cfg.items():
+        if isinstance(value, bool):
+            if value:
+                out[key] = None
+        else:
+            out[key] = value
+    return out
+
+
 def run_ansible_pull(cfg: dict, log: Logger):
     cmd = "ansible-pull"
     check_deps(cmd)
@@ -97,7 +111,7 @@ def run_ansible_pull(cfg: dict, log: Logger):
                 cmd,
                 *[
                     f"--{key}={value}" if value else f"--{key}"
-                    for key, value in cfg.items()
+                    for key, value in filter_args(cfg).items()
                 ],
                 playbook_name,
             ]
