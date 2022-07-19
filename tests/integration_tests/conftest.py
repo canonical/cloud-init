@@ -92,8 +92,8 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.fixture()
-def session_cloud(
+@contextmanager
+def _session_cloud(
     request: pytest.FixtureRequest,
 ) -> Iterator[IntegrationCloud]:
     if integration_settings.PLATFORM not in platforms.keys():
@@ -122,6 +122,30 @@ def session_cloud(
     cloud.destroy()
 
 
+@pytest.fixture
+def session_cloud(
+    request: pytest.FixtureRequest,
+) -> Iterator[IntegrationCloud]:
+    with _session_cloud(request) as cloud:
+        yield cloud
+
+
+@pytest.fixture(scope="module")
+def module_session_cloud(
+    request: pytest.FixtureRequest,
+) -> Iterator[IntegrationCloud]:
+    with _session_cloud(request) as cloud:
+        yield cloud
+
+
+@pytest.fixture(scope="class")
+def class_session_cloud(
+    request: pytest.FixtureRequest,
+) -> Iterator[IntegrationCloud]:
+    with _session_cloud(request) as cloud:
+        yield cloud
+
+
 def get_validated_source(
     session_cloud: IntegrationCloud,
     source=integration_settings.CLOUD_INIT_SOURCE,
@@ -147,13 +171,11 @@ def get_validated_source(
     )
 
 
-@pytest.fixture
-def setup_image(session_cloud: IntegrationCloud, request):
+def _setup_image(session_cloud: IntegrationCloud, request):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
     """
-
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         return
@@ -169,6 +191,21 @@ def setup_image(session_cloud: IntegrationCloud, request):
     # ValueError: setup_image did not yield a value
     # during setup so use a finalizer instead.
     request.addfinalizer(session_cloud.delete_snapshot)
+
+
+@pytest.fixture
+def setup_image(session_cloud: IntegrationCloud, request):
+    _setup_image(session_cloud, request)
+
+
+@pytest.fixture(scope="module")
+def module_setup_image(module_session_cloud: IntegrationCloud, request):
+    _setup_image(module_session_cloud, request)
+
+
+@pytest.fixture(scope="class")
+def class_setup_image(class_session_cloud: IntegrationCloud, request):
+    _setup_image(class_session_cloud, request)
 
 
 def _collect_logs(
@@ -292,19 +329,19 @@ def client(
 
 @pytest.fixture(scope="module")
 def module_client(
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, module_session_cloud, module_setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
-    with _client(request, fixture_utils, session_cloud) as client:
+    with _client(request, fixture_utils, module_session_cloud) as client:
         yield client
 
 
 @pytest.fixture(scope="class")
 def class_client(
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, class_session_cloud, class_setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
-    with _client(request, fixture_utils, session_cloud) as client:
+    with _client(request, fixture_utils, class_session_cloud) as client:
         yield client
 
 
