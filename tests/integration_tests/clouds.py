@@ -94,7 +94,12 @@ class IntegrationCloud(ABC):
     datasource: str
     cloud_instance: BaseCloud
 
-    def __init__(self, settings=integration_settings):
+    def __init__(
+        self,
+        image_type: ImageType = ImageType.GENERIC,
+        settings=integration_settings,
+    ):
+        self._image_type = image_type
         self.settings = settings
         self.cloud_instance: BaseCloud = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
@@ -219,12 +224,10 @@ class Ec2Cloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return EC2(tag="ec2-integration-test")
 
-    # Remove pylint disable of false positive when we reach pylint>=2.14.3:
-    # https://github.com/PyCQA/pylint/issues/2270#issuecomment-766184062
-    def _get_initial_image(  # pylint: disable=W0235
-        self, *, image_type: ImageType = ImageType.GENERIC, **kwargs
-    ) -> str:
-        return super()._get_initial_image(image_type=image_type, **kwargs)
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
 
     def _perform_launch(self, launch_kwargs, **kwargs):
         """Use a dual-stack VPC for cloud-init integration testing."""
@@ -252,12 +255,10 @@ class GceCloud(IntegrationCloud):
             tag="gce-integration-test",
         )
 
-    # Remove pylint disable of false positive when we reach pylint>=2.14.3:
-    # https://github.com/PyCQA/pylint/issues/2270#issuecomment-766184062
-    def _get_initial_image(  # pylint: disable=W0235
-        self, *, image_type: ImageType = ImageType.GENERIC, **kwargs
-    ) -> str:
-        return super()._get_initial_image(image_type=image_type, **kwargs)
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
 
 
 class AzureCloud(IntegrationCloud):
@@ -267,12 +268,10 @@ class AzureCloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return Azure(tag="azure-integration-test")
 
-    # Remove pylint disable of false positive when we reach pylint>=2.14.3:
-    # https://github.com/PyCQA/pylint/issues/2270#issuecomment-766184062
-    def _get_initial_image(  # pylint: disable=W0235
-        self, *, image_type: ImageType = ImageType.GENERIC, **kwargs
-    ) -> str:
-        return super()._get_initial_image(image_type=image_type, **kwargs)
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
 
     def destroy(self):
         if self.settings.KEEP_INSTANCE:
