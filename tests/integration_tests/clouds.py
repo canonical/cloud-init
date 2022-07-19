@@ -18,7 +18,7 @@ from pycloudlib import (
     LXDVirtualMachine,
     Openstack,
 )
-from pycloudlib.cloud import BaseCloud
+from pycloudlib.cloud import BaseCloud, ImageType
 from pycloudlib.lxd.cloud import _BaseLXD
 from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
@@ -94,10 +94,17 @@ class IntegrationCloud(ABC):
     datasource: str
     cloud_instance: BaseCloud
 
-    def __init__(self, settings=integration_settings):
+    def __init__(
+        self,
+        image_type: ImageType = ImageType.GENERIC,
+        settings=integration_settings,
+    ):
+        self.image_type = image_type
         self.settings = settings
         self.cloud_instance: BaseCloud = self._get_cloud_instance()
-        self.initial_image_id = self._get_initial_image()
+        self.initial_image_id = self._get_initial_image(
+            image_type=self.image_type
+        )
         self.snapshot_id = None
 
     @property
@@ -119,11 +126,12 @@ class IntegrationCloud(ABC):
     def _get_cloud_instance(self):
         raise NotImplementedError
 
-    def _get_initial_image(self):
+    def _get_initial_image(self, **kwargs) -> str:
         image = ImageSpecification.from_os_image()
         try:
-            return self.cloud_instance.daily_image(image.image_id)
-        except (ValueError, IndexError):
+            return self.cloud_instance.daily_image(image.image_id, **kwargs)
+        except (ValueError, IndexError) as ex:
+            log.debug("Exception while executing `daily_image`: %s", ex)
             return image.image_id
 
     def _perform_launch(self, launch_kwargs, **kwargs) -> BaseInstance:
@@ -201,6 +209,15 @@ class IntegrationCloud(ABC):
                 )
                 self.cloud_instance.delete_image(self.snapshot_id)
 
+    def _ignore_image_type(self, **kwargs):
+        if "image_type" in kwargs:
+            log.warning(
+                "Ignoring `image_type=%s` for %s._get_initial_image",
+                kwargs["image_type"],
+                self.__class__.__name__,
+            )
+            kwargs.pop("image_type")
+
 
 class Ec2Cloud(IntegrationCloud):
     datasource = "ec2"
@@ -261,6 +278,10 @@ class OciCloud(IntegrationCloud):
             tag="oci-integration-test",
         )
 
+    def _get_initial_image(self, **kwargs) -> str:
+        self._ignore_image_type(**kwargs)
+        return super()._get_initial_image(**kwargs)
+
 
 class _LxdIntegrationCloud(IntegrationCloud):
     pycloudlib_instance_cls: Type[_BaseLXD]
@@ -269,6 +290,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return self.pycloudlib_instance_cls(tag=self.instance_tag)
+
+    def _get_initial_image(self, **kwargs) -> str:
+        self._ignore_image_type(**kwargs)
+        return super()._get_initial_image(**kwargs)
 
     @staticmethod
     def _get_or_set_profile_list(release):
@@ -366,7 +391,8 @@ class OpenstackCloud(IntegrationCloud):
             tag="openstack-integration-test",
         )
 
-    def _get_initial_image(self):
+    def _get_initial_image(self, **kwargs):
+        self._ignore_image_type(**kwargs)
         image = ImageSpecification.from_os_image()
         try:
             UUID(image.image_id)

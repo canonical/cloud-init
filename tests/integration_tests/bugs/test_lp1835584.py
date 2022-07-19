@@ -28,14 +28,11 @@ https://bugs.launchpad.net/cloud-init/+bug/1835584
 import re
 
 import pytest
+from pycloudlib.cloud import ImageType
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
-
-IMG_AZURE_UBUNTU_PRO_FIPS_BIONIC = (
-    "Canonical:0001-com-ubuntu-pro-bionic-fips:pro-fips-18_04:18.04.202010201"
-)
 
 
 def _check_iid_insensitive_across_kernel_upgrade(
@@ -71,6 +68,8 @@ def _check_iid_insensitive_across_kernel_upgrade(
 
 
 @pytest.mark.azure
+@pytest.mark.lxd_container
+@pytest.mark.integration_cloud_args(image_type=ImageType.PRO_FIPS)
 def test_azure_kernel_upgrade_case_insensitive_uuid(
     session_cloud: IntegrationCloud,
 ):
@@ -86,10 +85,7 @@ def test_azure_kernel_upgrade_case_insensitive_uuid(
         pytest.skip(
             "Provide CLOUD_INIT_SOURCE to install expected working cloud-init"
         )
-    image_id = IMG_AZURE_UBUNTU_PRO_FIPS_BIONIC
-    with session_cloud.launch(
-        launch_kwargs={"image_id": image_id}
-    ) as instance:
+    with session_cloud.launch() as instance:
         # We can't use setup_image fixture here because we want to avoid
         # taking a snapshot or cleaning the booted machine after cloud-init
         # upgrade.

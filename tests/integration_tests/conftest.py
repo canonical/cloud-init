@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Type
+from typing import Dict, Iterator, Type
 
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
@@ -92,8 +92,10 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.fixture(scope="session")
-def session_cloud():
+@pytest.fixture()
+def session_cloud(
+    request: pytest.FixtureRequest,
+) -> Iterator[IntegrationCloud]:
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
             "{} is an invalid PLATFORM specified in settings. "
@@ -102,7 +104,17 @@ def session_cloud():
             )
         )
 
-    cloud = platforms[integration_settings.PLATFORM]()
+    integration_cloud_marker = request.node.get_closest_marker(
+        "integration_cloud_args"
+    )
+    cloud_args = []
+    cloud_kwargs = {}
+    if integration_cloud_marker:
+        cloud_args = integration_cloud_marker.args
+        cloud_kwargs = integration_cloud_marker.kwargs
+    cloud = platforms[integration_settings.PLATFORM](
+        *cloud_args, **cloud_kwargs
+    )
     cloud.emit_settings_to_log()
 
     yield cloud
@@ -135,7 +147,7 @@ def get_validated_source(
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def setup_image(session_cloud: IntegrationCloud, request):
     """Setup the target environment with the correct version of cloud-init.
 
@@ -218,7 +230,9 @@ def _collect_logs(
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud: IntegrationCloud):
+def _client(
+    request, fixture_utils, session_cloud: IntegrationCloud
+) -> Iterator[IntegrationInstance]:
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
@@ -268,21 +282,27 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
 
 
 @pytest.fixture
-def client(request, fixture_utils, session_cloud, setup_image):
+def client(
+    request, fixture_utils, session_cloud, setup_image
+) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.fixture(scope="module")
-def module_client(request, fixture_utils, session_cloud, setup_image):
+def module_client(
+    request, fixture_utils, session_cloud, setup_image
+) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.fixture(scope="class")
-def class_client(request, fixture_utils, session_cloud, setup_image):
+def class_client(
+    request, fixture_utils, session_cloud, setup_image
+) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
