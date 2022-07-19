@@ -40,8 +40,6 @@ Wireguard network) are finished before continuing the cloud-init
 """
 )
 
-NL = "\n"
-
 meta: MetaSchema = {
     "id": "cc_wireguard",
     "name": "Wireguard",
@@ -89,6 +87,9 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 REQUIRED_WG_INT_KEYS = frozenset(["name", "config_path", "content"])
+WG_CONFIG_FILE_MODE = 600
+NL = "\n"
+MIN_KERNEL_VERSION = (5, 6)
 
 
 def supplemental_schema_validation(wg_int: dict):
@@ -130,11 +131,12 @@ def write_config(wg_int: dict):
     """
     LOG.debug("Configuring Wireguard interface %s", {wg_int["name"]})
     try:
-        with open(wg_int["config_path"], "w", encoding="utf-8") as wgconfig:
-            LOG.debug(
-                "Writing wireguard config to file %s", {wg_int["config_path"]}
-            )
-            wgconfig.write(wg_int["content"])
+        LOG.debug(
+            "Writing wireguard config to file %s", {wg_int["config_path"]}
+        )
+        util.write_file(
+            wg_int["config_path"], wg_int["content"], WG_CONFIG_FILE_MODE
+        )
     except Exception as e:
         raise RuntimeError(
             "Failure writing Wireguard configuration file"
@@ -203,23 +205,31 @@ def readinessprobe(wg_readinessprobes: list):
         )
 
 
-def maybe_install_wireguard_tools(cloud: Cloud):
-    """Install wireguard tools
+def maybe_install_wireguard_packages(cloud: Cloud):
+    """Install wireguard packages and tools
 
     @param cloud: Cloud object
 
     @raises: Exception for issues during package
     installation.
     """
+
+    packages = ["wireguard-tools"]
+
     if subp.which("wg"):
         return
+
+    # Install DKMS when Kernel Verison lower 5.6
+    if util.kernel_version() < MIN_KERNEL_VERSION:
+        packages.append("wireguard")
+
     try:
         cloud.distro.update_package_sources()
     except Exception:
         util.logexc(LOG, "Package update failed")
         raise
     try:
-        cloud.distro.install_packages(["wireguard-tools"])
+        cloud.distro.install_packages(packages)
     except Exception:
         util.logexc(LOG, "Failed to install wireguard-tools")
         raise
@@ -251,8 +261,8 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
         return
 
     # install wireguard tools, enable kernel module
+    maybe_install_wireguard_packages(cloud)
     load_wireguard_kernel_module()
-    maybe_install_wireguard_tools(cloud)
 
     for wg_int in wg_section["interfaces"]:
         # check schema
