@@ -2895,7 +2895,7 @@ def get_proc_ppid(pid):
     try:
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
         if contents:
-            parts = contents.split(" ", 4)
+            parts = str(contents).split(" ", 4)
             # man proc says
             #  ppid %d     (4) The PID of the parent.
             ppid = int(parts[3])
