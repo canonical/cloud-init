@@ -192,7 +192,7 @@ class TestAnsible:
         mocker.patch("cloudinit.config.cc_ansible.which", return_value=True)
         if exception:
             with raises(exception):
-                cc_ansible.handle("", cfg, None, None, None)  # type: ignore
+                cc_ansible.handle("", cfg, None, None, None)  # pyright: ignore
         else:
             cloud = get_cloud(mocked_distro=True)
             install = cfg["ansible"]["install"]
@@ -211,7 +211,9 @@ class TestAnsible:
         cc_ansible.check_deps("ansible")
 
     @mock.patch("cloudinit.config.cc_ansible.which", return_value=True)
-    @mock.patch("cloudinit.config.cc_ansible.subp", return_value=("stdout", "stderr"))
+    @mock.patch(
+        "cloudinit.config.cc_ansible.subp", return_value=("stdout", "stderr")
+    )
     @mark.parametrize(
         ("cfg", "expected"),
         (
@@ -228,7 +230,8 @@ class TestAnsible:
                     "--scp-extra-args=-l",
                     "--sftp-extra-args=-f",
                     "--checkout=tree",
-                    "--module-path=~/.ansible/plugins/modules:/usr/share/ansible/plugins/modules",
+                    "--module-path=~/.ansible/plugins/modules"
+                    ":/usr/share/ansible/plugins/modules",
                     "--timeout=10",
                     "--vault-id=me",
                     "--connection=smart",
@@ -239,7 +242,7 @@ class TestAnsible:
                     "--skip-tags=cisco",
                     "--private-key={nope}",
                     "arch.yml",
-                ]
+                ],
             ),
             (
                 CFG_MINIMAL,
@@ -258,5 +261,5 @@ class TestAnsible:
 
     @mock.patch("cloudinit.config.cc_ansible.get_and_validate_config")
     def test_do_not_run(self, m_validate):
-        cc_ansible.handle("", {}, None, None, None)  # type: ignore
+        cc_ansible.handle("", {}, None, None, None)  # pyright: ignore
         assert not m_validate.called
