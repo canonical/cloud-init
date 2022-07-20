@@ -815,7 +815,7 @@ class TestSchemaDocMarkdown:
 
             **Supported distros:** debian, rhel
 
-            **Skipped if keys not present:** key_0, key_1
+            **Activate only if given keys:** key_0, key_1
 
             **Config schema**:
                 **prop1:** (array of integer) prop-description
@@ -1076,7 +1076,7 @@ class TestSchemaDocMarkdown:
         invalid_meta.pop(key)
         with pytest.raises(
             KeyError,
-            match=f"Missing expected keys in module meta: {{'{key}'}}",
+            match=f"Missing required keys in module meta: {{'{key}'}}",
         ):
             get_meta_doc(invalid_meta, schema)
 

@@ -910,11 +910,11 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
-def _get_activate_by_schema_keys(meta: MetaSchema) -> str:
+def _get_activate_by_schema_keys_doc(meta: MetaSchema) -> str:
     if not meta.get("activate_by_schema_keys"):
         return ""
     schema_keys = ", ".join(meta["activate_by_schema_keys"])
-    return f"**Skipped if keys not present:** {schema_keys}\n\n"
+    return f"**Activate only if given keys:** {schema_keys}\n\n"
 
 
 def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
@@ -930,7 +930,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
-    expected = {
+    required_keys = {
         "id",
         "title",
         "examples",
@@ -939,16 +939,16 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
         "description",
         "name",
     }
-    not_required = {"activate_by_schema_keys"}
+    optional_keys = {"activate_by_schema_keys"}
     error_message = ""
-    if expected - keys:
-        error_message = "Missing expected keys in module meta: {}".format(
-            expected - keys
+    if required_keys - keys:
+        error_message = "Missing required keys in module meta: {}".format(
+            required_keys - keys
         )
-    elif keys - expected - not_required:
+    elif keys - required_keys - optional_keys:
         error_message = (
             "Additional unexpected keys found in module meta: {}".format(
-                keys - expected
+                keys - required_keys
             )
         )
     if error_message:
@@ -972,7 +972,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
-    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys(meta)
+    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(meta)
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 
