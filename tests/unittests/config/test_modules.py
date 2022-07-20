@@ -17,7 +17,7 @@ M_PATH = "cloudinit.config.modules."
 class TestModules:
     @pytest.mark.parametrize("frequency", FREQUENCIES)
     @pytest.mark.parametrize(
-        "skip_by_schema, cfg, is_inapplicable",
+        "activate_by_schema_keys, cfg, is_inapplicable",
         [
             (None, {}, False),
             (None, {"module_name": {"x": "y"}}, False),
@@ -37,7 +37,7 @@ class TestModules:
         ],
     )
     def test__is_inapplicable(
-        self, skip_by_schema, cfg, is_inapplicable, frequency
+        self, activate_by_schema_keys, cfg, is_inapplicable, frequency
     ):
         module_meta = MetaSchema(
             name="module_name",
@@ -48,8 +48,8 @@ class TestModules:
             examples=["example_0", "example_1"],
             frequency=frequency,
         )
-        if skip_by_schema is not None:
-            module_meta["skip_by_schema"] = skip_by_schema
+        if activate_by_schema_keys is not None:
+            module_meta["activate_by_schema_keys"] = activate_by_schema_keys
 
         module = mock.Mock()
         module.meta = module_meta

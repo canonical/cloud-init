@@ -50,7 +50,7 @@ SCHEMA_DOC_TMPL = """
 
 **Supported distros:** {distros}
 
-{skip_by_schema}{property_header}
+{activate_by_schema_keys}{property_header}
 {property_doc}
 
 {examples}
@@ -80,7 +80,7 @@ if TYPE_CHECKING:
         distros: typing.List[str]
         examples: typing.List[str]
         frequency: str
-        skip_by_schema: NotRequired[List[str]]
+        activate_by_schema_keys: NotRequired[List[str]]
 
 else:
     MetaSchema = dict
@@ -910,10 +910,10 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
-def _get_skip_by_schema(meta: MetaSchema) -> str:
-    if not meta.get("skip_by_schema"):
+def _get_activate_by_schema_keys(meta: MetaSchema) -> str:
+    if not meta.get("activate_by_schema_keys"):
         return ""
-    schema_keys = ", ".join(meta["skip_by_schema"])
+    schema_keys = ", ".join(meta["activate_by_schema_keys"])
     return f"**Skipped if keys not present:** {schema_keys}\n\n"
 
 
@@ -939,7 +939,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
         "description",
         "name",
     }
-    not_required = {"skip_by_schema"}
+    not_required = {"activate_by_schema_keys"}
     error_message = ""
     if expected - keys:
         error_message = "Missing expected keys in module meta: {}".format(
@@ -972,7 +972,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
-    meta_copy["skip_by_schema"] = _get_skip_by_schema(meta)
+    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys(meta)
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 

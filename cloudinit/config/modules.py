@@ -66,12 +66,12 @@ def validate_module(mod, name):
 
 
 def _is_inapplicable(module_details: ModuleDetails, cfg: dict) -> bool:
-    skip_by_schema_keys = frozenset(
-        module_details.module.meta.get("skip_by_schema", {})
+    activate_by_schema_keys_keys = frozenset(
+        module_details.module.meta.get("activate_by_schema_keys", {})
     )
-    if not skip_by_schema_keys:
+    if not activate_by_schema_keys_keys:
         return False
-    if not skip_by_schema_keys.intersection(cfg.keys()):
+    if not activate_by_schema_keys_keys.intersection(cfg.keys()):
         return True
     return False
 

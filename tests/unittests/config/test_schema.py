@@ -727,7 +727,12 @@ class TestSchemaDocMarkdown:
     }
 
     @pytest.mark.parametrize(
-        "meta_update", [None, {"skip_by_schema": None}, {"skip_by_schema": []}]
+        "meta_update",
+        [
+            None,
+            {"activate_by_schema_keys": None},
+            {"activate_by_schema_keys": []},
+        ],
     )
     def test_get_meta_doc_returns_restructured_text(self, meta_update):
         """get_meta_doc returns restructured text for a cloudinit schema."""
@@ -777,7 +782,7 @@ class TestSchemaDocMarkdown:
             == doc
         )
 
-    def test_get_meta_doc_full_with_skip_by_schema(self):
+    def test_get_meta_doc_full_with_activate_by_schema_keys(self):
         full_schema = copy(self.required_schema)
         full_schema.update(
             {
@@ -792,7 +797,7 @@ class TestSchemaDocMarkdown:
         )
 
         meta = copy(self.meta)
-        meta["skip_by_schema"] = ["key_0", "key_1"]
+        meta["activate_by_schema_keys"] = ["key_0", "key_1"]
 
         doc = get_meta_doc(meta, full_schema)
         assert (
@@ -1078,7 +1083,7 @@ class TestSchemaDocMarkdown:
     @pytest.mark.parametrize(
         "key,expectation",
         [
-            ("skip_by_schema", does_not_raise()),
+            ("activate_by_schema_keys", does_not_raise()),
             (
                 "additional_key",
                 pytest.raises(
