@@ -88,9 +88,7 @@ def check_deps(dep: str):
 
 def filter_args(cfg: dict) -> dict:
     """remove boolean false values"""
-    return {
-        key: value for (key, value) in cfg.items() if value is not False
-    }
+    return {key: value for (key, value) in cfg.items() if value is not False}
 
 
 def run_ansible_pull(cfg: dict, log: Logger):

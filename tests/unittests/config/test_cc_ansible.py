@@ -1,3 +1,6 @@
+from logging import getLogger
+from unittest import mock
+
 from pytest import mark, param, raises
 
 from cloudinit.config import cc_ansible
@@ -7,8 +10,9 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
-FULL_CONFIG = {
+CFG_FULL = {
     "ansible": {
         "install": True,
         "pull": {
@@ -32,25 +36,27 @@ FULL_CONFIG = {
             "sleep": "1",
             "tags": "cumulus",
             "skip-tags": "cisco",
-            "private-key": "{nope}"
+            "private-key": "{nope}",
         },
     }
 }
+CFG_MINIMAL = {
+    "ansible": {
+        "install": True,
+        "pull": {
+            "url": "https://github/holmanb/vmboot",
+            "playbook-name": "ubuntu.yml",
+        },
+    }
+}
+
 
 class TestSetPasswordsSchema:
     @mark.parametrize(
         "config, error_msg",
         [
             param(
-                {
-                    "ansible": {
-                        "install": True,
-                        "pull": {
-                            "url": "https://github/holmanb/vmboot",
-                            "playbook-name": "ubuntu.yml",
-                        },
-                    }
-                },
+                CFG_MINIMAL,
                 None,
                 id="essentials",
             ),
@@ -69,7 +75,7 @@ class TestSetPasswordsSchema:
                 id="additional-properties",
             ),
             param(
-                FULL_CONFIG,
+                CFG_FULL,
                 None,
                 id="all-keys",
             ),
@@ -125,7 +131,7 @@ class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
         out = cc_ansible.filter_args(
-            FULL_CONFIG.get("ansible", {}).get("pull", {})
+            CFG_FULL.get("ansible", {}).get("pull", {})
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
@@ -147,5 +153,54 @@ class TestAnsible:
             "sleep": "1",
             "tags": "cumulus",
             "skip-tags": "cisco",
-            "private-key": "{nope}"
+            "private-key": "{nope}",
         }
+
+    @mark.parametrize(
+        "cfg, exception",
+        (
+            (CFG_FULL, None),
+            (CFG_MINIMAL, None),
+            (
+                {
+                    "ansible": {
+                        "install": False,
+                        "pull": {
+                            "playbook-name": "ubuntu.yml",
+                        },
+                    }
+                },
+                ValueError,
+            ),
+            (
+                {
+                    "ansible": {
+                        "install": True,
+                        "pull": {
+                            "url": "https://github/holmanb/vmboot",
+                        },
+                    }
+                },
+                ValueError,
+            ),
+        ),
+    )
+    def test_required_keys(self, cfg, exception):
+        with mock.patch(
+            "cloudinit.config.cc_ansible.subp", return_value=(None, None)
+        ):
+            if exception:
+                with raises(exception):
+                    cc_ansible.handle("", cfg, None, None, None)
+            else:
+                cloud = get_cloud(mocked_distro=True)
+                install = cfg.get("ansible", {}).get("install", {})
+                cc_ansible.handle("", cfg, cloud, getLogger(), None)
+                if install:
+                    cloud.distro.install_packages.assert_called_once()
+                    cloud.distro.install_packages.assert_called_with("ansible")
+
+    @mock.patch("cloudinit.config.cc_ansible.which", return_value=False)
+    def test_deps(self, m_which):
+        with raises(ValueError):
+            cc_ansible.check_deps("ansible")
