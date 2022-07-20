@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import pytest
 
-from cloudinit import subp
+from cloudinit import subp, util
 from cloudinit.config import cc_wireguard
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -13,6 +13,7 @@ from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 NL = "\n"
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_wireguard"
+MIN_KERNEL_VERSION = (5, 6)
 
 
 class FakeCloud(object):
@@ -192,13 +193,17 @@ class TestWireGuard(CiTestCase):
 
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wg_packages_happy_path(self, m_which):
-        """maybe_install_wireguard_packages installs wireguard-tools.
-        Assuming a kernel version higher than 5.6"""
+        """maybe_install_wireguard_packages installs wireguard-tools."""
+        packages = ["wireguard-tools"]
+
+        if util.kernel_version() < MIN_KERNEL_VERSION:
+            packages.append("wireguard")
+
         m_which.return_value = None
         distro = mock.MagicMock()  # No errors raised
         cc_wireguard.maybe_install_wireguard_packages(cloud=FakeCloud(distro))
         distro.update_package_sources.assert_called_once_with()
-        distro.install_packages.assert_called_once_with(["wireguard-tools"])
+        distro.install_packages.assert_called_once_with(packages)
 
     @mock.patch("%s.maybe_install_wireguard_packages" % MPATH)
     def test_handle_no_config(self, m_maybe_install_wireguard_packages):
