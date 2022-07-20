@@ -243,7 +243,7 @@ def load_wireguard_kernel_module():
     """
     try:
         out = subp.subp("lsmod", capture=True, shell=True)
-        if not re.search(r"^wireguard", out.stdout.strip()):
+        if not re.search("wireguard", out.stdout.strip()):
             LOG.debug("Loading wireguard kernel module")
             subp.subp("modprobe wireguard", capture=True, shell=True)
     except subp.ProcessExecutionError as e:
