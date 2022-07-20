@@ -65,15 +65,15 @@ def validate_module(mod, name):
         )
 
 
-def _is_inapplicable(module_details: ModuleDetails, cfg: dict) -> bool:
+def _is_active(module_details: ModuleDetails, cfg: dict) -> bool:
     activate_by_schema_keys_keys = frozenset(
         module_details.module.meta.get("activate_by_schema_keys", {})
     )
     if not activate_by_schema_keys_keys:
-        return False
-    if not activate_by_schema_keys_keys.intersection(cfg.keys()):
         return True
-    return False
+    if not activate_by_schema_keys_keys.intersection(cfg.keys()):
+        return False
+    return True
 
 
 class Modules(object):
@@ -287,7 +287,7 @@ class Modules(object):
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]
-            if _is_inapplicable(module_details, self.cfg):
+            if not _is_active(module_details, self.cfg):
                 inapplicable_mods.append(name)
                 continue
             # Skip only when the following conditions are all met:

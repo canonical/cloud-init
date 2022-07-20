@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from cloudinit.config.modules import ModuleDetails, Modules, _is_inapplicable
+from cloudinit.config.modules import ModuleDetails, Modules, _is_active
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import FREQUENCIES
@@ -17,27 +17,27 @@ M_PATH = "cloudinit.config.modules."
 class TestModules:
     @pytest.mark.parametrize("frequency", FREQUENCIES)
     @pytest.mark.parametrize(
-        "activate_by_schema_keys, cfg, is_inapplicable",
+        "activate_by_schema_keys, cfg, active",
         [
-            (None, {}, False),
-            (None, {"module_name": {"x": "y"}}, False),
-            ([], {"module_name": {"x": "y"}}, False),
-            (["module_name"], {"module_name": {"x": "y"}}, False),
+            (None, {}, True),
+            (None, {"module_name": {"x": "y"}}, True),
+            ([], {"module_name": {"x": "y"}}, True),
+            (["module_name"], {"module_name": {"x": "y"}}, True),
             (
                 ["module_name", "other_module"],
                 {"module_name": {"x": "y"}},
-                False,
+                True,
             ),
-            (["module_name"], {"other_module": {"x": "y"}}, True),
+            (["module_name"], {"other_module": {"x": "y"}}, False),
             (
                 ["x"],
                 {"module_name": {"x": "y"}, "other_module": {"x": "y"}},
-                True,
+                False,
             ),
         ],
     )
     def test__is_inapplicable(
-        self, activate_by_schema_keys, cfg, is_inapplicable, frequency
+        self, activate_by_schema_keys, cfg, active, frequency
     ):
         module_meta = MetaSchema(
             name="module_name",
@@ -59,12 +59,12 @@ class TestModules:
             frequency=frequency,
             run_args=[],
         )
-        assert is_inapplicable == _is_inapplicable(module_details, cfg)
+        assert active == _is_active(module_details, cfg)
 
     @pytest.mark.parametrize("frequency", FREQUENCIES)
-    @pytest.mark.parametrize("is_inapplicable", [True, False])
-    def test_run_section(self, frequency, is_inapplicable, caplog, mocker):
-        mocker.patch(M_PATH + "_is_inapplicable", return_value=is_inapplicable)
+    @pytest.mark.parametrize("active", [True, False])
+    def test_run_section(self, frequency, active, caplog, mocker):
+        mocker.patch(M_PATH + "_is_active", return_value=active)
 
         mods = Modules(
             init=mock.Mock(), cfg_files=mock.Mock(), reporter=mock.Mock()
@@ -95,7 +95,7 @@ class TestModules:
         m_run_modules = mocker.patch.object(mods, "_run_modules")
 
         assert mods.run_section("not_matter")
-        if not is_inapplicable:
+        if active:
             assert [
                 mock.call([list(module_details)])
             ] == m_run_modules.call_args_list
