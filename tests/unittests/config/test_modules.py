@@ -39,7 +39,8 @@ class TestModules:
     def test__is_inapplicable(
         self, activate_by_schema_keys, cfg, active, frequency
     ):
-        module_meta = MetaSchema(
+        module = mock.Mock()
+        module.meta = MetaSchema(
             name="module_name",
             id="cc_module_name",
             title="title",
@@ -49,10 +50,7 @@ class TestModules:
             frequency=frequency,
         )
         if activate_by_schema_keys is not None:
-            module_meta["activate_by_schema_keys"] = activate_by_schema_keys
-
-        module = mock.Mock()
-        module.meta = module_meta
+            module.meta["activate_by_schema_keys"] = activate_by_schema_keys
         module_details = ModuleDetails(
             module=module,
             name="name",

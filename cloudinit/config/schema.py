@@ -972,7 +972,9 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
-    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(meta)
+    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
+        meta
+    )
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 
