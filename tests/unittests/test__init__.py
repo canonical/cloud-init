@@ -220,6 +220,24 @@ class TestHandlerHandlePart(TestCase):
         )
 
 
+class FakeResponse:
+    def __init__(self, content, status_code=200):
+        self._content = content
+        self._remaining_content = content
+        self.status_code = status_code
+        self.encoding = None
+
+    @property
+    def content(self):
+        return self._remaining_content
+
+    def iter_content(self, chunk_size, *_, **__):
+        iterators = [iter(self._content)] * chunk_size
+        for chunk in zip(*iterators):
+            self._remaining_content = self._remaining_content[chunk_size:]
+            yield bytes(chunk)
+
+
 class TestCmdlineUrl:
     def test_parse_cmdline_url_nokey_raises_keyerror(self):
         with pytest.raises(KeyError):
@@ -245,12 +263,49 @@ class TestCmdlineUrl:
         assert False is os.path.exists(fpath)
 
     @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
+    def test_invalid_content_url(self, m_read, tmpdir):
+        key = "cloud-config-url"
+        url = "http://example.com/foo"
+        cmdline = "ro %s=%s bar=1" % (key, url)
+        response = mock.Mock()
+        response.iter_content.return_value = iter(
+            (b"unexpected blob", StopIteration)
+        )
+        response.status_code = 200
+        m_read.return_value = url_helper.UrlResponse(response)
+
+        fpath = tmpdir.join("ccfile")
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline
+        )
+        assert logging.WARN == lvl
+        assert url in msg
+        assert False is os.path.exists(fpath)
+
+    @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
     def test_valid_content(self, m_read, tmpdir):
         url = "http://example.com/foo"
         payload = b"#cloud-config\nmydata: foo\nbar: wark\n"
         cmdline = "ro %s=%s bar=1" % ("cloud-config-url", url)
 
         m_read.return_value = url_helper.StringResponse(payload)
+        fpath = tmpdir.join("ccfile")
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline
+        )
+        assert util.load_file(fpath, decode=False) == payload
+        assert logging.INFO == lvl
+        assert url in msg
+
+    @mock.patch("cloudinit.cmd.main.url_helper.read_file_or_url")
+    def test_valid_content_url(self, m_read, tmpdir):
+        url = "http://example.com/foo"
+        payload = b"#cloud-config\nmydata: foo\nbar: wark\n"
+        cmdline = "ro %s=%s bar=1" % ("cloud-config-url", url)
+
+        response = FakeResponse(payload)
+        m_read.return_value = url_helper.UrlResponse(response)
+
         fpath = tmpdir.join("ccfile")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
