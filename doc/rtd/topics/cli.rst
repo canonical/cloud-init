@@ -67,6 +67,9 @@ instance. On reboot, cloud-init will re-run all stages as it did on first boot.
 
 * ``--logs``: optionally remove all cloud-init log files in ``/var/log/``
 * ``--reboot``: reboot the system after removing artifacts
+* ``--machine-id``: Remove ``/etc/machine-id`` on this image. Best practice
+  when cloning a golden image to ensure that the next boot of that image
+  auto-generates an unique machine ID.
 
 
 .. _cli_collect_logs:

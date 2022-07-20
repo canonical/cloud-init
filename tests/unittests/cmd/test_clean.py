@@ -238,6 +238,41 @@ class TestClean:
         assert 0 == retcode
         assert [(["shutdown", "-r", "now"], False)] == called_cmds
 
+    @pytest.mark.parametrize("machine_id", (True, False))
+    def test_handle_clean_args_removed_machine_id(
+        self, machine_id, clean_paths, init_class
+    ):
+        """handle_clean_args removes /etc/machine-id when arg is True."""
+
+        myargs = namedtuple(
+            "MyArgs", "remove_logs remove_seed reboot machine_id"
+        )
+        cmdargs = myargs(
+            remove_logs=False,
+            remove_seed=False,
+            reboot=False,
+            machine_id=machine_id,
+        )
+        machine_id_path = clean_paths.tmpdir.join("machine-id")
+        machine_id_path.write("SOME-AMAZN-MACHINE-ID")
+        with mock.patch.object(
+            cloudinit.settings, "CLEAN_RUNPARTS_DIR", clean_paths.clean_dir
+        ):
+            with mock.patch.object(
+                cloudinit.cmd.clean, "ETC_MACHINE_ID", machine_id_path.strpath
+            ):
+                retcode = wrap_and_call(
+                    "cloudinit.cmd.clean",
+                    {
+                        "Init": {"side_effect": init_class},
+                    },
+                    clean.handle_clean_args,
+                    name="does not matter",
+                    args=cmdargs,
+                )
+        assert 0 == retcode
+        assert machine_id_path.exists() is bool(not machine_id)
+
     def test_status_main(self, clean_paths, init_class):
         """clean.main can be run as a standalone script."""
         clean_paths.log.write("cloud-init-log")
