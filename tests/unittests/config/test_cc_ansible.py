@@ -1,5 +1,6 @@
 from pytest import mark, param, raises
 
+from cloudinit.config import cc_ansible
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -7,6 +8,34 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
 
+FULL_CONFIG = {
+    "ansible": {
+        "install": True,
+        "pull": {
+            "url": "https://github/holmanb/vmboot",
+            "playbook-name": "arch.yml",
+            "accept-host-key": True,
+            "clean": True,
+            "full": True,
+            "diff": False,
+            "ssh-common-args": "-y",
+            "scp-extra-args": "-l",
+            "sftp-extra-args": "-f",
+            "checkout": "tree",
+            "module-path": "~/.ansible/plugins/modules:"
+            "/usr/share/ansible/plugins/modules",
+            "timeout": "10",
+            "vault-id": "me",
+            "connection": "smart",
+            "vault-password-file": "/path/to/file",
+            "module-name": "git",
+            "sleep": "1",
+            "tags": "cumulus",
+            "skip-tags": "cisco",
+            "private-key": "{nope}"
+        },
+    }
+}
 
 class TestSetPasswordsSchema:
     @mark.parametrize(
@@ -17,8 +46,8 @@ class TestSetPasswordsSchema:
                     "ansible": {
                         "install": True,
                         "pull": {
-                            "url": "https://fishing.net/",
-                            "playbook-name": "hail-mary.yml",
+                            "url": "https://github/holmanb/vmboot",
+                            "playbook-name": "ubuntu.yml",
                         },
                     }
                 },
@@ -30,8 +59,8 @@ class TestSetPasswordsSchema:
                     "ansible": {
                         "install": True,
                         "pull": {
-                            "url": "http://flash-games.net/",
-                            "playbook-name": "hail-mary.yml",
+                            "url": "https://github/holmanb/vmboot",
+                            "playbook-name": "centos.yml",
                             "dance": "bossa nova",
                         },
                     }
@@ -40,35 +69,7 @@ class TestSetPasswordsSchema:
                 id="additional-properties",
             ),
             param(
-                {
-                    "ansible": {
-                        "install": True,
-                        "pull": {
-                            "url": "https://flash-games.net/",
-                            "playbook-name": "hail-mary.yml",
-                            "accept-host-key": True,
-                            "clean": True,
-                            "full": True,
-                            "diff": True,
-                            "ssh-common-args": "-y",
-                            "scp-extra-args": "-l",
-                            "sftp-extra-args": "-f",
-                            "checkout": "tree",
-                            "module-path": "~/.ansible/plugins/modules:"
-                            "/usr/share/ansible/plugins/modules",
-                            "timeout": "10",
-                            "vault-id": "me",
-                            "connection": "smart",
-                            "vault-password-file": "/path/to/file",
-                            "module-name": "git",
-                            "sleep": "1",
-                            "tags": "cumulus",
-                            "skip-tags": "cisco",
-                            "private-key": "perhaps a more diverse playbook"
-                            "is the key to winning?",
-                        },
-                    }
-                },
+                FULL_CONFIG,
                 None,
                 id="all-keys",
             ),
@@ -77,8 +78,8 @@ class TestSetPasswordsSchema:
                     "ansible": {
                         "install": "true",
                         "pull": {
-                            "url": "gophers://encrypted-gophers/",
-                            "playbook-name": "hail-mary.yml",
+                            "url": "https://github/holmanb/vmboot",
+                            "playbook-name": "debian.yml",
                         },
                     }
                 },
@@ -90,7 +91,7 @@ class TestSetPasswordsSchema:
                     "ansible": {
                         "install": True,
                         "pull": {
-                            "playbook-name": "hail-mary.yml",
+                            "playbook-name": "fedora.yml",
                         },
                     }
                 },
@@ -102,7 +103,7 @@ class TestSetPasswordsSchema:
                     "ansible": {
                         "install": True,
                         "pull": {
-                            "url": "https://soundcloud.com/sangobeats/flor",
+                            "url": "gophers://encrypted-gophers/",
                         },
                     }
                 },
@@ -118,3 +119,32 @@ class TestSetPasswordsSchema:
         else:
             with raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+
+class TestAnsible:
+    def test_filter_args(self):
+        out = cc_ansible.filter_args(
+            FULL_CONFIG.get("ansible", {}).get("pull", {})
+        )
+        assert out == {
+            "url": "https://github/holmanb/vmboot",
+            "playbook-name": "arch.yml",
+            "accept-host-key": None,
+            "clean": None,
+            "full": None,
+            "ssh-common-args": "-y",
+            "scp-extra-args": "-l",
+            "sftp-extra-args": "-f",
+            "checkout": "tree",
+            "module-path": "~/.ansible/plugins/modules:"
+            "/usr/share/ansible/plugins/modules",
+            "timeout": "10",
+            "vault-id": "me",
+            "connection": "smart",
+            "vault-password-file": "/path/to/file",
+            "module-name": "git",
+            "sleep": "1",
+            "tags": "cumulus",
+            "skip-tags": "cisco",
+            "private-key": "{nope}"
+        }
