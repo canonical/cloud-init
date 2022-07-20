@@ -53,8 +53,8 @@ CFG_MINIMAL = {
 
 class TestSetPasswordsSchema:
     @mark.parametrize(
-        "config, error_msg",
-        [
+        ("config", "error_msg"),
+        (
             param(
                 CFG_MINIMAL,
                 None,
@@ -116,7 +116,7 @@ class TestSetPasswordsSchema:
                 "'playbook-name' is a required property",
                 id="require-url",
             ),
-        ],
+        ),
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
@@ -157,7 +157,7 @@ class TestAnsible:
         }
 
     @mark.parametrize(
-        "cfg, exception",
+        ("cfg", "exception"),
         (
             (CFG_FULL, None),
             (CFG_MINIMAL, None),
@@ -185,22 +185,78 @@ class TestAnsible:
             ),
         ),
     )
-    def test_required_keys(self, cfg, exception):
-        with mock.patch(
+    def test_required_keys(self, cfg, exception, mocker):
+        mocker.patch(
             "cloudinit.config.cc_ansible.subp", return_value=(None, None)
-        ):
-            if exception:
-                with raises(exception):
-                    cc_ansible.handle("", cfg, None, None, None)
-            else:
-                cloud = get_cloud(mocked_distro=True)
-                install = cfg.get("ansible", {}).get("install", {})
-                cc_ansible.handle("", cfg, cloud, getLogger(), None)
-                if install:
-                    cloud.distro.install_packages.assert_called_once()
-                    cloud.distro.install_packages.assert_called_with("ansible")
+        )
+        mocker.patch("cloudinit.config.cc_ansible.which", return_value=True)
+        if exception:
+            with raises(exception):
+                cc_ansible.handle("", cfg, None, None, None)  # type: ignore
+        else:
+            cloud = get_cloud(mocked_distro=True)
+            install = cfg["ansible"]["install"]
+            cc_ansible.handle("", cfg, cloud, getLogger(), None)
+            if install:
+                cloud.distro.install_packages.assert_called_once()
+                cloud.distro.install_packages.assert_called_with("ansible")
 
     @mock.patch("cloudinit.config.cc_ansible.which", return_value=False)
-    def test_deps(self, m_which):
+    def test_deps_not_installed(self, m_which):
         with raises(ValueError):
             cc_ansible.check_deps("ansible")
+
+    @mock.patch("cloudinit.config.cc_ansible.which", return_value=True)
+    def test_deps(self, m_which):
+        cc_ansible.check_deps("ansible")
+
+    @mock.patch("cloudinit.config.cc_ansible.which", return_value=True)
+    @mock.patch("cloudinit.config.cc_ansible.subp", return_value=("stdout", "stderr"))
+    @mark.parametrize(
+        ("cfg", "expected"),
+        (
+            (
+                CFG_FULL,
+                [
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "--playbook-name=arch.yml",
+                    "--accept-host-key",
+                    "--clean",
+                    "--full",
+                    "--ssh-common-args=-y",
+                    "--scp-extra-args=-l",
+                    "--sftp-extra-args=-f",
+                    "--checkout=tree",
+                    "--module-path=~/.ansible/plugins/modules:/usr/share/ansible/plugins/modules",
+                    "--timeout=10",
+                    "--vault-id=me",
+                    "--connection=smart",
+                    "--vault-password-file=/path/to/file",
+                    "--module-name=git",
+                    "--sleep=1",
+                    "--tags=cumulus",
+                    "--skip-tags=cisco",
+                    "--private-key={nope}",
+                    "arch.yml",
+                ]
+            ),
+            (
+                CFG_MINIMAL,
+                [
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "--playbook-name=ubuntu.yml",
+                    "ubuntu.yml",
+                ],
+            ),
+        ),
+    )
+    def test_ansible_pull(self, m_subp, m_which, cfg, expected):
+        cc_ansible.run_ansible_pull(cfg["ansible"]["pull"], getLogger())
+        m_subp.assert_called_with(expected)
+
+    @mock.patch("cloudinit.config.cc_ansible.get_and_validate_config")
+    def test_do_not_run(self, m_validate):
+        cc_ansible.handle("", {}, None, None, None)  # type: ignore
+        assert not m_validate.called

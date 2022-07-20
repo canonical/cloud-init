@@ -3,8 +3,10 @@ import pytest
 from tests.integration_tests.util import verify_clean_log
 
 # This works by setting up a local repository and web server
-# daemon on the first boot. Second boot should run successfully
-# with the running web service and git repo configured
+# daemon on the first boot. Second boot should succeed
+# with the running web service and git repo configured.
+# This instrumentation allows the test to run self-contained
+# without network access or external git repos.
 
 REPO_D = "/root/playbooks"
 USER_DATA = """\

@@ -1,5 +1,6 @@
 """ansible enables running on first boot either ansible-pull"""
 
+from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
 from typing import Tuple
@@ -94,9 +95,8 @@ def filter_args(cfg: dict) -> dict:
 def run_ansible_pull(cfg: dict, log: Logger):
     cmd = "ansible-pull"
     check_deps(cmd)
-    playbook_name: str = cfg.pop("playbook-name")
+    playbook_name: str = deepcopy(cfg).pop("playbook-name")
     try:
-
         stdout, stderr = subp(
             [
                 cmd,
