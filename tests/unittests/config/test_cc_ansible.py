@@ -123,15 +123,16 @@ class TestSetPasswordsSchema:
 
 class TestAnsible:
     def test_filter_args(self):
+        """only diff should be removed"""
         out = cc_ansible.filter_args(
             FULL_CONFIG.get("ansible", {}).get("pull", {})
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "arch.yml",
-            "accept-host-key": None,
-            "clean": None,
-            "full": None,
+            "accept-host-key": True,
+            "clean": True,
+            "full": True,
             "ssh-common-args": "-y",
             "scp-extra-args": "-l",
             "sftp-extra-args": "-f",
