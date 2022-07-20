@@ -21,6 +21,7 @@ class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     network_conf_fn = "/etc/conf.d/net"
     hostname_conf_fn = "/etc/conf.d/hostname"
+    uses_network_renderer: bool = False
     init_cmd = ["rc-service"]  # init scripts
     default_locale = "en_US.UTF-8"
 

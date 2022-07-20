@@ -80,6 +80,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     init_cmd = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None
+    uses_network_renderer: bool = True
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
@@ -124,6 +125,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
         name, render_cls = renderers.select(priority=priority)
+        try:
+            name, render_cls = renderers.select(priority=priority)
+        except Exception as e:
+            if not self.uses_network_renderer:
+                raise NotImplementedError
+            else:
+                raise e
         LOG.debug(
             "Selected renderer '%s' from priority list: %s", name, priority
         )
