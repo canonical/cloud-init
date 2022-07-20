@@ -242,7 +242,7 @@ def load_wireguard_kernel_module():
     @raises: ProcessExecutionError for issues modprobe
     """
     try:
-        out = subp.subp("lsmod | grep wireguard", capture=True, shell=True)
+        out = subp.subp("lsmod", capture=True, shell=True)
         if not re.match(r"^wireguard", out.stdout.strip()):
             LOG.debug("Loading wireguard kernel module")
             subp.subp("modprobe wireguard", capture=True, shell=True)
