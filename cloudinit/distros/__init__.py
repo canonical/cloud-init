@@ -123,15 +123,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "renderers"), None
         )
+        LOG.warning("_write_network_state()")
 
-        name, render_cls = renderers.select(priority=priority)
+        LOG.warning("calling _write_network_state()")
         try:
             name, render_cls = renderers.select(priority=priority)
         except Exception as e:
             if not self.uses_network_renderer:
+                LOG.warning("uses network renderer")
                 raise NotImplementedError
             else:
+                LOG.warning("does not use network renderer")
                 raise e
+        LOG.warning("select() succeeded")
         LOG.debug(
             "Selected renderer '%s' from priority list: %s", name, priority
         )
@@ -238,8 +242,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
+        LOG.warning("apply_network_config()")
         network_state = parse_net_config_data(netconfig)
         try:
+            LOG.warning("apply_network_config()")
             self._write_network_state(network_state)
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
