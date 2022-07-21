@@ -95,6 +95,7 @@ def get_not_activated_modules(log_content: str) -> Set[str]:
 
 
 # @pytest.mark.adhoc
+@pytest.mark.ci
 @pytest.mark.parametrize("mod_name, example", get_examples())
 def test_examples(mod_name, example, session_cloud: IntegrationCloud):
     """Execute the examples given in module's meta-schemas
@@ -105,8 +106,8 @@ def test_examples(mod_name, example, session_cloud: IntegrationCloud):
     user_data = f"#cloud-config\n{example}"
     with session_cloud.launch(
         launch_kwargs={"user_data": user_data}
-    ) as client:
-        log_content = client.read_from_file("/var/log/cloud-init.log")
+    ) as instance:
+        log_content = instance.read_from_file("/var/log/cloud-init.log")
         not_activated = get_not_activated_modules(log_content)
         assert mod_name not in not_activated, (
             f"{mod_name} was skipped with a cloud-config example:\n"
