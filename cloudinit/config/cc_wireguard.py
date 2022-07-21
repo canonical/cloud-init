@@ -48,6 +48,7 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["wireguard"],
     "examples": [
         dedent(
             """\
