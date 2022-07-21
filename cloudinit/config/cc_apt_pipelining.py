@@ -43,6 +43,7 @@ meta: MetaSchema = {
     ),
     "distros": distros,
     "frequency": frequency,
+    "activate_by_schema_keys": [],
     "examples": [
         "apt_pipelining: false",
         "apt_pipelining: none",

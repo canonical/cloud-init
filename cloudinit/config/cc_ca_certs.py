@@ -52,6 +52,7 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": distros,
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ca_certs", "ca-certs"],
     "examples": [
         dedent(
             """\

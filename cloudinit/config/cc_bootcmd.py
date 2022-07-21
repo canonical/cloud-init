@@ -44,6 +44,7 @@ meta: MetaSchema = {
     """
     ),
     "distros": distros,
+    "activate_by_schema_keys": ["bootcmd"],
     "examples": [
         dedent(
             """\

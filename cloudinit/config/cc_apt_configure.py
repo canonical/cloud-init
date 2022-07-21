@@ -55,6 +55,7 @@ meta: MetaSchema = {
             ``Additional apt configuration`` example."""
     ),
     "distros": distros,
+    "activate_by_schema_keys": ["apt"],
     "examples": [
         dedent(
             """\

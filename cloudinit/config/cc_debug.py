@@ -31,6 +31,7 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
     "examples": [
         dedent(
             """\

@@ -67,6 +67,7 @@ meta: MetaSchema = {
     """
     ),
     "distros": distros,
+    "activate_by_schema_keys": ["apk_repos"],
     "examples": [
         dedent(
             """\
