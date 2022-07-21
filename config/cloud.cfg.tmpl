@@ -114,6 +114,9 @@ cloud_config_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - snap
 {% endif %}
+{% if variant in ["ubuntu"] %}
+ - ubuntu_autoinstall
+{% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
 {% if variant not in ["rhel"] %}

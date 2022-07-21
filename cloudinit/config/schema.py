@@ -8,12 +8,11 @@ import os
 import re
 import sys
 import textwrap
-import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import chain
-from typing import List, NamedTuple, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
 import yaml
 
@@ -51,7 +50,7 @@ SCHEMA_DOC_TMPL = """
 
 **Supported distros:** {distros}
 
-{property_header}
+{activate_by_schema_keys}{property_header}
 {property_doc}
 
 {examples}
@@ -66,12 +65,14 @@ SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 DEPRECATED_KEY = "deprecated"
 
 
-# annotations add value for development, but don't break old versions
-# pyver: 3.6 -> 3.8
-# pylint: disable=E1101
-if sys.version_info >= (3, 8):
+# type-annotate only if type-checking.
+# Consider to add `type_extensions` as a dependency when Bionic is EOL.
+if TYPE_CHECKING:
+    import typing
 
-    class MetaSchema(typing.TypedDict):
+    from typing_extensions import NotRequired, TypedDict
+
+    class MetaSchema(TypedDict):
         name: str
         id: str
         title: str
@@ -79,10 +80,10 @@ if sys.version_info >= (3, 8):
         distros: typing.List[str]
         examples: typing.List[str]
         frequency: str
+        activate_by_schema_keys: NotRequired[List[str]]
 
 else:
     MetaSchema = dict
-# pylint: enable=E1101
 
 
 class SchemaDeprecationError(ValidationError):
@@ -909,6 +910,15 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
+def _get_activate_by_schema_keys_doc(meta: MetaSchema) -> str:
+    if not meta.get("activate_by_schema_keys"):
+        return ""
+    schema_keys = ", ".join(
+        f"``{k}``" for k in meta["activate_by_schema_keys"]
+    )
+    return f"**Activate only on keys:** {schema_keys}\n\n"
+
+
 def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
@@ -922,7 +932,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
-    expected = {
+    required_keys = {
         "id",
         "title",
         "examples",
@@ -931,15 +941,16 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
         "description",
         "name",
     }
+    optional_keys = {"activate_by_schema_keys"}
     error_message = ""
-    if expected - keys:
-        error_message = "Missing expected keys in module meta: {}".format(
-            expected - keys
+    if required_keys - keys:
+        error_message = "Missing required keys in module meta: {}".format(
+            required_keys - keys
         )
-    elif keys - expected:
+    elif keys - required_keys - optional_keys:
         error_message = (
             "Additional unexpected keys found in module meta: {}".format(
-                keys - expected
+                keys - required_keys
             )
         )
     if error_message:
@@ -963,6 +974,9 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
+    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
+        meta
+    )
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 

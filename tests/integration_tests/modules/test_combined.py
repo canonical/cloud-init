@@ -198,7 +198,6 @@ class TestCombined:
             if ImageSpecification.from_os_image().release in [
                 "bionic",
                 "focal",
-                "impish",
             ]:
                 datasource = "DataSourceNoCloud"
             else:
@@ -276,7 +275,6 @@ class TestCombined:
         if ImageSpecification.from_os_image().release not in [
             "bionic",
             "focal",
-            "impish",
         ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
@@ -316,7 +314,6 @@ class TestCombined:
         if ImageSpecification.from_os_image().release not in [
             "bionic",
             "focal",
-            "impish",
         ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
