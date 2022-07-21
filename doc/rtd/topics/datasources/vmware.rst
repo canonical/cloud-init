@@ -209,7 +209,7 @@ The above command will result in output similar to the below JSON:
 
 
 Redacting sensitive information (GuestInfo keys transport only)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes the cloud-init userdata might contain sensitive information, and it
 may be desirable to have the ``guestinfo.userdata`` key (or other guestinfo
