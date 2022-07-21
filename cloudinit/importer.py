@@ -51,6 +51,7 @@ def find_module(
     for full_path in lookup_paths:
         if not importlib.util.find_spec(full_path):
             continue
+        # Check that required_attrs are all present within the module.
         if _count_attrs(full_path, required_attrs) == len(required_attrs):
             found_paths.append(full_path)
     return (found_paths, lookup_paths)
