@@ -10,7 +10,7 @@ import os
 import re
 import sys
 from collections import namedtuple
-from copy import copy, deepcopy
+from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
@@ -45,6 +45,7 @@ from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,
+    does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
@@ -164,6 +165,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
+            {"$ref": "#/$defs/cc_ubuntu_autoinstall"},
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
@@ -719,14 +721,22 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
         "examples": [
-            'ex1:\n    [don\'t, expand, "this"]',
-            "ex2: true",
+            'prop1:\n    [don\'t, expand, "this"]',
+            "prop2: true",
         ],
     }
 
-    def test_get_meta_doc_returns_restructured_text(self):
+    @pytest.mark.parametrize(
+        "meta_update",
+        [
+            None,
+            {"activate_by_schema_keys": None},
+            {"activate_by_schema_keys": []},
+        ],
+    )
+    def test_get_meta_doc_returns_restructured_text(self, meta_update):
         """get_meta_doc returns restructured text for a cloudinit schema."""
-        full_schema = copy(self.required_schema)
+        full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
                 "properties": {
@@ -738,8 +748,11 @@ class TestSchemaDocMarkdown:
                 }
             }
         )
+        meta = deepcopy(self.meta)
+        if meta_update:
+            meta.update(meta_update)
 
-        doc = get_meta_doc(self.meta, full_schema)
+        doc = get_meta_doc(meta, full_schema)
         assert (
             dedent(
                 """
@@ -760,10 +773,65 @@ class TestSchemaDocMarkdown:
 
             **Examples**::
 
-                ex1:
+                prop1:
                     [don't, expand, "this"]
                 # --- Example2 ---
-                ex2: true
+                prop2: true
+        """
+            )
+            == doc
+        )
+
+    def test_get_meta_doc_full_with_activate_by_schema_keys(self):
+        full_schema = deepcopy(self.required_schema)
+        full_schema.update(
+            {
+                "properties": {
+                    "prop1": {
+                        "type": "array",
+                        "description": "prop-description",
+                        "items": {"type": "string"},
+                    },
+                    "prop2": {
+                        "type": "boolean",
+                        "description": "prop2-description",
+                    },
+                },
+            }
+        )
+
+        meta = deepcopy(self.meta)
+        meta["activate_by_schema_keys"] = ["prop1", "prop2"]
+
+        doc = get_meta_doc(meta, full_schema)
+        assert (
+            dedent(
+                """
+            name
+            ----
+            **Summary:** title
+
+            description
+
+            **Internal name:** ``id``
+
+            **Module frequency:** frequency
+
+            **Supported distros:** debian, rhel
+
+            **Activate only on keys:** ``prop1``, ``prop2``
+
+            **Config schema**:
+                **prop1:** (array of string) prop-description
+
+                **prop2:** (boolean) prop2-description
+
+            **Examples**::
+
+                prop1:
+                    [don't, expand, "this"]
+                # --- Example2 ---
+                prop2: true
         """
             )
             == doc
@@ -924,7 +992,7 @@ class TestSchemaDocMarkdown:
 
     def test_get_meta_doc_handles_string_examples(self):
         """get_meta_doc properly indented examples as a list of strings."""
-        full_schema = copy(self.required_schema)
+        full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
                 "examples": [
@@ -948,10 +1016,10 @@ class TestSchemaDocMarkdown:
 
             **Examples**::
 
-                ex1:
+                prop1:
                     [don't, expand, "this"]
                 # --- Example2 ---
-                ex2: true
+                prop2: true
             """
             )
             in get_meta_doc(self.meta, full_schema)
@@ -997,7 +1065,8 @@ class TestSchemaDocMarkdown:
             in get_meta_doc(self.meta, schema)
         )
 
-    def test_get_meta_doc_raises_key_errors(self):
+    @pytest.mark.parametrize("key", meta.keys())
+    def test_get_meta_doc_raises_key_errors(self, key):
         """get_meta_doc raises KeyErrors on missing keys."""
         schema = {
             "properties": {
@@ -1009,18 +1078,51 @@ class TestSchemaDocMarkdown:
                 }
             }
         }
-        for key in self.meta:
-            invalid_meta = copy(self.meta)
-            invalid_meta.pop(key)
-            with pytest.raises(KeyError) as context_mgr:
-                get_meta_doc(invalid_meta, schema)
-            assert key in str(context_mgr.value)
+        invalid_meta = deepcopy(self.meta)
+        invalid_meta.pop(key)
+        with pytest.raises(
+            KeyError,
+            match=f"Missing required keys in module meta: {{'{key}'}}",
+        ):
+            get_meta_doc(invalid_meta, schema)
+
+    @pytest.mark.parametrize(
+        "key,expectation",
+        [
+            ("activate_by_schema_keys", does_not_raise()),
+            (
+                "additional_key",
+                pytest.raises(
+                    KeyError,
+                    match=(
+                        "Additional unexpected keys found in module meta:"
+                        " {'additional_key'}"
+                    ),
+                ),
+            ),
+        ],
+    )
+    def test_get_meta_doc_additional_keys(self, key, expectation):
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                    },
+                }
+            }
+        }
+        invalid_meta = deepcopy(self.meta)
+        invalid_meta[key] = []
+        with expectation:
+            get_meta_doc(invalid_meta, schema)
 
     def test_label_overrides_property_name(self):
         """get_meta_doc overrides property name with label."""
         schema = {
             "properties": {
-                "prop1": {
+                "old_prop1": {
                     "type": "string",
                     "label": "label1",
                 },
@@ -1051,7 +1153,7 @@ class TestSchemaDocMarkdown:
         assert "**prop_no_label:** (string)" in meta_doc
         assert "Each object in **array_label** list" in meta_doc
 
-        assert "prop1" not in meta_doc
+        assert "old_prop1" not in meta_doc
         assert ".*" not in meta_doc
 
     @pytest.mark.parametrize(

@@ -8,6 +8,7 @@
 
 import os
 from textwrap import dedent
+from typing import List
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -22,9 +23,9 @@ _DEFAULT_NETWORK_NAME = "lxdbr0"
 MODULE_DESCRIPTION = """\
 This module configures lxd with user specified options using ``lxd init``.
 If lxd is not present on the system but lxd configuration is provided, then
-lxd will be installed. If the selected storage backend is zfs, then zfs will
-be installed if missing. If network bridge configuration is provided, then
-lxd-bridge will be configured accordingly.
+lxd will be installed. If the selected storage backend userspace utility is
+not installed, it will be installed. If network bridge configuration is
+provided, then lxd-bridge will be configured accordingly.
 """
 
 distros = ["ubuntu"]
@@ -105,15 +106,7 @@ def handle(name, cfg, cloud, log, args):
             type(bridge_cfg),
         )
         bridge_cfg = {}
-
-    # Install the needed packages
-    packages = []
-    if not subp.which("lxd"):
-        packages.append("lxd")
-
-    if init_cfg.get("storage_backend") == "zfs" and not subp.which("zfs"):
-        packages.append("zfsutils-linux")
-
+    packages = get_required_packages(init_cfg)
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
@@ -350,4 +343,20 @@ def maybe_cleanup_default(
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
-# vi: ts=4 expandtab
+def get_required_packages(cfg: dict) -> List[str]:
+    """identify required packages for install"""
+    packages = []
+    if not subp.which("lxd"):
+        packages.append("lxd")
+
+    # binary for pool creation must be available for the requested backend:
+    # zfs, lvcreate, mkfs.btrfs
+    storage: str = cfg.get("storage_backend", "")
+    if storage:
+        if storage == "zfs" and not subp.which("zfs"):
+            packages.append("zfsutils-linux")
+        if storage == "lvm" and not subp.which("lvcreate"):
+            packages.append("lvm2")
+        if storage == "btrfs" and not subp.which("mkfs.btrfs"):
+            packages.append("btrfs-progs")
+    return packages

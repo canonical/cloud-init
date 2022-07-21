@@ -62,7 +62,6 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
         if ImageSpecification.from_os_image().release in [
             "bionic",
             "focal",
-            "impish",
         ]:
             _remove_nocloud_dir_and_reboot(client)
         status_out = _wait_for_cloud_init(client).stdout.strip()

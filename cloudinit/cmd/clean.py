@@ -11,8 +11,9 @@ import glob
 import os
 import sys
 
+from cloudinit import settings
 from cloudinit.stages import Init
-from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
     del_dir,
     del_file,
@@ -94,6 +95,13 @@ def remove_artifacts(remove_logs, remove_seed=False):
         except OSError as e:
             error("Could not remove {0}: {1}".format(path, str(e)))
             return 1
+    try:
+        runparts(settings.CLEAN_RUNPARTS_DIR)
+    except Exception as e:
+        error(
+            f"Failure during run-parts of {settings.CLEAN_RUNPARTS_DIR}: {e}"
+        )
+        return 1
     return 0
 
 

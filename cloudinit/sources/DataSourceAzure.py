@@ -12,6 +12,7 @@ import os.path
 import re
 import xml.etree.ElementTree as ET
 from enum import Enum
+from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +35,7 @@ from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
     BrokenAzureDataSource,
+    ChassisAssetTag,
     NonAzureDataSource,
     OvfEnvXml,
     azure_ds_reporter,
@@ -60,8 +62,6 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
-# DMI chassis-asset-tag is set static for all azure instances
-AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
 
@@ -305,6 +305,20 @@ DEF_EPHEMERAL_LABEL = "Temporary Storage"
 # The redacted password fails to meet password complexity requirements
 # so we can safely use this to mask/redact the password in the ovf-env.xml
 DEF_PASSWD_REDACTION = "REDACTED"
+
+
+@azure_ds_telemetry_reporter
+def is_platform_viable(seed_dir: Optional[Path]) -> bool:
+    """Check platform environment to report if this datasource may run."""
+    chassis_tag = ChassisAssetTag.query_system()
+    if chassis_tag is not None:
+        return True
+
+    # If no valid chassis tag, check for seeded ovf-env.xml.
+    if seed_dir is None:
+        return False
+
+    return (seed_dir / "ovf-env.xml").exists()
 
 
 class DataSourceAzure(sources.DataSource):
@@ -667,10 +681,6 @@ class DataSourceAzure(sources.DataSource):
 
         return crawled_data
 
-    def _is_platform_viable(self):
-        """Check platform environment to report if this datasource may run."""
-        return _is_platform_viable(self.seed_dir)
-
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached class attributes to defaults."""
         super(DataSourceAzure, self).clear_cached_attrs(attr_defaults)
@@ -683,7 +693,7 @@ class DataSourceAzure(sources.DataSource):
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
-        if not self._is_platform_viable():
+        if not is_platform_viable(Path(self.seed_dir)):
             return False
         try:
             get_boot_telemetry()
@@ -1836,9 +1846,7 @@ def read_azure_ovf(contents):
     if ovf_env.password:
         defuser["lock_passwd"] = False
         if DEF_PASSWD_REDACTION != ovf_env.password:
-            defuser["passwd"] = cfg["password"] = encrypt_pass(
-                ovf_env.password
-            )
+            defuser["hashed_passwd"] = encrypt_pass(ovf_env.password)
 
     if defuser:
         cfg["system_info"] = {"default_user": defuser}
@@ -2138,24 +2146,6 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
                 util.del_dir(path)
             else:
                 util.del_file(path)
-
-
-def _is_platform_viable(seed_dir):
-    """Check platform environment to report if this datasource may run."""
-    with events.ReportEventStack(
-        name="check-platform-viability",
-        description="found azure asset tag",
-        parent=azure_ds_reporter,
-    ) as evt:
-        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-        if asset_tag == AZURE_CHASSIS_ASSET_TAG:
-            return True
-        msg = "Non-Azure DMI asset tag '%s' discovered." % asset_tag
-        evt.description = msg
-        report_diagnostic_event(msg, logger_func=LOG.debug)
-        if os.path.exists(os.path.join(seed_dir, "ovf-env.xml")):
-            return True
-        return False
 
 
 # Legacy: Must be present in case we load an old pkl object

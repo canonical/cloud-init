@@ -113,7 +113,6 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     if ImageSpecification.from_os_image().release in [
         "bionic",
         "focal",
-        "impish",
     ]:
         # Assert NoCloud seed files are still present in non-Jammy images
         # and that NoCloud seed files provide the same content as LXD socket.

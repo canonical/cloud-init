@@ -12,7 +12,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 
 
 class TestFetchIdevs:
@@ -194,26 +194,59 @@ class TestHandle:
 
 class TestGrubDpkgSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation, has_errors",
         (
-            ({"grub_dpkg": {"grub-pc/install_devices_empty": False}}, None),
-            ({"grub_dpkg": {"grub-pc/install_devices_empty": "off"}}, None),
+            (
+                {"grub_dpkg": {"grub-pc/install_devices_empty": False}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"grub_dpkg": {"grub-pc/install_devices_empty": "off"}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        r"^Cloud config schema deprecations:"
+                        r" grub_dpkg.grub-pc/install_devices_empty:"
+                        r" DEPRECATED. Use a boolean value instead.$"
+                    ),
+                ),
+                False,
+            ),
             (
                 {"grub_dpkg": {"enabled": "yes"}},
-                "'yes' is not of type 'boolean'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="'yes' is not of type 'boolean'",
+                ),
+                True,
             ),
             (
                 {"grub_dpkg": {"grub-pc/install_devices": ["/dev/sda"]}},
-                r"\['/dev/sda'\] is not of type 'string'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=r"\['/dev/sda'\] is not of type 'string'",
+                ),
+                True,
+            ),
+            (
+                {"grub-dpkg": {"grub-pc/install_devices_empty": False}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        r"^Cloud config schema deprecations: grub-dpkg:"
+                        r" DEPRECATED. Use ``grub_dpkg`` instead$"
+                    ),
+                ),
+                False,
             ),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(self, config, expectation, has_errors):
         """Assert expected schema validation and error messages."""
         schema = get_schema()
-        if error_msg is None:
+        with expectation as exc_info:
             validate_cloudconfig_schema(config, schema, strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, schema, strict=True)
+        if has_errors is not None:
+            assert has_errors == exc_info.value.has_errors()

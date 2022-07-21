@@ -97,15 +97,15 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password applied to new or existing users. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is pre-existing. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
           "type": "string"
         },
         "plain_text_passwd": {
-          "description": "Clear text of user password applied to new or existing users. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "description": "Clear text of user password to be applied. This will be applied even if the user is pre-existing. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
           "type": "string"
         },
         "create_groups": {
@@ -213,6 +213,22 @@
         }
       },
       "minProperties": 1
+    },
+    "cc_ubuntu_autoinstall": {
+      "type": "object",
+      "properties": {
+        "autoinstall": {
+          "description": "Opaque autoinstall schema definition for Ubuntu autoinstall. Full schema processed by live-installer. See: https://ubuntu.com/server/docs/install/autoinstall-reference",
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": ["version"]
+        }
+      },
+      "additionalProperties": true
     },
     "cc_apk_configure": {
       "type": "object",
@@ -791,14 +807,24 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
-              "type": ["string", "boolean"],
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated."
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated.",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "description": "Use a boolean value instead.",
+                  "deprecated": true
+                }
+              ]
             }
           }
         },
         "grub-dpkg": {
           "type": "object",
-          "description": "DEPRECATED: Use ``grub_dpkg`` instead"
+          "description": "Use ``grub_dpkg`` instead",
+          "deprecated": true
         }
       }
     },
@@ -989,7 +1015,7 @@
                 },
                 "storage_backend": {
                   "type": "string",
-                  "enum": ["zfs", "dir"],
+                  "enum": ["zfs", "dir", "lvm", "btrfs"],
                   "default": "dir",
                   "description": "Storage backend to use. Default: ``dir``."
                 },
@@ -2184,7 +2210,7 @@
             {"type": "string"},
             {"type": "object", "$ref": "#/$defs/users_groups.user"}
           ],
-          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The `user` dictionary keys supported for the default_user are the same as the ``users`` schema. DEPRECATED: string and types will be removed in a future release. Use ``users`` instead."
+          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The `user` dictionary keys supported for the default_user are the same as the ``users`` schema."
         },
         "users": {
           "type": ["string", "array", "object"],
@@ -2449,6 +2475,7 @@
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
+    { "$ref": "#/$defs/cc_ubuntu_autoinstall"},
     { "$ref": "#/$defs/cc_bootcmd" },
     { "$ref": "#/$defs/cc_byobu" },
     { "$ref": "#/$defs/cc_ca_certs" },

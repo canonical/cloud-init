@@ -89,6 +89,15 @@ MOCKPATH = "cloudinit.sources.helpers.azure."
 
 
 @pytest.fixture
+def mock_dmi_read_dmi_data():
+    with mock.patch(
+        MOCKPATH + "dmi.read_dmi_data",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_readurl():
     with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:
         yield m
@@ -1388,6 +1397,42 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         self.m_shim.assert_called_once_with(
             endpoint="test_endpoint",
         )
+
+
+class TestChassisAssetTag:
+    def test_true_azure_cloud(self, caplog, mock_dmi_read_dmi_data):
+        mock_dmi_read_dmi_data.return_value = (
+            azure_helper.ChassisAssetTag.AZURE_CLOUD.value
+        )
+
+        asset_tag = azure_helper.ChassisAssetTag.query_system()
+
+        assert asset_tag == azure_helper.ChassisAssetTag.AZURE_CLOUD
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Azure chassis asset tag: "
+                "'7783-7084-3265-9085-8269-3286-77' (AZURE_CLOUD)",
+            )
+        ]
+
+    @pytest.mark.parametrize("tag", [None, "", "notazure"])
+    def test_false_on_nonazure_chassis(
+        self, caplog, mock_dmi_read_dmi_data, tag
+    ):
+        mock_dmi_read_dmi_data.return_value = tag
+
+        asset_tag = azure_helper.ChassisAssetTag.query_system()
+
+        assert asset_tag is None
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Non-Azure chassis asset tag: %r" % tag,
+            )
+        ]
 
 
 class TestOvfEnvXml:

@@ -4,6 +4,7 @@ import os
 from collections import namedtuple
 from io import StringIO
 
+import cloudinit.settings
 from cloudinit.cmd import clean
 from cloudinit.util import ensure_dir, sym_link, write_file
 from tests.unittests.helpers import CiTestCase, mock, wrap_and_call
@@ -51,6 +52,33 @@ class TestClean(CiTestCase):
         )
         self.assertFalse(os.path.exists(self.log1), "Unexpected file")
         self.assertFalse(os.path.exists(self.log2), "Unexpected file")
+        self.assertEqual(0, retcode)
+
+    def test_remove_artifacts_runparts_clean_d(self):
+        """remove_artifacts performs runparts on CLEAN_RUNPARTS_DIR"""
+        self.allowed_subp = True
+        ensure_dir(self.artifact_dir)
+        artifact_file = self.tmp_path("didit", self.new_root)
+        clean_dir = self.tmp_path("clean.d", self.new_root)
+        ensure_dir(clean_dir)
+        self.assertFalse(os.path.exists(artifact_file), "Unexpected file")
+        write_file(
+            self.tmp_path("1.sh", clean_dir),
+            f"#!/bin/bash\ntouch {artifact_file}\n",
+            mode=0o755,
+        )
+        with mock.patch.object(
+            cloudinit.settings, "CLEAN_RUNPARTS_DIR", clean_dir
+        ):
+            retcode = wrap_and_call(
+                "cloudinit.cmd.clean",
+                {
+                    "Init": {"side_effect": self.init_class},
+                },
+                clean.remove_artifacts,
+                remove_logs=False,
+            )
+        self.assertTrue(os.path.exists(artifact_file), "Missing expected file")
         self.assertEqual(0, retcode)
 
     def test_remove_artifacts_preserves_logs(self):

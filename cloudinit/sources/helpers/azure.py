@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import base64
+import enum
 import json
 import logging
 import os
@@ -16,7 +17,7 @@ from typing import List, Optional
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import distros, subp, temp_utils, url_helper, util, version
+from cloudinit import distros, dmi, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
 
@@ -336,7 +337,7 @@ def http_with_retries(
     headers: dict,
     data: Optional[str] = None,
     retry_sleep: int = 5,
-    timeout_minutes: int = 20
+    timeout_minutes: int = 20,
 ) -> url_helper.UrlResponse:
     """Readurl wrapper for querying wireserver.
 
@@ -1065,6 +1066,32 @@ class BrokenAzureDataSource(Exception):
 
 class NonAzureDataSource(Exception):
     pass
+
+
+class ChassisAssetTag(enum.Enum):
+    AZURE_CLOUD = "7783-7084-3265-9085-8269-3286-77"
+
+    @classmethod
+    def query_system(cls) -> Optional["ChassisAssetTag"]:
+        """Check platform environment to report if this datasource may run.
+
+        :returns: ChassisAssetTag if matching tag found, else None.
+        """
+        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
+        try:
+            tag = cls(asset_tag)
+        except ValueError:
+            report_diagnostic_event(
+                "Non-Azure chassis asset tag: %r" % asset_tag,
+                logger_func=LOG.debug,
+            )
+            return None
+
+        report_diagnostic_event(
+            "Azure chassis asset tag: %r (%s)" % (asset_tag, tag.name),
+            logger_func=LOG.debug,
+        )
+        return tag
 
 
 class OvfEnvXml:

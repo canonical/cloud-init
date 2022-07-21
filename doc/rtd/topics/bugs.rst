@@ -88,11 +88,11 @@ SUSE & openSUSE
 To file a bug against the SuSE packages of cloud-init please use the
 `SUSE bugzilla`_.
 
-Arch
-----
+Arch Linux
+----------
 
 To file a bug against the Arch package of cloud-init please use the
-`Arch Linux Bugtracker`_. See the `Arch bug reporting wiki`_ for more
+`Arch Linux Bugtracker`_. See the `Arch Linux bug reporting wiki`_ for more
 details.
 
 .. _Create a Launchpad account: https://help.launchpad.net/YourAccount/NewAccount
@@ -103,6 +103,6 @@ details.
 .. _Red Hat bugzilla: https://bugzilla.redhat.com/
 .. _SUSE bugzilla: https://bugzilla.suse.com/index.cgi
 .. _Arch Linux Bugtracker: https://bugs.archlinux.org/
-.. _Arch bug reporting wiki: https://wiki.archlinux.org/index.php/Bug_reporting_guidelines
+.. _Arch Linux bug reporting wiki: https://wiki.archlinux.org/index.php/Bug_reporting_guidelines
 
 .. vi: textwidth=79
