@@ -16,6 +16,7 @@ from unittest.mock import call
 from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
 from tests.unittests.helpers import TestCase
+from tests.unittests.util import get_cloud
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
@@ -49,14 +50,6 @@ class FakeDatasource:
         self.region = "region"
 
 
-class FakeCloud(object):
-    """Fake Cloud helper object"""
-
-    def __init__(self):
-        self.distro = FakeDistro()
-        self.datasource = FakeDatasource()
-
-
 class TestAptSourceConfig(TestCase):
     """TestAptSourceConfig
     Main Class to test apt_source configs
@@ -78,7 +71,7 @@ class TestAptSourceConfig(TestCase):
             self.tmp, "etc/apt/sources.list.d/", "cloud_config_sources.list"
         )
 
-        self.fakecloud = FakeCloud()
+        self.cloud = get_cloud()
 
         rpatcher = mock.patch("cloudinit.util.lsb_release")
         get_rel = rpatcher.start()
@@ -125,7 +118,7 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf(cfg)
 
-        cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+        cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -280,7 +273,7 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf(cfg)
         params = self._get_default_params()
-        cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+        cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -371,7 +364,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf(cfg)
 
         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+            cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         # check if it added the right number of keys
         calls = []
@@ -497,7 +490,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg])
 
         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+            cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         # check if it added the right amount of keys
         sources = cfg["apt"]["sources"]
@@ -558,7 +551,7 @@ class TestAptSourceConfig(TestCase):
         cfg = {"key": "fakekey 4242", "filename": self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
         with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+            cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         calls = (
             call(
@@ -582,9 +575,7 @@ class TestAptSourceConfig(TestCase):
             subp, "subp", return_value=("fakekey 1212", "")
         ):
             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
-                cc_apt_configure.handle(
-                    "test", cfg, self.fakecloud, None, None
-                )
+                cc_apt_configure.handle("test", cfg, self.cloud, None, None)
 
         calls = (
             call(
@@ -613,9 +604,7 @@ class TestAptSourceConfig(TestCase):
             with mock.patch.object(
                 gpg, "getkeybyid", return_value=expectedkey
             ) as mockgetkey:
-                cc_apt_configure.handle(
-                    "test", cfg, self.fakecloud, None, None
-                )
+                cc_apt_configure.handle("test", cfg, self.cloud, None, None)
         if is_hardened is not None:
             mockkey.assert_called_with(
                 expectedkey, self.aptlistfile, hardened=is_hardened
@@ -661,7 +650,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg])
 
         with mock.patch.object(subp, "subp") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+            cc_apt_configure.handle("test", cfg, self.cloud, None, None)
         mockobj.assert_called_once_with(
             [
                 "add-apt-repository",
@@ -691,7 +680,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg1, cfg2, cfg3])
 
         with mock.patch.object(subp, "subp") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+            cc_apt_configure.handle("test", cfg, self.cloud, None, None)
         calls = [
             call(
                 [

@@ -311,7 +311,7 @@ this datasource:
 
    .. code-block:: shell
 
-       govc vm.power -vm "${VM}" -on
+       govc vm.power -on "${VM}"
 
 If all went according to plan, the CentOS box is:
 

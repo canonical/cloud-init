@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import re
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -27,33 +28,65 @@ class TestLxd(t_help.CiTestCase):
             }
         }
     }
+    backend_def = (
+        ("zfs", "zfs", "zfsutils-linux"),
+        ("btrfs", "mkfs.btrfs", "btrfs-progs"),
+        ("lvm", "lvcreate", "lvm2"),
+        ("dir", None, None),
+    )
 
-    @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_lxd_init(self, mock_subp, m_maybe_clean):
-        cc = get_cloud()
-        mock_subp.which.return_value = True
-        m_maybe_clean.return_value = None
-        cc_lxd.handle("cc_lxd", self.lxd_cfg, cc, self.logger, [])
-        self.assertTrue(mock_subp.which.called)
-        # no bridge config, so maybe_cleanup should not be called.
-        self.assertFalse(m_maybe_clean.called)
-        self.assertEqual(
-            [
-                mock.call(["lxd", "waitready", "--timeout=300"]),
-                mock.call(
-                    [
-                        "lxd",
-                        "init",
-                        "--auto",
-                        "--network-address=0.0.0.0",
-                        "--storage-backend=zfs",
-                        "--storage-pool=poolname",
-                    ]
-                ),
-            ],
-            mock_subp.subp.call_args_list,
-        )
+    @mock.patch("cloudinit.config.cc_lxd.subp.subp", return_value=True)
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    @mock.patch(
+        "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
+    )
+    def test_lxd_init(self, m_maybe_clean, m_which, m_subp):
+        cc = get_cloud(mocked_distro=True)
+        m_install = cc.distro.install_packages
+
+        for backend, cmd, package in self.backend_def:
+            lxd_cfg = deepcopy(self.lxd_cfg)
+            lxd_cfg["lxd"]["init"]["storage_backend"] = backend
+            m_subp.call_args_list = []
+            m_install.call_args_list = []
+            cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
+            if cmd:
+                m_which.assert_called_with(cmd)
+            # no bridge config, so maybe_cleanup should not be called.
+            self.assertFalse(m_maybe_clean.called)
+            self.assertEqual(
+                [
+                    mock.call(list(filter(None, ["lxd", package]))),
+                ],
+                m_install.call_args_list,
+            )
+            self.assertEqual(
+                [
+                    mock.call(["lxd", "waitready", "--timeout=300"]),
+                    mock.call(
+                        [
+                            "lxd",
+                            "init",
+                            "--auto",
+                            "--network-address=0.0.0.0",
+                            f"--storage-backend={backend}",
+                            "--storage-pool=poolname",
+                        ]
+                    ),
+                ],
+                m_subp.call_args_list,
+            )
+
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    def test_lxd_package_install(self, m_which):
+        for backend, _, package in self.backend_def:
+            lxd_cfg = deepcopy(self.lxd_cfg)
+            lxd_cfg["lxd"]["init"]["storage_backend"] = backend
+
+            packages = cc_lxd.get_required_packages(lxd_cfg["lxd"]["init"])
+            assert "lxd" in packages
+            if package:
+                assert package in packages
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
@@ -286,17 +319,32 @@ class TestLXDSchema:
             # Only allow init.storage_backend values zfs and dir
             (
                 {"lxd": {"init": {"storage_backend": "1zfs"}}},
-                re.escape("not one of ['zfs', 'dir']"),
+                re.escape("not one of ['zfs', 'dir', 'lvm', 'btrfs']"),
             ),
+            ({"lxd": {"init": {"storage_backend": "lvm"}}}, None),
+            ({"lxd": {"init": {"storage_backend": "btrfs"}}}, None),
+            ({"lxd": {"init": {"storage_backend": "zfs"}}}, None),
             # Require bridge.mode
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
             ({"lxd": {}}, "does not have enough properties"),
+            # No additionalProperties
+            (
+                {"lxd": {"init": {"invalid": None}}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"lxd": {"bridge": {"mode": None, "garbage": None}}},
+                "Additional properties are not allowed",
+            ),
         ],
     )
     @t_help.skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
-        with pytest.raises(SchemaValidationError, match=error_msg):
+        if error_msg:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 

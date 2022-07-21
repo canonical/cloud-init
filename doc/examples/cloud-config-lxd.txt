@@ -7,7 +7,7 @@
 #   init: dict of options for lxd init, see 'man lxd'
 #     network_address: address for lxd to listen on
 #     network_port: port for lxd to listen on
-#     storage_backend: either 'zfs' or 'dir'
+#     storage_backend: 'zfs', 'dir', 'lvm', or 'btrfs'
 #     storage_create_device: device based storage using specified device
 #     storage_create_loop: set up loop based storage with size in GB
 #     storage_pool: name of storage pool to use or create

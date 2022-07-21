@@ -34,6 +34,7 @@ Example
         "description": MODULE_DESCRIPTION,
         "distros": [ALL_DISTROS],
         "frequency": PER_INSTANCE,
+        "activate_by_schema_keys": ["example_key, example_other_key"],
         "examples": [
             "example_key: example_value",
             "example_other_key: ['value', 2]",
@@ -82,6 +83,10 @@ Guidelines
       would be a significant change to the instance metadata. An example
       could be an instance being moved to a different subnet.
 
+  * ``activate_by_schema_keys``: (Optional) List of cloud-config keys that will
+    activate this module. When this list not empty, the config module will be
+    skipped unless one of the ``activate_by_schema_keys`` are present in merged
+    cloud-config instance-data.
   * ``examples``: Lists examples of any cloud-config keys this module reacts
     to. These examples will be rendered in the module reference documentation
     and will automatically be tested against the defined schema

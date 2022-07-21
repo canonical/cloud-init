@@ -117,6 +117,9 @@ cloud_config_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - snap
 {% endif %}
+{% if variant in ["ubuntu"] %}
+ - ubuntu_autoinstall
+{% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
 {% if variant not in ["rhel"] %}
@@ -259,6 +262,10 @@ system_info:
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User
+{% elif variant == "openmandriva" %}
+     name: omv
+     lock_passwd: True
+     gecos: OpenMandriva admin
 {% else %}
      name: {{ variant }}
      lock_passwd: True
