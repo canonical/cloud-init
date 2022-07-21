@@ -68,10 +68,10 @@ class Distro(distros.Distro):
             settings,
             entries,
         )
-        dev_names = entries.keys()
+        dev_names = list(entries.keys())
         nameservers = []
 
-        for (dev, info) in entries.items():
+        for (dev, info) in list(entries.items()):
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
             if dev == "lo":
