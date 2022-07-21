@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import random
-import re
 
 import pytest
 
@@ -311,13 +310,6 @@ class TestDebugSchema:
             (
                 {"device_aliases": 1},
                 "device_aliases: 1 is not of type 'object'",
-            ),
-            (
-                {"debug": {"boguskey": True}},
-                re.escape(
-                    "Additional properties are not allowed ('boguskey' was"
-                    " unexpected)"
-                ),
             ),
         ),
     )

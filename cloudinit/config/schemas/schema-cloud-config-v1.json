@@ -589,26 +589,6 @@
         }
       }
     },
-    "cc_debug": {
-      "type": "object",
-      "properties": {
-        "debug": {
-          "minProperties": 1,
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "verbose": {
-              "description": "Should always be true for this module",
-              "type": "boolean"
-            },
-            "output": {
-              "description": "Location to write output. Defaults to console + log",
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "cc_disable_ec2_metadata": {
       "type": "object",
       "properties": {
@@ -2485,7 +2465,6 @@
     { "$ref": "#/$defs/cc_byobu" },
     { "$ref": "#/$defs/cc_ca_certs" },
     { "$ref": "#/$defs/cc_chef" },
-    { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
     { "$ref": "#/$defs/cc_fan" },
