@@ -3,9 +3,8 @@
 
 import importlib
 import logging
-import re
 from pathlib import Path
-from typing import List, Set
+from typing import List
 
 import pytest
 
@@ -39,17 +38,6 @@ def get_modules():
                 )
             )
     return examples
-
-
-def get_not_activated_modules(log_content: str) -> Set[str]:
-    match = re.search(
-        r"Skipping modules '(.*)' because no applicable config is provided.",
-        log_content,
-    )
-    if not match:
-        raise ValueError("`activated_modules` log entry not found.")
-    modules = match.group(1)
-    return set(map(lambda m: m.strip(), modules.split(", ")))
 
 
 class TestModules:
