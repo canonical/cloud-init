@@ -8,7 +8,7 @@
 
 import copy
 from collections import namedtuple
-from typing import List
+from typing import Dict, List
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -65,6 +65,17 @@ def validate_module(mod, name):
         )
 
 
+def _is_active(module_details: ModuleDetails, cfg: dict) -> bool:
+    activate_by_schema_keys_keys = frozenset(
+        module_details.module.meta.get("activate_by_schema_keys", {})
+    )
+    if not activate_by_schema_keys_keys:
+        return True
+    if not activate_by_schema_keys_keys.intersection(cfg.keys()):
+        return False
+    return True
+
+
 class Modules(object):
     def __init__(self, init: Init, cfg_files=None, reporter=None):
         self.init = init
@@ -93,21 +104,21 @@ class Modules(object):
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
 
-    def _read_modules(self, name):
+    def _read_modules(self, name) -> List[Dict]:
         """Read the modules from the config file given the specified name.
 
         Returns a list of module definitions. E.g.,
         [
             {
                 "mod": "bootcmd",
-                "freq": "always"
+                "freq": "always",
                 "args": "some_arg",
             }
         ]
 
         Note that in the default case, only "mod" will be set.
         """
-        module_list = []
+        module_list: List[dict] = []
         if name not in self.cfg:
             return module_list
         cfg_mods = self.cfg.get(name)
@@ -155,7 +166,7 @@ class Modules(object):
     def _fixup_modules(self, raw_mods) -> List[ModuleDetails]:
         """Convert list of returned from _read_modules() into new format.
 
-        Invalid modules and arguments are ingnored.
+        Invalid modules and arguments are ignored.
         Also ensures that the module has the required meta fields.
         """
         mostly_mods = []
@@ -269,12 +280,16 @@ class Modules(object):
         skipped = []
         forced = []
         overridden = self.cfg.get("unverified_modules", [])
+        inapplicable_mods = []
         active_mods = []
-        for (mod, name, _freq, _args) in mostly_mods:
+        for module_details in mostly_mods:
+            (mod, name, _freq, _args) = module_details
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]
-
+            if not _is_active(module_details, self.cfg):
+                inapplicable_mods.append(name)
+                continue
             # Skip only when the following conditions are all met:
             #  - distros are defined in the module != ALL_DISTROS
             #  - the current d_name isn't in distros
@@ -288,6 +303,12 @@ class Modules(object):
                     forced.append(name)
             active_mods.append([mod, name, _freq, _args])
 
+        if inapplicable_mods:
+            LOG.info(
+                "Skipping modules '%s' because no applicable config "
+                "is provided.",
+                ",".join(inapplicable_mods),
+            )
         if skipped:
             LOG.info(
                 "Skipping modules '%s' because they are not verified "
