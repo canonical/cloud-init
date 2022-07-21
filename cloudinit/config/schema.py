@@ -913,8 +913,10 @@ def _get_examples(meta: MetaSchema) -> str:
 def _get_activate_by_schema_keys_doc(meta: MetaSchema) -> str:
     if not meta.get("activate_by_schema_keys"):
         return ""
-    schema_keys = ", ".join(meta["activate_by_schema_keys"])
-    return f"**Activate only if given keys:** {schema_keys}\n\n"
+    schema_keys = ", ".join(
+        f"``{k}``" for k in meta["activate_by_schema_keys"]
+    )
+    return f"**Activate only on keys:** {schema_keys}\n\n"
 
 
 def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:

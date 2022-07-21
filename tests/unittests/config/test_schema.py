@@ -819,7 +819,7 @@ class TestSchemaDocMarkdown:
 
             **Supported distros:** debian, rhel
 
-            **Activate only if given keys:** prop1, prop2
+            **Activate only on keys:** ``prop1``, ``prop2``
 
             **Config schema**:
                 **prop1:** (array of string) prop-description
