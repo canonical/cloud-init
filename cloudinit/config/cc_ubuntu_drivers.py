@@ -42,6 +42,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["drivers"],
 }
 
 __doc__ = get_meta_doc(meta)

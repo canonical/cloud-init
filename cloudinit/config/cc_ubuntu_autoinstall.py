@@ -62,6 +62,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": PER_ONCE,
+    "activate_by_schema_keys": ["autoinstall"],
 }
 
 __doc__ = get_meta_doc(meta)

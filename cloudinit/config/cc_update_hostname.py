@@ -73,6 +73,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
