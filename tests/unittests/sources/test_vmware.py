@@ -802,7 +802,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     "wait_for_cust_cfg_file": conf_file,
                     "get_vmware_imc_dir": self.tdir,
                 },
-                ds.get_data,
+                ds._get_data,
             )
             self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata["instance-id"])
@@ -859,7 +859,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     "wait_for_cust_cfg_file": conf_file,
                     "get_vmware_imc_dir": self.tdir,
                 },
-                ds.get_data,
+                ds._get_data,
             )
             self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata["instance-id"])
@@ -1007,7 +1007,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     "wait_for_cust_cfg_file": conf_file,
                     "get_vmware_imc_dir": self.tdir,
                 },
-                ds.get_data,
+                ds._get_data,
             )
             self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata["instance-id"])
