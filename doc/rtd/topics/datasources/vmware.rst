@@ -36,7 +36,7 @@ metadata and userdata and apply this kind specification to a virtual
 machine, this datasource will parse the metadata and userdata and
 configure virtual machine with them. See `Guest Customization Using
 cloud-init <https://developer.vmware.com/docs/14558/vsphere-web-services-sdk-programming-guide--7-0-update-3-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
- 
+
 ``vmware_cust_file_max_wait``:
 The maximum amount of clock time in seconds that should be spent waiting
 for vmware customization files. (default: 15)
