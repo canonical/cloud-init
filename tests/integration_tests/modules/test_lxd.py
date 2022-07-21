@@ -55,26 +55,25 @@ class TestLxdBridge:
         assert "10.100.100.1/24" == network_config["config"]["ipv4.address"]
 
 
-def validate_storage(validate_client):
-    verify_clean_log(
-        validate_client.read_from_file("/var/log/cloud-init.log"),
-        ignore_deprecations=False,
-    )
+def validate_storage(validate_client, pkg_name):
+    log = validate_client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log, ignore_deprecations=False)
+    assert f"install', '{pkg_name}'" in log
 
 
 @pytest.mark.no_container
 @pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs-progs", "btrfs"))
 def test_storage_btrfs(client):
-    validate_storage(client)
+    validate_storage(client, "btrfs-progs")
 
 
 @pytest.mark.no_container
 @pytest.mark.user_data(STORAGE_USER_DATA.format("lvm2", "lvm"))
 def test_storage_lvm(client):
-    validate_storage(client)
+    validate_storage(client, "lvm2")
 
 
 @pytest.mark.no_container
 @pytest.mark.user_data(STORAGE_USER_DATA.format("zfsutils-linux", "zfs"))
 def test_storage_zfs(client):
-    validate_storage(client)
+    validate_storage(client, "zfsutils-linux")
