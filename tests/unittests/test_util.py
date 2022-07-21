@@ -342,24 +342,6 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 )
 
 
-class FakeCloud(object):
-    def __init__(self, hostname, fqdn):
-        self.hostname = hostname
-        self.fqdn = fqdn
-        self.calls = []
-
-    def get_hostname(self, fqdn=None, metadata_only=None):
-        myargs = {}
-        if fqdn is not None:
-            myargs["fqdn"] = fqdn
-        if metadata_only is not None:
-            myargs["metadata_only"] = metadata_only
-        self.calls.append(myargs)
-        if fqdn:
-            return DataSourceHostname(self.fqdn, False)
-        return DataSourceHostname(self.hostname, False)
-
-
 class TestUtil:
     def test_parse_mount_info_no_opts_no_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG)
@@ -613,37 +595,48 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_without_domain(self):
         """When cfg has a hostname without a '.' query cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
+        cloud = mock.MagicMock()
+        cloud.get_hostname.return_value = DataSourceHostname(
+            "cloudhost.mycloud.com", False
+        )
         hostname, fqdn, _ = util.get_hostname_fqdn(
-            cfg={"hostname": "myhost"}, cloud=mycloud
+            cfg={"hostname": "myhost"}, cloud=cloud
         )
         self.assertEqual("myhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}], mycloud.calls
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False)
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
+        )
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=cloud)
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}, {"metadata_only": False}],
-            mycloud.calls,
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False),
+            mock.call(metadata_only=False),
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
+        )
         _hn, _fqdn, _def_hostname = util.get_hostname_fqdn(
-            cfg={}, cloud=mycloud, metadata_only=True
+            cfg={}, cloud=cloud, metadata_only=True
         )
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": True}, {"metadata_only": True}],
-            mycloud.calls,
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=True),
+            mock.call(metadata_only=True),
+        ] == cloud.get_hostname.call_args_list
 
 
 class TestBlkid(CiTestCase):
@@ -2088,7 +2081,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         logged_string = "something very important"
         util.multi_log(logged_string)
-        self.assertEqual(logged_string, open("/dev/console").read())
+        with open("/dev/console") as f:
+            self.assertEqual(logged_string, f.read())
 
     def test_logs_dont_go_to_stdout_if_console_exists(self):
         self._createConsole(self.root)

@@ -173,9 +173,21 @@ class TestPowerStateChangeSchema:
                 r"'test' is not one of \['poweroff', 'reboot', 'halt'\]",
             ),
             # Delay can be a number, a +number, or "now"
-            ({"power_state": {"mode": "halt", "delay": "5"}}, None),
+            (
+                {"power_state": {"mode": "halt", "delay": "5"}},
+                (
+                    "power_state.delay: DEPRECATED."
+                    " Dropped after April 2027. Use ``now`` or integer type."
+                ),
+            ),
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
-            ({"power_state": {"mode": "halt", "delay": "+5"}}, None),
+            (
+                {"power_state": {"mode": "halt", "delay": "+5"}},
+                (
+                    "power_state.delay: DEPRECATED."
+                    " Dropped after April 2027. Use ``now`` or integer type."
+                ),
+            ),
             ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
             ({"power_state": {"mode": "halt", "delay": "++5"}}, ""),
             ({"power_state": {"mode": "halt", "delay": "-5"}}, ""),

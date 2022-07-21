@@ -216,8 +216,8 @@ class TestDumpEvents(CiTestCase):
         tmpfile = self.tmp_path("logfile")
         write_file(tmpfile, SAMPLE_LOGS)
         m_parse_from_date.return_value = 1472594005.972
-
-        events, data = dump_events(cisource=open(tmpfile))
+        with open(tmpfile) as file:
+            events, data = dump_events(cisource=file)
         year = datetime.now().year
         dt1 = datetime.strptime(
             "Nov 03 06:51:06.074410 %d" % year, "%b %d %H:%M:%S.%f %Y"

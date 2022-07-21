@@ -15,6 +15,7 @@ class BSD(distros.Distro):
     networking_cls = BSDNetworking
     hostname_conf_fn = "/etc/rc.conf"
     rc_conf_fn = "/etc/rc.conf"
+    default_owner = "root:wheel"
 
     # This differs from the parent Distro class, which has -P for
     # poweroff.
@@ -134,3 +135,7 @@ class BSD(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
+
+    def chpasswd(self, plist_in: list, hashed: bool):
+        for name, password in plist_in:
+            self.set_passwd(name, password, hashed=hashed)

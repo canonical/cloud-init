@@ -18,6 +18,30 @@ class TestPackageUpdateUpgradeSchema:
             ({"packages": ["p1", ["p2", "p3", "p4"]]}, ""),
             # empty packages list
             ({"packages": []}, "is too short"),
+            (
+                {"apt_update": False},
+                (
+                    "deprecations: apt_update: DEPRECATED."
+                    " Dropped after April 2027. Use ``package_update``."
+                    " Default: ``false``"
+                ),
+            ),
+            (
+                {"apt_upgrade": False},
+                (
+                    "deprecations: apt_upgrade: DEPRECATED."
+                    " Dropped after April 2027. Use ``package_upgrade``."
+                    " Default: ``false``"
+                ),
+            ),
+            (
+                {"apt_reboot_if_required": False},
+                (
+                    "deprecations: apt_reboot_if_required: DEPRECATED."
+                    " Dropped after April 2027."
+                    " Use ``package_reboot_if_required``. Default: ``false``"
+                ),
+            ),
         ],
     )
     @skipUnlessJsonSchema()

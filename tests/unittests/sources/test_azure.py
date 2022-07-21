@@ -35,17 +35,15 @@ from tests.unittests.helpers import (
     mock,
     populate_dir,
     resourceLocation,
-    wrap_and_call,
 )
 
 MOCKPATH = "cloudinit.sources.DataSourceAzure."
 
 
 @pytest.fixture
-def azure_ds(patched_data_dir_path, paths):
+def azure_ds(patched_data_dir_path, mock_dmi_read_dmi_data, paths):
     """Provide DataSourceAzure instance with mocks for minimal test case."""
-    with mock.patch(MOCKPATH + "_is_platform_viable", return_value=True):
-        yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
+    yield dsaz.DataSourceAzure(sys_cfg={}, distro=mock.Mock(), paths=paths)
 
 
 @pytest.fixture
@@ -85,6 +83,16 @@ def mock_azure_report_failure_to_fabric():
 
 
 @pytest.fixture
+def mock_chassis_asset_tag():
+    with mock.patch.object(
+        dsaz.ChassisAssetTag,
+        "query_system",
+        return_value=dsaz.ChassisAssetTag.AZURE_CLOUD.value,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_device_driver():
     with mock.patch(
         MOCKPATH + "device_driver",
@@ -117,6 +125,8 @@ def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
             return "fake-system-uuid"
+        elif key == "chassis-asset-tag":
+            return "7783-7084-3265-9085-8269-3286-77"
         raise RuntimeError()
 
     with mock.patch(
@@ -986,7 +996,6 @@ scbus-1 on xpt0 bus 0
 
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
-        self.m_is_platform_viable = mock.MagicMock(autospec=True)
         self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
         self.m_get_interfaces = mock.MagicMock(
@@ -1010,6 +1019,10 @@ scbus-1 on xpt0 bus 0
                 return self.instance_id
             elif key == "chassis-asset-tag":
                 return "7783-7084-3265-9085-8269-3286-77"
+            raise RuntimeError()
+
+        self.m_read_dmi_data = mock.MagicMock(autospec=True)
+        self.m_read_dmi_data.side_effect = _dmi_mocks
 
         self.apply_patches(
             [
@@ -1018,7 +1031,6 @@ scbus-1 on xpt0 bus 0
                     "list_possible_azure_ds",
                     self.m_list_possible_azure_ds,
                 ),
-                (dsaz, "_is_platform_viable", self.m_is_platform_viable),
                 (
                     dsaz,
                     "get_metadata_from_fabric",
@@ -1045,7 +1057,7 @@ scbus-1 on xpt0 bus 0
                 (
                     dsaz.dmi,
                     "read_dmi_data",
-                    mock.MagicMock(side_effect=_dmi_mocks),
+                    self.m_read_dmi_data,
                 ),
                 (
                     dsaz.util,
@@ -1115,14 +1127,16 @@ scbus-1 on xpt0 bus 0
         # Return a non-matching asset tag value
         data = {}
         dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = False
+        self.m_read_dmi_data.side_effect = lambda x: "notazure"
         with mock.patch.object(
             dsrc, "crawl_metadata"
         ) as m_crawl_metadata, mock.patch.object(
             dsrc, "_report_failure"
         ) as m_report_failure:
             ret = dsrc.get_data()
-            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            assert self.m_read_dmi_data.mock_calls == [
+                mock.call("chassis-asset-tag")
+            ]
             self.assertFalse(ret)
             # Assert that for non viable platforms,
             # there is no communication with the Azure datasource.
@@ -1139,27 +1153,22 @@ scbus-1 on xpt0 bus 0
         data = {}
         dsrc = self._get_ds(data)
         with mock.patch.object(dsrc, "_report_failure") as m_report_failure:
-            self.m_is_platform_viable.return_value = True
             ret = dsrc.get_data()
-            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
             self.assertEqual(1, m_report_failure.call_count)
 
     def test_crawl_metadata_exception_returns_no_datasource(self):
         data = {}
         dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = True
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
             ret = dsrc.get_data()
-            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertEqual(1, m_crawl_metadata.call_count)
             self.assertFalse(ret)
 
     def test_crawl_metadata_exception_should_report_failure_with_msg(self):
         data = {}
         dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = True
         with mock.patch.object(
             dsrc, "crawl_metadata"
         ) as m_crawl_metadata, mock.patch.object(
@@ -1175,7 +1184,6 @@ scbus-1 on xpt0 bus 0
     def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
         data = {}
         dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = True
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
@@ -1637,14 +1645,11 @@ scbus-1 on xpt0 bus 0
         # passwd is crypt formated string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
         # should equal that after the '$'
-        pos = defuser["passwd"].rfind("$") + 1
+        pos = defuser["hashed_passwd"].rfind("$") + 1
         self.assertEqual(
-            defuser["passwd"],
-            crypt.crypt("mypass", defuser["passwd"][0:pos]),
+            defuser["hashed_passwd"],
+            crypt.crypt("mypass", defuser["hashed_passwd"][0:pos]),
         )
-
-        # the same hashed value should also be present in cfg['password']
-        self.assertEqual(defuser["passwd"], dsrc.cfg["password"])
 
         assert dsrc.cfg["ssh_pwauth"] is True
 
@@ -3491,54 +3496,40 @@ class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
             self.assertIn(mock.call(path), calls)
 
 
-class TestWBIsPlatformViable(CiTestCase):
-    """White box tests for _is_platform_viable."""
+class TestIsPlatformViable:
+    @pytest.mark.parametrize(
+        "tag",
+        [
+            dsaz.ChassisAssetTag.AZURE_CLOUD.value,
+        ],
+    )
+    def test_true_on_azure_chassis(
+        self, azure_ds, mock_chassis_asset_tag, tag
+    ):
+        mock_chassis_asset_tag.return_value = tag
 
-    with_logs = True
+        assert dsaz.is_platform_viable(None) is True
 
-    @mock.patch(MOCKPATH + "dmi.read_dmi_data")
-    def test_true_on_non_azure_chassis(self, m_read_dmi_data):
-        """Return True if DMI chassis-asset-tag is AZURE_CHASSIS_ASSET_TAG."""
-        m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG
-        self.assertTrue(dsaz._is_platform_viable("doesnotmatter"))
+    def test_true_on_azure_ovf_env_in_seed_dir(
+        self, azure_ds, mock_chassis_asset_tag, tmpdir
+    ):
+        mock_chassis_asset_tag.return_value = "notazure"
 
-    @mock.patch(MOCKPATH + "os.path.exists")
-    @mock.patch(MOCKPATH + "dmi.read_dmi_data")
-    def test_true_on_azure_ovf_env_in_seed_dir(self, m_read_dmi_data, m_exist):
-        """Return True if ovf-env.xml exists in known seed dirs."""
-        # Non-matching Azure chassis-asset-tag
-        m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG + "X"
+        seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
+        seed_path.parent.mkdir(exist_ok=True, parents=True)
+        seed_path.write_text("")
 
-        m_exist.return_value = True
-        self.assertTrue(dsaz._is_platform_viable("/some/seed/dir"))
-        m_exist.called_once_with("/other/seed/dir")
+        assert dsaz.is_platform_viable(seed_path.parent) is True
 
-    def test_false_on_no_matching_azure_criteria(self):
-        """Report non-azure on unmatched asset tag, ovf-env absent and no dev.
+    def test_false_on_no_matching_azure_criteria(
+        self, azure_ds, mock_chassis_asset_tag
+    ):
+        mock_chassis_asset_tag.return_value = None
 
-        Return False when the asset tag doesn't match Azure's static
-        AZURE_CHASSIS_ASSET_TAG, no ovf-env.xml files exist in known seed dirs
-        and no devices have a label starting with prefix 'rd_rdfe_'.
-        """
-        self.assertFalse(
-            wrap_and_call(
-                MOCKPATH,
-                {
-                    "os.path.exists": False,
-                    # Non-matching Azure chassis-asset-tag
-                    "dmi.read_dmi_data": dsaz.AZURE_CHASSIS_ASSET_TAG + "X",
-                    "subp.which": None,
-                },
-                dsaz._is_platform_viable,
-                "doesnotmatter",
-            )
-        )
-        self.assertIn(
-            "DEBUG: Non-Azure DMI asset tag '{0}' discovered.\n".format(
-                dsaz.AZURE_CHASSIS_ASSET_TAG + "X"
-            ),
-            self.logs.getvalue(),
-        )
+        seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
+        seed_path.parent.mkdir(exist_ok=True, parents=True)
+
+        assert dsaz.is_platform_viable(seed_path) is False
 
 
 class TestRandomSeed(CiTestCase):
@@ -4049,7 +4040,8 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
-            mock.call("system-uuid")
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
         ]
         assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
 
@@ -4126,7 +4118,8 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
-            mock.call("system-uuid")
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
         ]
         assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
 
@@ -4229,7 +4222,8 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
-            mock.call("system-uuid")
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
         ]
         assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
 

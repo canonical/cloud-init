@@ -8,17 +8,25 @@ import os
 import re
 import sys
 import textwrap
-import typing
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
-from typing import Optional, Tuple, cast
+from itertools import chain
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
 import yaml
 
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.util import error, get_modules_from_dir, load_file
+
+try:
+    from jsonschema import ValidationError as _ValidationError
+
+    ValidationError = _ValidationError
+except ImportError:
+    ValidationError = Exception  # type: ignore
+
 
 error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
@@ -42,7 +50,7 @@ SCHEMA_DOC_TMPL = """
 
 **Supported distros:** {distros}
 
-{property_header}
+{activate_by_schema_keys}{property_header}
 {property_doc}
 
 {examples}
@@ -54,14 +62,17 @@ SCHEMA_LIST_ITEM_TMPL = (
 )
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
+DEPRECATED_KEY = "deprecated"
 
 
-# annotations add value for development, but don't break old versions
-# pyver: 3.6 -> 3.8
-# pylint: disable=E1101
-if sys.version_info >= (3, 8):
+# type-annotate only if type-checking.
+# Consider to add `type_extensions` as a dependency when Bionic is EOL.
+if TYPE_CHECKING:
+    import typing
 
-    class MetaSchema(typing.TypedDict):
+    from typing_extensions import NotRequired, TypedDict
+
+    class MetaSchema(TypedDict):
         name: str
         id: str
         title: str
@@ -69,30 +80,72 @@ if sys.version_info >= (3, 8):
         distros: typing.List[str]
         examples: typing.List[str]
         frequency: str
+        activate_by_schema_keys: NotRequired[List[str]]
 
 else:
     MetaSchema = dict
-# pylint: enable=E1101
+
+
+class SchemaDeprecationError(ValidationError):
+    pass
+
+
+class SchemaProblem(NamedTuple):
+    path: str
+    message: str
+
+    def format(self) -> str:
+        return f"{self.path}: {self.message}"
+
+
+SchemaProblems = List[SchemaProblem]
+
+
+def _format_schema_problems(
+    schema_problems: SchemaProblems,
+    *,
+    prefix: Optional[str] = None,
+    separator: str = ", ",
+) -> str:
+    formatted = separator.join(map(lambda p: p.format(), schema_problems))
+    if prefix:
+        formatted = f"{prefix}{formatted}"
+    return formatted
 
 
 class SchemaValidationError(ValueError):
     """Raised when validating a cloud-config file against a schema."""
 
-    def __init__(self, schema_errors=()):
+    def __init__(
+        self,
+        schema_errors: Optional[SchemaProblems] = None,
+        schema_deprecations: Optional[SchemaProblems] = None,
+    ):
         """Init the exception an n-tuple of schema errors.
 
         @param schema_errors: An n-tuple of the format:
             ((flat.config.key, msg),)
+        @param schema_deprecations: An n-tuple of the format:
+            ((flat.config.key, msg),)
         """
+        message = ""
+        if schema_errors:
+            message += _format_schema_problems(
+                schema_errors, prefix="Cloud config schema errors: "
+            )
+        if schema_deprecations:
+            if message:
+                message += "\n\n"
+            message += _format_schema_problems(
+                schema_deprecations,
+                prefix="Cloud config schema deprecations: ",
+            )
+        super().__init__(message)
         self.schema_errors = schema_errors
-        error_messages = [
-            "{0}: {1}".format(config_key, message)
-            for config_key, message in schema_errors
-        ]
-        message = "Cloud config schema errors: {0}".format(
-            ", ".join(error_messages)
-        )
-        super(SchemaValidationError, self).__init__(message)
+        self.schema_deprecations = schema_deprecations
+
+    def has_errors(self) -> bool:
+        return bool(self.schema_errors)
 
 
 def is_schema_byte_string(checker, instance):
@@ -107,6 +160,114 @@ def is_schema_byte_string(checker, instance):
     return Draft4Validator.TYPE_CHECKER.is_type(
         instance, "string"
     ) or isinstance(instance, (bytes,))
+
+
+def _add_deprecation_msg(description: Optional[str] = None):
+    msg = "DEPRECATED."
+    if description:
+        msg += f" {description}"
+    return msg
+
+
+def _validator_deprecated(
+    _validator,
+    deprecated: bool,
+    _instance,
+    schema: dict,
+    error_type: Type[Exception] = SchemaDeprecationError,
+):
+    """Jsonschema validator for `deprecated` items.
+
+    It raises a instance of `error_type` if deprecated that must be handled,
+    otherwise the instance is consider faulty.
+    """
+    if deprecated:
+        description = schema.get("description")
+        msg = _add_deprecation_msg(description)
+        yield error_type(msg)
+
+
+def _anyOf(
+    validator,
+    anyOf,
+    instance,
+    _schema,
+    error_type: Type[Exception] = SchemaDeprecationError,
+):
+    """Jsonschema validator for `anyOf`.
+
+    It treats occurrences of `error_type` as non-errors, but yield them for
+    external processing. Useful to process schema annotations, as `deprecated`.
+    """
+    from jsonschema import ValidationError
+
+    all_errors = []
+    all_deprecations = []
+    for index, subschema in enumerate(anyOf):
+        all_errs = list(
+            validator.descend(instance, subschema, schema_path=index)
+        )
+        errs = list(filter(lambda e: not isinstance(e, error_type), all_errs))
+        deprecations = list(
+            filter(lambda e: isinstance(e, error_type), all_errs)
+        )
+        if not errs:
+            all_deprecations.extend(deprecations)
+            break
+        all_errors.extend(errs)
+    else:
+        yield ValidationError(
+            "%r is not valid under any of the given schemas" % (instance,),
+            context=all_errors,
+        )
+    yield from all_deprecations
+
+
+def _oneOf(
+    validator,
+    oneOf,
+    instance,
+    _schema,
+    error_type: Type[Exception] = SchemaDeprecationError,
+):
+    """Jsonschema validator for `oneOf`.
+
+    It treats occurrences of `error_type` as non-errors, but yield them for
+    external processing. Useful to process schema annotations, as `deprecated`.
+    """
+    from jsonschema import ValidationError
+
+    subschemas = enumerate(oneOf)
+    all_errors = []
+    all_deprecations = []
+    for index, subschema in subschemas:
+        all_errs = list(
+            validator.descend(instance, subschema, schema_path=index)
+        )
+        errs = list(filter(lambda e: not isinstance(e, error_type), all_errs))
+        deprecations = list(
+            filter(lambda e: isinstance(e, error_type), all_errs)
+        )
+        if not errs:
+            first_valid = subschema
+            all_deprecations.extend(deprecations)
+            break
+        all_errors.extend(errs)
+    else:
+        yield ValidationError(
+            "%r is not valid under any of the given schemas" % (instance,),
+            context=all_errors,
+        )
+
+    more_valid = [s for i, s in subschemas if validator.is_valid(instance, s)]
+    if more_valid:
+        more_valid.append(first_valid)
+        reprs = ", ".join(repr(schema) for schema in more_valid)
+        yield ValidationError(
+            "%r is valid under each of %s" % (instance, reprs)
+        )
+    else:
+        yield from all_deprecations
 
 
 def get_jsonschema_validator():
@@ -135,28 +296,51 @@ def get_jsonschema_validator():
     # http://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties
     strict_metaschema["properties"]["label"] = {"type": "string"}
 
+    validator_kwargs = {}
     if hasattr(Draft4Validator, "TYPE_CHECKER"):  # jsonschema 3.0+
         type_checker = Draft4Validator.TYPE_CHECKER.redefine(
             "string", is_schema_byte_string
         )
-        cloudinitValidator = create(
-            meta_schema=strict_metaschema,
-            validators=Draft4Validator.VALIDATORS,
-            version="draft4",
-            type_checker=type_checker,
-        )
+        validator_kwargs = {
+            "type_checker": type_checker,
+        }
     else:  # jsonschema 2.6 workaround
         types = Draft4Validator.DEFAULT_TYPES  # pylint: disable=E1101
         # Allow bytes as well as string (and disable a spurious unsupported
         # assignment-operation pylint warning which appears because this
         # code path isn't written against the latest jsonschema).
         types["string"] = (str, bytes)  # pylint: disable=E1137
-        cloudinitValidator = create(  # pylint: disable=E1123
-            meta_schema=strict_metaschema,
-            validators=Draft4Validator.VALIDATORS,
-            version="draft4",
-            default_types=types,
+        validator_kwargs = {"default_types": types}
+
+    # Add deprecation handling
+    validators = dict(Draft4Validator.VALIDATORS)
+    validators[DEPRECATED_KEY] = _validator_deprecated
+    validators["oneOf"] = _oneOf
+    validators["anyOf"] = _anyOf
+
+    cloudinitValidator = create(
+        meta_schema=strict_metaschema,
+        validators=validators,
+        version="draft4",
+        **validator_kwargs,
+    )
+
+    # Add deprecation handling
+    def is_valid(self, instance, _schema=None, **__):
+        """Override version of `is_valid`.
+
+        It does ignore instances of `SchemaDeprecationError`.
+        """
+        errors = filter(
+            lambda e: not isinstance(  # pylint: disable=W1116
+                e, SchemaDeprecationError
+            ),
+            self.iter_errors(instance, _schema),
         )
+        return next(errors, None) is None
+
+    cloudinitValidator.is_valid = is_valid
+
     return (cloudinitValidator, FormatChecker)
 
 
@@ -182,9 +366,11 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
         # sites
         if throw:
             raise SchemaValidationError(
-                schema_errors=(
-                    (".".join([str(p) for p in err.path]), err.message),
-                )
+                schema_errors=[
+                    SchemaProblem(
+                        ".".join([str(p) for p in err.path]), err.message
+                    )
+                ]
             ) from err
         LOG.warning(
             "Meta-schema validation failed, attempting to validate config "
@@ -199,6 +385,7 @@ def validate_cloudconfig_schema(
     strict: bool = False,
     strict_metaschema: bool = False,
     log_details: bool = True,
+    log_deprecations: bool = False,
 ):
     """Validate provided config meets the schema definition.
 
@@ -214,6 +401,7 @@ def validate_cloudconfig_schema(
     @param log_details: Boolean, when True logs details of validation errors.
        If there are concerns about logging sensitive userdata, this should
        be set to False.
+    @param log_deprecations: Controls whether to log deprecations or not.
 
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
@@ -232,76 +420,181 @@ def validate_cloudconfig_schema(
         return
 
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
-    errors: Tuple[Tuple[str, str], ...] = ()
+
+    errors: SchemaProblems = []
+    deprecations: SchemaProblems = []
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = ".".join([str(p) for p in error.path])
-        errors += ((path, error.message),)
+        problem = (SchemaProblem(path, error.message),)
+        if isinstance(error, SchemaDeprecationError):  # pylint: disable=W1116
+            deprecations += problem
+        else:
+            errors += problem
+
+    if log_deprecations and deprecations:
+        message = _format_schema_problems(
+            deprecations,
+            prefix="Deprecated cloud-config provided:\n",
+            separator="\n",
+        )
+        LOG.warning(message)
+    if strict and (errors or deprecations):
+        raise SchemaValidationError(errors, deprecations)
     if errors:
-        if strict:
-            # This could output/log sensitive data
-            raise SchemaValidationError(errors)
         if log_details:
-            messages = ["{0}: {1}".format(k, msg) for k, msg in errors]
-            details = "\n" + "\n".join(messages)
+            details = _format_schema_problems(
+                errors,
+                prefix="Invalid cloud-config provided:\n",
+                separator="\n",
+            )
         else:
             details = (
+                "Invalid cloud-config provided: "
                 "Please run 'sudo cloud-init schema --system' to "
                 "see the schema errors."
             )
-        LOG.warning("Invalid cloud-config provided: %s", details)
+        LOG.warning(details)
+
+
+class _Annotator:
+    def __init__(
+        self,
+        cloudconfig: dict,
+        original_content: bytes,
+        schemamarks: dict,
+    ):
+        self._cloudconfig = cloudconfig
+        self._original_content = original_content
+        self._schemamarks = schemamarks
+
+    @staticmethod
+    def _build_footer(title: str, content: List[str]) -> str:
+        body = "\n".join(content)
+        return f"# {title}: -------------\n{body}\n\n"
+
+    def _build_errors_by_line(self, schema_problems: SchemaProblems):
+        errors_by_line = defaultdict(list)
+        for (path, msg) in schema_problems:
+            match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
+            if match:
+                line, col = match.groups()
+                errors_by_line[int(line)].append(msg)
+            else:
+                col = None
+                errors_by_line[self._schemamarks[path]].append(msg)
+            if col is not None:
+                msg = "Line {line} column {col}: {msg}".format(
+                    line=line, col=col, msg=msg
+                )
+        return errors_by_line
+
+    @staticmethod
+    def _add_problems(
+        problems: List[str],
+        labels: List[str],
+        footer: List[str],
+        index: int,
+        label_prefix: str = "",
+    ) -> int:
+        for problem in problems:
+            label = f"{label_prefix}{index}"
+            labels.append(label)
+            footer.append(f"# {label}: {problem}")
+            index += 1
+        return index
+
+    def _annotate_content(
+        self,
+        lines: List[str],
+        errors_by_line: dict,
+        deprecations_by_line: dict,
+    ) -> List[str]:
+        annotated_content = []
+        error_footer: List[str] = []
+        deprecation_footer: List[str] = []
+        error_index = 1
+        deprecation_index = 1
+        for line_number, line in enumerate(lines, 1):
+            errors = errors_by_line[line_number]
+            deprecations = deprecations_by_line[line_number]
+            if errors or deprecations:
+                labels: List[str] = []
+                error_index = self._add_problems(
+                    errors, labels, error_footer, error_index, label_prefix="E"
+                )
+                deprecation_index = self._add_problems(
+                    deprecations,
+                    labels,
+                    deprecation_footer,
+                    deprecation_index,
+                    label_prefix="D",
+                )
+                annotated_content.append(line + "\t\t# " + ",".join(labels))
+            else:
+                annotated_content.append(line)
+
+        annotated_content.extend(
+            map(
+                lambda seq: self._build_footer(*seq),
+                filter(
+                    lambda seq: bool(seq[1]),
+                    (
+                        ("Errors", error_footer),
+                        ("Deprecations", deprecation_footer),
+                    ),
+                ),
+            )
+        )
+        return annotated_content
+
+    def annotate(
+        self,
+        schema_errors: SchemaProblems,
+        schema_deprecations: SchemaProblems,
+    ) -> Union[str, bytes]:
+        if not schema_errors and not schema_deprecations:
+            return self._original_content
+        lines = self._original_content.decode().split("\n")
+        if not isinstance(self._cloudconfig, dict):
+            # Return a meaningful message on empty cloud-config
+            return "\n".join(
+                lines
+                + [
+                    self._build_footer(
+                        "Errors", ["# E1: Cloud-config is not a YAML dict."]
+                    )
+                ]
+            )
+        errors_by_line = self._build_errors_by_line(schema_errors)
+        deprecations_by_line = self._build_errors_by_line(schema_deprecations)
+        annotated_content = self._annotate_content(
+            lines, errors_by_line, deprecations_by_line
+        )
+        return "\n".join(annotated_content)
 
 
 def annotated_cloudconfig_file(
-    cloudconfig, original_content, schema_errors, schemamarks
-):
+    cloudconfig: dict,
+    original_content: bytes,
+    schemamarks: dict,
+    *,
+    schema_errors: Optional[SchemaProblems] = None,
+    schema_deprecations: Optional[SchemaProblems] = None,
+) -> Union[str, bytes]:
     """Return contents of the cloud-config file annotated with schema errors.
 
     @param cloudconfig: YAML-loaded dict from the original_content or empty
         dict if unparseable.
     @param original_content: The contents of a cloud-config file
-    @param schema_errors: List of tuples from a JSONSchemaValidationError. The
-        tuples consist of (schemapath, error_message).
-    """
-    if not schema_errors:
-        return original_content
-    errors_by_line = defaultdict(list)
-    error_footer = []
-    error_header = "# Errors: -------------\n{0}\n\n"
-    annotated_content = []
-    lines = original_content.decode().split("\n")
-    if not isinstance(cloudconfig, dict):
-        # Return a meaningful message on empty cloud-config
-        return "\n".join(
-            lines
-            + [error_header.format("# E1: Cloud-config is not a YAML dict.")]
-        )
-    for path, msg in schema_errors:
-        match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
-        if match:
-            line, col = match.groups()
-            errors_by_line[int(line)].append(msg)
-        else:
-            col = None
-            errors_by_line[schemamarks[path]].append(msg)
-        if col is not None:
-            msg = "Line {line} column {col}: {msg}".format(
-                line=line, col=col, msg=msg
-            )
-    error_index = 1
-    for line_number, line in enumerate(lines, 1):
-        errors = errors_by_line[line_number]
-        if errors:
-            error_label = []
-            for error in errors:
-                error_label.append("E{0}".format(error_index))
-                error_footer.append("# E{0}: {1}".format(error_index, error))
-                error_index += 1
-            annotated_content.append(line + "\t\t# " + ",".join(error_label))
+    @param schemamarks: Dict with schema marks.
+    @param schema_errors: Instance of `SchemaProblems`.
+    @param schema_deprecations: Instance of `SchemaProblems`.
 
-        else:
-            annotated_content.append(line)
-    annotated_content.append(error_header.format("\n".join(error_footer)))
-    return "\n".join(annotated_content)
+    @return Annotated schema
+    """
+    return _Annotator(cloudconfig, original_content, schemamarks).annotate(
+        schema_errors or [], schema_deprecations or []
+    )
 
 
 def validate_cloudconfig_file(config_path, schema, annotate=False):
@@ -333,19 +626,19 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
             )
         content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
-        errors = (
-            (
+        errors = [
+            SchemaProblem(
                 "format-l1.c1",
                 'File {0} needs to begin with "{1}"'.format(
                     config_path, CLOUD_CONFIG_HEADER.decode()
                 ),
             ),
-        )
+        ]
         error = SchemaValidationError(errors)
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, error.schema_errors, {}
+                    {}, content, {}, schema_errors=error.schema_errors
                 )
             )
         raise error
@@ -365,17 +658,17 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if mark:
             line = mark.line + 1
             column = mark.column + 1
-        errors = (
-            (
+        errors = [
+            SchemaProblem(
                 "format-l{line}.c{col}".format(line=line, col=column),
                 "File {0} is not valid yaml. {1}".format(config_path, str(e)),
             ),
-        )
+        ]
         error = SchemaValidationError(errors)
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, error.schema_errors, {}
+                    {}, content, {}, schema_errors=error.schema_errors
                 )
             )
         raise error from e
@@ -384,15 +677,29 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         if not annotate:
             raise RuntimeError("Cloud-config is not a YAML dict.")
     try:
-        validate_cloudconfig_schema(cloudconfig, schema, strict=True)
+        validate_cloudconfig_schema(
+            cloudconfig, schema, strict=True, log_deprecations=False
+        )
     except SchemaValidationError as e:
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    cloudconfig, content, e.schema_errors, marks
+                    cloudconfig,
+                    content,
+                    marks,
+                    schema_errors=e.schema_errors,
+                    schema_deprecations=e.schema_deprecations,
                 )
             )
-        raise
+        else:
+            message = _format_schema_problems(
+                e.schema_deprecations,
+                prefix="Cloud config schema deprecations: ",
+                separator=", ",
+            )
+            print(message)
+        if e.has_errors():  # We do not consider deprecations as error
+            raise
 
 
 def _sort_property_order(value):
@@ -483,14 +790,31 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
             # Update the references in subschema for doc rendering
             src_cfg["items"].update(defs[reference])
         if "oneOf" in src_cfg["items"]:
-            for alt_schema in src_cfg["items"]["oneOf"]:
-                if "$ref" in alt_schema:
-                    reference = alt_schema.pop("$ref").replace("#/$defs/", "")
-                    alt_schema.update(defs[reference])
-    for alt_schema in src_cfg.get("oneOf", []):
-        if "$ref" in alt_schema:
-            reference = alt_schema.pop("$ref").replace("#/$defs/", "")
-            alt_schema.update(defs[reference])
+            for sub_schema in src_cfg["items"]["oneOf"]:
+                if "$ref" in sub_schema:
+                    reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+                    sub_schema.update(defs[reference])
+    for sub_schema in chain(
+        src_cfg.get("oneOf", []),
+        src_cfg.get("anyOf", []),
+        src_cfg.get("allOf", []),
+    ):
+        if "$ref" in sub_schema:
+            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+            sub_schema.update(defs[reference])
+
+
+def _flatten_schema_all_of(src_cfg: dict):
+    """Flatten schema: Merge allOf.
+
+    If a schema as allOf, then all of the sub-schemas must hold. Therefore
+    it is safe to merge them.
+    """
+    sub_schemas = src_cfg.pop("allOf", None)
+    if not sub_schemas:
+        return
+    for sub_schema in sub_schemas:
+        src_cfg.update(sub_schema)
 
 
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
@@ -509,10 +833,14 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     for prop_schema in property_schemas:
         for prop_key, prop_config in prop_schema.items():
             _flatten_schema_refs(prop_config, defs)
+            _flatten_schema_all_of(prop_config)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
-            # Define prop_name and description for SCHEMA_PROPERTY_TMPL
+
+            deprecated = bool(prop_config.get(DEPRECATED_KEY))
             description = prop_config.get("description", "")
+            if deprecated:
+                description = _add_deprecation_msg(description)
             if description:
                 description = " " + description
 
@@ -582,6 +910,15 @@ def _get_examples(meta: MetaSchema) -> str:
     return rst_content
 
 
+def _get_activate_by_schema_keys_doc(meta: MetaSchema) -> str:
+    if not meta.get("activate_by_schema_keys"):
+        return ""
+    schema_keys = ", ".join(
+        f"``{k}``" for k in meta["activate_by_schema_keys"]
+    )
+    return f"**Activate only on keys:** {schema_keys}\n\n"
+
+
 def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """Return reStructured text rendering the provided metadata.
 
@@ -595,26 +932,25 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
-    expected = set(
-        {
-            "id",
-            "title",
-            "examples",
-            "frequency",
-            "distros",
-            "description",
-            "name",
-        }
-    )
+    required_keys = {
+        "id",
+        "title",
+        "examples",
+        "frequency",
+        "distros",
+        "description",
+        "name",
+    }
+    optional_keys = {"activate_by_schema_keys"}
     error_message = ""
-    if expected - keys:
-        error_message = "Missing expected keys in module meta: {}".format(
-            expected - keys
+    if required_keys - keys:
+        error_message = "Missing required keys in module meta: {}".format(
+            required_keys - keys
         )
-    elif keys - expected:
+    elif keys - required_keys - optional_keys:
         error_message = (
             "Additional unexpected keys found in module meta: {}".format(
-                keys - expected
+                keys - required_keys
             )
         )
     if error_message:
@@ -638,6 +974,9 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
+    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
+        meta
+    )
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 

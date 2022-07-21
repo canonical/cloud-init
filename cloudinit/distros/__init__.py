@@ -76,6 +76,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None
@@ -510,6 +511,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if isinstance(groups, str):
                 groups = groups.split(",")
 
+            if isinstance(groups, dict):
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'groups' config value of"
+                    " type dict which is deprecated and will be removed in a"
+                    " future version of cloud-init. Use a comma-delimited"
+                    " string or array instead: group1,group2.",
+                    name,
+                )
+
             # remove any white spaces in group names, most likely
             # that came in as a string like: groups: group1, group2
             groups = [g.strip() for g in groups]
@@ -716,6 +726,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             raise e
 
         return True
+
+    def chpasswd(self, plist_in: list, hashed: bool):
+        payload = (
+            "\n".join(
+                (":".join([name, password]) for name, password in plist_in)
+            )
+            + "\n"
+        )
+        cmd = ["chpasswd"] + (["-e"] if hashed else [])
+        subp.subp(cmd, payload)
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
