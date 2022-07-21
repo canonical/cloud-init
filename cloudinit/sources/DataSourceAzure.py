@@ -1846,9 +1846,7 @@ def read_azure_ovf(contents):
     if ovf_env.password:
         defuser["lock_passwd"] = False
         if DEF_PASSWD_REDACTION != ovf_env.password:
-            defuser["passwd"] = cfg["password"] = encrypt_pass(
-                ovf_env.password
-            )
+            defuser["hashed_passwd"] = encrypt_pass(ovf_env.password)
 
     if defuser:
         cfg["system_info"] = {"default_user": defuser}
