@@ -44,7 +44,6 @@ meta: MetaSchema = {
     """
     ),
     "distros": distros,
-    "activate_by_schema_keys": ["bootcmd"],
     "examples": [
         dedent(
             """\
@@ -55,6 +54,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": ["bootcmd"],
 }
 
 __doc__ = get_meta_doc(meta)

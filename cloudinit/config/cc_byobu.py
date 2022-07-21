@@ -39,11 +39,11 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": distros,
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [],
     "examples": [
         "byobu_by_default: enable-user",
         "byobu_by_default: disable-system",
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

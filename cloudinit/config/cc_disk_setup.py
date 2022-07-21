@@ -57,7 +57,6 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": ["disk_setup", "fs_setup"],
     "examples": [
         dedent(
             """\
@@ -82,6 +81,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["disk_setup", "fs_setup"],
 }
 
 __doc__ = get_meta_doc(meta)

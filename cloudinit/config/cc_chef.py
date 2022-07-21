@@ -109,7 +109,6 @@ meta: MetaSchema = {
         finishing activities such as removing validation.pem."""
     ),
     "distros": distros,
-    "activate_by_schema_keys": ["chef"],
     "examples": [
         dedent(
             """
@@ -137,6 +136,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": ["chef"],
 }
 
 __doc__ = get_meta_doc(meta)

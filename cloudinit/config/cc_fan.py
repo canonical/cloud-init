@@ -35,7 +35,6 @@ meta: MetaSchema = {
     "description": MODULE_DESCRIPTION,
     "distros": distros,
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [],
     "examples": [
         dedent(
             """\
@@ -50,6 +49,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["fan"],
 }
 
 __doc__ = get_meta_doc(meta)

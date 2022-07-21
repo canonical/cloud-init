@@ -30,8 +30,8 @@ meta: MetaSchema = {
     ),
     "distros": [ALL_DISTROS],
     "frequency": PER_ALWAYS,
-    "activate_by_schema_keys": ["disable_ec2_metadata"],
     "examples": ["disable_ec2_metadata: true"],
+    "activate_by_schema_keys": ["disable_ec2_metadata"],
 }
 
 __doc__ = get_meta_doc(meta)

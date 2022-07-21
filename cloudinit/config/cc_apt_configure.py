@@ -55,7 +55,6 @@ meta: MetaSchema = {
             ``Additional apt configuration`` example."""
     ),
     "distros": distros,
-    "activate_by_schema_keys": ["apt"],
     "examples": [
         dedent(
             """\
@@ -119,6 +118,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
