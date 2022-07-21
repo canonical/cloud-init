@@ -1,8 +1,4 @@
-"""Integration test for the wireguard module.
-
-TODO Description
-
-"""
+"""Integration test for the wireguard module."""
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
@@ -80,8 +76,9 @@ class TestWireguard:
     def test_wireguard(
         self, cmd, expected_out, class_client: IntegrationInstance
     ):
-        out = class_client.execute(cmd)
-        assert expected_out in out
+        result = class_client.execute(cmd)
+        assert result.ok
+        assert expected_out in result.stdout
 
     def test_wireguard_tools_installed(
         self, class_client: IntegrationInstance
