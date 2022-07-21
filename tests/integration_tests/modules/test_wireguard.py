@@ -36,9 +36,9 @@ wireguard:
     - echo $? > /tmp/ping
 """
 
-
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
+@pytest.mark.lxd_vm
 class TestWireguard:
     @pytest.mark.parametrize(
         "cmd,expected_out",
