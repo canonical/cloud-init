@@ -76,20 +76,16 @@ class Distro(distros.Distro):
                 nameservers.extend(info["dns-nameservers"])
             net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
-            LOG.debug(
-                "dns_nameservers before isinstance",
-                dns_nameservers,
-            )
             if isinstance(dns_nameservers, (list, tuple)):
                 dns_nameservers = str(tuple(dns_nameservers)).replace(",", "")
-            LOG.debug(
-                "dns_nameservers after isinstance",
-                dns_nameservers,
-            )
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
             results = ""
             if dev == "lo":
+                if info.get("dns-search"):
+                    results += 'dns_domain_{name}="{dnssearch}"\n'.format(
+                    name=dev, dnssearch=info.get("dns-search")
+                    )
                 if info.get("dns-nameservers"):
                     results += 'dns_servers_{name}="{dnsservers}"\n'.format(
                         name=dev, dnsservers=dns_nameservers
