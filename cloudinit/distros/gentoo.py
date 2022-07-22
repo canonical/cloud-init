@@ -76,32 +76,41 @@ class Distro(distros.Distro):
                 nameservers.extend(info["dns-nameservers"])
             net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
+            LOG.debug(
+                "dns_nameservers before isinstance",
+                dns_nameservers,
+            )
             if isinstance(dns_nameservers, (list, tuple)):
                 dns_nameservers = str(tuple(dns_nameservers)).replace(",", "")
+            LOG.debug(
+                "dns_nameservers after isinstance",
+                dns_nameservers,
+            )
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
             results = ""
-            if info.get("bootproto") == "dhcp":
-                results += 'config_{name}="dhcp"'.format(name=dev)
-            else:
-                results += (
-                    'config_{name}="{ip_address} netmask {netmask}"\n'
-                    #'mac_{name}="{hwaddr}"\n'
-                ).format(
-                    name=dev,
-                    ip_address=info.get("address"),
-                    netmask=info.get("netmask"),
-                    hwaddr=info.get("hwaddress"),
-                )
-                results += 'routes_{name}="default via {gateway}"\n'.format(
-                    name=dev, gateway=info.get("gateway")
-                )
-            if info.get("dns-nameservers"):
-                results += 'dns_servers_{name}="{dnsservers}"\n'.format(
-                    name=dev, dnsservers=dns_nameservers
-                )
-            util.write_file(net_fn, results)
             if dev == "lo":
+                if info.get("dns-nameservers"):
+                    results += 'dns_servers_{name}="{dnsservers}"\n'.format(
+                        name=dev, dnsservers=dns_nameservers
+                    )
+            else:
+                if info.get("bootproto") == "dhcp":
+                    results += 'config_{name}="dhcp"'.format(name=dev)
+                else:
+                    results += (
+                        'config_{name}="{ip_address} netmask {netmask}"\n'
+                        #'mac_{name}="{hwaddr}"\n'
+                    ).format(
+                        name=dev,
+                        ip_address=info.get("address"),
+                        netmask=info.get("netmask"),
+                        hwaddr=info.get("hwaddress"),
+                    )
+                    results += 'routes_{name}="default via {gateway}"\n'.format(
+                        name=dev, gateway=info.get("gateway")
+                    )
+            util.write_file(net_fn, results)
                 continue
             self._create_network_symlink(dev)
             if info.get("auto"):
