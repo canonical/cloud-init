@@ -226,7 +226,7 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        cmd = ["true"]
+        cmd = ["emerge"]
         # Redirect output
         cmd.append("--quiet")
 
