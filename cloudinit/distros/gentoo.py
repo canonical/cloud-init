@@ -107,9 +107,7 @@ class Distro(distros.Distro):
                         netmask=info.get("netmask"),
                         hwaddr=info.get("hwaddress"),
                     )
-                    results += 'routes_{name}="default via {gateway}"\n'.format(
-                        name=dev, gateway=info.get("gateway")
-                    )
+                    results += 'routes_{name}="default via {gateway}"\n'.format(name=dev, gateway=info.get("gateway"))
             util.write_file(net_fn, results)
                 continue
             self._create_network_symlink(dev)
