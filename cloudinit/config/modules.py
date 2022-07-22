@@ -7,8 +7,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-from collections import namedtuple
-from typing import Dict, List
+from types import ModuleType
+from typing import Dict, List, NamedTuple
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -26,9 +26,13 @@ LOG = logging.getLogger(__name__)
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
-ModuleDetails = namedtuple(
-    "ModuleDetails", ["module", "name", "frequency", "run_args"]
-)
+
+
+class ModuleDetails(NamedTuple):
+    module: ModuleType
+    name: str
+    frequency: str
+    run_args: List[str]
 
 
 def form_module_name(name):
