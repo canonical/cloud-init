@@ -93,7 +93,7 @@ class Distro(distros.Distro):
                     name=dev,
                     ip_address=info.get("address"),
                     netmask=info.get("netmask"),
-                    hwaddr=info.get("hwaddress"),
+                    hwaddr=info.get("mac_address"),
                 )
                 results += 'routes_{name}="default via {gateway}"\n'.format(
                     name=dev, gateway=info.get("gateway")
