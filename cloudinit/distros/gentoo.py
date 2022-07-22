@@ -109,6 +109,7 @@ class Distro(distros.Distro):
                     )
                     results += 'routes_{name}="default via {gateway}"\n'.format(name=dev, gateway=info.get("gateway"))
             util.write_file(net_fn, results)
+            if dev == "lo":
                 continue
             self._create_network_symlink(dev)
             if info.get("auto"):
