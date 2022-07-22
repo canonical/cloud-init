@@ -128,8 +128,11 @@ class Distro(distros.Distro):
                     )
 
         if nameservers:
+            towrite = convert_resolv_conf(nameservers)
+            if nameserverssearch:
+                towrite = towrite + convert_resolv_conf_search(nameserverssearch)
             util.write_file(
-                self.resolve_conf_fn, convert_resolv_conf(nameservers), convert_resolv_conf_search(nameserverssearch)
+                self.resolve_conf_fn, towrite
             )
 
         return dev_names
@@ -268,7 +271,7 @@ def convert_resolv_conf_search(settings):
     result = ""
     if isinstance(settings, list):
         for domain in settings:
-            result += " %s" % ns
+            result += " %s" % domain
     return "domain" + result + "\n"
 
 
