@@ -88,7 +88,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_ALWAYS,
-    "activate_by_schema_keys": [],
+    "activate_by_schema_keys": ["manage_etc_hosts"],
 }
 
 __doc__ = get_meta_doc(meta)
