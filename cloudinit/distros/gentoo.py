@@ -72,10 +72,13 @@ class Distro(distros.Distro):
         nameservers = []
 
         for (dev, info) in list(entries.items()):
+            LOG.debug(
+
+            )
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
-            if dev == "lo":
-                continue
+            # if dev == "lo":
+            #     continue
             net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
             if isinstance(dns_nameservers, (list, tuple)):
@@ -88,7 +91,7 @@ class Distro(distros.Distro):
             else:
                 results += (
                     'config_{name}="{ip_address} netmask {netmask}"\n'
-                    'mac_{name}="{hwaddr}"\n'
+                    #'mac_{name}="{hwaddr}"\n'
                 ).format(
                     name=dev,
                     ip_address=info.get("address"),
@@ -124,10 +127,10 @@ class Distro(distros.Distro):
                         LOG, "Running interface command %s failed", cmd
                     )
 
-        if nameservers:
-            util.write_file(
-                self.resolve_conf_fn, convert_resolv_conf(nameservers)
-            )
+        # if nameservers:
+        #     util.write_file(
+        #         self.resolve_conf_fn, convert_resolv_conf(nameservers)
+        #     )
 
         return dev_names
 
@@ -252,13 +255,13 @@ class Distro(distros.Distro):
         )
 
 
-def convert_resolv_conf(settings):
-    """Returns a settings string formatted for resolv.conf."""
-    result = ""
-    if isinstance(settings, list):
-        for ns in settings:
-            result += "nameserver %s\n" % ns
-    return result
+# def convert_resolv_conf(settings):
+#     """Returns a settings string formatted for resolv.conf."""
+#     result = ""
+#     if isinstance(settings, list):
+#         for ns in settings:
+#             result += "nameserver %s\n" % ns
+#     return result
 
 
 # vi: ts=4 expandtab
