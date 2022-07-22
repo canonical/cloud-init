@@ -2896,7 +2896,7 @@ def get_proc_ppid(pid):
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
         if contents:
             # see proc.5 for format
-            m = re.search(r"\(.+\) [RSDZTtWXxKWP] (\d+)", str(contents))
+            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKWP] (\d+)", str(contents))
             if m:
                 ppid = int(m.group(1))
     except IOError as e:
