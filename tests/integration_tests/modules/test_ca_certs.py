@@ -115,6 +115,12 @@ class TestCaCerts:
             "runcmd",
             "salt-minion",
             "snap",
+            "timezone",
+            "ubuntu-advantage",
+            "ubuntu-drivers",
+            "update_etc_hosts",
+            "write-files",
+            "write-files-deferred",
         }.symmetric_difference(get_inactive_modules(log))
         assert (
             not diff
