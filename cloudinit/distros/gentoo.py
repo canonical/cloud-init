@@ -70,11 +70,10 @@ class Distro(distros.Distro):
         )
         dev_names = list(entries.keys())
         nameservers = []
-
+        finalresults = ""
         for (dev, info) in list(entries.items()):
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
-            net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
             dns_search = info.get("dns-search")
             if isinstance(dns_search, (list, tuple)):
@@ -107,7 +106,6 @@ class Distro(distros.Distro):
                         hwaddr=info.get("hwaddress"),
                     )
                     results += 'routes_{name}="default via {gateway}"\n'.format(name=dev, gateway=info.get("gateway"))
-            util.write_file(net_fn, results)
             if dev == "lo":
                 continue
             self._create_network_symlink(dev)
@@ -130,7 +128,8 @@ class Distro(distros.Distro):
                     util.logexc(
                         LOG, "Running interface command %s failed", cmd
                     )
-
+            finalresults += results
+        util.write_file(self.network_conf_fn, finalresults)
         # if nameservers:
         #     util.write_file(
         #         self.resolve_conf_fn, convert_resolv_conf(nameservers)
