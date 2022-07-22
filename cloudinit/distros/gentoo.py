@@ -70,6 +70,7 @@ class Distro(distros.Distro):
         )
         dev_names = list(entries.keys())
         nameservers = []
+        nameserverssearch = []
 
         for (dev, info) in list(entries.items()):
             if "dns-nameservers" in info:
