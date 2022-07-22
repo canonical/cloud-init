@@ -74,8 +74,6 @@ class Distro(distros.Distro):
         for (dev, info) in list(entries.items()):
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
-            # if dev == "lo":
-            #     continue
             net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
             if isinstance(dns_nameservers, (list, tuple)):
@@ -103,6 +101,8 @@ class Distro(distros.Distro):
                     name=dev, dnsservers=dns_nameservers
                 )
             util.write_file(net_fn, results)
+            if dev == "lo":
+                continue
             self._create_network_symlink(dev)
             if info.get("auto"):
                 cmd = [
