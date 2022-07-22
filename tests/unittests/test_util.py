@@ -2464,6 +2464,24 @@ class TestGetProcEnv(helpers.TestCase):
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
+    def test_get_proc_ppid_mocked(self):
+        for ppid, proc_data in (
+            (0, "1 (systemd) S 0 1 1 0 -1 4194560 112664 14612195 153 18014"
+                "274 237 756828 152754 20 0 1 0 3 173809664 3736"
+                "18446744073709551615 1 1 0 0 0 0 671173123 4096 1260 0 0 0 17"
+                "8 0 0 0 0 123974 0 0 0 0 0 0 0 0"),
+            (180771, "180781 ([pytest-xdist r) R 180771 180598 167240 34825 "
+                "180598 4194304 128712 7570 0 0 1061 34 8 1 20 0 2 0 6551540 "
+                "351993856 25173 18446744073709551615 93907896635392 "
+                "93907899455533 140725724279536 0 0 0 0 16781312 17642 0 0 0 "
+                "17 1 0 0 0 0 0 93907901810800 93907902095288 93907928788992 "
+                "140725724288007 140725724288074 140725724288074 "
+                "140725724291047 0"),
+        ):
+            with mock.patch(
+                    "cloudinit.util.load_file", return_value=proc_data):
+                assert ppid == util.get_proc_ppid("mocked")
+
 
 class TestKernelVersion:
     """test kernel version function"""
