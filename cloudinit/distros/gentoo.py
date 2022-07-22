@@ -72,9 +72,6 @@ class Distro(distros.Distro):
         nameservers = []
 
         for (dev, info) in list(entries.items()):
-            LOG.debug(
-
-            )
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
             # if dev == "lo":
