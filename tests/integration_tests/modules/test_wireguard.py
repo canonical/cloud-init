@@ -38,10 +38,14 @@ wireguard:
     - echo $? > /tmp/ping
 """
 
+
 def load_wireguard_kernel_module_lxd(instance: LXDInstance):
     subp(
-        "lxc config set {} linux.kernel_modules wireguard".format(instance.name).split()
+        "lxc config set {} linux.kernel_modules wireguard".format(
+            instance.name
+        ).split()
     )
+
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
