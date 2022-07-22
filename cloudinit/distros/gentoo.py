@@ -84,11 +84,11 @@ class Distro(distros.Distro):
             if dev == "lo":
                 if info.get("dns-search"):
                     results += 'dns_domain_{name}="{dnssearch}"\n'.format(
-                    name=dev, dnssearch=info.get("dns-search")
+                    name=dev, dnssearch=str(info.get("dns-search"))
                     )
                 if info.get("dns-nameservers"):
                     results += 'dns_servers_{name}="{dnsservers}"\n'.format(
-                        name=dev, dnsservers=dns_nameservers
+                        name=dev, dnsservers=str(dns_nameservers)
                     )
             else:
                 if info.get("bootproto") == "dhcp":
