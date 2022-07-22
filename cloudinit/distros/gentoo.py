@@ -70,69 +70,66 @@ class Distro(distros.Distro):
         )
         dev_names = list(entries.keys())
         nameservers = []
-        finalresults = ""
+
         for (dev, info) in list(entries.items()):
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
+            if "dns-search" in info:
+                nameserverssearch.extend(info["dns-search"])
+            if dev == "lo":
+                continue
+            net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
-            dns_search = info.get("dns-search")
-            if isinstance(dns_search, (list, tuple)):
-                dns_search = str(", ".join(dns_search)).replace(",", "")
             if isinstance(dns_nameservers, (list, tuple)):
-                dns_nameservers = str(", ".join(dns_nameservers)).replace(",", "")
+                dns_nameservers = str(tuple(dns_nameservers)).replace(",", "")
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
             results = ""
-            if dev == "lo":
-                if info.get("dns-search"):
-                    results += 'dns_domain_{name}="{dnssearch}"\n'.format(
-                    name=dev, dnssearch=dns_search
-                    )
-                if info.get("dns-nameservers"):
-                    results += 'dns_servers_{name}="{dnsservers}"\n'.format(
-                        name=dev, dnsservers=dns_nameservers
-                    )
+            if info.get("bootproto") == "dhcp":
+                results += 'config_{name}="dhcp"'.format(name=dev)
             else:
-                if info.get("bootproto") == "dhcp":
-                    results += 'config_{name}="dhcp"'.format(name=dev)
-                else:
-                    results += (
-                        'config_{name}="{ip_address} netmask {netmask}"\n'
-                        #'mac_{name}="{hwaddr}"\n'
-                    ).format(
-                        name=dev,
-                        ip_address=info.get("address"),
-                        netmask=info.get("netmask"),
-                        hwaddr=info.get("hwaddress"),
-                    )
-                    results += 'routes_{name}="default via {gateway}"\n'.format(name=dev, gateway=info.get("gateway"))
-
-                self._create_network_symlink(dev)
-                if info.get("auto"):
-                    cmd = [
-                        "rc-update",
-                        "add",
-                        "net.{name}".format(name=dev),
-                        "default",
-                    ]
-                    try:
-                        (_out, err) = subp.subp(cmd)
-                        if len(err):
-                            LOG.warning(
-                                "Running %s resulted in stderr output: %s",
-                                cmd,
-                                err,
-                            )
-                    except subp.ProcessExecutionError:
-                        util.logexc(
-                            LOG, "Running interface command %s failed", cmd
+                results += (
+                    'config_{name}="{ip_address} netmask {netmask}"\n'
+                    'mac_{name}="{hwaddr}"\n'
+                ).format(
+                    name=dev,
+                    ip_address=info.get("address"),
+                    netmask=info.get("netmask"),
+                    hwaddr=info.get("hwaddress"),
+                )
+                results += 'routes_{name}="default via {gateway}"\n'.format(
+                    name=dev, gateway=info.get("gateway")
+                )
+            if info.get("dns-nameservers"):
+                results += 'dns_servers_{name}="{dnsservers}"\n'.format(
+                    name=dev, dnsservers=dns_nameservers
+                )
+            util.write_file(net_fn, results)
+            self._create_network_symlink(dev)
+            if info.get("auto"):
+                cmd = [
+                    "rc-update",
+                    "add",
+                    "net.{name}".format(name=dev),
+                    "default",
+                ]
+                try:
+                    (_out, err) = subp.subp(cmd)
+                    if len(err):
+                        LOG.warning(
+                            "Running %s resulted in stderr output: %s",
+                            cmd,
+                            err,
                         )
-            finalresults += results
-        util.write_file(self.network_conf_fn, finalresults)
-        # if nameservers:
-        #     util.write_file(
-        #         self.resolve_conf_fn, convert_resolv_conf(nameservers)
-        #     )
+                except subp.ProcessExecutionError:
+                    util.logexc(
+                        LOG, "Running interface command %s failed", cmd
+                    )
+
+        if nameservers:
+            util.write_file(
+                self.resolve_conf_fn, convert_resolv_conf(nameservers), convert_resolv_conf_search(nameserverssearch)
+            )
 
         return dev_names
 
@@ -257,13 +254,21 @@ class Distro(distros.Distro):
         )
 
 
-# def convert_resolv_conf(settings):
-#     """Returns a settings string formatted for resolv.conf."""
-#     result = ""
-#     if isinstance(settings, list):
-#         for ns in settings:
-#             result += "nameserver %s\n" % ns
-#     return result
+def convert_resolv_conf(settings):
+    """Returns a settings string formatted for resolv.conf."""
+    result = ""
+    if isinstance(settings, list):
+        for ns in settings:
+            result += "nameserver %s\n" % ns
+    return result
+
+def convert_resolv_conf_search(settings):
+    """Returns a settings string formatted for resolv.conf."""
+    result = ""
+    if isinstance(settings, list):
+        for domain in settings:
+            result += " %s" % ns
+    return "domain" + result + "\n"
 
 
 # vi: ts=4 expandtab
