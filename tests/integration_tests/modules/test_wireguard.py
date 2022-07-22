@@ -104,6 +104,7 @@ class TestWireguard:
         assert class_client.execute("wg version").ok
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.lxd_setup.with_args(load_wireguard_kernel_module_lxd)
 @pytest.mark.lxd_container
