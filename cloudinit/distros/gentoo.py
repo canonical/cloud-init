@@ -77,7 +77,7 @@ class Distro(distros.Distro):
             net_fn = self.network_conf_fn + "." + dev
             dns_nameservers = info.get("dns-nameservers")
             if isinstance(dns_nameservers, (list, tuple)):
-                dns_nameservers = str(dns_nameservers).replace(",", "")
+                dns_nameservers = str(join(",", dns_nameservers)).replace(",", " ")
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
             results = ""
