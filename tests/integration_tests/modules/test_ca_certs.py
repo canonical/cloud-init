@@ -107,6 +107,12 @@ class TestCaCerts:
             "lxd",
             "mcollective",
             "ntp",
+            "package-update-upgrade-install",
+            "phone-home",
+            "power-state-change",
+            "puppet",
+            "rsyslog",
+            "runcmd",
             "salt-minion",
             "snap",
         }.symmetric_difference(get_inactive_modules(log))
