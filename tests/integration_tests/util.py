@@ -5,6 +5,7 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from itertools import chain
 from pathlib import Path
 from typing import Set
 
@@ -94,14 +95,16 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
 
 
 def get_inactive_modules(log: str) -> Set[str]:
-    match = re.search(
+    matches = re.findall(
         r"Skipping modules '(.*)' because no applicable config is provided.",
         log,
     )
-    if not match:
-        return set()
-    modules = match.group(1)
-    return set(map(lambda m: m.strip(), modules.split(", ")))
+    return set(
+        map(
+            lambda module: module.strip(),
+            chain(*map(lambda match: match.split(","), matches)),
+        )
+    )
 
 
 @contextmanager

@@ -10,6 +10,9 @@ import os.path
 
 import pytest
 
+from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import get_inactive_modules, verify_clean_log
+
 USER_DATA = """\
 #cloud-config
 ca_certs:
@@ -57,7 +60,7 @@ ca_certs:
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestCaCerts:
-    def test_certs_updated(self, class_client):
+    def test_certs_updated(self, class_client: IntegrationInstance):
         """Test that /etc/ssl/certs is updated as we expect."""
         root = "/etc/ssl/certs"
         filenames = class_client.execute(["ls", "-1", root]).splitlines()
@@ -79,7 +82,7 @@ class TestCaCerts:
             == links["cloud-init-ca-certs.pem"]
         )
 
-    def test_cert_installed(self, class_client):
+    def test_cert_installed(self, class_client: IntegrationInstance):
         """Test that our specified cert has been installed"""
         checksum = class_client.execute(
             "sha256sum /etc/ssl/certs/ca-certificates.crt"
@@ -88,3 +91,25 @@ class TestCaCerts:
             "78e875f18c73c1aab9167ae0bd323391e52222cc2dbcda42d129537219300062"
             in checksum
         )
+
+    def test_clean_logs(self, class_client: IntegrationInstance):
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log, ignore_deprecations=False)
+        diff = {
+            "apt-pipelining",
+            "bootcmd",
+            "chef",
+            "disable-ec2-metadata",
+            "disk_setup",
+            "fan",
+            "keyboard",
+            "landscape",
+            "lxd",
+            "mcollective",
+            "ntp",
+            "salt-minion",
+            "snap",
+        }.symmetric_difference(get_inactive_modules(log))
+        assert (
+            not diff
+        ), f"Expected inactive modules do not match, diff: {diff}"
