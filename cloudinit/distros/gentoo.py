@@ -106,28 +106,27 @@ class Distro(distros.Distro):
                         hwaddr=info.get("hwaddress"),
                     )
                     results += 'routes_{name}="default via {gateway}"\n'.format(name=dev, gateway=info.get("gateway"))
-            if dev == "lo":
-                continue
-            self._create_network_symlink(dev)
-            if info.get("auto"):
-                cmd = [
-                    "rc-update",
-                    "add",
-                    "net.{name}".format(name=dev),
-                    "default",
-                ]
-                try:
-                    (_out, err) = subp.subp(cmd)
-                    if len(err):
-                        LOG.warning(
-                            "Running %s resulted in stderr output: %s",
-                            cmd,
-                            err,
+
+                self._create_network_symlink(dev)
+                if info.get("auto"):
+                    cmd = [
+                        "rc-update",
+                        "add",
+                        "net.{name}".format(name=dev),
+                        "default",
+                    ]
+                    try:
+                        (_out, err) = subp.subp(cmd)
+                        if len(err):
+                            LOG.warning(
+                                "Running %s resulted in stderr output: %s",
+                                cmd,
+                                err,
+                            )
+                    except subp.ProcessExecutionError:
+                        util.logexc(
+                            LOG, "Running interface command %s failed", cmd
                         )
-                except subp.ProcessExecutionError:
-                    util.logexc(
-                        LOG, "Running interface command %s failed", cmd
-                    )
             finalresults += results
         util.write_file(self.network_conf_fn, finalresults)
         # if nameservers:
