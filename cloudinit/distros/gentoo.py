@@ -72,7 +72,8 @@ class Distro(distros.Distro):
         nameservers = []
         nameserverssearch = []
 
-        for (dev, info) in list(entries.items()):
+        for (dev, info) in entries.items():
+            dns_nameservers_fmt: str = ""
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
             if "dns-search" in info:
@@ -80,9 +81,9 @@ class Distro(distros.Distro):
             if dev == "lo":
                 continue
             net_fn = self.network_conf_fn + "." + dev
-            dns_nameservers = info.get("dns-nameservers")
-            if isinstance(dns_nameservers, (list, tuple)):
-                dns_nameservers = str(tuple(dns_nameservers)).replace(",", "")
+            dns_nameservers: list = info.get("dns-nameservers", [])
+            if dns_nameservers:
+                dns_nameservers_fmt = " ".join(dns_nameservers)
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
             results = ""
@@ -101,9 +102,9 @@ class Distro(distros.Distro):
                 results += 'routes_{name}="default via {gateway}"\n'.format(
                     name=dev, gateway=info.get("gateway")
                 )
-            if info.get("dns-nameservers"):
+            if dns_nameservers_fmt:
                 results += 'dns_servers_{name}="{dnsservers}"\n'.format(
-                    name=dev, dnsservers=dns_nameservers
+                    name=dev, dnsservers=dns_nameservers_fmt
                 )
             util.write_file(net_fn, results)
             self._create_network_symlink(dev)
