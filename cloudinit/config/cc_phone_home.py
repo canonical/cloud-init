@@ -88,7 +88,7 @@ meta: MetaSchema = {
             """
         ),
     ],
-    "activate_by_schema_keys": [],
+    "activate_by_schema_keys": ["phone_home"],
 }
 
 __doc__ = get_meta_doc(meta)
