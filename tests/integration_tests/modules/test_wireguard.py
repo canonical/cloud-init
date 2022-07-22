@@ -1,6 +1,8 @@
 """Integration test for the wireguard module."""
 import pytest
+from pycloudlib.lxd.instance import LXDInstance
 
+from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 
 ASCII_TEXT = "ASCII text"
@@ -36,10 +38,20 @@ wireguard:
     - echo $? > /tmp/ping
 """
 
+def load_wireguard_kernel_module_lxd(instance: LXDInstance):
+    subp(
+        "lxc config set {} linux.kernel_modules wireguard".format(instance.name).split()
+    )
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.lxd_vm
+@pytest.mark.gce
+@pytest.mark.ec2
+@pytest.mark.azure
+@pytest.mark.openstack
+@pytest.mark.oci
+@pytest.mark.ubuntu
 class TestWireguard:
     @pytest.mark.parametrize(
         "cmd,expected_out",
@@ -81,6 +93,18 @@ class TestWireguard:
         assert result.ok
         assert expected_out in result.stdout
 
+    def test_wireguard_tools_installed(
+        self, class_client: IntegrationInstance
+    ):
+        """Test that 'wg version' succeeds, indicating installation."""
+        assert class_client.execute("wg version").ok
+
+
+@pytest.mark.user_data(USER_DATA)
+@pytest.mark.lxd_setup.with_args(load_wireguard_kernel_module_lxd)
+@pytest.mark.lxd_container
+@pytest.mark.ubuntu
+class TestWireguardWithoutKmod:
     def test_wireguard_tools_installed(
         self, class_client: IntegrationInstance
     ):
