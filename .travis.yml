@@ -61,7 +61,7 @@ matrix:
                   sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} "$TRAVIS_BUILD_DIR/lxd_images/" \;
           install:
             - git fetch --unshallow
-            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox debhelper
+            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox debhelper wireguard
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
