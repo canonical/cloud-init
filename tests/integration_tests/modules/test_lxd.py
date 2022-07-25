@@ -27,7 +27,7 @@ lxd:
 
 STORAGE_USER_DATA = """\
 #cloud-config
-bootcmd: [ "apt-get --yes remove {0}", "{2}" ]
+bootcmd: [ "apt-get --yes remove {0}", "true" ]
 lxd:
   init:
     storage_backend: {1}
