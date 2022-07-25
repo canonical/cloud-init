@@ -190,6 +190,10 @@ class TestAnsible:
             "cloudinit.config.cc_ansible.subp", return_value=(None, None)
         )
         mocker.patch("cloudinit.config.cc_ansible.which", return_value=True)
+        mocker.patch(
+            "cloudinit.config.cc_ansible.get_version",
+            return_value=cc_ansible.Version(2, 7, 1)
+        )
         if exception:
             with raises(exception):
                 cc_ansible.handle("", cfg, None, None, None)  # pyright: ignore
@@ -222,7 +226,6 @@ class TestAnsible:
                 [
                     "ansible-pull",
                     "--url=https://github/holmanb/vmboot",
-                    "--playbook-name=arch.yml",
                     "--accept-host-key",
                     "--clean",
                     "--full",
@@ -249,7 +252,6 @@ class TestAnsible:
                 [
                     "ansible-pull",
                     "--url=https://github/holmanb/vmboot",
-                    "--playbook-name=ubuntu.yml",
                     "ubuntu.yml",
                 ],
             ),

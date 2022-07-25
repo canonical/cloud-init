@@ -3,13 +3,15 @@
 from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
-from typing import Tuple
+from typing import Tuple, Optional, NamedTuple
+import sys
+import re
 
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
-from cloudinit.subp import ProcessExecutionError, subp, which
+from cloudinit.subp import subp, which
 
 meta: MetaSchema = {
     "id": "cc_ansible",
@@ -17,7 +19,7 @@ meta: MetaSchema = {
     "title": "Configure ansible for instance",
     "description": dedent(
         """\
-        This module provides ansible integration.``
+        This module provides ``ansible`` integration.
 
         Ansible is often used agentless and in parallel
         across multiple hosts simultaneously. This
@@ -42,9 +44,45 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ansible"],
 }
 
 __doc__ = get_meta_doc(meta)
+
+
+class Version(NamedTuple):
+    major: int
+    minor: int
+    patch: int
+
+
+def get_version() -> Optional[Version]:
+    stdout, _ = subp(["ansible", "--version"])
+    matches = re.search(r'^ansible (\d+)\.(\d+).(\d+)', stdout)
+    if matches and matches.lastindex == 3:
+        return Version(
+            int(matches.group(1)),
+            int(matches.group(2)),
+            int(matches.group(3))
+        )
+
+
+def compare_version(v1: Version, v2: Version) -> int:
+    """
+    return values:
+        1: v1 > v2
+        -1: v1 < v2
+        0: v1 == v2
+    """
+    if v1 == v2:
+        return 0
+    if v1.major > v2.major:
+        return 1
+    if v1.minor > v2.minor:
+        return 1
+    if v1.patch > v2.patch:
+        return 1
+    return -1
 
 
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
@@ -52,7 +90,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
     if ansible_cfg:
         install, ansible_config = get_and_validate_config(ansible_cfg)
         install_ansible(cloud.distro, install)
-        run_ansible_pull(ansible_config, log)
+        run_ansible_pull(deepcopy(ansible_config), log)
 
 
 def get_and_validate_config(cfg: dict) -> Tuple[bool, dict]:
@@ -95,21 +133,27 @@ def filter_args(cfg: dict) -> dict:
 def run_ansible_pull(cfg: dict, log: Logger):
     cmd = "ansible-pull"
     check_deps(cmd)
-    playbook_name: str = deepcopy(cfg).pop("playbook-name")
-    try:
-        stdout, stderr = subp(
-            [
-                cmd,
-                *[
-                    f"--{key}={value}" if value is not True else f"--{key}"
-                    for key, value in filter_args(cfg).items()
-                ],
-                playbook_name,
-            ]
-        )
-        if stderr:
-            log.warn(f"{stderr}")
-        if stdout:
-            log.warn(f"{stdout}")
-    except ProcessExecutionError as err:
-        log.warn(f"Error executing ansible-pull, {err}")
+    playbook_name: str = cfg.pop("playbook-name")
+
+    v = get_version()
+    if not v:
+        log.warn("Cannot parse ansible version")
+    elif compare_version(v, Version(2, 7, 0)) != 1:
+        # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
+        if cfg.get("diff"):
+            raise ValueError(
+                f"Ansible version {v.major}.{v.minor}.{v.patch}"
+                "doesn't support --diff flag, exiting."
+            )
+    stdout, _ = subp(
+        [
+            cmd,
+            *[
+                f"--{key}={value}" if value is not True else f"--{key}"
+                for key, value in filter_args(cfg).items()
+            ],
+            playbook_name,
+        ]
+    )
+    if stdout:
+        sys.stdout.write(f"{stdout}")
