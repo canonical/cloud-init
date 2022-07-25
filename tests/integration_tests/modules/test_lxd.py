@@ -59,7 +59,6 @@ class TestLxdBridge:
 def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log, ignore_deprecations=False)
-    assert 0 == validate_client.execute(f"which {command}").return_code
     return log
 
 
