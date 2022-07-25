@@ -27,7 +27,7 @@ lxd:
 
 STORAGE_USER_DATA = """\
 #cloud-config
-bootcmd: [ "apt-get --yes remove {0}", "true" ]
+bootcmd: [ "apt-get --yes remove {0}", "! command -v {2}", "{3}" ]
 lxd:
   init:
     storage_backend: {1}
@@ -55,26 +55,37 @@ class TestLxdBridge:
         assert "10.100.100.1/24" == network_config["config"]["ipv4.address"]
 
 
-def validate_storage(validate_client, pkg_name):
+def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log, ignore_deprecations=False)
-    assert f"install', '{pkg_name}'" in log
+    assert validate_client.execute(f"which {command}")
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs-progs", "btrfs", "true"))
+@pytest.mark.user_data(
+    STORAGE_USER_DATA.format("btrfs-progs", "btrfs", "mkfs.btrfs", "true")
+)
 def test_storage_btrfs(client):
-    validate_storage(client, "btrfs-progs")
+    validate_storage(client, "btrfs-progs", "mkfs.btrfs")
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_USER_DATA.format(
-    "lvm2", "lvm", "systemctl unmask lvm2-lvmpolld.socket"))
+@pytest.mark.user_data(
+    STORAGE_USER_DATA.format(
+        "lvm2",
+        "lvm",
+        "lvcreate",
+        "apt-get install "
+        "thin-provisioning-tools && systemctl unmask lvm2-lvmpolld.socket",
+    )
+)
 def test_storage_lvm(client):
-    validate_storage(client, "lvm2")
+    validate_storage(client, "lvm2", "lvcreate")
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_USER_DATA.format("zfsutils-linux", "zfs", "true"))
+@pytest.mark.user_data(
+    STORAGE_USER_DATA.format("zfsutils-linux", "zfs", "zpool", "true")
+)
 def test_storage_zfs(client):
-    validate_storage(client, "zfsutils-linux")
+    validate_storage(client, "zfsutils-linux", "zpool")
