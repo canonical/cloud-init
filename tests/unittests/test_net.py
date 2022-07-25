@@ -1248,9 +1248,8 @@ NETWORK_CONFIGS = {
                 may-fail=false
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1383,7 +1382,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/64
 
                 """
@@ -1416,9 +1414,8 @@ NETWORK_CONFIGS = {
                 [ethernet]
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 [ipv4]
                 method=auto
@@ -1517,9 +1514,8 @@ NETWORK_CONFIGS = {
                 [ethernet]
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1750,7 +1746,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1862,7 +1857,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -2683,7 +2677,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/64
                 route1=::/0,2001:4800:78ff:1b::1
 
@@ -2736,9 +2729,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 xmit_hash_policy=layer3+4
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -3342,7 +3334,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/92
                 route1=2001:67c::/32,2001:67c:1562::1
                 route2=3001:67c::/32,3001:67c:15::1
@@ -3463,7 +3454,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::bbbb/96
                 route1=::/0,2001:1::1
 
@@ -3641,7 +3631,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::100/96
 
                 """
@@ -3666,7 +3655,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::101/96
 
                 """
