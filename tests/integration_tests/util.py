@@ -53,7 +53,9 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
     warning_texts = [
         # Consistently on all Azure launches:
         # azure.py[WARNING]: No lease found; using default endpoint
-        "No lease found; using default endpoint"
+        "No lease found; using default endpoint",
+        # Ubuntu lxd storage
+        "cloud-init doesn't use thinpool by default on Ubuntu due to LP"
     ]
     traceback_texts = []
     if "oracle" in log:
