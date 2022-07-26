@@ -15,8 +15,8 @@ version: v1
 packages_update: true
 packages_upgrade: true
 packages:
-  - ansible
   - git
+  - python3-pip
 write_files:
   - path: /etc/systemd/system/repo_server.service
     content: |
@@ -40,6 +40,7 @@ write_files:
          vars:
            packages:
              - git
+             - python3-pip
          roles:
            - apt
   - path: /root/playbooks/roles/apt/tasks/main.yml
@@ -57,9 +58,10 @@ write_files:
            state: latest
          loop: "{{ packages }}"
 
-
+"""
+INSTALL_METHOD = """
 ansible:
-  install: false
+  install-method: {}
   pull:
     url: "http://0.0.0.0:8000/"
     playbook-name: ubuntu.yml
@@ -75,24 +77,34 @@ git commit -m auto                                            &&\
 git update-server-info"
 
 
-@pytest.mark.user_data(USER_DATA)
-class TestAnsiblePull:
-    def test_ansible_pull_from_local_server(self, class_client):
+def _test_ansible_pull_from_local_server(my_client):
 
-        assert class_client.execute(SETUP_REPO).ok
-        class_client.execute("cloud-init clean --logs")
-        class_client.restart()
-        log = class_client.read_from_file("/var/log/cloud-init.log")
+    assert my_client.execute(SETUP_REPO).ok
+    my_client.execute("cloud-init clean --logs")
+    my_client.restart()
+    log = my_client.read_from_file("/var/log/cloud-init.log")
 
-        # These ensure the repo used for ansible-pull works as expected
-        assert class_client.execute("wget http://0.0.0.0:8000").ok
-        assert class_client.execute("git clone http://0.0.0.0:8000/").ok
-        assert "(dead)" not in class_client.execute(
-            "systemctl status repo_server.service"
-        )
+    # These ensure the repo used for ansible-pull works as expected
+    assert my_client.execute("wget http://0.0.0.0:8000").ok
+    assert my_client.execute("git clone http://0.0.0.0:8000/").ok
+    assert "(dead)" not in my_client.execute(
+        "systemctl status repo_server.service"
+    )
 
-        # Following assertions verify ansible behavior itself
-        assert class_client.execute(["which", "ansible-pull"]).ok
-        verify_clean_log(log)
-        assert "cc_ansible.py[WARNING]: Error executing" not in log
-        assert "SUCCESS: config-ansible ran successfully" in log
+    # Following assertions verify ansible behavior itself
+    assert my_client.execute(["which", "ansible-pull"]).ok
+    verify_clean_log(log)
+    assert "cc_ansible.py[WARNING]: Error executing" not in log
+    assert "SUCCESS: config-ansible ran successfully" in log
+
+
+@pytest.mark.user_data(USER_DATA + INSTALL_METHOD.format("pip"))
+class TestAnsiblePullPip:
+    def test_ansible_pull_pip(self, class_client):
+        _test_ansible_pull_from_local_server(class_client)
+
+
+@pytest.mark.user_data(USER_DATA + INSTALL_METHOD.format("distro"))
+class TestAnsiblePullDistro:
+    def test_ansible_pull_distro(self, class_client):
+        _test_ansible_pull_from_local_server(class_client)

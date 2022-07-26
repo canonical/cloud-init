@@ -237,17 +237,14 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "install_method": {
+            "install-method": {
               "type": "string",
-              "default": "none",
-	      {
-		      "enum":
-		      [
-			      "none",
-			      "pip",
-			      "distro"
-		      ]
-	      }
+              "default": "distro",
+              "enum": [
+                "distro",
+                "pip"
+              ],
+              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``\n - ``none``"
             },
             "pull": {
               "required": ["url", "playbook-name"],
