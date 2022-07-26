@@ -239,7 +239,7 @@
           "properties": {
             "install_method": {
               "type": "string",
-              "default": false
+              "default": "none",
 	      {
 		      "enum":
 		      [
