@@ -241,6 +241,7 @@
               "type": "string",
               "default": false
 	      {
+		      "enum":
 		      [
 			      "none",
 			      "pip",
