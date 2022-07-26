@@ -120,7 +120,10 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
 
     # Set up lxd if init config is given
     if init_cfg:
-        init_keys = (
+
+        # type is known, number of elements is not
+        # in the case of the ubuntu+lvm backend workaround
+        init_keys: tuple[str, ...] = (
             "network_address",
             "network_port",
             "storage_backend",
@@ -155,7 +158,9 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
             # Since we're manually setting use_thinpool=false
             # filter it from the lxd init commands, don't configure
             # storage twice
-            init_keys = tuple(key for key in init_keys if key != "storage_backend")
+            init_keys = tuple(
+                key for key in init_keys if key != "storage_backend"
+            )
 
         cmd = ["lxd", "init", "--auto"]
         for k in init_keys:

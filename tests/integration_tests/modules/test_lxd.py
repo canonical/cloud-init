@@ -3,9 +3,10 @@
 (This is ported from
 ``tests/cloud_tests/testcases/modules/lxd_bridge.yaml``.)
 """
+import warnings
+
 import pytest
 import yaml
-import warnings
 
 from tests.integration_tests.util import verify_clean_log
 
