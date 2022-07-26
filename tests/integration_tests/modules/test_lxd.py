@@ -81,9 +81,13 @@ def test_storage_btrfs(client):
     )
 )
 def test_storage_lvm(client):
-    log = validate_storage(client, "lvm2", "lvcreate")
+    log = client.read_from_file("/var/log/cloud-init.log")
+
+    # Note to self
     if "doesn't use thinpool by default on Ubuntu due to LP" not in log:
         warnings.warn("LP 1982780 has been fixed, update to allow thinpools")
+
+    validate_storage(client, "btrfs-progs", "mkfs.btrfs")
 
 
 @pytest.mark.no_container
