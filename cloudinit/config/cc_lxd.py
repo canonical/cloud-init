@@ -155,7 +155,7 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
             # Since we're manually setting use_thinpool=false
             # filter it from the lxd init commands, don't configure
             # storage twice
-            init_cfg.pop("storage_backend")
+            init_keys = tuple(key for key in init_keys if key != "storage_backend")
 
         cmd = ["lxd", "init", "--auto"]
         for k in init_keys:
