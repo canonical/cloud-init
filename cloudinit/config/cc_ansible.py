@@ -8,10 +8,10 @@ from logging import Logger
 from textwrap import dedent
 from typing import NamedTuple, Optional, Tuple
 
+from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
-from cloudinit.package_manager.pip import Pip
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import subp, which
 
@@ -56,6 +56,18 @@ class InstallMethod(enum.Enum):
     none = enum.auto()
     pip = enum.auto()
     distro = enum.auto()
+
+
+def _install_packages(pkglist: str):
+    """should cloud-init have an interface for non-distro package managers?"""
+    subp(
+        [
+            "pip",
+            "install",
+            "--user",
+            util.expand_package_list("%s==%s", pkglist),
+        ]
+    )
 
 
 class Version(NamedTuple):
@@ -126,7 +138,7 @@ def install_ansible(distro: Distro, install: InstallMethod):
     if install == InstallMethod.distro:
         distro.install_packages("ansible")
     elif install == InstallMethod.distro:
-        Pip.install_packages("ansible")
+        _install_packages("ansible")
 
 
 def check_deps(dep: str):
