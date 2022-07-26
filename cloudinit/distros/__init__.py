@@ -242,8 +242,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
+            priority = util.get_cfg_by_path(
+                self._cfg, ("network", "activators"), None
+            )
             try:
-                network_activator = activators.select_activator()
+                network_activator = activators.select_activator(
+                    priority=priority
+                )
             except activators.NoActivatorException:
                 LOG.warning(
                     "No network activator found, not bringing up "

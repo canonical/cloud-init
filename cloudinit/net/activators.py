@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Type
+from typing import Dict, Iterable, List, Type
 
 from cloudinit import subp, util
 from cloudinit.net.eni import available as eni_available
@@ -32,7 +32,7 @@ def _alter_interface(cmd, device_name) -> bool:
 class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
-    def available() -> bool:
+    def available(target: str = None) -> bool:
         """Return True if activator is available, otherwise return False."""
         raise NotImplementedError()
 
@@ -97,7 +97,7 @@ class IfUpDownActivator(NetworkActivator):
     # E.g., NetworkManager has a ifupdown plugin that requires the name
     # of a specific connection.
     @staticmethod
-    def available(target=None) -> bool:
+    def available(target: str = None) -> bool:
         """Return true if ifupdown can be used on this system."""
         return eni_available(target=target)
 
@@ -254,15 +254,22 @@ class NetworkdActivator(NetworkActivator):
 # This section is mostly copied and pasted from renderers.py. An abstract
 # version to encompass both seems overkill at this point
 DEFAULT_PRIORITY = [
-    IfUpDownActivator,
-    NetplanActivator,
-    NetworkManagerActivator,
-    NetworkdActivator,
+    "eni",
+    "netplan",
+    "network-manager",
+    "networkd",
 ]
+
+NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
+    "eni": IfUpDownActivator,
+    "netplan": NetplanActivator,
+    "network-manager": NetworkManagerActivator,
+    "networkd": NetworkdActivator,
+}
 
 
 def search_activator(
-    priority=None, target=None
+    priority: List[str] = None, target: str = None
 ) -> List[Type[NetworkActivator]]:
     if priority is None:
         priority = DEFAULT_PRIORITY
@@ -272,15 +279,19 @@ def search_activator(
         raise ValueError(
             "Unknown activators provided in priority list: %s" % unknown
         )
-
-    return [activator for activator in priority if activator.available(target)]
+    activator_classes = [NAME_TO_ACTIVATOR[name] for name in priority]
+    return [
+        activator_cls
+        for activator_cls in activator_classes
+        if activator_cls.available(target)
+    ]
 
 
 def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
     found = search_activator(priority, target)
+    if priority is None:
+        priority = DEFAULT_PRIORITY
     if not found:
-        if priority is None:
-            priority = DEFAULT_PRIORITY
         tmsg = ""
         if target and target != "/":
             tmsg = " in target=%s" % target
@@ -289,5 +300,7 @@ def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
             "through list: %s" % (tmsg, priority)
         )
     selected = found[0]
-    LOG.debug("Using selected activator: %s", selected)
+    LOG.debug(
+        "Using selected activator: %s from priority: %s", selected, priority
+    )
     return selected
