@@ -14,7 +14,7 @@ from tests.unittests.util import get_cloud
 
 CFG_FULL = {
     "ansible": {
-        "install": True,
+        "install_method": "distro",
         "pull": {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "arch.yml",
@@ -42,7 +42,7 @@ CFG_FULL = {
 }
 CFG_MINIMAL = {
     "ansible": {
-        "install": True,
+        "install_method": "distro",
         "pull": {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "ubuntu.yml",
@@ -63,7 +63,7 @@ class TestSetPasswordsSchema:
             param(
                 {
                     "ansible": {
-                        "install": True,
+                        "install_method": "distro",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
                             "playbook-name": "centos.yml",
@@ -82,7 +82,7 @@ class TestSetPasswordsSchema:
             param(
                 {
                     "ansible": {
-                        "install": "true",
+                        "install_method": "true",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
                             "playbook-name": "debian.yml",
@@ -95,7 +95,7 @@ class TestSetPasswordsSchema:
             param(
                 {
                     "ansible": {
-                        "install": True,
+                        "install_method": "pip",
                         "pull": {
                             "playbook-name": "fedora.yml",
                         },
@@ -107,7 +107,7 @@ class TestSetPasswordsSchema:
             param(
                 {
                     "ansible": {
-                        "install": True,
+                        "install_method": "pip",
                         "pull": {
                             "url": "gophers://encrypted-gophers/",
                         },
@@ -164,7 +164,7 @@ class TestAnsible:
             (
                 {
                     "ansible": {
-                        "install": False,
+                        "install_method": "distro",
                         "pull": {
                             "playbook-name": "ubuntu.yml",
                         },
@@ -175,7 +175,7 @@ class TestAnsible:
             (
                 {
                     "ansible": {
-                        "install": True,
+                        "install_method": "none",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
                         },
@@ -189,21 +189,24 @@ class TestAnsible:
         mocker.patch(
             "cloudinit.config.cc_ansible.subp", return_value=(None, None)
         )
+        pip = mocker.patch("cloudinit.package_manager.pip.Pip")
         mocker.patch("cloudinit.config.cc_ansible.which", return_value=True)
         mocker.patch(
             "cloudinit.config.cc_ansible.get_version",
-            return_value=cc_ansible.Version(2, 7, 1)
+            return_value=cc_ansible.Version(2, 7, 1),
         )
         if exception:
             with raises(exception):
                 cc_ansible.handle("", cfg, None, None, None)  # pyright: ignore
         else:
             cloud = get_cloud(mocked_distro=True)
-            install = cfg["ansible"]["install"]
+            install = cfg["ansible"]["install_method"]
             cc_ansible.handle("", cfg, cloud, getLogger(), None)
-            if install:
+            if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
                 cloud.distro.install_packages.assert_called_with("ansible")
+            elif install == "pip":
+                pip.assert_called_with("ansible")
 
     @mock.patch("cloudinit.config.cc_ansible.which", return_value=False)
     def test_deps_not_installed(self, m_which):

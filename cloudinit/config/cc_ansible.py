@@ -1,15 +1,17 @@
 """ansible enables running on first boot either ansible-pull"""
 
+import enum
+import re
+import sys
 from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
-from typing import Tuple, Optional, NamedTuple
-import sys
-import re
+from typing import NamedTuple, Optional, Tuple
 
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
+from cloudinit.package_manager.pip import Pip
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import subp, which
 
@@ -50,6 +52,12 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
+class InstallMethod(enum.Enum):
+    none = enum.auto()
+    pip = enum.auto()
+    distro = enum.auto()
+
+
 class Version(NamedTuple):
     major: int
     minor: int
@@ -58,13 +66,12 @@ class Version(NamedTuple):
 
 def get_version() -> Optional[Version]:
     stdout, _ = subp(["ansible", "--version"])
-    matches = re.search(r'^ansible (\d+)\.(\d+).(\d+)', stdout)
+    matches = re.search(r"^ansible (\d+)\.(\d+).(\d+)", stdout)
     if matches and matches.lastindex == 3:
         return Version(
-            int(matches.group(1)),
-            int(matches.group(2)),
-            int(matches.group(3))
+            int(matches.group(1)), int(matches.group(2)), int(matches.group(3))
         )
+    return None
 
 
 def compare_version(v1: Version, v2: Version) -> int:
@@ -93,9 +100,14 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
         run_ansible_pull(deepcopy(ansible_config), log)
 
 
-def get_and_validate_config(cfg: dict) -> Tuple[bool, dict]:
+def get_and_validate_config(cfg: dict) -> Tuple[InstallMethod, dict]:
     pull: dict = cfg.get("pull", {})
-    install: bool = cfg.get("install", False)
+    try:
+        install: InstallMethod = InstallMethod[
+            cfg.get("install_method", "none")
+        ]
+    except KeyError as value:
+        raise ValueError(f"Invalid value for 'ansible.install': '{value}'")
     if not all([pull.get("playbook-name"), pull.get("url")]):
         raise ValueError(
             "Missing required key: playbook-name and "
@@ -107,12 +119,14 @@ def get_and_validate_config(cfg: dict) -> Tuple[bool, dict]:
     )
 
 
-def install_ansible(distro: Distro, install: bool):
+def install_ansible(distro: Distro, install: InstallMethod):
     """Give users flexibility in whether to use the package install module or
     this module.
     """
-    if install:
+    if install == InstallMethod.distro:
         distro.install_packages("ansible")
+    elif install == InstallMethod.distro:
+        Pip.install_packages("ansible")
 
 
 def check_deps(dep: str):

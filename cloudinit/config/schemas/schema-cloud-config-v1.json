@@ -237,9 +237,16 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "install": {
-              "type": "boolean",
+            "install_method": {
+              "type": "string",
               "default": false
+	      {
+		      [
+			      "none",
+			      "pip",
+			      "distro"
+		      ]
+	      }
             },
             "pull": {
               "required": ["url", "playbook-name"],
