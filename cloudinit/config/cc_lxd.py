@@ -9,7 +9,7 @@
 import os
 from logging import Logger
 from textwrap import dedent
-from typing import List
+from typing import List, Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -123,7 +123,7 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
 
         # type is known, number of elements is not
         # in the case of the ubuntu+lvm backend workaround
-        init_keys: tuple[str, ...] = (
+        init_keys: Tuple[str, ...] = (
             "network_address",
             "network_port",
             "storage_backend",
