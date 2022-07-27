@@ -106,12 +106,12 @@ class AnsiblePullPip(AnsiblePull):
         self.cmd_version = ["ansible-pull", "--version"]
         self.env["PATH"] = ":".join([self.env["PATH"], "/root/.local/bin/"])
 
-    def install(self):
+    def install(self, pkg_name: str):
         """should cloud-init grow an interface for non-distro package
         managers? this seems reusable
         """
         if not self.is_installed():
-            subp(["python3", "-m", "pip", "install", "--user", "ansible"])
+            subp(["python3", "-m", "pip", "install", "--user", pkg_name])
 
     def is_installed(self) -> bool:
         stdout, _ = subp(["python3", "-m", "pip", "list"])
@@ -124,9 +124,9 @@ class AnsiblePullDistro(AnsiblePull):
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
 
-    def install(self):
+    def install(self, pkg_name: str):
         if not self.is_installed():
-            self.distro.install_packages("ansible")
+            self.distro.install_packages(pkg_name)
 
     def is_installed(self) -> bool:
         return bool(which("ansible"))
@@ -161,7 +161,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
                 ansible: AnsiblePull = AnsiblePullPip()
             else:
                 ansible = AnsiblePullDistro(cloud.distro)
-            ansible.install()
+            ansible.install(ansible_cfg["package-name"])
             ansible.check_deps()
             run_ansible_pull(ansible, deepcopy(pull_cfg), log)
 
@@ -172,6 +172,7 @@ def validate_config(cfg: dict):
         if not all(
             [
                 cfg["install-method"],
+                cfg["package-name"],
                 pull_cfg["url"],
                 pull_cfg["playbook-name"],
                 cfg,

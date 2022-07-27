@@ -44,6 +44,7 @@ pip_version = dedent(
 CFG_FULL = {
     "ansible": {
         "install-method": "distro",
+        "package-name": "ansible-core",
         "pull": {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "arch.yml",
@@ -72,6 +73,7 @@ CFG_FULL = {
 CFG_MINIMAL = {
     "ansible": {
         "install-method": "pip",
+        "package-name": "ansible",
         "pull": {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "ubuntu.yml",
@@ -193,6 +195,7 @@ class TestAnsible:
             (
                 {
                     "ansible": {
+                        "package-name": "ansible-core",
                         "install-method": "distro",
                         "pull": {
                             "playbook-name": "ubuntu.yml",
@@ -238,7 +241,9 @@ class TestAnsible:
             cc_ansible.handle("", cfg, cloud, getLogger(), None)
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
-                cloud.distro.install_packages.assert_called_with("ansible")
+                cloud.distro.install_packages.assert_called_with(
+                    "ansible-core"
+                )
             elif install == "pip":
                 m_subp.assert_has_calls(
                     [

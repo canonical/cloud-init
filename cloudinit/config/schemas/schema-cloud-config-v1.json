@@ -246,6 +246,10 @@
               ],
               "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``\n - ``none``"
             },
+            "package-name": {
+              "type": "string",
+              "default": "ansible"
+            },
             "pull": {
               "required": ["url", "playbook-name"],
               "type": "object",
