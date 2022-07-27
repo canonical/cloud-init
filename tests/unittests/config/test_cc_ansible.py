@@ -1,8 +1,8 @@
+import re
+from copy import deepcopy
 from logging import getLogger
 from unittest import mock
 from unittest.mock import call
-import re
-from copy import deepcopy
 
 from pytest import mark, param, raises
 
@@ -214,7 +214,10 @@ class TestAnsible:
             return_value=cc_ansible.Version(2, 7, 1),
         )
         mocker.patch("cloudinit.config.cc_ansible.AnsiblePull.check_deps")
-        mocker.patch("cloudinit.config.cc_ansible.AnsiblePullDistro.is_installed", return_value=False)
+        mocker.patch(
+            "cloudinit.config.cc_ansible.AnsiblePullDistro.is_installed",
+            return_value=False,
+        )
         if exception:
             with raises(exception):
                 cc_ansible.handle("", cfg, get_cloud(), None, None)
@@ -229,13 +232,23 @@ class TestAnsible:
             elif install == "pip":
                 m_subp.assert_has_calls(
                     [
-                        call(['python3', '-m', 'pip', 'list']),
-                        call(["python3", "-m", "pip", "install", "--user", "ansible"]),
+                        call(["python3", "-m", "pip", "list"]),
+                        call(
+                            [
+                                "python3",
+                                "-m",
+                                "pip",
+                                "install",
+                                "--user",
+                                "ansible",
+                            ]
+                        ),
                     ]
                 )
                 assert m_subp.call_args[0][0] == [
-                    'ansible-pull',
-                    '--url=https://github/holmanb/vmboot', 'ubuntu.yml'
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "ubuntu.yml",
                 ]
 
     @mock.patch("cloudinit.config.cc_ansible.which", return_value=False)
@@ -283,18 +296,23 @@ class TestAnsible:
             (
                 CFG_MINIMAL,
                 [
-                    'ansible-pull', '--url=https://github/holmanb/vmboot', 'ubuntu.yml']
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "ubuntu.yml",
+                ],
             ),
         ),
     )
     def test_ansible_pull(self, m_subp, m_which, cfg, expected):
         pull_type = cfg["ansible"]["install-method"]
         ansible_pull = (
-            cc_ansible.AnsiblePullPip() if pull_type == "pip" else
-            cc_ansible.AnsiblePullDistro(get_cloud().distro)
+            cc_ansible.AnsiblePullPip()
+            if pull_type == "pip"
+            else cc_ansible.AnsiblePullDistro(get_cloud().distro)
         )
         cc_ansible.run_ansible_pull(
-            ansible_pull, deepcopy(cfg["ansible"]["pull"]), getLogger())
+            ansible_pull, deepcopy(cfg["ansible"]["pull"]), getLogger()
+        )
         assert m_subp.call_args[0][0] == expected
 
     @mock.patch("cloudinit.config.cc_ansible.validate_config")
@@ -309,15 +327,18 @@ class TestAnsible:
             (pip_version, ""),
             (" ansible 2.1.0", ""),
             (" ansible 2.1.0", ""),
-        ]
+        ],
     )
     def test_parse_version(self, m_subp):
         assert cc_ansible.AnsiblePullDistro(
             get_cloud().distro
         ).get_version() == cc_ansible.Version(2, 10, 8)
-        assert cc_ansible.AnsiblePullPip(
-        ).get_version() == cc_ansible.Version(2, 13, 2)
+        assert cc_ansible.AnsiblePullPip().get_version() == cc_ansible.Version(
+            2, 13, 2
+        )
 
         assert None is cc_ansible.AnsiblePullPip().get_version()
-        assert None is cc_ansible.AnsiblePullDistro(
-            get_cloud().distro).get_version()
+        assert (
+            None
+            is cc_ansible.AnsiblePullDistro(get_cloud().distro).get_version()
+        )

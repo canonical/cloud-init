@@ -1,17 +1,15 @@
 """ansible enables running on first boot either ansible-pull"""
-import enum
-import re
 import os
+import re
 import sys
 from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
-from typing import NamedTuple, Optional, Tuple, List
+from typing import NamedTuple, Optional
 
-from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, Distro
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import subp, which
 
@@ -76,15 +74,14 @@ class AnsiblePull:
     def get_version(self) -> Optional[Version]:
         stdout, _ = subp(self.cmd_version, env=self.env)
         matches = re.search(
-            r"^ansible.*(\d+)\.(\d+).(\d+).*",
-            stdout.splitlines().pop(0)
+            r"^ansible.*(\d+)\.(\d+).(\d+).*", stdout.splitlines().pop(0)
         )
         if matches and matches.lastindex == 3:
             print(matches.lastindex)
             return Version(
                 int(matches.group(1)),
                 int(matches.group(2)),
-                int(matches.group(3))
+                int(matches.group(3)),
             )
         return None
 
@@ -94,9 +91,7 @@ class AnsiblePull:
 
     def check_deps(self):
         if not self.is_installed():
-            raise ValueError(
-                "command: ansible is not installed"
-            )
+            raise ValueError("command: ansible is not installed")
 
     def is_installed(self):
         raise NotImplementedError()
@@ -109,10 +104,11 @@ class AnsiblePullPip(AnsiblePull):
     def __init__(self):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
-        self.env["PATH"] = ':'.join([self.env["PATH"], "/root/.local/bin/"])
+        self.env["PATH"] = ":".join([self.env["PATH"], "/root/.local/bin/"])
 
     def install(self):
-        """should cloud-init grow an interface for non-distro package managers?
+        """should cloud-init grow an interface for non-distro package
+        managers? this seems reusable
         """
         if not self.is_installed():
             subp(["python3", "-m", "pip", "install", "--user", "ansible"])
