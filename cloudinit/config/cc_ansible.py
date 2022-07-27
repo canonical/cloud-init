@@ -158,7 +158,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
         pull_cfg = ansible_cfg.get("pull")
         if pull_cfg:
             if install == "pip":
-                ansible = AnsiblePullPip()
+                ansible: AnsiblePull = AnsiblePullPip()
             else:
                 ansible = AnsiblePullDistro(cloud.distro)
             ansible.install()
@@ -168,13 +168,18 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
 
 def validate_config(cfg: dict):
     try:
-        cfg["install-method"]
-        pull_cfg: dict = cfg.get("pull", {})
-        if pull_cfg:
-            pull_cfg["url"]
-            pull_cfg["playbook-name"]
+        pull_cfg: dict = cfg["pull"]
+        if not all(
+            [
+                cfg["install-method"],
+                pull_cfg["url"],
+                pull_cfg["playbook-name"],
+                cfg,
+            ]
+        ):
+            raise KeyError()
     except KeyError as value:
-        raise ValueError(f"Invalid value config key: '{value}'")
+        raise ValueError(f"Invalid value config key: '{value}'") from value
 
     install = cfg["install-method"]
     if install not in ("pip", "distro"):

@@ -1,6 +1,7 @@
 import re
 from copy import deepcopy
 from logging import getLogger
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import call
 
@@ -15,21 +16,30 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-distro_version = """ansible 2.10.8
+distro_version = dedent(
+    """ansible 2.10.8
   config file = None
-  configured module search path = ['/home/holmanb/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  configured module search path = ['/home/holmanb/.ansible/plugins/modules', \
+  '/usr/share/ansible/plugins/modules']
   ansible python module location = /usr/lib/python3/dist-packages/ansible
   executable location = /usr/bin/ansible
   python version = 3.10.4 (main, Jun 29 2022, 12:14:53) [GCC 11.2.0]"""
-pip_version = """ansible-pull [core 2.13.2]
+)
+pip_version = dedent(
+    """ansible-pull [core 2.13.2]
   config file = None
-  configured module search path = ['/root/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
-  ansible python module location = /root/.local/lib/python3.8/site-packages/ansible
-  ansible collection location = /root/.ansible/collections:/usr/share/ansible/collections
-  executable location = /root/.local/lib/python3.8/site-packages/ansible/__main__.py
+  configured module search path = ['/root/.ansible/plugins/modules', \
+  '/usr/share/ansible/plugins/modules']
+  ansible python module location = /root/.local/lib/python3.8/site-\
+  packages/ansible
+  ansible collection location = /root/.ansible/collections:\
+  /usr/share/ansible/collections
+  executable location = /root/.local/lib/python3.8/site-packages/\
+  ansible/__main__.py
   python version = 3.8.10 (default, Jun 22 2022, 20:18:18) [GCC 9.4.0]
   jinja version = 3.1.2
   libyaml = True """
+)
 
 CFG_FULL = {
     "ansible": {
