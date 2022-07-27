@@ -56,6 +56,7 @@ meta: MetaSchema = {
                 storage_create_loop: 10
               bridge:
                 mode: new
+                mtu: 1500
                 name: lxdbr0
                 ipv4_address: 10.0.8.1
                 ipv4_netmask: 24
