@@ -1052,6 +1052,12 @@
                   "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
                   "default": "lxdbr0"
                 },
+                "mtu": {
+                  "type": "integer",
+                  "description": "Bridge MTU, defaults to LXD's default value",
+                  "default": -1,
+                  "minimum": -1
+                },
                 "ipv4_address": {
                   "type": "string",
                   "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
