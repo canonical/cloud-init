@@ -207,6 +207,7 @@ class TestLxd(t_help.CiTestCase):
             "ipv6_netmask": "64",
             "ipv6_nat": "true",
             "domain": "lxd",
+            "mtu": 9000,
         }
         self.assertEqual(
             cc_lxd.bridge_to_cmd(data),
@@ -221,6 +222,7 @@ class TestLxd(t_help.CiTestCase):
                     "ipv6.address=fd98:9e0:3744::1/64",
                     "ipv6.nat=true",
                     "dns.domain=lxd",
+                    "bridge.mtu=9000",
                 ],
                 ["network", "attach-profile", "testbr0", "default", "eth0"],
             ),
@@ -232,6 +234,7 @@ class TestLxd(t_help.CiTestCase):
             "ipv6_address": "fd98:9e0:3744::1",
             "ipv6_netmask": "64",
             "ipv6_nat": "true",
+            "mtu": -1,
         }
         self.assertEqual(
             cc_lxd.bridge_to_cmd(data),
@@ -328,6 +331,10 @@ class TestLXDSchema:
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
             ({"lxd": {}}, "does not have enough properties"),
+            # Require bridge.mode
+            ({"lxd": {"bridge": {"mode": "new", "mtu": 9000}}}, None),
+            # LXD's default value
+            ({"lxd": {"bridge": {"mode": "new", "mtu": -1}}}, None),
             # No additionalProperties
             (
                 {"lxd": {"init": {"invalid": None}}},

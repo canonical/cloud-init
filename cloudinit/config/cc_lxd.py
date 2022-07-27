@@ -56,6 +56,7 @@ meta: MetaSchema = {
                 storage_create_loop: 10
               bridge:
                 mode: new
+                mtu: 1500
                 name: lxdbr0
                 ipv4_address: 10.0.8.1
                 ipv4_netmask: 24
@@ -291,6 +292,12 @@ def bridge_to_cmd(bridge_cfg):
 
     if bridge_cfg.get("domain"):
         cmd_create.append("dns.domain=%s" % bridge_cfg.get("domain"))
+
+    # if the default schema value is passed (-1) don't pass arguments
+    # to LXD. Use LXD defaults unless user manually sets a number
+    mtu = bridge_cfg.get("mtu", -1)
+    if mtu != -1:
+        cmd_create.append(f"bridge.mtu={mtu}")
 
     return cmd_create, cmd_attach
 

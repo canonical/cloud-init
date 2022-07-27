@@ -23,6 +23,7 @@ lxd:
     ipv4_dhcp_last: 10.100.100.200
     ipv4_nat: true
     domain: lxd
+    mtu: 9000
 """
 
 
