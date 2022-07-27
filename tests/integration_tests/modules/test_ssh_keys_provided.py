@@ -136,18 +136,8 @@ class TestSshKeysProvided:
         assert expected_out in out
 
     @pytest.mark.parametrize(
-        "expected_out", ("HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub")
+        "expected_out", ("hostcertificate /etc/ssh/ssh_host_rsa_key-cert.pub")
     )
     def test_sshd_config(self, expected_out, class_client):
-        if class_client.execute("ls /etc/ssh/sshd_config.d").ok:
-            assert class_client.execute(
-                "ls /etc/ssh/sshd_config.d/00-cloud-init.conf"
-            ).ok
-            out = class_client.read_from_file(
-                "/etc/ssh/sshd_config.d/00-cloud-init.conf"
-            )
-        else:
-            out = class_client.read_from_file("/etc/ssh/sshd_config")
-
-        out = out.strip()
-        assert expected_out in out
+        sshd_config = class_client.execute("sshd -T").stdout
+        assert expected_out in sshd_config

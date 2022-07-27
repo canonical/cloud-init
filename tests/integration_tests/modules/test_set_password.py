@@ -181,21 +181,8 @@ class Mixin:
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
-        if class_client.execute("ls /etc/ssh/sshd_config.d").ok:
-            assert class_client.execute(
-                "ls /etc/ssh/sshd_config.d/00-cloud-init.conf"
-            ).ok
-            sshd_config = class_client.read_from_file(
-                "/etc/ssh/sshd_config.d/00-cloud-init.conf"
-            )
-        else:
-            sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
-        # We look for the exact line match, to avoid a commented line matching
-        assert "PasswordAuthentication yes" in sshd_config.splitlines()
-        assert (
-            "passwordauthentication yes"
-            in class_client.execute("sshd -T").stdout
-        )
+        sshd_config = class_client.execute("sshd -T").stdout
+        assert "passwordauthentication yes" in sshd_config
 
 
 @pytest.mark.user_data(LIST_USER_DATA)
