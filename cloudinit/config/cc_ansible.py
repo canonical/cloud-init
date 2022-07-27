@@ -97,7 +97,7 @@ class AnsiblePull:
     def is_installed(self):
         raise NotImplementedError()
 
-    def install(self):
+    def install(self, pkg_name: str):
         raise NotImplementedError()
 
 
