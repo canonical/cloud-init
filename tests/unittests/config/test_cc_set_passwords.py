@@ -259,6 +259,7 @@ def get_chpasswd_calls(cfg, cloud, log):
                 log=log,
                 args=[],
             )
+    assert chpasswd.call_count > 0
     return chpasswd.call_args[0], subp.call_args
 
 
