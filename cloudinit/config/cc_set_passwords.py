@@ -13,6 +13,7 @@ from string import ascii_letters, digits
 from textwrap import dedent
 from typing import List
 
+from cloudinit import features
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -31,8 +32,13 @@ to accept password authentication.
 The ``chpasswd`` config key accepts a dictionary containing either or both of
 ``users`` and ``expire``. The ``users`` key is used to assign a password to a
 corresponding pre-existing user. The ``expire`` key is used to set
-whether to expire all user passwords such that a password will need to be reset
-on the user's next login.
+whether to expire all user passwords specified by this module,
+such that a password will need to be reset on the user's next login.
+
+.. note::
+    Prior to cloud-init 22.3, the ``expire`` key only applies to plain text
+    (including ``RANDOM``) passwords. Post 22.3, the ``expire`` key applies to
+    both plain text and hashed passwords.
 
 ``password`` config key is used to set the default user's password. It is
 ignored if the ``chpasswd`` ``users`` is used. Note: the ``list`` keyword is
@@ -96,7 +102,7 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
         else [
             (item["name"], item.get("password", "RANDOM"))
             for item in users_list
-            if item.get("type", "hash") is pw_type
+            if item.get("type", "hash") == pw_type
         ]
     )
 
@@ -200,7 +206,7 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
 
     if "chpasswd" in cfg:
         chfg = cfg["chpasswd"]
-        users_list = util.get_cfg_option_list(chfg, "users")
+        users_list = util.get_cfg_option_list(chfg, "users", default=[])
         if "list" in chfg and chfg["list"]:
             log.warning(
                 "DEPRECATION: key 'lists' is now deprecated. Use 'users'."
@@ -231,15 +237,25 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
 
     errors = []
     if plist or users_list:
+        # This section is for parsing the data that arrives in the form of
+        #   chpasswd:
+        #     users:
         plist_in = get_users_by_type(users_list, "text")
         users = [user for user, _ in plist_in]
         hashed_plist_in = get_users_by_type(users_list, "hash")
         hashed_users = [user for user, _ in hashed_plist_in]
-        randlist = [
-            f"{user}:{password}"
-            for user, password in get_users_by_type(users_list, "RANDOM")
-        ]
-        # N.B. This regex is included in the documentation (i.e. the module
+        randlist = []
+        for user, _ in get_users_by_type(users_list, "RANDOM"):
+            password = rand_user_password()
+            users.append(user)
+            plist_in.append((user, password))
+            randlist.append(f"{user}:{password}")
+
+        # This for loop is for parsing the data that arrives in the deprecated
+        # form of
+        #   chpasswd:
+        #     list:
+        # N.B. This regex is included in the documentation (i.e. the schema
         # docstring), so any changes to it should be reflected there.
         prog = re.compile(r"\$(1|2a|2y|5|6)(\$.+){2}")
         for line in plist:
@@ -287,8 +303,11 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
             )
 
         if expire:
+            users_to_expire = users
+            if features.EXPIRE_APPLIES_TO_HASHED_USERS:
+                users_to_expire += hashed_users
             expired_users = []
-            for u in users + hashed_users:
+            for u in users_to_expire:
                 try:
                     distro.expire_passwd(u)
                     expired_users.append(u)
