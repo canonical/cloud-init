@@ -142,7 +142,7 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
         ):
             log.warning(
                 "cloud-init doesn't use thinpool by default on Ubuntu due to "
-                "LP 1982780. This behavior will change in the future.",
+                "LP #1982780. This behavior will change in the future.",
             )
             subp.subp(
                 [
