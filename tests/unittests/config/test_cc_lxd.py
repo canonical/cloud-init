@@ -333,6 +333,8 @@ class TestLXDSchema:
             ({"lxd": {}}, "does not have enough properties"),
             # Require bridge.mode
             ({"lxd": {"bridge": {"mode": "new", "mtu": 9000}}}, None),
+            # LXD's default value
+            ({"lxd": {"bridge": {"mode": "new", "mtu": -1}}}, None),
             # No additionalProperties
             (
                 {"lxd": {"init": {"invalid": None}}},
