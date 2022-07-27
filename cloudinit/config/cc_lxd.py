@@ -137,9 +137,11 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
 
         # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
         kernel = util.system_info()["uname"][2]
-        if not os.path.exists(
-            f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
-            and init_cfg["storage_backend"] == "lvm"
+        if (
+            init_cfg["storage_backend"] == "lvm"
+            and not os.path.exists(
+                f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
+            )
         ):
             log.warning(
                 "cloud-init doesn't use thinpool by default on Ubuntu due to "
