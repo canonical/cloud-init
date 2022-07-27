@@ -46,6 +46,7 @@ meta: MetaSchema = {
             """\
             #cloud-config
             ansible:
+              package-name: ansible-core
               install-method: pip
               pull:
                 url: "https://github.com/holmanb/vmboot.git"
