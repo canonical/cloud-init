@@ -136,8 +136,9 @@ def handle(name, cfg, cloud: Cloud, log: Logger, args):
         subp.subp(["lxd", "waitready", "--timeout=300"])
 
         # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
-        if (
-            cloud.distro.name == "ubuntu"
+        kernel = util.system_info()["uname"][2]
+        if not os.path.exists(
+            f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
             and init_cfg["storage_backend"] == "lvm"
         ):
             log.warning(
