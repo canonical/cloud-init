@@ -7,11 +7,13 @@
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
 import os
+from logging import Logger
 from textwrap import dedent
-from typing import List
+from typing import List, Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -78,7 +80,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name, cfg, cloud: Cloud, log: Logger, args):
     # Get config
     lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:
@@ -118,7 +120,10 @@ def handle(name, cfg, cloud, log, args):
 
     # Set up lxd if init config is given
     if init_cfg:
-        init_keys = (
+
+        # type is known, number of elements is not
+        # in the case of the ubuntu+lvm backend workaround
+        init_keys: Tuple[str, ...] = (
             "network_address",
             "network_port",
             "storage_backend",
@@ -127,7 +132,36 @@ def handle(name, cfg, cloud, log, args):
             "storage_pool",
             "trust_password",
         )
+
         subp.subp(["lxd", "waitready", "--timeout=300"])
+
+        # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
+        kernel = util.system_info()["uname"][2]
+        if init_cfg["storage_backend"] == "lvm" and not os.path.exists(
+            f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
+        ):
+            log.warning(
+                "cloud-init doesn't use thinpool by default on Ubuntu due to "
+                "LP #1982780. This behavior will change in the future.",
+            )
+            subp.subp(
+                [
+                    "lxc",
+                    "storage",
+                    "create",
+                    "default",
+                    "lvm",
+                    "lvm.use_thinpool=false",
+                ]
+            )
+
+            # Since we're manually setting use_thinpool=false
+            # filter it from the lxd init commands, don't configure
+            # storage twice
+            init_keys = tuple(
+                key for key in init_keys if key != "storage_backend"
+            )
+
         cmd = ["lxd", "init", "--auto"]
         for k in init_keys:
             if init_cfg.get(k):

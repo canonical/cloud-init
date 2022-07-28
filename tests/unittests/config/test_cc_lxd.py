@@ -35,30 +35,34 @@ class TestLxd(t_help.CiTestCase):
         ("dir", None, None),
     )
 
+    @mock.patch("cloudinit.config.cc_lxd.util.system_info")
+    @mock.patch("cloudinit.config.cc_lxd.os.path.exists", return_value=True)
     @mock.patch("cloudinit.config.cc_lxd.subp.subp", return_value=True)
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
     @mock.patch(
         "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
     )
-    def test_lxd_init(self, m_maybe_clean, m_which, m_subp):
+    def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
+        system_info.return_value = {"uname": [0, 1, "mykernel"]}
         cc = get_cloud(mocked_distro=True)
-        m_install = cc.distro.install_packages
+        install = cc.distro.install_packages
 
         for backend, cmd, package in self.backend_def:
             lxd_cfg = deepcopy(self.lxd_cfg)
             lxd_cfg["lxd"]["init"]["storage_backend"] = backend
-            m_subp.call_args_list = []
-            m_install.call_args_list = []
+            subp.call_args_list = []
+            install.call_args_list = []
+            exists.call_args_list = []
             cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
             if cmd:
-                m_which.assert_called_with(cmd)
+                which.assert_called_with(cmd)
             # no bridge config, so maybe_cleanup should not be called.
-            self.assertFalse(m_maybe_clean.called)
+            self.assertFalse(maybe_clean.called)
             self.assertEqual(
                 [
                     mock.call(list(filter(None, ["lxd", package]))),
                 ],
-                m_install.call_args_list,
+                install.call_args_list,
             )
             self.assertEqual(
                 [
@@ -74,8 +78,21 @@ class TestLxd(t_help.CiTestCase):
                         ]
                     ),
                 ],
-                m_subp.call_args_list,
+                subp.call_args_list,
             )
+
+            if backend == "lvm":
+                self.assertEqual(
+                    [
+                        mock.call(
+                            "/lib/modules/mykernel/"
+                            "kernel/drivers/md/dm-thin-pool.ko"
+                        )
+                    ],
+                    exists.call_args_list,
+                )
+            else:
+                self.assertEqual([], exists.call_args_list)
 
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
     def test_lxd_package_install(self, m_which):
