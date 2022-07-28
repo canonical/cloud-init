@@ -353,5 +353,11 @@ class TestAnsible:
             2, 13, 2
         )
 
-        assert util.Version(2, 1, 0, -1) == cc_ansible.AnsiblePullPip().get_version()
-        assert util.Version(2, 1, 0, -1) == cc_ansible.AnsiblePullDistro(get_cloud().distro).get_version()
+        assert (
+            util.Version(2, 1, 0, -1)
+            == cc_ansible.AnsiblePullPip().get_version()
+        )
+        assert (
+            util.Version(2, 1, 0, -1)
+            == cc_ansible.AnsiblePullDistro(get_cloud().distro).get_version()
+        )

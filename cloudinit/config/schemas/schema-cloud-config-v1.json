@@ -244,7 +244,7 @@
                 "distro",
                 "pip"
               ],
-              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``\n - ``none``"
+              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
             },
             "package-name": {
               "type": "string",

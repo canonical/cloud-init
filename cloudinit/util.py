@@ -31,11 +31,10 @@ import string
 import subprocess
 import sys
 import time
-from functools import total_ordering
 from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
-from functools import lru_cache
+from functools import lru_cache, total_ordering
 from typing import Callable, List, TypeVar
 from urllib import parse
 
@@ -2921,9 +2920,7 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
 
 
 @total_ordering
-class Version(namedtuple(
-        "Version",
-        ["major", "minor", "patch", "rev"])):
+class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
     def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
         """Default of -1 allows us to tiebreak in favor of the most specific
         number"""
@@ -2931,9 +2928,7 @@ class Version(namedtuple(
 
     @classmethod
     def from_str(cls, version: str):
-        return cls(
-            *(list(map(int, version.split('.'))))
-        )
+        return cls(*(list(map(int, version.split(".")))))
 
     def __gt__(self, other):
         return 1 == self._compare_version(other)

@@ -1,4 +1,5 @@
 """ansible enables running on first boot either ansible-pull"""
+import abc
 import os
 import re
 import sys
@@ -12,26 +13,27 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import subp, which
-from cloudinit.util import Version
+from cloudinit.util import Version, get_cfg_by_path
 
 meta: MetaSchema = {
     "id": "cc_ansible",
     "name": "Ansible",
     "title": "Configure ansible for instance",
+    "frequency": PER_INSTANCE,
+    "distros": [ALL_DISTROS],
+    "activate_by_schema_keys": ["ansible"],
     "description": dedent(
         """\
-        This module provides ``ansible`` integration.
+        This module provides ``ansible`` integration for
+        augmenting cloud-init's configuration of the local
+        node.
 
-        Ansible is often used agentless and in parallel
-        across multiple hosts simultaneously. This
-        doesn't fit the model of cloud-init: a single
-        host configuring itself during boot. Instead,
-        this module installs ansible during boot and
+
+        This module installs ansible during boot and
         then uses ``ansible-pull`` to run the playbook
         repository at the remote URL.
         """
     ),
-    "distros": [ALL_DISTROS],
     "examples": [
         dedent(
             """\
@@ -55,24 +57,20 @@ meta: MetaSchema = {
             """
         ),
     ],
-    "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": ["ansible"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-class AnsiblePull:
+class AnsiblePull(abc.ABC):
     cmd_version: list = []
     cmd_pull: list = []
-    env = os.environ.copy()
+    env: dict = os.environ.copy()
 
     def get_version(self) -> Optional[Version]:
         stdout, _ = subp(self.cmd_version, env=self.env)
         first_line = stdout.splitlines().pop(0)
-        matches = re.search(
-            r"([\d\.]+)", first_line
-        )
+        matches = re.search(r"([\d\.]+)", first_line)
         if matches:
             version = matches.group(0)
             return Version.from_str(version)
@@ -86,11 +84,13 @@ class AnsiblePull:
         if not self.is_installed():
             raise ValueError("command: ansible is not installed")
 
+    @abc.abstractmethod
     def is_installed(self):
-        raise NotImplementedError()
+        pass
 
+    @abc.abstractmethod
     def install(self, pkg_name: str):
-        raise NotImplementedError()
+        pass
 
 
 class AnsiblePullPip(AnsiblePull):
@@ -125,8 +125,6 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-
-
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
     ansible_cfg: dict = cfg.get("ansible", {})
     if ansible_cfg:
@@ -144,20 +142,15 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
 
 
 def validate_config(cfg: dict):
-    try:
-        pull_cfg: dict = cfg["pull"]
-        if not all(
-            [
-                cfg["install-method"],
-                cfg["package-name"],
-                pull_cfg["url"],
-                pull_cfg["playbook-name"],
-                cfg,
-            ]
-        ):
-            raise KeyError()
-    except KeyError as value:
-        raise ValueError(f"Invalid value config key: '{value}'") from value
+    required_keys = {
+        "install-method",
+        "package-name",
+        "pull/url",
+        "pull/playbook-name",
+    }
+    for key in required_keys:
+        if not get_cfg_by_path(cfg, key):
+            raise ValueError(f"Invalid value config key: '{key}'")
 
     install = cfg["install-method"]
     if install not in ("pip", "distro"):
