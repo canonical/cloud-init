@@ -9,6 +9,7 @@ from unittest import mock
 
 from cloudinit import distros, helpers, safeyaml, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
+from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import FilesystemMockingTestCase, dir2dict
 
 BASE_NET_CFG = """
@@ -414,14 +415,17 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
+            select_activator.return_value = IfUpDownActivator
             self._apply_and_verify_eni(
                 self.distro.apply_network_config,
                 V1_NET_CFG,
                 expected_cfgs=expected_cfgs.copy(),
                 bringup=True,
             )
+            # 2nd call to select_activator via distro.network_activator prop
+            assert IfUpDownActivator == self.distro.network_activator
         self.assertEqual(
-            [mock.call(priority=["eni"])], select_activator.call_args_list
+            [mock.call(priority=["eni"])] * 2, select_activator.call_args_list
         )
 
     def test_apply_network_config_and_bringup_activator_defaults_ub(self):
@@ -434,14 +438,17 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
+            select_activator.return_value = IfUpDownActivator
             self._apply_and_verify_eni(
                 self.distro.apply_network_config,
                 V1_NET_CFG,
                 expected_cfgs=expected_cfgs.copy(),
                 bringup=True,
             )
+            # 2nd call to select_activator via distro.network_activator prop
+            assert IfUpDownActivator == self.distro.network_activator
         self.assertEqual(
-            [mock.call(priority=None)], select_activator.call_args_list
+            [mock.call(priority=None)] * 2, select_activator.call_args_list
         )
 
     def test_apply_network_config_eni_ub(self):

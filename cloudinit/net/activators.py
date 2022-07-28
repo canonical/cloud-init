@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Type
+from typing import Dict, Iterable, List, Optional, Type, Union
 
 from cloudinit import subp, util
 from cloudinit.net.eni import available as eni_available
@@ -32,7 +32,7 @@ def _alter_interface(cmd, device_name) -> bool:
 class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
-    def available(target: str = None) -> bool:
+    def available(target: Optional[str] = None) -> bool:
         """Return True if activator is available, otherwise return False."""
         raise NotImplementedError()
 
@@ -269,11 +269,8 @@ NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
 
 
 def search_activator(
-    priority: List[str] = None, target: str = None
+    priority: List[str], target: Union[str, None]
 ) -> List[Type[NetworkActivator]]:
-    if priority is None:
-        priority = DEFAULT_PRIORITY
-
     unknown = [i for i in priority if i not in DEFAULT_PRIORITY]
     if unknown:
         raise ValueError(
@@ -287,10 +284,12 @@ def search_activator(
     ]
 
 
-def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
-    found = search_activator(priority, target)
+def select_activator(
+    priority: Optional[List[str]] = None, target: Optional[str] = None
+) -> Type[NetworkActivator]:
     if priority is None:
         priority = DEFAULT_PRIORITY
+    found = search_activator(priority, target)
     if not found:
         tmsg = ""
         if target and target != "/":
