@@ -5,7 +5,9 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from itertools import chain
 from pathlib import Path
+from typing import Set
 
 import pytest
 
@@ -90,6 +92,19 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         f"{re.findall('WARNING.*', log)}"
     )
     assert traceback_count == expected_tracebacks
+
+
+def get_inactive_modules(log: str) -> Set[str]:
+    matches = re.findall(
+        r"Skipping modules '(.*)' because no applicable config is provided.",
+        log,
+    )
+    return set(
+        map(
+            lambda module: module.strip(),
+            chain(*map(lambda match: match.split(","), matches)),
+        )
+    )
 
 
 @contextmanager
