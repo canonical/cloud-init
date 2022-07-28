@@ -116,6 +116,7 @@ class TestCaCerts:
             "salt-minion",
             "snap",
             "timezone",
+            "ubuntu_autoinstall",
             "ubuntu-advantage",
             "ubuntu-drivers",
             "update_etc_hosts",
