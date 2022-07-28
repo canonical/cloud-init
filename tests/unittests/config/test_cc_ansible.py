@@ -7,6 +7,7 @@ from unittest.mock import call
 
 from pytest import mark, param, raises
 
+from cloudinit import util
 from cloudinit.config import cc_ansible
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -352,8 +353,5 @@ class TestAnsible:
             2, 13, 2
         )
 
-        assert None is cc_ansible.AnsiblePullPip().get_version()
-        assert (
-            None
-            is cc_ansible.AnsiblePullDistro(get_cloud().distro).get_version()
-        )
+        assert util.Version(2, 1, 0, -1) == cc_ansible.AnsiblePullPip().get_version()
+        assert util.Version(2, 1, 0, -1) == cc_ansible.AnsiblePullDistro(get_cloud().distro).get_version()

@@ -31,6 +31,7 @@ import string
 import subprocess
 import sys
 import time
+from functools import total_ordering
 from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
@@ -2919,4 +2920,50 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
     return rc
 
 
-# vi: ts=4 expandtab
+@total_ordering
+class Version(namedtuple(
+        "Version",
+        ["major", "minor", "patch", "rev"])):
+    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+        """Default of -1 allows us to tiebreak in favor of the most specific
+        number"""
+        return super(Version, cls).__new__(cls, major, minor, patch, rev)
+
+    @classmethod
+    def from_str(cls, version: str):
+        return cls(
+            *(list(map(int, version.split('.'))))
+        )
+
+    def __gt__(self, other):
+        return 1 == self._compare_version(other)
+
+    def __eq__(self, other):
+        return (
+            self.major == other.major
+            and self.minor == other.minor
+            and self.patch == other.patch
+            and self.rev == other.rev
+        )
+
+    def _compare_version(self, other) -> int:
+        """
+        return values:
+            1: self > v2
+            -1: self < v2
+            0: self == v2
+
+        to break a tie between 3.1.N and 3.1, always treat the more
+        specific number as larger
+        """
+        if self == other:
+            return 0
+        if self.major > other.major:
+            return 1
+        if self.minor > other.minor:
+            return 1
+        if self.patch > other.patch:
+            return 1
+        if self.rev > other.rev:
+            return 1
+        return -1

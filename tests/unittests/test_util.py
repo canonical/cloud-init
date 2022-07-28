@@ -2616,4 +2616,72 @@ class TestFindDevs:
         assert devlist == expected_devlist
 
 
-# vi: ts=4 expandtab
+class TestVersion:
+    @pytest.mark.parametrize(
+        ("v1", "v2", "eq"),
+        (
+            (
+                "3.1.0", "3.1.0", True
+            ),
+            (
+                "3.1.0", "3.1.1", False
+            ),
+            (
+                "3.1", "3.1.0.0", False
+            ),
+        ),
+    )
+    def test_eq(self, v1, v2, eq):
+        if eq:
+            assert util.Version.from_str(v1) == util.Version.from_str(v2)
+        if not eq:
+            assert util.Version.from_str(v1) != util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("v1", "v2", "gt"),
+        (
+            (
+                "3.1.0", "3.1.0", False
+            ),
+            (
+                "3.1.0", "3.1.1", False
+            ),
+            (
+                "3.1", "3.1.0.0", False
+            ),
+            (
+                "3.1.0.0", "3.1", True
+            ),
+            (
+                "3.1.1", "3.1.0", True
+            ),
+        ),
+    )
+    def test_gt(self, v1, v2, gt):
+        if gt:
+            assert util.Version.from_str(v1) > util.Version.from_str(v2)
+        if not gt:
+            assert (
+                util.Version.from_str(v1) < util.Version.from_str(v2)
+                or util.Version.from_str(v1) == util.Version.from_str(v2)
+            )
+
+    @pytest.mark.parametrize(
+        ("str_ver", "cls_ver"),
+        (
+            (
+                "0.0.0.0", util.Version(0, 0, 0, 0),
+            ),
+            (
+                "1.0.0.0", util.Version(1, 0, 0, 0),
+            ),
+            (
+                "1.0.2.0", util.Version(1, 0, 2, 0),
+            ),
+            (
+                "9.8.2.0", util.Version(9, 8, 2, 0),
+            ),
+        ),
+    )
+    def test_from_str(self, str_ver, cls_ver):
+        assert util.Version.from_str(str_ver) == cls_ver

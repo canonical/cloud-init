@@ -5,13 +5,14 @@ import sys
 from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
-from typing import NamedTuple, Optional
+from typing import Optional
 
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import subp, which
+from cloudinit.util import Version
 
 meta: MetaSchema = {
     "id": "cc_ansible",
@@ -61,12 +62,6 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-class Version(NamedTuple):
-    major: int
-    minor: int
-    patch: int
-
-
 class AnsiblePull:
     cmd_version: list = []
     cmd_pull: list = []
@@ -74,16 +69,13 @@ class AnsiblePull:
 
     def get_version(self) -> Optional[Version]:
         stdout, _ = subp(self.cmd_version, env=self.env)
+        first_line = stdout.splitlines().pop(0)
         matches = re.search(
-            r"^ansible.*(\d+)\.(\d+).(\d+).*", stdout.splitlines().pop(0)
+            r"([\d\.]+)", first_line
         )
-        if matches and matches.lastindex == 3:
-            print(matches.lastindex)
-            return Version(
-                int(matches.group(1)),
-                int(matches.group(2)),
-                int(matches.group(3)),
-            )
+        if matches:
+            version = matches.group(0)
+            return Version.from_str(version)
         return None
 
     def pull(self, *args) -> str:
@@ -133,22 +125,6 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def compare_version(v1: Version, v2: Version) -> int:
-    """
-    return values:
-        1: v1 > v2
-        -1: v1 < v2
-        0: v1 == v2
-    """
-    if v1 == v2:
-        return 0
-    if v1.major > v2.major:
-        return 1
-    if v1.minor > v2.minor:
-        return 1
-    if v1.patch > v2.patch:
-        return 1
-    return -1
 
 
 def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
@@ -199,7 +175,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict, log: Logger):
     v = pull.get_version()
     if not v:
         log.warn("Cannot parse ansible version")
-    elif compare_version(v, Version(2, 7, 0)) != 1:
+    elif v < Version(2, 7, 0):
         # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
         if cfg.get("diff"):
             raise ValueError(
