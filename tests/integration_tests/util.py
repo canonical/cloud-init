@@ -55,7 +55,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # azure.py[WARNING]: No lease found; using default endpoint
         "No lease found; using default endpoint",
         # Ubuntu lxd storage
-        "thinpool by default on Ubuntu due to LP 1982780",
+        "thinpool by default on Ubuntu due to LP #1982780",
     ]
     traceback_texts = []
     if "oracle" in log:

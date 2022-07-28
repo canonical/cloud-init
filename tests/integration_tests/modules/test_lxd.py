@@ -3,6 +3,7 @@
 (This is ported from
 ``tests/cloud_tests/testcases/modules/lxd_bridge.yaml``.)
 """
+import re
 import warnings
 
 import pytest
@@ -59,6 +60,7 @@ class TestLxdBridge:
 
 def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
+    assert re.search(f"apt-get.*install.*{pkg_name}", log) is not None
     verify_clean_log(log, ignore_deprecations=False)
     return log
 
@@ -88,7 +90,7 @@ def test_storage_lvm(client):
     if "doesn't use thinpool by default on Ubuntu due to LP" not in log:
         warnings.warn("LP 1982780 has been fixed, update to allow thinpools")
 
-    validate_storage(client, "btrfs-progs", "mkfs.btrfs")
+    validate_storage(client, "lvm2", "lvcreate")
 
 
 @pytest.mark.no_container
