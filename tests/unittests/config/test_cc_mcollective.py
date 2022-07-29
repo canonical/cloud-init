@@ -172,6 +172,11 @@ class TestMcollectiveSchema:
             ),
             # Allow undocumented keys client keys below 'conf' without error
             ({"mcollective": {"conf": {"customkey": 1}}}, None),
+            # Don't allow undocumented keys that don't match expected type
+            (
+                {"mcollective": {"conf": {"": {"test": None}}}},
+                "does not match any of the regexes:",
+            ),
             (
                 {"mcollective": {"conf": {"public-cert": 1}}},
                 "mcollective.conf.public-cert: 1 is not of type 'string'",

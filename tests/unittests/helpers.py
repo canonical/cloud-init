@@ -30,6 +30,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
 
@@ -520,6 +521,13 @@ def skipUnlessJinja():
 
 def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
+
+
+def skipUnlessHypothesisJsonSchema():
+    return skipIf(
+        not HAS_HYPOTHESIS_JSONSCHEMA,
+        "No python-hypothesis-jsonschema dependency present.",
+    )
 
 
 # older versions of mock do not have the useful 'assert_not_called'

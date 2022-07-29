@@ -165,6 +165,7 @@ meta: MetaSchema = {
             """  # noqa: E501
         )
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

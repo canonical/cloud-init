@@ -150,6 +150,24 @@ class TestAddYumRepoSchema:
                 {"yum_repos": {"My Repo": {"enabled": "nope"}}},
                 "yum_repos.My Repo.enabled: 'nope' is not of type 'boolean'",
             ),
+            (
+                {
+                    "yum_repos": {
+                        "hotwheels repo": {"": "config option requires a name"}
+                    }
+                },
+                "does not match any of the regexes",
+            ),
+            (
+                {
+                    "yum_repos": {
+                        "matchbox repo": {
+                            "$$$$$": "config option requires a valid name"
+                        }
+                    }
+                },
+                "does not match any of the regexes",
+            ),
         ],
     )
     @helpers.skipUnlessJsonSchema()

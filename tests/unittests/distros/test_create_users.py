@@ -135,6 +135,42 @@ class TestCreateUser(CiTestCase):
         ]
         self.assertEqual(m_subp.call_args_list, expected)
 
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_create_groups_with_dict_deprecated(
+        self, m_is_group, m_subp, m_is_snappy
+    ):
+        """users.groups supports a dict value, but emit deprecation log."""
+        user = "foouser"
+        self.dist.create_user(user, groups={"group1": None, "group2": None})
+        expected = [
+            mock.call(["groupadd", "group1"]),
+            mock.call(["groupadd", "group2"]),
+            self._useradd2call([user, "--groups", "group1,group2", "-m"]),
+            mock.call(["passwd", "-l", user]),
+        ]
+        self.assertEqual(m_subp.call_args_list, expected)
+        self.assertIn(
+            "WARNING: DEPRECATED: The user foouser has a 'groups' config"
+            " value of type dict which is deprecated and will be removed in a"
+            " future version of cloud-init. Use a comma-delimited string or"
+            " array instead: group1,group2.",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_create_groups_with_list(self, m_is_group, m_subp, m_is_snappy):
+        """users.groups supports a list value."""
+        user = "foouser"
+        self.dist.create_user(user, groups=["group1", "group2"])
+        expected = [
+            mock.call(["groupadd", "group1"]),
+            mock.call(["groupadd", "group2"]),
+            self._useradd2call([user, "--groups", "group1,group2", "-m"]),
+            mock.call(["passwd", "-l", user]),
+        ]
+        self.assertEqual(m_subp.call_args_list, expected)
+        self.assertNotIn("WARNING: DEPRECATION: ", self.logs.getvalue())
+
     def test_explicit_sudo_false(self, m_subp, m_is_snappy):
         user = "foouser"
         self.dist.create_user(user, sudo=False)

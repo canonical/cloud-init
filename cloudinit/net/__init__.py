@@ -928,6 +928,13 @@ def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
         )
 
 
+def find_interface_name_from_mac(mac: str) -> Optional[str]:
+    for interface_mac, interface_name in get_interfaces_by_mac().items():
+        if mac.lower() == interface_mac.lower():
+            return interface_name
+    return None
+
+
 def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict:
     (out, _) = subp.subp(["ifconfig", "-a", "ether"])
 

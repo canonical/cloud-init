@@ -44,11 +44,15 @@ def create_override(request):
 
 
 class TestFeatures:
+    """default pytest-xdist behavior may fail due to these tests"""
+
+    @pytest.mark.serial
     def test_feature_without_override(self):
         from cloudinit.features import ERROR_ON_USER_DATA_FAILURE
 
         assert ERROR_ON_USER_DATA_FAILURE is True
 
+    @pytest.mark.serial
     @pytest.mark.parametrize(
         "create_override",
         [{"ERROR_ON_USER_DATA_FAILURE": False}],
@@ -59,6 +63,7 @@ class TestFeatures:
 
         assert ERROR_ON_USER_DATA_FAILURE is False
 
+    @pytest.mark.serial
     @pytest.mark.parametrize(
         "create_override", [{"SPAM": True}], indirect=True
     )

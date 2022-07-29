@@ -136,6 +136,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": ["chef"],
 }
 
 __doc__ = get_meta_doc(meta)

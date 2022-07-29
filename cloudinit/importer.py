@@ -8,16 +8,34 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import sys
+import importlib
+from types import ModuleType
+from typing import Optional, Sequence
 
 
-def import_module(module_name):
-    __import__(module_name)
-    return sys.modules[module_name]
+def import_module(module_name: str) -> ModuleType:
+    return importlib.import_module(module_name)
 
 
-def find_module(base_name: str, search_paths, required_attrs=None) -> tuple:
-    """Finds and imports specified modules"""
+def _count_attrs(
+    module_name: str, attrs: Optional[Sequence[str]] = None
+) -> int:
+    found_attrs = 0
+    if not attrs:
+        return found_attrs
+    mod = importlib.import_module(module_name)
+    for attr in attrs:
+        if hasattr(mod, attr):
+            found_attrs += 1
+    return found_attrs
+
+
+def find_module(
+    base_name: str,
+    search_paths: Sequence[str],
+    required_attrs: Optional[Sequence[str]] = None,
+) -> tuple:
+    """Finds specified modules"""
     if not required_attrs:
         required_attrs = []
     # NOTE(harlowja): translate the search paths to include the base name.
@@ -31,18 +49,10 @@ def find_module(base_name: str, search_paths, required_attrs=None) -> tuple:
         lookup_paths.append(full_path)
     found_paths = []
     for full_path in lookup_paths:
-        mod = None
-        try:
-            mod = import_module(full_path)
-        except ImportError:
-            pass
-        if not mod:
+        if not importlib.util.find_spec(full_path):
             continue
-        found_attrs = 0
-        for attr in required_attrs:
-            if hasattr(mod, attr):
-                found_attrs += 1
-        if found_attrs == len(required_attrs):
+        # Check that required_attrs are all present within the module.
+        if _count_attrs(full_path, required_attrs) == len(required_attrs):
             found_paths.append(full_path)
     return (found_paths, lookup_paths)
 
