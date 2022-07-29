@@ -215,6 +215,7 @@ system_info:
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
    network:
      renderers: ['netplan', 'eni', 'sysconfig']
+     activators: ['netplan', 'eni', 'network-manager', 'networkd']
    # Automatically discover the best ntp_client
    ntp_client: auto
    # Other config here will be given to the distro class and/or path classes
