@@ -9,8 +9,9 @@ cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.2) UNRELEASED; urgency=medium
   * d/source/lintian-overrides: lintian fixes:
     + silence binary-nmu-debian-revision-in-source bug:
       https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
+  * d/gbp_format_changelog: add alberto as filtered contributor
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 08 Jul 2022 13:14:41 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 29 Jul 2022 18:39:44 +0200
 
 cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.1) kinetic; urgency=medium
 
