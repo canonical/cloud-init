@@ -1,4 +1,4 @@
-cloud-init (22.2-115-g6e498773-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.2-115-g6e498773-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * d/control: lintian fixes:
     + Drop deprecated keys: XS-Python-Version and XB-Python-Version.
