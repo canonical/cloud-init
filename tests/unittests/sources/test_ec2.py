@@ -548,7 +548,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
                 ):
                     del responses.mock._urls[index]
         elif hasattr(responses.mock, "_matches"):
-            # Can be removed when Focal and Impish are EOL
+            # Can be removed when Focal is EOL
             for index, response in enumerate(responses.mock._matches):
                 if response.url.startswith(
                     "http://169.254.169.254/2009-04-04/meta-data/"

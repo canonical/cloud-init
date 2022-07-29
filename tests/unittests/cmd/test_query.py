@@ -25,7 +25,7 @@ M_PATH = "cloudinit.cmd.query."
 
 def _gzip_data(data):
     with BytesIO() as iobuf:
-        with gzip.GzipFile(mode="wb", fileobj=iobuf) as gzfp:
+        with gzip.GzipFile(mode="wb", fileobj=iobuf, mtime=0) as gzfp:
             gzfp.write(data)
         return iobuf.getvalue()
 

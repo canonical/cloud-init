@@ -1,3 +1,56 @@
+cloud-init (22.2-115-g6e498773-0ubuntu1~22.10.1) kinetic; urgency=medium
+
+  * d/control: lintian fixes:
+    + Drop deprecated keys: XS-Python-Version and XB-Python-Version.
+  * d/cloud-init.lintian-overrides: lintian fixes:
+    + Fix systemd-service-file-refers-to-unusual-wantedby-target format.
+  * d/cloud-init.postinst: lintian fixes:
+    + Fix command-with-path-in-maintainer-script for grub-install.
+  * d/source/lintian-overrides: lintian fixes:
+    + silence binary-nmu-debian-revision-in-source bug:
+      https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
+  * d/gbp_format_changelog: add alberto as filtered contributor
+  * New upstream snapshot.
+    + network: add system_info network activator cloud.cfg overrides (#1619)
+      (LP: #1982857)
+    + lxd: lvm avoid thinpool when kernel module absent
+    + lxd: enable MTU configuration in cloud-init
+    + cc_set_passwords fixes (#1590)
+    + Modernise importer.py and type ModuleDetails (#1605)
+    + config: Def activate_by_schema_keys for t-z (#1613)
+    + config: define activate_by_schema_keys for p-r mods (#1611)
+    + clean: add param to remove /etc/machine-id for golden image creation
+    + config: define `activate_by_schema_keys` for a-f mods (#1608)
+    + config: define activate_by_schema_keys for s mods (#1612)
+    + config: Define activate_by_schema_keys for g-n mods (#1610)
+    + meta-schema: add infra to skip inapplicable modules
+    + sources/azure: don't set cfg["password"] for default user pw (#1592)
+      [Chris Patterson]
+    + schema: activate grub-dpkg deprecations (#1600)
+    + cc_lxd: Add btrfs and lvm lxd storage options (SC-1026) (#1585)
+    + cc_ubuntu_autoinstall: support live-installer autoinstall config
+    + clean: allow third party cleanup scripts in /etc/cloud/clean.d (#1581)
+    + sources/azure: refactor chassis asset tag handling (#1574)
+      [Chris Patterson]
+    + bsd: Don't assume that root user is in root group (#1587)
+    + Update govc command in VMWare walkthrough (#1576) [manioo8]
+    + sources/azure: increase read-timeout to 60 seconds for wireserver
+      (#1571) [Chris Patterson]
+    + Resource leak cleanup (#1556)
+    + Fix expire passwords for hashed passwords (#1577) (LP: #1979065)
+      [Sadegh Hayeri]
+    + mounts: fix suggested_swapsize for > 64GB hosts (#1569)
+      [Steven Stallion]
+    + Update chpasswd schema to deprecate password parsing (#1517)
+    + Schema deprecation handling (#1549)
+    + sources/azure: refactor ovf-env.xml parsing (#1550) [Chris Patterson]
+    + schema: Force stricter validation (#1547)
+    + ubuntu advantage config: http_proxy, https_proxy (#1512)
+      [Fabian Lichtenegger-Lukas]
+    + net: fix interface matching support (#1552) (LP: #1979877)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 29 Jul 2022 18:51:43 +0200
+
 cloud-init (22.2-64-g1fcd55d6-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * d/control: add python3-debconf as Depends and Build-Depends

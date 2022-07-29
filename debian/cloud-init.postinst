@@ -140,7 +140,7 @@ fix_1336855() {
   [ -r /proc/cmdline ] || return 0
 
   # Don't do anything unless we have grub
-  command -v grub-install > /dev/null 2>&1 || return 0
+  command -v grub-install > /dev/null || return 0
 
   # First, identify the kernel device for the parent.
   for parm in $(cat /proc/cmdline); do
@@ -309,7 +309,7 @@ fix_lp1889555() {
     [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
 
     # Don't do anything unless we have grub
-    [ -x /usr/sbin/grub-install ] || return 0
+    command -v grub-install > /dev/null || return 0
 
     # Make sure that we are not chrooted.
     [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0

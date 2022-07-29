@@ -1,10 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 from cloudinit import cloud, distros, helpers
 from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
 
-def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
+def get_cloud(
+    distro=None, paths=None, sys_cfg=None, metadata=None, mocked_distro=False
+):
     """Obtain a "cloud" that can be used for testing.
 
     Modules take a 'cloud' parameter to call into things that are
@@ -18,6 +22,8 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
     sys_cfg = sys_cfg or {}
     cls = distros.fetch(distro) if distro else MockDistro
     mydist = cls(distro, sys_cfg, paths)
+    if mocked_distro:
+        mydist = mock.Mock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
         myds.metadata.update(metadata)

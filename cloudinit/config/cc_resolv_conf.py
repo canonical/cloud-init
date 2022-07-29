@@ -75,6 +75,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["manage_resolv_conf"],
 }
 
 __doc__ = get_meta_doc(meta)

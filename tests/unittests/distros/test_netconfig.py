@@ -9,6 +9,7 @@ from unittest import mock
 
 from cloudinit import distros, helpers, safeyaml, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
+from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import FilesystemMockingTestCase, dir2dict
 
 BASE_NET_CFG = """
@@ -252,12 +253,17 @@ class TestNetCfgDistroBase(FilesystemMockingTestCase):
         super(TestNetCfgDistroBase, self).setUp()
         self.add_patch("cloudinit.util.system_is_snappy", "m_snappy")
 
-    def _get_distro(self, dname, renderers=None):
+    def _get_distro(self, dname, renderers=None, activators=None):
         cls = distros.fetch(dname)
         cfg = settings.CFG_BUILTIN
         cfg["system_info"]["distro"] = dname
+        system_info_network_cfg = {}
         if renderers:
-            cfg["system_info"]["network"] = {"renderers": renderers}
+            system_info_network_cfg["renderers"] = renderers
+        if activators:
+            system_info_network_cfg["activators"] = activators
+        if system_info_network_cfg:
+            cfg["system_info"]["network"] = system_info_network_cfg
         paths = helpers.Paths({})
         return cls(dname, cfg.get("system_info"), paths)
 
@@ -371,7 +377,9 @@ ifconfig_eth1=DHCP
 class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
     def setUp(self):
         super(TestNetCfgDistroUbuntuEni, self).setUp()
-        self.distro = self._get_distro("ubuntu", renderers=["eni"])
+        self.distro = self._get_distro(
+            "ubuntu", renderers=["eni"], activators=["eni"]
+        )
 
     def eni_path(self):
         return "/etc/network/interfaces.d/50-cloud-init.cfg"
@@ -397,6 +405,51 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
             print("----------")
             self.assertEqual(expected, results[cfgpath])
             self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+
+    def test_apply_network_config_and_bringup_filters_priority_eni_ub(self):
+        """Network activator search priority can be overridden from config."""
+        expected_cfgs = {
+            self.eni_path(): V1_NET_CFG_OUTPUT,
+        }
+        # ub_distro.apply_network_config(V1_NET_CFG, False)
+        with mock.patch(
+            "cloudinit.net.activators.select_activator"
+        ) as select_activator:
+            select_activator.return_value = IfUpDownActivator
+            self._apply_and_verify_eni(
+                self.distro.apply_network_config,
+                V1_NET_CFG,
+                expected_cfgs=expected_cfgs.copy(),
+                bringup=True,
+            )
+            # 2nd call to select_activator via distro.network_activator prop
+            assert IfUpDownActivator == self.distro.network_activator
+        self.assertEqual(
+            [mock.call(priority=["eni"])] * 2, select_activator.call_args_list
+        )
+
+    def test_apply_network_config_and_bringup_activator_defaults_ub(self):
+        """Network activator search priority defaults when unspecified."""
+        expected_cfgs = {
+            self.eni_path(): V1_NET_CFG_OUTPUT,
+        }
+        # Don't set activators to see DEFAULT_PRIORITY
+        self.distro = self._get_distro("ubuntu", renderers=["eni"])
+        with mock.patch(
+            "cloudinit.net.activators.select_activator"
+        ) as select_activator:
+            select_activator.return_value = IfUpDownActivator
+            self._apply_and_verify_eni(
+                self.distro.apply_network_config,
+                V1_NET_CFG,
+                expected_cfgs=expected_cfgs.copy(),
+                bringup=True,
+            )
+            # 2nd call to select_activator via distro.network_activator prop
+            assert IfUpDownActivator == self.distro.network_activator
+        self.assertEqual(
+            [mock.call(priority=None)] * 2, select_activator.call_args_list
+        )
 
     def test_apply_network_config_eni_ub(self):
         expected_cfgs = {

@@ -32,7 +32,9 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     # On Impish and below, NoCloud will be detected on an LXD container.
     # If we remove this directory, it will no longer be detected.
     client.execute("rm -rf /var/lib/cloud/seed/nocloud-net")
+    old_boot_id = client.instance.get_boot_id()
     client.execute("cloud-init clean --logs --reboot")
+    client.instance._wait_for_execute(old_boot_id=old_boot_id)
 
 
 @pytest.mark.ubuntu
@@ -60,7 +62,6 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
         if ImageSpecification.from_os_image().release in [
             "bionic",
             "focal",
-            "impish",
         ]:
             _remove_nocloud_dir_and_reboot(client)
         status_out = _wait_for_cloud_init(client).stdout.strip()
