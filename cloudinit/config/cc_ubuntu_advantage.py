@@ -264,21 +264,16 @@ def maybe_install_ua_tools(cloud: Cloud):
         raise
 
 
-def _is_pro(config: dict) -> bool:
+def _is_pro() -> bool:
     try:
         from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
             should_auto_attach,
         )
-        from uaclient.config import UAConfig
     except ImportError as ex:
         LOG.debug("Unable to import `uaclient`: %s", ex)
         return False
-
-    ua_config = UAConfig(
-        **{"cfg": {"ua_config": config}} if config is not None else {}
-    )
     try:
-        result = should_auto_attach(cfg=ua_config)
+        result = should_auto_attach()
     except Exception as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(
@@ -292,9 +287,7 @@ def _is_pro(config: dict) -> bool:
 def _attach(ua_section: dict, config: dict):
     token = ua_section.get("token")
     if not token:
-        msg = (
-            "`ubuntu-advantage.token` required in non-Pro Ubuntu" " instances."
-        )
+        msg = "`ubuntu-advantage.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
     configure_ua(
@@ -370,7 +363,7 @@ def handle(
     disable_auto_attach = bool(
         ua_section.get("features", {}).get("disable_auto_attach", False)
     )
-    if not disable_auto_attach and _is_pro(config):
+    if not disable_auto_attach and _is_pro():
         _auto_attach(ua_section, config)
     else:
         _attach(ua_section, config)

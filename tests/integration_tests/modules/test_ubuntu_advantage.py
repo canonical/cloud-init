@@ -7,8 +7,25 @@ UA_CLOUD_CONFIG = "/etc/cloud/cloud.cfg/05-pro.conf"
 
 AUTO_ATTACH_DISABLED = """\
 #cloud-config
+apt:
+  ppa:ua-client/daily
 ubuntu_advantage:
   disable_auto_attach: true
+"""
+
+CUSTOM_SERVICES = """\
+ubuntu_advantage:
+enable:
+- fips
+enable_beta:
+- realtime-kernel
+"""
+
+
+DISABLED_SERVICES = """\
+ubuntu_advantage:
+enable: []
+enable_beta: []
 """
 
 
@@ -17,68 +34,47 @@ def did_ua_service_noop(client: IntegrationInstance) -> bool:
     raise NotImplementedError("TODO")
 
 
-@pytest.mark.ubuntu
-@pytest.mark.user_data(AUTO_ATTACH_DISABLED)
-@pytest.mark.skip(reason="TODO")
-def test_ubuntu_advantage_noop(client: IntegrationInstance):
-    log = client.read_from_file("/var/log/cloud-init.log")
-    verify_clean_log(log)
-    assert did_ua_service_noop(client)
-
-
-@pytest.mark.ubuntu
-@pytest.mark.skip(reason="TODO")
-def test_ubuntu_advantage_noop_cloud_cfg(client: IntegrationInstance):
-    client.write_to_file(UA_CLOUD_CONFIG, AUTO_ATTACH_DISABLED)
-    client.execute("cloud-init clean --logs --reboot")
-    log = client.read_from_file("/var/log/cloud-init.log")
-    verify_clean_log(log)
-    assert did_ua_service_noop(client)
-
-
-CUSTOM_SERVICES = """\
-ubuntu_advantage:
-  features:
-    ignore_enable_by_default: true
-    allow_beta: true
-  enable:
-  - fips
-  enable_beta:
-  - realtime-kernel
-"""
-
-
 @pytest.mark.azure
 @pytest.mark.ec2
 @pytest.mark.gce
 @pytest.mark.ubuntu
-@pytest.mark.user_data(CUSTOM_SERVICES)
-@pytest.mark.skip(reason="TODO")
-def test_ubuntu_advantage_custom_services(client: IntegrationInstance):
-    log = client.read_from_file("/var/log/cloud-init.log")
-    verify_clean_log(log)
-    assert did_ua_service_noop(client)
-    # TODO check that cc_ubuntu_advantage did auto-attach properly
-    # TODO check only fips and realtime-kernel are enabled
+@pytest.mark.ci
+class TestUbuntuAdvantagePro:
+    @pytest.mark.user_data(AUTO_ATTACH_DISABLED)
+    @pytest.mark.skip(reason="TODO")
+    def test_ubuntu_advantage_noop(self, client: IntegrationInstance):
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert did_ua_service_noop(client)
 
+    @pytest.mark.skip(reason="TODO")
+    def test_ubuntu_advantage_noop_cloud_cfg(
+        self, client: IntegrationInstance
+    ):
+        client.write_to_file(UA_CLOUD_CONFIG, AUTO_ATTACH_DISABLED)
+        client.execute("cloud-init clean --logs --reboot")
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert did_ua_service_noop(client)
 
-DISALLOW_BETA = """\
-ubuntu_advantage:
-  features:
-    ignore_enable_by_default: true
-    allow_beta: false
-  enable:
-  - realtime-kernel
-"""
+    @pytest.mark.user_data(CUSTOM_SERVICES)
+    @pytest.mark.skip(reason="TODO")
+    def test_ubuntu_advantage_custom_services(
+        self, client: IntegrationInstance
+    ):
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert did_ua_service_noop(client)
+        # TODO check that cc_ubuntu_advantage did auto-attach properly
+        # TODO check only fips and realtime-kernel are enabled
 
-
-@pytest.mark.azure
-@pytest.mark.ec2
-@pytest.mark.gce
-@pytest.mark.ubuntu
-@pytest.mark.user_data(DISALLOW_BETA)
-@pytest.mark.skip(reason="TODO")
-def test_ubuntu_advantage_disallow_beta(client: IntegrationInstance):
-    assert did_ua_service_noop(client)
-    # log = client.read_from_file("/var/log/cloud-init.log")
-    # TODO check that cc_ubuntu_advantage did handle ua auto-attach errors
+    @pytest.mark.user_data(DISABLED_SERVICES)
+    @pytest.mark.skip(reason="TODO")
+    def test_ubuntu_advantage_disabled_services(
+        self, client: IntegrationInstance
+    ):
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert did_ua_service_noop(client)
+        # TODO check that cc_ubuntu_advantage did auto-attach properly
+        # TODO check all services are disabled
