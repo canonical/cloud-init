@@ -22,6 +22,7 @@ FILTER_UPSTREAM_COMMITERS = (  # cloud-init upstream author names
     "Chad Smith",
     "James Falcon",
     "Brett Holman",
+    "Alberto Contreras",
 )
 
 FILTER_NOISY_COMMIT_REGEX = (
