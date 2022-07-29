@@ -132,8 +132,9 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
         install = ansible_cfg["install-method"]
         pull_cfg = ansible_cfg.get("pull")
         if pull_cfg:
+            ansible: AnsiblePull
             if install == "pip":
-                ansible: AnsiblePull = AnsiblePullPip()
+                ansible = AnsiblePullPip()
             else:
                 ansible = AnsiblePullDistro(cloud.distro)
             ansible.install(ansible_cfg["package-name"])
