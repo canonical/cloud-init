@@ -1752,8 +1752,18 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "type": ["boolean", "string"],
-              "description": "Whether vendor data is enabled or not. Use of string for this value is DEPRECATED. Default: ``true``"
+              "description": "Whether vendor data is enabled or not. Default: ``true``",
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "type": "string",
+                  "description": "Use of string for this value is DEPRECATED. Use a boolean value instead.",
+                  "deprecated": true
+                }
+              ]
             },
             "prefix": {
               "type": ["array", "string"],
