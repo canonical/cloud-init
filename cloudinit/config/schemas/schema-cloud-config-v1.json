@@ -769,9 +769,18 @@
           "additionalProperties": false,
           "properties": {
             "mode": {
-              "enum": [false, "auto", "growpart", "gpart", "off"],
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead."
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action.",
+              "oneOf": [
+                {
+                  "enum": ["auto", "growpart", "gpart", "off"]
+                },
+                {
+                  "enum": [false],
+                  "description": "Specifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead.",
+                  "deprecated": true
+                }
+              ]
             },
             "devices": {
               "type": "array",
