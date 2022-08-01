@@ -7,6 +7,7 @@ import pytest
 
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
+    _auto_attach,
     _is_pro,
     configure_ua,
     handle,
@@ -659,7 +660,8 @@ class TestHandle:
 
 
 class TestIsPro:
-    def test_is_pro_uaclient_not_installed(self, caplog):
+    def test_uaclient_not_installed(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
         sys.modules.pop("uaclient", None)
         assert not _is_pro()
         assert (
@@ -667,7 +669,8 @@ class TestIsPro:
             in caplog.text
         )
 
-    def test_is_pro_uaclient_old_version(self, caplog):
+    def test_uaclient_old_version(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
         sys.modules.pop(
             "uaclient.api.u.pro.attach.auto.should_auto_attach", None
@@ -679,7 +682,8 @@ class TestIsPro:
             " 'uaclient.api.u.pro.attach.auto' is not a package"
         ) in caplog.text
 
-    def test_is_pro_should_auto_attach_error(self, caplog):
+    def test_should_auto_attach_error(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
         m_should_auto_attach = mock.Mock()
         m_should_auto_attach.should_auto_attach.side_effect = ValueError(
             "Some error"
@@ -695,7 +699,8 @@ class TestIsPro:
         )
 
     @pytest.mark.parametrize("should_auto_attach", [True, False])
-    def test_is_pro_happy_path(self, should_auto_attach, caplog):
+    def test_happy_path(self, should_auto_attach, caplog, mocker):
+        mocker.patch.dict("sys.modules")
         m_should_auto_attach = mock.Mock()
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
@@ -704,6 +709,60 @@ class TestIsPro:
             should_auto_attach
         )
         assert should_auto_attach is _is_pro()
+        assert not caplog.text
+
+
+class TestAutoAttach:
+
+    ua_section: dict = {}
+
+    def test_uaclient_not_installed(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules.pop("uaclient", None)
+        expected_msg = (
+            "Unable to import `uaclient`: No module named 'uaclient'"
+        )
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_uaclient_old_version(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
+        sys.modules.pop(
+            "uaclient.api.u.pro.attach.auto.full_auto_attach", None
+        )
+        expected_msg = (
+            "Unable to import `uaclient`: No module named"
+            " 'uaclient.api.u.pro.attach.auto.full_auto_attach';"
+            " 'uaclient.api.u.pro.attach.auto' is not a package"
+        )
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_full_auto_attach_error(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient.config"] = mock.Mock()
+        m_full_auto_attach = mock.Mock()
+        m_full_auto_attach.full_auto_attach.side_effect = ValueError(
+            "Some error"
+        )
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+        ] = m_full_auto_attach
+        expected_msg = "Error during `full_auto_attach`: Some error"
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_happy_path(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient.config"] = mock.Mock()
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+        ] = mock.Mock()
+        _auto_attach(self.ua_section)
         assert not caplog.text
 
 

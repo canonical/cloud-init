@@ -5,6 +5,7 @@
 import re
 from logging import Logger
 from textwrap import dedent
+from typing import Optional
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -284,7 +285,7 @@ def _is_pro() -> bool:
     return result.should_auto_attach
 
 
-def _attach(ua_section: dict, config: dict):
+def _attach(ua_section: dict, config: Optional[dict] = None):
     token = ua_section.get("token")
     if not token:
         msg = "`ubuntu-advantage.token` required in non-Pro Ubuntu instances."
@@ -297,9 +298,9 @@ def _attach(ua_section: dict, config: dict):
     )
 
 
-def _auto_attach(ua_section: dict, config: dict):
+def _auto_attach(ua_section: dict, config: Optional[dict] = None):
     try:
-        from uaclient.api.u.pro.attach.auto.full_auto_attach.vi import (
+        from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
             FullAutoAttachOptions,
             full_auto_attach,
         )
