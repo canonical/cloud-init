@@ -2204,12 +2204,12 @@
             "enable": {
               "type": "array",
               "items": {"type": "string"},
-              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
             },
             "enable_beta": {
               "type": "array",
               "items": {"type": "string"},
-              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
             },
             "token": {
               "type": "string",
@@ -2217,21 +2217,13 @@
             },
             "features": {
               "type": "object",
-              "description": "TODO",
-              "additionalProperties": true,
+              "description": "Ubuntu Advantage features.",
+              "additionalProperties": false,
               "properties": {
                 "disable_auto_attach": {
                   "type": "boolean",
                   "description": "Optional boolean for controlling if auto attach (in Ubuntu Pro instances) will be performed. Default: ``false``",
                   "default": false
-                },
-                "ignore_enable_by_default": {
-                  "type": "boolean",
-                  "description": "Optional boolean for controlling whether to ignore/install default services found in the given contract"
-                },
-                "allow_beta": {
-                  "type": "boolean",
-                  "description": "Optional boolean for controlling whether to install/ignore default beta services found in the given contract"
                 }
               }
             },

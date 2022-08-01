@@ -363,26 +363,6 @@ class TestUbuntuAdvantageSchema:
             pytest.param(
                 {
                     "ubuntu_advantage": {
-                        "features": {"ignore_enable_by_default": True}
-                    }
-                },
-                does_not_raise(),
-                id="ignore_enable_by_default",
-            ),
-            pytest.param(
-                {
-                    "ubuntu_advantage": {
-                        "features": {"ignore_enable_by_default": True},
-                        "enable": ["fips"],
-                        "enable_beta": ["realtime-kernel"],
-                    }
-                },
-                does_not_raise(),
-                id="custom_ignore_enable_by_default",
-            ),
-            pytest.param(
-                {
-                    "ubuntu_advantage": {
                         "features": {"disable_auto_attach": False},
                         "enable": ["fips"],
                         "enable_beta": ["realtime-kernel"],
