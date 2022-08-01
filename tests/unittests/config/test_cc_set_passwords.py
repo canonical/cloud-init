@@ -699,8 +699,31 @@ class TestSetPasswordsSchema:
         [
             # Test both formats still work
             ({"ssh_pwauth": True}, does_not_raise()),
-            ({"ssh_pwauth": "yes"}, does_not_raise()),
-            ({"ssh_pwauth": "unchanged"}, does_not_raise()),
+            ({"ssh_pwauth": False}, does_not_raise()),
+            (
+                {"ssh_pwauth": "yes"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
+                        " non-boolean values for this field is DEPRECATED and"
+                        " will result in an error in a future version of"
+                        " cloud-init."
+                    ),
+                ),
+            ),
+            (
+                {"ssh_pwauth": "unchanged"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
+                        " non-boolean values for this field is DEPRECATED and"
+                        " will result in an error in a future version of"
+                        " cloud-init."
+                    ),
+                ),
+            ),
             (
                 {"chpasswd": {"list": "blah"}},
                 pytest.raises(SchemaValidationError, match="DEPRECATED"),
