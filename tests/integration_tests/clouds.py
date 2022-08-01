@@ -161,9 +161,14 @@ class IntegrationCloud(ABC):
             "user_data": user_data,
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
+        display_launch_kwargs = deepcopy(launch_kwargs)
+        if "token" in display_launch_kwargs["user_data"]:
+            display_launch_kwargs["user_data"] = "REDACTED"
         log.info(
             "Launching instance with launch_kwargs:\n%s",
-            "\n".join("{}={}".format(*item) for item in launch_kwargs.items()),
+            "\n".join(
+                "{}={}".format(*item) for item in display_launch_kwargs.items()
+            ),
         )
 
         with emit_dots_on_travis():
