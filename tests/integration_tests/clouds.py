@@ -162,8 +162,9 @@ class IntegrationCloud(ABC):
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
-        if "token" in display_launch_kwargs["user_data"]:
-            display_launch_kwargs["user_data"] = "REDACTED"
+        if display_launch_kwargs.get("user_data") is not None:
+            if "token" in display_launch_kwargs.get("user_data"):
+                display_launch_kwargs["user_data"] = "REDACTED"
         log.info(
             "Launching instance with launch_kwargs:\n%s",
             "\n".join(
