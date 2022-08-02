@@ -117,7 +117,7 @@ class UrlResponse(object):
         self._response = response
 
     @property
-    def contents(self) -> bytes:
+    def contents(self):
         return self._response.content
 
     @property
