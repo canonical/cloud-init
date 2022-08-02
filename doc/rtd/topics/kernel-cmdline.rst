@@ -53,6 +53,11 @@ Then, have the following content at that url:
         token_key: kjfhgb3n
         token_secret: 24uysdfx1w4
 
+.. warning::
+
+   `url` kernel command line key is deprecated.
+   Please use `cloud-config-url` parameter instead"
+
 .. note::
 
    Because ``cloud-config-url=`` is so very generic, in order to avoid false

@@ -156,10 +156,6 @@ class UrlResponse(object):
         :param decode_unicode: If True, content will be decoded using the best
         available encoding based on the response.
         """
-        # Provide a fallback encoding in the event the server doesn’t provide
-        # one.
-        if self._response.encoding is None:
-            self._response.encoding = "utf-8"
         yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
