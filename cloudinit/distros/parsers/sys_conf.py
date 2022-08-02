@@ -107,7 +107,7 @@ class SysConf(configobj.ConfigObj):
         return "%s%s%s%s%s" % (
             indent_string,
             key,
-            self._a_to_u("="),
+            "=",
             val,
             cmnt,
         )
