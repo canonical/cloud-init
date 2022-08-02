@@ -207,16 +207,6 @@ class IntegrationCloud(ABC):
                 )
                 self.cloud_instance.delete_image(self.snapshot_id)
 
-    def _ignore_image_type(self, **kwargs) -> dict:
-        if "image_type" in kwargs:
-            log.warning(
-                "Ignoring `image_type=%s` for %s._get_initial_image",
-                kwargs["image_type"],
-                self.__class__.__name__,
-            )
-            kwargs.pop("image_type")
-        return kwargs
-
 
 class Ec2Cloud(IntegrationCloud):
     datasource = "ec2"
@@ -292,10 +282,6 @@ class OciCloud(IntegrationCloud):
             tag="oci-integration-test",
         )
 
-    def _get_initial_image(self, **kwargs) -> str:
-        kwargs = self._ignore_image_type(**kwargs)
-        return super()._get_initial_image(**kwargs)
-
 
 class _LxdIntegrationCloud(IntegrationCloud):
     pycloudlib_instance_cls: Type[_BaseLXD]
@@ -304,10 +290,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return self.pycloudlib_instance_cls(tag=self.instance_tag)
-
-    def _get_initial_image(self, **kwargs) -> str:
-        kwargs = self._ignore_image_type(**kwargs)
-        return super()._get_initial_image(**kwargs)
 
     @staticmethod
     def _get_or_set_profile_list(release):
@@ -406,7 +388,6 @@ class OpenstackCloud(IntegrationCloud):
         )
 
     def _get_initial_image(self, **kwargs):
-        kwargs = self._ignore_image_type(**kwargs)
         image = ImageSpecification.from_os_image()
         try:
             UUID(image.image_id)

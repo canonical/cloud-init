@@ -68,7 +68,6 @@ def _check_iid_insensitive_across_kernel_upgrade(
 
 
 @pytest.mark.azure
-@pytest.mark.lxd_container
 @pytest.mark.integration_cloud_args(image_type=ImageType.PRO_FIPS)
 def test_azure_kernel_upgrade_case_insensitive_uuid(
     session_cloud: IntegrationCloud,
