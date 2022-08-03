@@ -649,7 +649,6 @@
                   "description": "Specifies the partition table type, either ``mbr`` or ``gpt``. Default: ``mbr``."
                 },
                 "layout": {
-                  "type": ["string", "boolean", "array"],
                   "default": false,
                   "oneOf": [
                     {"type": "string", "enum": ["remove"]},
@@ -807,7 +806,7 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated.",
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``.",
               "oneOf": [
                 {
                   "type": "boolean"
@@ -1385,7 +1384,7 @@
                     "type": "string",
                     "pattern": "^\\+?[0-9]+$",
                     "deprecated": true,
-                    "description": "Dropped after April 2027. Use ``now`` or integer type."
+                    "description": "Use of string for this value will be dropped after April 2027. Use ``now`` or integer type."
                 },
                 {"enum": ["now"]}
               ]

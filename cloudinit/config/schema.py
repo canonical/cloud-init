@@ -63,6 +63,7 @@ SCHEMA_LIST_ITEM_TMPL = (
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 DEPRECATED_KEY = "deprecated"
+DEPRECATED_PREFIX = "DEPRECATED: "
 
 
 # type-annotate only if type-checking.
@@ -163,10 +164,9 @@ def is_schema_byte_string(checker, instance):
 
 
 def _add_deprecation_msg(description: Optional[str] = None):
-    msg = "DEPRECATED."
     if description:
-        msg += f" {description}"
-    return msg
+        return f"{DEPRECATED_PREFIX}{description}"
+    return DEPRECATED_PREFIX.replace(":", ".").strip()
 
 
 def _validator_deprecated(
@@ -817,6 +817,39 @@ def _flatten_schema_all_of(src_cfg: dict):
         src_cfg.update(sub_schema)
 
 
+def _get_property_description(prop_config: dict) -> str:
+    """Return accumulated property description.
+
+    Account for the following keys:
+    - top-level description key
+    - any description key present in each subitem under anyOf or allOf
+
+    Order and deprecated property description after active descriptions.
+    Add a trailing stop "." to any description not ending with ":".
+    """
+    prop_descr = prop_config.get("description", "")
+    oneOf = prop_config.get("oneOf", {})
+    anyOf = prop_config.get("anyOf", {})
+    descriptions = [] if not prop_descr else [prop_descr.rstrip(".")]
+    for sub_item in chain(oneOf, anyOf):
+        if not sub_item.get("description"):
+            continue
+        if sub_item.get(DEPRECATED_KEY):  # order deprecated descrs last
+            descriptions.append(
+                f"{DEPRECATED_PREFIX}{sub_item['description'].rstrip('.')}"
+            )
+        else:
+            descriptions.insert(0, sub_item["description"].rstrip("."))
+    description = ". ".join(descriptions)
+    if bool(prop_config.get(DEPRECATED_KEY)):
+        description = _add_deprecation_msg(description)
+    if description:
+        description = f" {description}"
+        if description[-1] != ":":
+            description += "."
+    return description
+
+
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + "    "
@@ -837,12 +870,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 
-            deprecated = bool(prop_config.get(DEPRECATED_KEY))
-            description = prop_config.get("description", "")
-            if deprecated:
-                description = _add_deprecation_msg(description)
-            if description:
-                description = " " + description
+            description = _get_property_description(prop_config)
 
             # Define prop_name and description for SCHEMA_PROPERTY_TMPL
             label = prop_config.get("label", prop_key)
