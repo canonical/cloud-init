@@ -347,11 +347,11 @@ class TestAuthKeyLineParser:
         if with_options:
             assert key.options == options
         else:
-            assert not key.options
+            assert key.options is None
         if with_comment:
             assert key.comment == comment
         else:
-            assert not key.comment
+            assert key.comment == ""
 
     def test_parse_with_options_passed_in(self):
         # test key line with key type and base64 only
