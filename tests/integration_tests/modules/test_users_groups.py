@@ -10,6 +10,7 @@ import pytest
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -39,6 +40,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     inactive: true
     system: true
   - name: eric
+    sudo: null
     uid: 1742
   - name: archivist
     uid: '1743'
@@ -97,6 +99,8 @@ class TestUsersGroups:
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
         output = class_client.execute("groups root").stdout
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()

@@ -448,7 +448,7 @@ class TestUsersGroupsSchema:
                     SchemaValidationError,
                     match=(
                         "deprecations: user.sudo: DEPRECATED. The value"
-                        " ``false`` will be deprecated in the future release."
+                        " ``false`` will be dropped after April 2027."
                         " Use ``null`` or no ``sudo`` key instead."
                     ),
                 ),

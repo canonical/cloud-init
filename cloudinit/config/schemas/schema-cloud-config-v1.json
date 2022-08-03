@@ -161,7 +161,7 @@
             {
               "type": "boolean",
               "deprecated": true,
-              "description": "The value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+              "description": "The value ``false`` will be dropped after April 2027. Use ``null`` or no ``sudo`` key instead."
             }
           ]
         },
