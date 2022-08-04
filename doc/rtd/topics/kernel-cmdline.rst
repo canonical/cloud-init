@@ -16,8 +16,8 @@ This allows for configuring a meta-data service, or some other data.
    as it requires knowing in advance the correct command line or modifying
    the boot loader to append data.
 
-For example, when ``cloud-init start`` runs, it will check to
-see if one of ``cloud-config-url`` or ``url`` appear in key/value fashion
+For example, when ``cloud-init init --local`` runs, it will check to
+see if ``cloud-config-url`` appears in key/value fashion
 in the kernel command line as in:
 
 .. code-block:: text
@@ -30,16 +30,15 @@ that data to the local filesystem in a static filename
 ``/etc/cloud/cloud.cfg.d/91_kernel_cmdline_url.cfg``, and consider it as
 part of the config from that point forward.
 
-If that file exists already, it will not be overwritten, and the url parameters
-completely ignored.
+If that file exists already, it will not be overwritten, and the
+`cloud-config-url` parameter is completely ignored.
 
 Then, when the DataSource runs, it will find that config already available.
 
 So, in order to be able to configure the MAAS DataSource by controlling the
 kernel command line from outside the image, you can append:
 
-  * ``cloud-config-url=http://your.url.here/abcdefg`` or
-  * ``url=http://your.url.here/abcdefg``
+  * ``cloud-config-url=http://your.url.here/abcdefg``
 
 Then, have the following content at that url:
 
