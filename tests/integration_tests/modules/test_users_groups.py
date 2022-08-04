@@ -26,7 +26,7 @@ users:
     gecos: Foo B. Bar
     primary_group: foobar
     groups: users
-    expiredate: 2038-01-19
+    expiredate: '2038-01-19'
     lock_passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYe\
 AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
@@ -37,13 +37,13 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     lock_passwd: true
   - name: cloudy
     gecos: Magic Cloud App Daemon User
-    inactive: true
+    inactive: '0'
     system: true
   - name: eric
     sudo: null
     uid: 1742
   - name: archivist
-    uid: '1743'
+    uid: 1743
 """
 
 

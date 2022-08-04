@@ -459,6 +459,29 @@ class TestUsersGroupsSchema:
                 does_not_raise(),
                 None,
             ),
+            (
+                {"users": [{"name": "a", "uid": "1743"}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "users.0.uid: DEPRECATED. The use of ``string`` type"
+                        " will be dropped after April 2027. Use an ``integer``"
+                        " instead."
+                    ),
+                ),
+                False,
+            ),
+            (
+                {"users": [{"name": "a", "expiredate": "2038,1,19"}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "users.0: {'name': 'a', 'expiredate': '2038,1,19'}"
+                        " is not valid under any of the given schemas"
+                    ),
+                ),
+                True,
+            ),
         ],
     )
     @skipUnlessJsonSchema()

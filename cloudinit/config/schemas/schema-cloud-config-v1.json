@@ -29,7 +29,8 @@
         "expiredate": {
           "default": null,
           "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
-          "type": "string"
+          "type": "string",
+          "format": "date"
         },
         "gecos": {
           "description": "Optional comment about the user, usually a comma-separated string of real name and contact information",
@@ -167,7 +168,14 @@
         },
         "uid": {
           "description": "The user's ID. Default is next available value.",
-          "type": "integer"
+          "oneOf": [
+            {"type": "integer"},
+            {
+              "type": "string",
+              "description": "The use of ``string`` type will be dropped after April 2027. Use an ``integer`` instead.",
+              "deprecated": true
+            }
+          ]
         }
       }
     },
