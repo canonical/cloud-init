@@ -1807,9 +1807,13 @@
         "ssh_pwauth": {
           "oneOf": [
             {"type": "boolean"},
-            {"type": "string"}
+            {
+              "type": "string",
+              "description": "Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
+              "deprecated": true
+            }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged."
         },
         "chpasswd": {
           "type": "object",
