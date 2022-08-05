@@ -1,11 +1,10 @@
 """ansible enables running on first boot either ansible-pull"""
 import abc
+import logging
 import os
 import re
 import sys
-import logging
 from copy import deepcopy
-from logging import Logger
 from textwrap import dedent
 from typing import Optional
 
@@ -170,7 +169,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
 
     v = pull.get_version()
     if not v:
-        LOG.warn("Cannot parse ansible version")
+        LOG.warning("Cannot parse ansible version")
     elif v < Version(2, 7, 0):
         # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
         if cfg.get("diff"):

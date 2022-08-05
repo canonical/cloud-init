@@ -61,8 +61,8 @@ write_files:
 """
 INSTALL_METHOD = """
 ansible:
-  install-method: {}
-  package-name: {}
+  install-method: {method}
+  package-name: {package}
   pull:
     url: "http://0.0.0.0:8000/"
     playbook-name: ubuntu.yml
@@ -95,19 +95,20 @@ def _test_ansible_pull_from_local_server(my_client):
     # Following assertions verify ansible behavior itself
     verify_clean_log(log)
     assert "ok=3" in log
-    assert "cc_ansible.py[WARNING]: Error executing" not in log
     assert "SUCCESS: config-ansible ran successfully" in log
 
 
 @pytest.mark.user_data(
-    USER_DATA + INSTALL_METHOD.format("ansible-core", "pip")
+    USER_DATA + INSTALL_METHOD.format(method="ansible-core", package="pip")
 )
 class TestAnsiblePullPip:
     def test_ansible_pull_pip(self, class_client):
         _test_ansible_pull_from_local_server(class_client)
 
 
-@pytest.mark.user_data(USER_DATA + INSTALL_METHOD.format("ansible", "distro"))
+@pytest.mark.user_data(
+    USER_DATA + INSTALL_METHOD.format(method="ansible", package="distro")
+)
 class TestAnsiblePullDistro:
     def test_ansible_pull_distro(self, class_client):
         _test_ansible_pull_from_local_server(class_client)

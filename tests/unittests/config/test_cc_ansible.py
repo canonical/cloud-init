@@ -1,6 +1,5 @@
 import re
 from copy import deepcopy
-from logging import getLogger
 from textwrap import dedent
 from unittest import mock
 from unittest.mock import call
@@ -239,7 +238,7 @@ class TestAnsible:
             cloud = get_cloud(mocked_distro=True)
             print(cfg)
             install = cfg["ansible"]["install-method"]
-            cc_ansible.handle("", cfg, cloud, getLogger(), None)
+            cc_ansible.handle("", cfg, cloud, None, None)
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
                 cloud.distro.install_packages.assert_called_with(
@@ -327,7 +326,7 @@ class TestAnsible:
             else cc_ansible.AnsiblePullDistro(get_cloud().distro)
         )
         cc_ansible.run_ansible_pull(
-            ansible_pull, deepcopy(cfg["ansible"]["pull"]), getLogger()
+            ansible_pull, deepcopy(cfg["ansible"]["pull"])
         )
         assert m_subp.call_args[0][0] == expected
 
