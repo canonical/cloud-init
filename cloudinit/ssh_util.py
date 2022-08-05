@@ -562,7 +562,7 @@ def update_ssh_config(updates, fname=DEF_SSHD_CFG):
     if _includes_dconf(fname):
         if not os.path.isdir(f"{fname}.d"):
             util.ensure_dir(f"{fname}.d", mode=0o755)
-        fname = os.path.join(f"{fname}.d", "99-cloud-init.conf")
+        fname = os.path.join(f"{fname}.d", "00-cloud-init.conf")
         if not os.path.isfile(fname):
             util.ensure_file(fname, 0o644)
     lines = parse_ssh_config(fname)

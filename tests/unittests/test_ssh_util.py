@@ -585,7 +585,7 @@ class TestUpdateSshConfig:
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
         assert "X Y\nkey value\n" == util.load_file(mycfg)
-        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        expected_conf_file = f"{mycfg}.d/00-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
     @pytest.mark.parametrize(
@@ -596,7 +596,7 @@ class TestUpdateSshConfig:
         mycfg = tmpdir.join("sshd_config")
         util.write_file(mycfg, cfg.format(mycfg=mycfg))
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        expected_conf_file = f"{mycfg}.d/00-cloud-init.conf"
         assert os.path.isfile(expected_conf_file)
         assert "key value\n" == util.load_file(expected_conf_file)
 
@@ -606,7 +606,7 @@ class TestUpdateSshConfig:
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
         assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
-        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        expected_conf_file = f"{mycfg}.d/00-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
     def test_with_other_include(self, tmpdir):
@@ -615,9 +615,9 @@ class TestUpdateSshConfig:
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
         assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
-        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        expected_conf_file = f"{mycfg}.d/00-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
-        assert not os.path.isfile(f"other_{mycfg}.d/99-cloud-init.conf")
+        assert not os.path.isfile(f"other_{mycfg}.d/00-cloud-init.conf")
 
 
 class TestBasicAuthorizedKeyParse:

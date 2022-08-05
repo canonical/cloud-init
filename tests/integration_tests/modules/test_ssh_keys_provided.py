@@ -141,10 +141,10 @@ class TestSshKeysProvided:
     def test_sshd_config(self, expected_out, class_client):
         if class_client.execute("ls /etc/ssh/sshd_config.d").ok:
             assert class_client.execute(
-                "ls /etc/ssh/sshd_config.d/99-cloud-init.conf"
+                "ls /etc/ssh/sshd_config.d/00-cloud-init.conf"
             ).ok
             out = class_client.read_from_file(
-                "/etc/ssh/sshd_config.d/99-cloud-init.conf"
+                "/etc/ssh/sshd_config.d/00-cloud-init.conf"
             )
         else:
             out = class_client.read_from_file("/etc/ssh/sshd_config")
