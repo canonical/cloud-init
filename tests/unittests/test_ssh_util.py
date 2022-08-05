@@ -579,6 +579,24 @@ class TestUpdateSshConfig:
         assert self.cfgdata == util.load_file(mycfg)
         m_write_file.assert_not_called()
 
+    def test_without_include(self, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        cfg = "X Y"
+        util.write_file(mycfg, cfg)
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        assert "X Y\nkey value\n" == util.load_file(mycfg)
+        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        assert not os.path.isfile(expected_conf_file)
+
+    def test_with_include(self, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        cfg = f"Include {mycfg}.d/*.conf"
+        util.write_file(mycfg, cfg)
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        expected_conf_file = f"{mycfg}.d/99-cloud-init.conf"
+        assert os.path.isfile(expected_conf_file)
+        assert "key value\n" == util.load_file(expected_conf_file)
+
 
 class TestBasicAuthorizedKeyParse:
     @pytest.mark.parametrize(

@@ -181,7 +181,15 @@ class Mixin:
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
-        sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
+        if class_client.execute("ls /etc/ssh/sshd_config.d").ok:
+            assert class_client.execute(
+                "ls /etc/ssh/sshd_config.d/99-cloud-init.conf"
+            ).ok
+            sshd_config = class_client.read_from_file(
+                "/etc/ssh/sshd_config.d/99-cloud-init.conf"
+            )
+        else:
+            sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 

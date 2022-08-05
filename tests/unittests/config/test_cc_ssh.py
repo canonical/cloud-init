@@ -283,9 +283,12 @@ class TestHandleSsh:
             expected_calls == cloud.datasource.publish_host_keys.call_args_list
         )
 
+    @mock.patch(MODPATH + "ssh_util._includes_dconf", return_value=False)
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "util.write_file")
-    def test_handle_ssh_keys_in_cfg(self, m_write_file, m_nug, m_setup_keys):
+    def test_handle_ssh_keys_in_cfg(
+        self, m_write_file, m_nug, m_includes_dconf, m_setup_keys
+    ):
         """Test handle with ssh keys and certificate."""
         # Populate a config dictionary to pass to handle() as well
         # as the expected file-writing calls.

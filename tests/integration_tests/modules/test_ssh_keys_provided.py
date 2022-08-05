@@ -110,10 +110,6 @@ class TestSshKeysProvided:
                 "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD",
             ),
             (
-                "/etc/ssh/sshd_config",
-                "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
-            ),
-            (
                 "/etc/ssh/ssh_host_ecdsa_key.pub",
                 "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
                 "BBFsS5Tvky/IC/dXhE/afxxU",
@@ -137,4 +133,21 @@ class TestSshKeysProvided:
     )
     def test_ssh_provided_keys(self, config_path, expected_out, class_client):
         out = class_client.read_from_file(config_path).strip()
+        assert expected_out in out
+
+    @pytest.mark.parametrize(
+        "expected_out", ("HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub")
+    )
+    def test_sshd_config(self, expected_out, class_client):
+        if class_client.execute("ls /etc/ssh/sshd_config.d").ok:
+            assert class_client.execute(
+                "ls /etc/ssh/sshd_config.d/99-cloud-init.conf"
+            ).ok
+            out = class_client.read_from_file(
+                "/etc/ssh/sshd_config.d/99-cloud-init.conf"
+            )
+        else:
+            out = class_client.read_from_file("/etc/ssh/sshd_config")
+
+        out = out.strip()
         assert expected_out in out
