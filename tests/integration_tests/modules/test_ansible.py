@@ -94,7 +94,8 @@ def _test_ansible_pull_from_local_server(my_client):
 
     # Following assertions verify ansible behavior itself
     verify_clean_log(log)
-    assert "ok=3" in log
+    output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
+    assert "ok=3" in output_log
     assert "SUCCESS: config-ansible ran successfully" in log
 
 
