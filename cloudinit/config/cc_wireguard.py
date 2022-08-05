@@ -17,27 +17,33 @@ MODULE_DESCRIPTION = dedent(
 Wireguard module provides a dynamic interface for configuring
 Wireguard (as a peer or server) in an easy way.
 
-This module takes care of..
+This module takes care of:
   - writing interface configuration files
   - enabling and starting interfaces
   - installing wireguard-tools package
   - loading wireguard kernel module
   - executing readiness probes
 
-What's a readiness probe?
+What's a readiness probe?\n
 The idea behind readiness probes is to ensure Wireguard connectivity
 before continuing the cloud-init process. This could be useful if you
 need access to specific services like an internal APT Repository Server
 (e.g Landscape) to install/update packages.
 
-Example:
-An edge device can't access the internet but uses cloud-init modules that
+Example:\n
+An edge device can't access the internet but uses cloud-init modules which
 will install packages (e.g landscape, packages, ubuntu_advantage). Those
 modules will fail due to missing internet connection. The "wireguard" module
 fixes that problem as it waits until all readinessprobes (which can be
 arbitrary commands - e.g. checking if a proxy server is reachable over
 Wireguard network) are finished before continuing the cloud-init
 "config" stage.
+
+.. note::
+    In order to use DNS with Wireguard you have to install ``resolvconf``
+    package or symlink it to systemd's ``resolvectl``, otherwise ``wg-quick``
+    commands will throw an error message that executable ``resolvconf`` is
+    missing which leads wireguard module to fail.
 """
 )
 
@@ -131,11 +137,9 @@ def write_config(wg_int: dict):
 
     @raises: RuntimeError for issues writing of configuration file.
     """
-    LOG.debug("Configuring Wireguard interface %s", {wg_int["name"]})
+    LOG.debug("Configuring Wireguard interface %s", wg_int["name"])
     try:
-        LOG.debug(
-            "Writing wireguard config to file %s", {wg_int["config_path"]}
-        )
+        LOG.debug("Writing wireguard config to file %s", wg_int["config_path"])
         util.write_file(
             wg_int["config_path"], wg_int["content"], mode=WG_CONFIG_FILE_MODE
         )
@@ -154,9 +158,9 @@ def enable_wg(wg_int: dict, cloud: Cloud):
     @raises: RuntimeError for issues enabling WG interface.
     """
     try:
-        LOG.debug("Enabling wg-quick@%s at boot", {wg_int["name"]})
+        LOG.debug("Enabling wg-quick@%s at boot", wg_int["name"])
         cloud.distro.manage_service("enable", f'wg-quick@{wg_int["name"]}')
-        LOG.debug("Bringing up interface wg-quick@%s", {wg_int["name"]})
+        LOG.debug("Bringing up interface wg-quick@%s", wg_int["name"])
         cloud.distro.manage_service("start", f'wg-quick@{wg_int["name"]}')
     except subp.ProcessExecutionError as e:
         raise RuntimeError(
@@ -196,7 +200,7 @@ def readinessprobe(wg_readinessprobes: list):
     errors = []
     for c in wg_readinessprobes:
         try:
-            LOG.debug("Running readinessprobe: '%s'", {str(c)})
+            LOG.debug("Running readinessprobe: '%s'", str(c))
             subp.subp(c, capture=True, shell=True)
         except subp.ProcessExecutionError as e:
             errors.append(f"{c}: {e}")
