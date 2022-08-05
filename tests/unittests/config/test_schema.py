@@ -1282,6 +1282,72 @@ class TestSchemaDocMarkdown:
                 "**prop1:** (number) <description>. DEPRECATED:"
                 " <deprecated_description>",
             ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (``none``/``unchanged``/``os``) <description>."
+                " DEPRECATED: <deprecated_description>.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description_1>",
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>_2",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (string/integer/``none``/``unchanged``/``os``)"
+                " <description_1>. <description>_2.\n",
+            ),
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "description": "<desc_1>",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "anyOf": [
+                                    {
+                                        "properties": {
+                                            "sub_prop1": {"type": "string"},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+                "**prop1:** (array of object) <desc_1>.\n",
+            ),
         ],
     )
     def test_get_meta_doc_render_deprecated_info(self, schema, expected_doc):

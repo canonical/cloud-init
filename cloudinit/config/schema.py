@@ -164,7 +164,7 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecation_msg(description: Optional[str] = None):
+def _add_deprecation_msg(description: Optional[str] = None) -> str:
     if description:
         return f"{DEPRECATED_PREFIX}{description}"
     return DEPRECATED_PREFIX.replace(":", ".").strip()
@@ -725,11 +725,19 @@ def _flatten(xs):
 
 
 def _collect_subschema_types(property_dict: dict, multi_key: str) -> List[str]:
-    property_types = [
-        subschema["type"]
-        for subschema in property_dict.get(multi_key, {})
-        if subschema.get("type") and not subschema.get("deprecated", False)
-    ]
+    property_types = []
+    for subschema in property_dict.get(multi_key, {}):
+        if subschema.get(DEPRECATED_KEY):  # don't document deprecated types
+            continue
+        if subschema.get("enum"):
+            property_types.extend(
+                [
+                    f"``{_YAML_MAP.get(enum_value, enum_value)}``"
+                    for enum_value in subschema.get("enum", [])
+                ]
+            )
+        elif subschema.get("type"):
+            property_types.append(subschema["type"])
     return list(_flatten(property_types))
 
 
@@ -760,8 +768,14 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     if not isinstance(sub_property_types, list):
         sub_property_types = [sub_property_types]
     # Collect each item type
+    prune_undefined = bool(sub_property_types)
     for sub_item in chain(items.get("oneOf", {}), items.get("anyOf", {})):
-        sub_property_types.append(_get_property_type(sub_item, defs))
+        sub_type = _get_property_type(sub_item, defs)
+        if prune_undefined and sub_type == "UNDEFINED":
+            # If the main object has a type, then sub-schemas are allowed to
+            # omit the type. Prune subschema undefined types.
+            continue
+        sub_property_types.append(sub_type)
     if sub_property_types:
         if len(sub_property_types) == 1:
             return f"{property_type} of {sub_property_types[0]}"
@@ -845,19 +859,25 @@ def _get_property_description(prop_config: dict) -> str:
     prop_descr = prop_config.get("description", "")
     oneOf = prop_config.get("oneOf", {})
     anyOf = prop_config.get("anyOf", {})
-    descriptions = [] if not prop_descr else [prop_descr.rstrip(".")]
+    descriptions = []
+    deprecated_descriptions = []
+    if prop_descr:
+        prop_descr = prop_descr.rstrip(".")
+        if not prop_config.get(DEPRECATED_KEY):
+            descriptions.append(prop_descr)
+        else:
+            deprecated_descriptions.append(_add_deprecation_msg(prop_descr))
     for sub_item in chain(oneOf, anyOf):
         if not sub_item.get("description"):
             continue
-        if sub_item.get(DEPRECATED_KEY):  # order deprecated descrs last
-            descriptions.append(
+        if not sub_item.get(DEPRECATED_KEY):
+            descriptions.append(sub_item["description"].rstrip("."))
+        else:
+            deprecated_descriptions.append(
                 f"{DEPRECATED_PREFIX}{sub_item['description'].rstrip('.')}"
             )
-        else:
-            descriptions.insert(0, sub_item["description"].rstrip("."))
-    description = ". ".join(descriptions)
-    if bool(prop_config.get(DEPRECATED_KEY)):
-        description = _add_deprecation_msg(description)
+    # order deprecated descrs last
+    description = ". ".join(chain(descriptions, deprecated_descriptions))
     if description:
         description = f" {description}"
         if description[-1] != ":":
