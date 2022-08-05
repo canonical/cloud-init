@@ -549,7 +549,7 @@ def _includes_dconf(fname: str) -> bool:
         return False
     with open(fname, "r") as f:
         for line in f:
-            if f"Include {fname}.d/*.conf" in line:
+            if line.startswith(f"Include {fname}.d/*.conf"):
                 return True
     return False
 
