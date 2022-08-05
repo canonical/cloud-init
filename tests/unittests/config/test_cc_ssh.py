@@ -303,7 +303,7 @@ class TestHandleSsh:
             MODPATH + "ssh_util._includes_dconf", return_value=with_sshd_dconf
         )
         if with_sshd_dconf:
-            sshd_conf_fname = "/etc/ssh/sshd_config.d/00-cloud-init.conf"
+            sshd_conf_fname = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
         else:
             sshd_conf_fname = "/etc/ssh/sshd_config"
 

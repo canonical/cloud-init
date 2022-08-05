@@ -3,7 +3,7 @@
 set -e
 
 cleanup_sshd_config() {
-  rm -f "/etc/ssh/sshd_config.d/00-cloud-init.conf"
+  rm -f "/etc/ssh/sshd_config.d/50-cloud-init.conf"
 }
 
 if [ "$1" = "purge" ]; then
