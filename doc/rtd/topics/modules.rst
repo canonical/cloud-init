@@ -5,6 +5,7 @@ Module Reference
 ****************
 .. contents:: Table of Contents
 
+.. automodule:: cloudinit.config.cc_ansible
 .. automodule:: cloudinit.config.cc_apk_configure
 .. automodule:: cloudinit.config.cc_apt_configure
 .. automodule:: cloudinit.config.cc_apt_pipelining

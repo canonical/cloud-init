@@ -247,6 +247,101 @@
       },
       "additionalProperties": true
     },
+    "cc_ansible": {
+      "type": "object",
+      "properties": {
+        "ansible": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install-method": {
+              "type": "string",
+              "default": "distro",
+              "enum": [
+                "distro",
+                "pip"
+              ],
+              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+            },
+            "package-name": {
+              "type": "string",
+              "default": "ansible"
+            },
+            "pull": {
+              "required": ["url", "playbook-name"],
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accept-host-key": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "clean": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "full": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "diff": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "ssh-common-args": {
+                  "type": "string"
+                },
+                "scp-extra-args": {
+                  "type": "string"
+                },
+                "sftp-extra-args": {
+                  "type": "string"
+                },
+                "private-key": {
+                  "type": "string"
+                },
+                "checkout": {
+                  "type": "string"
+                },
+                "module-path": {
+                  "type": "string"
+                },
+                "timeout": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "connection": {
+                  "type": "string"
+                },
+                "vault-id": {
+                  "type": "string"
+                },
+                "vault-password-file": {
+                  "type": "string"
+                },
+                "module-name": {
+                  "type": "string"
+                },
+                "sleep": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "string"
+                },
+                "skip-tags": {
+                  "type": "string"
+                },
+                "playbook-name": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "cc_apk_configure": {
       "type": "object",
       "properties": {
@@ -2497,6 +2592,7 @@
     }
   },
   "allOf": [
+    { "$ref": "#/$defs/cc_ansible" },
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
