@@ -1,17 +1,43 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
+import importlib
 import logging
+from pathlib import Path
+from typing import List
 
 import pytest
 
+from cloudinit import util
 from cloudinit.config.modules import ModuleDetails, Modules, _is_active
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import FREQUENCIES
-from tests.unittests.helpers import mock
+from tests.unittests.helpers import cloud_init_project_dir, mock
 
 M_PATH = "cloudinit.config.modules."
+
+
+def get_module_names() -> List[str]:
+    """Return list of module names in cloudinit/config"""
+    files = list(
+        Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
+    )
+
+    return [mod.stem for mod in files]
+
+
+def get_modules():
+    examples = []
+    for mod_name in get_module_names():
+        module = importlib.import_module(f"cloudinit.config.{mod_name}")
+        for i, example in enumerate(module.meta.get("examples", [])):
+            examples.append(
+                pytest.param(
+                    mod_name, module, example, id=f"{mod_name}_example_{i}"
+                )
+            )
+    return examples
 
 
 class TestModules:
@@ -58,6 +84,16 @@ class TestModules:
             run_args=[],
         )
         assert active == _is_active(module_details, cfg)
+
+    @pytest.mark.parametrize("mod_name, module, example", get_modules())
+    def test__is_inapplicable_examples(self, mod_name, module, example):
+        module_details = ModuleDetails(
+            module=module,
+            name=mod_name,
+            frequency=["always"],
+            run_args=[],
+        )
+        assert True is _is_active(module_details, util.load_yaml(example))
 
     @pytest.mark.parametrize("frequency", FREQUENCIES)
     @pytest.mark.parametrize("active", [True, False])
@@ -107,3 +143,32 @@ class TestModules:
                     " config is provided."
                 ),
             ) == caplog.record_tuples[-1][1:]
+
+    @pytest.mark.parametrize("mod_name, module, example", get_modules())
+    def test_run_section_examples(
+        self, mod_name, module, example, caplog, mocker
+    ):
+        mods = Modules(
+            init=mock.Mock(), cfg_files=mock.Mock(), reporter=mock.Mock()
+        )
+        cfg = util.load_yaml(example)
+        cfg["unverified_modules"] = [mod_name]  # Force to run unverified mod
+        mods._cached_cfg = cfg
+        module_details = ModuleDetails(
+            module=module,
+            name=mod_name,
+            frequency=["always"],
+            run_args=[],
+        )
+        mocker.patch.object(
+            mods,
+            "_fixup_modules",
+            return_value=[module_details],
+        )
+        mocker.patch.object(module, "handle")
+        m_run_modules = mocker.patch.object(mods, "_run_modules")
+        assert mods.run_section("not_matter")
+        assert [
+            mock.call([list(module_details)])
+        ] == m_run_modules.call_args_list
+        assert "Skipping" not in caplog.text

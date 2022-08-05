@@ -18,7 +18,7 @@ from pycloudlib import (
     LXDVirtualMachine,
     Openstack,
 )
-from pycloudlib.cloud import BaseCloud
+from pycloudlib.cloud import BaseCloud, ImageType
 from pycloudlib.lxd.cloud import _BaseLXD
 from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
@@ -94,7 +94,12 @@ class IntegrationCloud(ABC):
     datasource: str
     cloud_instance: BaseCloud
 
-    def __init__(self, settings=integration_settings):
+    def __init__(
+        self,
+        image_type: ImageType = ImageType.GENERIC,
+        settings=integration_settings,
+    ):
+        self._image_type = image_type
         self.settings = settings
         self.cloud_instance: BaseCloud = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
@@ -119,11 +124,12 @@ class IntegrationCloud(ABC):
     def _get_cloud_instance(self):
         raise NotImplementedError
 
-    def _get_initial_image(self):
+    def _get_initial_image(self, **kwargs) -> str:
         image = ImageSpecification.from_os_image()
         try:
-            return self.cloud_instance.daily_image(image.image_id)
-        except (ValueError, IndexError):
+            return self.cloud_instance.daily_image(image.image_id, **kwargs)
+        except (ValueError, IndexError) as ex:
+            log.debug("Exception while executing `daily_image`: %s", ex)
             return image.image_id
 
     def _perform_launch(self, launch_kwargs, **kwargs) -> BaseInstance:
@@ -208,6 +214,11 @@ class Ec2Cloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return EC2(tag="ec2-integration-test")
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
     def _perform_launch(self, launch_kwargs, **kwargs):
         """Use a dual-stack VPC for cloud-init integration testing."""
         if "vpc" not in launch_kwargs:
@@ -234,6 +245,11 @@ class GceCloud(IntegrationCloud):
             tag="gce-integration-test",
         )
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
 
 class AzureCloud(IntegrationCloud):
     datasource = "azure"
@@ -241,6 +257,11 @@ class AzureCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return Azure(tag="azure-integration-test")
+
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
 
     def destroy(self):
         if self.settings.KEEP_INSTANCE:
@@ -366,7 +387,7 @@ class OpenstackCloud(IntegrationCloud):
             tag="openstack-integration-test",
         )
 
-    def _get_initial_image(self):
+    def _get_initial_image(self, **kwargs):
         image = ImageSpecification.from_os_image()
         try:
             UUID(image.image_id)

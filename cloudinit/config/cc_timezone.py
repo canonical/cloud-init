@@ -26,6 +26,7 @@ meta: MetaSchema = {
     "examples": [
         "timezone: US/Eastern",
     ],
+    "activate_by_schema_keys": ["timezone"],
 }
 
 __doc__ = get_meta_doc(meta)

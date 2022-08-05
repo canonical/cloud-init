@@ -80,7 +80,8 @@ Disabling Network Activation
 
 Some datasources may not be initialized until after network has been brought
 up. In this case, cloud-init will attempt to bring up the interfaces specified
-by the datasource metadata.
+by the datasource metadata using a network activator discovered by
+`cloudinit.net.activators.select_activators`_.
 
 This behavior can be disabled in the cloud-init configuration dictionary,
 merged from ``/etc/cloud/cloud.cfg`` and ``/etc/cloud/cloud.cfg.d/*``::
@@ -215,6 +216,15 @@ network configuration for supported backends such as ``systemd-networkd`` and
 Sysconfig format is used by RHEL, CentOS, Fedora and other derivatives.
 
 
+- **NetBSD, OpenBSD, FreeBSD**
+
+Network renders supporting BSD releases which typically write configuration to
+``/etc/rc.conf``. Unique to BSD renderers is that each renderer also calls
+something akin to `FreeBSD.start_services`_ which will invoke applicable
+network services to setup the network, making network activators unneeded
+for BSD flavors at the moment.
+
+
 Network Output Policy
 =====================
 
@@ -225,6 +235,18 @@ is as follows:
 - Sysconfig
 - Netplan
 - NetworkManager
+- FreeBSD
+- NetBSD
+- OpenBSD
+- Networkd
+
+The default policy for selecting a network ``activator`` in order of preference
+is as follows:
+- ENI: using `ifup`, `ifdown` to manage device setup/teardown
+- Netplan: using `netplan apply` to manage device setup/teardown
+- NetworkManager: using `nmcli` to manage device setup/teardown
+- Networkd: using `ip` to manage device setup/teardown
+
 
 When applying the policy, `Cloud-init`_ checks if the current instance has the
 correct binaries and paths to support the renderer.  The first renderer that
@@ -234,6 +256,7 @@ supplying an updated configuration in cloud-config. ::
   system_info:
     network:
       renderers: ['netplan', 'network-manager', 'eni', 'sysconfig', 'freebsd', 'netbsd', 'openbsd']
+      activators: ['eni', 'netplan', 'network-manager', 'networkd']
 
 
 Network Configuration Tools
@@ -295,5 +318,7 @@ Example output converting V2 to sysconfig:
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
 .. _Vultr JSON metadata: https://www.vultr.com/metadata/
+.. _cloudinit.net.activators.select_activators: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L279
+.. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L28
 
 .. vi: textwidth=79

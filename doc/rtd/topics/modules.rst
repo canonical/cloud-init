@@ -12,7 +12,6 @@ Module Reference
 .. automodule:: cloudinit.config.cc_byobu
 .. automodule:: cloudinit.config.cc_ca_certs
 .. automodule:: cloudinit.config.cc_chef
-.. automodule:: cloudinit.config.cc_debug
 .. automodule:: cloudinit.config.cc_disable_ec2_metadata
 .. automodule:: cloudinit.config.cc_disk_setup
 .. automodule:: cloudinit.config.cc_fan

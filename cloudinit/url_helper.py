@@ -19,7 +19,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote, urlparse, urlunparse
 
 import requests
@@ -59,7 +59,7 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, **kwargs):
+def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
     """Wrapper function around readurl to allow passing a file path as url.
 
     When url is not a local file path, passthrough any kwargs to readurl.
@@ -113,7 +113,7 @@ class FileResponse(StringResponse):
 
 
 class UrlResponse(object):
-    def __init__(self, response):
+    def __init__(self, response: requests.Response):
         self._response = response
 
     @property
@@ -143,6 +143,20 @@ class UrlResponse(object):
 
     def __str__(self):
         return self._response.text
+
+    def iter_content(
+        self, chunk_size: Optional[int] = 1, decode_unicode: bool = False
+    ) -> Iterator[bytes]:
+        """Iterates over the response data.
+
+        When stream=True is set on the request, this avoids reading the content
+        at once into memory for large responses.
+
+        :param chunk_size: Number of bytes it should read into memory.
+        :param decode_unicode: If True, content will be decoded using the best
+        available encoding based on the response.
+        """
+        yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
 class UrlError(IOError):
@@ -191,6 +205,7 @@ def readurl(
     infinite=False,
     log_req_resp=True,
     request_method="",
+    stream: bool = False,
 ) -> UrlResponse:
     """Wrapper around requests.Session to read the url and retry if necessary
 
@@ -222,10 +237,13 @@ def readurl(
     :param request_method: String passed as 'method' to Session.request.
         Typically GET, or POST. Default: POST if data is provided, GET
         otherwise.
+    :param stream: if False, the response content will be immediately
+    downloaded.
     """
     url = _cleanurl(url)
     req_args = {
         "url": url,
+        "stream": stream,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
     req_args["allow_redirects"] = allow_redirects

@@ -170,7 +170,6 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
-            {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_fan"},
@@ -405,7 +404,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -424,7 +423,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -442,7 +441,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -461,7 +460,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -475,7 +474,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -510,7 +509,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -547,7 +546,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
             ),
             pytest.param(
                 {
@@ -770,7 +769,7 @@ class TestSchemaDocMarkdown:
             **Supported distros:** debian, rhel
 
             **Config schema**:
-                **prop1:** (array of integer) prop-description
+                **prop1:** (array of integer) prop-description.
 
             **Examples**::
 
@@ -823,9 +822,9 @@ class TestSchemaDocMarkdown:
             **Activate only on keys:** ``prop1``, ``prop2``
 
             **Config schema**:
-                **prop1:** (array of string) prop-description
+                **prop1:** (array of string) prop-description.
 
-                **prop2:** (boolean) prop2-description
+                **prop2:** (boolean) prop2-description.
 
             **Examples**::
 
@@ -868,7 +867,7 @@ class TestSchemaDocMarkdown:
                 """\
             **prop1:** (string/object) Objects support the following keys:
 
-                    **<opaque_label>:** (array of string) List of cool strings
+                    **<opaque_label>:** (array of string) List of cool strings.
             """
             )
             in get_meta_doc(self.meta, schema)
@@ -1013,7 +1012,7 @@ class TestSchemaDocMarkdown:
             dedent(
                 """
             **Config schema**:
-                **prop1:** (array of integer) prop-description
+                **prop1:** (array of integer) prop-description.
 
             **Examples**::
 
@@ -1059,7 +1058,7 @@ class TestSchemaDocMarkdown:
                         - option2
                         - option3
 
-                The default value is option1
+                The default value is option1.
 
         """
             )
@@ -1170,7 +1169,7 @@ class TestSchemaDocMarkdown:
                         }
                     }
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1183,7 +1182,7 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1201,7 +1200,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1221,7 +1220,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1239,7 +1238,7 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED) <description>\n",
+                "**prop1:** (UNDEFINED) <description>. DEPRECATED: <deprecat",
             ),
             (
                 {
@@ -1260,7 +1259,8 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED)\n",
+                "**prop1:** (UNDEFINED) <description>. DEPRECATED:"
+                " <deprecated_description>",
             ),
         ],
     )
@@ -1624,9 +1624,9 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true		# D3
 
                     # Deprecations: -------------
-                    # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
-                    # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
+                    # D1: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``
+                    # D2: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+                    # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
                     Valid cloud-config: {}
@@ -1638,9 +1638,9 @@ class TestHandleSchemaArgs:
                 dedent(
                     """\
                     Cloud config schema deprecations: \
-apt_reboot_if_required: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
-apt_update: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``, \
-apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+apt_reboot_if_required: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
+apt_update: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``, \
+apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
                     Valid cloud-config: {}
                     """  # noqa: E501
                 ),

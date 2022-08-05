@@ -48,6 +48,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["keyboard"],
 }
 
 

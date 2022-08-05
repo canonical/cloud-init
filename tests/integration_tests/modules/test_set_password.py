@@ -64,6 +64,23 @@ chpasswd:
 """
 )
 
+USERS_USER_DATA = (
+    COMMON_USER_DATA
+    + """
+chpasswd:
+  users:
+    - name: tom
+      password: mypassword123!
+      type: text
+    - name: dick
+      type: RANDOM
+    - name: harry
+      type: RANDOM
+    - name: mikey
+      password: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+"""
+)
+
 USERS_DICTS = yaml.safe_load(COMMON_USER_DATA)["users"]
 USERS_PASSWD_VALUES = {
     user_dict["name"]: user_dict["passwd"]
@@ -160,7 +177,7 @@ class Mixin:
         shadow = class_client.read_from_file("/etc/shadow")
         for user_dict in USERS_DICTS:
             if "name" in user_dict:
-                assert "{}:".format(user_dict["name"]) in shadow
+                assert f'{user_dict["name"]}:' in shadow
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
@@ -169,13 +186,17 @@ class Mixin:
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(LIST_USER_DATA)
 class TestPasswordList(Mixin):
     """Launch an instance with LIST_USER_DATA, ensure Mixin tests pass."""
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(STRING_USER_DATA)
 class TestPasswordListString(Mixin):
     """Launch an instance with STRING_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.ci
+@pytest.mark.user_data(USERS_USER_DATA)
+class TestPasswordUsersList(Mixin):
+    """Launch an instance with USERS_USER_DATA, ensure Mixin tests pass."""

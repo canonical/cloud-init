@@ -43,6 +43,7 @@ meta: MetaSchema = {
         "byobu_by_default: enable-user",
         "byobu_by_default: disable-system",
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

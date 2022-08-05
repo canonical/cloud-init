@@ -486,9 +486,200 @@ IMDS_NETWORK_METADATA = {
 EXAMPLE_UUID = "d0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8"
 
 
-class TestNetworkConfig:
+class TestGenerateNetworkConfig:
+    @pytest.mark.parametrize(
+        "label,metadata,expected",
+        [
+            (
+                "simple interface",
+                NETWORK_METADATA["network"],
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "multiple interfaces with increasing route metric",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "000D3A047598",
+                            "ipv6": {"ipAddress": []},
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"}
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                    * 3
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                        "eth1": {
+                            "set-name": "eth1",
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "dhcp6": False,
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 200},
+                        },
+                        "eth2": {
+                            "set-name": "eth2",
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "dhcp6": False,
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 300},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "secondary IPv4s are static",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "000D3A047598",
+                            "ipv6": {
+                                "subnet": [
+                                    {
+                                        "prefix": "10",
+                                        "address": "2001:dead:beef::16",
+                                    }
+                                ],
+                                "ipAddress": [
+                                    {"privateIpAddress": "2001:dead:beef::1"}
+                                ],
+                            },
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"},
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    },
+                                    {
+                                        "privateIpAddress": "11.0.0.5",
+                                        "publicIpAddress": "104.46.124.82",
+                                    },
+                                    {
+                                        "privateIpAddress": "12.0.0.6",
+                                        "publicIpAddress": "104.46.124.83",
+                                    },
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "addresses": ["11.0.0.5/24", "12.0.0.6/24"],
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "ipv6 secondaries",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "000D3A047598",
+                            "ipv6": {
+                                "subnet": [
+                                    {
+                                        "prefix": "10",
+                                        "address": "2001:dead:beef::16",
+                                    }
+                                ],
+                                "ipAddress": [
+                                    {"privateIpAddress": "2001:dead:beef::1"},
+                                    {"privateIpAddress": "2001:dead:beef::2"},
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "addresses": ["2001:dead:beef::2/10"],
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_parsing_scenarios(
+        self, label, mock_device_driver, metadata, expected
+    ):
+        assert (
+            dsaz.generate_network_config_from_instance_network_metadata(
+                metadata
+            )
+            == expected
+        )
 
-    maxDiff = None
+    def test_match_hv_netvsc(self, mock_device_driver):
+        mock_device_driver.return_value = "hv_netvsc"
+
+        assert dsaz.generate_network_config_from_instance_network_metadata(
+            NETWORK_METADATA["network"]
+        ) == {
+            "ethernets": {
+                "eth0": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"route-metric": 100},
+                    "dhcp6": False,
+                    "match": {
+                        "macaddress": "00:0d:3a:04:75:98",
+                        "driver": "hv_netvsc",
+                    },
+                    "set-name": "eth0",
+                }
+            },
+            "version": 2,
+        }
+
+
+class TestNetworkConfig:
     fallback_config = {
         "version": 1,
         "config": [
@@ -511,133 +702,6 @@ class TestNetworkConfig:
                     "dhcp4-overrides": {"route-metric": 100},
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
-        azure_ds._metadata_imds = NETWORK_METADATA
-
-        assert azure_ds.network_config == expected
-
-    def test_increases_route_metric_for_non_primary_nics(
-        self, azure_ds, mock_device_driver
-    ):
-        """Network config increases route-metric for each nic"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                },
-                "eth1": {
-                    "set-name": "eth1",
-                    "match": {"macaddress": "22:0d:3a:04:75:98"},
-                    "dhcp6": False,
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 200},
-                },
-                "eth2": {
-                    "set-name": "eth2",
-                    "match": {"macaddress": "33:0d:3a:04:75:98"},
-                    "dhcp6": False,
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
-                },
-            },
-            "version": 2,
-        }
-        imds_data = copy.deepcopy(NETWORK_METADATA)
-        imds_data["network"]["interface"].append(SECONDARY_INTERFACE)
-        third_intf = copy.deepcopy(SECONDARY_INTERFACE)
-        third_intf["macAddress"] = third_intf["macAddress"].replace("22", "33")
-        third_intf["ipv4"]["subnet"][0]["address"] = "10.0.2.0"
-        third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
-        imds_data["network"]["interface"].append(third_intf)
-        azure_ds._metadata_imds = imds_data
-
-        assert azure_ds.network_config == expected
-
-    def test_ipv4_secondary_ips_will_be_static_addrs(
-        self, azure_ds, mock_device_driver
-    ):
-        """Network config emits primary ipv4 as dhcp others are static"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "addresses": ["10.0.0.5/24"],
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 100},
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
-        imds_data = copy.deepcopy(NETWORK_METADATA)
-        nic1 = imds_data["network"]["interface"][0]
-        nic1["ipv4"]["ipAddress"].append({"privateIpAddress": "10.0.0.5"})
-
-        nic1["ipv6"] = {
-            "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
-            "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}],
-        }
-        azure_ds._metadata_imds = imds_data
-
-        assert azure_ds.network_config == expected
-
-    def test_ipv6_secondary_ips_will_be_static_cidrs(
-        self, azure_ds, mock_device_driver
-    ):
-        """Network config emits primary ipv6 as dhcp others are static"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "addresses": ["10.0.0.5/24", "2001:dead:beef::2/10"],
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": True,
-                    "dhcp6-overrides": {"route-metric": 100},
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
-        imds_data = copy.deepcopy(NETWORK_METADATA)
-        nic1 = imds_data["network"]["interface"][0]
-        nic1["ipv4"]["ipAddress"].append({"privateIpAddress": "10.0.0.5"})
-
-        # Secondary ipv6 addresses currently ignored/unconfigured
-        nic1["ipv6"] = {
-            "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
-            "ipAddress": [
-                {"privateIpAddress": "2001:dead:beef::1"},
-                {"privateIpAddress": "2001:dead:beef::2"},
-            ],
-        }
-        azure_ds._metadata_imds = imds_data
-
-        assert azure_ds.network_config == expected
-
-    def test_match_driver_for_netvsc(self, azure_ds, mock_device_driver):
-        """Network config emits driver when using netvsc."""
-        mock_device_driver.return_value = "hv_netvsc"
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {
-                        "macaddress": "00:0d:3a:04:75:98",
-                        "driver": "hv_netvsc",
-                    },
                     "set-name": "eth0",
                 }
             },
@@ -3375,6 +3439,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                     method="GET",
                     timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                     url=full_url,
+                    stream=False,
                 )
             ],
         )
@@ -3426,6 +3491,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 method="GET",
                 timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                 url=full_url,
+                stream=False,
             ),
             m_request.call_args_list,
         )
@@ -4319,6 +4385,69 @@ class TestProvisioning:
 
         # Verify no netlink operations for recovering PPS.
         assert self.mock_netlink.mock_calls == []
+
+    @pytest.mark.parametrize(
+        "subp_side_effect",
+        [
+            subp.SubpResult("okie dokie", ""),
+            subp.ProcessExecutionError(
+                cmd=["failed", "cmd"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+        ],
+    )
+    def test_os_disk_pps(self, mock_sleep, subp_side_effect):
+        self.imds_md["extended"]["compute"]["ppsType"] = "PreprovisionedOSDisk"
+
+        self.mock_subp_subp.side_effect = [subp_side_effect]
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+
+        self.azure_ds._get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            )
+        ]
+
+        assert self.mock_subp_subp.mock_calls == []
+        assert mock_sleep.mock_calls == [mock.call(31536000)]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(None, dsaz.dhcp_log_cb)
+        ]
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify reported ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            )
+        ]
+
+        # Verify no netlink operations for os disk PPS.
+        assert self.mock_netlink.mock_calls == []
+
+        # Ensure no reported ready marker is left behind as the VM's next
+        # boot will behave like a typical provisioning boot.
+        assert self.patched_reported_ready_marker_path.exists() is False
 
 
 class TestValidateIMDSMetadata:

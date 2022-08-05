@@ -5,7 +5,9 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from itertools import chain
 from pathlib import Path
+from typing import Set
 
 import pytest
 
@@ -53,7 +55,9 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
     warning_texts = [
         # Consistently on all Azure launches:
         # azure.py[WARNING]: No lease found; using default endpoint
-        "No lease found; using default endpoint"
+        "No lease found; using default endpoint",
+        # Ubuntu lxd storage
+        "thinpool by default on Ubuntu due to LP #1982780",
     ]
     traceback_texts = []
     if "oracle" in log:
@@ -88,6 +92,19 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         f"{re.findall('WARNING.*', log)}"
     )
     assert traceback_count == expected_tracebacks
+
+
+def get_inactive_modules(log: str) -> Set[str]:
+    matches = re.findall(
+        r"Skipping modules '(.*)' because no applicable config is provided.",
+        log,
+    )
+    return set(
+        map(
+            lambda module: module.strip(),
+            chain(*map(lambda match: match.split(","), matches)),
+        )
+    )
 
 
 @contextmanager

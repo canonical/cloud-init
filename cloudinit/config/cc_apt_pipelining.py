@@ -50,6 +50,7 @@ meta: MetaSchema = {
         "apt_pipelining: os",
         "apt_pipelining: 3",
     ],
+    "activate_by_schema_keys": ["apt_pipelining"],
 }
 
 __doc__ = get_meta_doc(meta)
