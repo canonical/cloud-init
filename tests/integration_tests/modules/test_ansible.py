@@ -93,8 +93,8 @@ def _test_ansible_pull_from_local_server(my_client):
     )
 
     # Following assertions verify ansible behavior itself
-    assert my_client.execute(["which", "ansible-pull"]).ok
     verify_clean_log(log)
+    assert "ok=3" in log
     assert "cc_ansible.py[WARNING]: Error executing" not in log
     assert "SUCCESS: config-ansible ran successfully" in log
 

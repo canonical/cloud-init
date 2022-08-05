@@ -3,6 +3,7 @@ import abc
 import os
 import re
 import sys
+import logging
 from copy import deepcopy
 from logging import Logger
 from textwrap import dedent
@@ -60,6 +61,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 class AnsiblePull(abc.ABC):
@@ -125,7 +127,7 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
+def handle(name: str, cfg: dict, cloud: Cloud, _, __):
     ansible_cfg: dict = cfg.get("ansible", {})
     if ansible_cfg:
         validate_config(ansible_cfg)
@@ -139,7 +141,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, _):
                 ansible = AnsiblePullDistro(cloud.distro)
             ansible.install(ansible_cfg["package-name"])
             ansible.check_deps()
-            run_ansible_pull(ansible, deepcopy(pull_cfg), log)
+            run_ansible_pull(ansible, deepcopy(pull_cfg))
 
 
 def validate_config(cfg: dict):
@@ -163,12 +165,12 @@ def filter_args(cfg: dict) -> dict:
     return {key: value for (key, value) in cfg.items() if value is not False}
 
 
-def run_ansible_pull(pull: AnsiblePull, cfg: dict, log: Logger):
+def run_ansible_pull(pull: AnsiblePull, cfg: dict):
     playbook_name: str = cfg.pop("playbook-name")
 
     v = pull.get_version()
     if not v:
-        log.warn("Cannot parse ansible version")
+        LOG.warn("Cannot parse ansible version")
     elif v < Version(2, 7, 0):
         # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
         if cfg.get("diff"):
