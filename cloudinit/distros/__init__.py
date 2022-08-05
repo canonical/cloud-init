@@ -651,8 +651,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if "sudo" in kwargs and kwargs["sudo"] is not False:
-            self.write_sudo_rules(name, kwargs["sudo"])
+        if "sudo" in kwargs:
+            if kwargs["sudo"]:
+                self.write_sudo_rules(name, kwargs["sudo"])
+            elif kwargs["sudo"] is False:
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'sudo' config value of"
+                    " 'false' which will be dropped after April 2027."
+                    " Use 'null' instead.",
+                    name,
+                )
 
         # Import SSH keys
         if "ssh_authorized_keys" in kwargs:

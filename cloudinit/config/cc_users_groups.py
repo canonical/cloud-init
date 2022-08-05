@@ -141,7 +141,7 @@ meta: MetaSchema = {
         ssh_import_id: [chad.smith]
         user:
           name: mynewdefault
-          sudo: false
+          sudo: null
         """
         ),
     ],

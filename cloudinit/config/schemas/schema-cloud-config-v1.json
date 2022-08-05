@@ -29,7 +29,8 @@
         "expiredate": {
           "default": null,
           "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
-          "type": "string"
+          "type": "string",
+          "format": "date"
         },
         "gecos": {
           "description": "Optional comment about the user, usually a comma-separated string of real name and contact information",
@@ -153,12 +154,28 @@
           "default": false
         },
         "sudo": {
-          "type": ["boolean", "string"],
-          "description": "Sudo rule to use or false. Absence of a sudo value or ``false`` will result in no sudo rules added for this user. DEPRECATED: the value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+          "oneOf": [
+            {
+              "type": ["string", "null"],
+              "description": "Sudo rule to use or false. Absence of a sudo value or ``null`` will result in no sudo rules added for this user."
+            },
+            {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "The value ``false`` will be dropped after April 2027. Use ``null`` or no ``sudo`` key instead."
+            }
+          ]
         },
         "uid": {
           "description": "The user's ID. Default is next available value.",
-          "type": "integer"
+          "oneOf": [
+            {"type": "integer"},
+            {
+              "type": "string",
+              "description": "The use of ``string`` type will be dropped after April 2027. Use an ``integer`` instead.",
+              "deprecated": true
+            }
+          ]
         }
       }
     },

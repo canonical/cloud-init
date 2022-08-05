@@ -841,6 +841,23 @@ class TestSchemaDocMarkdown:
         schema = {"properties": {"prop1": {"type": ["string", "integer"]}}}
         assert "**prop1:** (string/integer)" in get_meta_doc(self.meta, schema)
 
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_multiple_types_recursive(self, multi_key):
+        """get_meta_doc delimits multiple property types with a '/'."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    multi_key: [
+                        {"type": ["string", "null"]},
+                        {"type": "integer"},
+                    ]
+                }
+            }
+        }
+        assert "**prop1:** (string/null/integer)" in get_meta_doc(
+            self.meta, schema
+        )
+
     def test_references_are_flattened_in_schema_docs(self):
         """get_meta_doc flattens and renders full schema definitions."""
         schema = {
@@ -940,14 +957,17 @@ class TestSchemaDocMarkdown:
         """
         assert expected in get_meta_doc(self.meta, schema)
 
-    def test_get_meta_doc_handles_nested_oneof_property_types(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_nested_multi_schema_property_types(
+        self, multi_key
+    ):
         """get_meta_doc describes array items oneOf declarations in type."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": "array",
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -956,14 +976,15 @@ class TestSchemaDocMarkdown:
             self.meta, schema
         )
 
-    def test_get_meta_doc_handles_types_as_list(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_types_as_list(self, multi_key):
         """get_meta_doc renders types which have a list value."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": ["boolean", "array"],
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -1258,8 +1279,74 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED) <description>. DEPRECATED:"
+                "**prop1:** (number) <description>. DEPRECATED:"
                 " <deprecated_description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (``none``/``unchanged``/``os``) <description>."
+                " DEPRECATED: <deprecated_description>.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description_1>",
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>_2",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (string/integer/``none``/``unchanged``/``os``)"
+                " <description_1>. <description>_2.\n",
+            ),
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "description": "<desc_1>",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "anyOf": [
+                                    {
+                                        "properties": {
+                                            "sub_prop1": {"type": "string"},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+                "**prop1:** (array of object) <desc_1>.\n",
             ),
         ],
     )
