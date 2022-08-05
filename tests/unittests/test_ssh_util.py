@@ -619,7 +619,7 @@ class TestUpdateSshConfig:
         assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
-        assert not os.path.isfile(f"other_{mycfg}.d/00-cloud-init.conf")
+        assert not os.path.isfile(f"other_{mycfg}.d/50-cloud-init.conf")
 
 
 class TestBasicAuthorizedKeyParse:
