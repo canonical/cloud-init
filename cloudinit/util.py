@@ -2903,7 +2903,7 @@ def get_proc_ppid(pid):
                 LOG.warning(
                     "Unable to match parent pid of process pid=%s input: %s",
                     pid,
-                    contents
+                    contents,
                 )
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
