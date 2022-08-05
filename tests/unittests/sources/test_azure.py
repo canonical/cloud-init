@@ -3439,6 +3439,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                     method="GET",
                     timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                     url=full_url,
+                    stream=False,
                 )
             ],
         )
@@ -3490,6 +3491,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 method="GET",
                 timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                 url=full_url,
+                stream=False,
             ),
             m_request.call_args_list,
         )
