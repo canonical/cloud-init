@@ -2896,9 +2896,15 @@ def get_proc_ppid(pid):
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
         if contents:
             # see proc.5 for format
-            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKWP] (\d+)", str(contents))
+            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKPI] (\d+)", str(contents))
             if m:
                 ppid = int(m.group(1))
+            else:
+                LOG.warning(
+                    "Unable to match parent pid of process pid=%s input: %s",
+                    pid,
+                    contents,
+                )
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
     return ppid
