@@ -100,7 +100,7 @@ def _test_ansible_pull_from_local_server(my_client):
 
 
 @pytest.mark.user_data(
-    USER_DATA + INSTALL_METHOD.format(method="ansible-core", package="pip")
+    USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
 class TestAnsiblePullPip:
     def test_ansible_pull_pip(self, class_client):
@@ -108,7 +108,7 @@ class TestAnsiblePullPip:
 
 
 @pytest.mark.user_data(
-    USER_DATA + INSTALL_METHOD.format(method="ansible", package="distro")
+    USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
 class TestAnsiblePullDistro:
     def test_ansible_pull_distro(self, class_client):
