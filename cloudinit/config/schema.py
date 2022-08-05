@@ -9,6 +9,7 @@ import re
 import sys
 import textwrap
 from collections import defaultdict
+from collections.abc import Iterable
 from copy import deepcopy
 from functools import partial
 from itertools import chain
@@ -715,6 +716,23 @@ def _sort_property_order(value):
     return 0
 
 
+def _flatten(xs):
+    for x in xs:
+        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+            yield from _flatten(x)
+        else:
+            yield x
+
+
+def _collect_subschema_types(property_dict: dict, multi_key: str) -> List[str]:
+    property_types = [
+        subschema["type"]
+        for subschema in property_dict.get(multi_key, {})
+        if subschema.get("type") and not subschema.get("deprecated", False)
+    ]
+    return list(_flatten(property_types))
+
+
 def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
@@ -723,18 +741,15 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     property_types = property_dict.get("type", [])
     if not isinstance(property_types, list):
         property_types = [property_types]
+    # A property_dict cannot have simultaneously more than one of these props
     if property_dict.get("enum"):
         property_types = [
             f"``{_YAML_MAP.get(k, k)}``" for k in property_dict["enum"]
         ]
     elif property_dict.get("oneOf"):
-        property_types.extend(
-            [
-                subschema["type"]
-                for subschema in property_dict.get("oneOf", {})
-                if subschema.get("type")
-            ]
-        )
+        property_types.extend(_collect_subschema_types(property_dict, "oneOf"))
+    elif property_dict.get("anyOf"):
+        property_types.extend(_collect_subschema_types(property_dict, "anyOf"))
     if len(property_types) == 1:
         property_type = property_types[0]
     else:
@@ -745,7 +760,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     if not isinstance(sub_property_types, list):
         sub_property_types = [sub_property_types]
     # Collect each item type
-    for sub_item in items.get("oneOf", {}):
+    for sub_item in chain(items.get("oneOf", {}), items.get("anyOf", {})):
         sub_property_types.append(_get_property_type(sub_item, defs))
     if sub_property_types:
         if len(sub_property_types) == 1:

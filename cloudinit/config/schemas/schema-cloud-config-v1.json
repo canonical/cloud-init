@@ -153,8 +153,17 @@
           "default": false
         },
         "sudo": {
-          "type": ["boolean", "string"],
-          "description": "Sudo rule to use or false. Absence of a sudo value or ``false`` will result in no sudo rules added for this user. DEPRECATED: the value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+          "oneOf": [
+            {
+              "type": ["string", "null"],
+              "description": "Sudo rule to use or false. Absence of a sudo value or ``null`` will result in no sudo rules added for this user."
+            },
+            {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "The value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+            }
+          ]
         },
         "uid": {
           "description": "The user's ID. Default is next available value.",
