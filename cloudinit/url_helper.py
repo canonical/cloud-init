@@ -118,6 +118,8 @@ class UrlResponse(object):
 
     @property
     def contents(self) -> bytes:
+        if self._response.content is None:
+            return b""
         return self._response.content
 
     @property
