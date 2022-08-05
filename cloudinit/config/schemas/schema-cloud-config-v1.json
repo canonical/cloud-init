@@ -2168,7 +2168,7 @@
             {"enum": [true, false, "localhost"]},
             {
               "enum": ["template"],
-              "description": "Value ``template`` will be dropped, use ``true`` instead.",
+              "description": "Value ``template`` will be dropped after April 2027. Use ``true`` instead.",
               "deprecated": true
             }
           ]

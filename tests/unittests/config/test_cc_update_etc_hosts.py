@@ -88,7 +88,8 @@ class TestUpdateEtcHosts:
                     SchemaValidationError,
                     match=(
                         "deprecations: manage_etc_hosts: DEPRECATED. Value"
-                        " ``template`` will be dropped, use ``true`` instead"
+                        " ``template`` will be dropped after April 2027."
+                        " Use ``true`` instead"
                     ),
                 ),
             ),
