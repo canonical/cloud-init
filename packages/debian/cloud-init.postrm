@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+cleanup_sshd_config() {
+  rm -f "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+}
+
+if [ "$1" = "purge" ]; then
+  cleanup_sshd_config
+fi
