@@ -4214,7 +4214,28 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket().close(),
         ]
 
-    def test_savable_pps(self):
+    @pytest.mark.parametrize(
+        "fabric_side_effect",
+        [
+            [[], []],
+            [
+                [
+                    url_helper.UrlError(
+                        requests.ConnectionError(
+                            "Failed to establish a new connection: "
+                            "[Errno 101] Network is unreachable"
+                        )
+                    )
+                ],
+                [],
+            ],
+            [
+                [url_helper.UrlError(requests.ReadTimeout("Read timed out"))],
+                [],
+            ],
+        ],
+    )
+    def test_savable_pps(self, fabric_side_effect):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
@@ -4231,7 +4252,9 @@ class TestProvisioning:
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
-        self.mock_azure_get_metadata_from_fabric.return_value = []
+        self.mock_azure_get_metadata_from_fabric.side_effect = (
+            fabric_side_effect
+        )
 
         self.azure_ds._get_data()
 

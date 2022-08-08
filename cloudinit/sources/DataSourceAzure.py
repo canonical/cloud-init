@@ -974,7 +974,12 @@ class DataSourceAzure(sources.DataSource):
         )
 
     @azure_ds_telemetry_reporter
-    def _report_ready_for_pps(self, *, create_marker: bool = True) -> None:
+    def _report_ready_for_pps(
+        self,
+        *,
+        create_marker: bool = True,
+        expect_url_error: bool = False,
+    ) -> None:
         """Report ready for PPS, creating the marker file upon completion.
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
@@ -982,9 +987,24 @@ class DataSourceAzure(sources.DataSource):
         try:
             self._report_ready()
         except Exception as error:
-            msg = "Failed reporting ready while in the preprovisioning pool."
-            report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg) from error
+            # Ignore HTTP failures for Savable PPS as the call may appear to
+            # fail if the network interface is unplugged or the VM is
+            # suspended before we process the response. Worst case scenario
+            # is that we failed to report ready for source PPS and this VM
+            # will be discarded shortly, no harm done.
+            if expect_url_error and isinstance(error, UrlError):
+                report_diagnostic_event(
+                    "Ignoring http call failure, it was expected.",
+                    logger_func=LOG.debug,
+                )
+                # The iso was ejected prior to reporting ready.
+                self._iso_dev = None
+            else:
+                msg = (
+                    "Failed reporting ready while in the preprovisioning pool."
+                )
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg) from error
 
         if create_marker:
             self._create_report_ready_marker()
@@ -1157,7 +1177,7 @@ class DataSourceAzure(sources.DataSource):
         nl_sock = None
         try:
             nl_sock = netlink.create_bound_netlink_socket()
-            self._report_ready_for_pps()
+            self._report_ready_for_pps(expect_url_error=True)
             self._teardown_ephemeral_networking()
             self._wait_for_nic_detach(nl_sock)
             self._wait_for_hot_attached_primary_nic(nl_sock)
