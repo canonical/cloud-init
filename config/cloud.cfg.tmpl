@@ -2,6 +2,7 @@
 # The top level settings are used as module
 # and system configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
+{% set is_rhel = variant in ["rhel", "centos"] %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
@@ -32,9 +33,9 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
-                  "fedora", "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "virtuozzo"] %}
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "alpine", "amazon", "cloudlinux", "eurolinux",
+                  "fedora", "miraclelinux", "openEuler", "openmandriva", "rocky", "virtuozzo"] or is_rhel %}
+{% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
@@ -70,7 +71,7 @@ network:
   config: disabled
 {% endif %}
 
-{% if variant == "rhel" %}
+{% if is_rhel %}
 # Default redhat settings:
 ssh_deletekeys:   true
 ssh_genkeytypes:  ['rsa', 'ecdsa', 'ed25519']
@@ -119,16 +120,16 @@ cloud_config_modules:
 {% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
-{% if variant not in ["rhel"] %}
+{% if not is_rhel %}
  - keyboard
 {% endif %}
  - locale
 {% endif %}
  - set-passwords
-{% if variant in ["rhel"] %}
+{% if is_rhel %}
  - rh_subscription
 {% endif %}
-{% if variant in ["rhel", "fedora", "openmandriva", "photon"] %}
+{% if variant in ["fedora", "openmandriva", "photon"] or is_rhel %}
 {% if variant not in ["photon"] %}
  - spacewalk
 {% endif %}
@@ -194,9 +195,9 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
+{% if variant in ["almalinux", "alpine", "amazon", "arch", "cloudlinux", "debian",
                   "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "miraclelinux", "openbsd", "openEuler",
-                  "openmandriva", "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
+                  "openmandriva", "photon", "rocky", "suse", "ubuntu", "virtuozzo"] or is_rhel %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -249,15 +250,15 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "eurolinux",
-                    "fedora", "gentoo", "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "suse", "virtuozzo"] %}
+{% elif variant in ["almalinux", "alpine", "amazon", "arch", "cloudlinux", "eurolinux",
+                    "fedora", "gentoo", "miraclelinux", "openEuler", "openmandriva", "rocky", "suse", "virtuozzo"] or is_rhel %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
      name: ec2-user
      lock_passwd: True
      gecos: EC2 Default User
-{% elif variant == "rhel" %}
+{% elif is_rhel %}
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User
@@ -282,7 +283,7 @@ system_info:
      groups: [wheel, users]
 {% elif variant == "openmandriva" %}
      groups: [wheel, users, systemd-journal]
-{% elif variant == "rhel" %}
+{% elif is_rhel %}
      groups: [adm, systemd-journal]
 {% else %}
      groups: [wheel, adm, systemd-journal]
@@ -360,7 +361,7 @@ system_info:
 {% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
-{% elif variant in ["rhel", "fedora"] %}
+{% elif variant in ["fedora"] or is_rhel %}
    network:
       renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
 {% elif variant == "openmandriva" %}
