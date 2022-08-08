@@ -101,6 +101,7 @@ class TestCaCerts:
 
         expected_inactive = {
             "apt-pipelining",
+            "ansible",
             "bootcmd",
             "chef",
             "disable-ec2-metadata",
