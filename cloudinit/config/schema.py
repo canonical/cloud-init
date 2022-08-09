@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 import yaml
 
 from cloudinit import importer, safeyaml
-from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.util import error, get_modules_from_dir, load_file
+from cloudinit.stages import Init
+from cloudinit.util import encode_text, error, get_modules_from_dir, load_file
 
 try:
     from jsonschema import ValidationError as _ValidationError
@@ -617,9 +617,17 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                 "Unable to read system userdata as non-root user."
                 " Try using sudo"
             )
-        paths = read_cfg_paths()
-        user_data_file = paths.get_ipath_cur("userdata_raw")
-        content = load_file(user_data_file, decode=False)
+        init = Init(ds_deps=[])
+        ds = init.fetch("trust")
+        ud = ds.get_userdata()
+        content = None
+        for part in ud.walk():
+            if part.get_content_type() == "text/cloud-config":
+                content = encode_text(part.get_payload())
+                break
+        if not content:
+            print("No cloud-config userdata found. Skipping verification")
+            return
     else:
         if not os.path.exists(config_path):
             raise RuntimeError(

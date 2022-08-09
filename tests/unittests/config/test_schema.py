@@ -16,8 +16,10 @@ from textwrap import dedent
 from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
+import httpretty
 import pytest
 
+from cloudinit import sources, stages
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
@@ -39,7 +41,7 @@ from cloudinit.config.schema import (
 from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
-from cloudinit.util import load_file, write_file
+from cloudinit.util import load_file
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
@@ -52,6 +54,17 @@ from tests.unittests.helpers import (
 )
 
 M_PATH = "cloudinit.config.schema."
+
+INSTANCE_ID = "i-testing"
+
+
+class FakeDataSource(sources.DataSource):
+    def __init__(self, userdata=None, vendordata=None, vendordata2=None):
+        sources.DataSource.__init__(self, {}, None, None)
+        self.metadata = {"instance-id": INSTANCE_ID}
+        self.userdata_raw = userdata
+        self.vendordata_raw = vendordata
+        self.vendordata2_raw = vendordata2
 
 
 def get_schemas() -> dict:
@@ -701,6 +714,52 @@ class TestValidateCloudConfigFile:
         )
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
+
+    @skipUnlessJsonSchema()
+    @httpretty.activate
+    @pytest.mark.parametrize("annotate", (True, False))
+    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_validateconfig_file_include_validates_schema(
+        self, m_getuid, m_sleep, annotate, mocker
+    ):
+        """validate_cloudconfig_file raises errors on invalid schema
+        when user-data uses `#include`."""
+        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
+        included_data = "#cloud-config\np1: -1"
+        included_url = "http://asdf/user-data"
+        blob = f"#include {included_url}"
+        httpretty.register_uri(httpretty.GET, included_url, included_data)
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        mocker.patch(M_PATH + "Init", return_value=ci)
+
+        error_msg = (
+            "Cloud config schema errors: p1: -1 is not of type 'string'"
+        )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(None, schema, annotate)
+
+    @skipUnlessJsonSchema()
+    @httpretty.activate
+    @pytest.mark.parametrize("annotate", (True, False))
+    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_validateconfig_file_no_cloud_cfg(
+        self, m_getuid, m_sleep, annotate, capsys, mocker
+    ):
+        """validate_cloudconfig_file does noop with empty user-data."""
+        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
+        blob = ""
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        mocker.patch(M_PATH + "Init", return_value=ci)
+
+        validate_cloudconfig_file(None, schema, annotate)
+        out, _err = capsys.readouterr()
+        assert "No cloud-config userdata found. Skipping verification\n" == out
 
 
 class TestSchemaDocMarkdown:
@@ -1539,15 +1598,12 @@ class TestMain:
         out, _err = capsys.readouterr()
         assert "Valid cloud-config: {0}\n".format(myyaml) == out
 
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
     @mock.patch("cloudinit.config.schema.os.getuid", return_value=0)
-    def test_main_validates_system_userdata(
-        self, m_getuid, m_read_cfg_paths, capsys, paths
-    ):
+    def test_main_validates_system_userdata(self, m_getuid, capsys, mocker):
         """When --system is provided, main validates system userdata."""
-        m_read_cfg_paths.return_value = paths
-        ud_file = paths.get_ipath_cur("userdata_raw")
-        write_file(ud_file, b"#cloud-config\nntp:")
+        ci = stages.Init()
+        ci.datasource = FakeDataSource("#cloud-config\nntp:")
+        mocker.patch(M_PATH + "Init", return_value=ci)
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
