@@ -212,6 +212,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_users_groups"},
+            {"$ref": "#/$defs/cc_wireguard"},
             {"$ref": "#/$defs/cc_write_files"},
             {"$ref": "#/$defs/cc_yum_add_repo"},
             {"$ref": "#/$defs/cc_zypper_add_repo"},

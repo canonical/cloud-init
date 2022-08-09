@@ -125,6 +125,7 @@ class TestCaCerts:
             "ubuntu-advantage",
             "ubuntu-drivers",
             "update_etc_hosts",
+            "wireguard",
             "write-files",
             "write-files-deferred",
         }

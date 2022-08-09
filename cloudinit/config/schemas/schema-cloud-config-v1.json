@@ -2352,6 +2352,49 @@
         }
       }
     },
+    "cc_wireguard": {
+      "type": "object",
+      "properties": {
+        "wireguard": {
+          "type": ["null", "object"],
+          "properties": {
+            "interfaces": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the interface. Typically wgx (example: wg0)"
+                  },
+                  "config_path": {
+                    "type": "string",
+                    "description": "Path to configuration file of Wireguard interface"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Wireguard interface configuration. Contains key, peer, ..."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "readinessprobe": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of shell commands to be executed as probes."
+            }
+          },
+          "required": ["interfaces"],
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
@@ -2649,6 +2692,7 @@
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
     { "$ref": "#/$defs/cc_users_groups"},
+    { "$ref": "#/$defs/cc_wireguard"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
     { "$ref": "#/$defs/cc_zypper_add_repo"},

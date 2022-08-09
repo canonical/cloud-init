@@ -59,6 +59,7 @@ Module Reference
 .. automodule:: cloudinit.config.cc_update_etc_hosts
 .. automodule:: cloudinit.config.cc_update_hostname
 .. automodule:: cloudinit.config.cc_users_groups
+.. automodule:: cloudinit.config.cc_wireguard
 .. automodule:: cloudinit.config.cc_write_files
 .. automodule:: cloudinit.config.cc_yum_add_repo
 .. automodule:: cloudinit.config.cc_zypper_add_repo
