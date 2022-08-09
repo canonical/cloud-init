@@ -742,7 +742,6 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(None, schema, annotate)
 
     @skipUnlessJsonSchema()
-    @httpretty.activate
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
@@ -1624,6 +1623,30 @@ class TestMain:
             "Try using sudo\n"
         )
         assert expected == err
+
+    @httpretty.activate
+    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_main_validates_system_userdata_with_include(
+        self, m_getuid, m_sleep, capsys, mocker
+    ):
+        """When --system is provided and user-data uses `#include`,
+        main validates system userdata.
+        """
+        included_data = "#cloud-config\nntp:"
+        included_url = "http://asdf/user-data"
+        blob = f"#include {included_url}"
+        httpretty.register_uri(httpretty.GET, included_url, included_data)
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        mocker.patch(M_PATH + "Init", return_value=ci)
+
+        myargs = ["mycmd", "--system"]
+        with mock.patch("sys.argv", myargs):
+            assert 0 == main(), "Expected 0 exit code"
+        out, _err = capsys.readouterr()
+        assert "Valid cloud-config: system userdata\n" == out
 
 
 def _get_meta_doc_examples():
