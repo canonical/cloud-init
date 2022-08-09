@@ -199,7 +199,11 @@ def configure_ua(token=None, enable=None, config=None):
                 ", ".join('"{}"'.format(param) for param, _ in enable_errors)
             )
         )
-    attach_cmd = ["ua", "attach", token]
+
+    if enable:
+        attach_cmd = ["ua", "attach", "--no-auto-enable", token]
+    else:
+        attach_cmd = ["ua", "attach", token]
     LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(attach_cmd))
     try:
         subp.subp(attach_cmd)
@@ -208,20 +212,36 @@ def configure_ua(token=None, enable=None, config=None):
             error=str(e)
         )
         util.logexc(LOG, msg)
-        raise RuntimeError(msg) from e
+
+        if not re.search("This machine is already attached to", str(e)):
+            raise RuntimeError(msg) from e
+
     enable_errors = []
+    enable_warnings = []
     for service in enable:
         try:
             cmd = ["ua", "enable", "--assume-yes", service]
             subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
-            enable_errors.append((service, e))
+            if re.search("is already enabled.", str(e)):
+                enable_warnings.append((service, e))
+            else:
+                enable_errors.append((service, e))
+
+    if enable_warnings:
+        for service, warning in enable_warnings:
+            msg = 'Service "{service}" already enabled:\n{warning}'.format(
+                service=service, warning=str(warning)
+            )
+            util.logexc(LOG, msg)
+
     if enable_errors:
         for service, error in enable_errors:
             msg = 'Failure enabling "{service}":\n{error}'.format(
                 service=service, error=str(error)
             )
             util.logexc(LOG, msg)
+
         raise RuntimeError(
             "Failure enabling Ubuntu Advantage service(s): {}".format(
                 ", ".join(

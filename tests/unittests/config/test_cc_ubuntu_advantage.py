@@ -71,7 +71,9 @@ class TestConfigureUA:
             pytest.param(
                 {"token": "SomeToken", "enable": ["fips"]},
                 [
-                    mock.call(["ua", "attach", "SomeToken"]),
+                    mock.call(
+                        ["ua", "attach", "--no-auto-enable", "SomeToken"]
+                    ),
                     mock.call(
                         ["ua", "enable", "--assume-yes", "fips"], capture=True
                     ),
@@ -80,7 +82,7 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach --no-auto-enable SomeToken",
                     )
                 ],
                 id="with_specific_services",
@@ -162,7 +164,7 @@ class TestConfigureUA:
         ):
             configure_ua(token="SomeToken", enable=["esm", "cc", "fips"])
         assert m_subp.call_args_list == [
-            mock.call(["ua", "attach", "SomeToken"]),
+            mock.call(["ua", "attach", "--no-auto-enable", "SomeToken"]),
             mock.call(["ua", "enable", "--assume-yes", "esm"], capture=True),
             mock.call(["ua", "enable", "--assume-yes", "cc"], capture=True),
             mock.call(["ua", "enable", "--assume-yes", "fips"], capture=True),
