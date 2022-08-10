@@ -49,7 +49,7 @@ EXPECTED_CONVERTED_CONTENT = """## Note, this file is written by cloud-init on f
 deb http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
 deb-src http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
 # FIND_SOMETHING_SPECIAL
-"""
+"""  # noqa: E501
 
 
 class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
