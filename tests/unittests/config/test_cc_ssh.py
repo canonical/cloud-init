@@ -57,6 +57,7 @@ def _replace_options(user: Optional[str] = None) -> str:
     return options
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 @mock.patch(MODPATH + "ssh_util.setup_user_keys")
 class TestHandleSsh:
     """Test cc_ssh handling of ssh config."""
