@@ -1,4 +1,4 @@
-cloud-init (22.2-139-gb64ba456-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.2-139-gb64ba456-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
     + test: use fake filesystem to avoid file removal (#1647)
