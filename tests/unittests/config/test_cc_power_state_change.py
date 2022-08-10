@@ -176,16 +176,18 @@ class TestPowerStateChangeSchema:
             (
                 {"power_state": {"mode": "halt", "delay": "5"}},
                 (
-                    "power_state.delay: DEPRECATED."
-                    " Dropped after April 2027. Use ``now`` or integer type."
+                    "power_state.delay: DEPRECATED:"
+                    " Use of string for this value will be dropped after"
+                    " April 2027. Use ``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
             (
                 {"power_state": {"mode": "halt", "delay": "+5"}},
                 (
-                    "power_state.delay: DEPRECATED."
-                    " Dropped after April 2027. Use ``now`` or integer type."
+                    "power_state.delay: DEPRECATED:"
+                    " Use of string for this value will be dropped after"
+                    " April 2027. Use ``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "+"}}, ""),

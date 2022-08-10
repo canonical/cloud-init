@@ -169,7 +169,7 @@ class TestCreateUser(CiTestCase):
             mock.call(["passwd", "-l", user]),
         ]
         self.assertEqual(m_subp.call_args_list, expected)
-        self.assertNotIn("WARNING: DEPRECATION: ", self.logs.getvalue())
+        self.assertNotIn("WARNING: DEPRECATED: ", self.logs.getvalue())
 
     def test_explicit_sudo_false(self, m_subp, m_is_snappy):
         user = "foouser"
@@ -181,6 +181,24 @@ class TestCreateUser(CiTestCase):
                 mock.call(["passwd", "-l", user]),
             ],
         )
+        self.assertIn(
+            "WARNING: DEPRECATED: The user foouser has a 'sudo' config value"
+            " of 'false' which will be dropped after April 2027. Use 'null'"
+            " instead.",
+            self.logs.getvalue(),
+        )
+
+    def test_explicit_sudo_none(self, m_subp, m_is_snappy):
+        user = "foouser"
+        self.dist.create_user(user, sudo=None)
+        self.assertEqual(
+            m_subp.call_args_list,
+            [
+                self._useradd2call([user, "-m"]),
+                mock.call(["passwd", "-l", user]),
+            ],
+        )
+        self.assertNotIn("WARNING: DEPRECATED: ", self.logs.getvalue())
 
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_string(

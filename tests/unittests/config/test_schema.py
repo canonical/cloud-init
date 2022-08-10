@@ -162,6 +162,7 @@ class TestGetSchema:
         assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
+            {"$ref": "#/$defs/cc_ansible"},
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
@@ -170,7 +171,6 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
-            {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_fan"},
@@ -212,6 +212,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_users_groups"},
+            {"$ref": "#/$defs/cc_wireguard"},
             {"$ref": "#/$defs/cc_write_files"},
             {"$ref": "#/$defs/cc_yum_add_repo"},
             {"$ref": "#/$defs/cc_zypper_add_repo"},
@@ -404,7 +405,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -423,7 +424,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -441,7 +442,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -460,7 +461,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -474,7 +475,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -509,7 +510,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
             ),
             (
                 {
@@ -546,7 +547,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED. <desc>",
+                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
             ),
             pytest.param(
                 {
@@ -769,7 +770,7 @@ class TestSchemaDocMarkdown:
             **Supported distros:** debian, rhel
 
             **Config schema**:
-                **prop1:** (array of integer) prop-description
+                **prop1:** (array of integer) prop-description.
 
             **Examples**::
 
@@ -822,9 +823,9 @@ class TestSchemaDocMarkdown:
             **Activate only on keys:** ``prop1``, ``prop2``
 
             **Config schema**:
-                **prop1:** (array of string) prop-description
+                **prop1:** (array of string) prop-description.
 
-                **prop2:** (boolean) prop2-description
+                **prop2:** (boolean) prop2-description.
 
             **Examples**::
 
@@ -841,6 +842,23 @@ class TestSchemaDocMarkdown:
         """get_meta_doc delimits multiple property types with a '/'."""
         schema = {"properties": {"prop1": {"type": ["string", "integer"]}}}
         assert "**prop1:** (string/integer)" in get_meta_doc(self.meta, schema)
+
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_multiple_types_recursive(self, multi_key):
+        """get_meta_doc delimits multiple property types with a '/'."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    multi_key: [
+                        {"type": ["string", "null"]},
+                        {"type": "integer"},
+                    ]
+                }
+            }
+        }
+        assert "**prop1:** (string/null/integer)" in get_meta_doc(
+            self.meta, schema
+        )
 
     def test_references_are_flattened_in_schema_docs(self):
         """get_meta_doc flattens and renders full schema definitions."""
@@ -867,7 +885,7 @@ class TestSchemaDocMarkdown:
                 """\
             **prop1:** (string/object) Objects support the following keys:
 
-                    **<opaque_label>:** (array of string) List of cool strings
+                    **<opaque_label>:** (array of string) List of cool strings.
             """
             )
             in get_meta_doc(self.meta, schema)
@@ -941,14 +959,17 @@ class TestSchemaDocMarkdown:
         """
         assert expected in get_meta_doc(self.meta, schema)
 
-    def test_get_meta_doc_handles_nested_oneof_property_types(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_nested_multi_schema_property_types(
+        self, multi_key
+    ):
         """get_meta_doc describes array items oneOf declarations in type."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": "array",
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -957,14 +978,15 @@ class TestSchemaDocMarkdown:
             self.meta, schema
         )
 
-    def test_get_meta_doc_handles_types_as_list(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_types_as_list(self, multi_key):
         """get_meta_doc renders types which have a list value."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": ["boolean", "array"],
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -1012,7 +1034,7 @@ class TestSchemaDocMarkdown:
             dedent(
                 """
             **Config schema**:
-                **prop1:** (array of integer) prop-description
+                **prop1:** (array of integer) prop-description.
 
             **Examples**::
 
@@ -1058,7 +1080,7 @@ class TestSchemaDocMarkdown:
                         - option2
                         - option3
 
-                The default value is option1
+                The default value is option1.
 
         """
             )
@@ -1169,7 +1191,7 @@ class TestSchemaDocMarkdown:
                         }
                     }
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1182,7 +1204,7 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1200,7 +1222,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1220,7 +1242,7 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED. <description>",
+                "**prop1:** (string/integer) DEPRECATED: <description>",
             ),
             (
                 {
@@ -1238,7 +1260,7 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED) <description>\n",
+                "**prop1:** (UNDEFINED) <description>. DEPRECATED: <deprecat",
             ),
             (
                 {
@@ -1259,7 +1281,74 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED)\n",
+                "**prop1:** (number) <description>. DEPRECATED:"
+                " <deprecated_description>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (``none``/``unchanged``/``os``) <description>."
+                " DEPRECATED: <deprecated_description>.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description_1>",
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>_2",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (string/integer/``none``/``unchanged``/``os``)"
+                " <description_1>. <description>_2.\n",
+            ),
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "description": "<desc_1>",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "anyOf": [
+                                    {
+                                        "properties": {
+                                            "sub_prop1": {"type": "string"},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+                "**prop1:** (array of object) <desc_1>.\n",
             ),
         ],
     )
@@ -1623,9 +1712,9 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true		# D3
 
                     # Deprecations: -------------
-                    # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
-                    # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
+                    # D1: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``
+                    # D2: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+                    # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
                     Valid cloud-config: {}
@@ -1637,9 +1726,9 @@ class TestHandleSchemaArgs:
                 dedent(
                     """\
                     Cloud config schema deprecations: \
-apt_reboot_if_required: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
-apt_update: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``, \
-apt_upgrade: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+apt_reboot_if_required: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
+apt_update: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``, \
+apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
                     Valid cloud-config: {}
                     """  # noqa: E501
                 ),

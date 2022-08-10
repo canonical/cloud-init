@@ -5,6 +5,7 @@ Module Reference
 ****************
 .. contents:: Table of Contents
 
+.. automodule:: cloudinit.config.cc_ansible
 .. automodule:: cloudinit.config.cc_apk_configure
 .. automodule:: cloudinit.config.cc_apt_configure
 .. automodule:: cloudinit.config.cc_apt_pipelining
@@ -12,7 +13,6 @@ Module Reference
 .. automodule:: cloudinit.config.cc_byobu
 .. automodule:: cloudinit.config.cc_ca_certs
 .. automodule:: cloudinit.config.cc_chef
-.. automodule:: cloudinit.config.cc_debug
 .. automodule:: cloudinit.config.cc_disable_ec2_metadata
 .. automodule:: cloudinit.config.cc_disk_setup
 .. automodule:: cloudinit.config.cc_fan
@@ -59,6 +59,7 @@ Module Reference
 .. automodule:: cloudinit.config.cc_update_etc_hosts
 .. automodule:: cloudinit.config.cc_update_hostname
 .. automodule:: cloudinit.config.cc_users_groups
+.. automodule:: cloudinit.config.cc_wireguard
 .. automodule:: cloudinit.config.cc_write_files
 .. automodule:: cloudinit.config.cc_yum_add_repo
 .. automodule:: cloudinit.config.cc_zypper_add_repo

@@ -11,6 +11,7 @@ only specify one user-data per instance.
 import pytest
 import yaml
 
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.util import get_console_log
 
@@ -179,11 +180,21 @@ class Mixin:
             if "name" in user_dict:
                 assert f'{user_dict["name"]}:' in shadow
 
-    def test_sshd_config(self, class_client):
-        """Test that SSH password auth is enabled."""
-        sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
+    def test_sshd_config_file(self, class_client):
+        """Test that SSH config is written in the correct file."""
+        if ImageSpecification.from_os_image().release in {"bionic"}:
+            sshd_file_target = "/etc/ssh/sshd_config"
+        else:
+            sshd_file_target = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        assert class_client.execute(f"ls {sshd_file_target}").ok
+        sshd_config = class_client.read_from_file(sshd_file_target)
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
+
+    def test_sshd_config(self, class_client):
+        """Test that SSH password auth is enabled."""
+        sshd_config = class_client.execute("sshd -T").stdout
+        assert "passwordauthentication yes" in sshd_config
 
 
 @pytest.mark.user_data(LIST_USER_DATA)
