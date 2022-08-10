@@ -171,7 +171,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
     elif util.is_false(pw_auth):
         cfg_val = "no"
     else:
-        bmsg = "Leaving SSH config '%s' unchanged." % cfg_name
+        bmsg = f"Leaving SSH config '{cfg_name}' unchanged."
         if pw_auth is None or pw_auth.lower() == "unchanged":
             LOG.debug("%s ssh_pwauth=%s", bmsg, pw_auth)
         else:

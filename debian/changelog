@@ -1,3 +1,37 @@
+cloud-init (22.2-139-gb64ba456-0ubuntu1~22.10.1) kinetic; urgency=medium
+
+  * New upstream snapshot.
+    + test: use fake filesystem to avoid file removal (#1647)
+    + tox: Fix tip-flake8 and tip-mypy (#1635)
+    + config: Add wireguard config module (#1570)
+      [Fabian Lichtenegger-Lukas]
+    + tests: can run without azure-cli, tests expect inactive ansible
+      (#1643)
+    + typing: Type UrlResponse.contents (#1633)
+    + testing: fix references to `DEPRECATED.` (#1641)
+    + ssh_util: Handle sshd_config.d folder (LP: #1968873)
+    + schema: Enable deprecations in cc_update_etc_hosts (#1631)
+    + Add Ansible Config Module (#1579)
+    + util: Support Idle process state in get_proc_ppid() (#1637)
+    + schema: Enable deprecations in cc_growpart (#1628)
+    + schema: Enable deprecations in cc_users_groups (#1627)
+    + util: Fix error path and parsing in get_proc_ppid()
+    + main: avoid downloading full contents cmdline urls (#1606)
+      (LP: #1937319)
+    + schema: Enable deprecations in cc_scripts_vendor (#1629)
+    + schema: Enable deprecations in cc_set_passwords (#1630)
+    + sources/azure: add experimental support for preprovisioned os disks
+      (#1622) [Chris Patterson]
+    + Remove configobj a_to_u calls (#1632) [Stefano Rivera]
+    + cc_debug: Drop this module (#1614)
+    + schema: add aggregate descriptions in anyOf/oneOf (#1636)
+    + testing: migrate test_sshutil to pytest (#1617)
+    + testing: Fix test_ca_certs integration test (#1626)
+    + testing: add support for pycloudlib's pro images (#1604)
+    + testing: migrate test_cc_set_passwords to pytest (#1615)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 10 Aug 2022 22:23:47 +0200
+
 cloud-init (22.2-115-g6e498773-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * d/control: lintian fixes:

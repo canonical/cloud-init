@@ -3439,6 +3439,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                     method="GET",
                     timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                     url=full_url,
+                    stream=False,
                 )
             ],
         )
@@ -3490,6 +3491,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 method="GET",
                 timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                 url=full_url,
+                stream=False,
             ),
             m_request.call_args_list,
         )
@@ -4383,6 +4385,69 @@ class TestProvisioning:
 
         # Verify no netlink operations for recovering PPS.
         assert self.mock_netlink.mock_calls == []
+
+    @pytest.mark.parametrize(
+        "subp_side_effect",
+        [
+            subp.SubpResult("okie dokie", ""),
+            subp.ProcessExecutionError(
+                cmd=["failed", "cmd"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+        ],
+    )
+    def test_os_disk_pps(self, mock_sleep, subp_side_effect):
+        self.imds_md["extended"]["compute"]["ppsType"] = "PreprovisionedOSDisk"
+
+        self.mock_subp_subp.side_effect = [subp_side_effect]
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+
+        self.azure_ds._get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            )
+        ]
+
+        assert self.mock_subp_subp.mock_calls == []
+        assert mock_sleep.mock_calls == [mock.call(31536000)]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(None, dsaz.dhcp_log_cb)
+        ]
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify reported ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            )
+        ]
+
+        # Verify no netlink operations for os disk PPS.
+        assert self.mock_netlink.mock_calls == []
+
+        # Ensure no reported ready marker is left behind as the VM's next
+        # boot will behave like a typical provisioning boot.
+        assert self.patched_reported_ready_marker_path.exists() is False
 
 
 class TestValidateIMDSMetadata:

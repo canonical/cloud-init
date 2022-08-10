@@ -92,11 +92,16 @@ class TestCaCerts:
             in checksum
         )
 
-    def test_clean_logs(self, class_client: IntegrationInstance):
+    def test_clean_log(self, class_client: IntegrationInstance):
+        """Verify no errors, no deprecations and correct inactive modules in
+        log.
+        """
         log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log, ignore_deprecations=False)
-        diff = {
+
+        expected_inactive = {
             "apt-pipelining",
+            "ansible",
             "bootcmd",
             "chef",
             "disable-ec2-metadata",
@@ -120,9 +125,24 @@ class TestCaCerts:
             "ubuntu-advantage",
             "ubuntu-drivers",
             "update_etc_hosts",
+            "wireguard",
             "write-files",
             "write-files-deferred",
-        }.symmetric_difference(get_inactive_modules(log))
+        }
+
+        # Remove modules that run independent from user-data
+        if class_client.settings.PLATFORM == "azure":
+            expected_inactive.discard("disk_setup")
+        elif class_client.settings.PLATFORM == "gce":
+            expected_inactive.discard("ntp")
+        elif class_client.settings.PLATFORM == "lxd_vm":
+            if class_client.settings.OS_IMAGE == "bionic":
+                expected_inactive.discard("write-files")
+                expected_inactive.discard("write-files-deferred")
+
+        diff = expected_inactive.symmetric_difference(
+            get_inactive_modules(log)
+        )
         assert (
             not diff
         ), f"Expected inactive modules do not match, diff: {diff}"

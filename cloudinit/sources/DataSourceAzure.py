@@ -93,6 +93,7 @@ class MetadataType(Enum):
 
 class PPSType(Enum):
     NONE = "None"
+    OS_DISK = "PreprovisionedOSDisk"
     RUNNING = "Running"
     SAVABLE = "Savable"
     UNKNOWN = "Unknown"
@@ -577,6 +578,9 @@ class DataSourceAzure(sources.DataSource):
 
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
+            elif pps_type == PPSType.OS_DISK:
+                self._report_ready_for_pps(create_marker=False)
+                self._wait_for_pps_os_disk_shutdown()
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
@@ -970,7 +974,7 @@ class DataSourceAzure(sources.DataSource):
         )
 
     @azure_ds_telemetry_reporter
-    def _report_ready_for_pps(self) -> None:
+    def _report_ready_for_pps(self, *, create_marker: bool = True) -> None:
         """Report ready for PPS, creating the marker file upon completion.
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
@@ -982,7 +986,17 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(msg, logger_func=LOG.error)
             raise sources.InvalidMetaDataException(msg) from error
 
-        self._create_report_ready_marker()
+        if create_marker:
+            self._create_report_ready_marker()
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_os_disk_shutdown(self):
+        report_diagnostic_event(
+            "Waiting for host to shutdown VM...",
+            logger_func=LOG.info,
+        )
+        sleep(31536000)
+        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
 
     @azure_ds_telemetry_reporter
     def _check_if_nic_is_primary(self, ifname):
@@ -1402,6 +1416,11 @@ class DataSourceAzure(sources.DataSource):
             or self._ppstype_from_imds(imds_md) == PPSType.SAVABLE.value
         ):
             pps_type = PPSType.SAVABLE
+        elif (
+            ovf_cfg.get("PreprovisionedVMType", None) == PPSType.OS_DISK.value
+            or self._ppstype_from_imds(imds_md) == PPSType.OS_DISK.value
+        ):
+            pps_type = PPSType.OS_DISK
         elif (
             ovf_cfg.get("PreprovisionedVm") is True
             or ovf_cfg.get("PreprovisionedVMType", None)

@@ -20,9 +20,9 @@ class TestSchemaDeprecations:
         log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log, ignore_deprecations=True)
         assert "WARNING]: Deprecated cloud-config provided:" in log
-        assert "apt_reboot_if_required: DEPRECATED." in log
-        assert "apt_update: DEPRECATED." in log
-        assert "apt_upgrade: DEPRECATED." in log
+        assert "apt_reboot_if_required: DEPRECATED" in log
+        assert "apt_update: DEPRECATED" in log
+        assert "apt_upgrade: DEPRECATED" in log
 
     def test_schema_deprecations(self, class_client: IntegrationInstance):
         """Test schema behavior with deprecated configs."""
@@ -56,9 +56,9 @@ class TestSchemaDeprecations:
             apt_reboot_if_required: false\t\t# D3
 
             # Deprecations: -------------
-            # D1: DEPRECATED. Dropped after April 2027. Use ``package_update``. Default: ``false``
-            # D2: DEPRECATED. Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-            # D3: DEPRECATED. Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
+            # D1: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``
+            # D2: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
+            # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
             Valid cloud-config: /root/user-data"""  # noqa: E501

@@ -12,7 +12,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 MODPATH = "cloudinit.config.cc_set_passwords."
@@ -259,6 +259,7 @@ def get_chpasswd_calls(cfg, cloud, log):
                 log=log,
                 args=[],
             )
+    assert chpasswd.call_count > 0
     return chpasswd.call_args[0], subp.call_args
 
 
@@ -694,13 +695,39 @@ class TestExpire:
 
 class TestSetPasswordsSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         [
             # Test both formats still work
-            ({"ssh_pwauth": True}, None),
-            ({"ssh_pwauth": "yes"}, None),
-            ({"ssh_pwauth": "unchanged"}, None),
-            ({"chpasswd": {"list": "blah"}}, "DEPRECATED"),
+            ({"ssh_pwauth": True}, does_not_raise()),
+            ({"ssh_pwauth": False}, does_not_raise()),
+            (
+                {"ssh_pwauth": "yes"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
+                        " non-boolean values for this field is DEPRECATED and"
+                        " will result in an error in a future version of"
+                        " cloud-init."
+                    ),
+                ),
+            ),
+            (
+                {"ssh_pwauth": "unchanged"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
+                        " non-boolean values for this field is DEPRECATED and"
+                        " will result in an error in a future version of"
+                        " cloud-init."
+                    ),
+                ),
+            ),
+            (
+                {"chpasswd": {"list": "blah"}},
+                pytest.raises(SchemaValidationError, match="DEPRECATED"),
+            ),
             # Valid combinations
             (
                 {
@@ -728,7 +755,7 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                None,
+                does_not_raise(),
             ),
             (
                 {
@@ -743,7 +770,10 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
             ),
             (
                 {
@@ -757,11 +787,17 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
             ),
             (
                 {"chpasswd": {"users": [{"password": "."}]}},
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
             ),
             # when type != RANDOM, password is a required key
             (
@@ -770,7 +806,10 @@ class TestSetPasswordsSchema:
                         "users": [{"name": "what-if-1", "type": "hash"}]
                     }
                 },
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
             ),
             pytest.param(
                 {
@@ -784,33 +823,50 @@ class TestSetPasswordsSchema:
                         ]
                     }
                 },
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
                 id="dat_is_an_additional_property",
             ),
             (
                 {"chpasswd": {"users": [{"name": "."}]}},
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
             ),
             # Test regex
-            ({"chpasswd": {"list": ["user:pass"]}}, "DEPRECATED"),
+            (
+                {"chpasswd": {"list": ["user:pass"]}},
+                pytest.raises(SchemaValidationError, match="DEPRECATED"),
+            ),
             # Test valid
-            ({"password": "pass"}, None),
+            ({"password": "pass"}, does_not_raise()),
             # Test invalid values
             (
                 {"chpasswd": {"expire": "yes"}},
-                "'yes' is not of type 'boolean'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="'yes' is not of type 'boolean'",
+                ),
             ),
-            ({"chpasswd": {"list": ["user"]}}, ""),
-            ({"chpasswd": {"list": []}}, r"\[\] is too short"),
+            (
+                {"chpasswd": {"list": ["user"]}},
+                pytest.raises(SchemaValidationError),
+            ),
+            (
+                {"chpasswd": {"list": []}},
+                pytest.raises(
+                    SchemaValidationError, match=r"\[\] is too short"
+                ),
+            ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, expectation):
+        with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 # vi: ts=4 expandtab

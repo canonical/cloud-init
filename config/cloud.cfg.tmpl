@@ -111,6 +111,9 @@ cloud_init_modules:
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
+{% if variant in ["ubuntu"] %}
+ - wireguard
+{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - snap
 {% endif %}
@@ -172,6 +175,7 @@ cloud_final_modules:
  - write-files-deferred
  - puppet
  - chef
+ - ansible
  - mcollective
  - salt-minion
  - reset_rmc
