@@ -1178,7 +1178,16 @@ class DataSourceAzure(sources.DataSource):
         try:
             nl_sock = netlink.create_bound_netlink_socket()
             self._report_ready_for_pps(expect_url_error=True)
-            self._teardown_ephemeral_networking()
+            try:
+                self._teardown_ephemeral_networking()
+            except subp.ProcessExecutionError as e:
+                report_diagnostic_event(
+                    "Ignoring failure while tearing down networking, "
+                    "NIC was likely unplugged: %r" % e,
+                    logger_func=LOG.info,
+                )
+                self._ephemeral_dhcp_ctx = None
+
             self._wait_for_nic_detach(nl_sock)
             self._wait_for_hot_attached_primary_nic(nl_sock)
         except netlink.NetlinkCreateSocketError as e:

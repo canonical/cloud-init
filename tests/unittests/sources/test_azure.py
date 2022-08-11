@@ -4214,6 +4214,111 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket().close(),
         ]
 
+    def test_savable_pps(self):
+        self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_netlink.wait_for_nic_detach_event.return_value = "eth9"
+        self.mock_netlink.wait_for_nic_attach_event.return_value = (
+            "ethAttached1"
+        )
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(
+                contents=json.dumps(self.imds_md["network"]).encode()
+            ),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance/network?"
+                "api-version=2021-08-01",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=0,
+                exception_cb=mock.ANY,
+                infinite=True,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                timeout=2,
+                headers={"Metadata": "true"},
+                exception_cb=mock.ANY,
+                infinite=True,
+                log_req_resp=False,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=2,
+                headers={"Metadata": "true"},
+                retries=10,
+                exception_cb=dsaz.imds_readurl_exception_callback,
+                infinite=False,
+            ),
+        ]
+
+        # Verify DHCP is setup twice.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            mock.call(iface="ethAttached1", timeout_minutes=20),
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(None, dsaz.dhcp_log_cb),
+            mock.call("ethAttached1", dsaz.dhcp_log_cb),
+        ]
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+        ]
+        assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # Verify reporting ready twice.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            ),
+            mock.call(
+                endpoint="10.11.12.13",
+                iso_dev=None,
+                pubkey_info=None,
+            ),
+        ]
+
+        # Verify netlink operations for Savable PPS.
+        assert self.mock_netlink.mock_calls == [
+            mock.call.create_bound_netlink_socket(),
+            mock.call.wait_for_nic_detach_event(nl_sock),
+            mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
+            mock.call.create_bound_netlink_socket().__bool__(),
+            mock.call.create_bound_netlink_socket().close(),
+        ]
+
     @pytest.mark.parametrize(
         "fabric_side_effect",
         [
@@ -4235,7 +4340,7 @@ class TestProvisioning:
             ],
         ],
     )
-    def test_savable_pps(self, fabric_side_effect):
+    def test_savable_pps_early_unplug(self, fabric_side_effect):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
@@ -4255,6 +4360,18 @@ class TestProvisioning:
         self.mock_azure_get_metadata_from_fabric.side_effect = (
             fabric_side_effect
         )
+
+        # Fake DHCP teardown failure.
+        ipv4_net = self.mock_net_dhcp_EphemeralIPv4Network
+        ipv4_net.return_value.__exit__.side_effect = [
+            subp.ProcessExecutionError(
+                cmd=["failed", "cmd"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+            None,
+        ]
 
         self.azure_ds._get_data()
 
