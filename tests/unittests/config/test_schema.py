@@ -17,6 +17,7 @@ from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
 import pytest
+import responses
 
 from cloudinit import stages
 from cloudinit.config.schema import (
@@ -706,11 +707,12 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
 
     @skipUnlessJsonSchema()
+    @responses.activate
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_validateconfig_file_include_validates_schema(
-        self, m_getuid, m_sleep, annotate, httpretty, mocker
+        self, m_getuid, m_sleep, annotate, mocker
     ):
         """validate_cloudconfig_file raises errors on invalid schema
         when user-data uses `#include`."""
@@ -718,7 +720,7 @@ class TestValidateCloudConfigFile:
         included_data = "#cloud-config\np1: -1"
         included_url = "http://asdf/user-data"
         blob = f"#include {included_url}"
-        httpretty.register_uri(httpretty.GET, included_url, included_data)
+        responses.add(responses.GET, included_url, included_data)
 
         ci = stages.Init()
         ci.datasource = FakeDataSource(blob)
