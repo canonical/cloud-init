@@ -733,6 +733,28 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(None, schema, annotate)
 
     @skipUnlessJsonSchema()
+    @responses.activate
+    @pytest.mark.parametrize("annotate", (True, False))
+    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_validateconfig_file_include_success(
+        self, m_getuid, m_sleep, annotate, mocker
+    ):
+        """validate_cloudconfig_file raises errors on invalid schema
+        when user-data uses `#include`."""
+        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
+        included_data = "#cloud-config\np1: asdf"
+        included_url = "http://asdf/user-data"
+        blob = f"#include {included_url}"
+        responses.add(responses.GET, included_url, included_data)
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        mocker.patch(M_PATH + "Init", return_value=ci)
+
+        validate_cloudconfig_file(None, schema, annotate)
+
+    @skipUnlessJsonSchema()
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
