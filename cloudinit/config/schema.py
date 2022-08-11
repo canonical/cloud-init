@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 import yaml
 
 from cloudinit import importer, safeyaml
-from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.stages import Init
 from cloudinit.util import error, get_modules_from_dir, load_file
 
 try:
@@ -617,9 +617,10 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                 "Unable to read system userdata as non-root user."
                 " Try using sudo"
             )
-        paths = read_cfg_paths()
-        user_data_file = paths.get_ipath_cur("userdata_raw")
-        content = load_file(user_data_file, decode=False)
+        init = Init(ds_deps=[])
+        init.fetch(existing="trust")
+        init.consume_data()
+        content = load_file(init.paths.get_ipath("cloud_config"), decode=False)
     else:
         if not os.path.exists(config_path):
             raise RuntimeError(
