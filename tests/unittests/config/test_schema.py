@@ -16,7 +16,6 @@ from textwrap import dedent
 from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
-import httpretty
 import pytest
 
 from cloudinit import sources, stages
@@ -41,7 +40,7 @@ from cloudinit.config.schema import (
 from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
-from cloudinit.util import load_file
+from cloudinit.util import load_file, write_file
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
@@ -642,6 +641,7 @@ class TestCloudConfigExamples:
         validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 class TestValidateCloudConfigFile:
     """Tests for validate_cloudconfig_file."""
 
@@ -716,12 +716,11 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
 
     @skipUnlessJsonSchema()
-    @httpretty.activate
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_validateconfig_file_include_validates_schema(
-        self, m_getuid, m_sleep, annotate, mocker
+        self, m_getuid, m_sleep, annotate, httpretty, mocker
     ):
         """validate_cloudconfig_file raises errors on invalid schema
         when user-data uses `#include`."""
@@ -756,9 +755,14 @@ class TestValidateCloudConfigFile:
         ci.datasource = FakeDataSource(blob)
         mocker.patch(M_PATH + "Init", return_value=ci)
 
-        validate_cloudconfig_file(None, schema, annotate)
-        out, _err = capsys.readouterr()
-        assert "No cloud-config userdata found. Skipping verification\n" == out
+        with pytest.raises(
+            SchemaValidationError,
+            match=re.escape(
+                "Cloud config schema errors: format-l1.c1: File None needs"
+                ' to begin with "#cloud-config"'
+            ),
+        ):
+            validate_cloudconfig_file(None, schema, annotate)
 
 
 class TestSchemaDocMarkdown:
@@ -1597,12 +1601,15 @@ class TestMain:
         out, _err = capsys.readouterr()
         assert "Valid cloud-config: {0}\n".format(myyaml) == out
 
-    @mock.patch("cloudinit.config.schema.os.getuid", return_value=0)
-    def test_main_validates_system_userdata(self, m_getuid, capsys, mocker):
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_main_validates_system_userdata(
+        self, m_getuid, capsys, mocker, paths
+    ):
         """When --system is provided, main validates system userdata."""
-        ci = stages.Init()
-        ci.datasource = FakeDataSource("#cloud-config\nntp:")
-        mocker.patch(M_PATH + "Init", return_value=ci)
+        m_init = mocker.patch(M_PATH + "Init")
+        m_init.return_value.paths.get_ipath = paths.get_ipath_cur
+        cloud_config_file = paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"#cloud-config\nntp:")
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
@@ -1623,30 +1630,6 @@ class TestMain:
             "Try using sudo\n"
         )
         assert expected == err
-
-    @httpretty.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_main_validates_system_userdata_with_include(
-        self, m_getuid, m_sleep, capsys, mocker
-    ):
-        """When --system is provided and user-data uses `#include`,
-        main validates system userdata.
-        """
-        included_data = "#cloud-config\nntp:"
-        included_url = "http://asdf/user-data"
-        blob = f"#include {included_url}"
-        httpretty.register_uri(httpretty.GET, included_url, included_data)
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-
-        myargs = ["mycmd", "--system"]
-        with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
-        out, _err = capsys.readouterr()
-        assert "Valid cloud-config: system userdata\n" == out
 
 
 def _get_meta_doc_examples():
