@@ -618,6 +618,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                 " Try using sudo"
             )
         init = Init(ds_deps=[])
+        init.fetch(existing="trust")
         init.consume_data()
         content = load_file(init.paths.get_ipath("cloud_config"), decode=False)
     else:
