@@ -18,7 +18,7 @@ from typing import List, Optional, Sequence, Set
 
 import pytest
 
-from cloudinit import sources, stages
+from cloudinit import stages
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
@@ -51,19 +51,9 @@ from tests.unittests.helpers import (
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.config.schema."
-
-INSTANCE_ID = "i-testing"
-
-
-class FakeDataSource(sources.DataSource):
-    def __init__(self, userdata=None, vendordata=None, vendordata2=None):
-        sources.DataSource.__init__(self, {}, None, None)
-        self.metadata = {"instance-id": INSTANCE_ID}
-        self.userdata_raw = userdata
-        self.vendordata_raw = vendordata
-        self.vendordata2_raw = vendordata2
 
 
 def get_schemas() -> dict:
