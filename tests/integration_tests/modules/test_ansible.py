@@ -29,7 +29,7 @@ write_files:
        Restart=on-failure
 
        [Install]
-       WantedBy=cloud-final.service
+       Before=cloud-local.service
 
   - path: /root/playbooks/ubuntu.yml
     content: |
