@@ -3,4 +3,3 @@
 #
 pycloudlib @ git+https://github.com/canonical/pycloudlib.git@68fe052baf6f32415b727d02ba2ba48b7a995bf2
 pytest
-pytest-cov
