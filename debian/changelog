@@ -3,7 +3,9 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.postinst: lintian fixes:
     + Fix command-with-path-in-maintainer-script for grub-install
-  * d/patches/renderer-do-not-prefer-netplan refresh to activators change
+  * d/p/renderer-do-not-prefer-netplan refresh to activators change
+  * d/p/expire-on-hashed-users.patch:
+    Add patch to ensure password expire doesn't apply to hashed users
   * d/source/lintian-overrides: lintian fixes:
     + silence binary-nmu-debian-revision-in-source bug:
       https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
@@ -14,7 +16,7 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
   * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
     + Fix Chrony usage on Centos Stream (#1648) (LP: #1885952)
       [Sven Haardiek]
-    + sources/azure: handle network unreachable errors for savable PPS
+    + sources/azure: handle network unreachable errors for saveable PPS
       (#1642) [Chris Patterson]
     + Return cc_set_hostname to PER_INSTANCE frequency (#1651)
       (LP: #1983811)
