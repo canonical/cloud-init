@@ -8,8 +8,10 @@ cloud-init (22.2-144-g513859f8-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
   * d/source/lintian-overrides: lintian fixes:
     + silence binary-nmu-debian-revision-in-source bug:
       https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
+  * d/p/expire-on-hashed-users.patch:
+    Add patch to ensure password expire doesn't apply to hashed users
   * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
-    + sources/azure: handle network unreachable errors for savable PPS
+    + sources/azure: handle network unreachable errors for saveable PPS
       (#1642) [Chris Patterson]
     + Return cc_set_hostname to PER_INSTANCE frequency (#1651)
     + test: Collect integration test time by default (#1638)
