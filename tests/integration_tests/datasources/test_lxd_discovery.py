@@ -8,7 +8,7 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
 
-def _customize_envionment(client: IntegrationInstance):
+def _customize_environment(client: IntegrationInstance):
     # Assert our platform can detect LXD during systemd generator timeframe.
     ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
     assert "check for 'LXD' returned found" in ds_id_log
@@ -54,7 +54,7 @@ def _customize_envionment(client: IntegrationInstance):
 def test_lxd_datasource_discovery(client: IntegrationInstance):
     """Test that DataSourceLXD is detected instead of NoCloud."""
 
-    _customize_envionment(client)
+    _customize_environment(client)
     result = client.execute("cloud-init status --wait --long")
     if not result.ok:
         raise AssertionError("cloud-init failed:\n%s", result.stderr)
@@ -113,7 +113,6 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     if ImageSpecification.from_os_image().release in [
         "bionic",
         "focal",
-        "impish",
     ]:
         # Assert NoCloud seed files are still present in non-Jammy images
         # and that NoCloud seed files provide the same content as LXD socket.

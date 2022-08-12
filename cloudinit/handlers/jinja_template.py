@@ -4,15 +4,7 @@ import copy
 import os
 import re
 from errno import EACCES
-from typing import Optional
-
-try:
-    from jinja2.exceptions import UndefinedError as JUndefinedError
-    from jinja2.lexer import operator_re
-except ImportError:
-    # No jinja2 dependency
-    JUndefinedError = Exception
-    operator_re = re.compile(r"[-.]")
+from typing import Optional, Type
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -20,6 +12,15 @@ from cloudinit.settings import PER_ALWAYS
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.templater import MISSING_JINJA_PREFIX, render_string
 from cloudinit.util import b64d, json_dumps, load_file, load_json
+
+JUndefinedError: Type[Exception]
+try:
+    from jinja2.exceptions import UndefinedError as JUndefinedError
+    from jinja2.lexer import operator_re
+except ImportError:
+    # No jinja2 dependency
+    JUndefinedError = Exception
+    operator_re = re.compile(r"[-.]")
 
 LOG = logging.getLogger(__name__)
 

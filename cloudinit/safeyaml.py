@@ -57,7 +57,7 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
 
     def __init__(self, stream):
         super().__init__(stream)
-        self.schemamarks_by_line = {}  # type: Dict[int, List[SchemaPathMarks]]
+        self.schemamarks_by_line: Dict[int, List[SchemaPathMarks]] = {}
 
     def _get_nested_path_prefix(self, node):
         if node.start_mark.line in self.schemamarks_by_line:

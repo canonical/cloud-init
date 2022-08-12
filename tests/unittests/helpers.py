@@ -13,10 +13,12 @@ import time
 import unittest
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
 
 import httpretty
+import pytest
 
 import cloudinit
 from cloudinit import cloud, distros
@@ -28,6 +30,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
 
@@ -71,6 +74,13 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
+def random_string(length=8):
+    """return a random lowercase string with default length of 8"""
+    return "".join(
+        random.choice(string.ascii_lowercase) for _ in range(length)
+    )
+
+
 class TestCase(unittest.TestCase):
     def reset_global_state(self):
         """Reset any global state to its original settings.
@@ -85,9 +95,7 @@ class TestCase(unittest.TestCase):
         In the future this should really be done with some registry that
         can then be cleaned in a more obvious way.
         """
-        util.PROC_CMDLINE = None
         util._DNS_REDIRECT_IP = None
-        util._LSB_RELEASE = {}
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -114,7 +122,7 @@ class CiTestCase(TestCase):
     # Subclass overrides for specific test behavior
     # Whether or not a unit test needs logfile setup
     with_logs = False
-    allowed_subp = False
+    allowed_subp: ClassVar[Union[List, bool]] = False
     SUBP_SHELL_TRUE = "shell=true"
 
     @contextmanager
@@ -226,10 +234,7 @@ class CiTestCase(TestCase):
 
     @classmethod
     def random_string(cls, length=8):
-        """return a random lowercase string with default length of 8"""
-        return "".join(
-            random.choice(string.ascii_lowercase) for _ in range(length)
-        )
+        return random_string(length)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -518,6 +523,13 @@ def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
 
+def skipUnlessHypothesisJsonSchema():
+    return skipIf(
+        not HAS_HYPOTHESIS_JSONSCHEMA,
+        "No python-hypothesis-jsonschema dependency present.",
+    )
+
+
 # older versions of mock do not have the useful 'assert_not_called'
 if not hasattr(mock.Mock, "assert_not_called"):
 
@@ -530,7 +542,7 @@ if not hasattr(mock.Mock, "assert_not_called"):
             )
             raise AssertionError(msg)
 
-    mock.Mock.assert_not_called = __mock_assert_not_called
+    mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
 
 
 def get_top_level_dir() -> Path:
@@ -549,6 +561,34 @@ def cloud_init_project_dir(sub_path: str) -> str:
     Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
     """
     return str(get_top_level_dir() / sub_path)
+
+
+@contextmanager
+def does_not_raise():
+    """Context manager to parametrize tests raising and not raising exceptions
+
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    More info:
+    https://docs.pytest.org/en/6.2.x/example/parametrize.html?highlight=does_not_raise#parametrizing-conditional-raising
+
+    Example:
+    --------
+    >>> @pytest.mark.parametrize(
+    >>>     "example_input,expectation",
+    >>>     [
+    >>>         (1, does_not_raise()),
+    >>>         (0, pytest.raises(ZeroDivisionError)),
+    >>>     ],
+    >>> )
+    >>> def test_division(example_input, expectation):
+    >>>     with expectation:
+    >>>         assert (0 / example_input) is not None
+
+    """
+    try:
+        yield
+    except Exception as ex:
+        raise pytest.fail("DID RAISE {0}".format(ex))
 
 
 # vi: ts=4 expandtab

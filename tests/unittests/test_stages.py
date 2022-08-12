@@ -11,29 +11,9 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.sources import NetworkConfigSource
 from cloudinit.util import write_file
 from tests.unittests.helpers import mock
+from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
-TEST_INSTANCE_ID = "i-testing"
 M_PATH = "cloudinit.stages."
-
-
-class FakeDataSource(sources.DataSource):
-    def __init__(
-        self, paths=None, userdata=None, vendordata=None, network_config=""
-    ):
-        super(FakeDataSource, self).__init__({}, None, paths=paths)
-        self.metadata = {"instance-id": TEST_INSTANCE_ID}
-        self.userdata_raw = userdata
-        self.vendordata_raw = vendordata
-        self._network_config = None
-        if network_config:  # Permit for None value to setup attribute
-            self._network_config = network_config
-
-    @property
-    def network_config(self):
-        return self._network_config
-
-    def _get_data(self):
-        return True
 
 
 class TestInit:

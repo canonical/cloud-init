@@ -89,7 +89,8 @@ The settings that may be configured are:
  * **metadata_urls**: This list of urls will be searched for an EC2
    metadata service. The first entry that successfully returns a 200 response
    for <url>/<version>/meta-data/instance-id will be selected.
-   (default: ['http://169.254.169.254', 'http://instance-data:8773']).
+   (default: ['http://169.254.169.254', 'http://[fd00:ec2::254]',
+   'http://instance-data:8773']).
  * **max_wait**:  the maximum amount of clock time in seconds that should be
    spent searching metadata_urls.  A value less than zero will result in only
    one request being made, to the first in the list. (default: 120)

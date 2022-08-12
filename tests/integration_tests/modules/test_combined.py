@@ -19,6 +19,7 @@ from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    get_inactive_modules,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -173,7 +174,9 @@ class TestCombined:
         assert timezone_output.strip() == "HDT"
 
     def test_no_problems(self, class_client: IntegrationInstance):
-        """Test no errors, warnings, or tracebacks"""
+        """Test no errors, warnings, deprecations, tracebacks or
+        inactive modules.
+        """
         client = class_client
         status_file = client.read_from_file("/run/cloud-init/status.json")
         status_json = json.loads(status_file)["v1"]
@@ -184,7 +187,26 @@ class TestCombined:
         assert result_json["errors"] == []
 
         log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+        verify_clean_log(log, ignore_deprecations=False)
+        requested_modules = {
+            "apt_configure",
+            "apt_pipelining",
+            "byobu",
+            "final_message",
+            "locale",
+            "ntp",
+            "seed_random",
+            "rsyslog",
+            "runcmd",
+            "snap",
+            "ssh_import_id",
+            "timezone",
+        }
+        inactive_modules = get_inactive_modules(log)
+        assert not requested_modules.intersection(inactive_modules), (
+            f"Expected active modules:"
+            f" {requested_modules.intersection(inactive_modules)}"
+        )
 
     def test_correct_datasource_detected(
         self, class_client: IntegrationInstance
@@ -198,7 +220,6 @@ class TestCombined:
             if ImageSpecification.from_os_image().release in [
                 "bionic",
                 "focal",
-                "impish",
             ]:
                 datasource = "DataSourceNoCloud"
             else:
@@ -276,7 +297,6 @@ class TestCombined:
         if ImageSpecification.from_os_image().release not in [
             "bionic",
             "focal",
-            "impish",
         ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
@@ -316,7 +336,6 @@ class TestCombined:
         if ImageSpecification.from_os_image().release not in [
             "bionic",
             "focal",
-            "impish",
         ]:
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"

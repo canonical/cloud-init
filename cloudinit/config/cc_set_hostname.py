@@ -14,9 +14,9 @@ from cloudinit import util
 from cloudinit.atomic_helper import write_json
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_ALWAYS
+from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_ALWAYS
+frequency = PER_INSTANCE
 MODULE_DESCRIPTION = """\
 This module handles setting the system hostname and fully qualified domain
 name (FQDN). If ``preserve_hostname`` is set, then the hostname will not be
@@ -41,7 +41,7 @@ if the hostname is set by metadata or user data on the local system.
 
 This will occur on datasources like nocloud and ovf where metadata and user
 data are available locally. This ensures that the desired hostname is applied
-before any DHCP requests are preformed on these platforms where dynamic DNS is
+before any DHCP requests are performed on these platforms where dynamic DNS is
 based on initial hostname.
 """
 
@@ -62,6 +62,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -91,7 +92,7 @@ def handle(name, cfg, cloud, log, _args):
     if hostname_fqdn is not None:
         cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
 
-    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn, is_default) = util.get_hostname_fqdn(cfg, cloud)
     # Check for previous successful invocation of set-hostname
 
     # set-hostname artifact file accounts for both hostname and fqdn
@@ -108,6 +109,10 @@ def handle(name, cfg, cloud, log, _args):
     ) or fqdn != prev_hostname.get("fqdn")
     if not hostname_changed:
         log.debug("No hostname changes. Skipping set-hostname")
+        return
+    if is_default and hostname == "localhost":
+        # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
+        log.debug("Hostname is localhost. Let other services handle this.")
         return
     log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
     try:

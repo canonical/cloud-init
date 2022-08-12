@@ -112,19 +112,19 @@ class TestAnalyzeBoot(CiTestCase):
         analyze_boot(name_default, args)
         # now args have been tested, go into outfile and make sure error
         # message is in the outfile
-        outfh = open(args.outfile, "r")
-        data = outfh.read()
-        err_string = (
-            "Your Linux distro or container does not support this "
-            "functionality.\nYou must be running a Kernel "
-            "Telemetry supported distro.\nPlease check "
-            "https://cloudinit.readthedocs.io/en/latest/topics"
-            "/analyze.html for more information on supported "
-            "distros.\n"
-        )
+        with open(args.outfile, "r") as outfh:
+            data = outfh.read()
+            err_string = (
+                "Your Linux distro or container does not support this "
+                "functionality.\nYou must be running a Kernel "
+                "Telemetry supported distro.\nPlease check "
+                "https://cloudinit.readthedocs.io/en/latest/topics"
+                "/analyze.html for more information on supported "
+                "distros.\n"
+            )
 
-        self.remove_dummy_file(path, log_path)
-        self.assertEqual(err_string, data)
+            self.remove_dummy_file(path, log_path)
+            self.assertEqual(err_string, data)
 
     @mock.patch("cloudinit.util.is_container", return_value=True)
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))

@@ -91,9 +91,8 @@ def render_tmpl(template, mode=None):
     in that file if user had something there. b.) debuild will complain
     that files are different outside of the debian directory."""
 
-    # older versions of tox use bdist (xenial), and then install from there.
     # newer versions just use install.
-    if not (sys.argv[1] == "install" or sys.argv[1].startswith("bdist*")):
+    if not (sys.argv[1] == "install"):
         return template
 
     tmpl_ext = ".tmpl"
@@ -277,6 +276,7 @@ if not in_virtualenv():
 
 data_files = [
     (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl")]),
+    (ETC + "/cloud/clean.d", glob("config/clean.d/*")),
     (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
     (ETC + "/cloud/templates", glob("templates/*")),
     (
@@ -303,6 +303,11 @@ data_files = [
     ),
 ]
 if not platform.system().endswith("BSD"):
+
+    RULES_PATH = LIB
+    if os.path.isfile("/etc/redhat-release"):
+        RULES_PATH = "/usr/lib"
+
     data_files.extend(
         [
             (
@@ -310,7 +315,7 @@ if not platform.system().endswith("BSD"):
                 ["tools/hook-network-manager"],
             ),
             (ETC + "/dhcp/dhclient-exit-hooks.d/", ["tools/hook-dhclient"]),
-            (LIB + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
+            (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],

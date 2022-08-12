@@ -118,6 +118,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -756,7 +757,7 @@ def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
             raise ValueError("unknown mirror type")
 
         # if we have a fqdn, then search its domain portion first
-        (_, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        fqdn = util.get_hostname_fqdn(cfg, cloud).fqdn
         mydom = ".".join(fqdn.split(".")[1:])
         if mydom:
             doms.append(".%s" % mydom)

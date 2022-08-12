@@ -6,6 +6,7 @@ import pytest
 
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
+    NAME_TO_ACTIVATOR,
     IfUpDownActivator,
     NetplanActivator,
     NetworkdActivator,
@@ -35,7 +36,7 @@ ethernets:
     dhcp4: true
 """
 
-NETPLAN_CALL_LIST = [
+NETPLAN_CALL_LIST: list = [
     ((["netplan", "apply"],), {}),
 ]
 
@@ -79,23 +80,23 @@ def unavailable_mocks():
 
 
 class TestSearchAndSelect:
-    def test_defaults(self, available_mocks):
-        resp = search_activator()
-        assert resp == DEFAULT_PRIORITY
+    def test_empty_list(self, available_mocks):
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        assert resp == [NAME_TO_ACTIVATOR[name] for name in DEFAULT_PRIORITY]
 
         activator = select_activator()
-        assert activator == DEFAULT_PRIORITY[0]
+        assert activator == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[0]]
 
     def test_priority(self, available_mocks):
-        new_order = [NetplanActivator, NetworkManagerActivator]
-        resp = search_activator(priority=new_order)
-        assert resp == new_order
+        new_order = ["netplan", "network-manager"]
+        resp = search_activator(priority=new_order, target=None)
+        assert resp == [NAME_TO_ACTIVATOR[name] for name in new_order]
 
         activator = select_activator(priority=new_order)
-        assert activator == new_order[0]
+        assert activator == NAME_TO_ACTIVATOR[new_order[0]]
 
     def test_target(self, available_mocks):
-        search_activator(target="/tmp")
+        search_activator(priority=DEFAULT_PRIORITY, target="/tmp")
         assert "/tmp" == available_mocks.m_which.call_args[1]["target"]
 
         select_activator(target="/tmp")
@@ -106,20 +107,22 @@ class TestSearchAndSelect:
         return_value=False,
     )
     def test_first_not_available(self, m_available, available_mocks):
-        resp = search_activator()
-        assert resp == DEFAULT_PRIORITY[1:]
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        assert resp == [
+            NAME_TO_ACTIVATOR[activator] for activator in DEFAULT_PRIORITY[1:]
+        ]
 
         resp = select_activator()
-        assert resp == DEFAULT_PRIORITY[1]
+        assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[1]]
 
     def test_priority_not_exist(self, available_mocks):
         with pytest.raises(ValueError):
-            search_activator(priority=["spam", "eggs"])
+            search_activator(priority=["spam", "eggs"], target=None)
         with pytest.raises(ValueError):
             select_activator(priority=["spam", "eggs"])
 
     def test_none_available(self, unavailable_mocks):
-        resp = search_activator()
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
         assert resp == []
 
         with pytest.raises(NoActivatorException):
@@ -156,12 +159,12 @@ class TestActivatorsAvailable:
         assert available_mocks.m_which.call_args_list == available_calls
 
 
-IF_UP_DOWN_BRING_UP_CALL_LIST = [
+IF_UP_DOWN_BRING_UP_CALL_LIST: list = [
     ((["ifup", "eth0"],), {}),
     ((["ifup", "eth1"],), {}),
 ]
 
-NETWORK_MANAGER_BRING_UP_CALL_LIST = [
+NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
     (
         (
             [
@@ -230,7 +233,7 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST = [
     ),
 ]
 
-NETWORKD_BRING_UP_CALL_LIST = [
+NETWORKD_BRING_UP_CALL_LIST: list = [
     ((["ip", "link", "set", "up", "eth0"],), {}),
     ((["ip", "link", "set", "up", "eth1"],), {}),
     ((["systemctl", "restart", "systemd-networkd", "systemd-resolved"],), {}),
@@ -286,17 +289,17 @@ class TestActivatorsBringUp:
             assert call in expected_call_list
 
 
-IF_UP_DOWN_BRING_DOWN_CALL_LIST = [
+IF_UP_DOWN_BRING_DOWN_CALL_LIST: list = [
     ((["ifdown", "eth0"],), {}),
     ((["ifdown", "eth1"],), {}),
 ]
 
-NETWORK_MANAGER_BRING_DOWN_CALL_LIST = [
+NETWORK_MANAGER_BRING_DOWN_CALL_LIST: list = [
     ((["nmcli", "device", "disconnect", "eth0"],), {}),
     ((["nmcli", "device", "disconnect", "eth1"],), {}),
 ]
 
-NETWORKD_BRING_DOWN_CALL_LIST = [
+NETWORKD_BRING_DOWN_CALL_LIST: list = [
     ((["ip", "link", "set", "down", "eth0"],), {}),
     ((["ip", "link", "set", "down", "eth1"],), {}),
 ]

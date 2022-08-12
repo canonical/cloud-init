@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 from collections import namedtuple
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp
@@ -11,8 +12,8 @@ LOG = logging.getLogger(__name__)
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
-kdmi = namedtuple("KernelNames", ["linux", "freebsd"])
-kdmi.__new__.defaults__ = (None, None)
+KernelNames = namedtuple("KernelNames", ["linux", "freebsd"])
+KernelNames.__new__.__defaults__ = (None, None)
 
 # FreeBSD's kenv(1) and Linux /sys/class/dmi/id/* both use different names from
 # dmidecode. The values are the same, and ultimately what we're interested in.
@@ -20,27 +21,45 @@ kdmi.__new__.defaults__ = (None, None)
 # This is our canonical translation table. If we add more tools on other
 # platforms to find dmidecode's values, their keys need to be put in here.
 DMIDECODE_TO_KERNEL = {
-    "baseboard-asset-tag": kdmi("board_asset_tag", "smbios.planar.tag"),
-    "baseboard-manufacturer": kdmi("board_vendor", "smbios.planar.maker"),
-    "baseboard-product-name": kdmi("board_name", "smbios.planar.product"),
-    "baseboard-serial-number": kdmi("board_serial", "smbios.planar.serial"),
-    "baseboard-version": kdmi("board_version", "smbios.planar.version"),
-    "bios-release-date": kdmi("bios_date", "smbios.bios.reldate"),
-    "bios-vendor": kdmi("bios_vendor", "smbios.bios.vendor"),
-    "bios-version": kdmi("bios_version", "smbios.bios.version"),
-    "chassis-asset-tag": kdmi("chassis_asset_tag", "smbios.chassis.tag"),
-    "chassis-manufacturer": kdmi("chassis_vendor", "smbios.chassis.maker"),
-    "chassis-serial-number": kdmi("chassis_serial", "smbios.chassis.serial"),
-    "chassis-version": kdmi("chassis_version", "smbios.chassis.version"),
-    "system-manufacturer": kdmi("sys_vendor", "smbios.system.maker"),
-    "system-product-name": kdmi("product_name", "smbios.system.product"),
-    "system-serial-number": kdmi("product_serial", "smbios.system.serial"),
-    "system-uuid": kdmi("product_uuid", "smbios.system.uuid"),
-    "system-version": kdmi("product_version", "smbios.system.version"),
+    "baseboard-asset-tag": KernelNames("board_asset_tag", "smbios.planar.tag"),
+    "baseboard-manufacturer": KernelNames(
+        "board_vendor", "smbios.planar.maker"
+    ),
+    "baseboard-product-name": KernelNames(
+        "board_name", "smbios.planar.product"
+    ),
+    "baseboard-serial-number": KernelNames(
+        "board_serial", "smbios.planar.serial"
+    ),
+    "baseboard-version": KernelNames("board_version", "smbios.planar.version"),
+    "bios-release-date": KernelNames("bios_date", "smbios.bios.reldate"),
+    "bios-vendor": KernelNames("bios_vendor", "smbios.bios.vendor"),
+    "bios-version": KernelNames("bios_version", "smbios.bios.version"),
+    "chassis-asset-tag": KernelNames(
+        "chassis_asset_tag", "smbios.chassis.tag"
+    ),
+    "chassis-manufacturer": KernelNames(
+        "chassis_vendor", "smbios.chassis.maker"
+    ),
+    "chassis-serial-number": KernelNames(
+        "chassis_serial", "smbios.chassis.serial"
+    ),
+    "chassis-version": KernelNames(
+        "chassis_version", "smbios.chassis.version"
+    ),
+    "system-manufacturer": KernelNames("sys_vendor", "smbios.system.maker"),
+    "system-product-name": KernelNames(
+        "product_name", "smbios.system.product"
+    ),
+    "system-serial-number": KernelNames(
+        "product_serial", "smbios.system.serial"
+    ),
+    "system-uuid": KernelNames("product_uuid", "smbios.system.uuid"),
+    "system-version": KernelNames("product_version", "smbios.system.version"),
 }
 
 
-def _read_dmi_syspath(key):
+def _read_dmi_syspath(key: str) -> Optional[str]:
     """
     Reads dmi data from /sys/class/dmi/id
     """
@@ -78,7 +97,7 @@ def _read_dmi_syspath(key):
     return None
 
 
-def _read_kenv(key):
+def _read_kenv(key: str) -> Optional[str]:
     """
     Reads dmi data from FreeBSD's kenv(1)
     """
@@ -96,12 +115,11 @@ def _read_kenv(key):
         return result
     except subp.ProcessExecutionError as e:
         LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
-        return None
 
     return None
 
 
-def _call_dmidecode(key, dmidecode_path):
+def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
     """
     Calls out to dmidecode to get the data out. This is mostly for supporting
     OS's without /sys/class/dmi/id support.
@@ -119,7 +137,7 @@ def _call_dmidecode(key, dmidecode_path):
         return None
 
 
-def read_dmi_data(key):
+def read_dmi_data(key: str) -> Optional[str]:
     """
     Wrapper for reading DMI data.
 

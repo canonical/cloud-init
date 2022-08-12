@@ -1,0 +1,18 @@
+-- cloud-init's clean.d run-parts directory --
+
+This directory is provided for third party applications which need
+additional configuration artifact cleanup from the filesystem when
+the command `cloud-init clean` is invoked.
+
+The `cloud-init clean` operation is typically performed by image creators
+when preparing a golden image for clone and redeployment. The clean command
+removes any cloud-init semaphores, allowing cloud-init to treat the next
+boot of this image as the "first boot". When the image is next booted
+cloud-init will performing all initial configuration based on any valid
+datasource meta-data and user-data.
+
+Any executable scripts in this subdirectory will be invoked in lexicographical
+order with run-parts by the command: sudo cloud-init clean.
+
+Typical format of such scripts would be a ##-<some-app> like the following:
+  /etc/cloud/clean.d/99-live-installer

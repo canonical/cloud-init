@@ -1,30 +1,27 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-from collections import namedtuple
+import stat
 from functools import partial
+from typing import NamedTuple
+from unittest import mock
 from unittest.mock import patch
 
-from cloudinit import ssh_util, util
-from cloudinit.temp_utils import mkdtemp
-from tests.unittests import helpers as test_helpers
+import pytest
 
-# https://stackoverflow.com/questions/11351032/
-FakePwEnt = namedtuple(
-    "FakePwEnt",
-    [
-        "pw_name",
-        "pw_passwd",
-        "pw_uid",
-        "pw_gid",
-        "pw_gecos",
-        "pw_dir",
-        "pw_shell",
-    ],
-)
-FakePwEnt.__new__.__defaults__ = tuple(
-    "UNSET_%s" % n for n in FakePwEnt._fields
-)
+from cloudinit import ssh_util, util
+
+M_PATH = "cloudinit.ssh_util."
+
+
+class FakePwEnt(NamedTuple):
+    pw_name: str = "UNSET_pw_name"
+    pw_passwd: str = "UNSET_w_passwd"
+    pw_uid: str = "UNSET_pw_uid"
+    pw_gid: str = "UNSET_pw_gid"
+    pw_gecos: str = "UNSET_pw_gecos"
+    pw_dir: str = "UNSET_pw_dir"
+    pw_shell: str = "UNSET_pw_shell"
 
 
 def mock_get_owner(updated_permissions, value):
@@ -322,66 +319,40 @@ TEST_OPTIONS = (
 )
 
 
-class TestAuthKeyLineParser(test_helpers.CiTestCase):
-    def test_simple_parse(self):
-        # test key line with common 3 fields (keytype, base64, comment)
-        parser = ssh_util.AuthKeyLineParser()
-        for ktype in KEY_TYPES:
-            content = VALID_CONTENT[ktype]
-            comment = "user-%s@host" % ktype
-            line = " ".join(
-                (
-                    ktype,
-                    content,
-                    comment,
-                )
-            )
-            key = parser.parse(line)
-
-            self.assertEqual(key.base64, content)
-            self.assertFalse(key.options)
-            self.assertEqual(key.comment, comment)
-            self.assertEqual(key.keytype, ktype)
-
-    def test_parse_no_comment(self):
-        # test key line with key type and base64 only
-        parser = ssh_util.AuthKeyLineParser()
-        for ktype in KEY_TYPES:
-            content = VALID_CONTENT[ktype]
-            line = " ".join(
-                (
-                    ktype,
-                    content,
-                )
-            )
-            key = parser.parse(line)
-
-            self.assertEqual(key.base64, content)
-            self.assertFalse(key.options)
-            self.assertFalse(key.comment)
-            self.assertEqual(key.keytype, ktype)
-
-    def test_parse_with_keyoptions(self):
-        # test key line with options in it
-        parser = ssh_util.AuthKeyLineParser()
+class TestAuthKeyLineParser:
+    @pytest.mark.parametrize("with_options", [True, False])
+    @pytest.mark.parametrize("with_comment", [True, False])
+    @pytest.mark.parametrize("ktype", KEY_TYPES)
+    def test_parse(self, ktype, with_comment, with_options):
+        content = VALID_CONTENT[ktype]
+        comment = "user-%s@host" % ktype
         options = TEST_OPTIONS
-        for ktype in KEY_TYPES:
-            content = VALID_CONTENT[ktype]
-            comment = "user-%s@host" % ktype
-            line = " ".join(
-                (
-                    options,
-                    ktype,
-                    content,
-                    comment,
-                )
-            )
-            key = parser.parse(line)
 
-            self.assertEqual(key.base64, content)
-            self.assertEqual(key.options, options)
-            self.assertEqual(key.comment, comment)
-            self.assertEqual(key.keytype, ktype)
+        line_args = []
+        if with_options:
+            line_args.append(options)
+        line_args.extend(
+            [
+                ktype,
+                content,
+            ]
+        )
+        if with_comment:
+            line_args.append(comment)
+        line = " ".join(line_args)
+
+        key = ssh_util.AuthKeyLineParser().parse(line)
+
+        assert key.base64 == content
+        assert key.keytype == ktype
+        if with_options:
+            assert key.options == options
+        else:
+            assert key.options is None
+        if with_comment:
+            assert key.comment == comment
+        else:
+            assert key.comment == ""
 
     def test_parse_with_options_passed_in(self):
         # test key line with key type and base64 only
@@ -391,30 +362,44 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
         myopts = "no-port-forwarding,no-agent-forwarding"
 
         key = parser.parse("allowedopt" + " " + baseline)
-        self.assertEqual(key.options, "allowedopt")
+        assert key.options == "allowedopt"
 
         key = parser.parse("overridden_opt " + baseline, options=myopts)
-        self.assertEqual(key.options, myopts)
+        assert key.options == myopts
 
     def test_parse_invalid_keytype(self):
         parser = ssh_util.AuthKeyLineParser()
         key = parser.parse(" ".join(["badkeytype", VALID_CONTENT["rsa"]]))
 
-        self.assertFalse(key.valid())
+        assert not key.valid()
 
 
-class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
-    def test_new_keys_replace(self):
+class TestUpdateAuthorizedKeys:
+    @pytest.mark.parametrize(
+        "new_entries",
+        [
+            (
+                [
+                    " ".join(("rsa", VALID_CONTENT["rsa"], "new_comment1")),
+                ]
+            ),
+            pytest.param(
+                [
+                    " ".join(("rsa", VALID_CONTENT["rsa"], "new_comment1")),
+                    "xxx-invalid-thing1",
+                    "xxx-invalid-blob2",
+                ],
+                id="skip-invalid-entries",
+            ),
+        ],
+    )
+    def test_new_keys_replace(self, new_entries):
         """new entries with the same base64 should replace old."""
         orig_entries = [
             " ".join(("rsa", VALID_CONTENT["rsa"], "orig_comment1")),
             " ".join(("dsa", VALID_CONTENT["dsa"], "orig_comment2")),
         ]
 
-        new_entries = [
-            " ".join(("rsa", VALID_CONTENT["rsa"], "new_comment1")),
-        ]
-
         expected = "\n".join([new_entries[0], orig_entries[1]]) + "\n"
 
         parser = ssh_util.AuthKeyLineParser()
@@ -423,100 +408,77 @@ class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
             [parser.parse(p) for p in new_entries],
         )
 
-        self.assertEqual(expected, found)
-
-    def test_new_invalid_keys_are_ignored(self):
-        """new entries that are invalid should be skipped."""
-        orig_entries = [
-            " ".join(("rsa", VALID_CONTENT["rsa"], "orig_comment1")),
-            " ".join(("dsa", VALID_CONTENT["dsa"], "orig_comment2")),
-        ]
-
-        new_entries = [
-            " ".join(("rsa", VALID_CONTENT["rsa"], "new_comment1")),
-            "xxx-invalid-thing1",
-            "xxx-invalid-blob2",
-        ]
-
-        expected = "\n".join([new_entries[0], orig_entries[1]]) + "\n"
-
-        parser = ssh_util.AuthKeyLineParser()
-        found = ssh_util.update_authorized_keys(
-            [parser.parse(p) for p in orig_entries],
-            [parser.parse(p) for p in new_entries],
-        )
-
-        self.assertEqual(expected, found)
+        assert expected == found
 
 
-class TestParseSSHConfig(test_helpers.CiTestCase):
-    def setUp(self):
-        self.load_file_patch = patch("cloudinit.ssh_util.util.load_file")
-        self.load_file = self.load_file_patch.start()
-        self.isfile_patch = patch("cloudinit.ssh_util.os.path.isfile")
-        self.isfile = self.isfile_patch.start()
-        self.isfile.return_value = True
+@mock.patch(M_PATH + "util.load_file")
+@mock.patch(M_PATH + "os.path.isfile")
+class TestParseSSHConfig:
+    @pytest.mark.parametrize(
+        "is_file, file_content",
+        [
+            pytest.param(True, ("",), id="empty-file"),
+            pytest.param(False, IOError, id="not-a-file"),
+        ],
+    )
+    def test_dummy_file(self, m_is_file, m_load_file, is_file, file_content):
+        m_is_file.return_value = is_file
+        m_load_file.side_effect = file_content
+        ret = ssh_util.parse_ssh_config("notmatter")
+        assert [] == ret
 
-    def tearDown(self):
-        self.load_file_patch.stop()
-        self.isfile_patch.stop()
-
-    def test_not_a_file(self):
-        self.isfile.return_value = False
-        self.load_file.side_effect = IOError
-        ret = ssh_util.parse_ssh_config("not a real file")
-        self.assertEqual([], ret)
-
-    def test_empty_file(self):
-        self.load_file.return_value = ""
+    @pytest.mark.parametrize(
+        "file_content",
+        [
+            pytest.param(["# This is a comment"], id="comment_line"),
+            pytest.param(
+                ["# This is a comment", "# This is another comment"],
+                id="two-comment_lines",
+            ),
+        ],
+    )
+    def test_comment_line(self, m_is_file, m_load_file, file_content):
+        m_is_file.return_value = True
+        m_load_file.return_value = "\n".join(file_content)
         ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual([], ret)
+        assert len(file_content) == len(ret)
+        assert file_content[0] == ret[0].line
 
-    def test_comment_line(self):
-        comment_line = "# This is a comment"
-        self.load_file.return_value = comment_line
-        ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(1, len(ret))
-        self.assertEqual(comment_line, ret[0].line)
-
-    def test_blank_lines(self):
+    def test_blank_lines(self, m_is_file, m_load_file):
+        m_is_file.return_value = True
         lines = ["", "\t", " "]
-        self.load_file.return_value = "\n".join(lines)
+        m_load_file.return_value = "\n".join(lines)
         ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(len(lines), len(ret))
+        assert len(lines) == len(ret)
         for line in ret:
-            self.assertEqual("", line.line)
+            assert "" == line.line
 
-    def test_lower_case_config(self):
-        self.load_file.return_value = "foo bar"
+    @pytest.mark.parametrize(
+        "file_content, expected_key, expected_value",
+        [
+            pytest.param("foo bar", "foo", "bar", id="lower-case"),
+            pytest.param("Foo Bar", "foo", "Bar", id="upper-case"),
+            pytest.param("foo=bar", "foo", "bar", id="lower-case-with-equals"),
+            pytest.param("Foo=bar", "foo", "bar", id="upper-case-with-equals"),
+        ],
+    )
+    def test_case_config(
+        self,
+        m_is_file,
+        m_load_file,
+        file_content,
+        expected_key,
+        expected_value,
+    ):
+        m_is_file.return_value = True
+        m_load_file.return_value = file_content
         ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(1, len(ret))
-        self.assertEqual("foo", ret[0].key)
-        self.assertEqual("bar", ret[0].value)
-
-    def test_upper_case_config(self):
-        self.load_file.return_value = "Foo Bar"
-        ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(1, len(ret))
-        self.assertEqual("foo", ret[0].key)
-        self.assertEqual("Bar", ret[0].value)
-
-    def test_lower_case_with_equals(self):
-        self.load_file.return_value = "foo=bar"
-        ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(1, len(ret))
-        self.assertEqual("foo", ret[0].key)
-        self.assertEqual("bar", ret[0].value)
-
-    def test_upper_case_with_equals(self):
-        self.load_file.return_value = "Foo=bar"
-        ret = ssh_util.parse_ssh_config("some real file")
-        self.assertEqual(1, len(ret))
-        self.assertEqual("foo", ret[0].key)
-        self.assertEqual("bar", ret[0].value)
+        assert 1 == len(ret)
+        assert expected_key == ret[0].key
+        assert expected_value == ret[0].value
 
 
-class TestUpdateSshConfigLines(test_helpers.CiTestCase):
+class TestUpdateSshConfigLines:
     """Test the update_ssh_config_lines method."""
 
     exlines = [
@@ -529,24 +491,25 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
     pwauth = "PasswordAuthentication"
 
     def check_line(self, line, opt, val):
-        self.assertEqual(line.key, opt.lower())
-        self.assertEqual(line.value, val)
-        self.assertIn(opt, str(line))
-        self.assertIn(val, str(line))
+        assert line.key == opt.lower()
+        assert line.value == val
+        assert opt in str(line)
+        assert val in str(line)
 
-    def test_new_option_added(self):
-        """A single update of non-existing option."""
+    @pytest.mark.parametrize(
+        "key, value",
+        [
+            pytest.param("MyKey", "MyVal", id="new_option_added"),
+            pytest.param(
+                pwauth, "no", id="commented_out_not_updated_but_appended"
+            ),
+        ],
+    )
+    def test_update_ssh_config_lines(self, key, value):
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
-        result = ssh_util.update_ssh_config_lines(lines, {"MyKey": "MyVal"})
-        self.assertEqual(["MyKey"], result)
-        self.check_line(lines[-1], "MyKey", "MyVal")
-
-    def test_commented_out_not_updated_but_appended(self):
-        """Implementation does not un-comment and update lines."""
-        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
-        result = ssh_util.update_ssh_config_lines(lines, {self.pwauth: "no"})
-        self.assertEqual([self.pwauth], result)
-        self.check_line(lines[-1], self.pwauth, "no")
+        result = ssh_util.update_ssh_config_lines(lines, {key: value})
+        assert [key] == result
+        self.check_line(lines[-1], key, value)
 
     def test_option_without_value(self):
         """Implementation only accepts key-value pairs."""
@@ -554,14 +517,14 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         denyusers_opt = "DenyUsers"
         extended_exlines.append(denyusers_opt)
         lines = ssh_util.parse_ssh_config_lines(list(extended_exlines))
-        self.assertNotIn(denyusers_opt, str(lines))
+        assert denyusers_opt not in str(lines)
 
     def test_single_option_updated(self):
         """A single update should have change made and line updated."""
         opt, val = ("UsePAM", "no")
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
         result = ssh_util.update_ssh_config_lines(lines, {opt: val})
-        self.assertEqual([opt], result)
+        assert [opt] == result
         self.check_line(lines[1], opt, val)
 
     def test_multiple_updates_with_add(self):
@@ -574,7 +537,7 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         }
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
         result = ssh_util.update_ssh_config_lines(lines, updates)
-        self.assertEqual(set(["UsePAM", "NewOpt", "AcceptEnv"]), set(result))
+        assert set(["UsePAM", "NewOpt", "AcceptEnv"]) == set(result)
         self.check_line(lines[3], "AcceptEnv", updates["AcceptEnv"])
 
     def test_return_empty_if_no_changes(self):
@@ -582,8 +545,8 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         updates = {"UsePAM": "yes"}
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
         result = ssh_util.update_ssh_config_lines(lines, updates)
-        self.assertEqual([], result)
-        self.assertEqual(self.exlines, [str(line) for line in lines])
+        assert [] == result
+        assert self.exlines == [str(line) for line in lines]
 
     def test_keycase_not_modified(self):
         """Original case of key should not be changed on update.
@@ -591,109 +554,150 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         updates = {"usepam": "no"}
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
         result = ssh_util.update_ssh_config_lines(lines, updates)
-        self.assertEqual(["usepam"], result)
-        self.assertEqual("UsePAM no", str(lines[1]))
+        assert ["usepam"] == result
+        assert "UsePAM no" == str(lines[1])
 
 
-class TestUpdateSshConfig(test_helpers.CiTestCase):
+class TestUpdateSshConfig:
     cfgdata = "\n".join(["#Option val", "MyKey ORIG_VAL", ""])
 
-    def test_modified(self):
-        mycfg = self.tmp_path("ssh_config_1")
+    def test_modified(self, tmpdir):
+        mycfg = tmpdir.join("ssh_config_1")
         util.write_file(mycfg, self.cfgdata)
         ret = ssh_util.update_ssh_config({"MyKey": "NEW_VAL"}, mycfg)
-        self.assertTrue(ret)
+        assert True is ret
         found = util.load_file(mycfg)
-        self.assertEqual(self.cfgdata.replace("ORIG_VAL", "NEW_VAL"), found)
+        assert self.cfgdata.replace("ORIG_VAL", "NEW_VAL") == found
         # assert there is a newline at end of file (LP: #1677205)
-        self.assertEqual("\n", found[-1])
+        assert "\n" == found[-1]
 
-    def test_not_modified(self):
-        mycfg = self.tmp_path("ssh_config_2")
+    def test_not_modified(self, tmpdir):
+        mycfg = tmpdir.join("ssh_config_2")
         util.write_file(mycfg, self.cfgdata)
         with patch("cloudinit.ssh_util.util.write_file") as m_write_file:
             ret = ssh_util.update_ssh_config({"MyKey": "ORIG_VAL"}, mycfg)
-        self.assertFalse(ret)
-        self.assertEqual(self.cfgdata, util.load_file(mycfg))
+        assert False is ret
+        assert self.cfgdata == util.load_file(mycfg)
         m_write_file.assert_not_called()
 
+    def test_without_include(self, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        cfg = "X Y"
+        util.write_file(mycfg, cfg)
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        assert "X Y\nkey value\n" == util.load_file(mycfg)
+        expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
+        assert not os.path.isfile(expected_conf_file)
 
-class TestBasicAuthorizedKeyParse(test_helpers.CiTestCase):
-    def test_user(self):
-        self.assertEqual(
-            ["/opt/bobby/keys"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "/opt/%u/keys", "/home/bobby", "bobby"
+    @pytest.mark.parametrize(
+        "cfg",
+        ["Include {mycfg}.d/*.conf", "Include {mycfg}.d/*.conf # comment"],
+    )
+    def test_with_include(self, cfg, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        util.write_file(mycfg, cfg.format(mycfg=mycfg))
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
+        assert os.path.isfile(expected_conf_file)
+        assert 0o600 == stat.S_IMODE(os.stat(expected_conf_file).st_mode)
+        assert "key value\n" == util.load_file(expected_conf_file)
+
+    def test_with_commented_include(self, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        cfg = f"# Include {mycfg}.d/*.conf"
+        util.write_file(mycfg, cfg)
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
+        assert not os.path.isfile(expected_conf_file)
+
+    def test_with_other_include(self, tmpdir):
+        mycfg = tmpdir.join("sshd_config")
+        cfg = f"Include other_{mycfg}.d/*.conf"
+        util.write_file(mycfg, cfg)
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
+        assert not os.path.isfile(expected_conf_file)
+        assert not os.path.isfile(f"other_{mycfg}.d/50-cloud-init.conf")
+
+
+class TestBasicAuthorizedKeyParse:
+    @pytest.mark.parametrize(
+        "value, homedir, username, expected_rendered",
+        [
+            pytest.param(
+                "/opt/%u/keys",
+                "/home/bobby",
+                "bobby",
+                ["/opt/bobby/keys"],
+                id="user",
             ),
-        )
-
-    def test_user_file(self):
-        self.assertEqual(
-            ["/opt/bobby"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "/opt/%u", "/home/bobby", "bobby"
+            pytest.param(
+                "/opt/%u",
+                "/home/bobby",
+                "bobby",
+                ["/opt/bobby"],
+                id="user_file",
             ),
-        )
-
-    def test_user_file2(self):
-        self.assertEqual(
-            ["/opt/bobby/bobby"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "/opt/%u/%u", "/home/bobby", "bobby"
+            pytest.param(
+                "/opt/%u/%u",
+                "/home/bobby",
+                "bobby",
+                ["/opt/bobby/bobby"],
+                id="user_file_2",
             ),
-        )
-
-    def test_multiple(self):
-        self.assertEqual(
-            ["/keys/path1", "/keys/path2"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "/keys/path1 /keys/path2", "/home/bobby", "bobby"
+            pytest.param(
+                "/keys/path1 /keys/path2",
+                "/home/bobby",
+                "bobby",
+                ["/keys/path1", "/keys/path2"],
+                id="multiple",
             ),
-        )
-
-    def test_multiple2(self):
-        self.assertEqual(
-            ["/keys/path1", "/keys/bobby"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "/keys/path1 /keys/%u", "/home/bobby", "bobby"
+            pytest.param(
+                "/keys/path1 /keys/%u",
+                "/home/bobby",
+                "bobby",
+                ["/keys/path1", "/keys/bobby"],
+                id="multiple_2",
             ),
-        )
-
-    def test_relative(self):
-        self.assertEqual(
-            ["/home/bobby/.secret/keys"],
-            ssh_util.render_authorizedkeysfile_paths(
-                ".secret/keys", "/home/bobby", "bobby"
+            pytest.param(
+                ".secret/keys",
+                "/home/bobby",
+                "bobby",
+                ["/home/bobby/.secret/keys"],
+                id="relative",
             ),
-        )
-
-    def test_home(self):
-        self.assertEqual(
-            ["/homedirs/bobby/.keys"],
-            ssh_util.render_authorizedkeysfile_paths(
-                "%h/.keys", "/homedirs/bobby", "bobby"
+            pytest.param(
+                "%h/.keys",
+                "/homedirs/bobby",
+                "bobby",
+                ["/homedirs/bobby/.keys"],
+                id="home",
             ),
-        )
-
-    def test_all(self):
-        self.assertEqual(
-            [
-                "/homedirs/bobby/.keys",
-                "/homedirs/bobby/.secret/keys",
-                "/keys/path1",
-                "/opt/bobby/keys",
-            ],
-            ssh_util.render_authorizedkeysfile_paths(
+            pytest.param(
                 "%h/.keys .secret/keys /keys/path1 /opt/%u/keys",
                 "/homedirs/bobby",
                 "bobby",
+                [
+                    "/homedirs/bobby/.keys",
+                    "/homedirs/bobby/.secret/keys",
+                    "/keys/path1",
+                    "/opt/bobby/keys",
+                ],
+                id="all",
             ),
+        ],
+    )
+    def test_render_authorizedkeysfile_paths(
+        self, value, homedir, username, expected_rendered
+    ):
+        assert expected_rendered == ssh_util.render_authorizedkeysfile_paths(
+            value, homedir, username
         )
 
 
-class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
-    tmp_d = mkdtemp()
-
+class TestMultipleSshAuthorizedKeysFile:
     def create_fake_users(
         self,
         names,
@@ -703,15 +707,16 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         users,
+        tmpdir,
     ):
         homes = []
 
-        root = self.tmp_d + "/root"
+        root = str(tmpdir.join("root"))
         fpw = FakePwEnt(pw_name="root", pw_dir=root)
         users["root"] = fpw
 
         for name in names:
-            home = self.tmp_d + "/home/" + name
+            home = str(tmpdir.join("home", name))
             fpw = FakePwEnt(pw_name=name, pw_dir=home)
             users[name] = fpw
             homes.append(home)
@@ -725,61 +730,71 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         return homes
 
     def create_user_authorized_file(self, home, filename, content_key, keys):
-        user_ssh_folder = "%s/.ssh" % home
+        user_ssh_folder = os.path.join(home, ".ssh")
         # /tmp/home/<user>/.ssh/authorized_keys = content_key
-        authorized_keys = self.tmp_path(filename, dir=user_ssh_folder)
+        authorized_keys = str(os.path.join(user_ssh_folder, filename))
         util.write_file(authorized_keys, VALID_CONTENT[content_key])
         keys[authorized_keys] = content_key
         return authorized_keys
 
-    def create_global_authorized_file(self, filename, content_key, keys):
-        authorized_keys = self.tmp_path(filename, dir=self.tmp_d)
+    def create_global_authorized_file(
+        self, filename, content_key, keys, tmpdir
+    ):
+        authorized_keys = str(tmpdir.join(filename))
         util.write_file(authorized_keys, VALID_CONTENT[content_key])
         keys[authorized_keys] = content_key
         return authorized_keys
 
-    def create_sshd_config(self, authorized_keys_files):
-        sshd_config = self.tmp_path("sshd_config", dir=self.tmp_d)
+    def create_sshd_config(self, authorized_keys_files, tmpdir):
+        sshd_config = str(tmpdir.join("sshd_config"))
         util.write_file(
             sshd_config, "AuthorizedKeysFile " + authorized_keys_files
         )
         return sshd_config
 
-    def execute_and_check(
-        self, user, sshd_config, solution, keys, delete_keys=True
-    ):
+    def execute_and_check(self, user, sshd_config, solution, keys):
         (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
             user, sshd_config
         )
         content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
-        self.assertEqual(auth_key_fn, solution)
+        assert auth_key_fn == solution
         for path, key in keys.items():
             if path == solution:
-                self.assertTrue(VALID_CONTENT[key] in content)
+                assert VALID_CONTENT[key] in content
             else:
-                self.assertFalse(VALID_CONTENT[key] in content)
+                assert VALID_CONTENT[key] not in content
 
-        if delete_keys and os.path.isdir(self.tmp_d + "/home/"):
-            util.delete_dir_contents(self.tmp_d + "/home/")
-
+    @pytest.mark.parametrize("inverted", [False, True])
     @patch("cloudinit.ssh_util.pwd.getpwnam")
     @patch("cloudinit.util.get_permissions")
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_single_user_two_local_files(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self,
+        m_get_group,
+        m_get_owner,
+        m_get_permissions,
+        m_getpwnam,
+        inverted,
+        tmpdir,
     ):
         user_bobby = "bobby"
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "user_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
         }
 
         homes = self.create_fake_users(
@@ -790,6 +805,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home = homes[0]
 
@@ -804,74 +820,49 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         # /tmp/sshd_config
-        options = "%s %s" % (authorized_keys, user_keys)
-        sshd_config = self.create_sshd_config(options)
+        if not inverted:
+            options = f"{authorized_keys} {user_keys}"
+        else:
+            options = f"{user_keys} {authorized_keys}"
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
+        if not inverted:
+            exec_args = (user_bobby, sshd_config, authorized_keys, keys)
+        else:
+            exec_args = (user_bobby, sshd_config, user_keys, keys)
 
-    @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
-    def test_single_user_two_local_files_inverted(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
-    ):
-        user_bobby = "bobby"
-        keys = {}
-        users = {}
-        mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-        }
+        self.execute_and_check(*exec_args)
 
-        homes = self.create_fake_users(
-            [user_bobby],
-            mock_permissions,
-            m_get_group,
-            m_get_owner,
-            m_get_permissions,
-            m_getpwnam,
-            users,
-        )
-        home = homes[0]
-
-        # /tmp/home/bobby/.ssh/authorized_keys = rsa
-        authorized_keys = self.create_user_authorized_file(
-            home, "authorized_keys", "rsa", keys
-        )
-
-        # /tmp/home/bobby/.ssh/user_keys = dsa
-        user_keys = self.create_user_authorized_file(
-            home, "user_keys", "dsa", keys
-        )
-
-        # /tmp/sshd_config
-        options = "%s %s" % (user_keys, authorized_keys)
-        sshd_config = self.create_sshd_config(options)
-
-        self.execute_and_check(user_bobby, sshd_config, user_keys, keys)
-
+    @pytest.mark.parametrize("inverted", [False, True])
     @patch("cloudinit.ssh_util.pwd.getpwnam")
     @patch("cloudinit.util.get_permissions")
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_single_user_local_global_files(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self,
+        m_get_group,
+        m_get_owner,
+        m_get_permissions,
+        m_getpwnam,
+        inverted,
+        tmpdir,
     ):
         user_bobby = "bobby"
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "user_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
         }
 
         homes = self.create_fake_users(
@@ -882,6 +873,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home = homes[0]
 
@@ -896,86 +888,39 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys", "ecdsa", keys
+            "etc/ssh/authorized_keys", "ecdsa", keys, tmpdir
         )
 
-        options = "%s %s %s" % (
-            authorized_keys_global,
-            user_keys,
-            authorized_keys,
-        )
-        sshd_config = self.create_sshd_config(options)
+        if not inverted:
+            options = f"{authorized_keys_global} {user_keys} {authorized_keys}"
+        else:
+            options = f"{authorized_keys_global} {authorized_keys} {user_keys}"
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(user_bobby, sshd_config, user_keys, keys)
-
-    @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
-    def test_single_user_local_global_files_inverted(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
-    ):
-        user_bobby = "bobby"
-        keys = {}
-        users = {}
-        mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys3": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys2": ("bobby", "bobby", 0o600),
-        }
-
-        homes = self.create_fake_users(
-            [user_bobby],
-            mock_permissions,
-            m_get_group,
-            m_get_owner,
-            m_get_permissions,
-            m_getpwnam,
-            users,
-        )
-        home = homes[0]
-
-        # /tmp/home/bobby/.ssh/authorized_keys = rsa
-        authorized_keys = self.create_user_authorized_file(
-            home, "authorized_keys2", "rsa", keys
-        )
-
-        # /tmp/home/bobby/.ssh/user_keys = dsa
-        user_keys = self.create_user_authorized_file(
-            home, "user_keys3", "dsa", keys
-        )
-
-        authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys", "ecdsa", keys
-        )
-
-        options = "%s %s %s" % (
-            authorized_keys_global,
-            authorized_keys,
-            user_keys,
-        )
-        sshd_config = self.create_sshd_config(options)
-
-        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
+        if not inverted:
+            exec_args = (user_bobby, sshd_config, user_keys, keys)
+        else:
+            exec_args = (user_bobby, sshd_config, authorized_keys, keys)
+        self.execute_and_check(*exec_args)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
     @patch("cloudinit.util.get_permissions")
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_single_user_global_file(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
         user_bobby = "bobby"
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
         }
 
         homes = self.create_fake_users(
@@ -986,16 +931,17 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home = homes[0]
 
         # /tmp/etc/ssh/authorized_keys = rsa
         authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys", "rsa", keys
+            "etc/ssh/authorized_keys", "rsa", keys, tmpdir
         )
 
         options = "%s" % authorized_keys_global
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
         default = "%s/.ssh/authorized_keys" % home
         self.execute_and_check(user_bobby, sshd_config, default, keys)
@@ -1005,19 +951,25 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_two_users_local_file_standard(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys": ("suzie", "suzie", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh", "authorized_keys"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1030,6 +982,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home_bobby = homes[0]
         home_suzie = homes[1]
@@ -1045,11 +998,9 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         options = ".ssh/authorized_keys"
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
-        )
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
@@ -1057,19 +1008,25 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_two_users_local_file_custom(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys2": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys2": ("suzie", "suzie", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys2"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh", "authorized_keys2"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1082,6 +1039,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home_bobby = homes[0]
         home_suzie = homes[1]
@@ -1097,11 +1055,9 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         options = ".ssh/authorized_keys2"
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
-        )
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
@@ -1109,23 +1065,35 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
     @patch("cloudinit.util.get_owner")
     @patch("cloudinit.util.get_group")
     def test_two_users_local_global_files(
-        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam
+        self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys2": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys3": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys2": ("suzie", "suzie", 0o600),
-            self.tmp_d
-            + "/home/suzie/.ssh/user_keys3": ("suzie", "suzie", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys2"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "bobby", ".ssh", "user_keys3"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh", "authorized_keys2"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie", ".ssh", "user_keys3"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1138,6 +1106,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home_bobby = homes[0]
         home_suzie = homes[1]
@@ -1158,18 +1127,16 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         # /tmp/etc/ssh/authorized_keys = ecdsa
         authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys2", "ecdsa", keys
+            "etc/ssh/authorized_keys2", "ecdsa", keys, tmpdir
         )
 
         options = "%s %s %%h/.ssh/authorized_keys2" % (
             authorized_keys_global,
             user_keys,
         )
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(
-            user_bobby, sshd_config, user_keys, keys, delete_keys=False
-        )
+        self.execute_and_check(user_bobby, sshd_config, user_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
     @patch("cloudinit.util.get_user_groups")
@@ -1184,19 +1151,30 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         m_get_user_groups,
+        tmpdir,
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys2": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/home/bobby/.ssh/user_keys3": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/badguy": ("root", "root", 0o755),
-            self.tmp_d + "/home/badguy/home": ("root", "root", 0o755),
-            self.tmp_d + "/home/badguy/home/bobby": ("root", "root", 0o655),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys2"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "bobby", ".ssh", "user_keys3"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "badguy"): ("root", "root", 0o755),
+            tmpdir.join("home", "badguy", "home"): ("root", "root", 0o755),
+            tmpdir.join("home", "badguy", "home", "bobby"): (
+                "root",
+                "root",
+                0o655,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1209,6 +1187,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         m_get_user_groups.side_effect = mock_get_user_groups
 
@@ -1222,14 +1201,12 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         # /tmp/home/badguy/home/bobby = ""
-        authorized_keys2 = self.tmp_path(
-            "home/bobby", dir=self.tmp_d + "/home/badguy"
-        )
+        authorized_keys2 = str(tmpdir.join("home", "badguy", "home", "bobby"))
         util.write_file(authorized_keys2, "")
 
         # /tmp/etc/ssh/authorized_keys = ecdsa
         authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys2", "ecdsa", keys
+            "etc/ssh/authorized_keys2", "ecdsa", keys, tmpdir
         )
 
         # /tmp/sshd_config
@@ -1238,11 +1215,9 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             authorized_keys_global,
             user_keys,
         )
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
-        )
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(
             user_badguy, sshd_config, authorized_keys2, keys
         )
@@ -1259,24 +1234,34 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         m_get_user_groups,
+        tmpdir,
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/etc": ("root", "root", 0o755),
-            self.tmp_d + "/etc/ssh": ("root", "root", 0o755),
-            self.tmp_d + "/etc/ssh/userkeys": ("root", "root", 0o700),
-            self.tmp_d + "/etc/ssh/userkeys/bobby": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/etc/ssh/userkeys/badguy": ("badguy", "badguy", 0o600),
-            self.tmp_d + "/home/badguy": ("badguy", "badguy", 0o700),
-            self.tmp_d + "/home/badguy/.ssh": ("badguy", "badguy", 0o700),
-            self.tmp_d
-            + "/home/badguy/.ssh/authorized_keys": (
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("etc"): ("root", "root", 0o755),
+            tmpdir.join("etc", "ssh"): ("root", "root", 0o755),
+            tmpdir.join("etc", "ssh", "userkeys"): ("root", "root", 0o700),
+            tmpdir.join("etc", "ssh", "userkeys", "bobby"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("etc", "ssh", "userkeys", "badguy"): (
+                "badguy",
+                "badguy",
+                0o600,
+            ),
+            tmpdir.join("home", "badguy"): ("badguy", "badguy", 0o700),
+            tmpdir.join("home", "badguy", ".ssh"): ("badguy", "badguy", 0o700),
+            tmpdir.join("home", "badguy", ".ssh", "authorized_keys"): (
                 "badguy",
                 "badguy",
                 0o600,
@@ -1293,6 +1278,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         m_get_user_groups.side_effect = mock_get_user_groups
         home_bobby = homes[0]
@@ -1305,7 +1291,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         # /tmp/etc/ssh/userkeys/bobby = dsa
         # assume here that we can bypass userkeys, despite permissions
         self.create_global_authorized_file(
-            "etc/ssh/userkeys/bobby", "dsa", keys
+            "etc/ssh/userkeys/bobby", "dsa", keys, tmpdir
         )
 
         # /tmp/home/badguy/.ssh/authorized_keys = ssh-xmss@openssh.com
@@ -1315,16 +1301,16 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         # /tmp/etc/ssh/userkeys/badguy = ecdsa
         self.create_global_authorized_file(
-            "etc/ssh/userkeys/badguy", "ecdsa", keys
+            "etc/ssh/userkeys/badguy", "ecdsa", keys, tmpdir
         )
 
         # /tmp/sshd_config
-        options = self.tmp_d + "/etc/ssh/userkeys/%u .ssh/authorized_keys"
-        sshd_config = self.create_sshd_config(options)
-
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
+        options = str(
+            tmpdir.join("etc", "ssh", "userkeys", "%u .ssh", "authorized_keys")
         )
+        sshd_config = self.create_sshd_config(options, tmpdir)
+
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(
             user_badguy, sshd_config, authorized_keys2, keys
         )
@@ -1341,24 +1327,34 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         m_get_user_groups,
+        tmpdir,
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/etc": ("root", "root", 0o755),
-            self.tmp_d + "/etc/ssh": ("root", "root", 0o755),
-            self.tmp_d + "/etc/ssh/userkeys": ("root", "root", 0o755),
-            self.tmp_d + "/etc/ssh/userkeys/bobby": ("bobby", "bobby", 0o600),
-            self.tmp_d
-            + "/etc/ssh/userkeys/badguy": ("badguy", "badguy", 0o600),
-            self.tmp_d + "/home/badguy": ("badguy", "badguy", 0o700),
-            self.tmp_d + "/home/badguy/.ssh": ("badguy", "badguy", 0o700),
-            self.tmp_d
-            + "/home/badguy/.ssh/authorized_keys": (
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("etc"): ("root", "root", 0o755),
+            tmpdir.join("etc", "ssh"): ("root", "root", 0o755),
+            tmpdir.join("etc", "ssh", "userkeys"): ("root", "root", 0o755),
+            tmpdir.join("etc", "ssh", "userkeys", "bobby"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("etc", "ssh", "userkeys", "badguy"): (
+                "badguy",
+                "badguy",
+                0o600,
+            ),
+            tmpdir.join("home", "badguy"): ("badguy", "badguy", 0o700),
+            tmpdir.join("home", "badguy", ".ssh"): ("badguy", "badguy", 0o700),
+            tmpdir.join("home", "badguy", ".ssh", "authorized_keys"): (
                 "badguy",
                 "badguy",
                 0o600,
@@ -1375,6 +1371,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         m_get_user_groups.side_effect = mock_get_user_groups
         home_bobby = homes[0]
@@ -1387,7 +1384,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         # /tmp/etc/ssh/userkeys/bobby = dsa
         # assume here that we can bypass userkeys, despite permissions
         authorized_keys = self.create_global_authorized_file(
-            "etc/ssh/userkeys/bobby", "dsa", keys
+            "etc/ssh/userkeys/bobby", "dsa", keys, tmpdir
         )
 
         # /tmp/home/badguy/.ssh/authorized_keys = ssh-xmss@openssh.com
@@ -1397,20 +1394,21 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         # /tmp/etc/ssh/userkeys/badguy = ecdsa
         authorized_keys2 = self.create_global_authorized_file(
-            "etc/ssh/userkeys/badguy", "ecdsa", keys
+            "etc/ssh/userkeys/badguy", "ecdsa", keys, tmpdir
         )
 
         # /tmp/sshd_config
-        options = self.tmp_d + "/etc/ssh/userkeys/%u .ssh/authorized_keys"
-        sshd_config = self.create_sshd_config(options)
-
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
+        options = str(
+            tmpdir.join("etc", "ssh", "userkeys", "%u .ssh", "authorized_keys")
         )
+        sshd_config = self.create_sshd_config(options, tmpdir)
+
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(
             user_badguy, sshd_config, authorized_keys2, keys
         )
 
+    @pytest.mark.parametrize("inverted", [False, True])
     @patch("cloudinit.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
     @patch("cloudinit.util.get_permissions")
@@ -1423,18 +1421,26 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         m_get_user_groups,
+        inverted,
+        tmpdir,
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys": ("suzie", "suzie", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh", "authorized_keys"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1447,6 +1453,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home_bobby = homes[0]
         home_suzie = homes[1]
@@ -1458,80 +1465,26 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         )
 
         # /tmp/home/suzie/.ssh/authorized_keys = ssh-xmss@openssh.com
-        self.create_user_authorized_file(
-            home_suzie, "authorized_keys", "ssh-xmss@openssh.com", keys
-        )
-
-        # /tmp/sshd_config
-        options = "%s" % (authorized_keys)
-        sshd_config = self.create_sshd_config(options)
-
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
-        )
-        default = "%s/.ssh/authorized_keys" % home_suzie
-        self.execute_and_check(user_suzie, sshd_config, default, keys)
-
-    @patch("cloudinit.util.get_user_groups")
-    @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
-    def test_two_users_hardcoded_single_user_file_inverted(
-        self,
-        m_get_group,
-        m_get_owner,
-        m_get_permissions,
-        m_getpwnam,
-        m_get_user_groups,
-    ):
-        keys = {}
-        users = {}
-        mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys": ("suzie", "suzie", 0o600),
-        }
-
-        user_bobby = "bobby"
-        user_suzie = "suzie"
-        homes = self.create_fake_users(
-            [user_bobby, user_suzie],
-            mock_permissions,
-            m_get_group,
-            m_get_owner,
-            m_get_permissions,
-            m_getpwnam,
-            users,
-        )
-        home_bobby = homes[0]
-        home_suzie = homes[1]
-        m_get_user_groups.side_effect = mock_get_user_groups
-
-        # /tmp/home/bobby/.ssh/authorized_keys = rsa
-        self.create_user_authorized_file(
-            home_bobby, "authorized_keys", "rsa", keys
-        )
-
-        # /tmp/home/suzie/.ssh/authorized_keys = ssh-xmss@openssh.com
         authorized_keys2 = self.create_user_authorized_file(
             home_suzie, "authorized_keys", "ssh-xmss@openssh.com", keys
         )
 
         # /tmp/sshd_config
-        options = "%s" % (authorized_keys2)
-        sshd_config = self.create_sshd_config(options)
+        if not inverted:
+            expected_keys = authorized_keys
+        else:
+            expected_keys = authorized_keys2
+        options = "%s" % (expected_keys)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        default = "%s/.ssh/authorized_keys" % home_bobby
-        self.execute_and_check(
-            user_bobby, sshd_config, default, keys, delete_keys=False
-        )
-        self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
+        if not inverted:
+            expected_bobby = expected_keys
+            expected_suzie = "%s/.ssh/authorized_keys" % home_suzie
+        else:
+            expected_bobby = "%s/.ssh/authorized_keys" % home_bobby
+            expected_suzie = expected_keys
+        self.execute_and_check(user_bobby, sshd_config, expected_bobby, keys)
+        self.execute_and_check(user_suzie, sshd_config, expected_suzie, keys)
 
     @patch("cloudinit.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
@@ -1545,18 +1498,25 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         m_get_permissions,
         m_getpwnam,
         m_get_user_groups,
+        tmpdir,
     ):
         keys = {}
         users = {}
         mock_permissions = {
-            self.tmp_d + "/home/bobby": ("bobby", "bobby", 0o700),
-            self.tmp_d + "/home/bobby/.ssh": ("bobby", "bobby", 0o700),
-            self.tmp_d
-            + "/home/bobby/.ssh/authorized_keys": ("bobby", "bobby", 0o600),
-            self.tmp_d + "/home/suzie": ("suzie", "suzie", 0o700),
-            self.tmp_d + "/home/suzie/.ssh": ("suzie", "suzie", 0o700),
-            self.tmp_d
-            + "/home/suzie/.ssh/authorized_keys": ("suzie", "suzie", 0o600),
+            tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
+            tmpdir.join("home", "bobby", ".ssh", "authorized_keys"): (
+                "bobby",
+                "bobby",
+                0o600,
+            ),
+            tmpdir.join("home", "suzie"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh"): ("suzie", "suzie", 0o700),
+            tmpdir.join("home", "suzie", ".ssh", "authorized_keys"): (
+                "suzie",
+                "suzie",
+                0o600,
+            ),
         }
 
         user_bobby = "bobby"
@@ -1569,6 +1529,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             m_get_permissions,
             m_getpwnam,
             users,
+            tmpdir,
         )
         home_bobby = homes[0]
         home_suzie = homes[1]
@@ -1586,7 +1547,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         # /tmp/etc/ssh/authorized_keys = ecdsa
         authorized_keys_global = self.create_global_authorized_file(
-            "etc/ssh/authorized_keys", "ecdsa", keys
+            "etc/ssh/authorized_keys", "ecdsa", keys, tmpdir
         )
 
         # /tmp/sshd_config
@@ -1595,11 +1556,9 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
             authorized_keys,
             authorized_keys2,
         )
-        sshd_config = self.create_sshd_config(options)
+        sshd_config = self.create_sshd_config(options, tmpdir)
 
-        self.execute_and_check(
-            user_bobby, sshd_config, authorized_keys, keys, delete_keys=False
-        )
+        self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
 

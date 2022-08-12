@@ -24,11 +24,14 @@ from cloudinit.settings import PER_INSTANCE
 
 
 MODULE_DESCRIPTION = """\
-Run arbitrary commands at a rc.local like level with output to the
-console. Each item can be either a list or a string. If the item is a
-list, it will be properly quoted. Each item is written to
-``/var/lib/cloud/instance/runcmd`` to be later interpreted using
-``sh``.
+Run arbitrary commands at a rc.local like time-frame with output to the
+console. Each item can be either a list or a string. The item type affects
+how it is executed:
+
+
+* If the item is a string, it will be interpreted by ``sh``.
+* If the item is a list, the items will be executed as if passed to execve(3)
+  (with the first arg as the command).
 
 Note that the ``runcmd`` module only writes the script to be run
 later. The module that actually runs the script is ``scripts-user``
@@ -64,6 +67,7 @@ meta: MetaSchema = {
     """
         )
     ],
+    "activate_by_schema_keys": ["runcmd"],
 }
 
 __doc__ = get_meta_doc(meta)

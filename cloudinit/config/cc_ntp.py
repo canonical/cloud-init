@@ -30,6 +30,7 @@ distros = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "openmandriva",
     "opensuse",
     "photon",
     "rhel",
@@ -87,9 +88,29 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "ntpd",
         },
     },
+    "centos": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
+    "openmandriva": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/lib/systemd/systemd-timesyncd",
         },
     },
     "opensuse": {
@@ -205,6 +226,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ntp"],
 }
 __doc__ = get_meta_doc(meta)
 

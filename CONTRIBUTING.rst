@@ -14,7 +14,7 @@ Summary
 Before any pull request can be accepted, you must do the following:
 
 * Sign the Canonical `contributor license agreement`_
-* Add yourself (alphabetically) to the in-repository list that we use
+* Add your Github username (alphabetically) to the in-repository list that we use
   to track CLA signatures:
   `tools/.github-cla-signers`_
 * Add or update any `unit tests`_ accordingly
@@ -72,15 +72,15 @@ Follow these steps to submit your first pull request to cloud-init:
 
   .. code:: sh
 
-    git clone git://github.com/canonical/cloud-init
+    git clone git@github.com:GH_USER/cloud-init.git
     cd cloud-init
-    git remote add GH_USER git@github.com:GH_USER/cloud-init.git
-    git push GH_USER main
+    git remote add upstream git@github.com:canonical/cloud-init.git
+    git push origin main
 
 * Read through the cloud-init `Code Review Process`_, so you understand
   how your changes will end up in cloud-init's codebase.
 
-* Submit your first cloud-init pull request, adding yourself to the
+* Submit your first cloud-init pull request, adding your Github username to the
   in-repository list that we use to track CLA signatures:
   `tools/.github-cla-signers`_
 
@@ -144,7 +144,7 @@ Do these things for each feature or bug
 
 * Push your changes to your personal GitHub repository::
 
-    git push -u GH_USER my-topic-branch
+    git push -u origin my-topic-branch
 
 * Use your browser to create a pull request:
 

@@ -15,13 +15,14 @@ import stat
 import tempfile
 from collections import deque
 from textwrap import dedent
-from typing import Tuple
 from unittest import mock
 
 import pytest
 import yaml
 
 from cloudinit import importer, subp, util
+from cloudinit.helpers import Paths
+from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
 from tests.unittests.helpers import CiTestCase
@@ -321,23 +322,24 @@ OS_RELEASE_PHOTON = """\
         BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """
 
-
-class FakeCloud(object):
-    def __init__(self, hostname, fqdn):
-        self.hostname = hostname
-        self.fqdn = fqdn
-        self.calls = []
-
-    def get_hostname(self, fqdn=None, metadata_only=None):
-        myargs = {}
-        if fqdn is not None:
-            myargs["fqdn"] = fqdn
-        if metadata_only is not None:
-            myargs["metadata_only"] = metadata_only
-        self.calls.append(myargs)
-        if fqdn:
-            return self.fqdn
-        return self.hostname
+OS_RELEASE_OPENMANDRIVA = dedent(
+    """\
+    NAME="OpenMandriva Lx"\n
+    VERSION="4.90 (Nickel) Cooker"\n
+    ID="openmandriva"\n
+    VERSION_ID="4.90"\n
+    PRETTY_NAME="OpenMandriva Lx 4.90 (Nickel) Cooker"\n
+    BUILD_ID="20220606.19"\n
+    VERSION_CODENAME="nickel"\n
+    ANSI_COLOR="1;43"\n
+    LOGO="openmandriva"\n
+    CPE_NAME="cpe:/o:openmandriva:openmandriva_lx:4.90"\n
+    HOME_URL="http://openmandriva.org/"\n
+    BUG_REPORT_URL="http://issues.openmandriva.org/"\n
+    SUPPORT_URL="https://forum.openmandriva.org"\n
+    PRIVACY_POLICY_URL="https://www.openmandriva.org/tos"\n
+"""
+)
 
 
 class TestUtil:
@@ -442,6 +444,23 @@ class TestUtil:
         if create_confd:
             assert [mock.call(confd_fn)] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
+
+    @pytest.mark.parametrize("custom_cloud_dir", [True, False])
+    @mock.patch(M_PATH + "os.path.isfile", return_value=True)
+    @mock.patch(M_PATH + "os.path.isdir", return_value=True)
+    def test_fetch_ssl_details(
+        self, m_isdir, m_isfile, custom_cloud_dir, tmpdir
+    ):
+        cloud_dir = "/var/lib/cloud"
+        if custom_cloud_dir:
+            cloud_dir = tmpdir.join("cloud")
+        cert = os.path.join(cloud_dir, "instance", "data", "ssl", "cert.pem")
+        key = os.path.join(cloud_dir, "instance", "data", "ssl", "key.pem")
+
+        paths = Paths({"cloud_dir": cloud_dir})
+        ssl_details = util.fetch_ssl_details(paths)
+        assert {"cert_file": cert, "key_file": key} == ssl_details
+        assert 2 == m_isdir.call_count == m_isfile.call_count
 
 
 class TestSymlink(CiTestCase):
@@ -552,7 +571,7 @@ class TestShellify(CiTestCase):
 class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_only_cfg_fqdn(self):
         """When cfg only has the fqdn key, derive hostname and fqdn from it."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -560,7 +579,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_fqdn_and_hostname(self):
         """When cfg has both fqdn and hostname keys, return them."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com", "hostname": "other"}, cloud=None
         )
         self.assertEqual("other", hostname)
@@ -568,7 +587,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_with_domain(self):
         """When cfg has only hostname key which represents a fqdn, use that."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -576,37 +595,48 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_without_domain(self):
         """When cfg has a hostname without a '.' query cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(
-            cfg={"hostname": "myhost"}, cloud=mycloud
+        cloud = mock.MagicMock()
+        cloud.get_hostname.return_value = DataSourceHostname(
+            "cloudhost.mycloud.com", False
+        )
+        hostname, fqdn, _ = util.get_hostname_fqdn(
+            cfg={"hostname": "myhost"}, cloud=cloud
         )
         self.assertEqual("myhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}], mycloud.calls
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False)
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
+        )
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=cloud)
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}, {"metadata_only": False}],
-            mycloud.calls,
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False),
+            mock.call(metadata_only=False),
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        _hn, _fqdn = util.get_hostname_fqdn(
-            cfg={}, cloud=mycloud, metadata_only=True
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
         )
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": True}, {"metadata_only": True}],
-            mycloud.calls,
+        _hn, _fqdn, _def_hostname = util.get_hostname_fqdn(
+            cfg={}, cloud=cloud, metadata_only=True
         )
+        assert [
+            mock.call(fqdn=True, metadata_only=True),
+            mock.call(metadata_only=True),
+        ] == cloud.get_hostname.call_args_list
 
 
 class TestBlkid(CiTestCase):
@@ -754,9 +784,7 @@ class TestUdevadmSettle(CiTestCase):
 @mock.patch("os.path.exists")
 class TestGetLinuxDistro(CiTestCase):
     def setUp(self):
-        # python2 has no lru_cache, and therefore, no cache_clear()
-        if hasattr(util.get_linux_distro, "cache_clear"):
-            util.get_linux_distro.cache_clear()
+        util.get_linux_distro.cache_clear()
 
     @classmethod
     def os_release_exists(self, path):
@@ -1027,6 +1055,14 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("photon", "4.0", "VMware Photon OS/Linux"), dist)
 
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on OpenMandriva"""
+        m_os_release.return_value = OS_RELEASE_OPENMANDRIVA
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)
     def test_get_linux_distro_no_data(
@@ -1141,21 +1177,11 @@ class TestIsLXD(CiTestCase):
 
 
 class TestReadCcFromCmdline:
-
-    random_string: Tuple
-
-    if hasattr(pytest, "param"):
-        random_string = pytest.param(
-            CiTestCase.random_string(), None, id="random_string"
-        )
-    else:
-        random_string = (CiTestCase.random_string(), None)
-
     @pytest.mark.parametrize(
         "cmdline,expected_cfg",
         [
             # Return None if cmdline has no cc:<YAML>end_cc content.
-            random_string,
+            pytest.param(CiTestCase.random_string(), None, id="random_string"),
             # Return None if YAML content is empty string.
             ("foo cc: end_cc bar", None),
             # Return expected dictionary without trailing end_cc marker.
@@ -2055,7 +2081,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         logged_string = "something very important"
         util.multi_log(logged_string)
-        self.assertEqual(logged_string, open("/dev/console").read())
+        with open("/dev/console") as f:
+            self.assertEqual(logged_string, f.read())
 
     def test_logs_dont_go_to_stdout_if_console_exists(self):
         self._createConsole(self.root)
@@ -2437,6 +2464,47 @@ class TestGetProcEnv(helpers.TestCase):
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
+    def test_get_proc_ppid_mocked(self):
+        for ppid, proc_data in (
+            (
+                0,
+                "1 (systemd) S 0 1 1 0 -1 4194560 112664 14612195 153 18014"
+                "274 237 756828 152754 20 0 1 0 3 173809664 3736"
+                "18446744073709551615 1 1 0 0 0 0 671173123 4096 1260 0 0 0 17"
+                "8 0 0 0 0 123974 0 0 0 0 0 0 0 0",
+            ),
+            (
+                180771,
+                "180781 ([pytest-xdist r) R 180771 180598 167240 34825 "
+                "180598 4194304 128712 7570 0 0 1061 34 8 1 20 0 2 0 6551540 "
+                "351993856 25173 18446744073709551615 93907896635392 "
+                "93907899455533 140725724279536 0 0 0 0 16781312 17642 0 0 0 "
+                "17 1 0 0 0 0 0 93907901810800 93907902095288 93907928788992 "
+                "140725724288007 140725724288074 140725724288074 "
+                "140725724291047 0",
+            ),
+            (
+                5620,
+                "8723 (Utility Process) S 5620 5191 5191 0 -1 4194304 3219 "
+                "0 50 0 1045 431 0 0 20 0 3 0 9007 220585984 8758 "
+                "18446744073709551615 94469734690816 94469735319392 "
+                "140728350183632 0 0 0 0 69634 1073745144 0 0 0 17 10 0 0 0 0 "
+                "0 94469735327152 94469735331056 94469763170304 "
+                "140728350189012 140728350189221 140728350189221 "
+                "140728350195661 0",
+            ),
+            (
+                4946,
+                "4947 ((sd-pam)) S 4946 4946 4946 0 -1 1077936448 54 0 0 0 "
+                "0 0 0 0 20 0 1 0 4136 175616000 1394 18446744073709551615 1 1"
+                "0 0 0 0 0 4096 0 0 0 0 17 8 0 0 0 0 0 0 0 0 0 0 0 0 0",
+            ),
+        ):
+            with mock.patch(
+                "cloudinit.util.load_file", return_value=proc_data
+            ):
+                assert ppid == util.get_proc_ppid("mocked")
+
 
 class TestKernelVersion:
     """test kernel version function"""
@@ -2589,4 +2657,59 @@ class TestFindDevs:
         assert devlist == expected_devlist
 
 
-# vi: ts=4 expandtab
+class TestVersion:
+    @pytest.mark.parametrize(
+        ("v1", "v2", "eq"),
+        (
+            ("3.1.0", "3.1.0", True),
+            ("3.1.0", "3.1.1", False),
+            ("3.1", "3.1.0.0", False),
+        ),
+    )
+    def test_eq(self, v1, v2, eq):
+        if eq:
+            assert util.Version.from_str(v1) == util.Version.from_str(v2)
+        if not eq:
+            assert util.Version.from_str(v1) != util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("v1", "v2", "gt"),
+        (
+            ("3.1.0", "3.1.0", False),
+            ("3.1.0", "3.1.1", False),
+            ("3.1", "3.1.0.0", False),
+            ("3.1.0.0", "3.1", True),
+            ("3.1.1", "3.1.0", True),
+        ),
+    )
+    def test_gt(self, v1, v2, gt):
+        if gt:
+            assert util.Version.from_str(v1) > util.Version.from_str(v2)
+        if not gt:
+            assert util.Version.from_str(v1) < util.Version.from_str(
+                v2
+            ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("str_ver", "cls_ver"),
+        (
+            (
+                "0.0.0.0",
+                util.Version(0, 0, 0, 0),
+            ),
+            (
+                "1.0.0.0",
+                util.Version(1, 0, 0, 0),
+            ),
+            (
+                "1.0.2.0",
+                util.Version(1, 0, 2, 0),
+            ),
+            (
+                "9.8.2.0",
+                util.Version(9, 8, 2, 0),
+            ),
+        ),
+    )
+    def test_from_str(self, str_ver, cls_ver):
+        assert util.Version.from_str(str_ver) == cls_ver

@@ -126,7 +126,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.ds.get_data()
 
         shostname = GCE_META.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname())
+        self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
         self.assertEqual(
             GCE_META.get("instance/id"), self.ds.get_instance_id()
@@ -147,7 +147,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         )
 
         shostname = GCE_META_PARTIAL.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname())
+        self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
     def test_userdata_no_encoding(self):
         """check that user-data is read."""

@@ -149,7 +149,7 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
 
     def _test_host_name(self):
         self.assertEqual(
-            self.default_metadata["hostname"], self.ds.get_hostname()
+            self.default_metadata["hostname"], self.ds.get_hostname().hostname
         )
 
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")

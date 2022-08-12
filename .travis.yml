@@ -28,6 +28,9 @@ install:
     # Required so `git describe` will definitely find a tag; see
     # https://github.com/travis-ci/travis-ci/issues/7422
     - git fetch --unshallow
+    # Not pinning setuptools can cause failures on python 3.7 and 3.8 builds
+    # See https://github.com/pypa/setuptools/issues/3118
+    - pip install setuptools==59.6.0
     - pip install tox
 
 script:
@@ -58,7 +61,7 @@ matrix:
                   sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} "$TRAVIS_BUILD_DIR/lxd_images/" \;
           install:
             - git fetch --unshallow
-            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox debhelper
+            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox debhelper wireguard
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
@@ -130,27 +133,20 @@ matrix:
             TOXENV=lowest-supported
             PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: bionic
-        - python: 3.6
-          env: TOXENV=flake8
-        - python: 3.6
-          env: TOXENV=mypy
-        - python: 3.6
-          env: TOXENV=pylint
-        - python: 3.6
-          env: TOXENV=black
-        - python: 3.6
-          env: TOXENV=isort
         - python: 3.7
           env: TOXENV=doc
           install:
             - git fetch --unshallow
+            # Not pinning setuptools can cause failures on python 3.7 and 3.8 builds
+            # See https://github.com/pypa/setuptools/issues/3118
+            - pip install setuptools==59.6.0
             - sudo apt-get install lintian
             - pip install tox
           script:
-            - make check_spelling
-            - tox
+            - make check_spelling && tox
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)
+        - python: 3.11-dev
         - python: "3.10"
         - python: 3.9
         - python: 3.8

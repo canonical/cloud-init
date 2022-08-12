@@ -58,6 +58,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["salt_minion"],
 }
 
 __doc__ = get_meta_doc(meta)

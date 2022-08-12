@@ -7,9 +7,11 @@
 import copy
 import functools
 import logging
+from typing import Any, Dict
 
 from cloudinit import safeyaml, util
 from cloudinit.net import (
+    find_interface_name_from_mac,
     get_interfaces_by_mac,
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
@@ -44,7 +46,7 @@ NETWORK_V2_KEY_FILTER = [
     "accept-ra",
 ]
 
-NET_CONFIG_TO_V2 = {
+NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
     "bond": {
         "bond-ad-select": "ad-select",
         "bond-arp-interval": "arp-interval",
@@ -56,7 +58,7 @@ NET_CONFIG_TO_V2 = {
         "bond-miimon": "mii-monitor-interval",
         "bond-min-links": "min-links",
         "bond-mode": "mode",
-        "bond-num-grat-arp": "gratuitious-arp",
+        "bond-num-grat-arp": "gratuitous-arp",
         "bond-primary": "primary",
         "bond-primary-reselect": "primary-reselect-policy",
         "bond-updelay": "up-delay",
@@ -699,15 +701,14 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             #   * interface name looked up by mac
             #   * value of "eth" key from this loop
             name = eth
-            set_name = cfg.get("set-name", None)
+            set_name = cfg.get("set-name")
             if set_name:
                 name = set_name
             elif mac_address and ifaces_by_mac:
                 lcase_mac_address = mac_address.lower()
-                for iface_mac, iface_name in ifaces_by_mac.items():
-                    if lcase_mac_address == iface_mac.lower():
-                        name = iface_name
-                        break
+                mac = find_interface_name_from_mac(lcase_mac_address)
+                if mac:
+                    name = mac
             phy_cmd["name"] = name
 
             driver = match.get("driver", None)
@@ -779,6 +780,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 if len(dns) > 0:
                     name_cmd.update({"address": dns})
                 self.handle_nameserver(name_cmd)
+
+                mac_address = dev_cfg.get("match", {}).get("macaddress")
+                real_if_name = find_interface_name_from_mac(mac_address)
+                if real_if_name:
+                    iface = real_if_name
+
                 self._handle_individual_nameserver(name_cmd, iface)
 
     def _handle_bond_bridge(self, command, cmd_type=None):
@@ -795,13 +802,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 for (key, value) in item_cfg.items()
                 if key not in NETWORK_V2_KEY_FILTER
             )
-            # we accept the fixed spelling, but write the old for compatibility
-            # Xenial does not have an updated netplan which supports the
-            # correct spelling.  LP: #1756701
+            # We accept both spellings (as netplan does).  LP: #1756701
+            # Normalize internally to the new spelling:
             params = item_params.get("parameters", {})
-            grat_value = params.pop("gratuitous-arp", None)
+            grat_value = params.pop("gratuitious-arp", None)
             if grat_value:
-                params["gratuitious-arp"] = grat_value
+                params["gratuitous-arp"] = grat_value
 
             v1_cmd = {
                 "type": cmd_type,

@@ -61,11 +61,11 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
-        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
+        contents = util.load_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
         expected = {
-            "epel_testing": {
+            "epel-testing": {
                 "name": "Extra Packages for Enterprise Linux 5 - Testing",
                 "failovermethod": "priority",
                 "gpgkey": "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL",
@@ -101,11 +101,11 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
-        contents = util.load_file("/etc/yum.repos.d/puppetlabs_products.repo")
+        contents = util.load_file("/etc/yum.repos.d/puppetlabs-products.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
         expected = {
-            "puppetlabs_products": {
+            "puppetlabs-products": {
                 "name": "Puppet Labs Products El 6 - $basearch",
                 "baseurl": "http://yum.puppetlabs.com/el/6/products/$basearch",
                 "gpgkey": (
@@ -149,6 +149,24 @@ class TestAddYumRepoSchema:
             (
                 {"yum_repos": {"My Repo": {"enabled": "nope"}}},
                 "yum_repos.My Repo.enabled: 'nope' is not of type 'boolean'",
+            ),
+            (
+                {
+                    "yum_repos": {
+                        "hotwheels repo": {"": "config option requires a name"}
+                    }
+                },
+                "does not match any of the regexes",
+            ),
+            (
+                {
+                    "yum_repos": {
+                        "matchbox repo": {
+                            "$$$$$": "config option requires a valid name"
+                        }
+                    }
+                },
+                "does not match any of the regexes",
             ),
         ],
     )

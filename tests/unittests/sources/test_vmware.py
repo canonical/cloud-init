@@ -418,7 +418,9 @@ class TestDataSourceVMwareGuestInfo_InvalidPlatform(FilesystemMockingTestCase):
 
 def assert_metadata(test_obj, ds, metadata):
     test_obj.assertEqual(metadata.get("instance-id"), ds.get_instance_id())
-    test_obj.assertEqual(metadata.get("local-hostname"), ds.get_hostname())
+    test_obj.assertEqual(
+        metadata.get("local-hostname"), ds.get_hostname().hostname
+    )
 
     expected_public_keys = metadata.get("public_keys")
     if not isinstance(expected_public_keys, list):

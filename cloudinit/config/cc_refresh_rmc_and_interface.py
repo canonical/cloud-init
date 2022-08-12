@@ -42,6 +42,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_ALWAYS,
     "examples": [],
+    "activate_by_schema_keys": [],
 }
 
 # This module is undocumented in our schema docs

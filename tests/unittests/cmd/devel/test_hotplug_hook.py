@@ -19,7 +19,9 @@ FAKE_MAC = "11:22:33:44:55:66"
 @pytest.fixture
 def mocks():
     m_init = mock.MagicMock(spec=Init)
+    m_activator = mock.MagicMock(spec=NetworkActivator)
     m_distro = mock.MagicMock(spec=Distro)
+    m_distro.network_activator = mock.PropertyMock(return_value=m_activator)
     m_datasource = mock.MagicMock(spec=DataSource)
     m_datasource.distro = m_distro
     m_init.datasource = m_datasource
@@ -41,18 +43,11 @@ def mocks():
         return_value=m_network_state,
     )
 
-    m_activator = mock.MagicMock(spec=NetworkActivator)
-    select_activator = mock.patch(
-        "cloudinit.cmd.devel.hotplug_hook.activators.select_activator",
-        return_value=m_activator,
-    )
-
     sleep = mock.patch("time.sleep")
 
     read_sys_net.start()
     update_event_enabled.start()
     parse_net.start()
-    select_activator.start()
     m_sleep = sleep.start()
 
     yield namedtuple("mocks", "m_init m_network_state m_activator m_sleep")(
@@ -65,7 +60,6 @@ def mocks():
     read_sys_net.stop()
     update_event_enabled.stop()
     parse_net.stop()
-    select_activator.stop()
     sleep.stop()
 
 

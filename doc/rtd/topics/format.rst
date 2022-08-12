@@ -66,7 +66,7 @@ Kernel Command Line
 
 When using the :ref:`datasource_nocloud` datasource, users can pass user data
 via the kernel command line parameters. See the :ref:`datasource_nocloud`
-datasource documentation for more details.
+datasource and :ref:`kernel_cmdline` documentations for more details.
 
 Gzip Compressed Content
 =======================

@@ -8,11 +8,15 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
 import pytest
+import requests
 
+from cloudinit import url_helper
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
+
+from .test_azure import construct_ovf_env
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
@@ -82,6 +86,34 @@ HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
 )
 
 HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
+MOCKPATH = "cloudinit.sources.helpers.azure."
+
+
+@pytest.fixture
+def mock_dmi_read_dmi_data():
+    with mock.patch(
+        MOCKPATH + "dmi.read_dmi_data",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_readurl():
+    with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_sleep():
+    with mock.patch(MOCKPATH + "sleep", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_time():
+    with mock.patch(MOCKPATH + "time", autospec=True) as m:
+        yield m
 
 
 class SentinelException(Exception):
@@ -331,145 +363,127 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
 
-class TestAzureHelperHttpWithRetries(CiTestCase):
+class TestHttpWithRetries:
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_readurl, mock_sleep, mock_time):
+        self.m_readurl = mock_readurl
+        self.m_sleep = mock_sleep
+        self.m_time = mock_time
+        self.m_time.return_value = 0
 
-    with_logs = True
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_timeouts(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
+    ):
+        error = url_helper.UrlError("retry", code=404)
+        self.m_readurl.side_effect = error
+        self.m_time.side_effect = times
 
-    max_readurl_attempts = 240
-    default_readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+                retry_sleep=retry_sleep,
+                timeout_minutes=timeout_minutes,
+            )
 
-    def setUp(self):
-        super(TestAzureHelperHttpWithRetries, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
+        assert exc_info.value == error
+        assert self.m_readurl.call_count == try_count
+        for i in range(1, try_count + 1):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
+        assert self.m_time.mock_calls == (try_count + 1) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-        self.m_readurl = patches.enter_context(
-            mock.patch.object(
-                azure_helper.url_helper, "readurl", mock.MagicMock()
+    def test_network_unreachable(self, caplog):
+        error = url_helper.UrlError(
+            requests.ConnectionError(
+                "Failed to establish a new connection: "
+                "[Errno 101] Network is unreachable"
             )
         )
-        self.m_sleep = patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", autospec=True)
+        self.m_readurl.side_effect = error
+
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+            )
+
+        assert exc_info.value == error
+        assert caplog.record_tuples[1] == (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Failed HTTP request with Azure endpoint testurl during "
+            "attempt 1 with exception: Failed to establish a new "
+            "connection: [Errno 101] Network is unreachable "
+            "(code=None headers={})",
         )
+        assert len(caplog.record_tuples) == 3
+        assert self.m_time.mock_calls == [mock.call(), mock.call()]
+        assert self.m_sleep.mock_calls == []
 
-    def test_http_with_retries(self):
-        self.m_readurl.return_value = "TestResp"
-        self.assertEqual(
-            azure_helper.http_with_retries("testurl", headers={}),
-            self.m_readurl.return_value,
-        )
-        self.assertEqual(self.m_readurl.call_count, 1)
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_success(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
+    ):
+        self.m_readurl.side_effect = (try_count - 1) * [
+            url_helper.UrlError("retry", code=404)
+        ] + ["data"]
+        self.m_time.side_effect = times
 
-    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(self):
-        self.m_readurl.side_effect = SentinelException
-
-        self.assertRaises(
-            SentinelException,
-            azure_helper.http_with_retries,
+        resp = azure_helper.http_with_retries(
             "testurl",
             headers={},
-        )
-        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
-
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
+            retry_sleep=retry_sleep,
+            timeout_minutes=timeout_minutes,
         )
 
-    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
-        self,
-    ):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
+        assert resp == "data"
+        assert self.m_readurl.call_count == try_count
+        assert self.m_time.mock_calls == (try_count) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-        response = azure_helper.http_with_retries("testurl", headers={})
-        self.assertEqual(response, self.m_readurl.return_value)
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
+        for i in range(1, try_count):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
 
-        # Ensure that cloud-init did sleep between each failed request
-        self.assertEqual(
-            self.m_sleep.call_count, self.periodic_logging_attempts
-        )
-        self.m_sleep.assert_called_with(self.sleep_duration_between_retries)
-
-    def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
-
-        azure_helper.http_with_retries("testurl", headers={})
-
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
-
-    def test_http_with_retries_short_delay_does_not_log_periodic_failure_msg(
-        self,
-    ):
-        self.m_readurl.side_effect = [SentinelException] * (
-            self.periodic_logging_attempts - 1
-        ) + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
-
-        azure_helper.http_with_retries("testurl", headers={})
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts
-        )
-
-        self.assertIsNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
-
-    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
-        testurl = mock.MagicMock()
-        kwargs = {
-            "headers": mock.MagicMock(),
-            "data": mock.MagicMock(),
-        }
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **kwargs, timeout=5)
+        assert (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Successful HTTP request with Azure endpoint testurl after "
+            "%d attempts" % try_count,
+        ) in caplog.record_tuples
 
 
 class TestOpenSSLManager(CiTestCase):
@@ -584,7 +598,7 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.addCleanup(patches.close)
 
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
         self.read_file_or_url = patches.enter_context(
             mock.patch.object(azure_helper.url_helper, "read_file_or_url")
@@ -993,7 +1007,7 @@ class TestWALinuxAgentShim(CiTestCase):
             mock.patch.object(azure_helper, "OpenSSLManager", autospec=True)
         )
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
 
         self.test_incarnation = "TestIncarnation"
@@ -1226,58 +1240,58 @@ class TestWALinuxAgentShim(CiTestCase):
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
-        self.GoalState.side_effect = SentinelException
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
         self,
     ):
-        self.GoalState.side_effect = SentinelException
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_failure_to_send_report_ready_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data
         )
 
     def test_failure_to_send_report_failure_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
@@ -1305,11 +1319,11 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
-        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = (  # noqa: E501
-            SentinelException
+        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = url_helper.UrlError(  # noqa: E501
+            "retry", code=404
         )
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             azure_helper.get_metadata_from_fabric,
             "test_endpoint",
         )
@@ -1412,6 +1426,297 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         self.m_shim.assert_called_once_with(
             endpoint="test_endpoint",
         )
+
+
+class TestChassisAssetTag:
+    def test_true_azure_cloud(self, caplog, mock_dmi_read_dmi_data):
+        mock_dmi_read_dmi_data.return_value = (
+            azure_helper.ChassisAssetTag.AZURE_CLOUD.value
+        )
+
+        asset_tag = azure_helper.ChassisAssetTag.query_system()
+
+        assert asset_tag == azure_helper.ChassisAssetTag.AZURE_CLOUD
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Azure chassis asset tag: "
+                "'7783-7084-3265-9085-8269-3286-77' (AZURE_CLOUD)",
+            )
+        ]
+
+    @pytest.mark.parametrize("tag", [None, "", "notazure"])
+    def test_false_on_nonazure_chassis(
+        self, caplog, mock_dmi_read_dmi_data, tag
+    ):
+        mock_dmi_read_dmi_data.return_value = tag
+
+        asset_tag = azure_helper.ChassisAssetTag.query_system()
+
+        assert asset_tag is None
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Non-Azure chassis asset tag: %r" % tag,
+            )
+        ]
+
+
+class TestOvfEnvXml:
+    @pytest.mark.parametrize(
+        "ovf,expected",
+        [
+            # Defaults for construct_ovf_env() with explicit OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=None,
+                    disable_ssh_password_auth=None,
+                    public_keys=[],
+                    preprovisioned_vm=False,
+                    preprovisioned_vm_type=None,
+                ),
+            ),
+            # Defaults for construct_ovf_env() with default OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host"
+                ),
+            ),
+            # Username.
+            (
+                construct_ovf_env(username="other-user"),
+                azure_helper.OvfEnvXml(
+                    username="other-user", hostname="test-host"
+                ),
+            ),
+            # Password.
+            (
+                construct_ovf_env(password="test-password"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="test-password",
+                ),
+            ),
+            # Hostname.
+            (
+                construct_ovf_env(hostname="other-host"),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="other-host"
+                ),
+            ),
+            # Empty public keys.
+            (
+                construct_ovf_env(public_keys=[]),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host", public_keys=[]
+                ),
+            ),
+            # One public key.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ],
+                ),
+            ),
+            # Two public keys.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ],
+                ),
+            ),
+            # Custom data.
+            (
+                construct_ovf_env(custom_data="foo"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=b"foo",
+                ),
+            ),
+            # Disable ssh password auth.
+            (
+                construct_ovf_env(disable_ssh_password_auth=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    disable_ssh_password_auth=True,
+                ),
+            ),
+            # Preprovisioned vm.
+            (
+                construct_ovf_env(preprovisioned_vm=False),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=False,
+                ),
+            ),
+            (
+                construct_ovf_env(preprovisioned_vm=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=True,
+                ),
+            ),
+            # Preprovisioned vm type.
+            (
+                construct_ovf_env(preprovisioned_vm_type="testpps"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm_type="testpps",
+                ),
+            ),
+        ],
+    )
+    def test_valid_ovf_scenarios(self, ovf, expected):
+        assert azure_helper.OvfEnvXml.parse_text(ovf) == expected
+
+    @pytest.mark.parametrize(
+        "ovf,error",
+        [
+            (
+                construct_ovf_env(username=None),
+                "No ovf-env.xml configuration for 'UserName'",
+            ),
+            (
+                construct_ovf_env(hostname=None),
+                "No ovf-env.xml configuration for 'HostName'",
+            ),
+        ],
+    )
+    def test_missing_required_fields(self, ovf, error):
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert str(exc_info.value) == error
+
+    def test_multiple_sections_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:ProvisioningSection>
+            </ns1:ProvisioningSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Multiple configuration matches in ovf-exml.xml "
+            "for 'ProvisioningSection' (2)"
+        )
+
+    def test_multiple_properties_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            <ns1:HostName>test-host</ns1:HostName>
+            <ns1:HostName>test-host2</ns1:HostName>
+            <ns1:UserName>test-user</ns1:UserName>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+            </ns1:PlatformSettings>
+            </ns1:PlatformSettingsSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Multiple configuration matches in ovf-exml.xml "
+            "for 'HostName' (2)"
+        )
+
+    def test_non_azure_ovf(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            </ns0:Environment>"""
+
+        with pytest.raises(azure_helper.NonAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            str(exc_info.value)
+            == "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
+        )
+
+    @pytest.mark.parametrize(
+        "ovf,error",
+        [
+            ("", "Invalid ovf-env.xml: no element found: line 1, column 0"),
+            (
+                "<!!!!>",
+                "Invalid ovf-env.xml: not well-formed (invalid token): "
+                "line 1, column 2",
+            ),
+            ("badxml", "Invalid ovf-env.xml: syntax error: line 1, column 0"),
+        ],
+    )
+    def test_invalid_xml(self, ovf, error):
+        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert str(exc_info.value) == error
 
 
 # vi: ts=4 expandtab

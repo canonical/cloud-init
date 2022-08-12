@@ -2,7 +2,6 @@
 
 import logging
 import os
-import re
 import shutil
 
 import pytest
@@ -78,21 +77,35 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
 
 class TestUpdateEtcHosts:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         [
+            ({"manage_etc_hosts": True}, t_help.does_not_raise()),
+            ({"manage_etc_hosts": False}, t_help.does_not_raise()),
+            ({"manage_etc_hosts": "localhost"}, t_help.does_not_raise()),
+            (
+                {"manage_etc_hosts": "template"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: manage_etc_hosts: DEPRECATED. Value"
+                        " ``template`` will be dropped after April 2027."
+                        " Use ``true`` instead"
+                    ),
+                ),
+            ),
             (
                 {"manage_etc_hosts": "templatey"},
-                re.escape(
-                    "manage_etc_hosts: 'templatey' is not one of"
-                    " [True, False, 'template', 'localhost']"
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "manage_etc_hosts: 'templatey' is not valid under any"
+                        " of the given schemas"
+                    ),
                 ),
             ),
         ],
     )
     @t_help.skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, expectation):
+        with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, get_schema(), strict=True)
