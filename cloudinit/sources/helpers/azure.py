@@ -363,8 +363,16 @@ def http_with_retries(
                 % (url, attempt, e, e.code, e.headers),
                 logger_func=LOG.debug,
             )
-            # Raise exception if we're out of time.
-            if time() + retry_sleep >= timeout:
+            # Raise exception if we're out of time or network is unreachable.
+            # If network is unreachable:
+            # - retries will not resolve the situation
+            # - for reporting ready for PPS, this generally means VM was put
+            #   to sleep or network interface was unplugged before we see
+            #   the call complete successfully.
+            if (
+                time() + retry_sleep >= timeout
+                or "Network is unreachable" in str(e)
+            ):
                 raise
 
         sleep(retry_sleep)

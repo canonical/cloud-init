@@ -8,6 +8,7 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
 import pytest
+import requests
 
 from cloudinit import url_helper
 from cloudinit.sources.helpers import azure as azure_helper
@@ -408,6 +409,34 @@ class TestHttpWithRetries:
         assert self.m_sleep.mock_calls == (try_count - 1) * [
             mock.call(retry_sleep)
         ]
+
+    def test_network_unreachable(self, caplog):
+        error = url_helper.UrlError(
+            requests.ConnectionError(
+                "Failed to establish a new connection: "
+                "[Errno 101] Network is unreachable"
+            )
+        )
+        self.m_readurl.side_effect = error
+
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+            )
+
+        assert exc_info.value == error
+        assert caplog.record_tuples[1] == (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Failed HTTP request with Azure endpoint testurl during "
+            "attempt 1 with exception: Failed to establish a new "
+            "connection: [Errno 101] Network is unreachable "
+            "(code=None headers={})",
+        )
+        assert len(caplog.record_tuples) == 3
+        assert self.m_time.mock_calls == [mock.call(), mock.call()]
+        assert self.m_sleep.mock_calls == []
 
     @pytest.mark.parametrize(
         "times,try_count,retry_sleep,timeout_minutes",
