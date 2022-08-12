@@ -227,7 +227,6 @@ class TestNetConvert:
         if debug:
             _out, err = capsys.readouterr()
             assert "Passthrough netplan v2 config" in err
-            assert "V2 to V2 passthrough" in err
 
 
 # vi: ts=4 expandtab
