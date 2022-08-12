@@ -1,4 +1,4 @@
-cloud-init (22.2-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+cloud-init (22.2-549-geed6d895) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.postinst: lintian fixes:
@@ -7,8 +7,12 @@ cloud-init (22.2-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
   * d/source/lintian-overrides: lintian fixes:
     + silence binary-nmu-debian-revision-in-source bug:
       https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
+  * refresh patches:
+    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
+    + debian/patches/openstack-no-network-config.patch
+    + debian/patches/renderer-do-not-prefer-netplan.patch
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 08 Jul 2022 12:13:38 +0200
+ -- James Falcon <james.falcon@canonical.com>  Fri, 12 Aug 2022 15:28:40 -0500
 
 cloud-init (22.2-0ubuntu1~18.04.1) bionic; urgency=medium
 
@@ -3140,7 +3144,7 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - net/cmdline: Further adjustments to ipv6 support [LaMont Jones]
-     (LP: #1621615)
+      (LP: #1621615)
     - Add coverage dependency to bddeb to fix package build.
     - doc: improve HACKING.rst file
     - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
