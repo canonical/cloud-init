@@ -5,11 +5,9 @@ Author: Chad Smith <chad.smith@canonical.com>
 Origin: backport
 Forwarded: not-needed
 Last-Update: 2020-06-01
-Index: cloud-init/config/cloud.cfg.tmpl
-===================================================================
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -212,10 +212,7 @@ system_info:
+@@ -216,10 +216,7 @@ system_info:
       groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
       sudo: ["ALL=(ALL) NOPASSWD:ALL"]
       shell: /bin/bash
@@ -21,8 +19,6 @@ Index: cloud-init/config/cloud.cfg.tmpl
     # Automatically discover the best ntp_client
     ntp_client: auto
     # Other config here will be given to the distro class and/or path classes
-Index: cloud-init/tests/unittests/test_render_cloudcfg.py
-===================================================================
 --- a/tests/unittests/test_render_cloudcfg.py
 +++ b/tests/unittests/test_render_cloudcfg.py
 @@ -80,7 +80,6 @@ class TestRenderCloudCfg:

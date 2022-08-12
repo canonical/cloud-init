@@ -9,7 +9,7 @@ Forwarded: not-needed
 Last-Update: 2020-06-01
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -463,12 +463,12 @@ class DataSourceEc2(sources.DataSource):
+@@ -473,12 +473,12 @@ class DataSourceEc2(sources.DataSource):
          if isinstance(net_md, dict):
              # SRU_BLOCKER: xenial, bionic and eoan should default
              # apply_full_imds_network_config to False to retain original
