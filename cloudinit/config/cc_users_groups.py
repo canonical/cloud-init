@@ -141,11 +141,12 @@ meta: MetaSchema = {
         ssh_import_id: [chad.smith]
         user:
           name: mynewdefault
-          sudo: false
+          sudo: null
         """
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

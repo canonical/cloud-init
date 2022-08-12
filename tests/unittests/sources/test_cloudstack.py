@@ -40,6 +40,11 @@ class TestCloudStackPasswordFetching(CiTestCase):
                 get_networkd_server_address,
             )
         )
+        get_data_server = mock.MagicMock(return_value=None)
+        self.patches.enter_context(
+            mock.patch(mod_name + ".get_data_server", get_data_server)
+        )
+
         self.tmp = self.tmp_dir()
 
     def _set_password_server_response(self, response_string):

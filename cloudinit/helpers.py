@@ -330,7 +330,7 @@ class ContentHandlers(object):
 class Paths(persistence.CloudInitPickleMixin):
     _ci_pkl_version = 1
 
-    def __init__(self, path_cfgs, ds=None):
+    def __init__(self, path_cfgs: dict, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir = path_cfgs.get("cloud_dir", "/var/lib/cloud")

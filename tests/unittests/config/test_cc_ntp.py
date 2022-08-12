@@ -499,15 +499,6 @@ class TestNtp(FilesystemMockingTestCase):
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual("chrony", expected_client)
 
-    @mock.patch("cloudinit.util.system_info")
-    def test_ubuntu_xenial_picks_ntp(self, m_sysinfo):
-        """Test Ubuntu picks ntp on xenial release"""
-
-        m_sysinfo.return_value = {"dist": ("Ubuntu", "16.04", "xenial")}
-        mycloud = self._get_cloud("ubuntu")
-        expected_client = mycloud.distro.preferred_ntp_clients[0]
-        self.assertEqual("ntp", expected_client)
-
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
     def test_snappy_system_picks_timesyncd(self, m_which):
         """Test snappy systems prefer installed clients"""

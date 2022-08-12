@@ -1,0 +1,29 @@
+#cloud-config
+# vim: syntax=yaml
+#
+# This is the configuration syntax that the wireguard module
+# will know how to understand. 
+#
+#
+wireguard:
+    # All wireguard interfaces that should be created. Every interface will be named
+    # after `name` parameter and config will be written to a file under `config_path`.
+    # `content` parameter should be set with a valid Wireguard configuration.
+    interfaces:
+        - name: wg0
+          config_path: /etc/wireguard/wg0.conf
+          content: |
+            [Interface]
+            PrivateKey = <private_key>
+            Address = <address>
+            [Peer]
+            PublicKey = <public_key>
+            Endpoint = <endpoint_ip>:<endpoint_ip_port>
+            AllowedIPs = <allowedip1>, <allowedip2>, ...
+    # The idea behind readiness probes is to ensure Wireguard connectivity before continuing 
+    # the cloud-init process. This could be useful if you need access to specific services like 
+    # an internal APT Repository Server (e.g Landscape) to install/update packages.
+    readinessprobe:
+        - 'systemctl restart service'
+        - 'curl https://webhook.endpoint/example'
+        - 'nc -zv apt-server-fqdn 443'

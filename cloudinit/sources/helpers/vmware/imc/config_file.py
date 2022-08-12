@@ -5,12 +5,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import configparser
 import logging
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 
 from .config_source import ConfigSource
 

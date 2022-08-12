@@ -13,7 +13,7 @@ After=systemd-networkd-wait-online.service
 After=networking.service
 {% endif %}
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
-                  "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+                  "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "virtuozzo"] %}
 After=network.service
 After=NetworkManager.service
 {% endif %}

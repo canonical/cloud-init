@@ -12,10 +12,10 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
 DEFAULT_DEFER = False
 TEXT_PLAIN_ENC = "text/plain"
@@ -108,12 +108,13 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["write_files"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud: Cloud, log, _args):
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -127,7 +128,7 @@ def handle(name, cfg, _cloud, log, _args):
             name,
         )
         return
-    write_files(name, filtered_files)
+    write_files(name, filtered_files, cloud.distro.default_owner)
 
 
 def canonicalize_extraction(encoding_type):
@@ -155,7 +156,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files):
+def write_files(name, files, owner: str):
     if not files:
         return
 
@@ -171,7 +172,7 @@ def write_files(name, files):
         path = os.path.abspath(path)
         extractions = canonicalize_extraction(f_info.get("encoding"))
         contents = extract_contents(f_info.get("content", ""), extractions)
-        (u, g) = util.extract_usergroup(f_info.get("owner", DEFAULT_OWNER))
+        (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
         util.write_file(path, contents, omode=omode, mode=perms)

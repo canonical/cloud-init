@@ -71,19 +71,20 @@ CHEF_RB_TPL_PATH_KEYS = frozenset(
         "encrypted_data_bag_secret",
     ]
 )
-CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
-CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
-CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_PATH_KEYS)
-CHEF_RB_TPL_KEYS.extend(
-    [
-        "server_url",
-        "node_name",
-        "environment",
-        "validation_name",
-        "chef_license",
-    ]
+CHEF_RB_TPL_KEYS = frozenset(
+    itertools.chain(
+        CHEF_RB_TPL_DEFAULTS.keys(),
+        CHEF_RB_TPL_BOOL_KEYS,
+        CHEF_RB_TPL_PATH_KEYS,
+        [
+            "server_url",
+            "node_name",
+            "environment",
+            "validation_name",
+            "chef_license",
+        ],
+    )
 )
-CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = "/etc/chef/client.rb"
 CHEF_EXEC_PATH = "/usr/bin/chef-client"
 CHEF_EXEC_DEF_ARGS = tuple(["-d", "-i", "1800", "-s", "20"])
@@ -135,6 +136,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": ["chef"],
 }
 
 __doc__ = get_meta_doc(meta)

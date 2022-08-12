@@ -11,6 +11,9 @@ They can be published to registered handlers with report_event.
 import base64
 import os.path
 import time
+from typing import List
+
+from cloudinit.reporting.handlers import ReportingHandler
 
 from . import available_handlers, instantiated_handler_registry
 
@@ -116,8 +119,10 @@ def report_event(event, excluded_handler_types=None):
         if hndl_type in excluded_handler_types
     }
 
-    handlers = instantiated_handler_registry.registered_items.items()
-    for _, handler in handlers:
+    handlers: List[ReportingHandler] = list(
+        instantiated_handler_registry.registered_items.values()
+    )
+    for handler in handlers:
         if type(handler) in excluded_handler_classes:
             continue  # skip this excluded handler
         handler.publish_event(event)

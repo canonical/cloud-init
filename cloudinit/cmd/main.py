@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import traceback
+from typing import Tuple
 
 from cloudinit import patcher
 from cloudinit.config.modules import Modules
@@ -47,6 +48,7 @@ from cloudinit import atomic_helper
 
 from cloudinit.config import cc_set_hostname
 from cloudinit import dhclient_hook
+from cloudinit.cmd.devel import read_cfg_paths
 
 
 # Welcome message template
@@ -142,7 +144,7 @@ def parse_cmdline_url(cmdline, names=("cloud-config-url", "url")):
     raise KeyError("No keys (%s) found in string '%s'" % (cmdline, names))
 
 
-def attempt_cmdline_url(path, network=True, cmdline=None):
+def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     """Write data from url referenced in command line to path.
 
     path: a file to write content to if downloaded.
@@ -189,7 +191,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
 
         return (level, m)
 
-    kwargs = {"url": url, "timeout": 10, "retries": 2}
+    kwargs = {"url": url, "timeout": 10, "retries": 2, "stream": True}
     if network or path_is_local:
         level = logging.WARN
         kwargs["sec_between"] = 1
@@ -201,22 +203,43 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     header = b"#cloud-config"
     try:
         resp = url_helper.read_file_or_url(**kwargs)
+        sniffed_content = b""
         if resp.ok():
-            data = resp.contents
-            if not resp.contents.startswith(header):
+            is_cloud_cfg = True
+            if isinstance(resp, url_helper.UrlResponse):
+                try:
+                    sniffed_content += next(
+                        resp.iter_content(chunk_size=len(header))
+                    )
+                except StopIteration:
+                    pass
+                if not sniffed_content.startswith(header):
+                    is_cloud_cfg = False
+            elif not resp.contents.startswith(header):
+                is_cloud_cfg = False
+            if is_cloud_cfg:
+                if cmdline_name == "url":
+                    LOG.warning(
+                        "DEPRECATED: `url` kernel command line key is"
+                        " deprecated for providing cloud-config via URL."
+                        " Please use `cloud-config-url` kernel command line"
+                        " parameter instead"
+                    )
+            else:
                 if cmdline_name == "cloud-config-url":
                     level = logging.WARN
                 else:
                     level = logging.INFO
                 return (
                     level,
-                    "contents of '%s' did not start with %s" % (url, header),
+                    f"contents of '{url}' did not start with {str(header)}",
                 )
         else:
             return (
                 level,
                 "url '%s' returned code %s. Ignoring." % (url, resp.code),
             )
+        data = sniffed_content + resp.contents
 
     except url_helper.UrlError as e:
         return (level, "retrieving url '%s' failed: %s" % (url, e))
@@ -454,7 +477,12 @@ def main_init(name, args):
 
     # Validate user-data adheres to schema definition
     if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
-        validate_cloudconfig_schema(config=init.cfg, strict=False)
+        validate_cloudconfig_schema(
+            config=init.cfg,
+            strict=False,
+            log_details=False,
+            log_deprecations=True,
+        )
     else:
         LOG.debug("Skipping user-data validation. No user-data found.")
 
@@ -661,7 +689,8 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        paths = read_cfg_paths()
+        data_d = paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
@@ -790,7 +819,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn) = util.get_hostname_fqdn(
+    (hostname, _fqdn, _) = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content

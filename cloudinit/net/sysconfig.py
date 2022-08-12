@@ -28,6 +28,7 @@ KNOWN_DISTROS = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "openmandriva",
     "rhel",
     "rocky",
     "suse",
@@ -361,7 +362,7 @@ class Renderer(renderer.Renderer):
         ]
     )
 
-    templates = {}
+    templates: dict = {}
 
     def __init__(self, config=None):
         if not config:

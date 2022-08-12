@@ -165,6 +165,7 @@ meta: MetaSchema = {
             """  # noqa: E501
         )
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -213,7 +214,7 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
                     reason = "unsupported"
                 else:
                     reason = "unrecognized"
-                log.warning("Skipping %s ssh_keys" ' entry: "%s"', reason, key)
+                log.warning('Skipping %s ssh_keys entry: "%s"', reason, key)
                 continue
             tgt_fn = CONFIG_KEY_TO_FILE[key][0]
             tgt_perms = CONFIG_KEY_TO_FILE[key][1]

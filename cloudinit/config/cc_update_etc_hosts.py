@@ -32,7 +32,7 @@ fqdn with a distribution dependent ip is present (i.e. ``ping <hostname>`` will
 ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
 
 .. note::
-    if ``manage_etc_hosts`` is set ``true`` or ``template``, the contents
+    if ``manage_etc_hosts`` is set ``true``, the contents
     of the hosts file will be updated every boot. To make any changes to
     the hosts file persistent they must be made in
     ``/etc/cloud/templates/hosts.tmpl``
@@ -88,6 +88,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": ["manage_etc_hosts"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -104,7 +105,7 @@ def handle(name, cfg, cloud, log, _args):
                 "DEPRECATED: please use manage_etc_hosts: true instead of"
                 " 'template'"
             )
-        (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             log.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"
@@ -126,7 +127,7 @@ def handle(name, cfg, cloud, log, _args):
         )
 
     elif manage_hosts == "localhost":
-        (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             log.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"

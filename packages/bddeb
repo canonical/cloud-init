@@ -34,7 +34,13 @@ DEBUILD_ARGS = ["-S", "-d"]
 
 
 def get_release_suffix(release):
-    """Given ubuntu release (xenial), return a suffix for package (~16.04.1)"""
+    """Given ubuntu release, return a suffix for package
+
+    Examples:
+    ---------
+    >>> get_release_suffix("jammy")
+    '~22.04.1'
+    """
     csv_path = "/usr/share/distro-info/ubuntu.csv"
     rels = {}
     # fields are version, codename, series, created, release, eol, eol-server
@@ -149,10 +155,6 @@ def get_parser():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
-
-    parser.add_argument("--python2", dest="python2",
-                        help=("build debs for python2 rather than python3"),
-                        default=False, action='store_true')
 
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"

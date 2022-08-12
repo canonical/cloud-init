@@ -43,6 +43,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -57,7 +58,7 @@ def handle(_name, cfg, cloud, log, args):
         )
         return
     elif not subp.which(SSH_IMPORT_ID_BINARY):
-        log.warn(
+        log.warning(
             "ssh-import-id is not installed, but module ssh_import_id is "
             "configured. Skipping module."
         )

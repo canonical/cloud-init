@@ -7,6 +7,8 @@ import json
 import os
 import sys
 
+import yaml
+
 from cloudinit import distros, log, safeyaml
 from cloudinit.net import (
     eni,
@@ -124,7 +126,9 @@ def handle_args(name, args):
             json.loads(net_data), known_macs=known_macs
         )
     elif args.kind == "azure-imds":
-        pre_ns = azure.parse_network_config(json.loads(net_data))
+        pre_ns = azure.generate_network_config_from_instance_network_metadata(
+            json.loads(net_data)["network"]
+        )
     elif args.kind == "vmware-imc":
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)
@@ -132,9 +136,7 @@ def handle_args(name, args):
     ns = network_state.parse_net_config_data(pre_ns)
 
     if args.debug:
-        sys.stderr.write(
-            "\n".join(["", "Internal State", safeyaml.dumps(ns), ""])
-        )
+        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
     config = {}

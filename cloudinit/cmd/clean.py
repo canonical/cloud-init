@@ -11,8 +11,9 @@ import glob
 import os
 import sys
 
+from cloudinit import settings
 from cloudinit.stages import Init
-from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
     del_dir,
     del_file,
@@ -20,6 +21,8 @@ from cloudinit.util import (
     get_config_logfiles,
     is_link,
 )
+
+ETC_MACHINE_ID = "/etc/machine-id"
 
 
 def get_parser(parser=None):
@@ -46,6 +49,15 @@ def get_parser(parser=None):
         default=False,
         dest="remove_logs",
         help="Remove cloud-init logs.",
+    )
+    parser.add_argument(
+        "--machine-id",
+        action="store_true",
+        default=False,
+        help=(
+            "Remove /etc/machine-id for golden image creation."
+            " Next boot generates a new machine-id."
+        ),
     )
     parser.add_argument(
         "-r",
@@ -94,12 +106,21 @@ def remove_artifacts(remove_logs, remove_seed=False):
         except OSError as e:
             error("Could not remove {0}: {1}".format(path, str(e)))
             return 1
+    try:
+        runparts(settings.CLEAN_RUNPARTS_DIR)
+    except Exception as e:
+        error(
+            f"Failure during run-parts of {settings.CLEAN_RUNPARTS_DIR}: {e}"
+        )
+        return 1
     return 0
 
 
 def handle_clean_args(name, args):
     """Handle calls to 'cloud-init clean' as a subcommand."""
     exit_code = remove_artifacts(args.remove_logs, args.remove_seed)
+    if args.machine_id:
+        del_file(ETC_MACHINE_ID)
     if exit_code == 0 and args.reboot:
         cmd = ["shutdown", "-r", "now"]
         try:

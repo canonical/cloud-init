@@ -39,7 +39,7 @@ USER_DATA = b"#!/bin/sh\necho This is user data\n"
 VENDOR_DATA = {
     "magic": "",
 }
-VENDOR_DATA2 = {"static": {}}
+VENDOR_DATA2: dict = {"static": {}}
 OSTACK_META = {
     "availability_zone": "nova",
     "files": [
@@ -284,8 +284,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         m_dhcp.assert_not_called()
 
     @hp.activate
-    @test_helpers.mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
-    @test_helpers.mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @test_helpers.mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @test_helpers.mock.patch(
+        "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
+    )
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)

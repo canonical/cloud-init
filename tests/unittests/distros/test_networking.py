@@ -2,7 +2,6 @@
 # /parametrize.html#parametrizing-conditional-raising
 
 import textwrap
-from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import pytest
@@ -14,6 +13,7 @@ from cloudinit.distros.networking import (
     LinuxNetworking,
     Networking,
 )
+from tests.unittests.helpers import does_not_raise
 
 
 @pytest.fixture

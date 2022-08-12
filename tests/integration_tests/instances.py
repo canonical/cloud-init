@@ -60,6 +60,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self._ip = ""
 
     def destroy(self):
         self.instance.delete()
@@ -193,9 +194,20 @@ class IntegrationInstance:
         assert self.execute("apt-get update -q").ok
         assert self.execute("apt-get install -qy cloud-init").ok
 
+    def ip(self) -> str:
+        if self._ip:
+            return self._ip
+        try:
+            self._ip = self.instance.ip
+        except NotImplementedError:
+            self._ip = "Unknown"
+        return self._ip
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
+        else:
+            log.info("Keeping Instance, public ip: %s", self.ip)

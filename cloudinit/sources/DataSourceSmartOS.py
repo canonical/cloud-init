@@ -30,9 +30,11 @@ import random
 import re
 import socket
 
+import serial
+
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import serial, sources, subp, util
+from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
@@ -711,8 +713,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
         if self.is_b64_encoded(key):
             try:
                 val = base64.b64decode(val.encode()).decode()
-            # Bogus input produces different errors in Python 2 and 3
-            except (TypeError, binascii.Error):
+            except binascii.Error:
                 LOG.warning("Failed base64 decoding key '%s': %s", key, val)
 
         if strip:
@@ -1049,7 +1050,7 @@ if __name__ == "__main__":
 
         return data[key]
 
-    data = {}
+    data: dict = {}
     for key in keys:
         load_key(client=jmc, key=key, data=data)
 

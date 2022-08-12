@@ -10,7 +10,8 @@ from requests import exceptions
 from cloudinit import dmi
 from cloudinit import log as log
 from cloudinit import net, netinfo, subp, url_helper, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 # Get LOG
 LOG = log.getLogger(__name__)

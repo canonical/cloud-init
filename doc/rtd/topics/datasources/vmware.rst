@@ -7,7 +7,7 @@ This datasource is for use with systems running on a VMware platform such as
 vSphere and currently supports the following data transports:
 
 
-* `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md#vmchange>`_ keys
+* `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md>`_ keys
 
 Configuration
 -------------
@@ -263,7 +263,7 @@ this datasource:
 
    .. code-block:: bash
 
-      cloud-init clean
+      cloud-init clean --logs --machine-id
 
    Otherwise cloud-init may not run in first-boot mode. For more information
    on how the boot mode is determined, please see the
@@ -311,7 +311,7 @@ this datasource:
 
    .. code-block:: shell
 
-       govc vm.power -vm "${VM}" -on
+       govc vm.power -on "${VM}"
 
 If all went according to plan, the CentOS box is:
 

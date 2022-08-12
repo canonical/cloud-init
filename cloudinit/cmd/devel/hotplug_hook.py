@@ -10,7 +10,7 @@ import time
 
 from cloudinit import log, reporting, stages
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators, read_sys_net_safe
+from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.sources import DataSource, DataSourceNotFoundException
@@ -132,7 +132,7 @@ class NetHandler(UeventHandler):
             bring_up=False,
         )
         interface_name = os.path.basename(self.devpath)
-        activator = activators.select_activator()
+        activator = self.datasource.distro.network_activator()
         if self.action == "add":
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
@@ -202,12 +202,12 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         return
     handler_cls = SUBSYSTEM_PROPERTES_MAP[subsystem][0]
     LOG.debug("Creating %s event handler", subsystem)
-    event_handler = handler_cls(
+    event_handler: UeventHandler = handler_cls(
         datasource=datasource,
         devpath=devpath,
         action=udevaction,
         success_fn=hotplug_init._write_to_cache,
-    )  # type: UeventHandler
+    )
     wait_times = [1, 3, 5, 10, 30]
     last_exception = Exception("Bug while processing hotplug event.")
     for attempt, wait in enumerate(wait_times):
