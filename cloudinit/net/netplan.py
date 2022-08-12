@@ -3,7 +3,7 @@
 import copy
 import os
 import textwrap
-from typing import cast
+from typing import Optional, cast
 
 from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
@@ -240,7 +240,12 @@ class Renderer(renderer.Renderer):
                 LOG.debug("Failed to list features from netplan info: %s", e)
         return self._features
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state

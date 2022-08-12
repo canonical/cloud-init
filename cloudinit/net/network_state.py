@@ -136,14 +136,16 @@ class CommandHandlerMeta(type):
 
 
 class NetworkState(object):
-    def __init__(self, network_state, version=NETWORK_STATE_VERSION):
+    def __init__(
+        self, network_state: dict, version: int = NETWORK_STATE_VERSION
+    ):
         self._network_state = copy.deepcopy(network_state)
         self._version = version
         self.use_ipv6 = network_state.get("use_ipv6", False)
         self._has_default_route = None
 
     @property
-    def config(self):
+    def config(self) -> dict:
         return self._network_state["config"]
 
     @property
@@ -203,6 +205,20 @@ class NetworkState(object):
         return (
             route.get("prefix") == 0 and route.get("network") in default_nets
         )
+
+    @classmethod
+    def to_passthrough(cls, network_state: dict) -> "NetworkState":
+        """Instantiates a `NetworkState` without interpreting its data.
+
+        That means only `config` and `version` are copied.
+
+        :param network_state: Network state data.
+        :return: Instance of `NetworkState`.
+        """
+        kwargs = {}
+        if "version" in network_state:
+            kwargs["version"] = network_state["version"]
+        return cls({"config": network_state}, **kwargs)
 
 
 class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
@@ -268,7 +284,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
     def as_dict(self):
         return {"version": self._version, "config": self._config}
 
-    def get_network_state(self):
+    def get_network_state(self) -> NetworkState:
         ns = self.network_state
         return ns
 
@@ -1044,7 +1060,9 @@ def _normalize_subnets(subnets):
     return [_normalize_subnet(s) for s in subnets]
 
 
-def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
+def parse_net_config_data(
+    net_config: dict, skip_broken: bool = True
+) -> NetworkState:
     """Parses the config, returns NetworkState object
 
     :param net_config: curtin network config dict

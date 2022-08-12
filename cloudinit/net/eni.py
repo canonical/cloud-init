@@ -4,10 +4,12 @@ import copy
 import glob
 import os
 import re
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import subnet_is_ipv6
+from cloudinit.net.network_state import NetworkState
 
 from . import ParserError, renderer
 
@@ -561,7 +563,12 @@ class Renderer(renderer.Renderer):
 
         return "\n\n".join(["\n".join(s) for s in sections]) + "\n"
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         fpeni = subp.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""

@@ -8,9 +8,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from collections import OrderedDict
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.net.network_state import NetworkState
 
 from . import renderer
 
@@ -217,7 +219,12 @@ class Renderer(renderer.Renderer):
         util.write_file(net_fn, conf)
         util.chownbyname(net_fn, net_fn_owner, net_fn_owner)
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         network_dir = self.network_conf_dir
         if target:
             network_dir = subp.target_path(target) + network_dir

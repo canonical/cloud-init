@@ -133,13 +133,17 @@ def handle_args(name, args):
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)
 
-    ns = network_state.parse_net_config_data(pre_ns)
+    if args.output_kind == "netplan" and pre_ns.get("version") == 2:
+        if args.debug:
+            sys.stderr.write("Passthrough netplan v2 config")
+        ns = network_state.NetworkState.to_passthrough(pre_ns)
+    else:
+        ns = network_state.parse_net_config_data(pre_ns)
 
     if args.debug:
         sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
-    config = {}
     if args.output_kind == "eni":
         r_cls = eni.Renderer
         config = distro.renderer_configs.get("eni")
