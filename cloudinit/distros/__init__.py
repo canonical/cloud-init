@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Type
+from typing import Any, Mapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -47,6 +47,7 @@ OSFAMILIES = {
         "fedora",
         "miraclelinux",
         "openEuler",
+        "openmandriva",
         "photon",
         "rhel",
         "rocky",
@@ -75,6 +76,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, Mapping[str, Any]] = {}
     _preferred_ntp_clients = None
@@ -115,6 +117,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "Legacy function '_write_network' was called in distro '%s'.\n"
             "_write_network_config needs implementation.\n" % self.name
         )
+
+    @property
+    def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
+        """Return the configured network activator for this environment."""
+        priority = util.get_cfg_by_path(
+            self._cfg, ("network", "activators"), None
+        )
+        try:
+            return activators.select_activator(priority=priority)
+        except activators.NoActivatorException:
+            return None
 
     def _write_network_state(self, network_state):
         priority = util.get_cfg_by_path(
@@ -240,9 +253,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
-            try:
-                network_activator = activators.select_activator()
-            except activators.NoActivatorException:
+            network_activator = self.network_activator
+            if not network_activator:
                 LOG.warning(
                     "No network activator found, not bringing up "
                     "network interfaces"
@@ -509,6 +521,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if isinstance(groups, str):
                 groups = groups.split(",")
 
+            if isinstance(groups, dict):
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'groups' config value of"
+                    " type dict which is deprecated and will be removed in a"
+                    " future version of cloud-init. Use a comma-delimited"
+                    " string or array instead: group1,group2.",
+                    name,
+                )
+
             # remove any white spaces in group names, most likely
             # that came in as a string like: groups: group1, group2
             groups = [g.strip() for g in groups]
@@ -630,8 +651,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if "sudo" in kwargs and kwargs["sudo"] is not False:
-            self.write_sudo_rules(name, kwargs["sudo"])
+        if "sudo" in kwargs:
+            if kwargs["sudo"]:
+                self.write_sudo_rules(name, kwargs["sudo"])
+            elif kwargs["sudo"] is False:
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'sudo' config value of"
+                    " 'false' which will be dropped after April 2027."
+                    " Use 'null' instead.",
+                    name,
+                )
 
         # Import SSH keys
         if "ssh_authorized_keys" in kwargs:
@@ -715,6 +744,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             raise e
 
         return True
+
+    def chpasswd(self, plist_in: list, hashed: bool):
+        payload = (
+            "\n".join(
+                (":".join([name, password]) for name, password in plist_in)
+            )
+            + "\n"
+        )
+        cmd = ["chpasswd"] + (["-e"] if hashed else [])
+        subp.subp(cmd, payload)
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
@@ -1063,7 +1102,7 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
     return default
 
 
-def fetch(name) -> Type[Distro]:
+def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
         raise ImportError(

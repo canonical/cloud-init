@@ -9,6 +9,7 @@
 """Mounts: Configure mount points and swap files"""
 
 import logging
+import math
 import os
 import re
 from string import whitespace
@@ -97,6 +98,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -110,6 +112,8 @@ NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
+MB = 2**20
+GB = 2**30
 
 LOG = logging.getLogger(__name__)
 
@@ -210,13 +214,12 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     if memsize is None:
         memsize = util.read_meminfo()["total"]
 
-    GB = 2**30
-    sugg_max = 8 * GB
+    sugg_max = memsize * 2
 
     info = {"avail": "na", "max_in": maxsize, "mem": memsize}
 
     if fsys is None and maxsize is None:
-        # set max to 8GB default if no filesystem given
+        # set max to default if no filesystem given
         maxsize = sugg_max
     elif fsys:
         statvfs = os.statvfs(fsys)
@@ -234,35 +237,17 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     info["max"] = maxsize
 
-    formulas = [
-        # < 1G: swap = double memory
-        (1 * GB, lambda x: x * 2),
-        # < 2G: swap = 2G
-        (2 * GB, lambda x: 2 * GB),
-        # < 4G: swap = memory
-        (4 * GB, lambda x: x),
-        # < 16G: 4G
-        (16 * GB, lambda x: 4 * GB),
-        # < 64G: 1/2 M up to max
-        (64 * GB, lambda x: x / 2),
-    ]
+    if memsize < 4 * GB:
+        minsize = memsize
+    elif memsize < 16 * GB:
+        minsize = 4 * GB
+    else:
+        minsize = round(math.sqrt(memsize / GB)) * GB
 
-    size = None
-    for top, func in formulas:
-        if memsize <= top:
-            size = min(func(memsize), maxsize)
-            # if less than 1/2 memory and not much, return 0
-            if size < (memsize / 2) and size < 4 * GB:
-                size = 0
-                break
-            break
-
-    if size is not None:
-        size = maxsize
+    size = min(minsize, maxsize)
 
     info["size"] = size
 
-    MB = 2**20
     pinfo = {}
     for k, v in info.items():
         if isinstance(v, int):

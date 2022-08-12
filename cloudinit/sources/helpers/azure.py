@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import base64
+import enum
 import json
 import logging
 import os
@@ -7,16 +8,16 @@ import re
 import socket
 import struct
 import textwrap
-import time
 import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
-from typing import List, Optional
+from time import sleep, time
+from typing import List, Optional, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import distros, subp, temp_utils, url_helper, util, version
+from cloudinit import distros, dmi, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
 
@@ -99,7 +100,7 @@ def get_boot_telemetry():
 
     LOG.debug("Collecting boot telemetry")
     try:
-        kernel_start = float(time.time()) - float(util.uptime())
+        kernel_start = float(time()) - float(util.uptime())
     except ValueError as e:
         raise RuntimeError("Failed to determine kernel start timestamp") from e
 
@@ -331,45 +332,57 @@ def get_ip_from_lease_value(fallback_lease_value):
 
 @azure_ds_telemetry_reporter
 def http_with_retries(
-    url: str, *, headers: dict, data: Optional[str] = None
+    url: str,
+    *,
+    headers: dict,
+    data: Optional[str] = None,
+    retry_sleep: int = 5,
+    timeout_minutes: int = 20,
 ) -> url_helper.UrlResponse:
     """Readurl wrapper for querying wireserver.
 
-    Retries up to 40 minutes:
-    240 attempts * (5s timeout + 5s sleep)
+    :param retry_sleep: Time to sleep before retrying.
+    :param timeout_minutes: Retry up to specified number of minutes.
+    :raises UrlError: on error fetching data.
     """
-    max_readurl_attempts = 240
-    readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
+    timeout = timeout_minutes * 60 + time()
 
-    for attempt in range(1, max_readurl_attempts + 1):
+    attempt = 0
+    response = None
+    while not response:
+        attempt += 1
         try:
-            ret = url_helper.readurl(
-                url, headers=headers, data=data, timeout=readurl_timeout
+            response = url_helper.readurl(
+                url, headers=headers, data=data, timeout=(5, 60)
             )
-
+            break
+        except url_helper.UrlError as e:
             report_diagnostic_event(
-                "Successful HTTP request with Azure endpoint %s after "
-                "%d attempts" % (url, attempt),
+                "Failed HTTP request with Azure endpoint %s during "
+                "attempt %d with exception: %s (code=%r headers=%r)"
+                % (url, attempt, e, e.code, e.headers),
                 logger_func=LOG.debug,
             )
-
-            return ret
-
-        except Exception as e:
-            if attempt % periodic_logging_attempts == 0:
-                report_diagnostic_event(
-                    "Failed HTTP request with Azure endpoint %s during "
-                    "attempt %d with exception: %s" % (url, attempt, e),
-                    logger_func=LOG.debug,
-                )
-            if attempt == max_readurl_attempts:
+            # Raise exception if we're out of time or network is unreachable.
+            # If network is unreachable:
+            # - retries will not resolve the situation
+            # - for reporting ready for PPS, this generally means VM was put
+            #   to sleep or network interface was unplugged before we see
+            #   the call complete successfully.
+            if (
+                time() + retry_sleep >= timeout
+                or "Network is unreachable" in str(e)
+            ):
                 raise
 
-        time.sleep(sleep_duration_between_retries)
+        sleep(retry_sleep)
 
-    raise RuntimeError("Failed to return in http_with_retries")
+    report_diagnostic_event(
+        "Successful HTTP request with Azure endpoint %s after "
+        "%d attempts" % (url, attempt),
+        logger_func=LOG.debug,
+    )
+    return response
 
 
 def build_minimal_ovf(
@@ -443,7 +456,7 @@ class InvalidGoalStateXMLException(Exception):
 class GoalState:
     def __init__(
         self,
-        unparsed_xml: str,
+        unparsed_xml: Union[str, bytes],
         azure_endpoint_client: AzureEndpointHttpClient,
         need_certificate: bool = True,
     ) -> None:
@@ -777,11 +790,11 @@ class GoalStateHealthReporter:
         # KVP messages that are published after the Azure Host receives the
         # signal are ignored and unprocessed, so yield this thread to the
         # Hyper-V KVP Reporting thread so that they are written.
-        # time.sleep(0) is a low-cost and proven method to yield the scheduler
+        # sleep(0) is a low-cost and proven method to yield the scheduler
         # and ensure that events are flushed.
         # See HyperVKvpReportingHandler class, which is a multi-threaded
         # reporting handler that writes to the special KVP files.
-        time.sleep(0)
+        sleep(0)
 
         LOG.debug("Sending health report to Azure fabric.")
         url = "http://{}/machine?comp=health".format(self._endpoint)
@@ -883,7 +896,7 @@ class WALinuxAgentShim:
         )
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self) -> str:
+    def _get_raw_goal_state_xml_from_azure(self) -> bytes:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -911,7 +924,9 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def _parse_raw_goal_state_xml(
-        self, unparsed_goal_state_xml: str, need_certificate: bool
+        self,
+        unparsed_goal_state_xml: Union[str, bytes],
+        need_certificate: bool,
     ) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
@@ -1053,6 +1068,241 @@ def dhcp_log_cb(out, err):
     report_diagnostic_event(
         "dhclient error stream: %s" % err, logger_func=LOG.debug
     )
+
+
+class BrokenAzureDataSource(Exception):
+    pass
+
+
+class NonAzureDataSource(Exception):
+    pass
+
+
+class ChassisAssetTag(enum.Enum):
+    AZURE_CLOUD = "7783-7084-3265-9085-8269-3286-77"
+
+    @classmethod
+    def query_system(cls) -> Optional["ChassisAssetTag"]:
+        """Check platform environment to report if this datasource may run.
+
+        :returns: ChassisAssetTag if matching tag found, else None.
+        """
+        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
+        try:
+            tag = cls(asset_tag)
+        except ValueError:
+            report_diagnostic_event(
+                "Non-Azure chassis asset tag: %r" % asset_tag,
+                logger_func=LOG.debug,
+            )
+            return None
+
+        report_diagnostic_event(
+            "Azure chassis asset tag: %r (%s)" % (asset_tag, tag.name),
+            logger_func=LOG.debug,
+        )
+        return tag
+
+
+class OvfEnvXml:
+    NAMESPACES = {
+        "ovf": "http://schemas.dmtf.org/ovf/environment/1",
+        "wa": "http://schemas.microsoft.com/windowsazure",
+    }
+
+    def __init__(
+        self,
+        *,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        hostname: Optional[str] = None,
+        custom_data: Optional[bytes] = None,
+        disable_ssh_password_auth: Optional[bool] = None,
+        public_keys: Optional[List[dict]] = None,
+        preprovisioned_vm: bool = False,
+        preprovisioned_vm_type: Optional[str] = None,
+    ) -> None:
+        self.username = username
+        self.password = password
+        self.hostname = hostname
+        self.custom_data = custom_data
+        self.disable_ssh_password_auth = disable_ssh_password_auth
+        self.public_keys: List[dict] = public_keys or []
+        self.preprovisioned_vm = preprovisioned_vm
+        self.preprovisioned_vm_type = preprovisioned_vm_type
+
+    def __eq__(self, other) -> bool:
+        return self.__dict__ == other.__dict__
+
+    @classmethod
+    def parse_text(cls, ovf_env_xml: str) -> "OvfEnvXml":
+        """Parser for ovf-env.xml data.
+
+        :raises NonAzureDataSource: if XML is not in Azure's format.
+        :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+        """
+        try:
+            root = ElementTree.fromstring(ovf_env_xml)
+        except ElementTree.ParseError as e:
+            error_str = "Invalid ovf-env.xml: %s" % e
+            raise BrokenAzureDataSource(error_str) from e
+
+        # If there's no provisioning section, it's not Azure ovf-env.xml.
+        if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
+            raise NonAzureDataSource(
+                "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
+            )
+
+        instance = OvfEnvXml()
+        instance._parse_linux_configuration_set_section(root)
+        instance._parse_platform_settings_section(root)
+
+        return instance
+
+    def _find(
+        self,
+        node,
+        name: str,
+        required: bool,
+        namespace: str = "wa",
+    ):
+        matches = node.findall(
+            "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
+        )
+        if len(matches) == 0:
+            msg = "No ovf-env.xml configuration for %r" % name
+            LOG.debug(msg)
+            if required:
+                raise BrokenAzureDataSource(msg)
+            return None
+        elif len(matches) > 1:
+            raise BrokenAzureDataSource(
+                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+                % (name, len(matches))
+            )
+
+        return matches[0]
+
+    def _parse_property(
+        self,
+        node,
+        name: str,
+        required: bool,
+        decode_base64: bool = False,
+        parse_bool: bool = False,
+        default=None,
+    ):
+        matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
+        if len(matches) == 0:
+            msg = "No ovf-env.xml configuration for %r" % name
+            LOG.debug(msg)
+            if required:
+                raise BrokenAzureDataSource(msg)
+            return default
+        elif len(matches) > 1:
+            raise BrokenAzureDataSource(
+                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+                % (name, len(matches))
+            )
+
+        value = matches[0].text
+
+        # Empty string may be None.
+        if value is None:
+            value = default
+
+        if decode_base64 and value is not None:
+            value = base64.b64decode("".join(value.split()))
+
+        if parse_bool:
+            value = util.translate_bool(value)
+
+        return value
+
+    def _parse_linux_configuration_set_section(self, root):
+        provisioning_section = self._find(
+            root, "ProvisioningSection", required=True
+        )
+        config_set = self._find(
+            provisioning_section,
+            "LinuxProvisioningConfigurationSet",
+            required=True,
+        )
+
+        self.custom_data = self._parse_property(
+            config_set,
+            "CustomData",
+            decode_base64=True,
+            required=False,
+        )
+        self.username = self._parse_property(
+            config_set, "UserName", required=True
+        )
+        self.password = self._parse_property(
+            config_set, "UserPassword", required=False
+        )
+        self.hostname = self._parse_property(
+            config_set, "HostName", required=True
+        )
+        self.disable_ssh_password_auth = self._parse_property(
+            config_set,
+            "DisableSshPasswordAuthentication",
+            parse_bool=True,
+            required=False,
+        )
+
+        self._parse_ssh_section(config_set)
+
+    def _parse_platform_settings_section(self, root):
+        platform_settings_section = self._find(
+            root, "PlatformSettingsSection", required=True
+        )
+        platform_settings = self._find(
+            platform_settings_section, "PlatformSettings", required=True
+        )
+
+        self.preprovisioned_vm = self._parse_property(
+            platform_settings,
+            "PreprovisionedVm",
+            parse_bool=True,
+            default=False,
+            required=False,
+        )
+        self.preprovisioned_vm_type = self._parse_property(
+            platform_settings,
+            "PreprovisionedVMType",
+            required=False,
+        )
+
+    def _parse_ssh_section(self, config_set):
+        self.public_keys = []
+
+        ssh_section = self._find(config_set, "SSH", required=False)
+        if ssh_section is None:
+            return
+
+        public_keys_section = self._find(
+            ssh_section, "PublicKeys", required=False
+        )
+        if public_keys_section is None:
+            return
+
+        for public_key in public_keys_section.findall(
+            "./wa:PublicKey", OvfEnvXml.NAMESPACES
+        ):
+            fingerprint = self._parse_property(
+                public_key, "Fingerprint", required=False
+            )
+            path = self._parse_property(public_key, "Path", required=False)
+            value = self._parse_property(
+                public_key, "Value", default="", required=False
+            )
+            ssh_key = {
+                "fingerprint": fingerprint,
+                "path": path,
+                "value": value,
+            }
+            self.public_keys.append(ssh_key)
 
 
 # vi: ts=4 expandtab

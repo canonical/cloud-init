@@ -12,24 +12,17 @@ import time
 
 import requests
 
-# pylint fails to import the two modules below.
-# These are imported via requests.packages rather than urllib3 because:
-#  a.) the provider of the requests package should ensure that urllib3
-#      contained in it is consistent/correct.
-#  b.) cloud-init does not specifically have a dependency on urllib3
-#
-# For future reference, see:
-#   https://github.com/kennethreitz/requests/pull/2375
-#   https://github.com/requests/requests/issues/4104
-# pylint: disable=E0401
-from requests.packages.urllib3.connection import HTTPConnection
-from requests.packages.urllib3.poolmanager import PoolManager
+# Note: `urllib3` is transitively installed by `requests`
+from urllib3.connection import HTTPConnection
+from urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
@@ -288,7 +281,7 @@ class DataSourceScaleway(sources.DataSource):
         return ssh_keys
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return self.metadata["hostname"]
+        return DataSourceHostname(self.metadata["hostname"], False)
 
     @property
     def availability_zone(self):

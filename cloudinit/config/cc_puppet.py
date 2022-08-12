@@ -98,6 +98,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": ["puppet"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -257,7 +258,6 @@ def handle(name, cfg, cloud, log, _args):
         # (TODO(harlowja) is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = "\n".join(cleaned_lines)
-        # Move to puppet_config.read_file when dropping py2.7
         puppet_config.read_file(
             StringIO(cleaned_contents), source=p_constants.conf_path
         )

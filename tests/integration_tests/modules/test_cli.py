@@ -18,11 +18,18 @@ runcmd:
   - echo 'hi' > /var/tmp/test
 """
 
+# The '-' in 'hashed-password' fails schema validation
 INVALID_USER_DATA_SCHEMA = """\
 #cloud-config
-updates:
- notnetwork: -1
-apt_pipelining: bogus
+users:
+  - default
+  - name: newsuper
+    gecos: Big Stuff
+    groups: users, admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    hashed-password: asdfasdf
+    shell: /bin/bash
+    lock_passwd: true
 """
 
 
@@ -69,11 +76,12 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
     assert result.ok
     log = client.read_from_file("/var/log/cloud-init.log")
     warning = (
-        "[WARNING]: Invalid cloud-config provided:\napt_pipelining: 'bogus'"
-        " is not valid under any of the given schemas\nupdates: Additional"
-        " properties are not allowed ('notnetwork' was unexpected)"
+        "[WARNING]: Invalid cloud-config provided: Please run "
+        "'sudo cloud-init schema --system' to see the schema errors."
     )
     assert warning in log
+    assert "asdfasdf" not in log
+
     result = client.execute("cloud-init status --long")
     if not result.ok:
         raise AssertionError(

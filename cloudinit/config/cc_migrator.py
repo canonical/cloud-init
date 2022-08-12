@@ -32,6 +32,7 @@ meta: MetaSchema = {
     "distros": distros,
     "examples": ["# Do not migrate cloud-init semaphores\nmigrate: false\n"],
     "frequency": frequency,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

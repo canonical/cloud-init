@@ -49,6 +49,16 @@ mirrors via :py:mod:`apt: <cloudinit.config.cc_apt_configure>`
 directives in cloud-config.
 """
 
+
+EXPIRE_APPLIES_TO_HASHED_USERS = True
+"""
+If ``EXPIRE_APPLIES_TO_HASHED_USERS`` is True, then when expire is set true
+in cc_set_passwords, hashed passwords will be expired. Previous to 22.3,
+only non-hashed passwords were expired.
+
+(This flag can be removed after Jammy is no longer supported.)
+"""
+
 try:
     # pylint: disable=wildcard-import
     from cloudinit.feature_overrides import *  # noqa

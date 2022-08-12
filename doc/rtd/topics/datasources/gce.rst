@@ -37,6 +37,6 @@ An example configuration with the default values is provided below:
       retries: 5
       sec_between_retries: 1
 
-.. _GCE metadata docs: https://cloud.google.com/compute/docs/storing-retrieving-metadata#querying
+.. _GCE metadata docs: https://cloud.google.com/compute/docs/storing-retrieving-metadata
 
 .. vi: textwidth=79

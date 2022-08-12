@@ -8,7 +8,8 @@
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources.helpers import upcloud as uc_helper
 
 LOG = logging.getLogger(__name__)

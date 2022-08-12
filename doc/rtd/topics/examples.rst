@@ -41,6 +41,13 @@ Install and run `chef`_ recipes
    :language: yaml
    :linenos:
 
+Install and run `ansible`_
+==========================
+
+.. literalinclude:: ../../examples/cloud-config-ansible.txt
+   :language: yaml
+   :linenos:
+
 Add primary apt repositories
 ============================
 
@@ -124,4 +131,4 @@ Create partitions and filesystems
 
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
-.. vi: textwidth=79
+.. _ansible: https://docs.ansible.com/ansible/latest/

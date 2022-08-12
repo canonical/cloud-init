@@ -4,6 +4,12 @@
 Instance Metadata
 *****************
 
+.. toctree::
+  :maxdepth: 1
+  :hidden:
+
+  kernel-cmdline.rst
+
 What is instance data?
 ========================
 
@@ -16,6 +22,7 @@ comes from any number of sources:
 * cloud-config seed files in the booted cloud image or distribution
 * vendordata provided from files or cloud metadata services
 * userdata provided at instance creation
+* :ref:`kernel_cmdline`
 
 Each cloud provider presents unique configuration metadata in different
 formats to the instance. Cloud-init provides a cache of any crawled metadata

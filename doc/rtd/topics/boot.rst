@@ -149,7 +149,7 @@ accustomed to running after logging into a system should run correctly here.
 Things that run here include:
 
  * package installations
- * configuration management plugins (puppet, chef, salt-minion)
+ * configuration management plugins (ansible, puppet, chef, salt-minion)
  * user-defined scripts (i.e. shell scripts passed as user-data)
 
 For scripts external to cloud-init looking to wait until cloud-init is

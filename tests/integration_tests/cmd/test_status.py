@@ -32,7 +32,9 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     # On Impish and below, NoCloud will be detected on an LXD container.
     # If we remove this directory, it will no longer be detected.
     client.execute("rm -rf /var/lib/cloud/seed/nocloud-net")
+    old_boot_id = client.instance.get_boot_id()
     client.execute("cloud-init clean --logs --reboot")
+    client.instance._wait_for_execute(old_boot_id=old_boot_id)
 
 
 @pytest.mark.ubuntu
@@ -53,17 +55,15 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
         }
     ) as client:
         # We know this will be an LXD instance due to our pytest mark
-        client.instance.execute_via_ssh = False  # type: ignore
+        client.instance.execute_via_ssh = False  # pyright: ignore
         # No ubuntu user if cloud-init didn't run
         client.instance.username = "root"
         # Jammy and above will use LXD datasource by default
         if ImageSpecification.from_os_image().release in [
             "bionic",
             "focal",
-            "impish",
         ]:
             _remove_nocloud_dir_and_reboot(client)
         status_out = _wait_for_cloud_init(client).stdout.strip()
         assert "status: disabled" in status_out
-        assert "Cloud-init disabled by cloud-init-generator" in status_out
         assert client.execute("cloud-init status --wait").ok

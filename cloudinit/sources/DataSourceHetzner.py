@@ -10,7 +10,8 @@ import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 LOG = logging.getLogger(__name__)
 

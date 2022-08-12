@@ -29,6 +29,7 @@ distros = [
     "eurolinux",
     "fedora",
     "openEuler",
+    "openmandriva",
     "photon",
     "rhel",
     "rocky",
@@ -99,8 +100,8 @@ meta: MetaSchema = {
             # the repository file created. See: man yum.conf for supported
             # config keys.
             #
-            # Write /etc/yum.conf.d/my_package_stream.repo with gpgkey checks
-            # on the repo data of the repositoy enabled.
+            # Write /etc/yum.conf.d/my-package-stream.repo with gpgkey checks
+            # on the repo data of the repository enabled.
             yum_repos:
               my package stream:
                 baseurl: http://blah.org/pub/epel/testing/5/$basearch/
@@ -112,15 +113,23 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["yum_repos"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def _canonicalize_id(repo_id):
-    repo_id = repo_id.lower().replace("-", "_")
-    repo_id = repo_id.replace(" ", "_")
-    return repo_id
+def _canonicalize_id(repo_id: str) -> str:
+    """Canonicalize repo id.
+
+    The sole name convention for repo ids is to not contain namespaces,
+    and typically the separator used is `-`. More info:
+    https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sec-setting_repository_options
+
+    :param repo_id: Repo id to convert.
+    :return: Canonical repo id.
+    """
+    return repo_id.replace(" ", "-")
 
 
 def _format_repo_value(val):

@@ -89,15 +89,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
             hashed_pw = passwd
-        elif not hasattr(crypt, "METHOD_BLOWFISH"):
-            # crypt.METHOD_BLOWFISH comes with Python 3.7 which is available
-            # on NetBSD 7 and 8.
-            LOG.error(
-                "Cannot set non-encrypted password for user %s. "
-                "Python >= 3.7 is required.",
-                user,
-            )
-            return
         else:
             method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
             hashed_pw = crypt.crypt(passwd, crypt.mksalt(method))

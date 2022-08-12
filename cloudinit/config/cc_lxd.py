@@ -7,10 +7,13 @@
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
 import os
+from logging import Logger
 from textwrap import dedent
+from typing import List, Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -22,9 +25,9 @@ _DEFAULT_NETWORK_NAME = "lxdbr0"
 MODULE_DESCRIPTION = """\
 This module configures lxd with user specified options using ``lxd init``.
 If lxd is not present on the system but lxd configuration is provided, then
-lxd will be installed. If the selected storage backend is zfs, then zfs will
-be installed if missing. If network bridge configuration is provided, then
-lxd-bridge will be configured accordingly.
+lxd will be installed. If the selected storage backend userspace utility is
+not installed, it will be installed. If network bridge configuration is
+provided, then lxd-bridge will be configured accordingly.
 """
 
 distros = ["ubuntu"]
@@ -55,6 +58,7 @@ meta: MetaSchema = {
                 storage_create_loop: 10
               bridge:
                 mode: new
+                mtu: 1500
                 name: lxdbr0
                 ipv4_address: 10.0.8.1
                 ipv4_netmask: 24
@@ -70,12 +74,13 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["lxd"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name, cfg, cloud: Cloud, log: Logger, args):
     # Get config
     lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:
@@ -105,15 +110,7 @@ def handle(name, cfg, cloud, log, args):
             type(bridge_cfg),
         )
         bridge_cfg = {}
-
-    # Install the needed packages
-    packages = []
-    if not subp.which("lxd"):
-        packages.append("lxd")
-
-    if init_cfg.get("storage_backend") == "zfs" and not subp.which("zfs"):
-        packages.append("zfsutils-linux")
-
+    packages = get_required_packages(init_cfg)
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
@@ -123,7 +120,10 @@ def handle(name, cfg, cloud, log, args):
 
     # Set up lxd if init config is given
     if init_cfg:
-        init_keys = (
+
+        # type is known, number of elements is not
+        # in the case of the ubuntu+lvm backend workaround
+        init_keys: Tuple[str, ...] = (
             "network_address",
             "network_port",
             "storage_backend",
@@ -132,7 +132,36 @@ def handle(name, cfg, cloud, log, args):
             "storage_pool",
             "trust_password",
         )
+
         subp.subp(["lxd", "waitready", "--timeout=300"])
+
+        # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
+        kernel = util.system_info()["uname"][2]
+        if init_cfg["storage_backend"] == "lvm" and not os.path.exists(
+            f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
+        ):
+            log.warning(
+                "cloud-init doesn't use thinpool by default on Ubuntu due to "
+                "LP #1982780. This behavior will change in the future.",
+            )
+            subp.subp(
+                [
+                    "lxc",
+                    "storage",
+                    "create",
+                    "default",
+                    "lvm",
+                    "lvm.use_thinpool=false",
+                ]
+            )
+
+            # Since we're manually setting use_thinpool=false
+            # filter it from the lxd init commands, don't configure
+            # storage twice
+            init_keys = tuple(
+                key for key in init_keys if key != "storage_backend"
+            )
+
         cmd = ["lxd", "init", "--auto"]
         for k in init_keys:
             if init_cfg.get(k):
@@ -298,6 +327,12 @@ def bridge_to_cmd(bridge_cfg):
     if bridge_cfg.get("domain"):
         cmd_create.append("dns.domain=%s" % bridge_cfg.get("domain"))
 
+    # if the default schema value is passed (-1) don't pass arguments
+    # to LXD. Use LXD defaults unless user manually sets a number
+    mtu = bridge_cfg.get("mtu", -1)
+    if mtu != -1:
+        cmd_create.append(f"bridge.mtu={mtu}")
+
     return cmd_create, cmd_attach
 
 
@@ -350,4 +385,20 @@ def maybe_cleanup_default(
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
-# vi: ts=4 expandtab
+def get_required_packages(cfg: dict) -> List[str]:
+    """identify required packages for install"""
+    packages = []
+    if not subp.which("lxd"):
+        packages.append("lxd")
+
+    # binary for pool creation must be available for the requested backend:
+    # zfs, lvcreate, mkfs.btrfs
+    storage: str = cfg.get("storage_backend", "")
+    if storage:
+        if storage == "zfs" and not subp.which("zfs"):
+            packages.append("zfsutils-linux")
+        if storage == "lvm" and not subp.which("lvcreate"):
+            packages.append("lvm2")
+        if storage == "btrfs" and not subp.which("mkfs.btrfs"):
+            packages.append("btrfs-progs")
+    return packages

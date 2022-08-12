@@ -18,7 +18,7 @@ Cloud-init has support across all major Linux distributions, FreeBSD, NetBSD,
 OpenBSD and DragonFlyBSD:
 
 - Alpine Linux
-- ArchLinux
+- Arch Linux
 - Debian
 - DragonFlyBSD
 - Fedora

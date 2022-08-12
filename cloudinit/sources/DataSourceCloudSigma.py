@@ -10,6 +10,7 @@ from base64 import b64decode
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.helpers.cloudsigma import SERIAL_PORT, Cepko
 
 LOG = logging.getLogger(__name__)
@@ -90,9 +91,10 @@ class DataSourceCloudSigma(sources.DataSource):
         the first part from uuid is being used.
         """
         if re.match(r"^[A-Za-z0-9 -_\.]+$", self.metadata["name"]):
-            return self.metadata["name"][:61]
+            ret = self.metadata["name"][:61]
         else:
-            return self.metadata["uuid"].split("-")[0]
+            ret = self.metadata["uuid"].split("-")[0]
+        return DataSourceHostname(ret, False)
 
     def get_public_ssh_keys(self):
         return [self.ssh_public_key]

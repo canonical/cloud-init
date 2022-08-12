@@ -149,7 +149,7 @@ class TestBadInput(CiTestCase):
     name = "cc_rh_subscription"
     cloud_init = None
     log = logging.getLogger("bad_tests")
-    args = []
+    args: list = []
     SM = cc_rh_subscription.SubscriptionManager
     reg = (
         "The system has been registered with ID:"

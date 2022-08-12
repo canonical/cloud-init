@@ -128,13 +128,20 @@ deb-src:
 doc:
 	tox -e doc
 
+fmt:
+	tox -e do_format && tox -e check_format
+
+fmt-tip:
+	tox -e do_format_tip && tox -e check_format_tip
+
 # Spell check && filter false positives
 _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
        grep -v -e 'doc/rtd/topics/cli.rst: modules modules' \
                -e 'doc/examples/cloud-config-mcollective.txt: WARNING WARNING' \
                -e 'doc/examples/cloud-config-power-state.txt: Bye Bye' \
                -e 'doc/examples/cloud-config.txt: Bye Bye' \
-               -e 'doc/rtd/topics/cli.rst: DOCS DOCS'
+               -e 'doc/rtd/topics/cli.rst: DOCS DOCS' \
+               -e 'dependant'
 
 
 # For CI we require a failing return code when spellintian finds spelling errors

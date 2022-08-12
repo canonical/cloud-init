@@ -60,6 +60,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": ["rsyslog"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -67,7 +68,7 @@ __doc__ = get_meta_doc(meta)
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 DEF_RELOAD = "auto"
-DEF_REMOTES = {}
+DEF_REMOTES: dict = {}
 
 KEYNAME_CONFIGS = "configs"
 KEYNAME_FILENAME = "config_filename"
@@ -113,7 +114,7 @@ def load_config(cfg: dict) -> dict:
         if KEYNAME_LEGACY_DIR in cfg:
             mycfg[KEYNAME_DIR] = cfg[KEYNAME_LEGACY_DIR]
 
-    fillup = (
+    fillup: tuple = (
         (KEYNAME_CONFIGS, [], list),
         (KEYNAME_DIR, DEF_DIR, str),
         (KEYNAME_FILENAME, DEF_FILENAME, str),

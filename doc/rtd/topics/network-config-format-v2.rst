@@ -338,7 +338,7 @@ Set whether to set all slaves to the same MAC address when adding
 them to the bond, or how else the system should handle MAC addresses.
 The possible values are ``none``, ``active``, and ``follow``.
 
-**gratuitious-arp**: <*(scalar)>*
+**gratuitous-arp**: <*(scalar)>*
 
 Specify how many ARP packets to send after failover. Once a link is
 up on a new slave, a notification is sent and possibly repeated if

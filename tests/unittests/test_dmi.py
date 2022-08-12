@@ -68,7 +68,9 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         )
 
     def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
-        self.patch_mapping({"mapped-key": dmi.kdmi("mapped-value", None)})
+        self.patch_mapping(
+            {"mapped-key": dmi.KernelNames("mapped-value", None)}
+        )
         expected_dmi_value = "sys-used-correctly"
         self._create_sysfs_file("mapped-value", expected_dmi_value)
         self._configure_dmidecode_return("mapped-key", "wrong-wrong-wrong")
