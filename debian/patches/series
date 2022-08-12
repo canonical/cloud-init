@@ -2,3 +2,4 @@ openstack-no-network-config.patch
 ec2-dont-apply-full-imds-network-config.patch
 renderer-do-not-prefer-netplan.patch
 retain-apt-partner-pocket.patch
+expire-on-hashed-users.patch
