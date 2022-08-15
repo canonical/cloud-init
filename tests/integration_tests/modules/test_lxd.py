@@ -3,7 +3,6 @@
 (This is ported from
 ``tests/cloud_tests/testcases/modules/lxd_bridge.yaml``.)
 """
-import re
 import warnings
 
 import pytest
