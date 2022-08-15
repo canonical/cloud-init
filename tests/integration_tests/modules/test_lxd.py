@@ -50,7 +50,7 @@ class TestLxdBridge:
         verify_clean_log(cloud_init_log)
 
         # The bridge should exist
-        assert class_client.execute("ip addr show lxdbr0")
+        assert class_client.execute("ip addr show lxdbr0").ok
 
         raw_network_config = class_client.execute("lxc network show lxdbr0")
         network_config = yaml.safe_load(raw_network_config)
@@ -59,7 +59,6 @@ class TestLxdBridge:
 
 def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
-    assert re.search(f"apt-get.*install.*{pkg_name}", log) is not None
     verify_clean_log(log, ignore_deprecations=False)
     return log
 
