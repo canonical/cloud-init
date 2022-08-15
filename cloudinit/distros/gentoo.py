@@ -68,13 +68,16 @@ class Distro(distros.Distro):
             settings,
             entries,
         )
-        dev_names = entries.keys()
+        dev_names = list(entries.keys())
         nameservers = []
+        nameserverssearch = []
 
         for (dev, info) in entries.items():
             dns_nameservers_fmt: str = ""
             if "dns-nameservers" in info:
                 nameservers.extend(info["dns-nameservers"])
+            if "dns-search" in info:
+                nameserverssearch.extend(info["dns-search"])
             if dev == "lo":
                 continue
             net_fn = self.network_conf_fn + "." + dev
@@ -126,8 +129,11 @@ class Distro(distros.Distro):
                     )
 
         if nameservers:
+            towrite = convert_resolv_conf(nameservers)
+            if nameserverssearch:
+                towrite = towrite + convert_resolv_conf_search(nameserverssearch)
             util.write_file(
-                self.resolve_conf_fn, convert_resolv_conf(nameservers)
+                self.resolve_conf_fn, towrite
             )
 
         return dev_names
@@ -220,7 +226,7 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        cmd = list("emerge")
+        cmd = ["emerge"]
         # Redirect output
         cmd.append("--quiet")
 
@@ -260,6 +266,14 @@ def convert_resolv_conf(settings):
         for ns in settings:
             result += "nameserver %s\n" % ns
     return result
+
+def convert_resolv_conf_search(settings):
+    """Returns a settings string formatted for resolv.conf."""
+    result = ""
+    if isinstance(settings, list):
+        for domain in settings:
+            result += " %s" % domain
+    return "domain" + result + "\n"
 
 
 # vi: ts=4 expandtab
