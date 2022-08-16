@@ -36,6 +36,12 @@ wireguard:
   readinessprobe:
     - ping -qc 5 192.168.254.1 2>&1 > /dev/null
     - echo $? > /tmp/ping
+
+# wg-quick configures the system interfaces and routes, but we need to ssh in
+# stop the service at the end of cloud-init
+runcmd:
+  - [systemctl, stop, wg-quick@wg0.service]
+  - [systemctl, stop, wg-quick@wg1.service]
 """
 
 
@@ -83,9 +89,15 @@ class TestWireguard:
                 "269196eb9916617969dc5220c1a90d54",
             ),
             # check if systemd started wg0
-            ("systemctl is-active wg-quick@wg0", "active"),
+            (
+                "systemctl is-failed wg-quick@wg0; test $? -eq 1",
+                "inactive",
+            ),
             # check if systemd started wg1
-            ("systemctl is-active wg-quick@wg1", "active"),
+            (
+                "systemctl is-failed wg-quick@wg1; test $? -eq 1",
+                "inactive",
+            ),
             # check readiness probe (ping wg0)
             ("cat /tmp/ping", "0"),
         ),
