@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Iterator, Type
+from typing import Dict, Generator, Iterator, Type
 
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
@@ -92,58 +92,18 @@ def disable_subp_usage(request):
     pass
 
 
-@contextmanager
-def _session_cloud(
-    request: pytest.FixtureRequest,
-) -> Iterator[IntegrationCloud]:
+@pytest.fixture(scope="session")
+def session_cloud() -> Generator[IntegrationCloud, None, None]:
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
-            "{} is an invalid PLATFORM specified in settings. "
-            "Must be one of {}".format(
-                integration_settings.PLATFORM, list(platforms.keys())
-            )
+            f"{integration_settings.PLATFORM} is an invalid PLATFORM "
+            f"specified in settings. Must be one of {list(platforms.keys())}"
         )
 
-    integration_cloud_marker = request.node.get_closest_marker(
-        "integration_cloud_args"
-    )
-    cloud_args = []
-    cloud_kwargs = {}
-    if integration_cloud_marker:
-        cloud_args = integration_cloud_marker.args
-        cloud_kwargs = integration_cloud_marker.kwargs
-    cloud = platforms[integration_settings.PLATFORM](
-        *cloud_args, **cloud_kwargs
-    )
+    cloud = platforms[integration_settings.PLATFORM]()
     cloud.emit_settings_to_log()
-
     yield cloud
-
     cloud.destroy()
-
-
-@pytest.fixture
-def session_cloud(
-    request: pytest.FixtureRequest,
-) -> Iterator[IntegrationCloud]:
-    with _session_cloud(request) as cloud:
-        yield cloud
-
-
-@pytest.fixture(scope="module")
-def module_session_cloud(
-    request: pytest.FixtureRequest,
-) -> Iterator[IntegrationCloud]:
-    with _session_cloud(request) as cloud:
-        yield cloud
-
-
-@pytest.fixture(scope="class")
-def class_session_cloud(
-    request: pytest.FixtureRequest,
-) -> Iterator[IntegrationCloud]:
-    with _session_cloud(request) as cloud:
-        yield cloud
 
 
 def get_validated_source(
@@ -166,12 +126,11 @@ def get_validated_source(
         return CloudInitSource.DEB_PACKAGE
     elif source == "UPGRADE":
         return CloudInitSource.UPGRADE
-    raise ValueError(
-        "Invalid value for CLOUD_INIT_SOURCE setting: {}".format(source)
-    )
+    raise ValueError(f"Invalid value for CLOUD_INIT_SOURCE setting: {source}")
 
 
-def _setup_image(session_cloud: IntegrationCloud, request):
+@pytest.fixture(scope="session")
+def setup_image(session_cloud: IntegrationCloud, request):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
@@ -191,21 +150,6 @@ def _setup_image(session_cloud: IntegrationCloud, request):
     # ValueError: setup_image did not yield a value
     # during setup so use a finalizer instead.
     request.addfinalizer(session_cloud.delete_snapshot)
-
-
-@pytest.fixture
-def setup_image(session_cloud: IntegrationCloud, request):
-    _setup_image(session_cloud, request)
-
-
-@pytest.fixture(scope="module")
-def module_setup_image(module_session_cloud: IntegrationCloud, request):
-    _setup_image(module_session_cloud, request)
-
-
-@pytest.fixture(scope="class")
-def class_setup_image(class_session_cloud: IntegrationCloud, request):
-    _setup_image(class_session_cloud, request)
 
 
 def _collect_logs(
@@ -329,19 +273,19 @@ def client(
 
 @pytest.fixture(scope="module")
 def module_client(
-    request, fixture_utils, module_session_cloud, module_setup_image
+    request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
-    with _client(request, fixture_utils, module_session_cloud) as client:
+    with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.fixture(scope="class")
 def class_client(
-    request, fixture_utils, class_session_cloud, class_setup_image
+    request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
-    with _client(request, fixture_utils, class_session_cloud) as client:
+    with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
