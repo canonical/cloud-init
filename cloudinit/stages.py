@@ -914,6 +914,9 @@ class Init(object):
             self._apply_netcfg_names(netcfg)
             return
 
+        # sync cache after update
+        self._write_to_cache()
+
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
 
