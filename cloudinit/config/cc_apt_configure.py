@@ -208,7 +208,10 @@ def apply_apt(cfg, cloud, target):
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
-    if util.is_false(cfg.get("preserve_sources_list", False)):
+    if util.is_true(cfg.get("generate_mirrorlists", False)):
+        generate_mirrorlists(cfg, mirrors, cloud)
+
+    elif util.is_false(cfg.get("preserve_sources_list", False)):
         add_mirror_keys(cfg, target)
         generate_sources_list(cfg, release, mirrors, cloud)
         rename_apt_lists(mirrors, target, arch)
@@ -471,6 +474,23 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     rendered = templater.render_string(tmpl, params)
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
     util.write_file(aptsrc, disabled, mode=0o644)
+
+
+def generate_mirrorlists(cfg, mirrors, cloud):
+    """generate_mirrorlists
+    create one file for every mirror for apt-transport-mirror(1)"""
+    aptmir = pathlib.Path("/etc/apt/mirrors")
+    util.ensure_dir(str(aptmir))
+    util.write_file(
+        str(aptmir / f"{cloud.distro.name}.list"),
+        f"{mirrors['PRIMARY']}\n",
+        mode=0o644,
+    )
+    util.write_file(
+        str(aptmir / f"{cloud.distro.name}-security.list"),
+        f"{mirrors['SECURITY']}\n",
+        mode=0o644,
+    )
 
 
 def add_apt_key_raw(key, file_name, hardened=False, target=None):

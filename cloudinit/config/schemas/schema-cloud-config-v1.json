@@ -402,6 +402,11 @@
               "default": false,
               "description": "By default, cloud-init will generate a new sources list in ``/etc/apt/sources.list.d`` based on any changes specified in cloud config. To disable this behavior and preserve the sources list from the pristine image, set ``preserve_sources_list`` to ``true``.\n\nThe ``preserve_sources_list`` option overrides all other config keys that would alter ``sources.list`` or ``sources.list.d``, **except** for additional sources to be added to ``sources.list.d``."
             },
+            "generate_mirrorlists": {
+              "type": "boolean",
+              "default": false,
+              "description": "Write lists for APT automated mirror selection (``apt-transport-mirror(1)``). It will write separate lists for both the PRIMARY and SECURITY mirror into ``/etc/apt/mirrors/${DIST}.list`` and ``/etc/apt/mirrors/${DIST}-security.list``.  Those can then be used in the APT source.list as ``mirror+file:///etc/apt/mirrors/${DIST}.list``. No ``/etc/apt/sources.list`` will be writte in this case."
+            },
             "disable_suites": {
               "type": "array",
               "items": {"type": "string"},
