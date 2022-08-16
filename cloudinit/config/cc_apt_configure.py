@@ -65,6 +65,7 @@ meta: MetaSchema = {
             - backports
             - $RELEASE
             - mysuite
+          default_release: devel
           primary:
             - arches:
                 - amd64
@@ -203,10 +204,20 @@ def apply_apt(cfg, cloud, target):
 
     LOG.debug("handling apt config: %s", cfg)
 
+    release_default = cfg.get("release_default")
     release = util.lsb_release(target=target)["codename"]
     arch = util.get_dpkg_architecture(target)
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
+
+    # lsb_release returns "n/a" if it can't find a codename
+    if release == "n/a":
+        if release_default:
+            LOG.debug("Release is not available, using default %s", release_default)
+            release = release_default
+        else:
+            LOG.warn("Release is not available, not changing apt config")
+            return
 
     if util.is_false(cfg.get("preserve_sources_list", False)):
         add_mirror_keys(cfg, target)

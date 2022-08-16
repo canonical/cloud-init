@@ -154,6 +154,52 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mock_isfile.assert_any_call(template)
         self.assertEqual(1, mock_shouldcfg.call_count)
 
+    def test_apt_v3_source_list_debian_default_release(self):
+        """test_apt_v3_source_list_debian_default_release - without custom sources or parms"""
+        rpatcher = mock.patch("cloudinit.util.lsb_release")
+        get_rel = rpatcher.start()
+        get_rel.return_value = {"codename": "n/a"}
+        self.addCleanup(rpatcher.stop)
+        cfg = {
+            'release_default': 'fakesid',
+        }
+        distro = "debian"
+        expected = EXPECTED_BASE_CONTENT
+
+        (
+            mock_writefile,
+            mock_load_file,
+            mock_isfile,
+            mock_shouldcfg,
+        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+
+        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+        mock_writefile.assert_called_once_with(
+            "/etc/apt/sources.list", expected, mode=0o644
+        )
+        mock_load_file.assert_called_with(template)
+        mock_isfile.assert_any_call(template)
+
+    def test_apt_v3_source_list_debian_unknown_release(self):
+        """test_apt_v3_source_list_debian_unknown_release - without custom sources or parms"""
+        rpatcher = mock.patch("cloudinit.util.lsb_release")
+        get_rel = rpatcher.start()
+        get_rel.return_value = {"codename": "n/a"}
+        self.addCleanup(rpatcher.stop)
+        cfg = {}
+        distro = "debian"
+        expected = EXPECTED_BASE_CONTENT
+
+        (
+            mock_writefile,
+            mock_load_file,
+            mock_isfile,
+            mock_shouldcfg,
+        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+
+        mock_writefile.assert_not_called()
+        self.assertEqual(1, mock_shouldcfg.call_count)
+
     def test_apt_v3_source_list_ubuntu(self):
         """test_apt_v3_source_list_ubuntu - without custom sources or parms"""
         cfg = {}
