@@ -7,23 +7,11 @@
         {
           "properties": {
             "version": {
-              "enum": [
-                "v1",
-                "22.2",
-                "22.2.1",
-                "22.2.2",
-                "22.3"
-              ]
+              "enum": [ "v1" ]
             }
           }
-        }
-      ],
-      "oneOf": [
-        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/schema-cloud-config-v1.json"},
-        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/22.2/cloudinit/config/schemas/schema-cloud-config-v1.json"},
-        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/22.2.1/cloudinit/config/schemas/schema-cloud-config-v1.json"},
-        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/22.2.2/cloudinit/config/schemas/schema-cloud-config-v1.json"},
-        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/22.3/cloudinit/config/schemas/schema-cloud-config-v1.json"}
+        },
+        {"$ref": "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/schema-cloud-config-v1.json"}
       ]
     }
   ]
