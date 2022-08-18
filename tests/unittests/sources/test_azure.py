@@ -93,16 +93,6 @@ def mock_chassis_asset_tag():
 
 
 @pytest.fixture
-def mock_device_driver():
-    with mock.patch(
-        MOCKPATH + "device_driver",
-        autospec=True,
-        return_value=None,
-    ) as m:
-        yield m
-
-
-@pytest.fixture
 def mock_generate_fallback_config():
     with mock.patch(
         MOCKPATH + "net.generate_fallback_config",
@@ -173,9 +163,19 @@ def mock_net_dhcp_EphemeralIPv4Network():
         yield m
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_get_interfaces():
-    with mock.patch(MOCKPATH + "net.get_interfaces", return_value=[]) as m:
+    with mock.patch(
+        MOCKPATH + "net.get_interfaces",
+        return_value=[
+            ("dummy0", "9e:65:d6:19:19:01", None, None),
+            ("enP3", "00:11:22:33:44:02", "unknown_accel", "0x3"),
+            ("eth0", "00:11:22:33:44:00", "hv_netvsc", "0x3"),
+            ("eth2", "00:11:22:33:44:01", "unknown", "0x3"),
+            ("eth3", "00:11:22:33:44:02", "unknown_with_unknown_vf", "0x3"),
+            ("lo", "00:00:00:00:00:00", None, None),
+        ],
+    ) as m:
         yield m
 
 
@@ -507,6 +507,116 @@ class TestGenerateNetworkConfig:
                 },
             ),
             (
+                "hv_netvsc driver",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "001122334400",
+                            "ipv6": {"ipAddress": []},
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"}
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {
+                                "macaddress": "00:11:22:33:44:00",
+                                "driver": "hv_netvsc",
+                            },
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "unknown",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "001122334401",
+                            "ipv6": {"ipAddress": []},
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"}
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {
+                                "macaddress": "00:11:22:33:44:01",
+                                "driver": "unknown",
+                            },
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "unknown with unknown matching VF",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "001122334402",
+                            "ipv6": {"ipAddress": []},
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"}
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {
+                                "macaddress": "00:11:22:33:44:02",
+                            },
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
                 "multiple interfaces with increasing route metric",
                 {
                     "interface": [
@@ -648,7 +758,7 @@ class TestGenerateNetworkConfig:
         ],
     )
     def test_parsing_scenarios(
-        self, label, mock_device_driver, metadata, expected
+        self, label, mock_get_interfaces, metadata, expected
     ):
         assert (
             dsaz.generate_network_config_from_instance_network_metadata(
@@ -656,27 +766,6 @@ class TestGenerateNetworkConfig:
             )
             == expected
         )
-
-    def test_match_hv_netvsc(self, mock_device_driver):
-        mock_device_driver.return_value = "hv_netvsc"
-
-        assert dsaz.generate_network_config_from_instance_network_metadata(
-            NETWORK_METADATA["network"]
-        ) == {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {
-                        "macaddress": "00:0d:3a:04:75:98",
-                        "driver": "hv_netvsc",
-                    },
-                    "set-name": "eth0",
-                }
-            },
-            "version": 2,
-        }
 
 
 class TestNetworkConfig:
@@ -693,7 +782,9 @@ class TestNetworkConfig:
         ],
     }
 
-    def test_single_ipv4_nic_configuration(self, azure_ds, mock_device_driver):
+    def test_single_ipv4_nic_configuration(
+        self, azure_ds, mock_get_interfaces
+    ):
         """Network config emits dhcp on single nic with ipv4"""
         expected = {
             "ethernets": {
@@ -712,7 +803,7 @@ class TestNetworkConfig:
         assert azure_ds.network_config == expected
 
     def test_uses_fallback_cfg_when_apply_network_config_is_false(
-        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+        self, azure_ds, mock_generate_fallback_config
     ):
         azure_ds.ds_cfg["apply_network_config"] = False
         azure_ds._metadata_imds = NETWORK_METADATA
@@ -721,7 +812,7 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
     def test_uses_fallback_cfg_when_imds_metadata_unset(
-        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+        self, azure_ds, mock_generate_fallback_config
     ):
         azure_ds._metadata_imds = UNSET
         mock_generate_fallback_config.return_value = self.fallback_config
@@ -729,7 +820,7 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
     def test_uses_fallback_cfg_when_no_network_metadata(
-        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+        self, azure_ds, mock_generate_fallback_config
     ):
         """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
@@ -745,7 +836,7 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
     def test_uses_fallback_cfg_when_no_interface_metadata(
-        self, azure_ds, mock_device_driver, mock_generate_fallback_config
+        self, azure_ds, mock_generate_fallback_config
     ):
         """Network config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
@@ -1062,13 +1153,6 @@ scbus-1 on xpt0 bus 0
 
         self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
-        self.m_get_interfaces = mock.MagicMock(
-            return_value=[
-                ("dummy0", "9e:65:d6:19:19:01", None, None),
-                ("eth0", "00:15:5d:69:63:ba", "hv_netvsc", "0x3"),
-                ("lo", "00:00:00:00:00:00", None, None),
-            ]
-        )
         self.m_list_possible_azure_ds = mock.MagicMock(
             side_effect=_load_possible_azure_ds
         )
@@ -1111,11 +1195,6 @@ scbus-1 on xpt0 bus 0
                     dsaz.net,
                     "get_interface_mac",
                     mock.MagicMock(return_value="00:15:5d:69:63:ba"),
-                ),
-                (
-                    dsaz.net,
-                    "get_interfaces",
-                    self.m_get_interfaces,
                 ),
                 (dsaz.subp, "which", lambda x: True),
                 (
@@ -1529,10 +1608,7 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(os.path.isdir(self.waagent_d))
         self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_network_config_set_from_imds(self, m_driver):
+    def test_network_config_set_from_imds(self):
         """Datasource.network_config returns IMDS network data."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1555,12 +1631,7 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_network_config_set_from_imds_route_metric_for_secondary_nic(
-        self, m_driver
-    ):
+    def test_network_config_set_from_imds_route_metric_for_secondary_nic(self):
         """Datasource.network_config adds route-metric to secondary nics."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1606,12 +1677,7 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.device_driver", return_value=None
-    )
-    def test_network_config_set_from_imds_for_secondary_nic_no_ip(
-        self, m_driver
-    ):
+    def test_network_config_set_from_imds_for_secondary_nic_no_ip(self):
         """If an IP address is empty then there should no config for it."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -2149,7 +2215,7 @@ scbus-1 on xpt0 bus 0
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list
         )
 
-    @mock.patch(MOCKPATH + "net.get_interfaces", autospec=True)
+    @mock.patch(MOCKPATH + "net.get_interfaces")
     def test_blacklist_through_distro(self, m_net_get_interfaces):
         """Verify Azure DS updates blacklist drivers in the distro's
         networking object."""
@@ -2167,7 +2233,7 @@ scbus-1 on xpt0 bus 0
         )
 
         distro.networking.get_interfaces_by_mac()
-        self.m_get_interfaces.assert_called_with(
+        m_net_get_interfaces.assert_called_with(
             blacklist_drivers=dsaz.BLACKLIST_DRIVERS
         )
 
