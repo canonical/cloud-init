@@ -65,12 +65,12 @@ def handle_args(name, args):
 
     @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not run.
     """
-    status, _status_details, _time = get_status_details()
-    if status == UXAppStatus.DISABLED:
-        sys.stdout.write("{0}\n".format(status.value))
+    status_details = get_status_details()
+    if status_details.status == UXAppStatus.DISABLED:
+        sys.stdout.write("{0}\n".format(status_details.status.value))
         return 2
-    elif status == UXAppStatus.NOT_RUN:
-        sys.stdout.write("{0}\n".format(status.value))
+    elif status_details.status == UXAppStatus.NOT_RUN:
+        sys.stdout.write("{0}\n".format(status_details.status.value))
         return 3
 
     try:
@@ -92,6 +92,7 @@ def handle_args(name, args):
         v1.get("platform", METADATA_UNKNOWN),
     )
     if args.json:
+        sys.stderr.write("DEPRECATED: Use: cloud-init query v1\n")
         v1["cloud_id"] = cloud_id
         response = json.dumps(  # Pretty, sorted json
             v1, indent=1, sort_keys=True, separators=(",", ": ")
