@@ -169,15 +169,10 @@ def mock_get_interfaces():
         MOCKPATH + "net.get_interfaces",
         return_value=[
             ("dummy0", "9e:65:d6:19:19:01", None, None),
-            ("enP0", "00:11:22:33:44:00", "mlx4_core", "0x3"),
-            ("enP1", "00:11:22:33:44:01", "mlx5_core", "0x3"),
-            ("enP2", "00:11:22:33:44:02", "mlx5_core", "0x3"),
-            ("enP3", "00:11:22:33:44:03", "unknown_accel", "0x3"),
+            ("enP3", "00:11:22:33:44:02", "unknown_accel", "0x3"),
             ("eth0", "00:11:22:33:44:00", "hv_netvsc", "0x3"),
-            ("eth1", "00:11:22:33:44:01", "hv_netvsc", "0x3"),
-            ("eth2", "00:11:22:33:44:02", "unknown_with_known_vf", "0x3"),
-            ("eth3", "00:11:22:33:44:03", "unknown_with_unknown_vf", "0x3"),
-            ("eth4", "00:11:22:33:44:04", "unknown_without_vf", "0x3"),
+            ("eth2", "00:11:22:33:44:01", "unknown", "0x3"),
+            ("eth3", "00:11:22:33:44:02", "unknown_with_unknown_vf", "0x3"),
             ("lo", "00:00:00:00:00:00", None, None),
         ],
     ) as m:
@@ -549,7 +544,44 @@ class TestGenerateNetworkConfig:
                 },
             ),
             (
-                "unknown with known matching VF",
+                "unknown",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "001122334401",
+                            "ipv6": {"ipAddress": []},
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"}
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                },
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {
+                                "macaddress": "00:11:22:33:44:01",
+                                "driver": "unknown",
+                            },
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "unknown with unknown matching VF",
                 {
                     "interface": [
                         {
@@ -577,80 +609,6 @@ class TestGenerateNetworkConfig:
                             "dhcp6": False,
                             "match": {
                                 "macaddress": "00:11:22:33:44:02",
-                                "driver": "unknown_with_known_vf",
-                            },
-                            "set-name": "eth0",
-                        }
-                    },
-                    "version": 2,
-                },
-            ),
-            (
-                "unknown with unknown matching VF",
-                {
-                    "interface": [
-                        {
-                            "macAddress": "001122334403",
-                            "ipv6": {"ipAddress": []},
-                            "ipv4": {
-                                "subnet": [
-                                    {"prefix": "24", "address": "10.0.0.0"}
-                                ],
-                                "ipAddress": [
-                                    {
-                                        "privateIpAddress": "10.0.0.4",
-                                        "publicIpAddress": "104.46.124.81",
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
-                {
-                    "ethernets": {
-                        "eth0": {
-                            "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 100},
-                            "dhcp6": False,
-                            "match": {
-                                "macaddress": "00:11:22:33:44:03",
-                            },
-                            "set-name": "eth0",
-                        }
-                    },
-                    "version": 2,
-                },
-            ),
-            (
-                "unknown without matching VF",
-                {
-                    "interface": [
-                        {
-                            "macAddress": "001122334404",
-                            "ipv6": {"ipAddress": []},
-                            "ipv4": {
-                                "subnet": [
-                                    {"prefix": "24", "address": "10.0.0.0"}
-                                ],
-                                "ipAddress": [
-                                    {
-                                        "privateIpAddress": "10.0.0.4",
-                                        "publicIpAddress": "104.46.124.81",
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
-                {
-                    "ethernets": {
-                        "eth0": {
-                            "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 100},
-                            "dhcp6": False,
-                            "match": {
-                                "macaddress": "00:11:22:33:44:04",
-                                "driver": "unknown_without_vf",
                             },
                             "set-name": "eth0",
                         }

@@ -210,11 +210,11 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
 @azure_ds_telemetry_reporter
 def determine_device_driver_for_mac(mac: str) -> Optional[str]:
     """Determine the device driver to match on, if any."""
-    interfaces = [
-        i for i in net.get_interfaces() if mac == normalize_mac_address(i[1])
+    drivers = [
+        i[2]
+        for i in net.get_interfaces(blacklist_drivers=BLACKLIST_DRIVERS)
+        if mac == normalize_mac_address(i[1])
     ]
-    drivers = [i[2] for i in interfaces if i[2] not in BLACKLIST_DRIVERS]
-
     if "hv_netvsc" in drivers:
         return "hv_netvsc"
 
