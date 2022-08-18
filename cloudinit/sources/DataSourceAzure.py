@@ -22,7 +22,6 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
@@ -206,6 +205,33 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
         for n in net.get_interfaces()
         if n[2] == "hv_netvsc"
     ]
+
+
+@azure_ds_telemetry_reporter
+def determine_device_driver_for_mac(mac: str) -> Optional[str]:
+    """Determine the device driver to match on, if any."""
+    interfaces = [
+        i for i in net.get_interfaces() if mac == normalize_mac_address(i[1])
+    ]
+    drivers = [i[2] for i in interfaces if i[2] not in BLACKLIST_DRIVERS]
+
+    if "hv_netvsc" in drivers:
+        return "hv_netvsc"
+
+    if len(drivers) == 1:
+        report_diagnostic_event(
+            "Assuming driver for interface with mac=%s drivers=%r"
+            % (mac, drivers),
+            logger_func=LOG.debug,
+        )
+        return drivers[0]
+
+    report_diagnostic_event(
+        "Unable to specify driver for interface with mac=%s drivers=%r"
+        % (mac, drivers),
+        logger_func=LOG.warning,
+    )
+    return None
 
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
@@ -2036,11 +2062,8 @@ def generate_network_config_from_instance_network_metadata(
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
-            # With netvsc, we can get two interfaces that
-            # share the same MAC, so we need to make sure
-            # our match condition also contains the driver
-            driver = device_driver(nicname)
-            if driver and driver == "hv_netvsc":
+            driver = determine_device_driver_for_mac(mac)
+            if driver:
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
             continue
