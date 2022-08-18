@@ -2059,9 +2059,7 @@ def generate_network_config_from_instance_network_metadata(
                 )
         if dev_config and has_ip_address:
             mac = normalize_mac_address(intf["macAddress"])
-            dev_config.update(
-                {"match": {"macaddress": mac.lower()}, "set-name": nicname}
-            )
+            dev_config.update({"match": {"macaddress": mac.lower()}})
             driver = determine_device_driver_for_mac(mac)
             if driver:
                 dev_config["match"]["driver"] = driver

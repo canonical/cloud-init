@@ -500,7 +500,6 @@ class TestGenerateNetworkConfig:
                             "dhcp4-overrides": {"route-metric": 100},
                             "dhcp6": False,
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -537,7 +536,6 @@ class TestGenerateNetworkConfig:
                                 "macaddress": "00:11:22:33:44:00",
                                 "driver": "hv_netvsc",
                             },
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -574,7 +572,6 @@ class TestGenerateNetworkConfig:
                                 "macaddress": "00:11:22:33:44:01",
                                 "driver": "unknown",
                             },
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -610,7 +607,6 @@ class TestGenerateNetworkConfig:
                             "match": {
                                 "macaddress": "00:11:22:33:44:02",
                             },
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -645,17 +641,14 @@ class TestGenerateNetworkConfig:
                             "dhcp4-overrides": {"route-metric": 100},
                             "dhcp6": False,
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
-                            "set-name": "eth0",
                         },
                         "eth1": {
-                            "set-name": "eth1",
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
                             "dhcp4-overrides": {"route-metric": 200},
                         },
                         "eth2": {
-                            "set-name": "eth2",
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
@@ -713,7 +706,6 @@ class TestGenerateNetworkConfig:
                             "dhcp6": True,
                             "dhcp6-overrides": {"route-metric": 100},
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -749,7 +741,6 @@ class TestGenerateNetworkConfig:
                             "dhcp6": True,
                             "dhcp6-overrides": {"route-metric": 100},
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
-                            "set-name": "eth0",
                         }
                     },
                     "version": 2,
@@ -793,7 +784,6 @@ class TestNetworkConfig:
                     "dhcp4-overrides": {"route-metric": 100},
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
                 }
             },
             "version": 2,
@@ -1618,7 +1608,6 @@ scbus-1 on xpt0 bus 0
         expected_network_config = {
             "ethernets": {
                 "eth0": {
-                    "set-name": "eth0",
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
@@ -1641,21 +1630,18 @@ scbus-1 on xpt0 bus 0
         expected_network_config = {
             "ethernets": {
                 "eth0": {
-                    "set-name": "eth0",
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
                 },
                 "eth1": {
-                    "set-name": "eth1",
                     "match": {"macaddress": "22:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 200},
                 },
                 "eth2": {
-                    "set-name": "eth2",
                     "match": {"macaddress": "33:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
@@ -1687,7 +1673,6 @@ scbus-1 on xpt0 bus 0
         expected_network_config = {
             "ethernets": {
                 "eth0": {
-                    "set-name": "eth0",
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
