@@ -604,6 +604,26 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    def test_detect_openstack_huaweicloud_chassis_asset_tag(
+        self, m_dmi, m_is_x86
+    ):
+        """Return True on OpenStack reporting Huawei Cloud VM asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_asset_tag_dmi_read(dmi_key):
+            if dmi_key == "system-product-name":
+                return "c7.large.2"  # No match
+            if dmi_key == "chassis-asset-tag":
+                return "HUAWEICLOUD"
+            assert False, "Unexpected dmi read of %s" % dmi_key
+
+        m_dmi.side_effect = fake_asset_tag_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            "Expected detect_openstack == True on Huawei Cloud VM",
+        )
+
+    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_detect_openstack_oraclecloud_chassis_asset_tag(
         self, m_dmi, m_is_x86
     ):
