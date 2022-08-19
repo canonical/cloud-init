@@ -9,6 +9,7 @@ import re
 import sys
 import textwrap
 from collections import defaultdict
+from collections.abc import Iterable
 from copy import deepcopy
 from functools import partial
 from itertools import chain
@@ -17,7 +18,7 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 import yaml
 
 from cloudinit import importer, safeyaml
-from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.stages import Init
 from cloudinit.util import error, get_modules_from_dir, load_file
 
 try:
@@ -63,6 +64,7 @@ SCHEMA_LIST_ITEM_TMPL = (
 SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
 DEPRECATED_KEY = "deprecated"
+DEPRECATED_PREFIX = "DEPRECATED: "
 
 
 # type-annotate only if type-checking.
@@ -162,11 +164,10 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecation_msg(description: Optional[str] = None):
-    msg = "DEPRECATED."
+def _add_deprecation_msg(description: Optional[str] = None) -> str:
     if description:
-        msg += f" {description}"
-    return msg
+        return f"{DEPRECATED_PREFIX}{description}"
+    return DEPRECATED_PREFIX.replace(":", ".").strip()
 
 
 def _validator_deprecated(
@@ -616,9 +617,10 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                 "Unable to read system userdata as non-root user."
                 " Try using sudo"
             )
-        paths = read_cfg_paths()
-        user_data_file = paths.get_ipath_cur("userdata_raw")
-        content = load_file(user_data_file, decode=False)
+        init = Init(ds_deps=[])
+        init.fetch(existing="trust")
+        init.consume_data()
+        content = load_file(init.paths.get_ipath("cloud_config"), decode=False)
     else:
         if not os.path.exists(config_path):
             raise RuntimeError(
@@ -715,6 +717,31 @@ def _sort_property_order(value):
     return 0
 
 
+def _flatten(xs):
+    for x in xs:
+        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+            yield from _flatten(x)
+        else:
+            yield x
+
+
+def _collect_subschema_types(property_dict: dict, multi_key: str) -> List[str]:
+    property_types = []
+    for subschema in property_dict.get(multi_key, {}):
+        if subschema.get(DEPRECATED_KEY):  # don't document deprecated types
+            continue
+        if subschema.get("enum"):
+            property_types.extend(
+                [
+                    f"``{_YAML_MAP.get(enum_value, enum_value)}``"
+                    for enum_value in subschema.get("enum", [])
+                ]
+            )
+        elif subschema.get("type"):
+            property_types.append(subschema["type"])
+    return list(_flatten(property_types))
+
+
 def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
@@ -723,18 +750,15 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     property_types = property_dict.get("type", [])
     if not isinstance(property_types, list):
         property_types = [property_types]
+    # A property_dict cannot have simultaneously more than one of these props
     if property_dict.get("enum"):
         property_types = [
             f"``{_YAML_MAP.get(k, k)}``" for k in property_dict["enum"]
         ]
     elif property_dict.get("oneOf"):
-        property_types.extend(
-            [
-                subschema["type"]
-                for subschema in property_dict.get("oneOf", {})
-                if subschema.get("type")
-            ]
-        )
+        property_types.extend(_collect_subschema_types(property_dict, "oneOf"))
+    elif property_dict.get("anyOf"):
+        property_types.extend(_collect_subschema_types(property_dict, "anyOf"))
     if len(property_types) == 1:
         property_type = property_types[0]
     else:
@@ -745,8 +769,14 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     if not isinstance(sub_property_types, list):
         sub_property_types = [sub_property_types]
     # Collect each item type
-    for sub_item in items.get("oneOf", {}):
-        sub_property_types.append(_get_property_type(sub_item, defs))
+    prune_undefined = bool(sub_property_types)
+    for sub_item in chain(items.get("oneOf", {}), items.get("anyOf", {})):
+        sub_type = _get_property_type(sub_item, defs)
+        if prune_undefined and sub_type == "UNDEFINED":
+            # If the main object has a type, then sub-schemas are allowed to
+            # omit the type. Prune subschema undefined types.
+            continue
+        sub_property_types.append(sub_type)
     if sub_property_types:
         if len(sub_property_types) == 1:
             return f"{property_type} of {sub_property_types[0]}"
@@ -817,6 +847,45 @@ def _flatten_schema_all_of(src_cfg: dict):
         src_cfg.update(sub_schema)
 
 
+def _get_property_description(prop_config: dict) -> str:
+    """Return accumulated property description.
+
+    Account for the following keys:
+    - top-level description key
+    - any description key present in each subitem under anyOf or allOf
+
+    Order and deprecated property description after active descriptions.
+    Add a trailing stop "." to any description not ending with ":".
+    """
+    prop_descr = prop_config.get("description", "")
+    oneOf = prop_config.get("oneOf", {})
+    anyOf = prop_config.get("anyOf", {})
+    descriptions = []
+    deprecated_descriptions = []
+    if prop_descr:
+        prop_descr = prop_descr.rstrip(".")
+        if not prop_config.get(DEPRECATED_KEY):
+            descriptions.append(prop_descr)
+        else:
+            deprecated_descriptions.append(_add_deprecation_msg(prop_descr))
+    for sub_item in chain(oneOf, anyOf):
+        if not sub_item.get("description"):
+            continue
+        if not sub_item.get(DEPRECATED_KEY):
+            descriptions.append(sub_item["description"].rstrip("."))
+        else:
+            deprecated_descriptions.append(
+                f"{DEPRECATED_PREFIX}{sub_item['description'].rstrip('.')}"
+            )
+    # order deprecated descrs last
+    description = ". ".join(chain(descriptions, deprecated_descriptions))
+    if description:
+        description = f" {description}"
+        if description[-1] != ":":
+            description += "."
+    return description
+
+
 def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + "    "
@@ -837,12 +906,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 
-            deprecated = bool(prop_config.get(DEPRECATED_KEY))
-            description = prop_config.get("description", "")
-            if deprecated:
-                description = _add_deprecation_msg(description)
-            if description:
-                description = " " + description
+            description = _get_property_description(prop_config)
 
             # Define prop_name and description for SCHEMA_PROPERTY_TMPL
             label = prop_config.get("label", prop_key)

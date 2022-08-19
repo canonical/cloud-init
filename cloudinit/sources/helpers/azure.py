@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
 from time import sleep, time
-from typing import List, Optional
+from typing import List, Optional, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -363,8 +363,16 @@ def http_with_retries(
                 % (url, attempt, e, e.code, e.headers),
                 logger_func=LOG.debug,
             )
-            # Raise exception if we're out of time.
-            if time() + retry_sleep >= timeout:
+            # Raise exception if we're out of time or network is unreachable.
+            # If network is unreachable:
+            # - retries will not resolve the situation
+            # - for reporting ready for PPS, this generally means VM was put
+            #   to sleep or network interface was unplugged before we see
+            #   the call complete successfully.
+            if (
+                time() + retry_sleep >= timeout
+                or "Network is unreachable" in str(e)
+            ):
                 raise
 
         sleep(retry_sleep)
@@ -448,7 +456,7 @@ class InvalidGoalStateXMLException(Exception):
 class GoalState:
     def __init__(
         self,
-        unparsed_xml: str,
+        unparsed_xml: Union[str, bytes],
         azure_endpoint_client: AzureEndpointHttpClient,
         need_certificate: bool = True,
     ) -> None:
@@ -888,7 +896,7 @@ class WALinuxAgentShim:
         )
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self) -> str:
+    def _get_raw_goal_state_xml_from_azure(self) -> bytes:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -916,7 +924,9 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def _parse_raw_goal_state_xml(
-        self, unparsed_goal_state_xml: str, need_certificate: bool
+        self,
+        unparsed_goal_state_xml: Union[str, bytes],
+        need_certificate: bool,
     ) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 

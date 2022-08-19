@@ -10,7 +10,7 @@ import time
 
 from cloudinit import log, reporting, stages
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators, read_sys_net_safe
+from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.sources import DataSource, DataSourceNotFoundException
@@ -132,7 +132,7 @@ class NetHandler(UeventHandler):
             bring_up=False,
         )
         interface_name = os.path.basename(self.devpath)
-        activator = activators.select_activator()
+        activator = self.datasource.distro.network_activator()
         if self.action == "add":
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(

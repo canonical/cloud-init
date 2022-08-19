@@ -9,7 +9,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    CiTestCase,
+    does_not_raise,
+    mock,
+    skipUnlessJsonSchema,
+)
 
 MODPATH = "cloudinit.config.cc_users_groups"
 
@@ -298,54 +303,74 @@ class TestHandleUsersGroups(CiTestCase):
 
 class TestUsersGroupsSchema:
     @pytest.mark.parametrize(
-        "config, problem_msg, has_errors",
+        "config, expectation, has_errors",
         [
             # Validate default settings not covered by examples
-            ({"groups": ["anygrp"]}, None, False),
-            ({"groups": "anygrp,anyothergroup"}, None, False),  # DEPRECATED
+            ({"groups": ["anygrp"]}, does_not_raise(), None),
+            (
+                {"groups": "anygrp,anyothergroup"},
+                does_not_raise(),
+                None,
+            ),  # DEPRECATED
             # Create anygrp with user1 as member
-            ({"groups": [{"anygrp": "user1"}]}, None, False),
+            ({"groups": [{"anygrp": "user1"}]}, does_not_raise(), None),
             # Create anygrp with user1 as member using object/string syntax
-            ({"groups": {"anygrp": "user1"}}, None, False),
+            ({"groups": {"anygrp": "user1"}}, does_not_raise(), None),
             # Create anygrp with user1 as member using object/list syntax
-            ({"groups": {"anygrp": ["user1"]}}, None, False),
-            ({"groups": [{"anygrp": ["user1", "user2"]}]}, None, False),
+            ({"groups": {"anygrp": ["user1"]}}, does_not_raise(), None),
+            (
+                {"groups": [{"anygrp": ["user1", "user2"]}]},
+                does_not_raise(),
+                None,
+            ),
             # Make default username "olddefault": DEPRECATED
-            ({"user": "olddefault"}, None, False),
+            ({"user": "olddefault"}, does_not_raise(), None),
             # Create multiple users, and include default user. DEPRECATED
-            ({"users": [{"name": "bbsw"}]}, None, False),
+            ({"users": [{"name": "bbsw"}]}, does_not_raise(), None),
             (
                 {"users": [{"name": "bbsw", "garbage-key": None}]},
-                "is not valid under any of the given schemas",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="is not valid under any of the given schemas",
+                ),
                 True,
             ),
             (
                 {"groups": {"": "bbsw"}},
-                "does not match any of the regexes",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="does not match any of the regexes",
+                ),
                 True,
             ),
             (
                 {"users": [{"name": "bbsw", "groups": ["anygrp"]}]},
+                does_not_raise(),
                 None,
-                False,
             ),  # user with a list of groups
-            ({"groups": [{"yep": ["user1"]}]}, None, False),
-            ({"users": "oldstyle,default"}, None, False),
-            ({"users": ["default"]}, None, False),
-            ({"users": ["default", ["aaa", "bbb"]]}, None, False),
-            ({"users": ["foobar"]}, None, False),  # no default user creation
+            ({"groups": [{"yep": ["user1"]}]}, does_not_raise(), None),
+            ({"users": "oldstyle,default"}, does_not_raise(), None),
+            ({"users": ["default"]}, does_not_raise(), None),
+            ({"users": ["default", ["aaa", "bbb"]]}, does_not_raise(), None),
+            # no default user creation
+            ({"users": ["foobar"]}, does_not_raise(), None),
             (
                 {"users": [{"name": "bbsw", "lock-passwd": True}]},
-                "users.0.lock-passwd: DEPRECATED."
-                " Dropped after April 2027. Use ``lock_passwd``."
-                " Default: ``true``",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "users.0.lock-passwd: DEPRECATED."
+                        " Dropped after April 2027. Use ``lock_passwd``."
+                        " Default: ``true``"
+                    ),
+                ),
                 False,
             ),
             # users.groups supports comma-delimited str, list and object type
             (
                 {"users": [{"name": "bbsw", "groups": "adm, sudo"}]},
+                does_not_raise(),
                 None,
-                False,
             ),
             (
                 {
@@ -353,28 +378,42 @@ class TestUsersGroupsSchema:
                         {"name": "bbsw", "groups": {"adm": None, "sudo": None}}
                     ]
                 },
-                "Cloud config schema deprecations: users.0.groups.adm:"
-                " DEPRECATED. When providing an object for"
-                " users.groups the ``<group_name>`` keys are the groups to"
-                " add this user to,",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "Cloud config schema deprecations: users.0.groups.adm:"
+                        " DEPRECATED. When providing an object for"
+                        " users.groups the ``<group_name>`` keys are the"
+                        " groups to add this user to,"
+                    ),
+                ),
                 False,
             ),
-            ({"groups": [{"yep": ["user1"]}]}, None, False),
+            ({"groups": [{"yep": ["user1"]}]}, does_not_raise(), None),
             (
                 {"user": ["no_list_allowed"]},
-                re.escape("user: ['no_list_allowed'] is not valid "),
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape("user: ['no_list_allowed'] is not valid "),
+                ),
                 True,
             ),
             (
                 {"groups": {"anygrp": 1}},
-                "groups.anygrp: 1 is not of type 'string', 'array'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="groups.anygrp: 1 is not of type 'string', 'array'",
+                ),
                 True,
             ),
             (
                 {
                     "users": [{"inactive": True, "name": "cloudy"}],
                 },
-                "errors: users.0: {'inactive': True",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="errors: users.0: {'inactive': True",
+                ),
                 True,
             ),
             (
@@ -387,27 +426,67 @@ class TestUsersGroupsSchema:
                         }
                     ]
                 },
+                does_not_raise(),
                 None,
-                False,
             ),
             (
                 {"user": {"name": "aciba", "groups": {"sbuild": None}}},
-                (
-                    "deprecations: user.groups.sbuild: DEPRECATED. "
-                    "When providing an object for users.groups the "
-                    "``<group_name>`` keys are the groups to add this user to"
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: user.groups.sbuild: DEPRECATED. "
+                        "When providing an object for users.groups the "
+                        "``<group_name>`` keys are the groups to add this "
+                        "user to"
+                    ),
                 ),
                 False,
+            ),
+            (
+                {"user": {"name": "mynewdefault", "sudo": False}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: user.sudo: DEPRECATED. The value"
+                        " ``false`` will be dropped after April 2027."
+                        " Use ``null`` or no ``sudo`` key instead."
+                    ),
+                ),
+                False,
+            ),
+            (
+                {"user": {"name": "mynewdefault", "sudo": None}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"users": [{"name": "a", "uid": "1743"}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "users.0.uid: DEPRECATED. The use of ``string`` type"
+                        " will be dropped after April 2027. Use an ``integer``"
+                        " instead."
+                    ),
+                ),
+                False,
+            ),
+            (
+                {"users": [{"name": "a", "expiredate": "2038,1,19"}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "users.0: {'name': 'a', 'expiredate': '2038,1,19'}"
+                        " is not valid under any of the given schemas"
+                    ),
+                ),
+                True,
             ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, problem_msg, has_errors):
-        if problem_msg is None:
+    def test_schema_validation(self, config, expectation, has_errors):
+        with expectation as exc_info:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-        else:
-            with pytest.raises(
-                SchemaValidationError, match=problem_msg
-            ) as exc_info:
-                validate_cloudconfig_schema(config, get_schema(), strict=True)
-            assert has_errors == exc_info.value.has_errors()
+            if has_errors is not None:
+                assert has_errors == exc_info.value.has_errors()

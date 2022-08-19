@@ -20,7 +20,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    TestCase,
+    does_not_raise,
+    skipUnlessJsonSchema,
+)
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -591,37 +595,65 @@ class Bunch(object):
 
 class TestGrowpartSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         (
-            ({"growpart": {"mode": "off"}}, None),
-            ({"growpart": {"mode": False}}, None),
+            ({"growpart": {"mode": "off"}}, does_not_raise()),
+            (
+                {"growpart": {"mode": False}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "deprecations: growpart.mode: DEPRECATED. Specifying"
+                        " a boolean ``false`` value for this key is"
+                        " deprecated. Use ``off`` instead."
+                    ),
+                ),
+            ),
             (
                 {"growpart": {"mode": "false"}},
-                "'false' is not one of "
-                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "growpart.mode: 'false' is not valid under any of the"
+                        " given schemas"
+                    ),
+                ),
             ),
             (
                 {"growpart": {"mode": "a"}},
-                "'a' is not one of "
-                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "growpart.mode: 'a' is not valid under any of the"
+                        " given schemas"
+                    ),
+                ),
             ),
-            ({"growpart": {"devices": "/"}}, "'/' is not of type 'array'"),
+            (
+                {"growpart": {"devices": "/"}},
+                pytest.raises(
+                    SchemaValidationError, match="'/' is not of type 'array'"
+                ),
+            ),
             (
                 {"growpart": {"ignore_growroot_disabled": "off"}},
-                "'off' is not of type 'boolean'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="'off' is not of type 'boolean'",
+                ),
             ),
             (
                 {"growpart": {"a": "b"}},
-                "Additional properties are not allowed",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="Additional properties are not allowed",
+                ),
             ),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(self, config, expectation):
         """Assert expected schema validation and error messages."""
         schema = get_schema()
-        if error_msg is None:
+        with expectation:
             validate_cloudconfig_schema(config, schema, strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, schema, strict=True)

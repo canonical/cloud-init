@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import traceback
+from typing import Tuple
 
 from cloudinit import patcher
 from cloudinit.config.modules import Modules
@@ -143,7 +144,7 @@ def parse_cmdline_url(cmdline, names=("cloud-config-url", "url")):
     raise KeyError("No keys (%s) found in string '%s'" % (cmdline, names))
 
 
-def attempt_cmdline_url(path, network=True, cmdline=None):
+def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     """Write data from url referenced in command line to path.
 
     path: a file to write content to if downloaded.
@@ -190,7 +191,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
 
         return (level, m)
 
-    kwargs = {"url": url, "timeout": 10, "retries": 2}
+    kwargs = {"url": url, "timeout": 10, "retries": 2, "stream": True}
     if network or path_is_local:
         level = logging.WARN
         kwargs["sec_between"] = 1
@@ -202,22 +203,43 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     header = b"#cloud-config"
     try:
         resp = url_helper.read_file_or_url(**kwargs)
+        sniffed_content = b""
         if resp.ok():
-            data = resp.contents
-            if not resp.contents.startswith(header):
+            is_cloud_cfg = True
+            if isinstance(resp, url_helper.UrlResponse):
+                try:
+                    sniffed_content += next(
+                        resp.iter_content(chunk_size=len(header))
+                    )
+                except StopIteration:
+                    pass
+                if not sniffed_content.startswith(header):
+                    is_cloud_cfg = False
+            elif not resp.contents.startswith(header):
+                is_cloud_cfg = False
+            if is_cloud_cfg:
+                if cmdline_name == "url":
+                    LOG.warning(
+                        "DEPRECATED: `url` kernel command line key is"
+                        " deprecated for providing cloud-config via URL."
+                        " Please use `cloud-config-url` kernel command line"
+                        " parameter instead"
+                    )
+            else:
                 if cmdline_name == "cloud-config-url":
                     level = logging.WARN
                 else:
                     level = logging.INFO
                 return (
                     level,
-                    "contents of '%s' did not start with %s" % (url, header),
+                    f"contents of '{url}' did not start with {str(header)}",
                 )
         else:
             return (
                 level,
                 "url '%s' returned code %s. Ignoring." % (url, resp.code),
             )
+        data = sniffed_content + resp.contents
 
     except url_helper.UrlError as e:
         return (level, "retrieving url '%s' failed: %s" % (url, e))
@@ -787,7 +809,7 @@ def _maybe_persist_instance_data(init):
             init.paths.run_dir, sources.INSTANCE_JSON_FILE
         )
         if not os.path.exists(instance_data_file):
-            init.datasource.persist_instance_data()
+            init.datasource.persist_instance_data(write_cache=False)
 
 
 def _maybe_set_hostname(init, stage, retry_stage):

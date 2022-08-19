@@ -6,7 +6,6 @@
 
 import copy
 import os
-import pickle
 import sys
 from collections import namedtuple
 from typing import Dict, Iterable, List, Optional, Set
@@ -247,7 +246,7 @@ class Init(object):
         # We try to restore from a current link and static path
         # by using the instance link, if purge_cache was called
         # the file wont exist.
-        return _pkl_load(self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
         if self.datasource is None:
@@ -260,7 +259,9 @@ class Init(object):
                 omode="w",
                 content="",
             )
-        return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_store(
+            self.datasource, self.paths.get_ipath_cur("obj_pkl")
+        )
 
     def _get_datasources(self):
         # Any config provided???
@@ -971,40 +972,6 @@ def fetch_base_config():
         ],
         reverse=True,
     )
-
-
-def _pkl_store(obj, fname):
-    try:
-        pk_contents = pickle.dumps(obj)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource %s", obj)
-        return False
-    try:
-        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource to %s", fname)
-        return False
-    return True
-
-
-def _pkl_load(fname):
-    pickle_contents = None
-    try:
-        pickle_contents = util.load_file(fname, decode=False)
-    except Exception as e:
-        if os.path.isfile(fname):
-            LOG.warning("failed loading pickle in %s: %s", fname, e)
-
-    # This is allowed so just return nothing successfully loaded...
-    if not pickle_contents:
-        return None
-    try:
-        return pickle.loads(pickle_contents)
-    except sources.DatasourceUnpickleUserDataError:
-        return None
-    except Exception:
-        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
-        return None
 
 
 # vi: ts=4 expandtab
