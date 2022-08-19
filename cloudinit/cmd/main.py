@@ -809,7 +809,7 @@ def _maybe_persist_instance_data(init):
             init.paths.run_dir, sources.INSTANCE_JSON_FILE
         )
         if not os.path.exists(instance_data_file):
-            init.datasource.persist_instance_data()
+            init.datasource.persist_instance_data(write_cache=False)
 
 
 def _maybe_set_hostname(init, stage, retry_stage):
