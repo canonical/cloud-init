@@ -1,3 +1,30 @@
+cloud-init (22.3-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    + Release 22.3 (#1662) (LP: #1986703)
+    + sources: obj.pkl cache should be written anyime get_data is run
+      (#1669)
+    + schema: drop release number from version file (#1664)
+    + pycloudlib: bump to quiet azure HTTP info logs (#1668)
+    + test: fix wireguard integration tests (#1666)
+    + Github is deprecating the 18.04 runner starting 12.1 (#1665)
+    + integration tests: Ensure one setup for all tests (#1661)
+    + tests: ansible test fixes (#1660)
+    + Prevent concurrency issue in test_webhook_hander.py (#1658)
+    + Workaround net_setup_link race with udev (#1655) (LP: #1983516)
+    + test: drop erroneous lxd assertion, verify command succeeded (#1657)
+    + Fix Chrony usage on Centos Stream (#1648) (LP: #1885952)
+      [Sven Haardiek]
+    + sources/azure: handle network unreachable errors for savable PPS
+      (#1642) [Chris Patterson]
+    + Return cc_set_hostname to PER_INSTANCE frequency (#1651)
+      (LP: #1983811)
+    + test: Collect integration test time by default (#1638)
+    + test: Drop forced package install hack in lxd integration test (#1649)
+    + schema: Resolve user-data if --system given (#1644) (LP: #1983306)
+
+ -- Brett Holman <brett.holman@canonical.com>  Fri, 19 Aug 2022 10:49:08 -0600
+
 cloud-init (22.2-139-gb64ba456-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
