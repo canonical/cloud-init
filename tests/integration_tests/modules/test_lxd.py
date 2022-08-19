@@ -3,7 +3,6 @@
 (This is ported from
 ``tests/cloud_tests/testcases/modules/lxd_bridge.yaml``.)
 """
-import re
 import warnings
 
 import pytest
@@ -30,10 +29,9 @@ lxd:
 
 STORAGE_USER_DATA = """\
 #cloud-config
-bootcmd: [ "apt-get --yes remove {0}", "! command -v {2}", "{3}" ]
 lxd:
   init:
-    storage_backend: {1}
+    storage_backend: {}
 """
 
 
@@ -51,7 +49,7 @@ class TestLxdBridge:
         verify_clean_log(cloud_init_log)
 
         # The bridge should exist
-        assert class_client.execute("ip addr show lxdbr0")
+        assert class_client.execute("ip addr show lxdbr0").ok
 
         raw_network_config = class_client.execute("lxc network show lxdbr0")
         network_config = yaml.safe_load(raw_network_config)
@@ -60,42 +58,31 @@ class TestLxdBridge:
 
 def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
-    assert re.search(f"apt-get.*install.*{pkg_name}", log) is not None
     verify_clean_log(log, ignore_deprecations=False)
     return log
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(
-    STORAGE_USER_DATA.format("btrfs-progs", "btrfs", "mkfs.btrfs", "true")
-)
+@pytest.mark.user_data(STORAGE_USER_DATA.format("btrfs"))
 def test_storage_btrfs(client):
     validate_storage(client, "btrfs-progs", "mkfs.btrfs")
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(
-    STORAGE_USER_DATA.format(
-        "lvm2",
-        "lvm",
-        "lvcreate",
-        "apt-get install "
-        "thin-provisioning-tools && systemctl unmask lvm2-lvmpolld.socket",
-    )
-)
+@pytest.mark.user_data(STORAGE_USER_DATA.format("lvm"))
 def test_storage_lvm(client):
     log = client.read_from_file("/var/log/cloud-init.log")
 
     # Note to self
-    if "doesn't use thinpool by default on Ubuntu due to LP" not in log:
+    if (
+        "doesn't use thinpool by default on Ubuntu due to LP" not in log
+        and "-kvm" not in client.execute("uname -r")
+    ):
         warnings.warn("LP 1982780 has been fixed, update to allow thinpools")
-
     validate_storage(client, "lvm2", "lvcreate")
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(
-    STORAGE_USER_DATA.format("zfsutils-linux", "zfs", "zpool", "true")
-)
+@pytest.mark.user_data(STORAGE_USER_DATA.format("zfs"))
 def test_storage_zfs(client):
     validate_storage(client, "zfsutils-linux", "zpool")

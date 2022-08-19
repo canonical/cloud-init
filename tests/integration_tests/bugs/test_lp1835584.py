@@ -84,7 +84,13 @@ def test_azure_kernel_upgrade_case_insensitive_uuid(
         pytest.skip(
             "Provide CLOUD_INIT_SOURCE to install expected working cloud-init"
         )
-    with session_cloud.launch() as instance:
+    with session_cloud.launch(
+        launch_kwargs={
+            "image_id": session_cloud.cloud_instance.daily_image(
+                cfg_image_spec.image_id, image_type=ImageType.PRO_FIPS
+            )
+        }
+    ) as instance:
         # We can't use setup_image fixture here because we want to avoid
         # taking a snapshot or cleaning the booted machine after cloud-init
         # upgrade.

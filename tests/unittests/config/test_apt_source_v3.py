@@ -45,13 +45,6 @@ MOCK_LSB_RELEASE_DATA = {
 }
 
 
-class FakeDatasource:
-    """Fake Datasource helper object"""
-
-    def __init__(self):
-        self.region = "region"
-
-
 class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
     """TestAptSourceConfig
     Main Class to test apt configs

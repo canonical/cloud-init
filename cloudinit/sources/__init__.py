@@ -12,9 +12,10 @@ import abc
 import copy
 import json
 import os
+import pickle
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -373,14 +374,19 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.persist_instance_data()
         return return_value
 
-    def persist_instance_data(self):
+    def persist_instance_data(self, write_cache=True):
         """Process and write INSTANCE_JSON_FILE with all instance metadata.
 
         Replace any hyphens with underscores in key names for use in template
         processing.
 
+        :param write_cache: boolean set True to persist obj.pkl when
+            instance_link exists.
+
         @return True on successful write, False otherwise.
         """
+        if write_cache and os.path.lexists(self.paths.instance_link):
+            pkl_store(self, self.paths.get_ipath_cur("obj_pkl"))
         if hasattr(self, "_crawled_metadata"):
             # Any datasource with _crawled_metadata will best represent
             # most recent, 'raw' metadata
@@ -1061,6 +1067,45 @@ def list_from_depends(depends, ds_list):
         if depset == set(deps):
             ret_list.append(cls)
     return ret_list
+
+
+def pkl_store(obj: DataSource, fname: str) -> bool:
+    """Use pickle to serialize Datasource to a file as a cache.
+
+    :return: True on success
+    """
+    try:
+        pk_contents = pickle.dumps(obj)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource %s", obj)
+        return False
+    try:
+        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource to %s", fname)
+        return False
+    return True
+
+
+def pkl_load(fname: str) -> Optional[DataSource]:
+    """Use pickle to deserialize a instance Datasource from a cache file."""
+    pickle_contents = None
+    try:
+        pickle_contents = util.load_file(fname, decode=False)
+    except Exception as e:
+        if os.path.isfile(fname):
+            LOG.warning("failed loading pickle in %s: %s", fname, e)
+
+    # This is allowed so just return nothing successfully loaded...
+    if not pickle_contents:
+        return None
+    try:
+        return pickle.loads(pickle_contents)
+    except DatasourceUnpickleUserDataError:
+        return None
+    except Exception:
+        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
+        return None
 
 
 # vi: ts=4 expandtab

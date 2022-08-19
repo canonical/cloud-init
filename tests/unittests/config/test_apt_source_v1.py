@@ -43,13 +43,6 @@ class FakeDistro(object):
         return
 
 
-class FakeDatasource:
-    """Fake Datasource helper object"""
-
-    def __init__(self):
-        self.region = "region"
-
-
 class TestAptSourceConfig(TestCase):
     """TestAptSourceConfig
     Main Class to test apt_source configs

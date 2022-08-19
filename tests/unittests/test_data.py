@@ -16,23 +16,13 @@ import httpretty
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
-from cloudinit import log, safeyaml, sources, stages
+from cloudinit import log, safeyaml, stages
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
-
-INSTANCE_ID = "i-testing"
-
-
-class FakeDataSource(sources.DataSource):
-    def __init__(self, userdata=None, vendordata=None, vendordata2=None):
-        sources.DataSource.__init__(self, {}, None, None)
-        self.metadata = {"instance-id": INSTANCE_ID}
-        self.userdata_raw = userdata
-        self.vendordata_raw = vendordata
-        self.vendordata2_raw = vendordata2
+from tests.unittests.util import FakeDataSource
 
 
 def count_messages(root):
