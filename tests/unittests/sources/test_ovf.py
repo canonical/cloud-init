@@ -206,8 +206,8 @@ class TestDatasourceOVF(CiTestCase):
         self.datasource = dsovf.DataSourceOVF
         self.tdir = self.tmp_dir()
 
-    def test_get_data_non_vmware_seed_platform_info(self):
-        """Platform info properly reports when on non-vmware platforms."""
+    def test_get_data_seed_dir(self):
+        """Platform info properly reports when getting data from seed dir."""
         paths = Paths({"cloud_dir": self.tdir, "run_dir": self.tdir})
         # Write ovf-env.xml seed file
         seed_dir = self.tmp_path("seed", dir=self.tdir)
@@ -217,37 +217,14 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertEqual("ovf", ds.cloud_name)
         self.assertEqual("ovf", ds.platform_type)
-        with mock.patch(MPATH + "dmi.read_dmi_data", return_value="!VMware"):
-            with mock.patch(MPATH + "transport_vmware_guestinfo") as m_guestd:
-                with mock.patch(MPATH + "transport_iso9660") as m_iso9660:
-                    m_iso9660.return_value = NOT_FOUND
-                    m_guestd.return_value = NOT_FOUND
-                    self.assertTrue(ds.get_data())
-                    self.assertEqual(
-                        "ovf (%s/seed/ovf-env.xml)" % self.tdir, ds.subplatform
-                    )
-
-    def test_get_data_vmware_seed_platform_info(self):
-        """Platform info properly reports when on VMware platform."""
-        paths = Paths({"cloud_dir": self.tdir, "run_dir": self.tdir})
-        # Write ovf-env.xml seed file
-        seed_dir = self.tmp_path("seed", dir=self.tdir)
-        ovf_env = self.tmp_path("ovf-env.xml", dir=seed_dir)
-        util.write_file(ovf_env, OVF_ENV_CONTENT)
-        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
-
-        self.assertEqual("ovf", ds.cloud_name)
-        self.assertEqual("ovf", ds.platform_type)
-        with mock.patch(MPATH + "dmi.read_dmi_data", return_value="VMWare"):
-            with mock.patch(MPATH + "transport_vmware_guestinfo") as m_guestd:
-                with mock.patch(MPATH + "transport_iso9660") as m_iso9660:
-                    m_iso9660.return_value = NOT_FOUND
-                    m_guestd.return_value = NOT_FOUND
-                    self.assertTrue(ds.get_data())
-                    self.assertEqual(
-                        "vmware (%s/seed/ovf-env.xml)" % self.tdir,
-                        ds.subplatform,
-                    )
+        with mock.patch(MPATH + "transport_vmware_guestinfo") as m_guestd:
+            with mock.patch(MPATH + "transport_iso9660") as m_iso9660:
+                m_iso9660.return_value = NOT_FOUND
+                m_guestd.return_value = NOT_FOUND
+                self.assertTrue(ds.get_data())
+                self.assertEqual(
+                    "ovf (%s/seed/ovf-env.xml)" % self.tdir, ds.subplatform
+                )
 
     @mock.patch("cloudinit.subp.subp")
     @mock.patch("cloudinit.sources.DataSource.persist_instance_data")
