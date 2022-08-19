@@ -13,7 +13,6 @@ import os
 import re
 from xml.dom import minidom
 
-from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import safeyaml, sources, subp, util
 
@@ -104,9 +103,6 @@ class DataSourceOVF(sources.DataSource):
         return True
 
     def _get_subplatform(self):
-        system_type = dmi.read_dmi_data("system-product-name").lower()
-        if system_type == "vmware":
-            return "vmware (%s)" % self.seed
         return "ovf (%s)" % self.seed
 
     def get_public_ssh_keys(self):
