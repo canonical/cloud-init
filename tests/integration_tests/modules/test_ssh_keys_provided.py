@@ -9,6 +9,8 @@ system.
 
 import pytest
 
+from tests.integration_tests.clouds import ImageSpecification
+
 USER_DATA = """\
 #cloud-config
 disable_root: false
@@ -110,10 +112,6 @@ class TestSshKeysProvided:
                 "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD",
             ),
             (
-                "/etc/ssh/sshd_config",
-                "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
-            ),
-            (
                 "/etc/ssh/ssh_host_ecdsa_key.pub",
                 "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
                 "BBFsS5Tvky/IC/dXhE/afxxU",
@@ -138,3 +136,14 @@ class TestSshKeysProvided:
     def test_ssh_provided_keys(self, config_path, expected_out, class_client):
         out = class_client.read_from_file(config_path).strip()
         assert expected_out in out
+
+    @pytest.mark.parametrize(
+        "expected_out", ("HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub")
+    )
+    def test_sshd_config(self, expected_out, class_client):
+        if ImageSpecification.from_os_image().release in {"bionic"}:
+            sshd_config_path = "/etc/ssh/sshd_config"
+        else:
+            sshd_config_path = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        sshd_config = class_client.read_from_file(sshd_config_path).strip()
+        assert expected_out in sshd_config

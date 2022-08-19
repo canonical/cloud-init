@@ -29,7 +29,8 @@
         "expiredate": {
           "default": null,
           "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
-          "type": "string"
+          "type": "string",
+          "format": "date"
         },
         "gecos": {
           "description": "Optional comment about the user, usually a comma-separated string of real name and contact information",
@@ -153,12 +154,28 @@
           "default": false
         },
         "sudo": {
-          "type": ["boolean", "string"],
-          "description": "Sudo rule to use or false. Absence of a sudo value or ``false`` will result in no sudo rules added for this user. DEPRECATED: the value ``false`` will be deprecated in the future release. Use ``null`` or no ``sudo`` key instead."
+          "oneOf": [
+            {
+              "type": ["string", "null"],
+              "description": "Sudo rule to use or false. Absence of a sudo value or ``null`` will result in no sudo rules added for this user."
+            },
+            {
+              "type": "boolean",
+              "deprecated": true,
+              "description": "The value ``false`` will be dropped after April 2027. Use ``null`` or no ``sudo`` key instead."
+            }
+          ]
         },
         "uid": {
           "description": "The user's ID. Default is next available value.",
-          "type": "integer"
+          "oneOf": [
+            {"type": "integer"},
+            {
+              "type": "string",
+              "description": "The use of ``string`` type will be dropped after April 2027. Use an ``integer`` instead.",
+              "deprecated": true
+            }
+          ]
         }
       }
     },
@@ -229,6 +246,101 @@
         }
       },
       "additionalProperties": true
+    },
+    "cc_ansible": {
+      "type": "object",
+      "properties": {
+        "ansible": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install-method": {
+              "type": "string",
+              "default": "distro",
+              "enum": [
+                "distro",
+                "pip"
+              ],
+              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+            },
+            "package-name": {
+              "type": "string",
+              "default": "ansible"
+            },
+            "pull": {
+              "required": ["url", "playbook-name"],
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accept-host-key": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "clean": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "full": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "diff": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "ssh-common-args": {
+                  "type": "string"
+                },
+                "scp-extra-args": {
+                  "type": "string"
+                },
+                "sftp-extra-args": {
+                  "type": "string"
+                },
+                "private-key": {
+                  "type": "string"
+                },
+                "checkout": {
+                  "type": "string"
+                },
+                "module-path": {
+                  "type": "string"
+                },
+                "timeout": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "connection": {
+                  "type": "string"
+                },
+                "vault-id": {
+                  "type": "string"
+                },
+                "vault-password-file": {
+                  "type": "string"
+                },
+                "module-name": {
+                  "type": "string"
+                },
+                "sleep": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "string"
+                },
+                "skip-tags": {
+                  "type": "string"
+                },
+                "playbook-name": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "cc_apk_configure": {
       "type": "object",
@@ -589,26 +701,6 @@
         }
       }
     },
-    "cc_debug": {
-      "type": "object",
-      "properties": {
-        "debug": {
-          "minProperties": 1,
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "verbose": {
-              "description": "Should always be true for this module",
-              "type": "boolean"
-            },
-            "output": {
-              "description": "Location to write output. Defaults to console + log",
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "cc_disable_ec2_metadata": {
       "type": "object",
       "properties": {
@@ -649,7 +741,6 @@
                   "description": "Specifies the partition table type, either ``mbr`` or ``gpt``. Default: ``mbr``."
                 },
                 "layout": {
-                  "type": ["string", "boolean", "array"],
                   "default": false,
                   "oneOf": [
                     {"type": "string", "enum": ["remove"]},
@@ -769,9 +860,18 @@
           "additionalProperties": false,
           "properties": {
             "mode": {
-              "enum": [false, "auto", "growpart", "gpart", "off"],
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action\n\nSpecifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead."
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action.",
+              "oneOf": [
+                {
+                  "enum": ["auto", "growpart", "gpart", "off"]
+                },
+                {
+                  "enum": [false],
+                  "description": "Specifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead.",
+                  "deprecated": true
+                }
+              ]
             },
             "devices": {
               "type": "array",
@@ -807,7 +907,7 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``. Using a non-boolean value for this field is deprecated.",
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``.",
               "oneOf": [
                 {
                   "type": "boolean"
@@ -1051,6 +1151,12 @@
                   "type": "string",
                   "description": "Name of the LXD network bridge to attach or create. Default: ``lxdbr0``.",
                   "default": "lxdbr0"
+                },
+                "mtu": {
+                  "type": "integer",
+                  "description": "Bridge MTU, defaults to LXD's default value",
+                  "default": -1,
+                  "minimum": -1
                 },
                 "ipv4_address": {
                   "type": "string",
@@ -1379,7 +1485,7 @@
                     "type": "string",
                     "pattern": "^\\+?[0-9]+$",
                     "deprecated": true,
-                    "description": "Dropped after April 2027. Use ``now`` or integer type."
+                    "description": "Use of string for this value will be dropped after April 2027. Use ``now`` or integer type."
                 },
                 {"enum": ["now"]}
               ]
@@ -1746,8 +1852,18 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "type": ["boolean", "string"],
-              "description": "Whether vendor data is enabled or not. Use of string for this value is DEPRECATED. Default: ``true``"
+              "description": "Whether vendor data is enabled or not. Default: ``true``",
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "type": "string",
+                  "description": "Use of string for this value is DEPRECATED. Use a boolean value instead.",
+                  "deprecated": true
+                }
+              ]
             },
             "prefix": {
               "type": ["array", "string"],
@@ -1822,9 +1938,13 @@
         "ssh_pwauth": {
           "oneOf": [
             {"type": "boolean"},
-            {"type": "string"}
+            {
+              "type": "string",
+              "description": "Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
+              "deprecated": true
+            }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged."
         },
         "chpasswd": {
           "type": "object",
@@ -1886,7 +2006,7 @@
                   }}
               ],
               "minItems": 1,
-              "description": "DEPRECATED. List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\nUse of a multiline string for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
+              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\nUse of a multiline string for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
               "deprecated": true
             }
           }
@@ -2164,8 +2284,15 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``. DEPRECATED value ``template`` will be dropped, use ``true`` instead.",
-          "enum": [true, false, "template", "localhost"]
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "oneOf": [
+            {"enum": [true, false, "localhost"]},
+            {
+              "enum": ["template"],
+              "description": "Value ``template`` will be dropped after April 2027. Use ``true`` instead.",
+              "deprecated": true
+            }
+          ]
         },
         "fqdn": {
           "type": "string",
@@ -2222,6 +2349,49 @@
             ]
           },
           "minItems": 1
+        }
+      }
+    },
+    "cc_wireguard": {
+      "type": "object",
+      "properties": {
+        "wireguard": {
+          "type": ["null", "object"],
+          "properties": {
+            "interfaces": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the interface. Typically wgx (example: wg0)"
+                  },
+                  "config_path": {
+                    "type": "string",
+                    "description": "Path to configuration file of Wireguard interface"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Wireguard interface configuration. Contains key, peer, ..."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "readinessprobe": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of shell commands to be executed as probes."
+            }
+          },
+          "required": ["interfaces"],
+          "minProperties": 1,
+          "additionalProperties": false
         }
       }
     },
@@ -2472,6 +2642,7 @@
     }
   },
   "allOf": [
+    { "$ref": "#/$defs/cc_ansible" },
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },
     { "$ref": "#/$defs/cc_apt_pipelining" },
@@ -2480,7 +2651,6 @@
     { "$ref": "#/$defs/cc_byobu" },
     { "$ref": "#/$defs/cc_ca_certs" },
     { "$ref": "#/$defs/cc_chef" },
-    { "$ref": "#/$defs/cc_debug" },
     { "$ref": "#/$defs/cc_disable_ec2_metadata" },
     { "$ref": "#/$defs/cc_disk_setup" },
     { "$ref": "#/$defs/cc_fan" },
@@ -2522,6 +2692,7 @@
     { "$ref": "#/$defs/cc_update_etc_hosts"},
     { "$ref": "#/$defs/cc_update_hostname"},
     { "$ref": "#/$defs/cc_users_groups"},
+    { "$ref": "#/$defs/cc_wireguard"},
     { "$ref": "#/$defs/cc_write_files"},
     { "$ref": "#/$defs/cc_yum_add_repo"},
     { "$ref": "#/$defs/cc_zypper_add_repo"},

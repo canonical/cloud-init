@@ -66,6 +66,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["ca_certs", "ca-certs"],
 }
 
 __doc__ = get_meta_doc(meta)

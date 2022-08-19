@@ -31,6 +31,7 @@ meta: MetaSchema = {
         "no_ssh_fingerprints: true",
         "authkey_hash: sha512",
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

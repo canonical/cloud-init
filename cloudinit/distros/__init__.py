@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Type
+from typing import Any, Mapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -117,6 +117,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "Legacy function '_write_network' was called in distro '%s'.\n"
             "_write_network_config needs implementation.\n" % self.name
         )
+
+    @property
+    def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
+        """Return the configured network activator for this environment."""
+        priority = util.get_cfg_by_path(
+            self._cfg, ("network", "activators"), None
+        )
+        try:
+            return activators.select_activator(priority=priority)
+        except activators.NoActivatorException:
+            return None
 
     def _write_network_state(self, network_state):
         priority = util.get_cfg_by_path(
@@ -242,9 +253,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
-            try:
-                network_activator = activators.select_activator()
-            except activators.NoActivatorException:
+            network_activator = self.network_activator
+            if not network_activator:
                 LOG.warning(
                     "No network activator found, not bringing up "
                     "network interfaces"
@@ -641,8 +651,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if "sudo" in kwargs and kwargs["sudo"] is not False:
-            self.write_sudo_rules(name, kwargs["sudo"])
+        if "sudo" in kwargs:
+            if kwargs["sudo"]:
+                self.write_sudo_rules(name, kwargs["sudo"])
+            elif kwargs["sudo"] is False:
+                LOG.warning(
+                    "DEPRECATED: The user %s has a 'sudo' config value of"
+                    " 'false' which will be dropped after April 2027."
+                    " Use 'null' instead.",
+                    name,
+                )
 
         # Import SSH keys
         if "ssh_authorized_keys" in kwargs:

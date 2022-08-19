@@ -57,6 +57,7 @@ def _replace_options(user: Optional[str] = None) -> str:
     return options
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 @mock.patch(MODPATH + "ssh_util.setup_user_keys")
 class TestHandleSsh:
     """Test cc_ssh handling of ssh config."""
@@ -283,12 +284,30 @@ class TestHandleSsh:
             expected_calls == cloud.datasource.publish_host_keys.call_args_list
         )
 
+    @pytest.mark.parametrize("with_sshd_dconf", [False, True])
+    @mock.patch(MODPATH + "util.ensure_dir")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "util.write_file")
-    def test_handle_ssh_keys_in_cfg(self, m_write_file, m_nug, m_setup_keys):
+    def test_handle_ssh_keys_in_cfg(
+        self,
+        m_write_file,
+        m_nug,
+        m_ensure_dir,
+        m_setup_keys,
+        with_sshd_dconf,
+        mocker,
+    ):
         """Test handle with ssh keys and certificate."""
         # Populate a config dictionary to pass to handle() as well
         # as the expected file-writing calls.
+        mocker.patch(
+            MODPATH + "ssh_util._includes_dconf", return_value=with_sshd_dconf
+        )
+        if with_sshd_dconf:
+            sshd_conf_fname = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        else:
+            sshd_conf_fname = "/etc/ssh/sshd_config"
+
         cfg = {"ssh_keys": {}}
 
         expected_calls = []
@@ -324,7 +343,7 @@ class TestHandleSsh:
                         384,
                     ),
                     mock.call(
-                        "/etc/ssh/sshd_config",
+                        sshd_conf_fname,
                         "HostCertificate /etc/ssh/ssh_host_{}_key-cert.pub"
                         "\n".format(key_type),
                         preserve_mode=True,
@@ -342,6 +361,14 @@ class TestHandleSsh:
         # Check that all expected output has been done.
         for call_ in expected_calls:
             assert call_ in m_write_file.call_args_list
+
+        if with_sshd_dconf:
+            assert (
+                mock.call("/etc/ssh/sshd_config.d", mode=0o755)
+                in m_ensure_dir.call_args_list
+            )
+        else:
+            assert [] == m_ensure_dir.call_args_list
 
     @pytest.mark.parametrize(
         "key_type,reason",

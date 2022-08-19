@@ -15,6 +15,7 @@ from cloudinit.url_helper import (
     NOT_FOUND,
     REDACTED,
     UrlError,
+    UrlResponse,
     dual_stack,
     oauth_headers,
     read_file_or_url,
@@ -93,6 +94,18 @@ class TestReadFileOrUrl(CiTestCase):
         self.assertEqual(str(result), data.decode("utf-8"))
 
     @httpretty.activate
+    def test_read_file_or_url_str_from_url_streamed(self):
+        """Test that str(result.contents) on url is text version of contents.
+        It should not be "b'data'", but just "'data'" """
+        url = "http://hostname/path"
+        data = b"This is my url content\n"
+        httpretty.register_uri(httpretty.GET, url, data)
+        result = read_file_or_url(url, stream=True)
+        assert isinstance(result, UrlResponse)
+        self.assertEqual(result.contents, data)
+        self.assertEqual(str(result), data.decode("utf-8"))
+
+    @httpretty.activate
     def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
         """Headers are redacted from logs but unredacted in requests."""
         url = "http://hostname/path"
@@ -146,6 +159,7 @@ class TestReadFileOrUrl(CiTestCase):
                             "User-Agent": "Cloud-Init/%s"
                             % (version.version_string())
                         },
+                        "stream": False,
                     },
                     kwargs,
                 )
@@ -186,6 +200,7 @@ class TestReadFileOrUrlParameters:
             "ssl_details": {"cert_file": "/path/cert.pem"},
             "headers_cb": "headers_cb",
             "exception_cb": "exception_cb",
+            "stream": True,
         }
 
         assert response == read_file_or_url(**params)
@@ -222,6 +237,7 @@ class TestReadFileOrUrlParameters:
                         % (version.version_string())
                     },
                     "timeout": request_timeout,
+                    "stream": False,
                 }
                 if request_timeout is None:
                     expected_kwargs.pop("timeout")

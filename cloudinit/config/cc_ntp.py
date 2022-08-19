@@ -88,6 +88,14 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "ntpd",
         },
     },
+    "centos": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
@@ -218,6 +226,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ntp"],
 }
 __doc__ = get_meta_doc(meta)
 

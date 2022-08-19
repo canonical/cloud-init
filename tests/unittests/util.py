@@ -2,7 +2,7 @@
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
-from cloudinit.sources import DataSourceHostname
+from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
 
@@ -147,3 +147,32 @@ class MockDistro(distros.Distro):
 
     def update_package_sources(self):
         return (True, "yay")
+
+
+TEST_INSTANCE_ID = "i-testing"
+
+
+class FakeDataSource(DataSource):
+    def __init__(
+        self,
+        userdata=None,
+        vendordata=None,
+        vendordata2=None,
+        network_config="",
+        paths=None,
+    ):
+        DataSource.__init__(self, {}, None, paths=paths)
+        self.metadata = {"instance-id": TEST_INSTANCE_ID}
+        self.userdata_raw = userdata
+        self.vendordata_raw = vendordata
+        self.vendordata2_raw = vendordata2
+        self._network_config = None
+        if network_config:  # Permit for None value to setup attribute
+            self._network_config = network_config
+
+    @property
+    def network_config(self):
+        return self._network_config
+
+    def _get_data(self):
+        return True

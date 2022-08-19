@@ -47,6 +47,13 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": [
+        "apt_update",
+        "package_update",
+        "apt_upgrade",
+        "package_upgrade",
+        "packages",
+    ],
 }
 
 __doc__ = get_meta_doc(meta)

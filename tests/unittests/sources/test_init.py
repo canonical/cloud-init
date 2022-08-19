@@ -17,6 +17,7 @@ from cloudinit.sources import (
     UNSET,
     DataSource,
     canonical_cloud_id,
+    pkl_load,
     redact_sensitive_keys,
 )
 from cloudinit.user_data import UserDataProcessor
@@ -672,8 +673,12 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_ec2_metadata_when_set(self):
         """When ec2_metadata class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
         )
         datasource.ec2_metadata = UNSET
         datasource.get_data()
@@ -690,8 +695,12 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_canonical_cloud_id_and_symlink(self):
         """canonical-cloud-id class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
         )
         cloud_id_link = os.path.join(tmp, "cloud-id")
         cloud_id_file = os.path.join(tmp, "cloud-id-my-cloud")
@@ -722,8 +731,12 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_network_json_when_set(self):
         """When network_data.json class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
         )
         datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
@@ -735,6 +748,34 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             {"network_json": "is good"}, instance_data["ds"]["network_json"]
         )
+
+    def test_persist_instance_serializes_datasource_pickle(self):
+        """obj.pkl is written when instance link present and write_cache."""
+        tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg,
+            self.distro,
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
+        )
+        pkl_cache_file = os.path.join(cloud_dir, "instance/obj.pkl")
+        self.assertFalse(os.path.exists(pkl_cache_file))
+        datasource.network_json = {"network_json": "is good"}
+        # No /var/lib/cloud/instance symlink
+        datasource.persist_instance_data(write_cache=True)
+        self.assertFalse(os.path.exists(pkl_cache_file))
+
+        # Symlink /var/lib/cloud/instance but write_cache=False
+        util.sym_link(cloud_dir, os.path.join(cloud_dir, "instance"))
+        datasource.persist_instance_data(write_cache=False)
+        self.assertFalse(os.path.exists(pkl_cache_file))
+
+        # Symlink /var/lib/cloud/instance and write_cache=True
+        datasource.persist_instance_data(write_cache=True)
+        self.assertTrue(os.path.exists(pkl_cache_file))
+        ds = pkl_load(pkl_cache_file)
+        self.assertEqual(datasource.network_json, ds.network_json)
 
     def test_get_data_base64encodes_unserializable_bytes(self):
         """On py3, get_data base64encodes any unserializable content."""

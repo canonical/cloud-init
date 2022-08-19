@@ -276,12 +276,27 @@ class Renderer(renderer.Renderer):
             LOG.debug("netplan net_setup_link postcmd disabled")
             return
         setup_lnk = ["udevadm", "test-builtin", "net_setup_link"]
-        for cmd in [
-            setup_lnk + [SYS_CLASS_NET + iface]
-            for iface in get_devicelist()
-            if os.path.islink(SYS_CLASS_NET + iface)
-        ]:
-            subp.subp(cmd, capture=True)
+
+        # It's possible we can race a udev rename and attempt to run
+        # net_setup_link on a device that no longer exists. When this happens,
+        # we don't know what the device was renamed to, so re-gather the
+        # entire list of devices and try again.
+        last_exception = Exception
+        for _ in range(5):
+            try:
+                for iface in get_devicelist():
+                    if os.path.islink(SYS_CLASS_NET + iface):
+                        subp.subp(
+                            setup_lnk + [SYS_CLASS_NET + iface], capture=True
+                        )
+                break
+            except subp.ProcessExecutionError as e:
+                last_exception = e
+        else:
+            raise RuntimeError(
+                "'udevadm test-builtin net_setup_link' unable to run "
+                "successfully for all devices."
+            ) from last_exception
 
     def _render_content(self, network_state: NetworkState):
 

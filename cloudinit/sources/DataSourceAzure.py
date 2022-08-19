@@ -93,6 +93,7 @@ class MetadataType(Enum):
 
 class PPSType(Enum):
     NONE = "None"
+    OS_DISK = "PreprovisionedOSDisk"
     RUNNING = "Running"
     SAVABLE = "Savable"
     UNKNOWN = "Unknown"
@@ -577,6 +578,9 @@ class DataSourceAzure(sources.DataSource):
 
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
+            elif pps_type == PPSType.OS_DISK:
+                self._report_ready_for_pps(create_marker=False)
+                self._wait_for_pps_os_disk_shutdown()
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
@@ -970,7 +974,12 @@ class DataSourceAzure(sources.DataSource):
         )
 
     @azure_ds_telemetry_reporter
-    def _report_ready_for_pps(self) -> None:
+    def _report_ready_for_pps(
+        self,
+        *,
+        create_marker: bool = True,
+        expect_url_error: bool = False,
+    ) -> None:
         """Report ready for PPS, creating the marker file upon completion.
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
@@ -978,11 +987,36 @@ class DataSourceAzure(sources.DataSource):
         try:
             self._report_ready()
         except Exception as error:
-            msg = "Failed reporting ready while in the preprovisioning pool."
-            report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg) from error
+            # Ignore HTTP failures for Savable PPS as the call may appear to
+            # fail if the network interface is unplugged or the VM is
+            # suspended before we process the response. Worst case scenario
+            # is that we failed to report ready for source PPS and this VM
+            # will be discarded shortly, no harm done.
+            if expect_url_error and isinstance(error, UrlError):
+                report_diagnostic_event(
+                    "Ignoring http call failure, it was expected.",
+                    logger_func=LOG.debug,
+                )
+                # The iso was ejected prior to reporting ready.
+                self._iso_dev = None
+            else:
+                msg = (
+                    "Failed reporting ready while in the preprovisioning pool."
+                )
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg) from error
 
-        self._create_report_ready_marker()
+        if create_marker:
+            self._create_report_ready_marker()
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_os_disk_shutdown(self):
+        report_diagnostic_event(
+            "Waiting for host to shutdown VM...",
+            logger_func=LOG.info,
+        )
+        sleep(31536000)
+        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
 
     @azure_ds_telemetry_reporter
     def _check_if_nic_is_primary(self, ifname):
@@ -1143,8 +1177,17 @@ class DataSourceAzure(sources.DataSource):
         nl_sock = None
         try:
             nl_sock = netlink.create_bound_netlink_socket()
-            self._report_ready_for_pps()
-            self._teardown_ephemeral_networking()
+            self._report_ready_for_pps(expect_url_error=True)
+            try:
+                self._teardown_ephemeral_networking()
+            except subp.ProcessExecutionError as e:
+                report_diagnostic_event(
+                    "Ignoring failure while tearing down networking, "
+                    "NIC was likely unplugged: %r" % e,
+                    logger_func=LOG.info,
+                )
+                self._ephemeral_dhcp_ctx = None
+
             self._wait_for_nic_detach(nl_sock)
             self._wait_for_hot_attached_primary_nic(nl_sock)
         except netlink.NetlinkCreateSocketError as e:
@@ -1402,6 +1445,11 @@ class DataSourceAzure(sources.DataSource):
             or self._ppstype_from_imds(imds_md) == PPSType.SAVABLE.value
         ):
             pps_type = PPSType.SAVABLE
+        elif (
+            ovf_cfg.get("PreprovisionedVMType", None) == PPSType.OS_DISK.value
+            or self._ppstype_from_imds(imds_md) == PPSType.OS_DISK.value
+        ):
+            pps_type = PPSType.OS_DISK
         elif (
             ovf_cfg.get("PreprovisionedVm") is True
             or ovf_cfg.get("PreprovisionedVMType", None)

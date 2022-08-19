@@ -14,9 +14,9 @@ from cloudinit import util
 from cloudinit.atomic_helper import write_json
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_ALWAYS
+from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_ALWAYS
+frequency = PER_INSTANCE
 MODULE_DESCRIPTION = """\
 This module handles setting the system hostname and fully qualified domain
 name (FQDN). If ``preserve_hostname`` is set, then the hostname will not be
@@ -62,6 +62,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)

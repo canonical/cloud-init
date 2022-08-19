@@ -90,6 +90,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ubuntu_advantage", "ubuntu-advantage"],
 }
 
 __doc__ = get_meta_doc(meta)

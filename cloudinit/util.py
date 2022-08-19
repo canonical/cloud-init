@@ -34,7 +34,7 @@ import time
 from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
-from functools import lru_cache
+from functools import lru_cache, total_ordering
 from typing import Callable, List, TypeVar
 from urllib import parse
 
@@ -2894,13 +2894,19 @@ def get_proc_ppid(pid):
     ppid = 0
     try:
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
+        if contents:
+            # see proc.5 for format
+            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKPI] (\d+)", str(contents))
+            if m:
+                ppid = int(m.group(1))
+            else:
+                LOG.warning(
+                    "Unable to match parent pid of process pid=%s input: %s",
+                    pid,
+                    contents,
+                )
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
-    if contents:
-        parts = contents.split(" ", 4)
-        # man proc says
-        #  ppid %d     (4) The PID of the parent.
-        ppid = int(parts[3])
     return ppid
 
 
@@ -2919,4 +2925,46 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
     return rc
 
 
-# vi: ts=4 expandtab
+@total_ordering
+class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
+    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+        """Default of -1 allows us to tiebreak in favor of the most specific
+        number"""
+        return super(Version, cls).__new__(cls, major, minor, patch, rev)
+
+    @classmethod
+    def from_str(cls, version: str):
+        return cls(*(list(map(int, version.split(".")))))
+
+    def __gt__(self, other):
+        return 1 == self._compare_version(other)
+
+    def __eq__(self, other):
+        return (
+            self.major == other.major
+            and self.minor == other.minor
+            and self.patch == other.patch
+            and self.rev == other.rev
+        )
+
+    def _compare_version(self, other) -> int:
+        """
+        return values:
+            1: self > v2
+            -1: self < v2
+            0: self == v2
+
+        to break a tie between 3.1.N and 3.1, always treat the more
+        specific number as larger
+        """
+        if self == other:
+            return 0
+        if self.major > other.major:
+            return 1
+        if self.minor > other.minor:
+            return 1
+        if self.patch > other.patch:
+            return 1
+        if self.rev > other.rev:
+            return 1
+        return -1
