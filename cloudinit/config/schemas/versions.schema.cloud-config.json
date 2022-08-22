@@ -7,7 +7,7 @@
         {
           "properties": {
             "version": {
-              "enum": ["22.2", "v1"]
+              "enum": [ "v1" ]
             }
           }
         },

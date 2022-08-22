@@ -88,6 +88,14 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "ntpd",
         },
     },
+    "centos": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",

@@ -106,13 +106,14 @@ class TestWebHookHandler:
         for all messages to be posted
         """
         responses.add(responses.POST, "http://localhost", status=404)
-        for _ in range(20):
+        for _ in range(10):
             report_start_event("name", "description")
         start_time = time.time()
         while time.time() - start_time < 3:
             with suppress(AssertionError):
-                assert 20 == caplog.text.count("Failed posting event")
+                assert 10 == caplog.text.count("Failed posting event")
                 break
+            time.sleep(0.01)  # Force context switch
         else:
             pytest.fail(
                 "Expected 20 failures, only got "

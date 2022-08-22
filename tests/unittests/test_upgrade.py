@@ -18,7 +18,7 @@ import pathlib
 
 import pytest
 
-from cloudinit.stages import _pkl_load
+from cloudinit.sources import pkl_load
 from tests.unittests.helpers import resourceLocation
 
 
@@ -34,7 +34,7 @@ class TestUpgrade:
         Test implementations _must not_ modify the ``previous_obj_pkl`` which
         they are passed, as that will affect tests that run after them.
         """
-        return _pkl_load(str(request.param))
+        return pkl_load(str(request.param))
 
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""
