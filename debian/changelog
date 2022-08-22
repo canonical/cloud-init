@@ -1,4 +1,4 @@
-cloud-init (22.2-701-g772f6e83) UNRELEASED; urgency=medium
+cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.postinst: lintian fixes:
@@ -13,8 +13,8 @@ cloud-init (22.2-701-g772f6e83) UNRELEASED; urgency=medium
     + debian/patches/ec2-dont-apply-full-imds-network-config.patch
     + debian/patches/openstack-no-network-config.patch
     + debian/patches/renderer-do-not-prefer-netplan.patch
-  * refresh patches:
     + debian/patches/expire-on-hashed-users.patch
+  * New upstream snapshot. (LP: #1987318)
     + Fix Chrony usage on Centos Stream (#1648)
       [Sven Haardiek]
     + sources/azure: handle network unreachable errors for saveable PPS
@@ -236,8 +236,24 @@ cloud-init (22.2-701-g772f6e83) UNRELEASED; urgency=medium
     + Changelog: correct errant classification of LP issues as GH (#1464)
     + Use Network-Manager and Netplan as default renderers for RHEL and
       Fedora (#1465) [Emanuele Giuseppe Esposito]
+    + DataSourceVMware: fix var use before init (#1674) [Andrew Kutz]
+    + rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
+    + test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo
+      (#1676)
+    + Release 22.3 (#1662)
+    + sources: obj.pkl cache should be written anyime get_data is run
+      (#1669)
+    + schema: drop release number from version file (#1664)
+    + pycloudlib: bump to quiet azure HTTP info logs (#1668)
+    + test: fix wireguard integration tests (#1666)
+    + Github is deprecating the 18.04 runner starting 12.1 (#1665)
+    + integration tests: Ensure one setup for all tests (#1661)
+    + tests: ansible test fixes (#1660)
+    + Prevent concurrency issue in test_webhook_hander.py (#1658)
+    + Workaround net_setup_link race with udev (#1655)
+    + test: drop erroneous lxd assertion, verify command succeeded (#1657)
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 22 Aug 2022 14:22:40 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 22 Aug 2022 14:22:42 -0500
 
 cloud-init (22.2-0ubuntu1~18.04.1) bionic; urgency=medium
 
