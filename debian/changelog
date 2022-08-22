@@ -14,15 +14,14 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + debian/patches/openstack-no-network-config.patch
     + debian/patches/renderer-do-not-prefer-netplan.patch
   * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
-    + Fix Chrony usage on Centos Stream (#1648) (LP: #1885952)
+    + Fix Chrony usage on Centos Stream (#1648)
       [Sven Haardiek]
     + sources/azure: handle network unreachable errors for saveable PPS
       (#1642) [Chris Patterson]
     + Return cc_set_hostname to PER_INSTANCE frequency (#1651)
-      (LP: #1983811)
     + test: Collect integration test time by default (#1638)
     + test: Drop forced package install hack in lxd integration test (#1649)
-    + schema: Resolve user-data if --system given (#1644) (LP: #1983306)
+    + schema: Resolve user-data if --system given (#1644)
       [Alberto Contreras]
     + test: use fake filesystem to avoid file removal (#1647)
       [Alberto Contreras]
@@ -33,7 +32,7 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
       (#1643)
     + typing: Type UrlResponse.contents (#1633) [Alberto Contreras]
     + testing: fix references to `DEPRECATED.` (#1641) [Alberto Contreras]
-    + ssh_util: Handle sshd_config.d folder (LP: #1968873)
+    + ssh_util: Handle sshd_config.d folder
       [Alberto Contreras]
     + schema: Enable deprecations in cc_update_etc_hosts (#1631)
       [Alberto Contreras]
@@ -44,7 +43,7 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
       [Alberto Contreras]
     + util: Fix error path and parsing in get_proc_ppid()
     + main: avoid downloading full contents cmdline urls (#1606)
-      (LP: #1937319) [Alberto Contreras]
+      [Alberto Contreras]
     + schema: Enable deprecations in cc_scripts_vendor (#1629)
       [Alberto Contreras]
     + schema: Enable deprecations in cc_set_passwords (#1630)
@@ -62,7 +61,6 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + testing: migrate test_cc_set_passwords to pytest (#1615)
       [Alberto Contreras]
     + network: add system_info network activator cloud.cfg overrides (#1619)
-      (LP: #1958377)
     + docs: Align git remotes with uss-tableflip setup (#1624)
       [Alberto Contreras]
     + testing: cover active config module checks (#1609) [Alberto Contreras]
@@ -110,12 +108,12 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
       (#1571) [Chris Patterson]
     + Resource leak cleanup (#1556)
     + testing: remove appereances of FakeCloud (#1584) [Alberto Contreras]
-    + Fix expire passwords for hashed passwords (#1577) (LP: #1979065)
+    + Fix expire passwords for hashed passwords (#1577)
       [Sadegh Hayeri]
     + mounts: fix suggested_swapsize for > 64GB hosts (#1569)
       [Steven Stallion]
     + Update chpasswd schema to deprecate password parsing (#1517)
-    + tox: Remove entries from default envlist (#1578) (LP: #1980854)
+    + tox: Remove entries from default envlist (#1578)
     + tests: add test for parsing static dns for existing devices (#1557)
       [Jonas Konrad]
     + testing: port cc_ubuntu_advantage test to pytest (#1559)
@@ -126,7 +124,7 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + schema: Force stricter validation (#1547)
     + ubuntu advantage config: http_proxy, https_proxy (#1512)
       [Fabian Lichtenegger-Lukas]
-    + net: fix interface matching support (#1552) (LP: #1979877)
+    + net: fix interface matching support (#1552)
     + Fuzz testing jsonchema (#1499) [Alberto Contreras]
     + testing: Wait for changed boot-id in test_status.py (#1548)
     + CI: Fix GH pinned-format jobs (#1558) [Alberto Contreras]
@@ -135,11 +133,10 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + tox: add unpinned env for do_format and check_format (#1554)
     + cc_ssh_import_id: Substitute deprecated warn (#1553)
       [Alberto Contreras]
-    + Remove schema errors from log (#1551) (LP: #1978422)
+    + Remove schema errors from log (#1551)
     + Update WebHookHandler to run as background thread (SC-456) (#1491)
-      (LP: #1910552)
     + testing: Don't run custom cloud dir test on Bionic (#1542)
-    + bash completion: update schema command (#1543) (LP: #1979547)
+    + bash completion: update schema command (#1543)
     + CI: add non-blocking run against the linters tip versions (#1531)
       [Paride Legovini]
     + Change groups within the users schema to support lists and strings
@@ -148,7 +145,7 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + Pin setuptools for Travis (SC-1136) (#1540)
     + Fix LXD datasource crawl when BOOT enabled (#1537)
     + testing: Fix wrong path in dual stack test (#1538)
-    + cloud-config: honor cloud_dir setting (#1523) (LP: #1976564)
+    + cloud-config: honor cloud_dir setting (#1523)
       [Alberto Contreras]
     + Add python3-debconf to pkg-deps.json Build-Depends (#1535)
       [Alberto Contreras]
@@ -186,22 +183,22 @@ cloud-init (22.2-145-gaa59209a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
       [Chris Patterson]
     + net: Implement link-local ephemeral ipv6
     + Rename function to avoid confusion (#1501)
-    + Fix cc_phone_home requiring 'tries' (#1500) (LP: #1977952)
+    + Fix cc_phone_home requiring 'tries' (#1500)
     + datasources: replace networking functions with stdlib and
     cloudinit.net code
     + Remove xenial references (#1472) [Alberto Contreras]
-    + Oracle ds changes (#1474) (LP: #1967942) [Alberto Contreras]
+    + Oracle ds changes (#1474) [Alberto Contreras]
     + improve runcmd docs (#1498)
     + add 3.11-dev to Travis CI (#1493)
     + Only run github actions on pull request (#1496)
     + Fix integration test client creation (#1494) [Alberto Contreras]
     + tox: add link checker environment, fix links (#1480)
     + cc_ubuntu_advantage: Fix doc (#1487) [Alberto Contreras]
-    + cc_yum_add_repo: Fix repo id canonicalization (#1489) (LP: #1975818)
+    + cc_yum_add_repo: Fix repo id canonicalization (#1489)
       [Alberto Contreras]
     + Add linitio as contributor in the project (#1488) [Kevin Allioli]
     + net-convert: use yaml.dump for debugging python NetworkState obj
-      (#1484) (LP: #1975907)
+      (#1484)
     + test_schema: no relative $ref URLs, replace $ref with local path
       (#1486)
     + cc_set_hostname: do not write "localhost" when no hostname is given
