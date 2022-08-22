@@ -22,14 +22,35 @@ write_files:
     content: |
        [Unit]
        Description=Serve a local git repo
-
-       [Service]
-       ExecStart=/usr/bin/env python3 -m http.server --directory \
-/root/playbooks/.git
-       Restart=on-failure
+       Wants=repo_waiter.service
+       After=cloud-init-local.service
+       Before=cloud-config.service
+       Before=cloud-final.service
 
        [Install]
-       WantedBy=cloud-final.service
+       WantedBy=cloud-init-local.service
+
+       [Service]
+       ExecStart=/usr/bin/env python3 -m http.server \
+         --directory /root/playbooks/.git
+
+  - path: /etc/systemd/system/repo_waiter.service
+    content: |
+       [Unit]
+       Description=Block boot until repo is available
+       After=repo_server.service
+       Before=cloud-final.service
+
+       [Install]
+       WantedBy=cloud-init-local.service
+
+       # clone into temp directory to test that server is running
+       # sdnotify would be an alternative way to verify that the server is
+       # running and continue once it is up, but this is simple and works
+       [Service]
+       Type=oneshot
+       ExecStart=sh -c "while \
+            ! git clone http://0.0.0.0:8000/ $(mktemp -d); do sleep 0.1; done"
 
   - path: /root/playbooks/ubuntu.yml
     content: |
@@ -57,8 +78,11 @@ write_files:
              - "{{ item }}"
            state: latest
          loop: "{{ packages }}"
-
+runcmd:
+  - [systemctl, enable, repo_server.service]
+  - [systemctl, enable, repo_waiter.service]
 """
+
 INSTALL_METHOD = """
 ansible:
   install-method: {method}
@@ -67,15 +91,13 @@ ansible:
     url: "http://0.0.0.0:8000/"
     playbook-name: ubuntu.yml
     full: true
-runcmd:
-  - "systemctl enable repo_server.service"
 """
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
 git init {REPO_D}                                             &&\
 git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml &&\
 git commit -m auto                                            &&\
-git update-server-info"
+(cd {REPO_D}/.git; git update-server-info)"
 
 
 def _test_ansible_pull_from_local_server(my_client):
@@ -84,15 +106,6 @@ def _test_ansible_pull_from_local_server(my_client):
     my_client.execute("cloud-init clean --logs")
     my_client.restart()
     log = my_client.read_from_file("/var/log/cloud-init.log")
-
-    # These ensure the repo used for ansible-pull works as expected
-    assert my_client.execute("wget http://0.0.0.0:8000").ok
-    assert my_client.execute("git clone http://0.0.0.0:8000/").ok
-    assert "(dead)" not in my_client.execute(
-        "systemctl status repo_server.service"
-    )
-
-    # Following assertions verify ansible behavior itself
     verify_clean_log(log)
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
     assert "ok=3" in output_log
