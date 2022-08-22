@@ -24,9 +24,10 @@ meta: MetaSchema = {
         Attach machine to an existing Ubuntu Advantage support contract and
         enable or disable support services such as Livepatch, ESM,
         FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
-        one can also specify services to enable.  When the 'enable'
-        list is present, any named service will supplement the contract-default
-        enabled services.
+        one can also specify services to enable. When the 'enable'
+        list is present, only named services will be activated. Whereas
+        'enable' list is not present, any named service will supplement
+        contract-default enabled services.
 
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
@@ -233,7 +234,7 @@ def configure_ua(token=None, enable=None, config=None):
             msg = 'Service "{service}" already enabled:\n{warning}'.format(
                 service=service, warning=str(warning)
             )
-            util.logexc(LOG, msg)
+            LOG.warning(msg)
 
     if enable_errors:
         for service, error in enable_errors:
