@@ -69,7 +69,7 @@ class NMConnection:
 
         method_map = {
             "static": "manual",
-            "dhcp6": "dhcp",
+            "dhcp6": "auto",
             "ipv6_slaac": "auto",
             "ipv6_dhcpv6-stateless": "auto",
             "ipv6_dhcpv6-stateful": "auto",
@@ -96,8 +96,6 @@ class NMConnection:
 
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
-        if family == "ipv6":
-            self._set_default(family, "addr-gen-mode", "stable-privacy")
 
     def _add_numbered(self, section, key_prefix, value):
         """
