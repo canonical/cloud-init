@@ -5,8 +5,6 @@ Forwarded: not-needed
 Last-Update: 2022-08-12
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: b/cloudinit/features.py
-===================================================================
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
 @@ -50,7 +50,7 @@ directives in cloud-config.
@@ -18,8 +16,6 @@ Index: b/cloudinit/features.py
  """
  If ``EXPIRE_APPLIES_TO_HASHED_USERS`` is True, then when expire is set true
  in cc_set_passwords, hashed passwords will be expired. Previous to 22.3,
-Index: b/tests/unittests/config/test_cc_set_passwords.py
-===================================================================
 --- a/tests/unittests/config/test_cc_set_passwords.py
 +++ b/tests/unittests/config/test_cc_set_passwords.py
 @@ -330,58 +330,6 @@ class TestSetPasswordsHandle:
