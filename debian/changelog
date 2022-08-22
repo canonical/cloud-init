@@ -1,4 +1,4 @@
-cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.lintian-overrides: lintian fixes:
