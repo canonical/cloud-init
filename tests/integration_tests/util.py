@@ -58,6 +58,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         "No lease found; using default endpoint",
         # Ubuntu lxd storage
         "thinpool by default on Ubuntu due to LP #1982780",
+        "WARNING]: Could not match supplied host pattern, ignoring:",
     ]
     traceback_texts = []
     if "oracle" in log:
