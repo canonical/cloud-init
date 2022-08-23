@@ -60,6 +60,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             },
         }
         self.patchUtils(self.tmp)
+        self.patchOS(self.tmp)
         cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
