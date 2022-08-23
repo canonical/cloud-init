@@ -1,4 +1,4 @@
-cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
     + DataSourceVMware: fix var use before init (#1674) (LP: #1987005)
