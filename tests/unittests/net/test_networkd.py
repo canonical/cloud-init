@@ -12,7 +12,7 @@ network:
     eth0:
       match:
         macaddress: '00:11:22:33:44:55'
-      addresses["172.16.10.2/12" "172.16.10.3/12"]
+      addresses: [172.16.10.2/12, 172.16.10.3/12]
       nameservers:
         search: [spam.local, eggs.local]
         addresses: [8.8.8.8]

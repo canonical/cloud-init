@@ -1277,6 +1277,7 @@ NETWORK_CONFIGS = {
             DHCP=no
             [Address]
             Address=192.168.14.2/24
+            [Address]
             Address=2001:1::1/64
         """
         ).rstrip(" "),
