@@ -44,10 +44,16 @@ class CfgParser:
         for k, v in sorted(self.conf_dict.items()):
             if not v:
                 continue
-            contents += "[" + k + "]\n"
-            for e in sorted(v):
-                contents += e + "\n"
-            contents += "\n"
+            if k == "Address":
+                for e in sorted(v):
+                    contents += "[" + k + "]\n"
+                    contents += e + "\n"
+                    contents += "\n"
+            else:
+                contents += "[" + k + "]\n"
+                for e in sorted(v):
+                    contents += e + "\n"
+                contents += "\n"
 
         return contents
 
