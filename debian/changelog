@@ -1,3 +1,15 @@
+cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.10.1) kinetic; urgency=medium
+
+  * New upstream snapshot.
+    + DataSourceVMware: fix var use before init (#1674) (LP: #1987005)
+      [Andrew Kutz]
+    + rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
+    + test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo
+      (#1676)
+    + typo correction in Changelog
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 23 Aug 2022 14:30:10 -0600
+
 cloud-init (22.3-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream release.
