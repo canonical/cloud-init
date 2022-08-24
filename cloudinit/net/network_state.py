@@ -7,7 +7,7 @@
 import copy
 import functools
 import logging
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from cloudinit import safeyaml, util
 from cloudinit.net import (
@@ -21,6 +21,9 @@ from cloudinit.net import (
     is_ipv6_network,
     net_prefix_to_ipv4_mask,
 )
+
+if TYPE_CHECKING:
+    from cloudinit.net.renderer import Renderer
 
 LOG = logging.getLogger(__name__)
 
@@ -234,16 +237,27 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         "config": None,
     }
 
-    def __init__(self, version=NETWORK_STATE_VERSION, config=None):
+    def __init__(
+        self,
+        version=NETWORK_STATE_VERSION,
+        config=None,
+        renderer=None,  # type: Optional[Renderer]
+    ):
         self._version = version
         self._config = config
         self._network_state = copy.deepcopy(self.initial_network_state)
         self._network_state["config"] = config
         self._parsed = False
-        self._interface_dns_map = {}
+        self._interface_dns_map: dict = {}
+        self._renderer = renderer
 
     @property
-    def network_state(self):
+    def network_state(self) -> NetworkState:
+        from cloudinit.net.netplan import Renderer as NetplanRenderer
+
+        if self._version == 2 and isinstance(self._renderer, NetplanRenderer):
+            LOG.debug("Passthrough netplan v2 config")
+            return NetworkState.to_passthrough(self._config)
         return NetworkState(self._network_state, version=self._version)
 
     @property
@@ -283,10 +297,6 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     def as_dict(self):
         return {"version": self._version, "config": self._config}
-
-    def get_network_state(self) -> NetworkState:
-        ns = self.network_state
-        return ns
 
     def parse_config(self, skip_broken=True):
         if self._version == 1:
@@ -332,6 +342,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 }
 
     def parse_config_v2(self, skip_broken=True):
+        from cloudinit.net.netplan import Renderer as NetplanRenderer
+
+        if isinstance(self._renderer, NetplanRenderer):
+            # Nothing to parse as we are going to perform a Netplan passthrough
+            return
+
         for command_type, command in self._config.items():
             if command_type in ["version", "renderer"]:
                 continue
@@ -1061,7 +1077,9 @@ def _normalize_subnets(subnets):
 
 
 def parse_net_config_data(
-    net_config: dict, skip_broken: bool = True
+    net_config: dict,
+    skip_broken: bool = True,
+    renderer=None,  # type: Optional[Renderer]
 ) -> NetworkState:
     """Parses the config, returns NetworkState object
 
@@ -1076,9 +1094,11 @@ def parse_net_config_data(
         config = net_config
 
     if version and config is not None:
-        nsi = NetworkStateInterpreter(version=version, config=config)
+        nsi = NetworkStateInterpreter(
+            version=version, config=config, renderer=renderer
+        )
         nsi.parse_config(skip_broken=skip_broken)
-        state = nsi.get_network_state()
+        state = nsi.network_state
 
     if not state:
         raise RuntimeError(

@@ -24,8 +24,7 @@ from cloudinit import net, persistence, ssh_util, subp, type_utils, util
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
-from cloudinit.net.netplan import Renderer as NetplanRenderer
-from cloudinit.net.network_state import NetworkState, parse_net_config_data
+from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
 from .networking import LinuxNetworking, Networking
@@ -254,14 +253,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 netconfig, bring_up=bring_up
             )
 
-        if (
-            isinstance(renderer, NetplanRenderer)
-            and netconfig.get("version") == 2
-        ):
-            LOG.debug("Passthrough netplan v2 config")
-            network_state = NetworkState.to_passthrough(netconfig)
-        else:
-            network_state = parse_net_config_data(netconfig)
+        network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
 
         # Now try to bring them up

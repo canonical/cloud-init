@@ -133,15 +133,6 @@ def handle_args(name, args):
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)
 
-    if args.output_kind == "netplan" and pre_ns.get("version") == 2:
-        if args.debug:
-            sys.stderr.write("Passthrough netplan v2 config")
-        ns = network_state.NetworkState.to_passthrough(pre_ns)
-    else:
-        ns = network_state.parse_net_config_data(pre_ns)
-
-    if args.debug:
-        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
     if args.output_kind == "eni":
@@ -169,6 +160,11 @@ def handle_args(name, args):
         raise RuntimeError("Invalid output_kind")
 
     r = r_cls(config=config)
+    ns = network_state.parse_net_config_data(pre_ns, renderer=r)
+
+    if args.debug:
+        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
+
     sys.stderr.write(
         "".join(
             [
