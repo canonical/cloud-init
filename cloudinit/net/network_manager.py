@@ -11,10 +11,12 @@ import io
 import itertools
 import os
 import uuid
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import is_ipv6_address, subnet_is_ipv6
+from cloudinit.net.network_state import NetworkState
 
 from . import renderer
 
@@ -342,7 +344,12 @@ class Renderer(renderer.Renderer):
             # Well, what can we do...
             return con_id
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         # First pass makes sure there's NMConnections for all known
         # interfaces that have UUIDs that can be linked to from related
         # interfaces

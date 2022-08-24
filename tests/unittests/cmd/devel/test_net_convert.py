@@ -4,6 +4,7 @@ import itertools
 
 import pytest
 
+from cloudinit import safeyaml as yaml
 from cloudinit.cmd.devel import net_convert
 from cloudinit.distros.debian import NETWORK_FILE_HEADER
 from tests.unittests.helpers import mock
@@ -182,6 +183,47 @@ class TestNetConvert:
                         outfile.strpath, "systemd-network", "systemd-network"
                     )
                 ] == chown.call_args_list
+
+    @pytest.mark.parametrize("debug", (False, True))
+    def test_convert_netplan_passthrough(self, debug, tmpdir):
+        """Assert that if the network config's version is 2 and the renderer is
+        Netplan, then the config is passed through as-is.
+        """
+        network_data = tmpdir.join("network_data")
+        # `default` as a route supported by Netplan but not by cloud-init
+        content = """\
+        network:
+          version: 2
+          ethernets:
+            enp0s3:
+              dhcp4: false
+              addresses: [10.0.4.10/24]
+              nameservers:
+                addresses: [10.0.4.1]
+              routes:
+              - to: default
+                via: 10.0.4.1
+                metric: 100
+        """
+        network_data.write(content)
+        args = [
+            "-m",
+            "enp0s3,AA",
+            f"--directory={tmpdir.strpath}",
+            f"--network-data={network_data.strpath}",
+            "--distro=ubuntu",
+            "--kind=yaml",
+            "--output-kind=netplan",
+        ]
+        if debug:
+            args.append("--debug")
+        params = self._replace_path_args(args, tmpdir)
+        with mock.patch("sys.argv", ["net-convert"] + params):
+            args = net_convert.get_parser().parse_args()
+        with mock.patch("cloudinit.util.chownbyname"):
+            net_convert.handle_args("somename", args)
+        outfile = tmpdir.join("etc/netplan/50-cloud-init.yaml")
+        assert yaml.load(content) == yaml.load(outfile.read())
 
 
 # vi: ts=4 expandtab

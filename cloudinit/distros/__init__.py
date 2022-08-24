@@ -25,6 +25,7 @@ from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
+from cloudinit.net.renderer import Renderer
 
 from .networking import LinuxNetworking, Networking
 
@@ -129,7 +130,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except activators.NoActivatorException:
             return None
 
-    def _write_network_state(self, network_state):
+    def _get_renderer(self) -> Renderer:
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "renderers"), None
         )
@@ -139,6 +140,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "Selected renderer '%s' from priority list: %s", name, priority
         )
         renderer = render_cls(config=self.renderer_configs.get(name))
+        return renderer
+
+    def _write_network_state(self, network_state, renderer: Renderer):
         renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
@@ -241,14 +245,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
-        network_state = parse_net_config_data(netconfig)
         try:
-            self._write_network_state(network_state)
+            renderer = self._get_renderer()
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(
                 netconfig, bring_up=bring_up
             )
+
+        network_state = parse_net_config_data(netconfig, renderer=renderer)
+        self._write_network_state(network_state, renderer)
 
         # Now try to bring them up
         if bring_up:
