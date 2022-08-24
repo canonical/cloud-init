@@ -185,7 +185,7 @@ class TestNetConvert:
                 ] == chown.call_args_list
 
     @pytest.mark.parametrize("debug", (False, True))
-    def test_convert_netplan_passthrough(self, debug, capsys, tmpdir):
+    def test_convert_netplan_passthrough(self, debug, tmpdir):
         """Assert that if the network config's version is 2 and the renderer is
         Netplan, then the config is passed through as-is.
         """
@@ -224,9 +224,6 @@ class TestNetConvert:
             net_convert.handle_args("somename", args)
         outfile = tmpdir.join("etc/netplan/50-cloud-init.yaml")
         assert yaml.load(content) == yaml.load(outfile.read())
-        if debug:
-            _out, err = capsys.readouterr()
-            assert "Passthrough netplan v2 config" in err
 
 
 # vi: ts=4 expandtab
