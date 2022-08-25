@@ -95,6 +95,9 @@ ansible:
 """
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
+git config --global user.name auto                            &&\
+git config --global user.email autom@tic.io                   &&\
+git config --global init.defaultBranch main                   &&\
 git init {REPO_D}                                             &&\
 git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml &&\
 git commit -m auto                                            &&\
@@ -102,8 +105,9 @@ git commit -m auto                                            &&\
 
 
 def _test_ansible_pull_from_local_server(my_client):
-
-    assert my_client.execute(SETUP_REPO).ok
+    setup = my_client.execute(SETUP_REPO)
+    assert not setup.stderr
+    assert not setup.return_code
     my_client.execute("cloud-init clean --logs")
     my_client.restart()
     log = my_client.read_from_file("/var/log/cloud-init.log")
