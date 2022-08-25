@@ -31,8 +31,9 @@ write_files:
        WantedBy=cloud-init-local.service
 
        [Service]
-       ExecStart=/usr/bin/env python3 -m http.server \
-         --directory /root/playbooks/.git
+       WorkingDirectory=/root/playbooks/.git
+       ExecStart=/usr/bin/env python3 -m http.server --bind 0.0.0.0 8000
+
 
   - path: /etc/systemd/system/repo_waiter.service
     content: |
@@ -49,7 +50,7 @@ write_files:
        # running and continue once it is up, but this is simple and works
        [Service]
        Type=oneshot
-       ExecStart=sh -c "while \
+       ExecStart=/bin/sh -c "while \
             ! git clone http://0.0.0.0:8000/ $(mktemp -d); do sleep 0.1; done"
 
   - path: /root/playbooks/ubuntu.yml
