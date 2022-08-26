@@ -125,6 +125,34 @@ handle_preseed_local_cloud_config() {
    db_unregister "${debconf_name}" || :
 }
 
+fix_1978422_redact_sensitive_logs_on_invalid_userdata_schema() {
+    local oldver="$1" last_bad_ver="22.2-0ubuntu1~20.04.2"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+
+    MSG="Redacting sensitive logs due to invalid cloud-config user-data from"
+    REMOTE_LOG_MSG="Sensitive logs containing 'Invalid cloud-config provided:' exist in journalctl and any remote log aggregators. Please manually redact such logs as necessary."
+    INVALID_USERDATA_LOG="Invalid cloud-config provided:$"
+    if [ -f /var/log/cloud-init.log ]; then
+        if grep -q "${INVALID_USERDATA_LOG}" /var/log/cloud-init.log; then
+            echo "${MSG} /var/log/cloud-init.log"
+            echo "${REMOTE_LOG_MSG}"
+            # Replace generic warning about invalid user-data
+            sed  -i "s/Invalid cloud-config provided:/Invalid cloud-config provided: Please run 'sudo cloud-init schema --system' to see the schema errors./" /var/log/cloud-init.log
+            # Redact any lines until the next DEBUG, WARNING, ERROR or Info log
+            sed  -i '/Invalid cloud-config provided:.*/,/DEBUG\|WARNING\|ERROR\|INFO\|Traceback/{/DEBUG\|WARNING\|ERROR\|INFO\|Traceback/b; /.*/d};' /var/log/cloud-init.log
+        fi
+    fi
+    if [ -f /var/log/cloud-init-output.log ]; then
+        if grep -q "${INVALID_USERDATA_LOG}" /var/log/cloud-init-output.log; then
+            echo "${MSG} /var/log/cloud-init-output.log"
+            # Replace generic warning about invalid user-data
+            sed  -i "s/Invalid cloud-config provided:/Invalid cloud-config provided: Please run 'sudo cloud-init schema --system' to see the schema errors./" /var/log/cloud-init-output.log
+            # Redact any logs between Invalid cloud-config and 'Generating' or 'Cloud' log lines
+            sed  -i '/Invalid cloud-config provided:.*/,/Generating\|Cloud/{/Generating\|Cloud\|WARNING\|ERROR\|INFO\|Traceback/b; /.*/d};' /var/log/cloud-init-output.log
+        fi
+    fi
+}
+
 fix_1336855() {
   ### Begin fix for LP: 1336855
   # fix issue where cloud-init misidentifies the location of grub and
@@ -375,6 +403,9 @@ EOF
    cleanup_ureadahead "$2"
    fix_lp1889555 "$2"
    change_cloud_init_output_log_permissions "$2"
+
+   # Redact schema sensitive warning logs on invalid user-data
+   fix_1978422_redact_sensitive_logs_on_invalid_userdata_schema "$2"
 fi
 
 #DEBHELPER#
