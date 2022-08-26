@@ -366,7 +366,7 @@ def handle(
     )
     if not disable_auto_attach and _is_pro():
         _auto_attach(ua_section, config)
-    else:
+    elif not ua_section.keys() <= {"features"}:
         _attach(ua_section, config)
 
 

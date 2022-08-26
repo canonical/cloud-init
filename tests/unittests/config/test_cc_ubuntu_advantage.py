@@ -607,6 +607,44 @@ class TestHandle:
             assert configure_ua_call_args_list == m_attach.call_args_list
         assert auto_attach_call_args_list == m_auto_attach.call_args_list
 
+    @pytest.mark.parametrize("is_pro", [False, True])
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False},
+                    }
+                }
+            ),
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": True},
+                    }
+                }
+            ),
+        ],
+    )
+    @mock.patch(f"{MPATH}._is_pro")
+    @mock.patch(f"{MPATH}._auto_attach")
+    @mock.patch(f"{MPATH}._attach")
+    def test_no_fallback_attach(
+        self,
+        m_attach,
+        m_auto_attach,
+        m_is_pro,
+        cfg,
+        is_pro,
+    ):
+        """Checks that attach is not called in the case we want only to
+        enable or disable ua auto-attach.
+        """
+        m_is_pro.return_value = is_pro
+        handle("nomatter", cfg=cfg, cloud=self.cloud, log=None, args=None)
+        assert not m_attach.call_args_list
+
     @pytest.mark.parametrize(
         "cfg, handle_kwargs, match",
         [
