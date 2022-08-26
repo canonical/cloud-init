@@ -3,13 +3,15 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.lintian-overrides: lintian fixes:
     + Fix systemd-service-file-refers-to-unusual-wantedby-target format.
-  * d/cloud-init.postinst: lintian fixes:
-    + Fix command-with-path-in-maintainer-script for grub-install.
+  * d/cloud-init.postinst
+    + Lintian: Fix command-with-path-in-maintainer-script for grub-install.
   * d/source/lintian-overrides: lintian fixes:
     + silence binary-nmu-debian-revision-in-source bug:
       https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1014584
   * d/p/expire-on-hashed-users.patch:
     Add patch to ensure password expire doesn't apply to hashed users
+  * drop the following cherry-picks now included:
+    + cpick-a2e62738-Fix-cc_phone_home-requiring-tries-1500
   * New upstream snapshot. (LP: #1987318)
     + DataSourceVMware: fix var use before init (#1674) [Andrew Kutz]
     + rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
@@ -243,6 +245,20 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
       Fedora (#1465) [Emanuele Giuseppe Esposito]
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 22 Aug 2022 14:32:58 -0500
+
+cloud-init (22.2-0ubuntu1~22.04.3) jammy; urgency=medium
+
+  * d/cloud-init.postinst: redact previously leaked schema errors from logs
+  * Remove schema errors from log (LP: #1978422) (CVE-2022-2084)
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 14 Jun 2022 06:31:00 -0500
+
+cloud-init (22.2-0ubuntu1~22.04.2) jammy; urgency=medium
+
+  * cherry-pick a2e62738: Fix cc_phone_home requiring 'tries' (#1500)
+    (LP: #1977952)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 09 Jun 2022 16:25:29 -0500
 
 cloud-init (22.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
