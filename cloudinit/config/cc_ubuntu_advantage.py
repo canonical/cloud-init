@@ -34,6 +34,10 @@ meta: MetaSchema = {
         'enable' list is not present, any named service will supplement
         contract-default enabled services.
 
+        In Ubuntu Pro instances, `token` will be ignored. `enable` and
+        `enable_beta` will fully determine what services will be enabled,
+        ignoring contract defaults.
+
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
         See `Power State Change`_ for information on how to configure
@@ -92,6 +96,32 @@ meta: MetaSchema = {
             ua_apt_https_proxy: 'https://10.0.10.10:3128'
           enable:
           - fips
+        """
+        ),
+        dedent(
+            """\
+        # Do not enable any service in Ubuntu Pro instances.
+        ubuntu_advantage:
+          enable: []
+          enable_beta: []
+        """
+        ),
+        dedent(
+            """\
+        # Enable esm and beta realtime-kernel services in Ubuntu Pro instances.
+        ubuntu_advantage:
+          enable:
+          - esm
+          enable_beta:
+          - realtime-kernel
+        """
+        ),
+        dedent(
+            """\
+        # Disable auto-attach in Ubuntu Pro instances.
+        ubuntu_advantage:
+          features:
+            disable_auto_attach: True
         """
         ),
     ],

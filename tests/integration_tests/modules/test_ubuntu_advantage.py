@@ -34,7 +34,7 @@ AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
 ubuntu_advantage:
   enable:
-  - fips
+  - esm
   enable_beta:
   - realtime-kernel
 """
