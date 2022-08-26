@@ -72,7 +72,7 @@ def install_ua_daily(session_cloud: IntegrationCloud):
     """Install `ubuntu-advantage-tools` from ppa:ua-client/daily in an
     Ubuntu Pro image.
 
-    TODO: Remove this after UA releases the next version.
+    TODO: Remove this after UA releases v28.0.
     """
     cfg_image_spec = ImageSpecification.from_os_image()
     with session_cloud.launch(
