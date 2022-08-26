@@ -95,16 +95,12 @@ PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
-    """either password or type: RANDOM is required, user is always required"""
-    return (
-        []
-        if not users_list
-        else [
-            (item["name"], item.get("password", "RANDOM"))
-            for item in users_list
-            if item.get("type", "hash") == pw_type
-        ]
-    )
+    """either password or type: RANDOM is required, users_list is always required"""
+    return [
+        item["name"]
+        for item in users_list
+        if item.get("type", "hash") == pw_type
+    ]
 
 
 def handle_ssh_pwauth(pw_auth, distro: Distro):
@@ -240,12 +236,10 @@ def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
         # This section is for parsing the data that arrives in the form of
         #   chpasswd:
         #     users:
-        plist_in = get_users_by_type(users_list, "text")
-        users = [user for user, _ in plist_in]
-        hashed_plist_in = get_users_by_type(users_list, "hash")
-        hashed_users = [user for user, _ in hashed_plist_in]
+        users = get_users_by_type(users_list, "text")
+        hashed_users = get_users_by_type(users_list, "hash")
         randlist = []
-        for user, _ in get_users_by_type(users_list, "RANDOM"):
+        for user get_users_by_type(users_list, "RANDOM"):
             password = rand_user_password()
             users.append(user)
             plist_in.append((user, password))
