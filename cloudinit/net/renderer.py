@@ -7,6 +7,7 @@
 
 import abc
 import io
+from typing import Optional
 
 from cloudinit.net.network_state import NetworkState, parse_net_config_data
 from cloudinit.net.udev import generate_udev_rule
@@ -49,11 +50,19 @@ class Renderer(object):
         return content.getvalue()
 
     @abc.abstractmethod
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         """Render network state."""
 
     def render_network_config(
-        self, network_config, templates=None, target=None
+        self,
+        network_config: dict,
+        templates: Optional[dict] = None,
+        target=None,
     ):
         return self.render_network_state(
             network_state=parse_net_config_data(network_config),

@@ -1395,7 +1395,7 @@ def wait_on_network(metadata):
                 wait_on_ipv6 = util.translate_bool(wait_on_ipv6_val)
 
     # Get information about the host.
-    host_info = None
+    host_info, ipv4_ready, ipv6_ready = None, False, False
     while host_info is None:
         # This loop + sleep results in two logs every second while waiting
         # for either ipv4 or ipv6 up. Do we really need to log each iteration
@@ -1440,7 +1440,10 @@ def main():
     except Exception:
         pass
     metadata = {
-        "wait-on-network": {"ipv4": True, "ipv6": "false"},
+        WAIT_ON_NETWORK: {
+            WAIT_ON_NETWORK_IPV4: True,
+            WAIT_ON_NETWORK_IPV6: False,
+        },
         "network": {"config": {"dhcp": True}},
     }
     host_info = wait_on_network(metadata)

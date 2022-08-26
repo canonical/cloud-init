@@ -91,6 +91,8 @@ class TestDataSourceVMware(CiTestCase):
     Test common functionality that is not transport specific.
     """
 
+    with_logs = True
+
     def setUp(self):
         super(TestDataSourceVMware, self).setUp()
         self.tmp = self.tmp_dir()
@@ -144,6 +146,78 @@ class TestDataSourceVMware(CiTestCase):
         self.assertTrue(
             host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
         )
+
+    @mock.patch("cloudinit.sources.DataSourceVMware.get_host_info")
+    def test_wait_on_network(self, m_fn):
+        metadata = {
+            DataSourceVMware.WAIT_ON_NETWORK: {
+                DataSourceVMware.WAIT_ON_NETWORK_IPV4: True,
+                DataSourceVMware.WAIT_ON_NETWORK_IPV6: False,
+            },
+        }
+        m_fn.side_effect = [
+            {
+                "hostname": "host.cloudinit.test",
+                "local-hostname": "host.cloudinit.test",
+                "local_hostname": "host.cloudinit.test",
+                "network": {
+                    "interfaces": {
+                        "by-ipv4": {},
+                        "by-ipv6": {},
+                        "by-mac": {
+                            "aa:bb:cc:dd:ee:ff": {"ipv4": [], "ipv6": []}
+                        },
+                    },
+                },
+            },
+            {
+                "hostname": "host.cloudinit.test",
+                "local-hostname": "host.cloudinit.test",
+                "local-ipv4": "10.10.10.1",
+                "local_hostname": "host.cloudinit.test",
+                "network": {
+                    "interfaces": {
+                        "by-ipv4": {
+                            "10.10.10.1": {
+                                "mac": "aa:bb:cc:dd:ee:ff",
+                                "netmask": "255.255.255.0",
+                            }
+                        },
+                        "by-mac": {
+                            "aa:bb:cc:dd:ee:ff": {
+                                "ipv4": [
+                                    {
+                                        "addr": "10.10.10.1",
+                                        "broadcast": "10.10.10.255",
+                                        "netmask": "255.255.255.0",
+                                    }
+                                ],
+                                "ipv6": [],
+                            }
+                        },
+                    },
+                },
+            },
+        ]
+
+        host_info = DataSourceVMware.wait_on_network(metadata)
+
+        logs = self.logs.getvalue()
+        expected_logs = [
+            "DEBUG: waiting on network: wait4=True, "
+            + "ready4=False, wait6=False, ready6=False\n",
+            "DEBUG: waiting on network complete\n",
+        ]
+        for log in expected_logs:
+            self.assertIn(log, logs)
+
+        self.assertTrue(host_info)
+        self.assertTrue(host_info["hostname"])
+        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
+        self.assertTrue(host_info["local-hostname"])
+        self.assertTrue(host_info["local_hostname"])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
+        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
 
 
 class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):
