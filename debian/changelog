@@ -1,8 +1,8 @@
 cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
-  * d/cloud-init.postinst: lintian fixes:
-    + Fix command-with-path-in-maintainer-script for grub-install
+  * d/cloud-init.postinst:
+    + Lintian: Fix command-with-path-in-maintainer-script for grub-install
   * d/p/renderer-do-not-prefer-netplan refresh to activators change
   * d/p/expire-on-hashed-users.patch:
     Add patch to ensure password expire doesn't apply to hashed users
@@ -13,6 +13,8 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     + debian/patches/ec2-dont-apply-full-imds-network-config.patch
     + debian/patches/openstack-no-network-config.patch
     + debian/patches/renderer-do-not-prefer-netplan.patch
+  * drop the following cherry-picks now included:
+    + cpick-a2e62738-Fix-cc_phone_home-requiring-tries-1500
   * New upstream snapshot. (LP: #1987318)
     + DataSourceVMware: fix var use before init (#1674) [Andrew Kutz]
     + rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
@@ -248,6 +250,20 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
       Fedora (#1465) [Emanuele Giuseppe Esposito]
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 22 Aug 2022 14:22:42 -0500
+
+cloud-init (22.2-0ubuntu1~18.04.3) bionic; urgency=medium
+
+  * d/cloud-init.postinst: redact previously leaked schema errors from logs
+  * Remove schema errors from log (LP: #1978422) (CVE-2022-2084)
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 15 Jun 2022 11:38:21 -0500
+
+cloud-init (22.2-0ubuntu1~18.04.2) bionic; urgency=medium
+
+  * cherry-pick a2e62738: Fix cc_phone_home requiring 'tries' (#1500)
+    (LP: #1977952)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 09 Jun 2022 16:56:33 -0500
 
 cloud-init (22.2-0ubuntu1~18.04.1) bionic; urgency=medium
 
