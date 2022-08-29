@@ -166,12 +166,27 @@ To wait for clous-init to complete, run:
 
         $ cloud-init status --wait
 
+Failing to Complete on Systemd:
+-------------------------------
+
+Cloud-init consists of multiple services on systemd. If a service
+that cloud-init depends on stalls, cloud-init will not continue.
+If reporting a bug related to cloud-init failing to complete on
+systemd, please make sure to include the following logs.
+
+.. code-block:: shell-session
+
+        $ systemd-analyze critical-chain cloud-init.target
+
+        $ systemctl --failed
+
+
 There are a number of reasons that cloud-init might never complete. This list
 is not exhaustive, but attempts to enumerate potential causes:
 
 External reasons:
 -----------------
-- failed dependant services in the boot
+- failed dependent services in the boot
 - bugs in the kernel or drivers
 - bugs in external userspace tools that are called by cloud-init
 
