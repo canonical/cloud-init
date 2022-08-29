@@ -16,7 +16,6 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 UA_URL = "https://ubuntu.com/advantage"
-_AUTO_ATTACH_RETRIES = 3
 
 distros = ["ubuntu"]
 
@@ -328,29 +327,25 @@ def _attach(ua_section: dict, config: Optional[dict] = None):
     )
 
 
-def _auto_attach(ua_section: dict, config: Optional[dict] = None):
+def _auto_attach(ua_section: dict):
     try:
         from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
             FullAutoAttachOptions,
             full_auto_attach,
         )
-        from uaclient.config import UAConfig
+        from uaclient.exceptions import UserFacingError
     except ImportError as ex:
         msg = f"Unable to import `uaclient`: {ex}"
         LOG.error(msg)
         raise RuntimeError(msg) from ex
 
-    ua_config = UAConfig(
-        **{"cfg": {"ua_config": config}} if config is not None else {}
-    )
     options = FullAutoAttachOptions(
         enable=ua_section.get("enable"),
         enable_beta=ua_section.get("enable_beta"),
-        retries=_AUTO_ATTACH_RETRIES,
     )
     try:
-        full_auto_attach(options=options, cfg=ua_config)
-    except Exception as ex:
+        full_auto_attach(options=options)
+    except UserFacingError as ex:
         msg = f"Error during `full_auto_attach`: {ex}"
         LOG.error(msg)
         raise RuntimeError(msg) from ex
@@ -395,7 +390,7 @@ def handle(
         ua_section.get("features", {}).get("disable_auto_attach", False)
     )
     if not disable_auto_attach and _is_pro():
-        _auto_attach(ua_section, config)
+        _auto_attach(ua_section)
     elif not ua_section.keys() <= {"features"}:
         _attach(ua_section, config)
 

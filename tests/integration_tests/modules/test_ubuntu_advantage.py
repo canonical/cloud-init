@@ -5,7 +5,10 @@ from pycloudlib.cloud import ImageType
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
-from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.instances import (
+    CloudInitSource,
+    IntegrationInstance,
+)
 from tests.integration_tests.util import verify_clean_log
 
 CLOUD_INIT_UA_TOKEN = os.environ.get("CLOUD_INIT_UA_TOKEN")
@@ -34,9 +37,7 @@ AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
 ubuntu_advantage:
   enable:
-  - esm
-  enable_beta:
-  - realtime-kernel
+  - livepatch
 """
 
 
@@ -83,10 +84,12 @@ def install_ua_daily(session_cloud: IntegrationCloud):
             )
         },
     ) as client:
+        client.execute("ua detach")
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         source = get_validated_source(session_cloud)
-        client.install_new_cloud_init(source)
+        if source is not CloudInitSource.NONE:
+            client.install_new_cloud_init(source)
         client.destroy()
 
 

@@ -2,6 +2,7 @@
 import logging
 import re
 import sys
+from collections import namedtuple
 
 import pytest
 
@@ -24,6 +25,24 @@ from tests.unittests.util import get_cloud
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
+
+
+class FakeUserFacingError(Exception):
+    pass
+
+
+@pytest.fixture
+def fake_uaclient(mocker):
+    mocker.patch.dict("sys.modules")
+    sys.modules["uaclient"] = mock.Mock()
+    sys.modules["uaclient.config"] = mock.Mock()
+    sys.modules[
+        "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+    ] = mock.Mock()
+    _exceptions = namedtuple("exceptions", ["UserFacingError"])(
+        FakeUserFacingError
+    )
+    sys.modules["uaclient.exceptions"] = _exceptions
 
 
 @mock.patch(f"{MPATH}.subp.subp")
@@ -519,11 +538,7 @@ class TestHandle:
                 [],
                 None,  # auto_attach successes
                 True,  # Pro instance
-                [
-                    mock.call(
-                        {"features": {"disable_auto_attach": False}}, None
-                    )
-                ],
+                [mock.call({"features": {"disable_auto_attach": False}})],
                 [],
                 does_not_raise(),
                 id="auto_attach_success",
@@ -540,11 +555,7 @@ class TestHandle:
                 [],
                 RuntimeError("Auto attach error"),
                 True,  # Pro instance
-                [
-                    mock.call(
-                        {"features": {"disable_auto_attach": False}}, None
-                    )
-                ],
+                [mock.call({"features": {"disable_auto_attach": False}})],
                 [],
                 pytest.raises(RuntimeError, match="Auto attach error"),
                 id="auto_attach_error",
@@ -759,11 +770,11 @@ class TestAutoAttach:
             _auto_attach(self.ua_section)
         assert expected_msg in caplog.text
 
-    def test_full_auto_attach_error(self, caplog, mocker):
+    def test_full_auto_attach_error(self, caplog, mocker, fake_uaclient):
         mocker.patch.dict("sys.modules")
         sys.modules["uaclient.config"] = mock.Mock()
         m_full_auto_attach = mock.Mock()
-        m_full_auto_attach.full_auto_attach.side_effect = ValueError(
+        m_full_auto_attach.full_auto_attach.side_effect = FakeUserFacingError(
             "Some error"
         )
         sys.modules[
@@ -774,7 +785,7 @@ class TestAutoAttach:
             _auto_attach(self.ua_section)
         assert expected_msg in caplog.text
 
-    def test_happy_path(self, caplog, mocker):
+    def test_happy_path(self, caplog, mocker, fake_uaclient):
         mocker.patch.dict("sys.modules")
         sys.modules["uaclient.config"] = mock.Mock()
         sys.modules[

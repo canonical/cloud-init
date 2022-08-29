@@ -2229,7 +2229,7 @@
             },
             "config": {
               "type": "object",
-              "description": "Configuration settings or override Ubuntu Advantage config",
+              "description": "Configuration settings or override Ubuntu Advantage config. Only used in non Ubuntu Pro instances.",
               "properties": {
                 "http_proxy": {
                   "type": "string",
