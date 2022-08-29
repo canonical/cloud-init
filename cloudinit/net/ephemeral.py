@@ -429,9 +429,9 @@ class EphemeralIPNetwork:
         # therefore catch exception unless only v4 is used
         try:
             if self.ipv4:
-                self.stack.enter_context(EphemeralIPv6Network(self.interface))
-            if self.ipv6:
                 self.stack.enter_context(EphemeralDHCPv4(self.interface))
+            if self.ipv6:
+                self.stack.enter_context(EphemeralIPv6Network(self.interface))
         # v6 link local might be usable
         # caller may want to log network state
         except NoDHCPLeaseError as e:
