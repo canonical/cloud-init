@@ -6,6 +6,7 @@ import pytest
 
 from cloudinit import atomic_helper, util
 from tests.unittests.helpers import retarget_many_wrapper
+from pathlib import Path
 
 FS_FUNCS = {
     os.path: [
@@ -55,3 +56,12 @@ def fake_filesystem(mocker, tmpdir):
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
             mocker.patch.object(mod, f, trap_func)
+
+
+PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
+
+if PYTEST_VERSION_TUPLE < (3, 9, 0):
+
+    @pytest.fixture
+    def tmp_path(tmpdir):
+        return Path(tmpdir)
