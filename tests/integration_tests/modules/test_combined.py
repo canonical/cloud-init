@@ -67,8 +67,8 @@ snap:
   commands:
     - snap install hello-world
 ssh_import_id:
-  - gh:powersj
   - lp:smoser
+
 timezone: US/Aleutian
 """
 
