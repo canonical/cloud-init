@@ -4,24 +4,25 @@ cloud-init Documentation
 ########################
 
 Cloud-init is the *industry standard* multi-distribution method for
-cross-platform cloud instance initialization. It is supported across all
-major public cloud providers, provisioning systems for private cloud
-infrastructure, and bare-metal installations.
+cross-platform cloud instance initialization.
 
-On instance boot, cloud-init will identify the cloud it is running on, read
-any provided metadata from the cloud, and initialize the system accordingly.
-This may involve setting up the network and storage devices, configuring SSH
-access keys, and setting up many other aspects of a system. Later,
-cloud-init will parse and process any optional user or vendor data that was
-passed to the instance.
+During boot, cloud-init identifies the cloud it is running on, reads
+metadata from the cloud, and initializes the system accordingly.
 
-Getting help
-************
+Cloud-init allows users to boot instances that are automatically
+provisioned during first boot with networking, storage, ssh keys, packages and
+various other system aspects already configured.
+
+This project is for anyone that wishes to bring up an instance that configures
+itself during boot.
+
 
 Having trouble? We would like to help!
+**************************************
 
 - Check out the :ref:`lxd_tutorial` if you're new to cloud-init
 - Try the :ref:`FAQ` for answers to some common questions
+- Have a feature idea or bug to fix? `Contribute on Github <https://github.com/canonical/cloud-init>`_
 - Ask a question in the ``#cloud-init`` IRC channel on Libera
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
@@ -75,5 +76,3 @@ Having trouble? We would like to help!
    topics/docs.rst
    topics/testing.rst
    topics/integration_tests.rst
-
-.. vi: textwidth=79
