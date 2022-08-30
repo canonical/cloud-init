@@ -11,6 +11,7 @@ from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros import net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
+from cloudinit.net.renderer import Renderer
 from cloudinit.net.renderers import RendererNotFoundError
 from cloudinit.settings import PER_INSTANCE
 
@@ -61,9 +62,9 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
 
-    def _write_network_state(self, network_state):
+    def _get_renderer(self) -> Renderer:
         try:
-            super()._write_network_state(network_state)
+            return super()._get_renderer()
         except RendererNotFoundError as e:
             # Fall back to old _write_network
             raise NotImplementedError from e

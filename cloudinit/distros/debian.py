@@ -137,9 +137,9 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 
-    def _write_network_state(self, network_state):
+    def _write_network_state(self, *args, **kwargs):
         _maybe_remove_legacy_eth0()
-        return super()._write_network_state(network_state)
+        return super()._write_network_state(*args, **kwargs)
 
     def _write_hostname(self, hostname, filename):
         conf = None
