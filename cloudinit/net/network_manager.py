@@ -11,10 +11,12 @@ import io
 import itertools
 import os
 import uuid
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import is_ipv6_address, subnet_is_ipv6
+from cloudinit.net.network_state import NetworkState
 
 from . import renderer
 
@@ -69,7 +71,7 @@ class NMConnection:
 
         method_map = {
             "static": "manual",
-            "dhcp6": "dhcp",
+            "dhcp6": "auto",
             "ipv6_slaac": "auto",
             "ipv6_dhcpv6-stateless": "auto",
             "ipv6_dhcpv6-stateful": "auto",
@@ -96,8 +98,6 @@ class NMConnection:
 
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
-        if family == "ipv6":
-            self._set_default(family, "addr-gen-mode", "stable-privacy")
 
     def _add_numbered(self, section, key_prefix, value):
         """
@@ -344,7 +344,12 @@ class Renderer(renderer.Renderer):
             # Well, what can we do...
             return con_id
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         # First pass makes sure there's NMConnections for all known
         # interfaces that have UUIDs that can be linked to from related
         # interfaces

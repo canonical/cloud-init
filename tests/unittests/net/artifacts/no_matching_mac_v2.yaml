@@ -1,0 +1,22 @@
+network:
+  version: 2
+  ethernets:
+    encc000: {}
+    zz-all-en:
+      match:
+        name: "en*"
+      dhcp4: true
+    zz-all-eth:
+      match:
+        name: "eth*"
+      dhcp4: true
+  vlans:
+    encc000.2653:
+      id: 2653
+      link: "encc000"
+      addresses:
+        - "10.245.236.14/24"
+      gateway4: "10.245.236.1"
+      nameservers:
+        addresses:
+          - "10.245.236.1"
