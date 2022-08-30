@@ -178,7 +178,6 @@ systemd, please make sure to include the following logs.
 
         $ systemd-analyze critical-chain cloud-init.target
         $ journalctl --boot=-1
-
         $ systemctl --failed
 
 
