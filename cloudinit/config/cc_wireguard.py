@@ -264,7 +264,7 @@ def handle(name: str, cfg: dict, cloud: Cloud, log, args: list):
         wg_section = cfg["wireguard"]
     else:
         LOG.debug(
-            "Skipping module named %s," " no 'wireguard' configuration found",
+            "Skipping module named %s, no 'wireguard' configuration found",
             name,
         )
         return

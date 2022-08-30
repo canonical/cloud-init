@@ -133,19 +133,14 @@ def handle_args(name, args):
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)
 
-    ns = network_state.parse_net_config_data(pre_ns)
-
-    if args.debug:
-        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
-    config = {}
     if args.output_kind == "eni":
         r_cls = eni.Renderer
         config = distro.renderer_configs.get("eni")
     elif args.output_kind == "netplan":
         r_cls = netplan.Renderer
-        config = distro.renderer_configs.get("netplan")
+        config = distro.renderer_configs.get("netplan", {})
         # don't run netplan generate/apply
         config["postcmds"] = False
         # trim leading slash
@@ -165,6 +160,11 @@ def handle_args(name, args):
         raise RuntimeError("Invalid output_kind")
 
     r = r_cls(config=config)
+    ns = network_state.parse_net_config_data(pre_ns, renderer=r)
+
+    if args.debug:
+        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
+
     sys.stderr.write(
         "".join(
             [
