@@ -1,4 +1,4 @@
-cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
     + Fix v2 interface matching when no MAC (LP: #1986551)
