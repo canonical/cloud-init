@@ -5,7 +5,6 @@ YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
 PYTHON = python3
-PIP_INSTALL := pip3 install
 
 NUM_ITER ?= 100
 
@@ -55,14 +54,6 @@ ci-deps-ubuntu:
 
 ci-deps-centos:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro centos --test-distro
-
-pip-requirements:
-	@echo "Installing cloud-init dependencies..."
-	$(PIP_INSTALL) -r "$@.txt" -q
-
-pip-test-requirements:
-	@echo "Installing cloud-init test dependencies..."
-	$(PIP_INSTALL) -r "$@.txt" -q
 
 test: unittest
 
@@ -174,6 +165,6 @@ fix_spelling:
 		sh
 
 .PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
-.PHONY: check_version pip-test-requirements pip-requirements clean_pyc
+.PHONY: check_version clean_pyc
 .PHONY: unittest style-check fix_spelling render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging check_spelling clean_release doc

@@ -235,6 +235,38 @@ network:
 """
 
 
+V2_PASSTHROUGH_NET_CFG = {
+    "ethernets": {
+        "eth7": {
+            "addresses": ["192.168.1.5/24"],
+            "gateway4": "192.168.1.254",
+            "routes": [{"to": "default", "via": "10.0.4.1", "metric": 100}],
+        },
+    },
+    "version": 2,
+}
+
+
+V2_PASSTHROUGH_NET_CFG_OUTPUT = """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+network:
+    ethernets:
+        eth7:
+            addresses:
+            - 192.168.1.5/24
+            gateway4: 192.168.1.254
+            routes:
+            -   metric: 100
+                to: default
+                via: 10.0.4.1
+    version: 2
+"""
+
+
 class WriteBuffer(object):
     def __init__(self):
         self.buffer = StringIO()
@@ -472,6 +504,9 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
 
 
 class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
+
+    with_logs = True
+
     def setUp(self):
         super(TestNetCfgDistroUbuntuNetplan, self).setUp()
         self.distro = self._get_distro("ubuntu", renderers=["netplan"])
@@ -538,6 +573,22 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             self.distro.apply_network_config,
             V2_NET_CFG,
             expected_cfgs=expected_cfgs.copy(),
+        )
+
+    def test_apply_network_config_v2_full_passthrough_ub(self):
+        expected_cfgs = {
+            self.netplan_path(): V2_PASSTHROUGH_NET_CFG_OUTPUT,
+        }
+        # ub_distro.apply_network_config(V2_PASSTHROUGH_NET_CFG, False)
+        self._apply_and_verify_netplan(
+            self.distro.apply_network_config,
+            V2_PASSTHROUGH_NET_CFG,
+            expected_cfgs=expected_cfgs.copy(),
+        )
+        self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
+        self.assertIn(
+            "Selected renderer 'netplan' from priority list: ['netplan']",
+            self.logs.getvalue(),
         )
 
 

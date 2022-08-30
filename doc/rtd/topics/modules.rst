@@ -55,6 +55,7 @@ Module Reference
 .. automodule:: cloudinit.config.cc_ssh_import_id
 .. automodule:: cloudinit.config.cc_timezone
 .. automodule:: cloudinit.config.cc_ubuntu_advantage
+.. automodule:: cloudinit.config.cc_ubuntu_autoinstall
 .. automodule:: cloudinit.config.cc_ubuntu_drivers
 .. automodule:: cloudinit.config.cc_update_etc_hosts
 .. automodule:: cloudinit.config.cc_update_hostname
