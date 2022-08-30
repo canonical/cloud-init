@@ -173,7 +173,7 @@ class TestDataSourceScaleway(HttprettyTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         self.datasource = DataSourceScaleway.DataSourceScaleway(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
         )

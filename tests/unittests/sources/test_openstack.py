@@ -293,7 +293,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         ds_os_local = ds.DataSourceOpenStackLocal(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )

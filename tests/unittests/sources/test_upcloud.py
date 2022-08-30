@@ -208,7 +208,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
     def get_ds(self, get_sysinfo=_mock_dmi):
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceUpCloudLocal(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )

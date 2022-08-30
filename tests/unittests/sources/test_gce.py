@@ -397,7 +397,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
     def test_local_datasource_uses_ephemeral_dhcp(self, _m_fallback, m_dhcp):
         _set_mock_metadata()
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )

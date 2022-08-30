@@ -61,7 +61,7 @@ class DataSourceHetzner(sources.DataSource):
                 connectivity_url_data={
                     "url": BASE_URL_V1 + "/metadata/instance-id",
                 },
-                alt_tmp_dir=self.distro._get_tmp_exec_path(),
+                tmp_dir=self.distro.get_tmp_exec_path(),
             ):
                 md = hc_helper.read_metadata(
                     self.metadata_address,

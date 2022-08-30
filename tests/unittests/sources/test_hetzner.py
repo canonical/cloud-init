@@ -67,7 +67,7 @@ class TestDataSourceHetzner(CiTestCase):
 
     def get_ds(self):
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceHetzner.DataSourceHetzner(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
@@ -114,7 +114,7 @@ class TestDataSourceHetzner(CiTestCase):
             connectivity_url_data={
                 "url": "http://169.254.169.254/hetzner/v1/metadata/instance-id"
             },
-            alt_tmp_dir=mock.ANY,
+            tmp_dir=mock.ANY,
         )
 
         self.assertTrue(m_readmd.called)

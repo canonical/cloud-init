@@ -85,7 +85,7 @@ class DataSourceGCE(sources.DataSource):
         if self.perform_dhcp_setup:
             network_context = EphemeralDHCPv4(
                 self.fallback_interface,
-                alt_tmp_dir=self.distro._get_tmp_exec_path(),
+                tmp_dir=self.distro.get_tmp_exec_path(),
             )
         with network_context:
             ret = util.log_time(

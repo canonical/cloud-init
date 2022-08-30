@@ -10,6 +10,8 @@ import pytest
 from cloudinit import distros, util
 from tests.unittests import helpers
 
+M_PATH = "cloudinit.distros."
+
 unknown_arch_info = {
     "arches": ["default"],
     "failsafe": {
@@ -380,6 +382,25 @@ class TestGetPackageMirrors:
             "primary": "http://fs-primary-intel",
             "security": "http://security-mirror2-intel",
         }
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestDistro:
+    @pytest.mark.parametrize("is_noexec", [False, True])
+    @mock.patch(M_PATH + "util.has_mount_opt")
+    @mock.patch(M_PATH + "temp_utils.get_tmp_ancestor", return_value="/tmp")
+    def test_get_tmp_exec_path(
+        self, m_get_tmp_ancestor, m_has_mount_opt, is_noexec, mocker
+    ):
+        m_has_mount_opt.return_value = not is_noexec
+        cls = distros.fetch("ubuntu")
+        distro = cls("ubuntu", {}, None)
+        mocker.patch.object(distro, "usr_lib_exec", "/usr_lib_exec")
+        tmp_path = distro.get_tmp_exec_path()
+        if is_noexec:
+            assert "/tmp" == tmp_path
+        else:
+            assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
 
 
 # vi: ts=4 expandtab

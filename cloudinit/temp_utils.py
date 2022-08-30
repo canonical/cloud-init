@@ -20,7 +20,19 @@ def _is_noexec_mount(path) -> bool:
     return "noexec" in mnt_opts
 
 
-def _tempfile_dir_arg(odir=None, needs_exe: bool = False, alt_exe_dir=None):
+def get_tmp_ancestor(odir=None, needs_exe: bool = False):
+    if odir is not None:
+        return odir
+    if needs_exe:
+        return _EXE_ROOT_TMPDIR
+    if _TMPDIR:
+        return _TMPDIR
+    if os.getuid() == 0:
+        return _ROOT_TMPDIR
+    return os.environ.get("TMPDIR", "/tmp")
+
+
+def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
     """Return the proper 'dir' argument for tempfile functions.
 
     When root, cloud-init will use /run/cloud-init/tmp to avoid
@@ -33,40 +45,24 @@ def _tempfile_dir_arg(odir=None, needs_exe: bool = False, alt_exe_dir=None):
     @param odir: original 'dir' arg to 'mkdtemp' or other.
     @param needs_exe: Boolean specifying whether or not exe permissions are
         needed for tempdir. This is needed because /run is mounted noexec.
-    @param alt_exe_dir: Alternative dir with exec permission.
     """
-    if odir is not None:
-        return odir
-
-    if needs_exe:
-        tdir = _EXE_ROOT_TMPDIR
-        if _is_noexec_mount(tdir):
-            msg = (
-                f"Requested temporal dir with exe permission `{tdir}` is"
-                " mounted as noexec"
-            )
-            if alt_exe_dir:
-                msg += f". Falling back to `{alt_exe_dir}`"
-                tdir = alt_exe_dir
-            LOG.debug(msg)
-        if not os.path.isdir(tdir):
-            os.makedirs(tdir)
-            os.chmod(tdir, 0o1777)
-        return tdir
-
-    global _TMPDIR
-    if _TMPDIR:
-        return _TMPDIR
-
-    if os.getuid() == 0:
-        tdir = _ROOT_TMPDIR
-    else:
-        tdir = os.environ.get("TMPDIR", "/tmp")
+    tdir = get_tmp_ancestor(odir, needs_exe)
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
         os.chmod(tdir, 0o1777)
 
-    _TMPDIR = tdir
+    if needs_exe:
+        if util.has_mount_opt(tdir, "noexec"):
+            LOG.warning(
+                "Requested temporal dir with exe permission `%s` is"
+                " mounted as noexec",
+                tdir,
+            )
+
+    if odir is None and not needs_exe:
+        global _TMPDIR
+        _TMPDIR = tdir
+
     return tdir
 
 
@@ -112,13 +108,13 @@ def tempdir(rmtree_ignore_errors=False, **kwargs):
         shutil.rmtree(tdir, ignore_errors=rmtree_ignore_errors)
 
 
-def mkdtemp(dir=None, needs_exe: bool = False, alt_exe_dir=None, **kwargs):
-    dir = _tempfile_dir_arg(dir, needs_exe, alt_exe_dir)
+def mkdtemp(dir=None, needs_exe: bool = False, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe)
     return tempfile.mkdtemp(dir=dir, **kwargs)
 
 
-def mkstemp(dir=None, needs_exe: bool = False, alt_exe_dir=None, **kwargs):
-    dir = _tempfile_dir_arg(dir, needs_exe, alt_exe_dir)
+def mkstemp(dir=None, needs_exe: bool = False, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe)
     return tempfile.mkstemp(dir=dir, **kwargs)
 
 

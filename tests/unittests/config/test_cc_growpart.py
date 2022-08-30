@@ -125,11 +125,12 @@ class TestConfig(TestCase):
         super(TestConfig, self).setUp()
         self.name = "growpart"
         self.paths = None
-        self.cloud = cloud.Cloud(None, self.paths, None, None, None)
+        self.distro = mock.Mock()
+        self.cloud = cloud.Cloud(None, self.paths, None, self.distro, None)
         self.log = logging.getLogger("TestConfig")
         self.args = []
 
-        self.cloud_init = None
+        self.cloud_init = self.cloud
         self.handle = cc_growpart.handle
         self.tmppath = "/tmp/cloudinit-test-file"
         self.tmpdir = os.scandir("/tmp")
@@ -184,7 +185,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
@@ -210,7 +211,7 @@ class TestConfig(TestCase):
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
 
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
             partnum = 1
@@ -234,7 +235,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=("", HELP_GPART)
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)
 
             mockobj.assert_has_calls(
@@ -277,7 +278,7 @@ class TestConfig(TestCase):
 
             self.handle(self.name, {}, self.cloud_init, self.log, self.args)
 
-            factory.assert_called_once_with("auto")
+            factory.assert_called_once_with("auto", self.distro)
             rsdevs.assert_called_once_with(myresizer, ["/"])
 
 

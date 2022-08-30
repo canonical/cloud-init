@@ -14,6 +14,7 @@ import os
 import os.path
 import re
 import stat
+from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
 from textwrap import dedent
@@ -21,8 +22,9 @@ from typing import Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_ALWAYS
 
 MODULE_DESCRIPTION = """\
@@ -105,11 +107,11 @@ class RESIZE(object):
 LOG = logging.getLogger(__name__)
 
 
-def resizer_factory(mode):
+def resizer_factory(mode: str, distro: Distro):
     resize_class = None
     if mode == "auto":
         for (_name, resizer) in RESIZERS:
-            cur = resizer()
+            cur = resizer(distro)
             if cur.available():
                 resize_class = cur
                 break
@@ -125,7 +127,7 @@ def resizer_factory(mode):
         if mode not in mmap:
             raise TypeError("unknown resize mode %s" % mode)
 
-        mclass = mmap[mode]()
+        mclass = mmap[mode](distro)
         if mclass.available():
             resize_class = mclass
 
@@ -139,7 +141,20 @@ class ResizeFailedException(Exception):
     pass
 
 
-class ResizeGrowPart(object):
+class Resizer(ABC):
+    def __init__(self, distro: Distro):
+        self._distro = distro
+
+    @abstractmethod
+    def available(self) -> bool:
+        ...
+
+    @abstractmethod
+    def resize(self, diskdev, partnum, partdev):
+        ...
+
+
+class ResizeGrowPart(Resizer):
     def available(self):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
@@ -160,7 +175,8 @@ class ResizeGrowPart(object):
 
         # growpart uses tmp dir to store intermediate states
         # and may conflict with systemd-tmpfiles-clean
-        with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmp_dir = self._distro.get_tmp_exec_path()
+        with temp_utils.tempdir(dir=tmp_dir, needs_exe=True) as tmpd:
             growpart_tmp = os.path.join(tmpd, "growpart")
             if not os.path.exists(growpart_tmp):
                 os.mkdir(growpart_tmp, 0o700)
@@ -189,7 +205,7 @@ class ResizeGrowPart(object):
         return (before, get_size(partdev))
 
 
-class ResizeGpart(object):
+class ResizeGpart(Resizer):
     def available(self):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
@@ -548,7 +564,7 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg: dict, cloud: Cloud, log, _args):
     if "growpart" not in cfg:
         log.debug(
             "No 'growpart' entry in cfg.  Using default: %s" % DEFAULT_CONFIG
@@ -582,7 +598,7 @@ def handle(_name, cfg, _cloud, log, _args):
         return
 
     try:
-        resizer = resizer_factory(mode)
+        resizer = resizer_factory(mode, cloud.distro)
     except (ValueError, TypeError) as e:
         log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
         if mode != "auto":

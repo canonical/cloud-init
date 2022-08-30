@@ -315,14 +315,14 @@ class EphemeralDHCPv4(object):
         iface=None,
         connectivity_url_data: Dict[str, Any] = None,
         dhcp_log_func=None,
-        alt_tmp_dir=None,
+        tmp_dir=None,
     ):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
-        self.alt_tmp_dir = alt_tmp_dir
+        self.tmp_dir = tmp_dir
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
@@ -361,7 +361,7 @@ class EphemeralDHCPv4(object):
         if self.lease:
             return self.lease
         leases = maybe_perform_dhcp_discovery(
-            self.iface, self.dhcp_log_func, self.alt_tmp_dir
+            self.iface, self.dhcp_log_func, self.tmp_dir
         )
         if not leases:
             raise NoDHCPLeaseError()
@@ -426,14 +426,14 @@ class EphemeralIPNetwork:
         interface,
         ipv6: bool = False,
         ipv4: bool = True,
-        alt_tmp_dir=None,
+        tmp_dir=None,
     ):
         self.interface = interface
         self.ipv4 = ipv4
         self.ipv6 = ipv6
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
-        self.alt_tmp_dir = alt_tmp_dir
+        self.tmp_dir = tmp_dir
 
     def __enter__(self):
         # ipv6 dualstack might succeed when dhcp4 fails
@@ -441,9 +441,7 @@ class EphemeralIPNetwork:
         try:
             if self.ipv4:
                 self.stack.enter_context(
-                    EphemeralDHCPv4(
-                        self.interface, alt_tmp_dir=self.alt_tmp_dir
-                    )
+                    EphemeralDHCPv4(self.interface, tmp_dir=self.tmp_dir)
                 )
             if self.ipv6:
                 self.stack.enter_context(EphemeralIPv6Network(self.interface))

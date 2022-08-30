@@ -130,7 +130,7 @@ class DataSourceEc2(sources.DataSource):
                     self.fallback_interface,
                     ipv4=True,
                     ipv6=True,
-                    alt_tmp_dir=self.distro._get_tmp_exec_path(),
+                    tmp_dir=self.distro.get_tmp_exec_path(),
                 ) as netw:
                     state_msg = f" {netw.state_msg}" if netw.state_msg else ""
                     self._crawled_metadata = util.log_time(

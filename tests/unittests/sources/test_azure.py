@@ -3005,7 +3005,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         """Wait for nic attach if we do not have a fallback interface.
         Skip waiting for additional nics after we have found primary"""
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         lease = {
             "interface": "eth9",
@@ -3069,7 +3069,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         """Retry polling for network metadata on all failures except timeout
         and network unreachable errors"""
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         lease = {
             "interface": "eth9",
@@ -3288,7 +3288,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
@@ -3354,7 +3354,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         ]
         m_media_switch.return_value = None
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch.object(
@@ -3388,7 +3388,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         m_report_ready.side_effect = [Exception("fail")]
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch.object(
@@ -3650,7 +3650,7 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                alt_tmp_dir=azure_ds.distro._get_tmp_exec_path(),
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3677,7 +3677,7 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                alt_tmp_dir=azure_ds.distro._get_tmp_exec_path(),
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3720,7 +3720,7 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                alt_tmp_dir=azure_ds.distro._get_tmp_exec_path(),
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3755,7 +3755,7 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                alt_tmp_dir=azure_ds.distro._get_tmp_exec_path(),
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3794,7 +3794,7 @@ class TestEphemeralNetworking:
                 mock.call(
                     iface=None,
                     dhcp_log_func=dsaz.dhcp_log_cb,
-                    alt_tmp_dir=azure_ds.distro._get_tmp_exec_path(),
+                    tmp_dir=azure_ds.distro.get_tmp_exec_path(),
                 ),
             ]
             + [mock.call().obtain_lease()] * 11
@@ -4132,7 +4132,7 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4213,12 +4213,12 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4325,12 +4325,12 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4473,12 +4473,12 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4569,7 +4569,7 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
 
@@ -4633,7 +4633,7 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro._get_tmp_exec_path(),
+                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"

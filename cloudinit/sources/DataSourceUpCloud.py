@@ -72,7 +72,7 @@ class DataSourceUpCloud(sources.DataSource):
                 nic = cloudnet.find_fallback_nic()
                 LOG.debug("Discovering metadata via DHCP interface %s", nic)
                 with EphemeralDHCPv4(
-                    nic, alt_tmp_dir=self.distro._get_tmp_exec_path()
+                    nic, tmp_dir=self.distro.get_tmp_exec_path()
                 ):
                     md = util.log_time(
                         logfunc=LOG.debug,

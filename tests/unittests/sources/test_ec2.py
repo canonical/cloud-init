@@ -337,7 +337,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
     def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
         self.uris = []
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         paths = helpers.Paths({"run_dir": self.tmp})
         if sys_cfg is None:
             sys_cfg = {}

@@ -263,7 +263,7 @@ class TestDataSourceVultr(CiTestCase):
         mock_netmap.return_value = INTERFACE_MAP
 
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         source = DataSourceVultr.DataSourceVultr(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
@@ -326,7 +326,7 @@ class TestDataSourceVultr(CiTestCase):
 
     # Override ephemeral for proper unit testing
     def ephemeral_init(
-        self, iface="", connectivity_url_data=None, alt_tmp_dir=None
+        self, iface="", connectivity_url_data=None, tmp_dir=None
     ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
@@ -336,7 +336,7 @@ class TestDataSourceVultr(CiTestCase):
 
     # Override ephemeral for proper unit testing
     def ephemeral_init_always(
-        self, iface="", connectivity_url_data=None, alt_tmp_dir=None
+        self, iface="", connectivity_url_data=None, tmp_dir=None
     ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
@@ -376,7 +376,7 @@ class TestDataSourceVultr(CiTestCase):
         mock_check_route.return_value = True
 
         distro = mock.MagicMock()
-        distro._get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = self.tmp_dir
         source = DataSourceVultr.DataSourceVultr(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )

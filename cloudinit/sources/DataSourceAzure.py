@@ -401,7 +401,7 @@ class DataSourceAzure(sources.DataSource):
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
-            alt_tmp_dir=self.distro._get_tmp_exec_path(),
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
 
         lease = None

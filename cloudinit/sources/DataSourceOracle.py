@@ -155,7 +155,7 @@ class DataSourceOracle(sources.DataSource):
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
                 "headers": V2_HEADERS,
             },
-            alt_tmp_dir=self.distro._get_tmp_exec_path(),
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(
