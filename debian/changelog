@@ -1,3 +1,21 @@
+cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    + Fix v2 interface matching when no MAC (LP: #1986551)
+    + test: reduce number of network dependencies in flaky test (#1702)
+    + docs: publish cc_ubuntu_autoinstall docs to rtd (#1696)
+    + net: Fix EphemeraIPNetwork (#1697)
+    + test: make ansible test work across older versions (#1691)
+    + Networkd multi-address support/fix (#1685) [Teodor Garzdin]
+    + make: drop broken targets (#1688)
+    + net: Passthough v2 netconfigs in netplan systems (#1650)
+      (LP: #1978543)
+    + NM ipv6 connection does not work on Azure and Openstack (#1616)
+      [Emanuele Giuseppe Esposito]
+    + Fix check_format_tip (#1679)
+
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 30 Aug 2022 14:28:27 -0600
+
 cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
