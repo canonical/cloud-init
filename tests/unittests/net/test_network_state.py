@@ -79,7 +79,8 @@ class TestNetworkStateParseConfig(CiTestCase):
         ncfg = {"version": 2, "otherconfig": {}, "somemore": [1, 2, 3]}
         network_state.parse_net_config_data(ncfg)
         self.assertEqual(
-            [mock.call(version=2, config=ncfg)], self.m_nsi.call_args_list
+            [mock.call(version=2, config=ncfg, renderer=None)],
+            self.m_nsi.call_args_list,
         )
 
     def test_valid_config_gets_network_state(self):

@@ -31,8 +31,9 @@ write_files:
        WantedBy=cloud-init-local.service
 
        [Service]
-       ExecStart=/usr/bin/env python3 -m http.server \
-         --directory /root/playbooks/.git
+       WorkingDirectory=/root/playbooks/.git
+       ExecStart=/usr/bin/env python3 -m http.server --bind 0.0.0.0 8000
+
 
   - path: /etc/systemd/system/repo_waiter.service
     content: |
@@ -49,7 +50,7 @@ write_files:
        # running and continue once it is up, but this is simple and works
        [Service]
        Type=oneshot
-       ExecStart=sh -c "while \
+       ExecStart=/bin/sh -c "while \
             ! git clone http://0.0.0.0:8000/ $(mktemp -d); do sleep 0.1; done"
 
   - path: /root/playbooks/ubuntu.yml
@@ -94,6 +95,9 @@ ansible:
 """
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
+git config --global user.name auto                            &&\
+git config --global user.email autom@tic.io                   &&\
+git config --global init.defaultBranch main                   &&\
 git init {REPO_D}                                             &&\
 git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml &&\
 git commit -m auto                                            &&\
@@ -101,8 +105,9 @@ git commit -m auto                                            &&\
 
 
 def _test_ansible_pull_from_local_server(my_client):
-
-    assert my_client.execute(SETUP_REPO).ok
+    setup = my_client.execute(SETUP_REPO)
+    assert not setup.stderr
+    assert not setup.return_code
     my_client.execute("cloud-init clean --logs")
     my_client.restart()
     log = my_client.read_from_file("/var/log/cloud-init.log")

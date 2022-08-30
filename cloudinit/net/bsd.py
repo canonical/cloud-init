@@ -1,11 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import re
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
+from cloudinit.net.network_state import NetworkState
 
 from . import renderer
 
@@ -156,7 +158,12 @@ class BSDRenderer(renderer.Renderer):
             0o644,
         )
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         if target:
             self.target = target
         self._ifconfig_entries(settings=network_state)
