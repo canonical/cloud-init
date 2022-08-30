@@ -14,6 +14,7 @@ from typing import List, Tuple
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -80,7 +81,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud: Cloud, log: Logger, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # Get config
     lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:

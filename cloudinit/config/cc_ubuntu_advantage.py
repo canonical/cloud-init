@@ -3,11 +3,14 @@
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
 import re
+from logging import Logger
 from textwrap import dedent
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -247,7 +250,9 @@ def maybe_install_ua_tools(cloud):
         raise
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     ua_section = None
     if "ubuntu-advantage" in cfg:
         LOG.warning(

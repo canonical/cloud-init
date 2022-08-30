@@ -11,12 +11,14 @@
 import os
 import socket
 from io import StringIO
+from logging import Logger
 from textwrap import dedent
 
 import yaml
 
 from cloudinit import helpers, subp, temp_utils, url_helper, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
@@ -184,7 +186,9 @@ def install_puppet_aio(
         return subp.subp([tmpf] + args, capture=False)
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # If there isn't a puppet key in the configuration don't do anything
     if "puppet" not in cfg:
         log.debug(

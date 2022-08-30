@@ -11,9 +11,12 @@ import os
 import re
 import subprocess
 import time
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -127,7 +130,9 @@ def check_condition(cond, log=None):
         return False
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     try:
         (args, timeout, condition) = load_power_state(cfg, cloud.distro)
         if args is None:
