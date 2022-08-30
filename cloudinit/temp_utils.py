@@ -15,11 +15,6 @@ _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
 
 
-def _is_noexec_mount(path) -> bool:
-    *_, mnt_opts = util.get_mount_info(path, get_mnt_opts=True)
-    return "noexec" in mnt_opts
-
-
 def get_tmp_ancestor(odir=None, needs_exe: bool = False):
     if odir is not None:
         return odir
