@@ -210,7 +210,10 @@ class DataSourceScaleway(sources.DataSource):
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
         try:
-            with EphemeralDHCPv4(self._fallback_interface):
+            with EphemeralDHCPv4(
+                self._fallback_interface,
+                alt_tmp_dir=self.distro._get_tmp_exec_path(),
+            ):
                 util.log_time(
                     logfunc=LOG.debug,
                     msg="Crawl of metadata service",

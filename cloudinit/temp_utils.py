@@ -6,12 +6,21 @@ import os
 import shutil
 import tempfile
 
+from cloudinit import log as logging
+from cloudinit import util
+
+LOG = logging.getLogger(__name__)
 _TMPDIR = None
 _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
 
 
-def _tempfile_dir_arg(odir=None, needs_exe=False):
+def _is_noexec_mount(path) -> bool:
+    *_, mnt_opts = util.get_mount_info(path, get_mnt_opts=True)
+    return "noexec" in mnt_opts
+
+
+def _tempfile_dir_arg(odir=None, needs_exe: bool = False, alt_exe_dir=None):
     """Return the proper 'dir' argument for tempfile functions.
 
     When root, cloud-init will use /run/cloud-init/tmp to avoid
@@ -24,12 +33,22 @@ def _tempfile_dir_arg(odir=None, needs_exe=False):
     @param odir: original 'dir' arg to 'mkdtemp' or other.
     @param needs_exe: Boolean specifying whether or not exe permissions are
         needed for tempdir. This is needed because /run is mounted noexec.
+    @param alt_exe_dir: Alternative dir with exec permission.
     """
     if odir is not None:
         return odir
 
     if needs_exe:
         tdir = _EXE_ROOT_TMPDIR
+        if _is_noexec_mount(tdir):
+            msg = (
+                f"Requested temporal dir with exe permission `{tdir}` is"
+                " mounted as noexec"
+            )
+            if alt_exe_dir:
+                msg += f". Falling back to `{alt_exe_dir}`"
+                tdir = alt_exe_dir
+            LOG.debug(msg)
         if not os.path.isdir(tdir):
             os.makedirs(tdir)
             os.chmod(tdir, 0o1777)
@@ -93,18 +112,14 @@ def tempdir(rmtree_ignore_errors=False, **kwargs):
         shutil.rmtree(tdir, ignore_errors=rmtree_ignore_errors)
 
 
-def mkdtemp(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg(
-        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
-    )
-    return tempfile.mkdtemp(**kwargs)
+def mkdtemp(dir=None, needs_exe: bool = False, alt_exe_dir=None, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe, alt_exe_dir)
+    return tempfile.mkdtemp(dir=dir, **kwargs)
 
 
-def mkstemp(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg(
-        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
-    )
-    return tempfile.mkstemp(**kwargs)
+def mkstemp(dir=None, needs_exe: bool = False, alt_exe_dir=None, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe, alt_exe_dir)
+    return tempfile.mkstemp(dir=dir, **kwargs)
 
 
 # vi: ts=4 expandtab

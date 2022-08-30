@@ -18,7 +18,7 @@ LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between, agent):
+def get_metadata(url, timeout, retries, sec_between, agent, alt_tmp_dir=None):
     # Bring up interface (and try untill one works)
     exception = RuntimeError("Failed to DHCP")
 
@@ -26,7 +26,9 @@ def get_metadata(url, timeout, retries, sec_between, agent):
     for iface in get_interface_list():
         try:
             with EphemeralDHCPv4(
-                iface=iface, connectivity_url_data={"url": url}
+                iface=iface,
+                connectivity_url_data={"url": url},
+                alt_tmp_dir=alt_tmp_dir,
             ):
                 # Check for the metadata route, skip if not there
                 if not check_route(url):

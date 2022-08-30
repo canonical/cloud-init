@@ -262,8 +262,10 @@ class TestDataSourceVultr(CiTestCase):
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
+        distro = mock.MagicMock()
+        distro._get_tmp_exec_path = self.tmp_dir
         source = DataSourceVultr.DataSourceVultr(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
 
         # Test for failure
@@ -323,7 +325,9 @@ class TestDataSourceVultr(CiTestCase):
         self.assertEqual(expected, vultr.generate_network_config(interf))
 
     # Override ephemeral for proper unit testing
-    def ephemeral_init(self, iface="", connectivity_url_data=None):
+    def ephemeral_init(
+        self, iface="", connectivity_url_data=None, alt_tmp_dir=None
+    ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
         if iface == "eth0":
@@ -331,7 +335,9 @@ class TestDataSourceVultr(CiTestCase):
         raise NoDHCPLeaseError("Generic for testing")
 
     # Override ephemeral for proper unit testing
-    def ephemeral_init_always(self, iface="", connectivity_url_data=None):
+    def ephemeral_init_always(
+        self, iface="", connectivity_url_data=None, alt_tmp_dir=None
+    ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
 
@@ -369,8 +375,10 @@ class TestDataSourceVultr(CiTestCase):
         mock_interface_list.return_value = FILTERED_INTERFACES
         mock_check_route.return_value = True
 
+        distro = mock.MagicMock()
+        distro._get_tmp_exec_path = self.tmp_dir
         source = DataSourceVultr.DataSourceVultr(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
 
         try:

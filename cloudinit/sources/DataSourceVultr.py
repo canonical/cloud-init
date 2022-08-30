@@ -99,6 +99,7 @@ class DataSourceVultr(sources.DataSource):
             self.ds_cfg["retries"],
             self.ds_cfg["wait"],
             self.ds_cfg["user-agent"],
+            alt_tmp_dir=self.distro._get_tmp_exec_path(),
         )
 
     # Compare subid as instance id

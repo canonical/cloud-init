@@ -207,8 +207,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.tmp = self.tmp_dir()
 
     def get_ds(self, get_sysinfo=_mock_dmi):
+        distro = mock.MagicMock()
+        distro._get_tmp_exec_path = self.tmp_dir
         ds = DataSourceUpCloudLocal(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         if get_sysinfo:
             ds._get_sysinfo = get_sysinfo
@@ -240,7 +242,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with("eth1", None)
+        m_dhcp.assert_called_with("eth1", None, mock.ANY)
 
         m_net.assert_called_once_with(
             broadcast="10.6.3.255",

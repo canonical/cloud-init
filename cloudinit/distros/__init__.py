@@ -942,6 +942,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         else:
             raise NotImplementedError()
 
+    def _get_tmp_exec_path(self) -> str:
+        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
