@@ -1,12 +1,12 @@
 import builtins
 import glob
 import os
+from pathlib import Path
 
 import pytest
 
 from cloudinit import atomic_helper, util
 from tests.unittests.helpers import retarget_many_wrapper
-from pathlib import Path
 
 FS_FUNCS = {
     os.path: [
