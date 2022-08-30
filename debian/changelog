@@ -1,4 +1,4 @@
-cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) bionic; urgency=medium
+cloud-init (22.3-13-g70ce6442-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.postinst:
@@ -16,6 +16,17 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) bionic; urgency=medium
   * drop the following cherry-picks now included:
     + cpick-a2e62738-Fix-cc_phone_home-requiring-tries-1500
   * New upstream snapshot. (LP: #1987318)
+    + Fix v2 interface matching when no MAC
+    + test: reduce number of network dependencies in flaky test (#1702)
+    + docs: publish cc_ubuntu_autoinstall docs to rtd (#1696)
+    + net: Fix EphemeraIPNetwork (#1697)
+    + test: make ansible test work across older versions (#1691)
+    + Networkd multi-address support/fix (#1685) [Teodor Garzdin]
+    + make: drop broken targets (#1688)
+    + net: Passthough v2 netconfigs in netplan systems (#1650)
+    + NM ipv6 connection does not work on Azure and Openstack (#1616)
+      [Emanuele Giuseppe Esposito]
+    + Fix check_format_tip (#1679)
     + DataSourceVMware: fix var use before init (#1674) [Andrew Kutz]
     + rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
     + test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo
@@ -249,7 +260,7 @@ cloud-init (22.3-3-g9f0efc47-0ubuntu1~18.04.1) bionic; urgency=medium
     + Use Network-Manager and Netplan as default renderers for RHEL and
       Fedora (#1465) [Emanuele Giuseppe Esposito]
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 22 Aug 2022 14:22:42 -0500
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 30 Aug 2022 14:58:55 -0600
 
 cloud-init (22.2-0ubuntu1~18.04.3) bionic; urgency=medium
 
