@@ -77,7 +77,7 @@ def handle(
     if not get_userdata_raw or not callable(get_userdata_raw):
         log.debug("Failed to get raw userdata in module %s", name)
         return
-    
+
     ud = get_userdata_raw()
     try:
         mdict = parse_qs(ud)
