@@ -39,10 +39,11 @@ def fake_uaclient(mocker):
     sys.modules[
         "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
     ] = mock.Mock()
+    sys.modules["uaclient.api"] = mock.Mock()
     _exceptions = namedtuple("exceptions", ["UserFacingError"])(
         FakeUserFacingError
     )
-    sys.modules["uaclient.exceptions"] = _exceptions
+    sys.modules["uaclient.api.exceptions"] = _exceptions
 
 
 @mock.patch(f"{MPATH}.subp.subp")
@@ -757,6 +758,9 @@ class TestAutoAttach:
 
     def test_uaclient_old_version(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
+        sys.modules["uaclient"] = mock.Mock()
+        sys.modules["uaclient.api"] = mock.Mock()
+        sys.modules["uaclient.api.exceptions"] = mock.Mock()
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
         sys.modules.pop(
             "uaclient.api.u.pro.attach.auto.full_auto_attach", None

@@ -329,11 +329,11 @@ def _attach(ua_section: dict, config: Optional[dict] = None):
 
 def _auto_attach(ua_section: dict):
     try:
+        from uaclient.api.exceptions import UserFacingError
         from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
             FullAutoAttachOptions,
             full_auto_attach,
         )
-        from uaclient.exceptions import UserFacingError
     except ImportError as ex:
         msg = f"Unable to import `uaclient`: {ex}"
         LOG.error(msg)
