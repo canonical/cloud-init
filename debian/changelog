@@ -1,4 +1,4 @@
-cloud-init (22.3-13-g70ce6442-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (22.3-13-g70ce6442-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
   * d/cloud-init.postinst:
