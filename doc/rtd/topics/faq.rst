@@ -166,21 +166,6 @@ To wait for clous-init to complete, run:
 
         $ cloud-init status --wait
 
-Failing to Complete on Systemd:
--------------------------------
-
-Cloud-init consists of multiple services on systemd. If a service
-that cloud-init depends on stalls, cloud-init will not continue.
-If reporting a bug related to cloud-init failing to complete on
-systemd, please make sure to include the following logs.
-
-.. code-block:: shell-session
-
-        $ systemd-analyze critical-chain cloud-init.target
-        $ journalctl --boot=-1
-        $ systemctl --failed
-
-
 There are a number of reasons that cloud-init might never complete. This list
 is not exhaustive, but attempts to enumerate potential causes:
 
@@ -196,6 +181,21 @@ Internal reasons:
   `cloud-init status --wait` will wait forever on itself and never complete)
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
+
+Failing to Complete on Systemd:
+-------------------------------
+
+Cloud-init consists of multiple services on systemd. If a service
+that cloud-init depends on stalls, cloud-init will not continue.
+If reporting a bug related to cloud-init failing to complete on
+systemd, please make sure to include the following logs.
+
+.. code-block:: shell-session
+
+        $ systemd-analyze critical-chain cloud-init.target
+        $ journalctl --boot=-1
+        $ systemctl --failed
+
 
 How can I make a module run on every boot?
 ==========================================
