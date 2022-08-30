@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Optional, Type
+from typing import Any, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -79,7 +79,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
-    renderer_configs: Mapping[str, Mapping[str, Any]] = {}
+    renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
