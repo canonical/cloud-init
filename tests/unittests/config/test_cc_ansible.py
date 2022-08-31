@@ -16,7 +16,7 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-MOD = "cloudinit.config.cc_ansible."
+M_PATH = "cloudinit.config.cc_ansible."
 distro_version = dedent(
     """ansible 2.10.8
   config file = None
@@ -219,15 +219,15 @@ class TestAnsible:
         ),
     )
     def test_required_keys(self, cfg, exception, mocker):
-        m_subp = mocker.patch(MOD + "subp", return_value=("", ""))
-        mocker.patch(MOD + "which", return_value=True)
-        mocker.patch(MOD + "AnsiblePull.check_deps")
+        m_subp = mocker.patch(M_PATH + "subp", return_value=("", ""))
+        mocker.patch(M_PATH + "which", return_value=True)
+        mocker.patch(M_PATH + "AnsiblePull.check_deps")
         mocker.patch(
-            MOD + "AnsiblePull.get_version",
+            M_PATH + "AnsiblePull.get_version",
             return_value=cc_ansible.Version(2, 7, 1),
         )
         mocker.patch(
-            MOD + "AnsiblePullDistro.is_installed",
+            M_PATH + "AnsiblePullDistro.is_installed",
             return_value=False,
         )
         if exception:
@@ -265,7 +265,7 @@ class TestAnsible:
                     "ubuntu.yml",
                 ]
 
-    @mock.patch(MOD + "which", return_value=False)
+    @mock.patch(M_PATH + "which", return_value=False)
     def test_deps_not_installed(self, m_which):
         """assert exception raised if package not installed"""
         with raises(ValueError):
@@ -273,22 +273,22 @@ class TestAnsible:
                 get_cloud().distro.install_packages
             ).check_deps()
 
-    @mock.patch(MOD + "which", return_value=True)
+    @mock.patch(M_PATH + "which", return_value=True)
     def test_deps(self, m_which):
         """assert exception not raised if package installed"""
         cc_ansible.AnsiblePullDistro(
             get_cloud().distro.install_packages
         ).check_deps()
 
-    @mock.patch(MOD + "which", return_value=False)
-    @mock.patch(MOD + "subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "which", return_value=False)
+    @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     def test_pip_bootstrap(self, m_which, m_subp):
         distro = get_cloud(mocked_distro=True).distro
         cc_ansible.AnsiblePullPip(distro.install_packages).install("")
         distro.install_packages.assert_called_once()
 
-    @mock.patch(MOD + "which", return_value=True)
-    @mock.patch(MOD + "subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "which", return_value=True)
+    @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     @mark.parametrize(
         ("cfg", "expected"),
         (
@@ -342,14 +342,14 @@ class TestAnsible:
         )
         assert m_subp.call_args[0][0] == expected
 
-    @mock.patch(MOD + "validate_config")
+    @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):
         """verify that if ansible key not included, don't do anything"""
         cc_ansible.handle("", {}, get_cloud(), None, None)  # pyright: ignore
         assert not m_validate.called
 
     @mock.patch(
-        MOD + "subp",
+        M_PATH + "subp",
         side_effect=[
             (distro_version, ""),
             (pip_version, ""),
