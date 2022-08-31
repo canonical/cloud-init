@@ -6,7 +6,7 @@ import re
 import sys
 from copy import deepcopy
 from textwrap import dedent
-from typing import Optional
+from typing import Callable, Optional
 
 from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -61,6 +61,7 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
+PIP_PKG = "python3-pip"
 
 
 class AnsiblePull(abc.ABC):
@@ -95,16 +96,20 @@ class AnsiblePull(abc.ABC):
 
 
 class AnsiblePullPip(AnsiblePull):
-    def __init__(self):
+    def __init__(self, installer: Callable):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
         self.env["PATH"] = ":".join([self.env["PATH"], "/root/.local/bin/"])
+        self.installer = installer
 
     def install(self, pkg_name: str):
         """should cloud-init grow an interface for non-distro package
         managers? this seems reusable
         """
         if not self.is_installed():
+            # bootstrap pip if required
+            if not which("pip3"):
+                self.installer(PIP_PKG)
             subp(["python3", "-m", "pip", "install", "--user", pkg_name])
 
     def is_installed(self) -> bool:
@@ -113,14 +118,14 @@ class AnsiblePullPip(AnsiblePull):
 
 
 class AnsiblePullDistro(AnsiblePull):
-    def __init__(self, distro):
+    def __init__(self, installer: Callable):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
-        self.distro = distro
+        self.installer = installer
 
     def install(self, pkg_name: str):
         if not self.is_installed():
-            self.distro.install_packages(pkg_name)
+            self.installer(pkg_name)
 
     def is_installed(self) -> bool:
         return bool(which("ansible"))
@@ -128,16 +133,17 @@ class AnsiblePullDistro(AnsiblePull):
 
 def handle(name: str, cfg: dict, cloud: Cloud, _, __):
     ansible_cfg: dict = cfg.get("ansible", {})
+    installer: Callable = cloud.distro.install_packages
     if ansible_cfg:
+        ansible: AnsiblePull
         validate_config(ansible_cfg)
         install = ansible_cfg["install-method"]
         pull_cfg = ansible_cfg.get("pull")
         if pull_cfg:
-            ansible: AnsiblePull
             if install == "pip":
-                ansible = AnsiblePullPip()
+                ansible = AnsiblePullPip(installer)
             else:
-                ansible = AnsiblePullDistro(cloud.distro)
+                ansible = AnsiblePullDistro(installer)
             ansible.install(ansible_cfg["package-name"])
             ansible.check_deps()
             run_ansible_pull(ansible, deepcopy(pull_cfg))
