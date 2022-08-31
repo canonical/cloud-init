@@ -557,6 +557,10 @@ class TestDsIdentify(DsIdentifyBase):
         """SAP Converged Cloud identification"""
         self._test_ds_found("OpenStack-SAPCCloud")
 
+    def test_openstack_huawei_cloud(self):
+        """Open Huawei Cloud identification."""
+        self._test_ds_found("OpenStack-HuaweiCloud")
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found("OpenStack-AssetTag-Nova")
@@ -1211,6 +1215,12 @@ VALID_CFG = {
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
         "mocks": [MOCK_VIRT_IS_VMWARE],
+    },
+    "OpenStack-HuaweiCloud": {
+        # Huawei Cloud hosts use OpenStack
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "HUAWEICLOUD\n"},
+        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "OpenStack-AssetTag-Nova": {
         # VMware vSphere can't modify product-name, LP: #1669875
