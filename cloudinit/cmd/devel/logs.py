@@ -13,7 +13,7 @@ import sys
 from datetime import datetime
 
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.helpers import Paths
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
 from cloudinit.util import chdir, copy, ensure_dir, write_file
@@ -80,7 +80,7 @@ def _copytree_rundir_ignore_files(curdir, files):
     ]
     if os.getuid() != 0:
         # Ignore root-permissioned files
-        ignored_files.append(INSTANCE_JSON_SENSITIVE_FILE)
+        ignored_files.append(Paths({}).lookups["instance_data_sensitive"])
     return ignored_files
 
 

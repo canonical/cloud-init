@@ -5,7 +5,6 @@ from io import StringIO
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
-from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.util import ensure_dir, write_file
 from tests.unittests.helpers import mock, skipUnlessJinja
 
@@ -47,11 +46,12 @@ class TestRender:
         user_data = tmpdir.join("user-data")
         run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
-        m_paths.return_value = Paths({"run_dir": run_dir})
+        paths = Paths({"run_dir": run_dir})
+        m_paths.return_value = paths
         args = self.Args(user_data=user_data, instance_data=None, debug=False)
         with mock.patch("sys.stderr", new_callable=StringIO):
             assert render.handle_args("anyname", args) == 1
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
+        json_file = paths.get_runpath("instance_data")
         msg = "Missing instance-data.json file: %s" % json_file
         assert msg in caplog.text
 
@@ -63,14 +63,15 @@ class TestRender:
         user_data = tmpdir.join("user-data")
         run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
-        m_paths.return_value = Paths({"run_dir": run_dir})
+        paths = Paths({"run_dir": run_dir})
+        m_paths.return_value = paths
         args = self.Args(user_data=user_data, instance_data=None, debug=False)
         with mock.patch("sys.stderr", new_callable=StringIO):
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert render.handle_args("anyname", args) == 1
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
-        json_sensitive = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
+        json_file = paths.get_runpath("instance_data")
+        json_sensitive = paths.get_runpath("instance_data_sensitive")
         assert (
             "Missing root-readable %s. Using redacted %s"
             % (json_sensitive, json_file)
@@ -86,8 +87,10 @@ class TestRender:
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var }}")
         run_dir = tmpdir.join("run_dir")
+        json_sensitive = Paths({"run_dir": run_dir}).get_runpath(
+            "instance_data_sensitive"
+        )
         ensure_dir(run_dir)
-        json_sensitive = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
         write_file(json_sensitive, '{"my-var": "jinja worked"}')
         m_paths.return_value = Paths({"run_dir": run_dir})
         args = self.Args(user_data=user_data, instance_data=None, debug=False)

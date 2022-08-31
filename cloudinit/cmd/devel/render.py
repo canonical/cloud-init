@@ -10,7 +10,6 @@ import sys
 
 from cloudinit import log
 from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
-from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
 
 from . import addLogHandlerCLI, read_cfg_paths
 
@@ -65,11 +64,9 @@ def handle_args(name, args):
     else:
         paths = read_cfg_paths()
         uid = os.getuid()
-        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        redacted_data_fn = paths.get_runpath("instance_data")
         if uid == 0:
-            instance_data_fn = os.path.join(
-                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-            )
+            instance_data_fn = paths.get_runpath("instance_data_sensitive")
             if not os.path.exists(instance_data_fn):
                 LOG.warning(
                     "Missing root-readable %s. Using redacted %s instead.",

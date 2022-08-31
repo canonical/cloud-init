@@ -8,15 +8,10 @@ import argparse
 import json
 import sys
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.status import UXAppStatus, get_status_details
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    METADATA_UNKNOWN,
-    canonical_cloud_id,
-)
+from cloudinit.sources import METADATA_UNKNOWN, canonical_cloud_id
 from cloudinit.util import error
-
-DEFAULT_INSTANCE_JSON = "/run/cloud-init/%s" % INSTANCE_JSON_FILE
 
 NAME = "cloud-id"
 
@@ -30,6 +25,7 @@ def get_parser(parser=None):
 
     @returns: ArgumentParser with proper argument configuration.
     """
+    default_instance_json = read_cfg_paths().get_runpath("instance_data")
     if not parser:
         parser = argparse.ArgumentParser(
             prog=NAME,
@@ -53,9 +49,11 @@ def get_parser(parser=None):
         "-i",
         "--instance-data",
         type=str,
-        default=DEFAULT_INSTANCE_JSON,
-        help="Path to instance-data.json file. Default is %s"
-        % DEFAULT_INSTANCE_JSON,
+        default=default_instance_json,
+        help=(
+            "Path to instance-data.json file. "
+            f"Default is {default_instance_json}"
+        ),
     )
     return parser
 

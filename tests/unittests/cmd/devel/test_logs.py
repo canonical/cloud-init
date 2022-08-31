@@ -6,12 +6,12 @@ from datetime import datetime
 from io import StringIO
 
 from cloudinit.cmd.devel import logs
-from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.subp import subp
 from cloudinit.util import load_file, write_file
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.logs."
+INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 
 
 @mock.patch("cloudinit.cmd.devel.logs.os.getuid")
