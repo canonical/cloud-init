@@ -21,6 +21,9 @@ def customize_client(client: IntegrationInstance):
 @pytest.mark.openstack
 def test_dhcp_tmp_noexec(client: IntegrationInstance):
     customize_client(client)
+    assert (
+        "noexec" in client.execute('grep "/var/tmp" /proc/mounts').stdout
+    ), "Precondition error: /var/tmp is not mounted as noexec"
     log = client.read_from_file("/var/log/cloud-init.log")
     assert (
         "dhclient did not produce expected files: dhcp.leases, dhclient.pid"
