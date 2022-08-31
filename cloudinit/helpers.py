@@ -382,6 +382,12 @@ class Paths(persistence.CloudInitPickleMixin):
             self.run_dir = Paths(
                 path_cfgs=self.cfgs, ds=self.datasource
             ).run_dir
+        if "instance_data" not in self.lookups:
+            self.lookups["instance_data"] = "instance-data.json"
+        if "instance_data_sensitive" not in self.lookups:
+            self.lookups[
+                "instance_data_sensitive"
+            ] = "instance-data-sensitive.json"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
