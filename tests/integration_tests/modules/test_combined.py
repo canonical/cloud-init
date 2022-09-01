@@ -428,5 +428,4 @@ class TestCombinedNoCI:
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
 
-        assert "# ssh-import-id gh:powersj" in ssh_output
         assert "# ssh-import-id lp:smoser" in ssh_output
