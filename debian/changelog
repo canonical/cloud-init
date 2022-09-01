@@ -1,3 +1,10 @@
+cloud-init (22.3.1-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    + Identify Huawei Cloud as OpenStack (#1689) [huang xinjie]
+
+ -- Brett Holman <brett.holman@canonical.com>  Wed, 31 Aug 2022 18:04:57 -0600
+
 cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
