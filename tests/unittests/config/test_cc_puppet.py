@@ -143,11 +143,13 @@ class TestPuppetHandle(CiTestCase):
     def test_puppet_config_installs_puppet_aio(self, m_subp, m_aio, _):
         """Cloud-config with 'puppet' key installs
         when 'install_type' is 'aio'."""
-
-        self.cloud.distro = mock.MagicMock()
+        distro = mock.MagicMock()
+        self.cloud.distro = distro
         cfg = {"puppet": {"install": True, "install_type": "aio"}}
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
-        m_aio.assert_called_with(cc_puppet.AIO_INSTALL_URL, None, None, True)
+        m_aio.assert_called_with(
+            distro, cc_puppet.AIO_INSTALL_URL, None, None, True
+        )
 
     @mock.patch("cloudinit.config.cc_puppet.install_puppet_aio", autospec=True)
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
@@ -156,8 +158,8 @@ class TestPuppetHandle(CiTestCase):
     ):
         """Cloud-config with 'puppet' key installs
         when 'install_type' is 'aio' and 'version' is specified."""
-
-        self.cloud.distro = mock.MagicMock()
+        distro = mock.MagicMock()
+        self.cloud.distro = distro
         cfg = {
             "puppet": {
                 "install": True,
@@ -167,7 +169,7 @@ class TestPuppetHandle(CiTestCase):
         }
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         m_aio.assert_called_with(
-            cc_puppet.AIO_INSTALL_URL, "6.24.0", None, True
+            distro, cc_puppet.AIO_INSTALL_URL, "6.24.0", None, True
         )
 
     @mock.patch("cloudinit.config.cc_puppet.install_puppet_aio", autospec=True)
@@ -177,8 +179,8 @@ class TestPuppetHandle(CiTestCase):
     ):
         """Cloud-config with 'puppet' key installs
         when 'install_type' is 'aio' and 'collection' is specified."""
-
-        self.cloud.distro = mock.MagicMock()
+        distro = mock.MagicMock()
+        self.cloud.distro = distro
         cfg = {
             "puppet": {
                 "install": True,
@@ -188,7 +190,7 @@ class TestPuppetHandle(CiTestCase):
         }
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         m_aio.assert_called_with(
-            cc_puppet.AIO_INSTALL_URL, None, "puppet6", True
+            distro, cc_puppet.AIO_INSTALL_URL, None, "puppet6", True
         )
 
     @mock.patch("cloudinit.config.cc_puppet.install_puppet_aio", autospec=True)
@@ -198,8 +200,8 @@ class TestPuppetHandle(CiTestCase):
     ):
         """Cloud-config with 'puppet' key installs
         when 'install_type' is 'aio' and 'aio_install_url' is specified."""
-
-        self.cloud.distro = mock.MagicMock()
+        distro = mock.MagicMock()
+        self.cloud.distro = distro
         cfg = {
             "puppet": {
                 "install": True,
@@ -209,7 +211,7 @@ class TestPuppetHandle(CiTestCase):
         }
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         m_aio.assert_called_with(
-            "http://test.url/path/to/script.sh", None, None, True
+            distro, "http://test.url/path/to/script.sh", None, None, True
         )
 
     @mock.patch("cloudinit.config.cc_puppet.install_puppet_aio", autospec=True)
@@ -219,8 +221,8 @@ class TestPuppetHandle(CiTestCase):
     ):
         """Cloud-config with 'puppet' key installs
         when 'install_type' is 'aio' and no cleanup."""
-
-        self.cloud.distro = mock.MagicMock()
+        distro = mock.MagicMock()
+        self.cloud.distro = distro
         cfg = {
             "puppet": {
                 "install": True,
@@ -229,7 +231,9 @@ class TestPuppetHandle(CiTestCase):
             }
         }
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
-        m_aio.assert_called_with(cc_puppet.AIO_INSTALL_URL, None, None, False)
+        m_aio.assert_called_with(
+            distro, cc_puppet.AIO_INSTALL_URL, None, None, False
+        )
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
     def test_puppet_config_installs_puppet_version(self, m_subp, _):
@@ -411,7 +415,9 @@ URL_MOCK.contents = b'#!/bin/bash\necho "Hi Mom"'
 class TestInstallPuppetAio(HttprettyTestCase):
     def test_install_with_default_arguments(self, m_readurl, m_subp):
         """Install AIO with no arguments"""
-        cc_puppet.install_puppet_aio()
+        distro = mock.Mock()
+        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
+        cc_puppet.install_puppet_aio(distro)
 
         self.assertEqual(
             [mock.call([mock.ANY, "--cleanup"], capture=False)],
@@ -420,7 +426,11 @@ class TestInstallPuppetAio(HttprettyTestCase):
 
     def test_install_with_custom_url(self, m_readurl, m_subp):
         """Install AIO from custom URL"""
-        cc_puppet.install_puppet_aio("http://custom.url/path/to/script.sh")
+        distro = mock.Mock()
+        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
+        cc_puppet.install_puppet_aio(
+            distro, "http://custom.url/path/to/script.sh"
+        )
         m_readurl.assert_called_with(
             url="http://custom.url/path/to/script.sh", retries=5
         )
@@ -432,7 +442,11 @@ class TestInstallPuppetAio(HttprettyTestCase):
 
     def test_install_with_version(self, m_readurl, m_subp):
         """Install AIO with specific version"""
-        cc_puppet.install_puppet_aio(cc_puppet.AIO_INSTALL_URL, "7.6.0")
+        distro = mock.Mock()
+        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
+        cc_puppet.install_puppet_aio(
+            distro, cc_puppet.AIO_INSTALL_URL, "7.6.0"
+        )
 
         self.assertEqual(
             [mock.call([mock.ANY, "-v", "7.6.0", "--cleanup"], capture=False)],
@@ -441,8 +455,10 @@ class TestInstallPuppetAio(HttprettyTestCase):
 
     def test_install_with_collection(self, m_readurl, m_subp):
         """Install AIO with specific collection"""
+        distro = mock.Mock()
+        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
         cc_puppet.install_puppet_aio(
-            cc_puppet.AIO_INSTALL_URL, None, "puppet6-nightly"
+            distro, cc_puppet.AIO_INSTALL_URL, None, "puppet6-nightly"
         )
 
         self.assertEqual(
@@ -457,8 +473,10 @@ class TestInstallPuppetAio(HttprettyTestCase):
 
     def test_install_with_no_cleanup(self, m_readurl, m_subp):
         """Install AIO with no cleanup"""
+        distro = mock.Mock()
+        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
         cc_puppet.install_puppet_aio(
-            cc_puppet.AIO_INSTALL_URL, None, None, False
+            distro, cc_puppet.AIO_INSTALL_URL, None, None, False
         )
 
         self.assertEqual(

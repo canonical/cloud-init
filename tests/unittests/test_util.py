@@ -342,6 +342,7 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 )
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
     def test_parse_mount_info_no_opts_no_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG)
@@ -354,6 +355,22 @@ class TestUtil:
     def test_parse_mount_info_with_opts(self):
         result = util.parse_mount_info("/", MOUNT_INFO, LOG, True)
         assert ("/dev/sda1", "btrfs", "/", "ro,relatime") == result
+
+    @pytest.mark.parametrize(
+        "opt, expected_result",
+        [
+            ("rw", True),
+            ("relatime", True),
+            ("idmapped", True),
+            ("noexec", False),
+        ],
+    )
+    @mock.patch(
+        M_PATH + "get_mount_info",
+        return_value=("/dev/sda", "ext4", "/", "rw,relatime,idmapped"),
+    )
+    def test_has_mount_opt(self, m_get_mount_info, opt, expected_result):
+        assert expected_result == util.has_mount_opt("/", opt)
 
     @mock.patch(M_PATH + "get_mount_info")
     def test_mount_is_rw(self, m_mount_info):

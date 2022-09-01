@@ -41,7 +41,7 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
+def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None, tmp_dir=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
@@ -50,6 +50,7 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     @param nic: Name of the network interface we want to run dhclient on.
     @param dhcp_log_func: A callable accepting the dhclient output and error
         streams.
+    @param tmp_dir: Tmp dir with exec permissions.
     @return: A list of dicts representing dhcp options for each lease obtained
         from the dhclient discovery if run, otherwise an empty list is
         returned.
@@ -69,7 +70,10 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
         LOG.debug("Skip dhclient configuration: No dhclient command found.")
         raise NoDHCPLeaseMissingDhclientError()
     with temp_utils.tempdir(
-        rmtree_ignore_errors=True, prefix="cloud-init-dhcp-", needs_exe=True
+        rmtree_ignore_errors=True,
+        prefix="cloud-init-dhcp-",
+        needs_exe=True,
+        dir=tmp_dir,
     ) as tdir:
         # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
         return dhcp_discovery(dhclient_path, nic, tdir, dhcp_log_func)

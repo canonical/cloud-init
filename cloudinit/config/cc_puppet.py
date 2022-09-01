@@ -16,8 +16,9 @@ from textwrap import dedent
 import yaml
 
 from cloudinit import helpers, subp, temp_utils, url_helper, util
+from cloudinit.cloud import Cloud
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
@@ -148,11 +149,16 @@ def get_config_value(puppet_bin, setting):
 
 
 def install_puppet_aio(
-    url=AIO_INSTALL_URL, version=None, collection=None, cleanup=True
+    distro: Distro,
+    url=AIO_INSTALL_URL,
+    version=None,
+    collection=None,
+    cleanup=True,
 ):
     """Install puppet-agent from the puppetlabs repositories using the one-shot
     shell script
 
+    :param distro: Instance of Distro
     :param url: URL from where to download the install script
     :param version: version to install, blank defaults to latest
     :param collection: collection to install, blank defaults to latest
@@ -170,13 +176,15 @@ def install_puppet_aio(
     content = url_helper.readurl(url=url, retries=5).contents
 
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-    with temp_utils.tempdir(needs_exe=True) as tmpd:
+    with temp_utils.tempdir(
+        dir=distro.get_tmp_exec_path(), needs_exe=True
+    ) as tmpd:
         tmpf = os.path.join(tmpd, "puppet-install")
         util.write_file(tmpf, content, mode=0o700)
         return subp.subp([tmpf] + args, capture=False)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: dict, cloud: Cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
     if "puppet" not in cfg:
         log.debug(
@@ -228,7 +236,9 @@ def handle(name, cfg, cloud, log, _args):
         if install_type == "packages":
             cloud.distro.install_packages((package_name, version))
         elif install_type == "aio":
-            install_puppet_aio(aio_install_url, version, collection, cleanup)
+            install_puppet_aio(
+                cloud.distro, aio_install_url, version, collection, cleanup
+            )
         else:
             log.warning("Unknown puppet install type '%s'", install_type)
             run = False

@@ -336,7 +336,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
     def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
         self.uris = []
-        distro = {}
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         paths = helpers.Paths({"run_dir": self.tmp})
         if sys_cfg is None:
             sys_cfg = {}
@@ -873,7 +874,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with("eth9", None)
+        m_dhcp.assert_called_once_with("eth9", None, mock.ANY)
         m_net4.assert_called_once_with(
             broadcast="192.168.2.255",
             interface="eth9",

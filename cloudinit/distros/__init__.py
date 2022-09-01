@@ -20,7 +20,15 @@ from typing import Any, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net, persistence, ssh_util, subp, type_utils, util
+from cloudinit import (
+    net,
+    persistence,
+    ssh_util,
+    subp,
+    temp_utils,
+    type_utils,
+    util,
+)
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
@@ -941,6 +949,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         else:
             raise NotImplementedError()
+
+    def get_tmp_exec_path(self) -> str:
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        if not util.has_mount_opt(tmp_dir, "noexec"):
+            return tmp_dir
+        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

@@ -3004,7 +3004,9 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     ):
         """Wait for nic attach if we do not have a fallback interface.
         Skip waiting for additional nics after we have found primary"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         lease = {
             "interface": "eth9",
             "fixed-address": "192.168.2.9",
@@ -3050,7 +3052,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_attach.side_effect = ["eth0", "eth1"]
         m_imds.reset_mock()
         m_imds.side_effect = [{}, md]
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         dsa._wait_for_all_nics_ready()
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(2, m_attach.call_count)
@@ -3066,7 +3068,9 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     ):
         """Retry polling for network metadata on all failures except timeout
         and network unreachable errors"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         lease = {
             "interface": "eth9",
             "fixed-address": "192.168.2.9",
@@ -3102,7 +3106,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             requests.Timeout("Fake connection timeout")
         ] * 6 + [requests.ConnectionError("Fake Network Unreachable")] * 6
 
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
         is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
@@ -3283,7 +3287,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_request.side_effect = fake_timeout_once
         report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ), mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
@@ -3347,7 +3353,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             }
         ]
         m_media_switch.return_value = None
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
@@ -3379,7 +3387,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         ]
         m_media_switch.return_value = None
         m_report_ready.side_effect = [Exception("fail")]
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
@@ -3637,7 +3647,11 @@ class TestEphemeralNetworking:
         azure_ds._setup_ephemeral_networking(iface=iface)
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
-            mock.call(iface=iface, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call(
+                iface=iface,
+                dhcp_log_func=dsaz.dhcp_log_cb,
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
+            ),
             mock.call().obtain_lease(),
         ]
         assert mock_sleep.mock_calls == []
@@ -3660,7 +3674,11 @@ class TestEphemeralNetworking:
         azure_ds._setup_ephemeral_networking(iface=iface)
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
-            mock.call(iface=iface, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call(
+                iface=iface,
+                dhcp_log_func=dsaz.dhcp_log_cb,
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
+            ),
             mock.call().obtain_lease(),
         ]
         assert mock_sleep.mock_calls == []
@@ -3699,7 +3717,11 @@ class TestEphemeralNetworking:
         azure_ds._setup_ephemeral_networking()
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
-            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call(
+                iface=None,
+                dhcp_log_func=dsaz.dhcp_log_cb,
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
+            ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
         ]
@@ -3730,7 +3752,11 @@ class TestEphemeralNetworking:
         azure_ds._setup_ephemeral_networking()
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
-            mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+            mock.call(
+                iface=None,
+                dhcp_log_func=dsaz.dhcp_log_cb,
+                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
+            ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
         ]
@@ -3765,7 +3791,11 @@ class TestEphemeralNetworking:
         assert (
             mock_ephemeral_dhcp_v4.mock_calls
             == [
-                mock.call(iface=None, dhcp_log_func=dsaz.dhcp_log_cb),
+                mock.call(
+                    iface=None,
+                    dhcp_log_func=dsaz.dhcp_log_cb,
+                    tmp_dir=azure_ds.distro.get_tmp_exec_path(),
+                ),
             ]
             + [mock.call().obtain_lease()] * 11
         )
@@ -4099,7 +4129,11 @@ class TestProvisioning:
             mock.call(timeout_minutes=20)
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb)
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
@@ -4176,8 +4210,16 @@ class TestProvisioning:
             mock.call(timeout_minutes=5),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb),
-            mock.call(None, dsaz.dhcp_log_cb),
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
@@ -4280,8 +4322,16 @@ class TestProvisioning:
             mock.call(iface="ethAttached1", timeout_minutes=20),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb),
-            mock.call("ethAttached1", dsaz.dhcp_log_cb),
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
+            mock.call(
+                "ethAttached1",
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
@@ -4420,8 +4470,16 @@ class TestProvisioning:
             mock.call(iface="ethAttached1", timeout_minutes=20),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb),
-            mock.call("ethAttached1", dsaz.dhcp_log_cb),
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
+            mock.call(
+                "ethAttached1",
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False
@@ -4508,7 +4566,11 @@ class TestProvisioning:
             mock.call(timeout_minutes=20),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb),
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            ),
         ]
 
         # Verify IMDS metadata.
@@ -4568,7 +4630,11 @@ class TestProvisioning:
             mock.call(timeout_minutes=20)
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
-            mock.call(None, dsaz.dhcp_log_cb)
+            mock.call(
+                None,
+                dsaz.dhcp_log_cb,
+                self.azure_ds.distro.get_tmp_exec_path(),
+            )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
         assert self.azure_ds._is_ephemeral_networking_up() is False

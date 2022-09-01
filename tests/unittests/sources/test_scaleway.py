@@ -172,8 +172,10 @@ def get_source_address_adapter(*args, **kwargs):
 class TestDataSourceScaleway(HttprettyTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
         )
         super(TestDataSourceScaleway, self).setUp()
 

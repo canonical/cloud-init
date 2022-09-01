@@ -50,11 +50,12 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200
         )
         ret = (None, None)  # stdout, stderr but capture=False
+        distro = mock.Mock()
 
         with mock.patch(
             "cloudinit.config.cc_chef.subp_blob_in_tempfile", return_value=ret
         ) as m_subp_blob:
-            cc_chef.install_chef_from_omnibus()
+            cc_chef.install_chef_from_omnibus(distro=distro)
         # admittedly whitebox, but assuming subp_blob_in_tempfile works
         # this should be fine.
         self.assertEqual(
@@ -64,6 +65,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
                     args=[],
                     basename="chef-omnibus-install",
                     capture=False,
+                    distro=distro,
                 )
             ],
             m_subp_blob.call_args_list,
@@ -81,13 +83,14 @@ class TestInstallChefOmnibus(HttprettyTestCase):
 
         m_rdurl.return_value = FakeURLResponse()
 
-        cc_chef.install_chef_from_omnibus()
+        distro = mock.Mock()
+        cc_chef.install_chef_from_omnibus(distro=distro)
         expected_kwargs = {
             "retries": cc_chef.OMNIBUS_URL_RETRIES,
             "url": cc_chef.OMNIBUS_URL,
         }
         self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
-        cc_chef.install_chef_from_omnibus(retries=10)
+        cc_chef.install_chef_from_omnibus(retries=10, distro=distro)
         expected_kwargs = {"retries": 10, "url": cc_chef.OMNIBUS_URL}
         self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
         expected_subp_kwargs = {
@@ -95,6 +98,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             "basename": "chef-omnibus-install",
             "blob": m_rdurl.return_value.contents,
             "capture": False,
+            "distro": distro,
         }
         self.assertCountEqual(
             expected_subp_kwargs, m_subp_blob.call_args_list[0][1]
@@ -109,7 +113,8 @@ class TestInstallChefOmnibus(HttprettyTestCase):
         httpretty.register_uri(
             httpretty.GET, cc_chef.OMNIBUS_URL, body=response
         )
-        cc_chef.install_chef_from_omnibus(omnibus_version="2.0")
+        distro = mock.Mock()
+        cc_chef.install_chef_from_omnibus(distro=distro, omnibus_version="2.0")
 
         called_kwargs = m_subp_blob.call_args_list[0][1]
         expected_kwargs = {
@@ -117,6 +122,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             "basename": "chef-omnibus-install",
             "blob": response,
             "capture": False,
+            "distro": distro,
         }
         self.assertCountEqual(expected_kwargs, called_kwargs)
 
