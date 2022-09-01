@@ -1,4 +1,4 @@
-cloud-init (22.3-15-g6460d2f2-0ubuntu1~22.10.1) UNRELEASED; urgency=medium
+cloud-init (22.3-15-g6460d2f2-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
     + Identify Huawei Cloud as OpenStack (#1689) [huang xinjie]
