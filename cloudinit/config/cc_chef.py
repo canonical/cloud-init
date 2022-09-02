@@ -291,31 +291,23 @@ def run_chef(chef_cfg, log):
     subp.subp(cmd, capture=False)
 
 
-def subp_blob_in_tempfile(blob, distro: Distro, *args, **kwargs):
+def subp_blob_in_tempfile(blob, distro: Distro, args: list, **kwargs):
     """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
 
     'basename' as a kwarg allows providing the basename for the file.
     The 'args' argument to subp will be updated with the full path to the
     filename as the first argument.
     """
+    args = args.copy()
     basename = kwargs.pop("basename", "subp_blob")
-
-    _args = list(args)
-    if len(_args) == 0 and "args" not in kwargs:
-        _args.append(tuple())
-
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
     with temp_utils.tempdir(
         dir=distro.get_tmp_exec_path(), needs_exe=True
     ) as tmpd:
         tmpf = os.path.join(tmpd, basename)
-        if "args" in kwargs:
-            kwargs["args"] = [tmpf] + list(kwargs["args"])
-        else:
-            _args[0] = [tmpf] + _args[0]
-
+        args.insert(0, tmpf)
         util.write_file(tmpf, blob, mode=0o700)
-        return subp.subp(*_args, **kwargs)
+        return subp.subp(args=args, **kwargs)
 
 
 def install_chef_from_omnibus(
