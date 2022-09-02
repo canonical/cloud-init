@@ -49,6 +49,7 @@ KNOWN_CLOUD_NAMES = [
     "VMware",
     "Vultr",
     "ZStack",
+    "Outscale",
     "Other",
 ]
 
