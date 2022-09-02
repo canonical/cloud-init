@@ -6,17 +6,14 @@ import json
 import os
 from collections import namedtuple
 from io import BytesIO
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
 
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
-    REDACT_SENSITIVE_VALUE,
-)
+from cloudinit.sources import REDACT_SENSITIVE_VALUE
 from cloudinit.util import b64e, write_file
 from tests.unittests.helpers import mock
 
@@ -28,6 +25,11 @@ def _gzip_data(data):
         with gzip.GzipFile(mode="wb", fileobj=iobuf, mtime=0) as gzfp:
             gzfp.write(data)
         return iobuf.getvalue()
+
+
+@pytest.fixture(autouse=True)
+def setup_mocks(mocker):
+    mocker.patch("cloudinit.cmd.query.read_cfg_paths", return_value=Paths({}))
 
 
 @mock.patch(M_PATH + "addLogHandlerCLI", lambda *args: "")
@@ -219,12 +221,12 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
+        paths, _, _, _ = self._setup_paths(tmpdir)
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             assert 1 == query.handle_args("anyname", args)
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
-        msg = "Missing instance-data file: %s" % json_file.strpath
+        json_file = paths.get_runpath("instance_data")
+        msg = f"Missing instance-data file: {json_file}"
         assert msg in caplog.text
 
     def test_handle_args_root_fallsback_to_instance_data(self, caplog, tmpdir):
@@ -239,17 +241,17 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
+        paths, _, _, _ = self._setup_paths(tmpdir)
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 1 == query.handle_args("anyname", args)
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        msg = "Missing root-readable %s. Using redacted %s instead." % (
-            sensitive_file.strpath,
-            json_file.strpath,
+        json_file = paths.get_runpath("instance_data")
+        sensitive_file = paths.get_runpath("instance_data_sensitive")
+        msg = (
+            f"Missing root-readable {sensitive_file}. "
+            f"Using redacted {json_file} instead."
         )
         assert msg in caplog.text
 
@@ -266,11 +268,11 @@ class TestQuery:
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
     ):
         """Support reading multiple user-data file content types"""
-        paths, run_dir, user_data, vendor_data = self._setup_paths(
+        paths, _, user_data, vendor_data = self._setup_paths(
             tmpdir, ud_val=ud_src, vd_val=vd_src
         )
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
         args = self.Args(
             debug=False,
             dump_all=True,
@@ -300,9 +302,9 @@ class TestQuery:
         self, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
+        paths, _, _, _ = self._setup_paths(tmpdir)
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
 
         ud_path = os.path.join(paths.instance_link, "user-data.txt")
         write_file(ud_path, "instance_link_ud")
@@ -335,11 +337,11 @@ class TestQuery:
         self, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
-        paths, run_dir, user_data, vendor_data = self._setup_paths(
+        paths, _, user_data, vendor_data = self._setup_paths(
             tmpdir, ud_val="ud", vd_val="vd"
         )
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
         args = self.Args(
             debug=False,
             dump_all=True,

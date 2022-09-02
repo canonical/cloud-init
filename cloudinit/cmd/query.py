@@ -27,11 +27,7 @@ from cloudinit.handlers.jinja_template import (
     get_jinja_variable_alias,
     render_jinja_payload,
 )
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
-    REDACT_SENSITIVE_VALUE,
-)
+from cloudinit.sources import REDACT_SENSITIVE_VALUE
 
 NAME = "query"
 LOG = log.getLogger(NAME)
@@ -59,8 +55,10 @@ def get_parser(parser=None):
         "-i",
         "--instance-data",
         type=str,
-        help="Path to instance-data.json file. Default is /run/cloud-init/%s"
-        % INSTANCE_JSON_FILE,
+        help=(
+            "Path to instance-data.json file. Default is "
+            f"{read_cfg_paths().get_runpath('instance_data')}"
+        ),
     )
     parser.add_argument(
         "-l",
@@ -151,16 +149,13 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         access perms.
     """
     uid = os.getuid()
-    if not all([instance_data, user_data, vendor_data]):
-        paths = read_cfg_paths()
+    paths = read_cfg_paths()
     if instance_data:
         instance_data_fn = instance_data
     else:
-        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        redacted_data_fn = paths.get_runpath("instance_data")
         if uid == 0:
-            sensitive_data_fn = os.path.join(
-                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-            )
+            sensitive_data_fn = paths.get_runpath("instance_data_sensitive")
             if os.path.exists(sensitive_data_fn):
                 instance_data_fn = sensitive_data_fn
             else:
