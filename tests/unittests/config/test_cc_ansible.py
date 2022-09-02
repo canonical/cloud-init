@@ -269,22 +269,18 @@ class TestAnsible:
     def test_deps_not_installed(self, m_which):
         """assert exception raised if package not installed"""
         with raises(ValueError):
-            cc_ansible.AnsiblePullDistro(
-                get_cloud().distro.install_packages
-            ).check_deps()
+            cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
 
     @mock.patch(M_PATH + "which", return_value=True)
     def test_deps(self, m_which):
         """assert exception not raised if package installed"""
-        cc_ansible.AnsiblePullDistro(
-            get_cloud().distro.install_packages
-        ).check_deps()
+        cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
 
     @mock.patch(M_PATH + "which", return_value=False)
     @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     def test_pip_bootstrap(self, m_which, m_subp):
         distro = get_cloud(mocked_distro=True).distro
-        cc_ansible.AnsiblePullPip(distro.install_packages).install("")
+        cc_ansible.AnsiblePullPip(distro).install("")
         distro.install_packages.assert_called_once()
 
     @mock.patch(M_PATH + "which", return_value=True)
@@ -331,11 +327,11 @@ class TestAnsible:
     def test_ansible_pull(self, m_subp, m_which, cfg, expected):
         """verify expected ansible invocation from userdata config"""
         pull_type = cfg["ansible"]["install-method"]
-        installer = get_cloud().distro.install_packages
+        distro = get_cloud().distro
         ansible_pull = (
-            cc_ansible.AnsiblePullPip(installer)
+            cc_ansible.AnsiblePullPip(distro)
             if pull_type == "pip"
-            else cc_ansible.AnsiblePullDistro(installer)
+            else cc_ansible.AnsiblePullDistro(distro)
         )
         cc_ansible.run_ansible_pull(
             ansible_pull, deepcopy(cfg["ansible"]["pull"])
@@ -359,19 +355,19 @@ class TestAnsible:
     )
     def test_parse_version(self, m_subp):
         """Verify that the expected version is returned"""
-        installer = get_cloud().distro.install_packages
+        distro = get_cloud().distro
         assert cc_ansible.AnsiblePullDistro(
-            installer
+            distro
         ).get_version() == cc_ansible.Version(2, 10, 8)
         assert cc_ansible.AnsiblePullPip(
-            installer
+            distro
         ).get_version() == cc_ansible.Version(2, 13, 2)
 
         assert (
             util.Version(2, 1, 0, -1)
-            == cc_ansible.AnsiblePullPip(installer).get_version()
+            == cc_ansible.AnsiblePullPip(distro).get_version()
         )
         assert (
             util.Version(2, 1, 0, -1)
-            == cc_ansible.AnsiblePullDistro(installer).get_version()
+            == cc_ansible.AnsiblePullDistro(distro).get_version()
         )
