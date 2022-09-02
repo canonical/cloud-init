@@ -350,7 +350,12 @@ class Paths(persistence.CloudInitPickleMixin):
             "cloud_config": "cloud-config.txt",
             "data": "data",
             "handlers": "handlers",
+            # File in which public available instance meta-data is written
+            # security-sensitive key values are redacted from this
+            # world-readable file
             "instance_data": "instance-data.json",
+            # security-sensitive key values are present in this root-readable
+            # file
             "instance_data_sensitive": "instance-data-sensitive.json",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
