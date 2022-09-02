@@ -20,7 +20,6 @@ from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
-from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
