@@ -23,7 +23,7 @@ from tests.unittests.helpers import (
     skipIf,
     skipUnlessJsonSchema,
 )
-from tests.unittests.util import get_cloud
+from tests.unittests.util import MockDistro, get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -467,4 +467,33 @@ class TestBootCMDSchema:
             validate_cloudconfig_schema(config, schema, strict=True)
 
 
-# vi: ts=4 expandtab
+class TestHelpers:
+    def test_subp_blob_in_tempfile(self, mocker, tmpdir):
+        mocker.patch(
+            "tests.unittests.util.MockDistro.get_tmp_exec_path",
+            return_value=tmpdir,
+        )
+        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
+        write_file = mocker.patch("cloudinit.util.write_file")
+        m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
+        distro = MockDistro()
+
+        cc_chef.subp_blob_in_tempfile("hi", distro, args=[])
+        assert m_subp.call_args == mock.call(args=[f"{tmpdir}/subp_blob"])
+        assert write_file.call_args[0][1] == "hi"
+
+    def test_subp_blob_in_tempfile_args(self, mocker, tmpdir):
+        mocker.patch(
+            "tests.unittests.util.MockDistro.get_tmp_exec_path",
+            return_value=tmpdir,
+        )
+        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
+        write_file = mocker.patch("cloudinit.util.write_file")
+        m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
+        distro = MockDistro()
+
+        cc_chef.subp_blob_in_tempfile("hi", distro, args=["aaa"])
+        assert m_subp.call_args == mock.call(
+            args=[f"{tmpdir}/subp_blob", "aaa"]
+        )
+        assert write_file.call_args[0][1] == "hi"
