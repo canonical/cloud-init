@@ -25,12 +25,12 @@ from tests.unittests.helpers import (
     HttprettyTestCase,
     mock,
     populate_dir,
-    wrap_and_call,
 )
 
 PID_F = "/run/dhclient.pid"
 LEASE_F = "/run/dhclient.lease"
 DHCLIENT = "/sbin/dhclient"
+
 
 class TestParseDHCPLeasesFile(CiTestCase):
     def test_parse_empty_lease_file_errors(self):
@@ -380,9 +380,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery_warns_invalid_pid(
-        self, m_wait, m_subp, m_kill
-    ):
+    def test_dhcp_discovery_warns_invalid_pid(self, m_wait, m_subp, m_kill):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
 
         Lease processing still occurs and no proc kill is attempted.
@@ -401,7 +399,8 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
 
         with mock.patch(
-                "cloudinit.util.load_file", return_value=lease_content):
+            "cloudinit.util.load_file", return_value=lease_content
+        ):
             self.assertCountEqual(
                 [
                     {
@@ -470,7 +469,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
         my_pid = 1
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
 
-        with mock.patch("cloudinit.util.load_file", side_effect=["1", lease_content]):
+        with mock.patch(
+            "cloudinit.util.load_file", side_effect=["1", lease_content]
+        ):
             self.assertCountEqual(
                 [
                     {
@@ -480,7 +481,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                dhcp_discovery('/sbin/dhclient', "eth9")
+                dhcp_discovery("/sbin/dhclient", "eth9"),
             )
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
@@ -512,9 +513,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.wait_for_files", return_value=False)
     def test_dhcp_discovery_setup_and_run_dhclient(
-            self, m_wait, m_subp, m_kill, m_getppid):
-        """dhcp_discovery brings up the interface and runs dhclient.
-        """
+        self, m_wait, m_subp, m_kill, m_getppid
+    ):
+        """dhcp_discovery brings up the interface and runs dhclient."""
         m_subp.return_value = ("", "")
         my_pid = 1
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
@@ -527,8 +528,11 @@ class TestDHCPDiscoveryClean(CiTestCase):
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
-        """)
-        with mock.patch("cloudinit.util.load_file", side_effect=["1", lease_content]):
+        """
+        )
+        with mock.patch(
+            "cloudinit.util.load_file", side_effect=["1", lease_content]
+        ):
             self.assertCountEqual(
                 [
                     {
@@ -538,7 +542,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                dhcp_discovery('/sbin/dhclient', "eth9"),
+                dhcp_discovery("/sbin/dhclient", "eth9"),
             )
 
         # Interface was brought up before dhclient called
@@ -598,9 +602,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.assertEqual(out, dhclient_out)
             self.assertEqual(err, dhclient_err)
 
-        dhcp_discovery(
-            DHCLIENT, "eth9", dhcp_log_func=dhcp_log_func
-        )
+        dhcp_discovery(DHCLIENT, "eth9", dhcp_log_func=dhcp_log_func)
 
 
 class TestSystemdParseLeases(CiTestCase):

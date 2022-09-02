@@ -13,7 +13,7 @@ from io import StringIO
 
 import configobj
 
-from cloudinit import subp, temp_utils, util
+from cloudinit import subp, util
 from cloudinit.net import find_fallback_nic, get_devicelist
 
 LOG = logging.getLogger(__name__)
