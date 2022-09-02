@@ -6,16 +6,17 @@ cloud-init Documentation
 Cloud-init is the *industry standard* multi-distribution method for
 cross-platform cloud instance initialization.
 
-During boot, cloud-init identifies the cloud it is running on, reads
-metadata from the cloud, and initializes the system accordingly.
+During boot, cloud-init identifies the cloud it is running on and initializes
+the system accordingly. Cloud instances will automatically be provisioned
+during first boot with networking, storage, ssh keys, packages and various
+other system aspects already configured.
 
-Cloud-init allows users to boot instances that are automatically
-provisioned during first boot with networking, storage, ssh keys, packages and
-various other system aspects already configured.
+Cloud-init provides the necessary glue between launching a cloud instance and
+connecting to it so that it works as expected.
 
-This project is for anyone that wishes to bring up an instance that configures
-itself during boot.
-
+For cloud users, cloud-init provides no-install first-boot configuration
+management of a cloud instance. For cloud providers, it provides instance setup
+that can be integrated with your cloud.
 
 Having trouble? We would like to help!
 **************************************
