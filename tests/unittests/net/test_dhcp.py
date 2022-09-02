@@ -28,6 +28,9 @@ from tests.unittests.helpers import (
     wrap_and_call,
 )
 
+PID_F = "/run/dhclient.pid"
+LEASE_F = "/run/dhclient.lease"
+DHCLIENT = "/sbin/dhclient"
 
 class TestParseDHCPLeasesFile(CiTestCase):
     def test_parse_empty_lease_file_errors(self):
@@ -373,46 +376,19 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.logs.getvalue(),
         )
 
-    @mock.patch("cloudinit.temp_utils.os.getuid")
-    @mock.patch("cloudinit.net.dhcp.dhcp_discovery")
-    @mock.patch("cloudinit.net.dhcp.subp.which")
-    @mock.patch("cloudinit.net.dhcp.find_fallback_nic")
-    def test_dhclient_run_with_tmpdir(self, m_fback, m_which, m_dhcp, m_uid):
-        """maybe_perform_dhcp_discovery passes tmpdir to dhcp_discovery."""
-        m_uid.return_value = 0  # Fake root user for tmpdir
-        m_fback.return_value = "eth9"
-        m_which.return_value = "/sbin/dhclient"
-        m_dhcp.return_value = {"address": "192.168.2.2"}
-        retval = wrap_and_call(
-            "cloudinit.temp_utils",
-            {"_TMPDIR": {"new": None}, "os.getuid": 0},
-            maybe_perform_dhcp_discovery,
-        )
-        self.assertEqual({"address": "192.168.2.2"}, retval)
-        self.assertEqual(
-            1, m_dhcp.call_count, "dhcp_discovery not called once"
-        )
-        call = m_dhcp.call_args_list[0]
-        self.assertEqual("/sbin/dhclient", call[0][0])
-        self.assertEqual("eth9", call[0][1])
-        self.assertIn("/var/tmp/cloud-init/cloud-init-dhcp-", call[0][2])
-
     @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhcp_discovery_run_in_sandbox_warns_invalid_pid(
-        self, m_subp, m_kill
+    @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
+    def test_dhcp_discovery_warns_invalid_pid(
+        self, m_wait, m_subp, m_kill
     ):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
 
         Lease processing still occurs and no proc kill is attempted.
         """
         m_subp.return_value = ("", "")
-        tmpdir = self.tmp_dir()
-        dhclient_script = os.path.join(tmpdir, "dhclient.orig")
-        script_content = "#!/bin/bash\necho fake-dhclient"
-        write_file(dhclient_script, script_content, mode=0o755)
-        write_file(self.tmp_path("dhclient.pid", tmpdir), "")  # Empty pid ''
+
         lease_content = dedent(
             """
             lease {
@@ -423,19 +399,23 @@ class TestDHCPDiscoveryClean(CiTestCase):
             }
         """
         )
-        write_file(self.tmp_path("dhcp.leases", tmpdir), lease_content)
 
-        self.assertCountEqual(
-            [
-                {
-                    "interface": "eth9",
-                    "fixed-address": "192.168.2.74",
-                    "subnet-mask": "255.255.255.0",
-                    "routers": "192.168.2.1",
-                }
-            ],
-            dhcp_discovery(dhclient_script, "eth9", tmpdir),
-        )
+        with mock.patch(
+                "cloudinit.util.load_file", return_value=lease_content):
+            self.assertCountEqual(
+                [
+                    {
+                        "interface": "eth9",
+                        "fixed-address": "192.168.2.74",
+                        "subnet-mask": "255.255.255.0",
+                        "routers": "192.168.2.1",
+                    }
+                ],
+                parse_dhcp_lease_file("lease"),
+            )
+        with self.assertRaises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.util.load_file", return_value=""):
+                dhcp_discovery(DHCLIENT, "eth9")
         self.assertIn(
             "dhclient(pid=, parentpid=unknown) failed "
             "to daemonize after 10.0 seconds",
@@ -447,23 +427,18 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhcp_discovery_run_in_sandbox_waits_on_lease_and_pid(
+    def test_dhcp_discovery_waits_on_lease_and_pid(
         self, m_subp, m_wait, m_kill, m_getppid
     ):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
         m_subp.return_value = ("", "")
-        tmpdir = self.tmp_dir()
-        dhclient_script = os.path.join(tmpdir, "dhclient.orig")
-        script_content = "#!/bin/bash\necho fake-dhclient"
-        write_file(dhclient_script, script_content, mode=0o755)
+
         # Don't create pid or leases file
-        pidfile = self.tmp_path("dhclient.pid", tmpdir)
-        leasefile = self.tmp_path("dhcp.leases", tmpdir)
-        m_wait.return_value = [pidfile]  # Return the missing pidfile wait for
+        m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-        self.assertEqual([], dhcp_discovery(dhclient_script, "eth9", tmpdir))
+        self.assertEqual([], dhcp_discovery("/sbin/dhclient", "eth9"))
         self.assertEqual(
-            mock.call([pidfile, leasefile], maxwait=5, naplen=0.01),
+            mock.call([PID_F, LEASE_F], maxwait=5, naplen=0.01),
             m_wait.call_args_list[0],
         )
         self.assertIn(
@@ -475,16 +450,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhcp_discovery_run_in_sandbox(self, m_subp, m_kill, m_getppid):
+    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    def test_dhcp_discovery_run(self, m_wait, m_subp, m_kill, m_getppid):
         """dhcp_discovery brings up the interface and runs dhclient.
 
-        It also returns the parsed dhcp.leases file generated in the sandbox.
+        It also returns the parsed dhcp.leases file.
         """
         m_subp.return_value = ("", "")
-        tmpdir = self.tmp_dir()
-        dhclient_script = os.path.join(tmpdir, "dhclient.orig")
-        script_content = "#!/bin/bash\necho fake-dhclient"
-        write_file(dhclient_script, script_content, mode=0o755)
         lease_content = dedent(
             """
             lease {
@@ -495,83 +467,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
             }
         """
         )
-        lease_file = os.path.join(tmpdir, "dhcp.leases")
-        write_file(lease_file, lease_content)
-        pid_file = os.path.join(tmpdir, "dhclient.pid")
         my_pid = 1
-        write_file(pid_file, "%d\n" % my_pid)
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
 
-        self.assertCountEqual(
-            [
-                {
-                    "interface": "eth9",
-                    "fixed-address": "192.168.2.74",
-                    "subnet-mask": "255.255.255.0",
-                    "routers": "192.168.2.1",
-                }
-            ],
-            dhcp_discovery(dhclient_script, "eth9", tmpdir),
-        )
-        # dhclient script got copied
-        with open(os.path.join(tmpdir, "dhclient")) as stream:
-            self.assertEqual(script_content, stream.read())
-        # Interface was brought up before dhclient called from sandbox
-        m_subp.assert_has_calls(
-            [
-                mock.call(
-                    ["ip", "link", "set", "dev", "eth9", "up"], capture=True
-                ),
-                mock.call(
-                    [
-                        os.path.join(tmpdir, "dhclient"),
-                        "-1",
-                        "-v",
-                        "-lf",
-                        lease_file,
-                        "-pf",
-                        os.path.join(tmpdir, "dhclient.pid"),
-                        "eth9",
-                        "-sf",
-                        "/bin/true",
-                    ],
-                    capture=True,
-                ),
-            ]
-        )
-        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
-
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
-    @mock.patch("cloudinit.net.dhcp.os.kill")
-    @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhcp_discovery_outside_sandbox(self, m_subp, m_kill, m_getppid):
-        """dhcp_discovery brings up the interface and runs dhclient.
-
-        It also returns the parsed dhcp.leases file generated in the sandbox.
-        """
-        m_subp.return_value = ("", "")
-        tmpdir = self.tmp_dir()
-        dhclient_script = os.path.join(tmpdir, "dhclient.orig")
-        script_content = "#!/bin/bash\necho fake-dhclient"
-        write_file(dhclient_script, script_content, mode=0o755)
-        lease_content = dedent(
-            """
-            lease {
-              interface "eth9";
-              fixed-address 192.168.2.74;
-              option subnet-mask 255.255.255.0;
-              option routers 192.168.2.1;
-            }
-        """
-        )
-        lease_file = os.path.join(tmpdir, "dhcp.leases")
-        write_file(lease_file, lease_content)
-        pid_file = os.path.join(tmpdir, "dhclient.pid")
-        my_pid = 1
-        write_file(pid_file, "%d\n" % my_pid)
-        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-
-        with mock.patch("os.access", return_value=False):
+        with mock.patch("cloudinit.util.load_file", side_effect=["1", lease_content]):
             self.assertCountEqual(
                 [
                     {
@@ -581,12 +480,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                dhcp_discovery(dhclient_script, "eth9", tmpdir),
+                dhcp_discovery('/sbin/dhclient', "eth9")
             )
-        # dhclient script got copied
-        with open(os.path.join(tmpdir, "dhclient.orig")) as stream:
-            self.assertEqual(script_content, stream.read())
-        # Interface was brought up before dhclient called from sandbox
+        # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
                 mock.call(
@@ -594,13 +490,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
                 ),
                 mock.call(
                     [
-                        os.path.join(tmpdir, "dhclient.orig"),
+                        "/sbin/dhclient",
                         "-1",
                         "-v",
                         "-lf",
-                        lease_file,
+                        LEASE_F,
                         "-pf",
-                        os.path.join(tmpdir, "dhclient.pid"),
+                        PID_F,
                         "eth9",
                         "-sf",
                         "/bin/true",
@@ -614,16 +510,73 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhcp_output_error_stream(self, m_subp, m_kill, m_getppid):
+    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    def test_dhcp_discovery_setup_and_run_dhclient(
+            self, m_wait, m_subp, m_kill, m_getppid):
+        """dhcp_discovery brings up the interface and runs dhclient.
+        """
+        m_subp.return_value = ("", "")
+        my_pid = 1
+        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
+
+        lease_content = dedent(
+            """
+            lease {
+              interface "eth9";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+            }
+        """)
+        with mock.patch("cloudinit.util.load_file", side_effect=["1", lease_content]):
+            self.assertCountEqual(
+                [
+                    {
+                        "interface": "eth9",
+                        "fixed-address": "192.168.2.74",
+                        "subnet-mask": "255.255.255.0",
+                        "routers": "192.168.2.1",
+                    }
+                ],
+                dhcp_discovery('/sbin/dhclient', "eth9"),
+            )
+
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "eth9", "up"], capture=True
+                ),
+                mock.call(
+                    [
+                        DHCLIENT,
+                        "-1",
+                        "-v",
+                        "-lf",
+                        LEASE_F,
+                        "-pf",
+                        PID_F,
+                        "eth9",
+                        "-sf",
+                        "/bin/true",
+                    ],
+                    capture=True,
+                ),
+            ]
+        )
+        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+
+    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
+    @mock.patch("cloudinit.net.dhcp.os.kill")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.wait_for_files")
+    def test_dhcp_output_error_stream(self, m_wait, m_subp, m_kill, m_getppid):
         """ "dhcp_log_func is called with the output and error streams of
-        dhclinet when the callable is passed."""
+        dhclient when the callable is passed."""
         dhclient_err = "FAKE DHCLIENT ERROR"
         dhclient_out = "FAKE DHCLIENT OUT"
         m_subp.return_value = (dhclient_out, dhclient_err)
         tmpdir = self.tmp_dir()
-        dhclient_script = os.path.join(tmpdir, "dhclient.orig")
-        script_content = "#!/bin/bash\necho fake-dhclient"
-        write_file(dhclient_script, script_content, mode=0o755)
         lease_content = dedent(
             """
                 lease {
@@ -646,7 +599,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.assertEqual(err, dhclient_err)
 
         dhcp_discovery(
-            dhclient_script, "eth9", tmpdir, dhcp_log_func=dhcp_log_func
+            DHCLIENT, "eth9", dhcp_log_func=dhcp_log_func
         )
 
 
