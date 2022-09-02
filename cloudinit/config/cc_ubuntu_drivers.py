@@ -16,8 +16,11 @@ except ImportError:
     debconf = None
     HAS_DEBCONF = False
 
+from logging import Logger
+
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -137,7 +140,9 @@ def install_drivers(cfg, pkg_install_func, distro: Distro):
         raise
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "drivers" not in cfg:
         log.debug("Skipping module named %s, no 'drivers' key in config", name)
         return

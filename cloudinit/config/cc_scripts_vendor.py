@@ -6,9 +6,12 @@
 """Scripts Vendor: Run vendor scripts"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -61,7 +64,9 @@ __doc__ = get_meta_doc(meta)
 SCRIPT_SUBDIR = "vendor"
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # This is written to by the vendor data handlers
     # any vendor data shell scripts get placed in runparts_path
     runparts_path = os.path.join(

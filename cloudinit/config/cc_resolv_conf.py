@@ -8,10 +8,13 @@
 
 """Resolv Conf: configure resolv.conf"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -104,7 +107,9 @@ def generate_resolv_conf(template_fn, params, target_fname):
     templater.render_to_file(template_fn, target_fname, params)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """
     Handler for resolv.conf
 

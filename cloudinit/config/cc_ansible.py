@@ -5,10 +5,12 @@ import os
 import re
 import sys
 from copy import deepcopy
+from logging import Logger
 from textwrap import dedent
 from typing import Optional
 
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
@@ -131,7 +133,9 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, _, __):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     ansible_cfg: dict = cfg.get("ansible", {})
     if ansible_cfg:
         ansible: AnsiblePull
