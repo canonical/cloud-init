@@ -13,6 +13,7 @@ import yaml
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.DataSourceLXD import MetaDataKeys
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
@@ -509,14 +510,47 @@ class TestReadMetadata:
             return m_resp
 
         m_session_get.side_effect = fake_get
-
+        metadata_keys = MetaDataKeys.META_DATA | MetaDataKeys.CONFIG
+        if get_devices:
+            metadata_keys |= MetaDataKeys.DEVICES
         if isinstance(expected, Exception):
             with pytest.raises(type(expected), match=re.escape(str(expected))):
-                lxd.read_metadata(devices=get_devices)
+                lxd.read_metadata(metadata_keys=metadata_keys)
         else:
-            assert expected == lxd.read_metadata(devices=get_devices)
+            assert expected == lxd.read_metadata(metadata_keys=metadata_keys)
         for log in logs:
             assert log in caplog.text
+
+    @pytest.mark.parametrize(
+        "metadata_keys, expected_get_urls",
+        [
+            (MetaDataKeys.NONE, []),
+            (MetaDataKeys.META_DATA, ["http://lxd/1.0/meta-data"]),
+            (MetaDataKeys.CONFIG, ["http://lxd/1.0/config"]),
+            (MetaDataKeys.DEVICES, ["http://lxd/1.0/devices"]),
+            (
+                MetaDataKeys.DEVICES | MetaDataKeys.CONFIG,
+                ["http://lxd/1.0/config", "http://lxd/1.0/devices"],
+            ),
+            (
+                MetaDataKeys.ALL,
+                [
+                    "http://lxd/1.0/meta-data",
+                    "http://lxd/1.0/config",
+                    "http://lxd/1.0/devices",
+                ],
+            ),
+        ],
+    )
+    @mock.patch.object(lxd.requests.Session, "get")
+    def test_read_metadata_keys(
+        self, m_session_get, metadata_keys, expected_get_urls
+    ):
+        lxd.read_metadata(metadata_keys=metadata_keys)
+        assert (
+            list(map(mock.call, expected_get_urls))
+            == m_session_get.call_args_list
+        )
 
 
 # vi: ts=4 expandtab

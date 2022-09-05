@@ -12,6 +12,7 @@ Notes:
 import os
 import socket
 import stat
+from enum import Flag, auto
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Union, cast
 
@@ -191,7 +192,7 @@ class DataSourceLXD(sources.DataSource):
 
     def check_instance_id(self, sys_cfg) -> str:
         """Return True if instance_id unchanged."""
-        response = read_metadata(metadata_only=True)
+        response = read_metadata(metadata_keys=MetaDataKeys.META_DATA)
         md = response.get("meta-data", {})
         if not isinstance(md, dict):
             md = util.load_yaml(md)
@@ -255,6 +256,14 @@ def _do_request(
     return response
 
 
+class MetaDataKeys(Flag):
+    NONE = auto()
+    CONFIG = auto()
+    DEVICES = auto()
+    META_DATA = auto()
+    ALL = CONFIG | DEVICES | META_DATA
+
+
 class _MetaDataReader:
     def __init__(self, api_version: str = LXD_SOCKET_API_VERSION):
         self.api_version = api_version
@@ -315,19 +324,19 @@ class _MetaDataReader:
                     )
         return config
 
-    def __call__(
-        self, *, metadata_only: bool = False, devices: bool = False
-    ) -> dict:
+    def __call__(self, *, metadata_keys: MetaDataKeys) -> dict:
         with requests.Session() as session:
             session.mount(self._version_url, LXDSocketAdapter())
             # Document API version read
             md: dict = {"_metadata_api_version": self.api_version}
-            md_route = url_helper.combine_url(self._version_url, "meta-data")
-            md["meta-data"] = _do_request(session, md_route).text
-            if metadata_only:
-                return md  # Skip network-data, vendor-data, user-data
-            md.update(self._process_config(session))
-            if devices:
+            if MetaDataKeys.META_DATA in metadata_keys:
+                md_route = url_helper.combine_url(
+                    self._version_url, "meta-data"
+                )
+                md["meta-data"] = _do_request(session, md_route).text
+            if MetaDataKeys.CONFIG in metadata_keys:
+                md.update(self._process_config(session))
+            if MetaDataKeys.DEVICES in metadata_keys:
                 url = url_helper.combine_url(self._version_url, "devices")
                 md.update({"devices": _get_json_response(session, url)})
             return md
@@ -335,8 +344,7 @@ class _MetaDataReader:
 
 def read_metadata(
     api_version: str = LXD_SOCKET_API_VERSION,
-    metadata_only: bool = False,
-    devices: bool = False,
+    metadata_keys: MetaDataKeys = MetaDataKeys.CONFIG | MetaDataKeys.META_DATA,
 ) -> dict:
     """Fetch metadata from the /dev/lxd/socket routes.
 
@@ -359,23 +367,18 @@ def read_metadata(
 
     :param api_version:
         LXD API version to operated with.
-    :param metadata_only:
-        If true, only /meta-data info will be included.
-    :param devices:
-        Boolean indicating if <LXD_SOCKET_API_VERSION>/devices needs to be
-        added to the metadata dict.
+    :param metadata_keys:
+        Instance of `MetaDataKeys` indicating what keys to fetch.
     :return:
-        A dict with the following mandatory key: meta-data.
-        Optional keys: user-data, vendor-data, network-config, network_mode,
-        devices.
+        A dict with the following optional keys: meta-data, user-data,
+        vendor-data, network-config, network_mode, devices.
 
         Below <LXD_SOCKET_API_VERSION> is a dict representation of all raw
         configuration keys and values provided to the container surfaced by
         the socket under the /1.0/config/ route.
     """
     return _MetaDataReader(api_version=api_version)(
-        metadata_only=metadata_only,
-        devices=devices,
+        metadata_keys=metadata_keys
     )
 
 
@@ -396,6 +399,6 @@ if __name__ == "__main__":
     description = """Query LXD metadata and emit a JSON object."""
     parser = argparse.ArgumentParser(description=description)
     parser.parse_args()
-    print(util.json_dumps(read_metadata(devices=True)))
+    print(util.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL)))
 
 # vi: ts=4 expandtab
