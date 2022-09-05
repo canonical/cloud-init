@@ -33,9 +33,11 @@ meta: MetaSchema = {
         'enable' list is not present, any named service will supplement
         contract-default enabled services.
 
-        In Ubuntu Pro instances, `token` will be ignored. `enable` and
-        `enable_beta` will fully determine what services will be enabled,
-        ignoring contract defaults.
+        On Pro instances, when ``ubuntu_advantage`` config is provided to
+        cloud-init, Pro's auto-attach feature will be disabled and cloud-init
+        will perform the Pro auto-attach ignoring the ``token`` key.
+        The ``enable`` and ``enable_beta`` values will strictly determine what
+        services will be enabled, ignoring contract defaults.
 
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
@@ -132,6 +134,10 @@ __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
+ERROR_MSG_SHOULD_AUTO_ATTACH = (
+    "Unable to determine if this is an Ubuntu Pro instance."
+    " Fallback to normal UA attach."
+)
 
 
 def supplemental_schema_validation(ua_config):
@@ -294,22 +300,20 @@ def maybe_install_ua_tools(cloud: Cloud):
         raise
 
 
-def _is_pro() -> bool:
+def _should_auto_attach() -> bool:
     try:
         from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
             should_auto_attach,
         )
     except ImportError as ex:
         LOG.debug("Unable to import `uaclient`: %s", ex)
+        LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
         return False
     try:
         result = should_auto_attach()
     except Exception as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
-        LOG.warning(
-            "Unable to determine if this is an Ubuntu Pro instance."
-            " Fallback to normal UA attach."
-        )
+        LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
         return False
     return result.should_auto_attach
 
@@ -389,7 +393,7 @@ def handle(
     disable_auto_attach = bool(
         ua_section.get("features", {}).get("disable_auto_attach", False)
     )
-    if not disable_auto_attach and _is_pro():
+    if not disable_auto_attach and _should_auto_attach():
         _auto_attach(ua_section)
     elif not ua_section.keys() <= {"features"}:
         _attach(ua_section, config)

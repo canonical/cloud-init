@@ -9,7 +9,7 @@ import pytest
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
     _auto_attach,
-    _is_pro,
+    _should_auto_attach,
     configure_ua,
     handle,
     maybe_install_ua_tools,
@@ -486,7 +486,7 @@ class TestHandle:
             ),
         ],
     )
-    @mock.patch(f"{MPATH}._is_pro", return_value=False)
+    @mock.patch(f"{MPATH}._should_auto_attach", return_value=False)
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}.configure_ua")
     @mock.patch(f"{MPATH}.maybe_install_ua_tools")
@@ -495,7 +495,7 @@ class TestHandle:
         m_maybe_install_ua_tools,
         m_configure_ua,
         m_auto_attach,
-        m_is_pro,
+        m_should_auto_attach,
         cfg,
         cloud,
         log_record_tuples,
@@ -588,14 +588,14 @@ class TestHandle:
             ),
         ],
     )
-    @mock.patch(f"{MPATH}._is_pro")
+    @mock.patch(f"{MPATH}._should_auto_attach")
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}._attach")
     def test_handle_auto_attach(
         self,
         m_attach,
         m_auto_attach,
-        m_is_pro,
+        m_should_auto_attach,
         cfg,
         cloud,
         log_record_tuples,
@@ -606,7 +606,7 @@ class TestHandle:
         expectation,
         caplog,
     ):
-        m_is_pro.return_value = is_pro
+        m_should_auto_attach.return_value = is_pro
         if auto_attach_side_effect is not None:
             m_auto_attach.side_effect = auto_attach_side_effect
 
@@ -639,21 +639,21 @@ class TestHandle:
             ),
         ],
     )
-    @mock.patch(f"{MPATH}._is_pro")
+    @mock.patch(f"{MPATH}._should_auto_attach")
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}._attach")
     def test_no_fallback_attach(
         self,
         m_attach,
         m_auto_attach,
-        m_is_pro,
+        m_should_auto_attach,
         cfg,
         is_pro,
     ):
         """Checks that attach is not called in the case we want only to
         enable or disable ua auto-attach.
         """
-        m_is_pro.return_value = is_pro
+        m_should_auto_attach.return_value = is_pro
         handle("nomatter", cfg=cfg, cloud=self.cloud, log=None, args=None)
         assert not m_attach.call_args_list
 
@@ -693,11 +693,15 @@ class TestIsPro:
     def test_uaclient_not_installed(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
         sys.modules.pop("uaclient", None)
-        assert not _is_pro()
+        assert not _should_auto_attach()
         assert (
             "Unable to import `uaclient`: No module named 'uaclient'"
             in caplog.text
         )
+        assert (
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach."
+        ) in caplog.text
 
     def test_uaclient_old_version(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
@@ -705,11 +709,15 @@ class TestIsPro:
         sys.modules.pop(
             "uaclient.api.u.pro.attach.auto.should_auto_attach", None
         )
-        assert not _is_pro()
+        assert not _should_auto_attach()
         assert (
             "Unable to import `uaclient`: No module named"
             " 'uaclient.api.u.pro.attach.auto.should_auto_attach';"
             " 'uaclient.api.u.pro.attach.auto' is not a package"
+        ) in caplog.text
+        assert (
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach."
         ) in caplog.text
 
     def test_should_auto_attach_error(self, caplog, mocker):
@@ -721,7 +729,7 @@ class TestIsPro:
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
         ] = m_should_auto_attach
-        assert not _is_pro()
+        assert not _should_auto_attach()
         assert "Error during `should_auto_attach`: Some error" in caplog.text
         assert (
             "Unable to determine if this is an Ubuntu Pro instance."
@@ -738,7 +746,7 @@ class TestIsPro:
         m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
             should_auto_attach
         )
-        assert should_auto_attach is _is_pro()
+        assert should_auto_attach is _should_auto_attach()
         assert not caplog.text
 
 

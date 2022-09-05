@@ -2213,7 +2213,7 @@
             },
             "token": {
               "type": "string",
-              "description": "Contract token obtained from https://ubuntu.com/advantage to attach (in non-Pro instances)."
+              "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
             },
             "features": {
               "type": "object",
@@ -2222,7 +2222,7 @@
               "properties": {
                 "disable_auto_attach": {
                   "type": "boolean",
-                  "description": "Optional boolean for controlling if auto attach (in Ubuntu Pro instances) will be performed. Default: ``false``",
+                  "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
                   "default": false
                 }
               }
