@@ -5,7 +5,6 @@
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Optional
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -15,13 +14,8 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-# TODO move following import to a non-global scope
-from uaclient.api.api import call_api
-from uaclient.config import UAConfig
-from uaclient import AutoAttachWithShortRetryOptions
-from uaclient.api.u.pro.detect.should_auto_attach.v1 import should_auto_attach_on_machine
-
 UA_URL = "https://ubuntu.com/advantage"
+_AUTO_ATTACH_RETRIES = 3
 
 distros = ["ubuntu"]
 
@@ -270,33 +264,72 @@ def maybe_install_ua_tools(cloud: Cloud):
         raise
 
 
-class NotAProInstance(Exception):
-    pass
+def _is_pro(config: dict) -> bool:
+    try:
+        from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
+            should_auto_attach,
+        )
+        from uaclient.config import UAConfig
+    except ImportError as ex:
+        LOG.debug("Unable to import `uaclient`: %s", ex)
+        return False
+
+    ua_config = UAConfig(
+        **{"cfg": {"ua_config": config}} if config is not None else {}
+    )
+    try:
+        result = should_auto_attach(cfg=ua_config)
+    except Exception as ex:
+        LOG.debug("Error during `should_auto_attach`: %s", ex)
+        LOG.warning(
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach."
+        )
+        return False
+    return result.should_auto_attach
 
 
-class RetryError(Exception):
-    pass
+def _attach(ua_section: dict, config: dict):
+    token = ua_section.get("token")
+    if not token:
+        msg = (
+            "`ubuntu-advantage.token` required in non-Pro Ubuntu" " instances."
+        )
+        LOG.error(msg)
+        raise RuntimeError(msg)
+    configure_ua(
+        token=token,
+        enable=ua_section.get("enable"),
+        config=config,
+    )
 
 
-def auto_attach_short(*args, **kwargs):
-    """
-    TODO
-    - Doc
-    - Args
-    - Integrate UA function.
-    - Raise NotProInstance or RetryError depending on the underlying problem
-    """
-    raise NotImplementedError()
+def _auto_attach(ua_section: dict, config: dict):
+    try:
+        from uaclient.api.u.pro.attach.auto.full_auto_attach.vi import (
+            FullAutoAttachOptions,
+            full_auto_attach,
+        )
+        from uaclient.config import UAConfig
+    except ImportError as ex:
+        msg = f"Unable to import `uaclient`: {ex}"
+        LOG.error(msg)
+        raise RuntimeError(msg) from ex
 
-
-def auto_attach_long(*args, **kwargs):
-    """
-    TODO
-    - Doc
-    - Args
-    - Integrate UA function.
-    """
-    raise NotImplementedError()
+    ua_config = UAConfig(
+        **{"cfg": {"ua_config": config}} if config is not None else {}
+    )
+    options = FullAutoAttachOptions(
+        enable=ua_section.get("enable"),
+        enable_beta=ua_section.get("enable_beta"),
+        retries=_AUTO_ATTACH_RETRIES,
+    )
+    try:
+        full_auto_attach(options=options, cfg=ua_config)
+    except Exception as ex:
+        msg = f"Error during `full_auto_attach`: {ex}"
+        LOG.error(msg)
+        raise RuntimeError(msg) from ex
 
 
 def handle(
@@ -337,56 +370,10 @@ def handle(
     disable_auto_attach = bool(
         ua_section.get("features", {}).get("disable_auto_attach", False)
     )
-    is_pro_cfg = not disable_auto_attach
-
-    ua_config: Optional[UAConfig] = None
-    if config is not None:
-        ua_config = UAConfig(cfg={"ua_config": config})
-
-    is_pro = should_auto_attach_on_machine(cfg=ua_config).should_auto_attach
-    if is_pro_cfg and is_pro:
-        short_retry_kwargs = {}
-
-        enable = ua_section.get("enable")
-        if enable is not None:
-            short_retry_kwargs["enable"] = enable
-
-        enable_beta = ua_section.get("enable_beta")
-        if enable_beta is not None:
-            short_retry_kwargs["enable_beta"] = enable_beta
-
-        options = AutoAttachWithShortRetryOptions(**short_retry_kwargs)
-
-        try:
-            successful = call_api(
-                "u.pro.auto_attach.with_short_retry.v1",
-                options=options,
-                cfg=ua_config,
-            ).successful
-        except Exception:
-            pass  # TODO log exceptions
-        else:
-            if not successful:
-                LOG.warning(
-                    "Ubuntu Advantage will try to auto-attach as Pro instance"
-                    " with a long retry strategy."
-                    " (This could take days or more)"
-                )
+    if not disable_auto_attach and _is_pro(config):
+        _auto_attach(ua_section, config)
     else:
-        # Fallback to normal attach
-        token = ua_section.get("token")
-        if not token:
-            msg = (
-                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
-                " instances."
-            )
-            LOG.error(msg)
-            raise RuntimeError(msg)
-        configure_ua(
-            token=token,
-            enable=ua_section.get("enable"),
-            config=config,
-        )
+        _attach(ua_section, config)
 
 
 # vi: ts=4 expandtab
