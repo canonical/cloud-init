@@ -2,6 +2,7 @@
 import logging
 import textwrap
 
+import httpretty
 import pytest
 
 from cloudinit import util
@@ -11,15 +12,17 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    CiTestCase,
-    HttprettyTestCase,
-    mock,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
+
+
+@pytest.fixture
+def fake_tempdir(mocker, tmpdir):
+    mocker.patch(
+        "cloudinit.config.cc_puppet.temp_utils.tempdir"
+    ).return_value.__enter__.return_value = str(tmpdir)
 
 
 @mock.patch("cloudinit.config.cc_puppet.subp.which")
@@ -406,82 +409,82 @@ URL_MOCK = mock.Mock()
 URL_MOCK.contents = b'#!/bin/bash\necho "Hi Mom"'
 
 
+@httpretty.activate
+@pytest.mark.usefixtures("fake_tempdir")
 @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=(None, None))
 @mock.patch(
     "cloudinit.config.cc_puppet.url_helper.readurl",
     return_value=URL_MOCK,
     autospec=True,
 )
-class TestInstallPuppetAio(HttprettyTestCase):
-    def test_install_with_default_arguments(self, m_readurl, m_subp):
-        """Install AIO with no arguments"""
+class TestInstallPuppetAio:
+    @pytest.mark.parametrize(
+        "args, expected_subp_call_args_list, expected_readurl_call_args_list",
+        [
+            pytest.param(
+                [],
+                [mock.call([mock.ANY, "--cleanup"], capture=False)],
+                [
+                    mock.call(
+                        url="https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh",  # noqa: 501
+                        retries=5,
+                    )
+                ],
+                id="default_arguments",
+            ),
+            pytest.param(
+                ["http://custom.url/path/to/script.sh"],
+                [mock.call([mock.ANY, "--cleanup"], capture=False)],
+                [
+                    mock.call(
+                        url="http://custom.url/path/to/script.sh", retries=5
+                    )
+                ],
+                id="custom_url",
+            ),
+            pytest.param(
+                [cc_puppet.AIO_INSTALL_URL, "7.6.0"],
+                [
+                    mock.call(
+                        [mock.ANY, "-v", "7.6.0", "--cleanup"], capture=False
+                    )
+                ],
+                [mock.call(url=cc_puppet.AIO_INSTALL_URL, retries=5)],
+                id="version",
+            ),
+            pytest.param(
+                [cc_puppet.AIO_INSTALL_URL, None, "puppet6-nightly"],
+                [
+                    mock.call(
+                        [mock.ANY, "-c", "puppet6-nightly", "--cleanup"],
+                        capture=False,
+                    )
+                ],
+                [mock.call(url=cc_puppet.AIO_INSTALL_URL, retries=5)],
+                id="collection",
+            ),
+            pytest.param(
+                [cc_puppet.AIO_INSTALL_URL, None, None, False],
+                [mock.call([mock.ANY], capture=False)],
+                [mock.call(url=cc_puppet.AIO_INSTALL_URL, retries=5)],
+                id="no_cleanup",
+            ),
+        ],
+    )
+    def test_install_puppet_aio(
+        self,
+        m_readurl,
+        m_subp,
+        args,
+        expected_subp_call_args_list,
+        expected_readurl_call_args_list,
+        tmpdir,
+    ):
         distro = mock.Mock()
-        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
-        cc_puppet.install_puppet_aio(distro)
-
-        self.assertEqual(
-            [mock.call([mock.ANY, "--cleanup"], capture=False)],
-            m_subp.call_args_list,
-        )
-
-    def test_install_with_custom_url(self, m_readurl, m_subp):
-        """Install AIO from custom URL"""
-        distro = mock.Mock()
-        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
-        cc_puppet.install_puppet_aio(
-            distro, "http://custom.url/path/to/script.sh"
-        )
-        m_readurl.assert_called_with(
-            url="http://custom.url/path/to/script.sh", retries=5
-        )
-
-        self.assertEqual(
-            [mock.call([mock.ANY, "--cleanup"], capture=False)],
-            m_subp.call_args_list,
-        )
-
-    def test_install_with_version(self, m_readurl, m_subp):
-        """Install AIO with specific version"""
-        distro = mock.Mock()
-        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
-        cc_puppet.install_puppet_aio(
-            distro, cc_puppet.AIO_INSTALL_URL, "7.6.0"
-        )
-
-        self.assertEqual(
-            [mock.call([mock.ANY, "-v", "7.6.0", "--cleanup"], capture=False)],
-            m_subp.call_args_list,
-        )
-
-    def test_install_with_collection(self, m_readurl, m_subp):
-        """Install AIO with specific collection"""
-        distro = mock.Mock()
-        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
-        cc_puppet.install_puppet_aio(
-            distro, cc_puppet.AIO_INSTALL_URL, None, "puppet6-nightly"
-        )
-
-        self.assertEqual(
-            [
-                mock.call(
-                    [mock.ANY, "-c", "puppet6-nightly", "--cleanup"],
-                    capture=False,
-                )
-            ],
-            m_subp.call_args_list,
-        )
-
-    def test_install_with_no_cleanup(self, m_readurl, m_subp):
-        """Install AIO with no cleanup"""
-        distro = mock.Mock()
-        distro.get_tmp_exec_path.return_value = str(self.tmp_dir)
-        cc_puppet.install_puppet_aio(
-            distro, cc_puppet.AIO_INSTALL_URL, None, None, False
-        )
-
-        self.assertEqual(
-            [mock.call([mock.ANY], capture=False)], m_subp.call_args_list
-        )
+        distro.get_tmp_exec_path.return_value = str(tmpdir)
+        cc_puppet.install_puppet_aio(distro, *args)
+        assert expected_readurl_call_args_list == m_readurl.call_args_list
+        assert expected_subp_call_args_list == m_subp.call_args_list
 
 
 class TestPuppetSchema:
