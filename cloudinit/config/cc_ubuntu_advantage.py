@@ -302,6 +302,7 @@ def maybe_install_ua_tools(cloud: Cloud):
 
 def _should_auto_attach() -> bool:
     try:
+        from uaclient.api.exceptions import UserFacingError
         from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
             should_auto_attach,
         )
@@ -311,7 +312,7 @@ def _should_auto_attach() -> bool:
         return False
     try:
         result = should_auto_attach()
-    except Exception as ex:
+    except UserFacingError as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
         return False

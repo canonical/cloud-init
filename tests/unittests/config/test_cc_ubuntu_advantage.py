@@ -689,7 +689,7 @@ class TestHandle:
         assert 0 == m_configure_ua.call_count
 
 
-class TestIsPro:
+class TestShouldAutoAttach:
     def test_uaclient_not_installed(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
         sys.modules.pop("uaclient", None)
@@ -705,26 +705,24 @@ class TestIsPro:
 
     def test_uaclient_old_version(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
+        sys.modules["uaclient"] = mock.Mock()
+        sys.modules["uaclient.api"] = mock.Mock()
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        sys.modules.pop(
-            "uaclient.api.u.pro.attach.auto.should_auto_attach", None
-        )
+        sys.modules.pop("uaclient.api.exceptions", None)
         assert not _should_auto_attach()
         assert (
             "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.u.pro.attach.auto.should_auto_attach';"
-            " 'uaclient.api.u.pro.attach.auto' is not a package"
+            " 'uaclient.api.exceptions'"
         ) in caplog.text
         assert (
             "Unable to determine if this is an Ubuntu Pro instance."
             " Fallback to normal UA attach."
         ) in caplog.text
 
-    def test_should_auto_attach_error(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
+    def test_should_auto_attach_error(self, caplog, fake_uaclient):
         m_should_auto_attach = mock.Mock()
-        m_should_auto_attach.should_auto_attach.side_effect = ValueError(
-            "Some error"
+        m_should_auto_attach.should_auto_attach.side_effect = (
+            FakeUserFacingError("Some error")  # noqa: E501
         )
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
@@ -737,8 +735,7 @@ class TestIsPro:
         )
 
     @pytest.mark.parametrize("should_auto_attach", [True, False])
-    def test_happy_path(self, should_auto_attach, caplog, mocker):
-        mocker.patch.dict("sys.modules")
+    def test_happy_path(self, should_auto_attach, caplog, fake_uaclient):
         m_should_auto_attach = mock.Mock()
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
