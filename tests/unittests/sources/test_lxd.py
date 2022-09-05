@@ -246,7 +246,7 @@ class TestReadMetadata:
                     "http://lxd/1.0/config": "[NOT_JSON",
                 },
                 InvalidMetaDataException(
-                    "Unable to determine cloud-init config from"
+                    "Unable to process LXD config at"
                     " http://lxd/1.0/config. Expected JSON but found:"
                     " [NOT_JSON"
                 ),
@@ -320,7 +320,7 @@ class TestReadMetadata:
                     "http://lxd/1.0/devices": '{"root"',
                 },
                 InvalidMetaDataException(
-                    "Unable to determine LXD devices from"
+                    "Unable to process LXD config at"
                     ' http://lxd/1.0/devices. Expected JSON but found: {"root"'
                 ),
                 [

@@ -224,6 +224,21 @@ def is_platform_viable() -> bool:
     return False
 
 
+def _get_json_response(
+    session: requests.Session, url: str, do_raise: bool = True
+):
+    url_response = _do_request(session, url, do_raise)
+    try:
+        return url_response.json()
+    except JSONDecodeError as exc:
+        raise sources.InvalidMetaDataException(
+            "Unable to process LXD config at {url}."
+            " Expected JSON but found: {resp}".format(
+                url=url, resp=url_response.text
+            )
+        ) from exc
+
+
 def _do_request(
     session: requests.Session, url: str, do_raise: bool = True
 ) -> requests.Response:
@@ -245,26 +260,21 @@ class _MetaDataReader:
         self.api_version = api_version
         self._version_url = url_helper.combine_url(LXD_URL, self.api_version)
 
-    def _get_meta_data(self, session: requests.Session) -> dict:
-        # Raw meta-data as text
-        md_route = url_helper.combine_url(self._version_url, "meta-data")
-        return {"meta-data": _do_request(session, md_route).text}
+    def _process_config(self, session: requests.Session) -> dict:
+        """Iterate on LXD API config items. Promoting CONFIG_KEY_ALIASES
 
-    def _get_config(self, session: requests.Session) -> dict:
+        Any CONFIG_KEY_ALIASES which affect cloud-init behavior are promoted
+        as top-level configuration keys: user-data, network-data, vendor-data.
+
+        LXD's cloud-init.* config keys override any user.* config keys.
+        Log debug messages if any user.* keys are overridden by the related
+        cloud-init.* key.
+        """
         config: dict = {"config": {}}
         config_url = url_helper.combine_url(self._version_url, "config")
         # Represent all advertized/available config routes under
         # the dict path {LXD_SOCKET_API_VERSION: {config: {...}}.
-        config_response = _do_request(session, config_url)
-        try:
-            config_routes = config_response.json()
-        except JSONDecodeError as exc:
-            raise sources.InvalidMetaDataException(
-                "Unable to determine cloud-init config from {route}."
-                " Expected JSON but found: {resp}".format(
-                    route=config_url, resp=config_response.text
-                )
-            ) from exc
+        config_routes = _get_json_response(session, config_url)
 
         # Sorting keys to ensure we always process in alphabetical order.
         # cloud-init.* keys will sort before user.* keys which is preferred
@@ -274,7 +284,6 @@ class _MetaDataReader:
             config_route_response = _do_request(
                 session, config_route_url, do_raise=False
             )
-
             if not config_route_response.ok:
                 LOG.debug(
                     "Skipping %s on [HTTP:%d]:%s",
@@ -306,34 +315,21 @@ class _MetaDataReader:
                     )
         return config
 
-    def _get_devices(self, session: requests.Session) -> dict:
-        url = url_helper.combine_url(self._version_url, "devices")
-        response = _do_request(session, url)
-        try:
-            devices = response.json()
-        except JSONDecodeError as exc:
-            raise sources.InvalidMetaDataException(
-                "Unable to determine LXD devices from {route}."
-                " Expected JSON but found: {resp}".format(
-                    route=url, resp=response.text
-                )
-            ) from exc
-        return {"devices": devices}
-
     def __call__(
         self, *, metadata_only: bool = False, devices: bool = False
     ) -> dict:
         with requests.Session() as session:
             session.mount(self._version_url, LXDSocketAdapter())
-            md: dict = {}
-            md.update(self._get_meta_data(session))
+            # Document API version read
+            md: dict = {"_metadata_api_version": self.api_version}
+            md_route = url_helper.combine_url(self._version_url, "meta-data")
+            md["meta-data"] = _do_request(session, md_route).text
             if metadata_only:
                 return md  # Skip network-data, vendor-data, user-data
-            # Document API version read
-            md["_metadata_api_version"] = self.api_version
-            md.update(self._get_config(session))
+            md.update(self._process_config(session))
             if devices:
-                md.update(self._get_devices(session))
+                url = url_helper.combine_url(self._version_url, "devices")
+                md.update({"devices": _get_json_response(session, url)})
             return md
 
 
