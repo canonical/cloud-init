@@ -247,7 +247,7 @@ def configure_ua(token=None, enable=None, config=None):
         )
 
 
-def maybe_install_ua_tools(cloud):
+def maybe_install_ua_tools(cloud: Cloud):
     """Install ubuntu-advantage-tools if not present."""
     if subp.which("ua"):
         return
@@ -261,6 +261,35 @@ def maybe_install_ua_tools(cloud):
     except Exception:
         util.logexc(LOG, "Failed to install ubuntu-advantage-tools")
         raise
+
+
+class NotAProInstance(Exception):
+    pass
+
+
+class RetryError(Exception):
+    pass
+
+
+def auto_attach_short(*args, **kwargs):
+    """
+    TODO
+    - Doc
+    - Args
+    - Integrate UA function.
+    - Raise NotProInstance or RetryError depending on the underlying problem
+    """
+    raise NotImplementedError()
+
+
+def auto_attach_long(*args, **kwargs):
+    """
+    TODO
+    - Doc
+    - Args
+    - Integrate UA function.
+    """
+    raise NotImplementedError()
 
 
 def handle(
@@ -292,16 +321,50 @@ def handle(
         raise RuntimeError(msg)
 
     config = ua_section.get("config")
-
     if config is not None:
         supplemental_schema_validation(config)
 
     maybe_install_ua_tools(cloud)
-    configure_ua(
-        token=ua_section.get("token"),
-        enable=ua_section.get("enable"),
-        config=config,
-    )
+
+    # ua-auto-attach.service had noop-ed as ua_section is not empty
+    features: dict = ua_section.get("features", {})
+    disable_auto_attach = bool(features.get("disable_auto_attach", True))
+    is_pro_cfg = not disable_auto_attach
+
+    is_pro = None
+    if is_pro_cfg:
+        try:
+            auto_attach_short(features)
+        except NotAProInstance:
+            is_pro = False
+        except RetryError:
+            is_pro = True
+        else:
+            return  # Successful Pro auto attach
+        if is_pro:
+            try:
+                auto_attach_long(features)
+            except Exception as ex:
+                msg = f"Error setting up long auto-attach: \n{ex}"
+                LOG.error(msg)
+                raise RuntimeError(msg) from ex
+            return  # Hand over to long-retry auto attach
+
+    if not is_pro:
+        # Fallback to normal attach
+        token = ua_section.get("token")
+        if not token:
+            msg = (
+                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                " instances."
+            )
+            LOG.error(msg)
+            raise RuntimeError(msg)
+        configure_ua(
+            token=token,
+            enable=ua_section.get("enable"),
+            config=config,
+        )
 
 
 # vi: ts=4 expandtab

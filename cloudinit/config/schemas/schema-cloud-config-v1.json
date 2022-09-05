@@ -2199,7 +2199,6 @@
       "properties": {
         "ubuntu_advantage": {
           "type": "object",
-          "required": ["token"],
           "additionalProperties": false,
           "properties": {
             "enable": {
@@ -2207,9 +2206,34 @@
               "items": {"type": "string"},
               "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
             },
+            "enable_beta": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+            },
             "token": {
               "type": "string",
-              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+              "description": "Contract token obtained from https://ubuntu.com/advantage to attach (in non-Pro instances)."
+            },
+            "features": {
+              "type": "object",
+              "description": "TODO",
+              "additionalProperties": true,
+              "properties": {
+                "disable_auto_attach": {
+                  "type": "boolean",
+                  "description": "Optional boolean for controlling if auto attach (in Ubuntu Pro instances) will be performed. Default: ``true``",
+                  "default": true
+                },
+                "ignore_enable_by_default": {
+                  "type": "boolean",
+                  "description": "Optional boolean for controlling whether to ignore/install default services found in the given contract"
+                },
+                "allow_beta": {
+                  "type": "boolean",
+                  "description": "Optional boolean for controlling whether to install/ignore default beta services found in the given contract"
+                }
+              }
             },
             "config": {
               "type": "object",

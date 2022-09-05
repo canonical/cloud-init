@@ -1,11 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import re
+from copy import deepcopy
 
 import pytest
 
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
+    NotAProInstance,
+    RetryError,
     configure_ua,
     handle,
     maybe_install_ua_tools,
@@ -337,26 +340,36 @@ class TestUbuntuAdvantageSchema:
         [
             ({"ubuntu_advantage": {}}, does_not_raise()),
             # Strict keys
-            (
+            pytest.param(
                 {"ubuntu_advantage": {"token": "win", "invalidkey": ""}},
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape(
-                        "ubuntu_advantage: Additional properties are not allowed"
-                        " ('invalidkey"
+                        "ubuntu_advantage: Additional properties are not"
+                        " allowed ('invalidkey"
                     ),
                 ),
+                id="additional_properties",
             ),
-            ({"ubuntu_advantage": {"disable_auto_attach": True}}, does_not_raise()),
-            (
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": True}
+                    }
+                },
+                does_not_raise(),
+                id="disable_auto_attach",
+            ),
+            pytest.param(
                 {
                     "ubuntu_advantage": {
                         "features": {"ignore_enable_by_default": True}
                     }
                 },
-                does_not_raise()
+                does_not_raise(),
+                id="ignore_enable_by_default",
             ),
-            (
+            pytest.param(
                 {
                     "ubuntu_advantage": {
                         "features": {"ignore_enable_by_default": True},
@@ -364,9 +377,10 @@ class TestUbuntuAdvantageSchema:
                         "enable_beta": ["realtime-kernel"],
                     }
                 },
-                does_not_raise()
+                does_not_raise(),
+                id="custom_ignore_enable_by_default",
             ),
-            (
+            pytest.param(
                 {
                     "ubuntu_advantage": {
                         "features": {"disable_auto_attach": False},
@@ -375,7 +389,8 @@ class TestUbuntuAdvantageSchema:
                         "token": "<token>",
                     }
                 },
-                does_not_raise()
+                does_not_raise(),
+                id="pro_custom_services",
             ),
         ],
     )
@@ -389,6 +404,13 @@ class TestHandle:
 
     cloud = get_cloud()
 
+    @pytest.mark.parametrize(
+        "with_disable_auto_attach",
+        [
+            pytest.param(False, id="no_disable_auto_attach"),
+            pytest.param(True, id="disable_auto_attach"),
+        ],
+    )
     @pytest.mark.parametrize(
         [
             "cfg",
@@ -471,19 +493,27 @@ class TestHandle:
             ),
         ],
     )
+    @mock.patch(f"{MPATH}.auto_attach_long")
+    @mock.patch(f"{MPATH}.auto_attach_short")
     @mock.patch(f"{MPATH}.configure_ua")
     @mock.patch(f"{MPATH}.maybe_install_ua_tools")
     def test_handle(
         self,
         m_maybe_install_ua_tools,
         m_configure_ua,
+        m_auto_attach_short,
+        m_auto_attach_long,
         cfg,
         cloud,
         log_record_tuples,
         maybe_install_call_args_list,
         configure_ua_call_args_list,
+        with_disable_auto_attach,
         caplog,
     ):
+        if with_disable_auto_attach:
+            cfg = deepcopy(cfg)
+            cfg["features"] = {"disable_auto_attach": True}
         handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
@@ -494,6 +524,183 @@ class TestHandle:
             )
         if configure_ua_call_args_list is not None:
             assert configure_ua_call_args_list == m_configure_ua.call_args_list
+        assert (
+            0 == m_auto_attach_short.call_count
+        ), "Unexpected call to `auto_attach_short`"
+        assert (
+            0 == m_auto_attach_long.call_count
+        ), "Unexpected call to `auto_attach_long`"
+
+    @pytest.mark.parametrize(
+        [
+            "cfg",
+            "cloud",
+            "log_record_tuples",
+            "auto_attach_short_side_effect",
+            "auto_attach_long_side_effect",
+            "auto_attach_short_call_args_list",
+            "auto_attach_long_call_args_list",
+            "maybe_install_call_args_list",
+            "configure_ua_call_args_list",
+            "expectation",
+        ],
+        [
+            # When auto_attach_short successes, no call to configure_ua not
+            # auto_attach_long.
+            pytest.param(
+                {
+                    "ubuntu-advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                None,  # auto_attach_short successes
+                None,
+                [mock.call({"disable_auto_attach": False})],
+                [],
+                [mock.call(cloud)],
+                [],
+                does_not_raise(),
+                id="short_success",
+            ),
+            # When auto_attach_short fails in a Pro instance, no call to
+            # configure_ua but call to auto_attach_long.
+            pytest.param(
+                {
+                    "ubuntu-advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                RetryError,
+                None,
+                [mock.call({"disable_auto_attach": False})],
+                [mock.call({"disable_auto_attach": False})],
+                [mock.call(cloud)],
+                [],
+                does_not_raise(),
+                id="short_fail_retry",
+            ),
+            # When auto_attach_short fails in a non-Pro instance, fallback to
+            # normal attach.
+            pytest.param(
+                {
+                    "ubuntu-advantage": {
+                        "features": {"disable_auto_attach": False},
+                        "token": "token",
+                    }
+                },
+                cloud,
+                [],
+                NotAProInstance,
+                None,
+                [mock.call({"disable_auto_attach": False})],
+                [],
+                [mock.call(cloud)],
+                [mock.call(token="token", enable=None, config=None)],
+                does_not_raise(),
+                id="short_fail_not_pro",
+            ),
+            # When auto_attach_short fails in a non-Pro instance, fallback to
+            # normal attach and require token.
+            pytest.param(
+                {
+                    "ubuntu-advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                NotAProInstance,
+                None,
+                [mock.call({"disable_auto_attach": False})],
+                [],
+                [mock.call(cloud)],
+                [],
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                        " instances."
+                    ),
+                ),
+                id="short_fail_not_pro_without_token",
+            ),
+            # When auto_attach_long fails in a Pro instance,
+            pytest.param(
+                {
+                    "ubuntu-advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                RetryError,
+                Exception("Some long retry error."),
+                [mock.call({"disable_auto_attach": False})],
+                [mock.call({"disable_auto_attach": False})],
+                [mock.call(cloud)],
+                [],
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "Error setting up long auto-attach: \n"
+                        "Some long retry error."
+                    ),
+                ),
+                id="short_fail_retry_and_long_error",
+            ),
+        ],
+    )
+    @mock.patch(f"{MPATH}.auto_attach_long")
+    @mock.patch(f"{MPATH}.auto_attach_short")
+    @mock.patch(f"{MPATH}.configure_ua")
+    @mock.patch(f"{MPATH}.maybe_install_ua_tools")
+    def test_handle_auto_attach(
+        self,
+        m_maybe_install_ua_tools,
+        m_configure_ua,
+        m_auto_attach_short,
+        m_auto_attach_long,
+        cfg,
+        cloud,
+        log_record_tuples,
+        auto_attach_short_side_effect,
+        auto_attach_long_side_effect,
+        auto_attach_short_call_args_list,
+        auto_attach_long_call_args_list,
+        maybe_install_call_args_list,
+        configure_ua_call_args_list,
+        expectation,
+        caplog,
+    ):
+        if auto_attach_short_side_effect is not None:
+            m_auto_attach_short.side_effect = auto_attach_short_side_effect
+        if auto_attach_long_side_effect is not None:
+            m_auto_attach_long.side_effect = auto_attach_long_side_effect
+
+        with expectation:
+            handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
+
+        for record_tuple in log_record_tuples:
+            assert record_tuple in caplog.record_tuples
+        if maybe_install_call_args_list is not None:
+            assert (
+                maybe_install_call_args_list
+                == m_maybe_install_ua_tools.call_args_list
+            )
+        if configure_ua_call_args_list is not None:
+            assert configure_ua_call_args_list == m_configure_ua.call_args_list
+        assert (
+            auto_attach_short_call_args_list
+            == m_auto_attach_short.call_args_list
+        )
+        assert (
+            auto_attach_long_call_args_list
+            == m_auto_attach_long.call_args_list
+        )
 
     @pytest.mark.parametrize(
         "cfg, handle_kwargs, match",
@@ -529,8 +736,6 @@ class TestHandle:
 
 @mock.patch(f"{MPATH}.subp.which")
 class TestMaybeInstallUATools:
-
-    @pytest.mark.parametrize("pro", [False, True])
     @pytest.mark.parametrize(
         [
             "which_return",
@@ -576,7 +781,6 @@ class TestMaybeInstallUATools:
         update_side_effect,
         install_side_effect,
         expectation,
-        pro,
         log_msg,
         caplog,
     ):
@@ -590,7 +794,7 @@ class TestMaybeInstallUATools:
             cloud.distro.update_package_sources.return_value = None
             cloud.distro.install_packages.side_effect = install_side_effect
         with expectation:
-            maybe_install_ua_tools(cloud=cloud, pro=pro)
+            maybe_install_ua_tools(cloud=cloud)
         if log_msg is not None:
             assert log_msg in caplog.text
 
