@@ -5,6 +5,7 @@
 import re
 from logging import Logger
 from textwrap import dedent
+from typing import Optional
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -13,6 +14,12 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
+
+# TODO move following import to a non-global scope
+from uaclient.api.api import call_api
+from uaclient.config import UAConfig
+from uaclient import AutoAttachWithShortRetryOptions
+from uaclient.api.u.pro.detect.should_auto_attach.v1 import should_auto_attach_on_machine
 
 UA_URL = "https://ubuntu.com/advantage"
 
@@ -327,30 +334,45 @@ def handle(
     maybe_install_ua_tools(cloud)
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
-    features: dict = ua_section.get("features", {})
-    disable_auto_attach = bool(features.get("disable_auto_attach", False))
+    disable_auto_attach = bool(
+        ua_section.get("features", {}).get("disable_auto_attach", False)
+    )
     is_pro_cfg = not disable_auto_attach
 
-    is_pro = None
-    if is_pro_cfg:
-        try:
-            auto_attach_short(features)
-        except NotAProInstance:
-            is_pro = False
-        except RetryError:
-            is_pro = True
-        else:
-            return  # Successful Pro auto attach
-        if is_pro:
-            try:
-                auto_attach_long(features)
-            except Exception as ex:
-                msg = f"Error setting up long auto-attach: \n{ex}"
-                LOG.error(msg)
-                raise RuntimeError(msg) from ex
-            return  # Hand over to long-retry auto attach
+    ua_config: Optional[UAConfig] = None
+    if config is not None:
+        ua_config = UAConfig(cfg={"ua_config": config})
 
-    if not is_pro:
+    is_pro = should_auto_attach_on_machine(cfg=ua_config).should_auto_attach
+    if is_pro_cfg and is_pro:
+        short_retry_kwargs = {}
+
+        enable = ua_section.get("enable")
+        if enable is not None:
+            short_retry_kwargs["enable"] = enable
+
+        enable_beta = ua_section.get("enable_beta")
+        if enable_beta is not None:
+            short_retry_kwargs["enable_beta"] = enable_beta
+
+        options = AutoAttachWithShortRetryOptions(**short_retry_kwargs)
+
+        try:
+            successful = call_api(
+                "u.pro.auto_attach.with_short_retry.v1",
+                options=options,
+                cfg=ua_config,
+            ).successful
+        except Exception:
+            pass  # TODO log exceptions
+        else:
+            if not successful:
+                LOG.warning(
+                    "Ubuntu Advantage will try to auto-attach as Pro instance"
+                    " with a long retry strategy."
+                    " (This could take days or more)"
+                )
+    else:
         # Fallback to normal attach
         token = ua_section.get("token")
         if not token:
