@@ -1,4 +1,4 @@
-"""Datasource for LXD, reads /dev/lxd/sock representaton of instance data.
+"""Datasource for LXD, reads /dev/lxd/sock representation of instance data.
 
 Notes:
  * This datasource replaces previous NoCloud datasource for LXD.
