@@ -373,13 +373,18 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.logs.getvalue(),
         )
 
+    @mock.patch("cloudinit.config.cc_puppet.temp_utils.tempdir")
     @mock.patch("cloudinit.temp_utils.os.getuid")
     @mock.patch("cloudinit.net.dhcp.dhcp_discovery")
     @mock.patch("cloudinit.net.dhcp.subp.which")
     @mock.patch("cloudinit.net.dhcp.find_fallback_nic")
-    def test_dhclient_run_with_tmpdir(self, m_fback, m_which, m_dhcp, m_uid):
+    def test_dhclient_run_with_tmpdir(
+        self, m_fback, m_which, m_dhcp, m_uid, m_tempdir
+    ):
         """maybe_perform_dhcp_discovery passes tmpdir to dhcp_discovery."""
+        tmp_dir = str(self.tmp_dir())
         m_uid.return_value = 0  # Fake root user for tmpdir
+        m_tempdir.return_value.__enter__.return_value = tmp_dir
         m_fback.return_value = "eth9"
         m_which.return_value = "/sbin/dhclient"
         m_dhcp.return_value = {"address": "192.168.2.2"}
@@ -393,9 +398,21 @@ class TestDHCPDiscoveryClean(CiTestCase):
             1, m_dhcp.call_count, "dhcp_discovery not called once"
         )
         call = m_dhcp.call_args_list[0]
+
         self.assertEqual("/sbin/dhclient", call[0][0])
         self.assertEqual("eth9", call[0][1])
-        self.assertIn("/var/tmp/cloud-init/cloud-init-dhcp-", call[0][2])
+        self.assertEqual(tmp_dir, call[0][2])
+        self.assertEqual(
+            [
+                call(
+                    dir=None,
+                    needs_exe=True,
+                    prefix="cloud-init-dhcp-",
+                    rmtree_ignore_errors=True,
+                )
+            ],
+            m_tempdir.call_args_list,
+        )
 
     @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
