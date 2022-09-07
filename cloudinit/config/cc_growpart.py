@@ -16,6 +16,7 @@ import re
 import stat
 from abc import ABC, abstractmethod
 from contextlib import suppress
+from logging import Logger
 from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
@@ -23,6 +24,7 @@ from typing import Tuple
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_ALWAYS
@@ -564,7 +566,9 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(_name, cfg: dict, cloud: Cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "growpart" not in cfg:
         log.debug(
             "No 'growpart' entry in cfg.  Using default: %s" % DEFAULT_CONFIG

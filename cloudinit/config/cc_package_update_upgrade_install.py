@@ -8,10 +8,13 @@
 
 import os
 import time
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -82,7 +85,9 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
     )
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # Handle the old style + new config names
     update = _multi_cfg_bool_get(cfg, "apt_update", "package_update")
     upgrade = _multi_cfg_bool_get(cfg, "package_upgrade", "apt_upgrade")

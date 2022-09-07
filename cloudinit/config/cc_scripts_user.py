@@ -8,8 +8,11 @@
 """Scripts User: Run user scripts"""
 
 import os
+from logging import Logger
 
 from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -40,7 +43,9 @@ __doc__ = get_meta_doc(meta)
 SCRIPT_SUBDIR = "scripts"
 
 
-def handle(name, _cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # This is written to by the user data handlers
     # Ie, any custom shell scripts that come down
     # go here...

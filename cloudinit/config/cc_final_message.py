@@ -7,9 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Final Message: Output final message when cloud-init has finished"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import templater, util, version
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
@@ -58,7 +61,9 @@ FINAL_MESSAGE_DEF = (
 )
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     msg_in = ""
     if len(args) != 0:

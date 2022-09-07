@@ -1134,6 +1134,7 @@ scbus-1 on xpt0 bus 0
         if isinstance(distro, str):
             distro_cls = distros.fetch(distro)
             distro = distro_cls(distro, data.get("sys_cfg", {}), self.paths)
+        distro.get_tmp_exec_path = mock.Mock(side_effect=self.tmp_dir)
         dsrc = dsaz.DataSourceAzure(
             data.get("sys_cfg", {}), distro=distro, paths=self.paths
         )

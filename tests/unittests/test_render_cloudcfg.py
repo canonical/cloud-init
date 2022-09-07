@@ -69,6 +69,7 @@ class TestRenderCloudCfg:
             "amazon": "ec2-user",
             "debian": "ubuntu",
             "rhel": "cloud-user",
+            "centos": "cloud-user",
             "unknown": "ubuntu",
         }
         default_user = system_cfg["system_info"]["default_user"]["name"]

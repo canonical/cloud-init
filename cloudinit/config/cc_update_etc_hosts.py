@@ -8,9 +8,12 @@
 
 """Update Etc Hosts: Update the hosts file (usually ``/etc/hosts``)"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -94,7 +97,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
 
     hosts_fn = cloud.distro.hosts_fn

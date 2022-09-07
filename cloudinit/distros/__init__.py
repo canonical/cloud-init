@@ -98,6 +98,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
 
+    osfamily: str
+
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg

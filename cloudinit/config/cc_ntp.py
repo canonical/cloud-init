@@ -8,10 +8,13 @@
 
 import copy
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -481,7 +484,9 @@ def supplemental_schema_validation(ntp_config):
         )
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """Enable and configure ntp."""
     if "ntp" not in cfg:
         LOG.debug(

@@ -5,9 +5,12 @@
 """CA Certs: Add ca certificates."""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -160,7 +163,9 @@ def remove_default_ca_certs(distro_name, distro_cfg):
         subp.subp(("debconf-set-selections", "-"), debconf_sel)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """
     Call to handle ca-cert sections in cloud-config file.
 

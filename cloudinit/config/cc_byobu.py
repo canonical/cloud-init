@@ -8,7 +8,11 @@
 
 """Byobu: Enable/disable byobu system wide and for default user."""
 
+from logging import Logger
+
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -49,7 +53,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if len(args) != 0:
         value = args[0]
     else:

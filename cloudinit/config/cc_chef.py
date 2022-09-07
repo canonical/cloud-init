@@ -11,10 +11,12 @@
 import itertools
 import json
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import Distro
 from cloudinit.settings import PER_ALWAYS
@@ -187,7 +189,9 @@ def get_template_params(iid, chef_cfg, log):
     return params
 
 
-def handle(name: str, cfg: dict, cloud: Cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """Handler method activated by cloud-init."""
 
     # If there isn't a chef key in the configuration don't do anything
@@ -291,31 +295,23 @@ def run_chef(chef_cfg, log):
     subp.subp(cmd, capture=False)
 
 
-def subp_blob_in_tempfile(blob, distro: Distro, *args, **kwargs):
+def subp_blob_in_tempfile(blob, distro: Distro, args: list, **kwargs):
     """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
 
     'basename' as a kwarg allows providing the basename for the file.
     The 'args' argument to subp will be updated with the full path to the
     filename as the first argument.
     """
+    args = args.copy()
     basename = kwargs.pop("basename", "subp_blob")
-
-    _args = list(args)
-    if len(_args) == 0 and "args" not in kwargs:
-        _args.append(tuple())
-
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
     with temp_utils.tempdir(
         dir=distro.get_tmp_exec_path(), needs_exe=True
     ) as tmpd:
         tmpf = os.path.join(tmpd, basename)
-        if "args" in kwargs:
-            kwargs["args"] = [tmpf] + list(kwargs["args"])
-        else:
-            _args[0] = [tmpf] + _args[0]
-
+        args.insert(0, tmpf)
         util.write_file(tmpf, blob, mode=0o700)
-        return subp.subp(*_args, **kwargs)
+        return subp.subp(args=args, **kwargs)
 
 
 def install_chef_from_omnibus(

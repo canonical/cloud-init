@@ -60,6 +60,7 @@ environments in the public cloud:
 - UpCloud
 - Vultr
 - Zadara Edge Cloud Platform
+- 3DS Outscale
 
 Additionally, cloud-init is supported on these private clouds:
 

@@ -9,9 +9,12 @@
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -73,7 +76,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "runcmd" not in cfg:
         log.debug(
             "Skipping module named %s, no 'runcmd' key in configuration", name

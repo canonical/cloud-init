@@ -10,10 +10,13 @@
 
 import os
 import re
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -294,7 +297,9 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     return "\n".join(lines) + "\n"
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "rsyslog" not in cfg:
         log.debug(
             "Skipping module named %s, no 'rsyslog' key in configuration", name

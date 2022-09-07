@@ -7,9 +7,12 @@
 
 
 import os
+from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -62,7 +65,9 @@ LOG = logging.getLogger(__name__)
 NODE_ID_FILE = "/etc/ct_node_id"
 
 
-def handle(name, _cfg, cloud, _log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # Ensuring node id has to be generated only once during first boot
     if cloud.datasource.platform_type == "none":
         LOG.debug("Skipping creation of new ct_node_id node")

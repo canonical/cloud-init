@@ -12,10 +12,13 @@ import logging
 import math
 import os
 import re
+from logging import Logger
 from string import whitespace
 from textwrap import dedent
 
 from cloudinit import subp, type_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -404,7 +407,9 @@ def handle_swapcfg(swapcfg):
     return None
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     def_mnt_opts = "defaults,nobootwait"
     uses_systemd = cloud.distro.uses_systemd()
@@ -417,7 +422,7 @@ def handle(_name, cfg, cloud, log, _args):
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
-    defmnts = [
+    defmnts: list = [
         ["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
         ["swap", "none", "swap", "sw", "0", "0"],
     ]
