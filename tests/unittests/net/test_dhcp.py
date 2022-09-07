@@ -450,7 +450,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery_run(self, m_wait, m_subp, m_kill, m_getppid):
+    def test_dhcp_discovery(self, m_wait, m_subp, m_kill, m_getppid):
         """dhcp_discovery brings up the interface and runs dhclient.
 
         It also returns the parsed dhcp.leases file.
@@ -483,68 +483,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
                 ],
                 dhcp_discovery("/sbin/dhclient", "eth9"),
             )
-        # Interface was brought up before dhclient called
-        m_subp.assert_has_calls(
-            [
-                mock.call(
-                    ["ip", "link", "set", "dev", "eth9", "up"], capture=True
-                ),
-                mock.call(
-                    [
-                        "/sbin/dhclient",
-                        "-1",
-                        "-v",
-                        "-lf",
-                        LEASE_F,
-                        "-pf",
-                        PID_F,
-                        "eth9",
-                        "-sf",
-                        "/bin/true",
-                    ],
-                    capture=True,
-                ),
-            ]
-        )
-        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
-
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
-    @mock.patch("cloudinit.net.dhcp.os.kill")
-    @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery_setup_and_run_dhclient(
-        self, m_wait, m_subp, m_kill, m_getppid
-    ):
-        """dhcp_discovery brings up the interface and runs dhclient."""
-        m_subp.return_value = ("", "")
-        my_pid = 1
-        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-
-        lease_content = dedent(
-            """
-            lease {
-              interface "eth9";
-              fixed-address 192.168.2.74;
-              option subnet-mask 255.255.255.0;
-              option routers 192.168.2.1;
-            }
-        """
-        )
-        with mock.patch(
-            "cloudinit.util.load_file", side_effect=["1", lease_content]
-        ):
-            self.assertCountEqual(
-                [
-                    {
-                        "interface": "eth9",
-                        "fixed-address": "192.168.2.74",
-                        "subnet-mask": "255.255.255.0",
-                        "routers": "192.168.2.1",
-                    }
-                ],
-                dhcp_discovery("/sbin/dhclient", "eth9"),
-            )
-
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
