@@ -27,7 +27,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
 * Ask questions in IRC on ``#cloud-init`` on Libera
 * `Mailing list <https://launchpad.net/~cloud-init>`_
 * `Contribute on Github <https://github.com/canonical/cloud-init/blob/main/CONTRIBUTING.rst>`_
-* `Release schedule <https://discourse.ubuntu.com/t/cloud-init-2022-release-schedule/25413>`_
+* `Release schedule <https://discourse.ubuntu.com/search?q=cloud-init%20release%20schedule%20order%3Alatest>`_
 
 Having trouble? We would like to help!
 **************************************
