@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import contextlib
 import logging
 import os
 import re
@@ -124,6 +125,12 @@ def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
     # /etc/dhcp/dhclient*hooks.d.
     pid_file = "/run/dhclient.pid"
     lease_file = "/run/dhclient.lease"
+
+    # this function waits for these files to exist, clean previous runs
+    # to avoid false positive in wait_for_files
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(pid_file)
+        os.remove(lease_file)
 
     # ISC dhclient needs the interface up to send initial discovery packets.
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
