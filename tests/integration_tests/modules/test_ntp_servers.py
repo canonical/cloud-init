@@ -16,6 +16,8 @@ from tests.integration_tests.instances import IntegrationInstance
 
 USER_DATA = """\
 #cloud-config
+package_update: true
+package_upgrade: true
 ntp:
   ntp_client: ntp
   servers:
@@ -74,6 +76,8 @@ class TestNtpServers:
 
 CHRONY_DATA = """\
 #cloud-config
+package_update: true
+package_upgrade: true
 ntp:
   enabled: true
   ntp_client: chrony
@@ -94,6 +98,8 @@ def test_chrony(client: IntegrationInstance):
 
 TIMESYNCD_DATA = """\
 #cloud-config
+package_update: true
+package_upgrade: true
 ntp:
   enabled: true
   ntp_client: systemd-timesyncd
@@ -112,6 +118,8 @@ def test_timesyncd(client: IntegrationInstance):
 
 EMPTY_NTP = """\
 #cloud-config
+package_update: true
+package_upgrade: true
 ntp:
   ntp_client: ntp
   pools: []
