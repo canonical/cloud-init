@@ -234,11 +234,14 @@ class Init(object):
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
+        instance_data_file = no_cfg_paths.get_runpath(
+            "instance_data_sensitive"
+        )
         merger = helpers.ConfigMerger(
             paths=no_cfg_paths,
             datasource=self.datasource,
             additional_fns=extra_fns,
-            base_cfg=fetch_base_config(),
+            base_cfg=fetch_base_config(instance_data_file=instance_data_file),
         )
         return merger.cfg
 
@@ -506,7 +509,7 @@ class Init(object):
             self._get_ipath(datasource), str(processed_data), 0o600
         )
 
-    def _default_handlers(self, opts=None):
+    def _default_handlers(self, opts=None) -> List[handlers.Handler]:
         if opts is None:
             opts = {}
 
@@ -526,11 +529,10 @@ class Init(object):
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             BootHookPartHandler(**opts),
+            JinjaTemplatePartHandler(
+                **opts, sub_handlers=[cloudconfig_handler, shellscript_handler]
+            ),
         ]
-        opts.update(
-            {"sub_handlers": [cloudconfig_handler, shellscript_handler]}
-        )
-        def_handlers.append(JinjaTemplatePartHandler(**opts))
         return def_handlers
 
     def _default_userdata_handlers(self):
@@ -958,13 +960,15 @@ def read_runtime_config():
     return util.read_conf(RUN_CLOUD_CONFIG)
 
 
-def fetch_base_config():
+def fetch_base_config(*, instance_data_file=None) -> dict:
     return util.mergemanydict(
         [
             # builtin config, hardcoded in settings.py.
             util.get_builtin_cfg(),
             # Anything in your conf.d or 'default' cloud.cfg location.
-            util.read_conf_with_confd(CLOUD_CONFIG),
+            util.read_conf_with_confd(
+                CLOUD_CONFIG, instance_data_file=instance_data_file
+            ),
             # runtime config. I.e., /run/cloud-init/cloud.cfg
             read_runtime_config(),
             # Kernel/cmdline parameters override system config
@@ -972,6 +976,3 @@ def fetch_base_config():
         ],
         reverse=True,
     )
-
-
-# vi: ts=4 expandtab

@@ -9,7 +9,10 @@ import os
 import sys
 
 from cloudinit import log
-from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
+from cloudinit.handlers.jinja_template import (
+    JinjaLoadError,
+    render_jinja_payload_from_file,
+)
 
 from . import addLogHandlerCLI, read_cfg_paths
 
@@ -92,7 +95,7 @@ def handle_args(name, args):
             instance_data_file=instance_data_fn,
             debug=True if args.debug else False,
         )
-    except RuntimeError as e:
+    except JinjaLoadError as e:
         LOG.error("Cannot render from instance data: %s", str(e))
         return 1
     if not rendered_payload:

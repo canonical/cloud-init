@@ -10,6 +10,7 @@ from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from io import BytesIO, StringIO
+from pathlib import Path
 from unittest import mock
 
 import httpretty
@@ -772,12 +773,12 @@ class TestConvertString(helpers.TestCase):
 class TestFetchBaseConfig:
     @pytest.fixture(autouse=True)
     def mocks(self, mocker):
-        mocker.patch(f"{MPATH}.util.read_conf_with_confd")
         mocker.patch(f"{MPATH}.util.read_conf_from_cmdline")
         mocker.patch(f"{MPATH}.read_runtime_config")
 
     def test_only_builtin_gets_builtin(self, mocker):
         mocker.patch(f"{MPATH}.read_runtime_config", return_value={})
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd")
         config = stages.fetch_base_config()
         assert util.get_builtin_cfg() == config
 
@@ -796,12 +797,26 @@ class TestFetchBaseConfig:
         builtin[test_key] = test_value
         assert config == builtin
 
+    def test_confd_with_template(self, mocker, tmp_path: Path):
+        instance_data_path = tmp_path / "test_confd_with_template.json"
+        instance_data_path.write_text('{"template_var": "template_value"}')
+        cfg_path = tmp_path / "test_conf_with_template.cfg"
+        cfg_path.write_text('## template:jinja\n{"key": "{{template_var}}"}')
+
+        mocker.patch("cloudinit.stages.CLOUD_CONFIG", cfg_path)
+        mocker.patch(f"{MPATH}.util.get_builtin_cfg", return_value={})
+        config = stages.fetch_base_config(
+            instance_data_file=instance_data_path
+        )
+        assert config == {"key": "template_value"}
+
     def test_cmdline_overrides_defaults(self, mocker):
         builtin = util.get_builtin_cfg()
         test_key = sorted(builtin)[0]
         test_value = "test"
         cmdline = {test_key: test_value}
 
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd")
         mocker.patch(
             f"{MPATH}.util.read_conf_from_cmdline",
             return_value=cmdline,
