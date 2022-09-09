@@ -44,7 +44,7 @@ class TestConfigureUA:
             # When token is provided, attach the machine to ua using the token.
             pytest.param(
                 {"token": "SomeToken"},
-                [mock.call(["ua", "attach", "SomeToken"])],
+                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
                 [
                     (
                         MPATH,
@@ -57,7 +57,7 @@ class TestConfigureUA:
             # When services is an empty list, do not auto-enable attach.
             pytest.param(
                 {"token": "SomeToken", "enable": []},
-                [mock.call(["ua", "attach", "SomeToken"])],
+                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
                 [
                     (
                         MPATH,
@@ -71,7 +71,10 @@ class TestConfigureUA:
             pytest.param(
                 {"token": "SomeToken", "enable": ["fips"]},
                 [
-                    mock.call(["ua", "attach", "SomeToken"]),
+                    mock.call(
+                        ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                        rcs={0, 2},
+                    ),
                     mock.call(
                         ["ua", "enable", "--assume-yes", "fips"], capture=True
                     ),
@@ -80,7 +83,8 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach"
+                        " --no-auto-enable SomeToken",
                     )
                 ],
                 id="with_specific_services",
@@ -89,7 +93,10 @@ class TestConfigureUA:
             pytest.param(
                 {"token": "SomeToken", "enable": "fips"},
                 [
-                    mock.call(["ua", "attach", "SomeToken"]),
+                    mock.call(
+                        ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                        rcs={0, 2},
+                    ),
                     mock.call(
                         ["ua", "enable", "--assume-yes", "fips"], capture=True
                     ),
@@ -98,7 +105,8 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach"
+                        " --no-auto-enable SomeToken",
                     ),
                     (
                         MPATH,
@@ -112,7 +120,7 @@ class TestConfigureUA:
             # When services not string or list, warn but still attach
             pytest.param(
                 {"token": "SomeToken", "enable": {"deffo": "wont work"}},
-                [mock.call(["ua", "attach", "SomeToken"])],
+                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
                 [
                     (
                         MPATH,
@@ -139,10 +147,53 @@ class TestConfigureUA:
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
 
+    def test_configure_ua_already_attached(self, m_subp, caplog):
+        """ua is already attached to an subscription"""
+        m_subp.rcs = 2
+        configure_ua(token="SomeToken")
+        assert m_subp.call_args_list == [
+            mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})
+        ]
+        assert (
+            MPATH,
+            logging.DEBUG,
+            "Attaching to Ubuntu Advantage. ua attach SomeToken",
+        ) in caplog.record_tuples
+
+    def test_configure_ua_attach_on_service_enabled(self, m_subp, caplog):
+        """retry enabling an already enabled service"""
+
+        def fake_subp(cmd, capture=None, rcs=None):
+            fail_cmds = [
+                ["ua", "enable", "--assume-yes", svc] for svc in ["livepatch"]
+            ]
+            if cmd in fail_cmds and capture:
+                svc = cmd[-1]
+                raise subp.ProcessExecutionError(
+                    'Service "{}" is already enabled.'.format(svc)
+                )
+
+        m_subp.side_effect = fake_subp
+
+        configure_ua(token="SomeToken", enable=["livepatch"])
+        assert m_subp.call_args_list == [
+            mock.call(
+                ["ua", "attach", "--no-auto-enable", "SomeToken"], rcs={0, 2}
+            ),
+            mock.call(
+                ["ua", "enable", "--assume-yes", "livepatch"], capture=True
+            ),
+        ]
+        assert (
+            MPATH,
+            logging.DEBUG,
+            'Service "livepatch" already enabled.',
+        ) in caplog.record_tuples
+
     def test_configure_ua_attach_on_service_error(self, m_subp, caplog):
         """all services should be enabled and then any failures raised"""
 
-        def fake_subp(cmd, capture=None):
+        def fake_subp(cmd, capture=None, rcs=None):
             fail_cmds = [
                 ["ua", "enable", "--assume-yes", svc] for svc in ["esm", "cc"]
             ]
@@ -162,7 +213,9 @@ class TestConfigureUA:
         ):
             configure_ua(token="SomeToken", enable=["esm", "cc", "fips"])
         assert m_subp.call_args_list == [
-            mock.call(["ua", "attach", "SomeToken"]),
+            mock.call(
+                ["ua", "attach", "--no-auto-enable", "SomeToken"], rcs={0, 2}
+            ),
             mock.call(["ua", "enable", "--assume-yes", "esm"], capture=True),
             mock.call(["ua", "enable", "--assume-yes", "cc"], capture=True),
             mock.call(["ua", "enable", "--assume-yes", "fips"], capture=True),
@@ -189,7 +242,7 @@ class TestConfigureUA:
             token="SomeToken", config=["http_proxy=http://some-proxy.net:3128"]
         )
         assert [
-            mock.call(["ua", "attach", "SomeToken"])
+            mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})
         ] == m_subp.call_args_list
         assert (
             MPATH,
