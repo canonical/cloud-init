@@ -174,6 +174,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
+            {"$ref": "#/$defs/cc_create_machine_id"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_fan"},
