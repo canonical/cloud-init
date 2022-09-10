@@ -36,6 +36,11 @@ class TestUpgrade:
         """
         return pkl_load(str(request.param))
 
+    def test_azure_pkl_load(self, previous_obj_pkl):
+        """We always expect to have ``.networking`` on ``Distro`` objects."""
+        if previous_obj_pkl.dsname == "Azure":
+            assert previous_obj_pkl._reported_ready_marker_file is not None
+
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""
         assert previous_obj_pkl.distro.networking is not None
@@ -48,5 +53,6 @@ class TestUpgrade:
         assert previous_obj_pkl.paths.run_dir is not None
 
     def test_vendordata_exists(self, previous_obj_pkl):
-        assert previous_obj_pkl.vendordata2 is None
-        assert previous_obj_pkl.vendordata2_raw is None
+        if previous_obj_pkl.dsname != "Azure":
+            assert previous_obj_pkl.vendordata2 is None
+            assert previous_obj_pkl.vendordata2_raw is None
