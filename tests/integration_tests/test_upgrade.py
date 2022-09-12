@@ -95,7 +95,12 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
-        assert instance.execute("cloud-init init").ok
+        assert instance.execute(
+            "cloud-init init --local; "
+            "cloud-init init; "
+            "cloud-init modules --mode=config; "
+            "cloud-init modules --mode=final"
+        ).ok
 
         # Reboot
         instance.execute("hostname something-else")
