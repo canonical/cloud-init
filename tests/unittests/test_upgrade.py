@@ -64,6 +64,5 @@ class TestUpgrade:
         assert previous_obj_pkl.paths.run_dir is not None
 
     def test_vendordata_exists(self, previous_obj_pkl):
-        if previous_obj_pkl.dsname != "Azure":
-            assert previous_obj_pkl.vendordata2 is None
-            assert previous_obj_pkl.vendordata2_raw is None
+        assert previous_obj_pkl.vendordata2 is None
+        assert previous_obj_pkl.vendordata2_raw is None
