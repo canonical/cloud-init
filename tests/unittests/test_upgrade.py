@@ -50,7 +50,15 @@ class TestUpgrade:
         distro = previous_obj_pkl.distro
         paths = previous_obj_pkl.paths
         ds = ds_class(sys_cfg, distro, paths)
-        assert set() == ds.__dict__.keys() - previous_obj_pkl.__dict__.keys()
+        if ds.dsname == "NoCloud" and previous_obj_pkl.__dict__:
+            expected = (
+                set({"seed_dirs"}),  # LP: #1568150 handled with getattr checks
+                set(),
+            )
+        else:
+            expected = (set(),)
+        missing_attrs = ds.__dict__.keys() - previous_obj_pkl.__dict__.keys()
+        assert missing_attrs in expected
 
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""

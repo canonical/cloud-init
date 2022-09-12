@@ -50,7 +50,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
     error_logs = re.findall("ERROR.*", log)
     if error_logs:
         raise AssertionError(
-            "Found unexpected errors: %s" % '\n'.join(error_logs)
+            "Found unexpected errors: %s" % "\n".join(error_logs)
         )
 
     warning_count = log.count("WARN")
