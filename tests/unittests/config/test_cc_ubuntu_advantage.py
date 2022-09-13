@@ -14,6 +14,7 @@ from cloudinit.config.cc_ubuntu_advantage import (
     handle,
     maybe_install_ua_tools,
     supplemental_schema_validation,
+    validate_schema_features,
 )
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -392,12 +393,96 @@ class TestUbuntuAdvantageSchema:
                 does_not_raise(),
                 id="pro_custom_services",
             ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                does_not_raise(),
+                id="non_pro_beta_services",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"asdf": False},
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                does_not_raise(),
+                id="pro_additional_features",
+            ),
         ],
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, expectation):
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @pytest.mark.parametrize(
+        "ua_section, expectation, log_msgs",
+        [
+            ({}, does_not_raise(), None),
+            ({"features": {}}, does_not_raise(), None),
+            (
+                {"features": {"disable_auto_attach": True}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"features": {"disable_auto_attach": False}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"features": [0, 1]},
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "'ubuntu_advantage.features' should be a dict,"
+                        " not a list"
+                    ),
+                ),
+                ["'ubuntu_advantage.features' should be a dict, not a list\n"],
+            ),
+            (
+                {"features": {"disable_auto_attach": [0, 1]}},
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "'ubuntu_advantage.features.disable_auto_attach'"
+                        " should be a bool, not a list"
+                    ),
+                ),
+                [
+                    "'ubuntu_advantage.features.disable_auto_attach' should be"
+                    " a bool, not a list\n"
+                ],
+            ),
+            (
+                {"features": {"unknown": True, "foobar": False}},
+                does_not_raise(),
+                [
+                    "Ignoring unknown 'ubuntu_advantage.features': foobar,"
+                    " unknown\n"
+                ],
+            ),
+        ],
+    )
+    def test_validate_schema_features(
+        self, ua_section, expectation, log_msgs, caplog
+    ):
+        with expectation:
+            validate_schema_features(ua_section)
+        if log_msgs is not None:
+            for log_msg in log_msgs:
+                assert log_msg in caplog.text
+        else:
+            assert not caplog.text
 
 
 class TestHandle:
@@ -463,6 +548,28 @@ class TestHandle:
                 None,
                 [mock.call(token="token", enable=["esm"], config=None)],
                 id="warns_on_deprecated_ubuntu_advantage_key_w_config",
+            ),
+            # Warning with beta services during attach
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "token": "token",
+                        "enable": ["esm"],
+                        "enable_beta": ["realtime-kernel"],
+                    }
+                },
+                None,
+                [
+                    (
+                        MPATH,
+                        logging.DEBUG,
+                        "Ignoring `ubuntu-advantage.enable_beta` services in"
+                        " UA attach: realtime-kernel",
+                    )
+                ],
+                None,
+                [mock.call(token="token", enable=["esm"], config=None)],
+                id="warns_on_enable_beta_in_attach",
             ),
             # ubuntu_advantage should be preferred over ubuntu-advantage
             pytest.param(
@@ -580,7 +687,6 @@ class TestHandle:
                             "features": {"disable_auto_attach": False},
                             "token": "token",
                         },
-                        None,
                     )
                 ],
                 does_not_raise(),
@@ -688,12 +794,37 @@ class TestHandle:
             handle("nomatter", cfg=cfg, log=mock.Mock(), **handle_kwargs)
         assert 0 == m_configure_ua.call_count
 
+    @pytest.mark.parametrize(
+        "cfg, match",
+        [
+            pytest.param(
+                {"ubuntu_advantage": [0, 1]},
+                "'ubuntu_advantage' should be a dict, not a list",
+                id="on_non_dict_config",
+            ),
+            pytest.param(
+                {"ubuntu_advantage": {"features": [0, 1]}},
+                "'ubuntu_advantage.features' should be a dict, not a list",
+                id="on_non_dict_ua_section",
+            ),
+        ],
+    )
+    def test_handle_errors(self, cfg, match):
+        with pytest.raises(RuntimeError, match=match):
+            handle(
+                "nomatter",
+                cfg=cfg,
+                log=mock.Mock(),
+                cloud=None,
+                args=None,
+            )
+
 
 class TestShouldAutoAttach:
     def test_uaclient_not_installed(self, caplog, mocker):
         mocker.patch.dict("sys.modules")
         sys.modules.pop("uaclient", None)
-        assert not _should_auto_attach()
+        assert not _should_auto_attach(ua_section={})
         assert (
             "Unable to import `uaclient`: No module named 'uaclient'"
             in caplog.text
@@ -709,7 +840,7 @@ class TestShouldAutoAttach:
         sys.modules["uaclient.api"] = mock.Mock()
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
         sys.modules.pop("uaclient.api.exceptions", None)
-        assert not _should_auto_attach()
+        assert not _should_auto_attach({})
         assert (
             "Unable to import `uaclient`: No module named"
             " 'uaclient.api.exceptions'"
@@ -727,7 +858,7 @@ class TestShouldAutoAttach:
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
         ] = m_should_auto_attach
-        assert not _should_auto_attach()
+        assert not _should_auto_attach({})
         assert "Error during `should_auto_attach`: Some error" in caplog.text
         assert (
             "Unable to determine if this is an Ubuntu Pro instance."
@@ -743,7 +874,7 @@ class TestShouldAutoAttach:
         m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
             should_auto_attach
         )
-        assert should_auto_attach is _should_auto_attach()
+        assert should_auto_attach is _should_auto_attach({})
         assert not caplog.text
 
 

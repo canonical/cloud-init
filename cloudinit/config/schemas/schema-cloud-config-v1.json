@@ -2218,7 +2218,7 @@
             "features": {
               "type": "object",
               "description": "Ubuntu Advantage features.",
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "disable_auto_attach": {
                   "type": "boolean",

@@ -5,7 +5,6 @@
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Optional
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -101,7 +100,7 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-        # Do not enable any service in Ubuntu Pro instances.
+        # On Ubuntu PRO instances, auto-attach but enable no PRO services.
         ubuntu_advantage:
           enable: []
           enable_beta: []
@@ -140,7 +139,42 @@ ERROR_MSG_SHOULD_AUTO_ATTACH = (
 )
 
 
-def supplemental_schema_validation(ua_config):
+def validate_schema_features(ua_section: dict):
+    if "features" not in ua_section:
+        return
+
+    # Validate ubuntu_advantage.features type
+    features = ua_section["features"]
+    if not isinstance(features, dict):
+        msg = (
+            f"'ubuntu_advantage.features' should be a dict, not a"
+            f" {type(features).__name__}"
+        )
+        LOG.error(msg)
+        raise RuntimeError(msg)
+
+    # Validate extra keys under ubuntu_advantage.features
+    extra_keys = set(features.keys()) - {"disable_auto_attach"}
+    if extra_keys:
+        LOG.debug(
+            "Ignoring unknown 'ubuntu_advantage.features': %s",
+            ", ".join(sorted(extra_keys)),
+        )
+
+    # Validate ubuntu_advantage.features.disable_auto_attach
+    if "disable_auto_attach" not in features:
+        return
+    disable_auto_attach = features["disable_auto_attach"]
+    if not isinstance(disable_auto_attach, bool):
+        msg = (
+            f"'ubuntu_advantage.features.disable_auto_attach' should be a bool"
+            f", not a {type(disable_auto_attach).__name__}"
+        )
+        LOG.error(msg)
+        raise RuntimeError(msg)
+
+
+def supplemental_schema_validation(ua_config: dict):
     """Validate user-provided ua:config option values.
 
     This function supplements flexible jsonschema validation with specific
@@ -300,7 +334,13 @@ def maybe_install_ua_tools(cloud: Cloud):
         raise
 
 
-def _should_auto_attach() -> bool:
+def _should_auto_attach(ua_section: dict) -> bool:
+    disable_auto_attach = bool(
+        ua_section.get("features", {}).get("disable_auto_attach", False)
+    )
+    if disable_auto_attach:
+        return False
+
     try:
         from uaclient.api.exceptions import UserFacingError
         from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
@@ -319,16 +359,23 @@ def _should_auto_attach() -> bool:
     return result.should_auto_attach
 
 
-def _attach(ua_section: dict, config: Optional[dict] = None):
+def _attach(ua_section: dict):
     token = ua_section.get("token")
     if not token:
         msg = "`ubuntu-advantage.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
+    enable_beta = ua_section.get("enable_beta")
+    if enable_beta:
+        LOG.debug(
+            "Ignoring `ubuntu-advantage.enable_beta` services in UA attach:"
+            " %s",
+            ", ".join(enable_beta),
+        )
     configure_ua(
         token=token,
         enable=ua_section.get("enable"),
-        config=config,
+        config=ua_section.get("config"),
     )
 
 
@@ -376,6 +423,13 @@ def handle(
             name,
         )
         return
+    elif not isinstance(ua_section, dict):
+        msg = (
+            f"'ubuntu_advantage' should be a dict, not a"
+            f" {type(ua_section).__name__}"
+        )
+        LOG.error(msg)
+        raise RuntimeError(msg)
     if "commands" in ua_section:
         msg = (
             'Deprecated configuration "ubuntu-advantage: commands" provided.'
@@ -384,20 +438,28 @@ def handle(
         LOG.error(msg)
         raise RuntimeError(msg)
 
-    config = ua_section.get("config")
-    if config is not None:
-        supplemental_schema_validation(config)
-
     maybe_install_ua_tools(cloud)
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
-    disable_auto_attach = bool(
-        ua_section.get("features", {}).get("disable_auto_attach", False)
-    )
-    if not disable_auto_attach and _should_auto_attach():
+    validate_schema_features(ua_section)
+    if _should_auto_attach(ua_section):
         _auto_attach(ua_section)
+
+    # If ua-auto-attach.service did noop, we did not auto-attach and more keys
+    # than `features` are given under `ubuntu_advantage`, then try to attach.
+    # This supports the cases:
+    #
+    # 1) Previous attach behavior on non-pro instances.
+    # 2) Previous attach behavior on instances where ubuntu-advantage-tools
+    #    is < v28.0 (UA apis for should_auto-attach and auto-attach are not
+    #    available.
+    # 3) The user wants to disable auto-attach and attach by giving:
+    #    `{"ubuntu_advantage": "features": {"disable_auto_attach": True}}`
     elif not ua_section.keys() <= {"features"}:
-        _attach(ua_section, config)
+        config = ua_section.get("config")
+        if config is not None:
+            supplemental_schema_validation(config)
+        _attach(ua_section)
 
 
 # vi: ts=4 expandtab
