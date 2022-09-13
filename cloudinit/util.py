@@ -321,9 +321,10 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
             # A log isn't appropriate here as we generally expect most
             # cloud.cfgs to not be templated. The other path is logged
             pass
-        except JinjaLoadError:
+        except JinjaLoadError as e:
             LOG.warning(
-                "Could not apply Jinja template '%s' to '%s'.",
+                "Could not apply Jinja template '%s' to '%s'. "
+                f"Exception: {repr(e)}",
                 instance_data_file,
                 config_file,
             )
