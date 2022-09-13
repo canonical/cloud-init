@@ -100,6 +100,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
+REDACTED = "REDACTED"
 
 
 def supplemental_schema_validation(ua_config):
@@ -208,14 +209,14 @@ def configure_ua(token=None, enable=None, config=None):
         attach_cmd = ["ua", "attach", "--no-auto-enable", token]
     else:
         attach_cmd = ["ua", "attach", token]
-    LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(attach_cmd))
+    redacted_cmd = attach_cmd[:-1] + [REDACTED]
+    LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(redacted_cmd))
     try:
         # Allow `ua attach` to fail in already attached machines
-        subp.subp(attach_cmd, rcs={0, 2})
+        subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        msg = "Failure attaching Ubuntu Advantage:\n{error}".format(
-            error=str(e)
-        )
+        error = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Advantage:\n{error}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 

@@ -33,7 +33,7 @@ class TestConfigureUA:
         match = (
             "Failure attaching Ubuntu Advantage:\nUnexpected error while"
             " running command.\nCommand: -\nExit code: -\nReason: -\n"
-            "Stdout: Invalid token SomeToken\nStderr: -"
+            "Stdout: Invalid token REDACTED\nStderr: -"
         )
         with pytest.raises(RuntimeError, match=match):
             configure_ua(token="SomeToken")
@@ -44,12 +44,18 @@ class TestConfigureUA:
             # When token is provided, attach the machine to ua using the token.
             pytest.param(
                 {"token": "SomeToken"},
-                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
+                [
+                    mock.call(
+                        ["ua", "attach", "SomeToken"],
+                        logstring=["ua", "attach", "REDACTED"],
+                        rcs={0, 2},
+                    )
+                ],
                 [
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach REDACTED",
                     )
                 ],
                 id="with_token",
@@ -57,12 +63,18 @@ class TestConfigureUA:
             # When services is an empty list, do not auto-enable attach.
             pytest.param(
                 {"token": "SomeToken", "enable": []},
-                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
+                [
+                    mock.call(
+                        ["ua", "attach", "SomeToken"],
+                        logstring=["ua", "attach", "REDACTED"],
+                        rcs={0, 2},
+                    )
+                ],
                 [
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach REDACTED",
                     )
                 ],
                 id="with_empty_services",
@@ -73,6 +85,12 @@ class TestConfigureUA:
                 [
                     mock.call(
                         ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                        logstring=[
+                            "ua",
+                            "attach",
+                            "--no-auto-enable",
+                            "REDACTED",
+                        ],
                         rcs={0, 2},
                     ),
                     mock.call(
@@ -84,7 +102,7 @@ class TestConfigureUA:
                         MPATH,
                         logging.DEBUG,
                         "Attaching to Ubuntu Advantage. ua attach"
-                        " --no-auto-enable SomeToken",
+                        " --no-auto-enable REDACTED",
                     )
                 ],
                 id="with_specific_services",
@@ -95,6 +113,12 @@ class TestConfigureUA:
                 [
                     mock.call(
                         ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                        logstring=[
+                            "ua",
+                            "attach",
+                            "--no-auto-enable",
+                            "REDACTED",
+                        ],
                         rcs={0, 2},
                     ),
                     mock.call(
@@ -106,7 +130,7 @@ class TestConfigureUA:
                         MPATH,
                         logging.DEBUG,
                         "Attaching to Ubuntu Advantage. ua attach"
-                        " --no-auto-enable SomeToken",
+                        " --no-auto-enable REDACTED",
                     ),
                     (
                         MPATH,
@@ -120,12 +144,18 @@ class TestConfigureUA:
             # When services not string or list, warn but still attach
             pytest.param(
                 {"token": "SomeToken", "enable": {"deffo": "wont work"}},
-                [mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})],
+                [
+                    mock.call(
+                        ["ua", "attach", "SomeToken"],
+                        logstring=["ua", "attach", "REDACTED"],
+                        rcs={0, 2},
+                    )
+                ],
                 [
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. ua attach SomeToken",
+                        "Attaching to Ubuntu Advantage. ua attach REDACTED",
                     ),
                     (
                         MPATH,
@@ -152,18 +182,22 @@ class TestConfigureUA:
         m_subp.rcs = 2
         configure_ua(token="SomeToken")
         assert m_subp.call_args_list == [
-            mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})
+            mock.call(
+                ["ua", "attach", "SomeToken"],
+                logstring=["ua", "attach", "REDACTED"],
+                rcs={0, 2},
+            )
         ]
         assert (
             MPATH,
             logging.DEBUG,
-            "Attaching to Ubuntu Advantage. ua attach SomeToken",
+            "Attaching to Ubuntu Advantage. ua attach REDACTED",
         ) in caplog.record_tuples
 
     def test_configure_ua_attach_on_service_enabled(self, m_subp, caplog):
         """retry enabling an already enabled service"""
 
-        def fake_subp(cmd, capture=None, rcs=None):
+        def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
                 ["ua", "enable", "--assume-yes", svc] for svc in ["livepatch"]
             ]
@@ -178,7 +212,9 @@ class TestConfigureUA:
         configure_ua(token="SomeToken", enable=["livepatch"])
         assert m_subp.call_args_list == [
             mock.call(
-                ["ua", "attach", "--no-auto-enable", "SomeToken"], rcs={0, 2}
+                ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                logstring=["ua", "attach", "--no-auto-enable", "REDACTED"],
+                rcs={0, 2},
             ),
             mock.call(
                 ["ua", "enable", "--assume-yes", "livepatch"], capture=True
@@ -193,7 +229,7 @@ class TestConfigureUA:
     def test_configure_ua_attach_on_service_error(self, m_subp, caplog):
         """all services should be enabled and then any failures raised"""
 
-        def fake_subp(cmd, capture=None, rcs=None):
+        def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
                 ["ua", "enable", "--assume-yes", svc] for svc in ["esm", "cc"]
             ]
@@ -214,7 +250,9 @@ class TestConfigureUA:
             configure_ua(token="SomeToken", enable=["esm", "cc", "fips"])
         assert m_subp.call_args_list == [
             mock.call(
-                ["ua", "attach", "--no-auto-enable", "SomeToken"], rcs={0, 2}
+                ["ua", "attach", "--no-auto-enable", "SomeToken"],
+                logstring=["ua", "attach", "--no-auto-enable", "REDACTED"],
+                rcs={0, 2},
             ),
             mock.call(["ua", "enable", "--assume-yes", "esm"], capture=True),
             mock.call(["ua", "enable", "--assume-yes", "cc"], capture=True),
@@ -242,7 +280,11 @@ class TestConfigureUA:
             token="SomeToken", config=["http_proxy=http://some-proxy.net:3128"]
         )
         assert [
-            mock.call(["ua", "attach", "SomeToken"], rcs={0, 2})
+            mock.call(
+                ["ua", "attach", "SomeToken"],
+                logstring=["ua", "attach", "REDACTED"],
+                rcs={0, 2},
+            )
         ] == m_subp.call_args_list
         assert (
             MPATH,
@@ -253,7 +295,7 @@ class TestConfigureUA:
         assert (
             MPATH,
             logging.DEBUG,
-            "Attaching to Ubuntu Advantage. ua attach SomeToken",
+            "Attaching to Ubuntu Advantage. ua attach REDACTED",
         ) == caplog.record_tuples[-1]
 
     def test_configure_ua_config_error_invalid_url(self, m_subp, caplog):
