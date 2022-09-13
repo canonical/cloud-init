@@ -825,6 +825,11 @@ class DataSourceAzure(sources.DataSource):
             )
             return {}
 
+    def get_instance_id(self):
+        if not self.metadata or "instance-id" not in self.metadata:
+            return self._iid()
+        return str(self.metadata["instance-id"])
+
     def device_name_to_device(self, name):
         return self.ds_cfg["disk_aliases"].get(name)
 
