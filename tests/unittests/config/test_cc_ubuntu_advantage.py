@@ -8,6 +8,7 @@ import pytest
 
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
+    _attach,
     _auto_attach,
     _should_auto_attach,
     configure_ua,
@@ -597,7 +598,7 @@ class TestHandle:
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}.configure_ua")
     @mock.patch(f"{MPATH}.maybe_install_ua_tools")
-    def test_handle(
+    def test_handle_attach(
         self,
         m_maybe_install_ua_tools,
         m_configure_ua,
@@ -629,9 +630,9 @@ class TestHandle:
             "cloud",
             "log_record_tuples",
             "auto_attach_side_effect",
-            "is_pro",
+            "should_auto_attach",
             "auto_attach_call_args_list",
-            "configure_ua_call_args_list",
+            "attach_call_args_list",
             "expectation",
         ],
         [
@@ -646,8 +647,10 @@ class TestHandle:
                 [],
                 None,  # auto_attach successes
                 True,  # Pro instance
-                [mock.call({"features": {"disable_auto_attach": False}})],
-                [],
+                [
+                    mock.call({"features": {"disable_auto_attach": False}})
+                ],  # auto_attach_call_args_list
+                [],  # attach_call_args_list
                 does_not_raise(),
                 id="auto_attach_success",
             ),
@@ -663,12 +666,14 @@ class TestHandle:
                 [],
                 RuntimeError("Auto attach error"),
                 True,  # Pro instance
-                [mock.call({"features": {"disable_auto_attach": False}})],
-                [],
+                [
+                    mock.call({"features": {"disable_auto_attach": False}})
+                ],  # auto_attach_call_args_list
+                [],  # attach_call_args_list
                 pytest.raises(RuntimeError, match="Auto attach error"),
                 id="auto_attach_error",
             ),
-            # In a non-Pro instance, fallback to normal attach.
+            # In a non-Pro instance with token, fallback to normal attach.
             pytest.param(
                 {
                     "ubuntu_advantage": {
@@ -680,7 +685,7 @@ class TestHandle:
                 [],
                 None,
                 False,  # non-Pro instance
-                [],
+                [],  # auto_attach_call_args_list
                 [
                     mock.call(
                         {
@@ -688,16 +693,34 @@ class TestHandle:
                             "token": "token",
                         },
                     )
-                ],
+                ],  # attach_call_args_list
                 does_not_raise(),
-                id="not_pro",
+                id="not_pro_with_token",
+            ),
+            # In a non-Pro instance with enable, fallback to normal attach.
+            pytest.param(
+                {"ubuntu_advantage": {"enable": ["esm"]}},
+                cloud,
+                [],
+                None,
+                False,  # non-Pro instance
+                [],  # auto_attach_call_args_list
+                [
+                    mock.call(
+                        {
+                            "enable": ["esm"],
+                        },
+                    )
+                ],  # attach_call_args_list
+                does_not_raise(),
+                id="not_pro_with_enable",
             ),
         ],
     )
     @mock.patch(f"{MPATH}._should_auto_attach")
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}._attach")
-    def test_handle_auto_attach(
+    def test_handle_auto_attach_vs_attach(
         self,
         m_attach,
         m_auto_attach,
@@ -706,13 +729,13 @@ class TestHandle:
         cloud,
         log_record_tuples,
         auto_attach_side_effect,
-        is_pro,
+        should_auto_attach,
         auto_attach_call_args_list,
-        configure_ua_call_args_list,
+        attach_call_args_list,
         expectation,
         caplog,
     ):
-        m_should_auto_attach.return_value = is_pro
+        m_should_auto_attach.return_value = should_auto_attach
         if auto_attach_side_effect is not None:
             m_auto_attach.side_effect = auto_attach_side_effect
 
@@ -721,8 +744,10 @@ class TestHandle:
 
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
-        if configure_ua_call_args_list is not None:
-            assert configure_ua_call_args_list == m_attach.call_args_list
+        if attach_call_args_list is not None:
+            assert attach_call_args_list == m_attach.call_args_list
+        else:
+            assert [] == m_attach.call_args_list
         assert auto_attach_call_args_list == m_auto_attach.call_args_list
 
     @pytest.mark.parametrize("is_pro", [False, True])
@@ -756,7 +781,7 @@ class TestHandle:
         cfg,
         is_pro,
     ):
-        """Checks that attach is not called in the case we want only to
+        """Checks that attach is not called in the case where we want only to
         enable or disable ua auto-attach.
         """
         m_should_auto_attach.return_value = is_pro
@@ -865,16 +890,31 @@ class TestShouldAutoAttach:
             " Fallback to normal UA attach." in caplog.text
         )
 
-    @pytest.mark.parametrize("should_auto_attach", [True, False])
-    def test_happy_path(self, should_auto_attach, caplog, fake_uaclient):
+    @pytest.mark.parametrize(
+        "ua_section, expected_result",
+        [
+            ({}, None),
+            ({"features": {"disable_auto_attach": False}}, None),
+            # The user explicitly disables auto-attach, therefore we do not do
+            # it:
+            ({"features": {"disable_auto_attach": True}}, False),
+        ],
+    )
+    def test_happy_path(
+        self, ua_section, expected_result, caplog, fake_uaclient
+    ):
         m_should_auto_attach = mock.Mock()
         sys.modules[
             "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
         ] = m_should_auto_attach
+        should_auto_attach_value = object()
         m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
-            should_auto_attach
+            should_auto_attach_value
         )
-        assert should_auto_attach is _should_auto_attach({})
+        if expected_result is None:  # UA API does respond
+            assert should_auto_attach_value == _should_auto_attach(ua_section)
+        else:  # cloud-init does respond
+            assert expected_result == _should_auto_attach(ua_section)
         assert not caplog.text
 
 
@@ -933,6 +973,20 @@ class TestAutoAttach:
         ] = mock.Mock()
         _auto_attach(self.ua_section)
         assert not caplog.text
+
+
+class TestAttach:
+    @mock.patch(f"{MPATH}.configure_ua")
+    def test_attach_without_token_raises_error(self, m_configure_ua):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                " instances."
+            ),
+        ):
+            _attach({"enable": ["esm"]})
+        assert [] == m_configure_ua.call_args_list
 
 
 @mock.patch(f"{MPATH}.subp.which")
