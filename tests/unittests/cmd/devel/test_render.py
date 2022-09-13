@@ -5,7 +5,6 @@ from io import StringIO
 import pytest
 
 from cloudinit.cmd.devel import render
-from cloudinit.handlers.jinja_template import JinjaLoadError
 from cloudinit.helpers import Paths
 from cloudinit.util import ensure_dir, write_file
 from tests.unittests.helpers import mock, skipUnlessJinja

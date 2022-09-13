@@ -98,7 +98,7 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
         )
     except (JinjaLoadError, NotJinjaError) as e:
         LOG.error(
-            f"Cannot render from instance data due to exception: {repr(e)}"
+            "Cannot render from instance data due to exception: %s", repr(e)
         )
         return 1
     if not rendered_payload:

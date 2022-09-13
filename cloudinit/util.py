@@ -324,9 +324,10 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
         except JinjaLoadError as e:
             LOG.warning(
                 "Could not apply Jinja template '%s' to '%s'. "
-                f"Exception: {repr(e)}",
+                "Exception: %s",
                 instance_data_file,
                 config_file,
+                repr(e),
             )
     if config_file is None:
         return {}
