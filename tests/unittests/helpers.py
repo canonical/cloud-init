@@ -18,7 +18,6 @@ from unittest import mock
 from unittest.util import strclass
 
 import httpretty
-import pytest
 
 import cloudinit
 from cloudinit import cloud, distros
@@ -585,10 +584,7 @@ def does_not_raise():
     >>>         assert (0 / example_input) is not None
 
     """
-    try:
-        yield
-    except Exception as ex:
-        raise pytest.fail("DID RAISE {0}".format(ex))
+    yield
 
 
 # vi: ts=4 expandtab
