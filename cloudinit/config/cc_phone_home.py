@@ -135,7 +135,7 @@ def handle(
     post_list = ph_cfg.get("post", "all")
     tries = ph_cfg.get("tries")
     try:
-        tries = int(tries)  # pyright: ignore
+        tries = int(tries)  # type: ignore
     except (ValueError, TypeError):
         tries = 10
         util.logexc(

@@ -10,9 +10,11 @@ from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from io import BytesIO, StringIO
+from pathlib import Path
 from unittest import mock
 
 import httpretty
+import pytest
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
@@ -23,6 +25,8 @@ from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
 from tests.unittests.util import FakeDataSource
+
+MPATH = "cloudinit.stages"
 
 
 def count_messages(root):
@@ -766,99 +770,102 @@ class TestConvertString(helpers.TestCase):
         self.assertEqual("Just text", msg.get_payload(decode=False))
 
 
-class TestFetchBaseConfig(helpers.TestCase):
-    def test_only_builtin_gets_builtin(self):
-        ret = helpers.wrap_and_call(
-            "cloudinit.stages",
-            {
-                "util.read_conf_with_confd": None,
-                "util.read_conf_from_cmdline": None,
-                "read_runtime_config": {"return_value": {}},
-            },
-            stages.fetch_base_config,
-        )
-        self.assertEqual(util.get_builtin_cfg(), ret)
+class TestFetchBaseConfig:
+    @pytest.fixture(autouse=True)
+    def mocks(self, mocker):
+        mocker.patch(f"{MPATH}.util.read_conf_from_cmdline")
+        mocker.patch(f"{MPATH}.read_runtime_config")
 
-    def test_conf_d_overrides_defaults(self):
+    def test_only_builtin_gets_builtin(self, mocker):
+        mocker.patch(f"{MPATH}.read_runtime_config", return_value={})
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd")
+        config = stages.fetch_base_config()
+        assert util.get_builtin_cfg() == config
+
+    def test_conf_d_overrides_defaults(self, mocker):
         builtin = util.get_builtin_cfg()
         test_key = sorted(builtin)[0]
         test_value = "test"
-        ret = helpers.wrap_and_call(
-            "cloudinit.stages",
-            {
-                "util.read_conf_with_confd": {
-                    "return_value": {test_key: test_value}
-                },
-                "util.read_conf_from_cmdline": None,
-                "read_runtime_config": {"return_value": {}},
-            },
-            stages.fetch_base_config,
-        )
-        self.assertEqual(ret.get(test_key), test_value)
-        builtin[test_key] = test_value
-        self.assertEqual(ret, builtin)
 
-    def test_cmdline_overrides_defaults(self):
+        mocker.patch(
+            f"{MPATH}.util.read_conf_with_confd",
+            return_value={test_key: test_value},
+        )
+        mocker.patch(f"{MPATH}.read_runtime_config", return_value={})
+        config = stages.fetch_base_config()
+        assert config.get(test_key) == test_value
+        builtin[test_key] = test_value
+        assert config == builtin
+
+    def test_confd_with_template(self, mocker, tmp_path: Path):
+        instance_data_path = tmp_path / "test_confd_with_template.json"
+        instance_data_path.write_text('{"template_var": "template_value"}')
+        cfg_path = tmp_path / "test_conf_with_template.cfg"
+        cfg_path.write_text('## template:jinja\n{"key": "{{template_var}}"}')
+
+        mocker.patch("cloudinit.stages.CLOUD_CONFIG", cfg_path)
+        mocker.patch(f"{MPATH}.util.get_builtin_cfg", return_value={})
+        config = stages.fetch_base_config(
+            instance_data_file=instance_data_path
+        )
+        assert config == {"key": "template_value"}
+
+    def test_cmdline_overrides_defaults(self, mocker):
         builtin = util.get_builtin_cfg()
         test_key = sorted(builtin)[0]
         test_value = "test"
         cmdline = {test_key: test_value}
-        ret = helpers.wrap_and_call(
-            "cloudinit.stages",
-            {
-                "util.read_conf_from_cmdline": {"return_value": cmdline},
-                "util.read_conf_with_confd": None,
-                "read_runtime_config": None,
-            },
-            stages.fetch_base_config,
-        )
-        self.assertEqual(ret.get(test_key), test_value)
-        builtin[test_key] = test_value
-        self.assertEqual(ret, builtin)
 
-    def test_cmdline_overrides_confd_runtime_and_defaults(self):
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd")
+        mocker.patch(
+            f"{MPATH}.util.read_conf_from_cmdline",
+            return_value=cmdline,
+        )
+        mocker.patch(f"{MPATH}.read_runtime_config")
+        config = stages.fetch_base_config()
+        assert config.get(test_key) == test_value
+        builtin[test_key] = test_value
+        assert config == builtin
+
+    def test_cmdline_overrides_confd_runtime_and_defaults(self, mocker):
         builtin = {"key1": "value0", "key3": "other2"}
         conf_d = {"key1": "value1", "key2": "other1"}
         cmdline = {"key3": "other3", "key2": "other2"}
         runtime = {"key3": "runtime3"}
-        ret = helpers.wrap_and_call(
-            "cloudinit.stages",
-            {
-                "util.read_conf_with_confd": {"return_value": conf_d},
-                "util.get_builtin_cfg": {"return_value": builtin},
-                "read_runtime_config": {"return_value": runtime},
-                "util.read_conf_from_cmdline": {"return_value": cmdline},
-            },
-            stages.fetch_base_config,
-        )
-        self.assertEqual(
-            ret, {"key1": "value1", "key2": "other2", "key3": "other3"}
+
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd", return_value=conf_d)
+        mocker.patch(f"{MPATH}.util.get_builtin_cfg", return_value=builtin)
+        mocker.patch(f"{MPATH}.read_runtime_config", return_value=runtime)
+        mocker.patch(
+            f"{MPATH}.util.read_conf_from_cmdline",
+            return_value=cmdline,
         )
 
-    def test_order_precedence_is_builtin_system_runtime_cmdline(self):
+        config = stages.fetch_base_config()
+        assert config == {"key1": "value1", "key2": "other2", "key3": "other3"}
+
+    def test_order_precedence_is_builtin_system_runtime_cmdline(self, mocker):
         builtin = {"key1": "builtin0", "key3": "builtin3"}
         conf_d = {"key1": "confd1", "key2": "confd2", "keyconfd1": "kconfd1"}
         runtime = {"key1": "runtime1", "key2": "runtime2"}
         cmdline = {"key1": "cmdline1"}
-        ret = helpers.wrap_and_call(
-            "cloudinit.stages",
-            {
-                "util.read_conf_with_confd": {"return_value": conf_d},
-                "util.get_builtin_cfg": {"return_value": builtin},
-                "util.read_conf_from_cmdline": {"return_value": cmdline},
-                "read_runtime_config": {"return_value": runtime},
-            },
-            stages.fetch_base_config,
+
+        mocker.patch(f"{MPATH}.util.read_conf_with_confd", return_value=conf_d)
+        mocker.patch(f"{MPATH}.util.get_builtin_cfg", return_value=builtin)
+        mocker.patch(
+            f"{MPATH}.util.read_conf_from_cmdline",
+            return_value=cmdline,
         )
-        self.assertEqual(
-            ret,
-            {
-                "key1": "cmdline1",
-                "key2": "runtime2",
-                "key3": "builtin3",
-                "keyconfd1": "kconfd1",
-            },
-        )
+        mocker.patch(f"{MPATH}.read_runtime_config", return_value=runtime)
+
+        config = stages.fetch_base_config()
+
+        assert config == {
+            "key1": "cmdline1",
+            "key2": "runtime2",
+            "key3": "builtin3",
+            "keyconfd1": "kconfd1",
+        }
 
 
 # vi: ts=4 expandtab

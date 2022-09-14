@@ -1,7 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 from io import StringIO
+
+import pytest
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
@@ -12,51 +13,40 @@ M_PATH = "cloudinit.cmd.devel.render."
 
 
 class TestRender:
+    @pytest.fixture(autouse=True)
+    def mocks(self, mocker):
+        mocker.patch("sys.stderr", new_callable=StringIO)
 
-    Args = namedtuple("Args", "user_data instance_data debug")
-
-    def test_handle_args_error_on_missing_user_data(self, caplog, tmpdir):
+    def test_error_on_missing_user_data(self, caplog, tmpdir):
         """When user_data file path does not exist, log an error."""
         absent_file = tmpdir.join("user-data")
         instance_data = tmpdir.join("instance-data")
         write_file(instance_data, "{}")
-        args = self.Args(
-            user_data=absent_file, instance_data=instance_data, debug=False
-        )
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            assert render.handle_args("anyname", args) == 1
-        assert "Missing user-data file: %s" % absent_file in caplog.text
+        assert render.render_template(absent_file, instance_data, False) == 1
+        assert f"Missing user-data file: {absent_file}" in caplog.text
 
-    def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):
+    def test_error_on_missing_instance_data(self, caplog, tmpdir):
         """When instance_data file path does not exist, log an error."""
         user_data = tmpdir.join("user-data")
         absent_file = tmpdir.join("instance-data")
-        args = self.Args(
-            user_data=user_data, instance_data=absent_file, debug=False
-        )
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            assert render.handle_args("anyname", args) == 1
-        assert (
-            "Missing instance-data.json file: %s" % absent_file in caplog.text
-        )
+        assert render.render_template(user_data, absent_file, False) == 1
+        assert f"Missing instance-data.json file: {absent_file}" in caplog.text
 
-    @mock.patch(M_PATH + "read_cfg_paths")
-    def test_handle_args_defaults_instance_data(self, m_paths, caplog, tmpdir):
+    @mock.patch(f"{M_PATH}read_cfg_paths")
+    def test_default_instance_data(self, m_paths, caplog, tmpdir):
         """When no instance_data argument, default to configured run_dir."""
         user_data = tmpdir.join("user-data")
         run_dir = tmpdir.join("run_dir")
         ensure_dir(run_dir)
         paths = Paths({"run_dir": run_dir})
         m_paths.return_value = paths
-        args = self.Args(user_data=user_data, instance_data=None, debug=False)
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            assert render.handle_args("anyname", args) == 1
+        assert render.render_template(user_data, None, False) == 1
         json_file = paths.get_runpath("instance_data")
-        msg = "Missing instance-data.json file: %s" % json_file
+        msg = f"Missing instance-data.json file: {json_file}"
         assert msg in caplog.text
 
-    @mock.patch(M_PATH + "read_cfg_paths")
-    def test_handle_args_root_fallback_from_sensitive_instance_data(
+    @mock.patch(f"{M_PATH}read_cfg_paths")
+    def test_root_fallback_from_sensitive_instance_data(
         self, m_paths, caplog, tmpdir
     ):
         """When root user defaults to sensitive.json."""
@@ -65,24 +55,20 @@ class TestRender:
         ensure_dir(run_dir)
         paths = Paths({"run_dir": run_dir})
         m_paths.return_value = paths
-        args = self.Args(user_data=user_data, instance_data=None, debug=False)
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            with mock.patch("os.getuid") as m_getuid:
-                m_getuid.return_value = 0
-                assert render.handle_args("anyname", args) == 1
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 0
+            assert render.render_template(user_data, None, False) == 1
         json_file = paths.get_runpath("instance_data")
         json_sensitive = paths.get_runpath("instance_data_sensitive")
         assert (
-            "Missing root-readable %s. Using redacted %s"
-            % (json_sensitive, json_file)
-            in caplog.text
+            f"Missing root-readable {json_sensitive}. "
+            f"Using redacted {json_file}" in caplog.text
         )
-        assert "Missing instance-data.json file: %s" % json_file in caplog.text
 
-    @mock.patch(M_PATH + "read_cfg_paths")
-    def test_handle_args_root_uses_sensitive_instance_data(
-        self, m_paths, tmpdir
-    ):
+        assert f"Missing instance-data.json file: {json_file}" in caplog.text
+
+    @mock.patch(f"{M_PATH}read_cfg_paths")
+    def test_root_uses_sensitive_instance_data(self, m_paths, tmpdir):
         """When root user, and no instance-data arg, use sensitive.json."""
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var }}")
@@ -90,31 +76,25 @@ class TestRender:
         json_sensitive = Paths({"run_dir": run_dir}).get_runpath(
             "instance_data_sensitive"
         )
+
         ensure_dir(run_dir)
         write_file(json_sensitive, '{"my-var": "jinja worked"}')
         m_paths.return_value = Paths({"run_dir": run_dir})
-        args = self.Args(user_data=user_data, instance_data=None, debug=False)
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
-                assert render.handle_args("anyname", args) == 0
+                assert render.render_template(user_data, None, False) == 0
         assert "rendering: jinja worked" in m_stdout.getvalue()
 
     @skipUnlessJinja()
-    def test_handle_args_renders_instance_data_vars_in_template(
-        self, caplog, tmpdir
-    ):
+    def test_renders_instance_data_vars_in_template(self, caplog, tmpdir):
         """If user_data file is a jinja template render instance-data vars."""
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var }}")
         instance_data = tmpdir.join("instance-data")
         write_file(instance_data, '{"my-var": "jinja worked"}')
-        args = self.Args(
-            user_data=user_data, instance_data=instance_data, debug=True
-        )
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-                assert render.handle_args("anyname", args) == 0
+        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
+            assert render.render_template(user_data, instance_data, True) == 0
         # Make sure the log is correctly captured. There is an issue
         # with this fixture in pytest==4.6.9 (focal):
         assert (
@@ -123,7 +103,7 @@ class TestRender:
         assert "rendering: jinja worked" == m_stdout.getvalue()
 
     @skipUnlessJinja()
-    def test_handle_args_warns_and_gives_up_on_invalid_jinja_operation(
+    def test_render_warns_and_gives_up_on_invalid_jinja_operation(
         self, caplog, tmpdir
     ):
         """If user_data file has invalid jinja operations log warnings."""
@@ -131,16 +111,40 @@ class TestRender:
         write_file(user_data, "##template: jinja\nrendering: {{ my-var }}")
         instance_data = tmpdir.join("instance-data")
         write_file(instance_data, '{"my-var": "jinja worked"}')
-        args = self.Args(
-            user_data=user_data, instance_data=instance_data, debug=True
-        )
-        with mock.patch("sys.stderr", new_callable=StringIO):
-            assert render.handle_args("anyname", args) == 1
+        assert render.render_template(user_data, instance_data, True) == 1
         assert (
             "Ignoring jinja template for %s: Undefined jinja"
             ' variable: "my-var". Jinja tried subtraction. Perhaps you meant'
             ' "my_var"?' % user_data
         ) in caplog.text
 
+    @skipUnlessJinja()
+    def test_jinja_load_error(self, caplog, tmpdir):
+        user_data = tmpdir.join("user-data")
+        write_file(user_data, "##template: jinja\nrendering: {{ my-var }}")
+        instance_data = tmpdir.join("instance-data")
+        write_file(instance_data, '{"my-var": "jinja failed"')
+        render.render_template(user_data, instance_data, False)
+        assert (
+            "Cannot render from instance data due to exception" in caplog.text
+        )
 
-# vi: ts=4 expandtab
+    @skipUnlessJinja()
+    def test_not_jinja_error(self, caplog, tmpdir):
+        user_data = tmpdir.join("user-data")
+        write_file(user_data, "{{ my-var }}")
+        instance_data = tmpdir.join("instance-data")
+        write_file(instance_data, '{"my-var": "jinja worked"}')
+        render.render_template(user_data, instance_data, False)
+        assert (
+            "Cannot render from instance data due to exception" in caplog.text
+        )
+
+    @skipUnlessJinja()
+    def test_no_user_data(self, caplog, tmpdir):
+        user_data = tmpdir.join("user-data")
+        write_file(user_data, "##template: jinja")
+        instance_data = tmpdir.join("instance-data")
+        write_file(instance_data, '{"my-var": "jinja worked"}')
+        render.render_template(user_data, instance_data, False)
+        assert "Unable to render user-data file" in caplog.text

@@ -25,7 +25,7 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -384,6 +384,59 @@ class TestUtil:
         is_rw = util.mount_is_read_write("/")
         assert is_rw is False
 
+    def test_read_conf(self, mocker):
+        mocker.patch("cloudinit.util.load_file", return_value='{"a": "b"}')
+        assert util.read_conf("any") == {"a": "b"}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert conf == {"a": "d"}
+        assert (
+            "Applied instance data in 'vars_path' to configuration loaded "
+            "from 'cfg_path'"
+        ) in caplog.text
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"',  # missing }
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Failed loading yaml blob" in caplog.text
+        assert conf == {}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_vars(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"',  # missing }
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Could not apply Jinja template" in caplog.text
+        assert conf == {"a": "{{c}}"}
+
     @mock.patch(
         M_PATH + "read_conf",
         side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
@@ -459,7 +512,9 @@ class TestUtil:
         assert not out
         assert not err
         if create_confd:
-            assert [mock.call(confd_fn)] == m_read_confd.call_args_list
+            assert [
+                mock.call(confd_fn, instance_data_file=None)
+            ] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
 
     @pytest.mark.parametrize("custom_cloud_dir", [True, False])

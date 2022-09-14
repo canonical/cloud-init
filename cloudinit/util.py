@@ -35,7 +35,7 @@ from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
-from typing import Callable, List, TypeVar
+from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
 from cloudinit import importer
@@ -287,14 +287,51 @@ def rand_dict_key(dictionary, postfix=None):
     return newkey
 
 
-def read_conf(fname):
+def read_conf(fname, *, instance_data_file=None) -> Dict:
+    """Read a yaml config with optional template, and convert to dict"""
+    # Avoid circular import
+    from cloudinit.handlers.jinja_template import (
+        JinjaLoadError,
+        NotJinjaError,
+        render_jinja_payload_from_file,
+    )
+
     try:
-        return load_yaml(load_file(fname), default={})
+        config_file = load_file(fname)
     except IOError as e:
         if e.errno == ENOENT:
             return {}
         else:
             raise
+
+    if instance_data_file and os.path.exists(instance_data_file):
+        try:
+            config_file = render_jinja_payload_from_file(
+                config_file,
+                fname,
+                instance_data_file,
+            )
+            LOG.debug(
+                "Applied instance data in '%s' to "
+                "configuration loaded from '%s'",
+                instance_data_file,
+                fname,
+            )
+        except NotJinjaError:
+            # A log isn't appropriate here as we generally expect most
+            # cloud.cfgs to not be templated. The other path is logged
+            pass
+        except JinjaLoadError as e:
+            LOG.warning(
+                "Could not apply Jinja template '%s' to '%s'. "
+                "Exception: %s",
+                instance_data_file,
+                config_file,
+                repr(e),
+            )
+    if config_file is None:
+        return {}
+    return load_yaml(config_file, default={})  # pyright: ignore
 
 
 # Merges X lists, and then keeps the
@@ -976,7 +1013,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     return (md, ud, vd)
 
 
-def read_conf_d(confd):
+def read_conf_d(confd, *, instance_data_file=None) -> dict:
     """Read configuration directory."""
     # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
@@ -991,7 +1028,12 @@ def read_conf_d(confd):
     cfgs = []
     for fn in confs:
         try:
-            cfgs.append(read_conf(os.path.join(confd, fn)))
+            cfgs.append(
+                read_conf(
+                    os.path.join(confd, fn),
+                    instance_data_file=instance_data_file,
+                )
+            )
         except OSError as e:
             if e.errno == EACCES:
                 LOG.warning(
@@ -1001,18 +1043,29 @@ def read_conf_d(confd):
     return mergemanydict(cfgs)
 
 
-def read_conf_with_confd(cfgfile):
-    cfgs = deque()
+def read_conf_with_confd(cfgfile, *, instance_data_file=None) -> dict:
+    """Read yaml file along with optional ".d" directory, return merged config
+
+    Given a yaml file, load the file as a dictionary. Additionally, if there
+    exists a same-named directory with .d extension, read all files from
+    that directory in order and return the merged config. The template
+    file is optional and will be applied to any applicable jinja file
+    in the configs.
+
+    For example, this function can read both /etc/cloud/cloud.cfg and all
+    files in /etc/cloud/cloud.cfg.d and merge all configs into a single dict.
+    """
+    cfgs: Deque[Dict] = deque()
     cfg: dict = {}
     try:
-        cfg = read_conf(cfgfile)
+        cfg = read_conf(cfgfile, instance_data_file=instance_data_file)
     except OSError as e:
         if e.errno == EACCES:
             LOG.warning("REDACTED config part %s for non-root user", cfgfile)
     else:
         cfgs.append(cfg)
 
-    confd = False
+    confd = ""
     if "conf_d" in cfg:
         confd = cfg["conf_d"]
         if confd:
@@ -1023,12 +1076,12 @@ def read_conf_with_confd(cfgfile):
                 )
             else:
                 confd = str(confd).strip()
-    elif os.path.isdir("%s.d" % cfgfile):
-        confd = "%s.d" % cfgfile
+    elif os.path.isdir(f"{cfgfile}.d"):
+        confd = f"{cfgfile}.d"
 
     if confd and os.path.isdir(confd):
         # Conf.d settings override input configuration
-        confd_cfg = read_conf_d(confd)
+        confd_cfg = read_conf_d(confd, instance_data_file=instance_data_file)
         cfgs.appendleft(confd_cfg)
 
     return mergemanydict(cfgs)
