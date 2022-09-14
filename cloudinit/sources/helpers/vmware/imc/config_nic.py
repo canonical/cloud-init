@@ -31,7 +31,7 @@ def gen_subnet(ip, netmask):
     return ".".join([str(x) for x in result])
 
 
-class NicConfigurator(object):
+class NicConfigurator:
     def __init__(self, nics, use_system_devices=True):
         """
         Initialize the Nic Configurator

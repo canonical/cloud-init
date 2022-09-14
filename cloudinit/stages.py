@@ -94,7 +94,7 @@ def update_event_enabled(
     return False
 
 
-class Init(object):
+class Init:
     def __init__(self, ds_deps: Optional[List[str]] = None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps

@@ -17,7 +17,7 @@ from cloudinit.net.dhcp import (
 LOG = logging.getLogger(__name__)
 
 
-class EphemeralIPv4Network(object):
+class EphemeralIPv4Network:
     """Context manager which sets up temporary static network configuration.
 
     No operations are performed if the provided interface already has the
@@ -309,7 +309,7 @@ class EphemeralIPv6Network:
         """No need to set the link to down state"""
 
 
-class EphemeralDHCPv4(object):
+class EphemeralDHCPv4:
     def __init__(
         self,
         iface=None,

@@ -135,7 +135,7 @@ class BrokenContextDiskDir(Exception):
     pass
 
 
-class OpenNebulaNetwork(object):
+class OpenNebulaNetwork:
     def __init__(self, context, distro, system_nics_by_mac=None):
         self.context = context
         if system_nics_by_mac is None:

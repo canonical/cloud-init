@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class GuestCustErrorEnum(object):
+class GuestCustErrorEnum:
     """Specifies different errors of Guest Customization engine"""
 
     GUESTCUST_ERROR_SUCCESS = 0

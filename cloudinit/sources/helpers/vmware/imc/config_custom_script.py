@@ -18,7 +18,7 @@ class CustomScriptNotFound(Exception):
     pass
 
 
-class CustomScriptConstant(object):
+class CustomScriptConstant:
     CUSTOM_TMP_DIR = "/root/.customization"
 
     # The user defined custom script
@@ -29,7 +29,7 @@ class CustomScriptConstant(object):
     POST_CUSTOM_SCRIPT_NAME = "post-customize-guest.sh"
 
 
-class RunCustomScript(object):
+class RunCustomScript:
     def __init__(self, scriptname, directory):
         self.scriptname = scriptname
         self.directory = directory

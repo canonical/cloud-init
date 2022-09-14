@@ -194,7 +194,7 @@ class HTTPServerV6(HTTPServer):
     address_family = socket.AF_INET6
 
 
-class MetaDataHandler(object):
+class MetaDataHandler:
     def __init__(self, opts):
         self.opts = opts
         self.instances = {}
@@ -306,7 +306,7 @@ class MetaDataHandler(object):
             return NOT_IMPL_RESPONSE
 
 
-class UserDataHandler(object):
+class UserDataHandler:
     def __init__(self, opts):
         self.opts = opts
 

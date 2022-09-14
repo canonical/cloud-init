@@ -25,11 +25,11 @@ class LockFailure(Exception):
     pass
 
 
-class DummyLock(object):
+class DummyLock:
     pass
 
 
-class DummySemaphores(object):
+class DummySemaphores:
     def __init__(self):
         pass
 
@@ -47,7 +47,7 @@ class DummySemaphores(object):
         pass
 
 
-class FileLock(object):
+class FileLock:
     def __init__(self, fn):
         self.fn = fn
 
@@ -59,7 +59,7 @@ def canon_sem_name(name):
     return name.replace("-", "_")
 
 
-class FileSemaphores(object):
+class FileSemaphores:
     def __init__(self, sem_path):
         self.sem_path = sem_path
 
@@ -141,7 +141,7 @@ class FileSemaphores(object):
             return os.path.join(sem_path, "%s.%s" % (name, freq))
 
 
-class Runners(object):
+class Runners:
     def __init__(self, paths):
         self.paths = paths
         self.sems = {}
@@ -186,7 +186,7 @@ class Runners(object):
                 return (True, results)
 
 
-class ConfigMerger(object):
+class ConfigMerger:
     def __init__(
         self,
         paths=None,
@@ -292,7 +292,7 @@ class ConfigMerger(object):
         return self._cfg
 
 
-class ContentHandlers(object):
+class ContentHandlers:
     def __init__(self):
         self.registered = {}
         self.initialized = []

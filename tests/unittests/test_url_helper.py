@@ -51,7 +51,7 @@ class TestOAuthHeaders(CiTestCase):
     def test_oauth_headers_calls_oathlibclient_when_available(self, m_client):
         """oauth_headers calls oaut1.hClient.sign with the provided url."""
 
-        class fakeclient(object):
+        class fakeclient:
             def sign(self, url):
                 # The first and 3rd item of the client.sign tuple are ignored
                 return ("junk", url, "junk2")

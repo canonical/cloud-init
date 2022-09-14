@@ -216,7 +216,7 @@ def parse_remotes_line(line, name=None):
     return t
 
 
-class SyslogRemotesLine(object):
+class SyslogRemotesLine:
     def __init__(
         self, name=None, match=None, proto=None, addr=None, port=None
     ):

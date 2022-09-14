@@ -74,7 +74,7 @@ def _handle_error(error_message, source_exception=None):
         LOG.warning(error_message)
 
 
-class UserDataProcessor(object):
+class UserDataProcessor:
     def __init__(self, paths):
         self.paths = paths
         self.ssl_details = util.fetch_ssl_details(paths)

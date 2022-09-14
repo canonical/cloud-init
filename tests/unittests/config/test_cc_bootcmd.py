@@ -18,7 +18,7 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 
-class FakeExtendedTempFile(object):
+class FakeExtendedTempFile:
     def __init__(self, suffix):
         self.suffix = suffix
         self.handle = tempfile.NamedTemporaryFile(
