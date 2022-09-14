@@ -168,6 +168,7 @@ def fixture_utils():
 @pytest.fixture
 def mocked_responses():
     import responses as _responses
+
     with _responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
 
