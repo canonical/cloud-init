@@ -7,11 +7,9 @@ Any imports that are performed at the top-level here must be installed wherever
 any of these tests run: that is to say, they must be listed in
 ``integration-requirements.txt`` and in ``test-requirements.txt``.
 """
-from typing import Iterator
 from unittest import mock
 
 import pytest
-import responses as _responses
 
 from cloudinit import helpers, subp, util
 
@@ -168,7 +166,8 @@ def fixture_utils():
 
 
 @pytest.fixture
-def mocked_responses() -> Iterator[_responses.RequestsMock]:
+def mocked_responses():
+    import responses as _responses
     with _responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
 
