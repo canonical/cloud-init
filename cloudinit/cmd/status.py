@@ -154,7 +154,7 @@ def handle_status_args(name, args) -> int:
     elif args.format == "json":
         print(
             json.dumps(  # Pretty, sorted json
-                details_dict, indent=1, sort_keys=True, separators=(",", ": ")
+                details_dict, indent=2, sort_keys=True, separators=(",", ": ")
             )
         )
     elif args.format == "yaml":
@@ -207,13 +207,12 @@ def get_status_details(paths=None) -> StatusDetails:
     status = UXAppStatus.NOT_RUN
     errors = []
     datasource = ""
-    description = ""
     status_v1 = {}
 
     status_file = os.path.join(paths.run_dir, "status.json")
     result_file = os.path.join(paths.run_dir, "result.json")
 
-    (boot_status_code, description) = get_bootstatus(
+    boot_status_code, description = get_bootstatus(
         CLOUDINIT_DISABLED_FILE, paths
     )
     if boot_status_code in DISABLED_BOOT_CODES:

@@ -304,7 +304,7 @@ non-zero if an error is detected in cloud-init.
 * ``--long``: detailed status information
 * ``--wait``: block until cloud-init completes
 * ``--format [yaml|json|tabular]``: machine-readable JSON or YAML detailed
-                                    output
+  output
 
 Below are examples of output when cloud-init is running, showing status and
 the currently running modules, as well as when it is done.
