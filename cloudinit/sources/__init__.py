@@ -1043,7 +1043,7 @@ def convert_vendordata(data, recurse=True):
     raise ValueError("Unknown data type for vendordata: %s" % type(data))
 
 
-class BrokenMetadata(IOError):
+class BrokenMetadata(OSError):
     pass
 
 

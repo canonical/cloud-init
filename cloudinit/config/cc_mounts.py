@@ -335,7 +335,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()["total"]
-        except IOError:
+        except OSError:
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 

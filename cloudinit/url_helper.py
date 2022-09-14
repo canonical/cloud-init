@@ -77,7 +77,7 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
         try:
             with open(file_path, "rb") as fp:
                 contents = fp.read()
-        except IOError as e:
+        except OSError as e:
             code = e.errno
             if e.errno == ENOENT:
                 code = NOT_FOUND
@@ -161,9 +161,9 @@ class UrlResponse(object):
         yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
-class UrlError(IOError):
+class UrlError(OSError):
     def __init__(self, cause, code=None, headers=None, url=None):
-        IOError.__init__(self, str(cause))
+        OSError.__init__(self, str(cause))
         self.cause = cause
         self.code = code
         self.headers = headers

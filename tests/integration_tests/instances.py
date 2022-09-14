@@ -95,7 +95,7 @@ class IntegrationInstance:
         if result.failed:
             # TODO: Raise here whatever pycloudlib raises when it has
             # a consistent error response
-            raise IOError(
+            raise OSError(
                 "Failed reading remote file via cat: {}\n"
                 "Return code: {}\n"
                 "Stderr: {}\n"

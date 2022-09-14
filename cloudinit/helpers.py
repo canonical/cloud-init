@@ -78,7 +78,7 @@ class FileSemaphores(object):
         sem_file = self._get_path(name, freq)
         try:
             util.del_file(sem_file)
-        except (IOError, OSError):
+        except OSError:
             util.logexc(LOG, "Failed deleting semaphore %s", sem_file)
             return False
         return True
@@ -86,7 +86,7 @@ class FileSemaphores(object):
     def clear_all(self):
         try:
             util.del_dir(self.sem_path)
-        except (IOError, OSError):
+        except OSError:
             util.logexc(
                 LOG, "Failed deleting semaphore directory %s", self.sem_path
             )
@@ -102,7 +102,7 @@ class FileSemaphores(object):
         contents = "%s: %s\n" % (os.getpid(), time())
         try:
             util.write_file(sem_file, contents)
-        except (IOError, OSError):
+        except OSError:
             util.logexc(LOG, "Failed writing semaphore file %s", sem_file)
             return None
         return FileLock(sem_file)

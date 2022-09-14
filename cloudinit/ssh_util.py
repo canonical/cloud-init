@@ -194,7 +194,7 @@ def parse_authorized_keys(fnames):
                 lines = util.load_file(fname).splitlines()
                 for line in lines:
                     contents.append(parser.parse(line))
-        except (IOError, OSError):
+        except OSError:
             util.logexc(LOG, "Error reading lines from %s", fname)
 
     return contents
@@ -397,7 +397,7 @@ def check_create_path(username, filename, strictmodes):
         )
         if not permissions:
             return False
-    except (IOError, OSError) as e:
+    except OSError as e:
         util.logexc(LOG, str(e))
         return False
 
@@ -420,7 +420,7 @@ def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
                 key_paths, pw_ent.pw_dir, username
             )
 
-        except (IOError, OSError):
+        except OSError:
             # Give up and use a default key filename
             auth_key_fns[0] = default_authorizedkeys_file
             util.logexc(

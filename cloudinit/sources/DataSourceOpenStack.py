@@ -216,9 +216,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                 raise sources.InvalidMetaDataException(
                     "No active metadata service found"
                 )
-        except IOError as e:
+        except OSError as e:
             raise sources.InvalidMetaDataException(
-                "IOError contacting metadata service: {error}".format(
+                "OSError contacting metadata service: {error}".format(
                     error=str(e)
                 )
             )
@@ -239,7 +239,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             )
         except openstack.NonReadable as e:
             raise sources.InvalidMetaDataException(str(e))
-        except (openstack.BrokenMetadata, IOError) as e:
+        except (openstack.BrokenMetadata, OSError) as e:
             msg = "Broken metadata address {addr}".format(
                 addr=self.metadata_address
             )

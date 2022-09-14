@@ -670,7 +670,7 @@ def getfqdn(name=""):
         addrs = socket.getaddrinfo(
             name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME
         )
-    except socket.error:
+    except OSError:
         pass
     else:
         for addr in addrs:

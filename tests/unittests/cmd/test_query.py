@@ -182,7 +182,7 @@ class TestQuery:
         [
             (OSError(errno.EACCES, "Not allowed"),),
             (OSError(errno.ENOENT, "Not allowed"),),
-            (IOError,),
+            (OSError,),
         ],
     )
     def test_handle_args_error_when_no_read_permission_init_cfg(

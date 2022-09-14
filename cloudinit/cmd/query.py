@@ -145,7 +145,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     Non-root users will have redacted INSTANCE_JSON_FILE content and redacted
     vendordata and userdata values.
 
-    :raise: IOError/OSError on absence of instance-data.json file or invalid
+    :raise: OSError on absence of instance-data.json file or invalid
         access perms.
     """
     uid = os.getuid()
@@ -178,7 +178,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
 
     try:
         instance_json = util.load_file(instance_data_fn)
-    except (IOError, OSError) as e:
+    except OSError as e:
         if e.errno == EACCES:
             LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
         else:
@@ -258,7 +258,7 @@ def handle_args(name, args):
         instance_data = _read_instance_data(
             args.instance_data, args.user_data, args.vendor_data
         )
-    except (IOError, OSError):
+    except OSError:
         return 1
     if args.format:
         payload = "## template: jinja\n{fmt}".format(fmt=args.format)

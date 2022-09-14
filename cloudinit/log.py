@@ -58,7 +58,7 @@ def flushLoggers(root):
         if isinstance(h, (logging.StreamHandler)):
             try:
                 h.flush()
-            except IOError:
+            except OSError:
                 pass
     flushLoggers(root.parent)
 

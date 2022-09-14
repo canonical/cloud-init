@@ -220,7 +220,7 @@ def apply_apt(cfg, cloud, target):
 
     try:
         apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
-    except (IOError, OSError):
+    except OSError:
         LOG.exception("Failed to apply proxy or apt config info:")
 
     # Process 'apt_source -> sources {dict}'
@@ -590,7 +590,7 @@ def add_apt_sources(
         try:
             contents = "%s\n" % (source)
             util.write_file(sourcefn, contents, omode="a")
-        except IOError as detail:
+        except OSError as detail:
             LOG.exception("failed write to file %s: %s", sourcefn, detail)
             raise
 

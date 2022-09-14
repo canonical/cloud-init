@@ -103,14 +103,14 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
             base_fn = os.path.basename(fn)
             file_id = re.match(r"source(\d+)\-(\d+)[.]yaml", base_fn)
             if not file_id:
-                raise IOError(
+                raise OSError(
                     "File %s does not have a numeric identifier" % (fn)
                 )
             file_id = int(file_id.group(1))
             source_ids[file_id].append(fn)
             expected_fn = os.path.join(merge_root, EXPECTED_PAT % (file_id))
             if not os.path.isfile(expected_fn):
-                raise IOError("No expected file found at %s" % (expected_fn))
+                raise OSError("No expected file found at %s" % (expected_fn))
             expected_files[file_id] = expected_fn
         for i in sorted(source_ids.keys()):
             source_file_contents = []

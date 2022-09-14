@@ -2251,7 +2251,7 @@ class TestProcessExecutionError(helpers.TestCase):
         )
 
     def test_pexec_error_type(self):
-        self.assertIsInstance(subp.ProcessExecutionError(), IOError)
+        self.assertIsInstance(subp.ProcessExecutionError(), OSError)
 
     def test_pexec_error_empty_msgs(self):
         error = subp.ProcessExecutionError()

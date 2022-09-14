@@ -121,7 +121,7 @@ def disable_ipv6(iface_file):
     # interface and NetworkManager is restarted.
     try:
         contents = util.load_file(iface_file)
-    except IOError as e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             LOG.debug("IPv6 interface file %s does not exist\n", iface_file)
         else:

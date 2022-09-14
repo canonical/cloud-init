@@ -74,7 +74,7 @@ def read_sys_net(
     dev_path = sys_dev_path(devname, path)
     try:
         contents = util.load_file(dev_path)
-    except (OSError, IOError) as e:
+    except OSError as e:
         e_errno = getattr(e, "errno", None)
         if e_errno in (errno.ENOENT, errno.ENOTDIR):
             if on_enoent is not None:

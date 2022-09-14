@@ -44,7 +44,7 @@ def read_sysconfig_file(fn):
     try:
         contents = util.load_file(fn).splitlines()
         exists = True
-    except IOError:
+    except OSError:
         contents = []
     return (exists, SysConf(contents))
 

@@ -52,15 +52,14 @@ class TestReadSysNet(CiTestCase):
         self.assertEqual(content.strip(), net.read_sys_net("dev", "attr"))
 
     def test_read_sys_net_reraises_oserror(self):
-        """read_sys_net raises OSError/IOError when file doesn't exist."""
-        # Non-specific Exception because versions of python OSError vs IOError.
-        with self.assertRaises(Exception) as context_manager:  # noqa: H202
+        """read_sys_net raises OSError when file doesn't exist."""
+        with self.assertRaises(OSError) as context_manager:  # noqa: H202
             net.read_sys_net("dev", "attr")
         error = context_manager.exception
         self.assertIn("No such file or directory", str(error))
 
     def test_read_sys_net_handles_error_with_on_enoent(self):
-        """read_sys_net handles OSError/IOError with on_enoent if provided."""
+        """read_sys_net handles OSError with on_enoent if provided."""
         handled_errors = []
 
         def on_enoent(e):
@@ -68,7 +67,7 @@ class TestReadSysNet(CiTestCase):
 
         net.read_sys_net("dev", "attr", on_enoent=on_enoent)
         error = handled_errors[0]
-        self.assertIsInstance(error, Exception)
+        self.assertIsInstance(error, OSError)
         self.assertIn("No such file or directory", str(error))
 
     def test_read_sys_net_translates_content(self):

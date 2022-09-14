@@ -29,7 +29,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_zypper_add_repo._write_repos(cfg["repos"], "/etc/zypp/repos.d")
         self.assertRaises(
-            IOError, util.load_file, "/etc/zypp/repos.d/foo.repo"
+            OSError, util.load_file, "/etc/zypp/repos.d/foo.repo"
         )
 
     def test_write_repos(self):

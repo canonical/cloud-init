@@ -227,7 +227,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
             if os.path.getmtime(kvp_file) < boot_time:
                 with open(kvp_file, "w"):
                     pass
-        except (OSError, IOError) as e:
+        except OSError as e:
             LOG.warning("failed to truncate kvp pool file, %s", e)
         finally:
             cls._already_truncated_pool_file = True
@@ -384,7 +384,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
                         event = None
                 try:
                     self._append_kvp_item(encoded_data)
-                except (OSError, IOError) as e:
+                except OSError as e:
                     LOG.warning("failed posting events to kvp, %s", e)
                 finally:
                     for _ in range(items_from_queue):

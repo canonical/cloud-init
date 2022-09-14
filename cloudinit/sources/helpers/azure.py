@@ -287,7 +287,7 @@ def get_last_log_byte_pushed_to_kvp_index():
     try:
         with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
             return int(f.read())
-    except IOError as e:
+    except OSError as e:
         if e.errno != ENOENT:
             report_diagnostic_event(
                 "Reading LOG_PUSHED_TO_KVP_INDEX_FILE failed: %s." % repr(e),

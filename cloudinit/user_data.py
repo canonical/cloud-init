@@ -263,7 +263,7 @@ class UserDataProcessor(object):
                     if include_url not in message:
                         message += " for url: {0}".format(include_url)
                     _handle_error(message, urle)
-                except IOError as ioe:
+                except OSError as ioe:
                     error_message = "Fetching from {} resulted in {}".format(
                         include_url, ioe
                     )

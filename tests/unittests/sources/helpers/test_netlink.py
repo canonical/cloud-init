@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import codecs
-import socket
 import struct
 
 from cloudinit.sources.helpers.netlink import (
@@ -45,7 +44,7 @@ class TestCreateBoundNetlinkSocket(CiTestCase):
         """create_bound_netlink_socket catches socket creation exception"""
 
         """NetlinkCreateSocketError is raised when socket creation errors."""
-        m_socket.side_effect = socket.error("Fake socket failure")
+        m_socket.side_effect = OSError("Fake socket failure")
         with self.assertRaises(NetlinkCreateSocketError) as ctx_mgr:
             create_bound_netlink_socket()
         self.assertEqual(

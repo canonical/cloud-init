@@ -182,7 +182,7 @@ class Distro(distros.Distro):
             # Try to update the previous one
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
-        except IOError:
+        except OSError:
             pass
         if not conf:
             conf = HostnameConf("")
@@ -208,7 +208,7 @@ class Distro(distros.Distro):
         try:
             conf = self._read_hostname_conf(filename)
             hostname = conf.hostname
-        except IOError:
+        except OSError:
             pass
         if not hostname:
             return default

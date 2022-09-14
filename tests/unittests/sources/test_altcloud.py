@@ -97,7 +97,7 @@ class TestGetCloudType(CiTestCase):
         """Return UNKNOWN when /etc/sysconfig/cloud-info exists but errors."""
         self.assertEqual("/etc/sysconfig/cloud-info", dsac.CLOUD_INFO_FILE)
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        # Attempting to read the directory generates IOError
+        # Attempting to read the directory generates OSError
         with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.tmp):
             self.assertEqual("UNKNOWN", dsrc.get_cloud_type())
         self.assertIn(
@@ -109,7 +109,7 @@ class TestGetCloudType(CiTestCase):
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         cloud_info = self.tmp_path("cloud-info", dir=self.tmp)
         util.write_file(cloud_info, " OverRiDdeN CloudType ")
-        # Attempting to read the directory generates IOError
+        # Attempting to read the directory generates OSError
         with mock.patch.object(dsac, "CLOUD_INFO_FILE", cloud_info):
             self.assertEqual("OVERRIDDEN CLOUDTYPE", dsrc.get_cloud_type())
 

@@ -1934,7 +1934,7 @@ def _check_freebsd_cdrom(cdrom_dev):
         with open(cdrom_dev) as fp:
             fp.read(1024)
             return True
-    except IOError:
+    except OSError:
         LOG.debug("cdrom (%s) is not configured", cdrom_dev)
     return False
 

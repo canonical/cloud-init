@@ -809,7 +809,7 @@ def write_boot_content(
             if content and os.path.exists(content_f):
                 util.ensure_dir(os.path.dirname(link))
                 os.symlink(content_f, link)
-        except IOError as e:
+        except OSError as e:
             util.logexc(LOG, "failed establishing content link: %s", e)
 
 

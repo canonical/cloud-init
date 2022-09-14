@@ -243,7 +243,7 @@ def _decomp_gzip(blob):
         try:
             gzfp = gzip.GzipFile(mode="rb", fileobj=iobuf)
             return gzfp.read()
-        except IOError:
+        except OSError:
             return blob
         finally:
             if gzfp:

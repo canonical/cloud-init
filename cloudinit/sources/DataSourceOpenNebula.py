@@ -447,7 +447,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
             raise BrokenContextDiskDir(
                 "Error processing context.sh: %s" % (e)
             ) from e
-        except IOError as e:
+        except OSError as e:
             raise NonContextDiskDir(
                 "Error reading context.sh: %s" % (e)
             ) from e

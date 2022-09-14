@@ -42,7 +42,7 @@ class DataSourceBigstep(sources.DataSource):
         )
         try:
             content = util.load_file(url_file)
-        except IOError as e:
+        except OSError as e:
             # If the file doesn't exist, then the server probably isn't a
             # Bigstep instance; otherwise, another problem exists which needs
             # investigation

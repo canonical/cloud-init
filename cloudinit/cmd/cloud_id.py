@@ -76,7 +76,7 @@ def handle_args(name, args):
     try:
         with open(args.instance_data) as file:
             instance_data = json.load(file)
-    except IOError:
+    except OSError:
         return error(
             "File not found '%s'. Provide a path to instance data json file"
             " using --instance-data" % args.instance_data

@@ -418,7 +418,7 @@ class TestParseSSHConfig:
         "is_file, file_content",
         [
             pytest.param(True, ("",), id="empty-file"),
-            pytest.param(False, IOError, id="not-a-file"),
+            pytest.param(False, OSError, id="not-a-file"),
         ],
     )
     def test_dummy_file(self, m_is_file, m_load_file, is_file, file_content):

@@ -91,7 +91,7 @@ def render_jinja_payload_from_file(
         )
     try:
         instance_data = load_json(load_file(instance_data_file))
-    except (IOError, OSError) as e:
+    except OSError as e:
         if e.errno == EACCES:
             raise RuntimeError(
                 "Cannot render jinja template vars. No read permission on"

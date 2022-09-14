@@ -33,7 +33,7 @@ def patch_logging():
         try:
             fallback_handler.handle(record)
             fallback_handler.flush()
-        except IOError:
+        except OSError:
             pass
 
     setattr(logging.Handler, "handleError", handleError)

@@ -88,7 +88,7 @@ def _decode(data, encoding=None):
     elif encoding.lower() in ["gzip", "gz"]:
         return util.decomp_gzip(data, quiet=False, decode=None)
     else:
-        raise IOError("Unknown random_seed encoding: %s" % (encoding))
+        raise OSError("Unknown random_seed encoding: %s" % (encoding))
 
 
 def handle_random_seed_command(command, required, env=None):

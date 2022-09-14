@@ -290,7 +290,7 @@ def rand_dict_key(dictionary, postfix=None):
 def read_conf(fname):
     try:
         return load_yaml(load_file(fname), default={})
-    except IOError as e:
+    except OSError as e:
         if e.errno == ENOENT:
             return {}
         else:
@@ -1165,7 +1165,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             if hostname in toks[2:]:
                 fqdn = toks[1]
                 break
-    except IOError:
+    except OSError:
         pass
     return fqdn
 
@@ -1200,7 +1200,7 @@ def is_resolvable(name):
                 for (_fam, _stype, _proto, cname, sockaddr) in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
-            except (socket.gaierror, socket.error):
+            except (socket.gaierror, OSError):
                 pass
         _DNS_REDIRECT_IP = badips
         if badresults:
@@ -1213,7 +1213,7 @@ def is_resolvable(name):
         if addr in _DNS_REDIRECT_IP:
             return False
         return True
-    except (socket.gaierror, socket.error):
+    except (socket.gaierror, OSError):
         return False
 
 
@@ -1476,7 +1476,7 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
     try:
         with open(fname, "rb") as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-    except IOError as e:
+    except OSError as e:
         if not quiet:
             raise
         if e.errno != ENOENT:
@@ -1786,7 +1786,7 @@ def mounts():
                 "opts": opts,
             }
         LOG.debug("Fetched %s mounts from %s", mounted, method)
-    except (IOError, OSError):
+    except OSError:
         logexc(LOG, "Failed fetching mount points")
     return mounted
 
@@ -1851,7 +1851,7 @@ def mount_cb(
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break
-                except (IOError, OSError) as exc:
+                except OSError as exc:
                     LOG.debug(
                         "Failed to mount device: '%s' with type: '%s' "
                         "using mount command: '%s', "
@@ -2249,7 +2249,7 @@ def is_container():
             return True
         if "LIBVIRT_LXC_UUID" in pid1env:
             return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     # Detect OpenVZ containers
@@ -2264,7 +2264,7 @@ def is_container():
                 (_key, val) = line.strip().split(":", 1)
                 if val != "0":
                     return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     return False
@@ -2287,7 +2287,7 @@ def get_proc_env(pid, encoding="utf-8", errors="replace"):
 
     try:
         contents = load_file(fn, decode=False)
-    except (IOError, OSError):
+    except OSError:
         return {}
 
     env = {}
@@ -2667,7 +2667,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     for f in required + optional:
         try:
             ret[f] = load_file(base + delim + f, quiet=False, decode=False)
-        except IOError as e:
+        except OSError as e:
             if e.errno != ENOENT:
                 raise
             if f in required:
@@ -2910,7 +2910,7 @@ def get_proc_ppid(pid):
                     pid,
                     contents,
                 )
-    except IOError as e:
+    except OSError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
     return ppid
 

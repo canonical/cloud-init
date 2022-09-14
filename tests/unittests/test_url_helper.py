@@ -256,7 +256,7 @@ class TestReadFileOrUrlParameters:
 class TestRetryOnUrlExc(CiTestCase):
     def test_do_not_retry_non_urlerror(self):
         """When exception is not UrlError return False."""
-        myerror = IOError("something unexcpected")
+        myerror = OSError("something unexcpected")
         self.assertFalse(retry_on_url_exc(msg="", exc=myerror))
 
     def test_perform_retries_on_not_found(self):

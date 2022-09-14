@@ -63,7 +63,7 @@ def prepend_base_command(base_command, commands):
     return fixed_commands
 
 
-class ProcessExecutionError(IOError):
+class ProcessExecutionError(OSError):
 
     MESSAGE_TMPL = (
         "%(description)s\n"
@@ -133,7 +133,7 @@ class ProcessExecutionError(IOError):
             "stderr": self._ensure_string(self.stderr),
             "reason": self._ensure_string(self.reason),
         }
-        IOError.__init__(self, message)
+        OSError.__init__(self, message)
 
     def _ensure_string(self, text):
         """

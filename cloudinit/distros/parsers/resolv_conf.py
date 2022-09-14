@@ -156,7 +156,7 @@ class ResolvConf(object):
             try:
                 (cfg_opt, cfg_values) = head.split(None, 1)
             except (IndexError, ValueError) as e:
-                raise IOError(
+                raise OSError(
                     "Incorrectly formatted resolv.conf line %s" % (i + 1)
                 ) from e
             if cfg_opt not in [
@@ -166,7 +166,7 @@ class ResolvConf(object):
                 "sortlist",
                 "options",
             ]:
-                raise IOError("Unexpected resolv.conf option %s" % (cfg_opt))
+                raise OSError("Unexpected resolv.conf option %s" % (cfg_opt))
             entries.append(("option", [cfg_opt, cfg_values, tail]))
         return entries
 

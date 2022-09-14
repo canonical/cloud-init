@@ -151,7 +151,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             util.logexc(LOG, "Failed to apply locale %s", locale)
             try:
                 util.copy(self.login_conf_fn_bak, self.login_conf_fn)
-            except IOError:
+            except OSError:
                 util.logexc(
                     LOG, "Failed to restore %s backup", self.login_conf_fn
                 )

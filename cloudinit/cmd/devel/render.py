@@ -82,7 +82,7 @@ def handle_args(name, args):
     try:
         with open(args.user_data) as stream:
             user_data = stream.read()
-    except IOError:
+    except OSError:
         LOG.error("Missing user-data file: %s", args.user_data)
         return 1
     try:
