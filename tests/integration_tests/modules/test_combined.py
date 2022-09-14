@@ -217,14 +217,7 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            if ImageSpecification.from_os_image().release in [
-                "bionic",
-                "focal",
-            ]:
-                datasource = "DataSourceNoCloud"
-            else:
-                datasource = "DataSourceLXD"
-            assert parsed_datasource.startswith(datasource)
+            assert parsed_datasource.startswith("DataSourceLXD")
         else:
             platform_datasources = {
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
@@ -294,26 +287,19 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
-            cloud_name = "lxd"
-            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
-            # instance-id should be a UUID
-            try:
-                uuid.UUID(v1_data["instance_id"])
-            except ValueError:
-                raise AssertionError(
-                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
-                )
-        else:
-            cloud_name = "unknown"
-            subplatform = "seed-dir (/var/lib/cloud/seed/nocloud-net)"
-            # Pre-Jammy instance-id and instance.name are synonymous
-            assert v1_data["instance_id"] == client.instance.name
-        assert v1_data["cloud_name"] == cloud_name
-        assert v1_data["subplatform"] == subplatform
+
+        # instance-id should be a UUID
+        try:
+            uuid.UUID(v1_data["instance_id"])
+        except ValueError:
+            raise AssertionError(
+                f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+            )
+
+        assert v1_data["cloud_name"] == "lxd"
+        assert (
+            v1_data["subplatform"] == "LXD socket API v. 1.0 (/dev/lxd/sock)"
+        )
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
@@ -333,32 +319,19 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
-            cloud_name = "lxd"
-            subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
-            # instance-id should be a UUID
-            try:
-                uuid.UUID(v1_data["instance_id"])
-            except ValueError as e:
-                raise AssertionError(
-                    f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
-                ) from e
-            assert v1_data["subplatform"] == subplatform
-        else:
-            cloud_name = "unknown"
-            # Pre-Jammy instance-id and instance.name are synonymous
-            assert v1_data["instance_id"] == client.instance.name
-            assert any(
-                [
-                    "/var/lib/cloud/seed/nocloud-net"
-                    in v1_data["subplatform"],
-                    "/dev/sr0" in v1_data["subplatform"],
-                ]
-            )
-        assert v1_data["cloud_name"] == cloud_name
+
+        # instance-id should be a UUID
+        try:
+            uuid.UUID(v1_data["instance_id"])
+        except ValueError as e:
+            raise AssertionError(
+                f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
+            ) from e
+
+        assert v1_data["cloud_name"] == "lxd"
+        assert (
+            v1_data["subplatform"] == "LXD socket API v. 1.0 (/dev/lxd/sock)"
+        )
         assert v1_data["platform"] == "lxd"
         assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
