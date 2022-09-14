@@ -304,7 +304,7 @@ class TestResize(unittest.TestCase):
         real_stat = os.stat
         resize_calls = []
 
-        class myresizer(object):
+        class myresizer:
             def resize(self, diskdev, partnum, partdev):
                 resize_calls.append((diskdev, partnum, partdev))
                 if partdev == "/dev/YYda2":
@@ -584,7 +584,7 @@ def simple_device_part_info(devpath):
     return x
 
 
-class Bunch(object):
+class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 

@@ -14,7 +14,7 @@ LOG = logging.getLogger(__name__)
 
 
 # See: man resolv.conf
-class ResolvConf(object):
+class ResolvConf:
     def __init__(self, text):
         self._text = text
         self._contents = None

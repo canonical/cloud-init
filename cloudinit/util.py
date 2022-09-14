@@ -162,7 +162,7 @@ def fully_decoded_payload(part):
     return cte_payload
 
 
-class SeLinuxGuard(object):
+class SeLinuxGuard:
     def __init__(self, path, recursive=False):
         # Late import since it might not always
         # be possible to use this

@@ -1566,7 +1566,7 @@ class TestRedirectOutputPreexecFn:
         assert 0 == m_setgid.call_count
 
 
-class FakeSelinux(object):
+class FakeSelinux:
     def __init__(self, match_what):
         self.match_what = match_what
         self.restored = []

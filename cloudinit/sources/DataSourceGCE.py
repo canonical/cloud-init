@@ -27,7 +27,7 @@ HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
 
 
-class GoogleMetadataFetcher(object):
+class GoogleMetadataFetcher:
     def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
         self.num_retries = num_retries

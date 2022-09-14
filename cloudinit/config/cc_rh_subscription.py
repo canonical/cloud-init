@@ -140,7 +140,7 @@ class SubscriptionError(Exception):
     pass
 
 
-class SubscriptionManager(object):
+class SubscriptionManager:
     valid_rh_keys = [
         "org",
         "activation-key",

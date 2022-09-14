@@ -10,7 +10,7 @@ from cloudinit.distros.parsers import chop_comment
 
 
 # Parser that knows how to work with /etc/hostname format
-class HostnameConf(object):
+class HostnameConf:
     def __init__(self, text):
         self._text = text
         self._contents = None

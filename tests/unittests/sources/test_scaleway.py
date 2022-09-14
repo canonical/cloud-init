@@ -10,7 +10,7 @@ from cloudinit.sources import DataSourceScaleway
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
 
 
-class DataResponses(object):
+class DataResponses:
     """
     Possible responses of the API endpoint
     169.254.42.42/user_data/cloud-init and
@@ -39,7 +39,7 @@ class DataResponses(object):
         return 404, headers, ""
 
 
-class MetadataResponses(object):
+class MetadataResponses:
     """
     Possible responses of the metadata API.
     """

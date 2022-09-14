@@ -76,7 +76,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
     def test_install_chef_from_omnibus_retries_url(self, m_subp_blob, m_rdurl):
         """install_chef_from_omnibus retries OMNIBUS_URL upon failure."""
 
-        class FakeURLResponse(object):
+        class FakeURLResponse:
             contents = '#!/bin/bash\necho "Hi Mom" > {0}/chef.out'.format(
                 self.new_root
             )
