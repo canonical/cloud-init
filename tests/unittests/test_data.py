@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import requests
 import responses
 
 from cloudinit import handlers
@@ -696,8 +697,14 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.ResponsesTestCase):
     def test_include_bad_url_no_fail(self, mock_sleep):
         """Test #include with a bad URL and failure disabled"""
         bad_url = "http://bad/forbidden"
-        bad_data = "#cloud-config\nbad: true\n"
-        self.responses.add(responses.GET, bad_url, bad_data, status=403)
+        self.responses.add(
+            responses.GET,
+            bad_url,
+            body=requests.HTTPError(
+                f"403 Client Error: Forbidden for url: {bad_url}"
+            ),
+            status=403,
+        )
 
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"

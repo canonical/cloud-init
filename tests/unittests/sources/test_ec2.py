@@ -547,20 +547,20 @@ class TestEc2(test_helpers.ResponsesTestCase):
         self.assertTrue(ds.get_data())
 
         # Workaround https://github.com/getsentry/responses/issues/212
-        if hasattr(responses.mock, "_urls"):
+        if hasattr(self.responses, "_urls"):
             # Can be removed when Bionic is EOL
-            for index, url in enumerate(responses.mock._urls):
+            for index, url in enumerate(self.responses._urls):
                 if url["url"].startswith(
                     "http://169.254.169.254/2009-04-04/meta-data/"
                 ):
-                    del responses.mock._urls[index]
-        elif hasattr(responses.mock, "_matches"):
+                    del self.responses._urls[index]
+        elif hasattr(self.responses, "_matches"):
             # Can be removed when Focal is EOL
-            for index, response in enumerate(responses.mock._matches):
+            for index, response in enumerate(self.responses._matches):
                 if response.url.startswith(
                     "http://169.254.169.254/2009-04-04/meta-data/"
                 ):
-                    del responses.mock._matches[index]
+                    del self.responses._matches[index]
 
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(

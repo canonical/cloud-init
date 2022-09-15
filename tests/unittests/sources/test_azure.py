@@ -880,11 +880,13 @@ class TestGetMetadataFromIMDS(ResponsesTestCase):
     @mock.patch("cloudinit.url_helper.time.sleep")
     def test_get_metadata_from_imds_empty_when_no_imds_present(self, m_sleep):
         """Return empty dict when IMDS network metadata is absent."""
+        # Workaround https://github.com/getsentry/responses/pull/166
+        # url path can be reverted to "/instance?api-version=2019-12-01"
         response = requests.Response()
         response.status_code = 404
         self.responses.add(
             responses.GET,
-            dsaz.IMDS_URL + "/instance?api-version=2019-12-01",
+            dsaz.IMDS_URL + "/instance",
             body=requests.HTTPError("...", response=response),
             status=404,
         )

@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+from urllib.parse import SplitResult, urlsplit
 
 import requests
 import responses
@@ -20,23 +21,23 @@ class DataResponses:
     FAKE_USER_DATA = '#!/bin/bash\necho "user-data"'
 
     @staticmethod
-    def rate_limited(response):
-        return 429, response.headers, ""
+    def rate_limited(request):
+        return 429, request.headers, ""
 
     @staticmethod
-    def api_error(response):
-        return 500, response.headers, ""
+    def api_error(request):
+        return 500, request.headers, ""
 
     @classmethod
-    def get_ok(cls, response):
-        return 200, response.headers, cls.FAKE_USER_DATA
+    def get_ok(cls, request):
+        return 200, request.headers, cls.FAKE_USER_DATA
 
     @staticmethod
-    def empty(response):
+    def empty(request):
         """
         No user data for this server.
         """
-        return 404, response.headers, ""
+        return 404, request.headers, ""
 
 
 class MetadataResponses:
@@ -169,6 +170,19 @@ def get_source_address_adapter(*args, **kwargs):
     return requests.adapters.HTTPAdapter(*args, **kwargs)
 
 
+def _fix_mocking_url(url: str) -> str:
+    # Workaround https://github.com/getsentry/responses/pull/166
+    # This function can be removed when Bionic is EOL
+    split_result = urlsplit(url)
+    return SplitResult(
+        scheme=split_result.scheme,
+        netloc=split_result.netloc,
+        path=split_result.path,
+        query="",  # ignore
+        fragment=split_result.fragment,
+    ).geturl()
+
+
 class TestDataSourceScaleway(ResponsesTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
@@ -179,9 +193,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         )
         super(TestDataSourceScaleway, self).setUp()
 
-        self.metadata_url = DataSourceScaleway.BUILTIN_DS_CONFIG[
-            "metadata_url"
-        ]
+        self.metadata_url = _fix_mocking_url(
+            DataSourceScaleway.BUILTIN_DS_CONFIG["metadata_url"]
+        )
         self.userdata_url = DataSourceScaleway.BUILTIN_DS_CONFIG[
             "userdata_url"
         ]
@@ -345,6 +359,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
+
         self.responses.add_callback(
             responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
@@ -354,6 +369,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.add_callback(
             responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
+        # import pdb; pdb.set_trace()
         self.datasource.get_data()
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
@@ -380,15 +396,19 @@ class TestDataSourceScaleway(ResponsesTestCase):
             responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
 
-        for _ in range(2):
-            self.responses.add_callback(
-                responses.GET,
-                self.userdata_url,
-                callback=DataResponses.rate_limited,
-            )
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        call_count = 0
+
+        def _callback(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return DataResponses.rate_limited(request)
+            return DataResponses.get_ok(request)
 
         self.responses.add_callback(
-            responses.GET, self.userdata_url, callback=DataResponses.get_ok
+            responses.GET, self.userdata_url, callback=_callback
         )
         self.datasource.get_data()
         self.assertEqual(

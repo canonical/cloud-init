@@ -8,7 +8,6 @@ from time import process_time
 import pytest
 import requests
 import responses
-from responses import matchers
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -110,9 +109,13 @@ class TestReadFileOrUrl(CiTestCase):
         """Headers are redacted from logs but unredacted in requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        responses.add(
-            responses.GET, url, match=[matchers.header_matcher(headers)]
-        )
+
+        def _request_callback(request):
+            for k in headers.keys():
+                self.assertEqual(headers[k], request.headers[k])
+            return (200, request.headers, "does_not_matter")
+
+        responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers, headers_redact=["sensitive"])
         logs = self.logs.getvalue()
@@ -124,9 +127,13 @@ class TestReadFileOrUrl(CiTestCase):
         """When no headers_redact, header values are in logs and requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        responses.add(
-            responses.GET, url, match=[matchers.header_matcher(headers)]
-        )
+
+        def _request_callback(request):
+            for k in headers.keys():
+                self.assertEqual(headers[k], request.headers[k])
+            return (200, request.headers, "does_not_matter")
+
+        responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers)
         logs = self.logs.getvalue()

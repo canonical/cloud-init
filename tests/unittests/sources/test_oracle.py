@@ -719,31 +719,46 @@ class TestReadOpcMetadata:
         expectation,
         mocked_responses,
     ):
-        for _ in range(v1_failure_count):
-            mocked_responses.add(
-                responses.GET,
-                "http://169.254.169.254/opc/v1/instance/",
-                body="",
-                status=404,
-            )
-        mocked_responses.add(
-            responses.GET,
-            "http://169.254.169.254/opc/v1/instance/",
-            OPC_V1_METADATA,
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v2_call_count = 0
+
+        def url_v2_callback(request):
+            nonlocal url_v2_call_count
+            url_v2_call_count += 1
+            if url_v2_call_count <= v2_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v2}",
+                )
+            return 200, request.headers, OPC_V2_METADATA
+
+        url_v2 = "http://169.254.169.254/opc/v2/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v2, callback=url_v2_callback
         )
 
-        for _ in range(v2_failure_count):
-            mocked_responses.add(
-                responses.GET,
-                "http://169.254.169.254/opc/v2/instance/",
-                body="",
-                status=404,
-            )
-        mocked_responses.add(
-            responses.GET,
-            "http://169.254.169.254/opc/v2/instance/",
-            OPC_V2_METADATA,
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v1_call_count = 0
+
+        def url_v1_callback(request):
+            nonlocal url_v1_call_count
+            url_v1_call_count += 1
+            if url_v1_call_count <= v1_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v1}",
+                )
+            return 200, request.headers, OPC_V1_METADATA
+
+        url_v1 = "http://169.254.169.254/opc/v1/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v1, callback=url_v1_callback
         )
+
         with expectation:
             assert expected_body == oracle.read_opc_metadata().instance_data
 

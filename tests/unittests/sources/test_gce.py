@@ -12,7 +12,6 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import responses
-from responses import matchers
 
 from cloudinit import distros, helpers, settings
 from cloudinit.sources import DataSourceGCE
@@ -94,7 +93,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self.add_patch("time.sleep", "m_sleep")  # just to speed up tests
         super(TestDataSourceGCE, self).setUp()
 
-    def _set_mock_metadata(self, gce_meta=None):
+    def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
         if gce_meta is None:
             gce_meta = GCE_META
 
@@ -110,6 +109,9 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
                 response = gce_meta.get(path)
                 if recursive:
                     response = json.dumps(response)
+                if check_headers is not None:
+                    for k in check_headers.keys():
+                        self.assertEqual(check_headers[k], request.headers[k])
                 return (200, request.headers, response)
             else:
                 return (404, request.headers, "")
@@ -118,11 +120,10 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             responses.GET,
             MD_URL_RE,
             callback=_request_callback,
-            match=[matchers.header_matcher(HEADERS)],
         )
 
     def test_connection(self):
-        self._set_mock_metadata()
+        self._set_mock_metadata(check_headers=HEADERS)
         success = self.ds.get_data()
         self.assertTrue(success)
 
