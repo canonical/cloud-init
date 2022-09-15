@@ -7,10 +7,11 @@ Any imports that are performed at the top-level here must be installed wherever
 any of these tests run: that is to say, they must be listed in
 ``integration-requirements.txt`` and in ``test-requirements.txt``.
 """
-import os
+from typing import Iterator
 from unittest import mock
 
 import pytest
+import responses as _responses
 
 from cloudinit import helpers, subp, util
 
@@ -167,27 +168,9 @@ def fixture_utils():
 
 
 @pytest.fixture
-def httpretty():
-    """
-    Enable HTTPretty for duration of the testcase, resetting before and after.
-
-    This will also ensure allow_net_connect is set to False, and temporarily
-    unset http_proxy in os.environ if present (to work around
-    https://github.com/gabrielfalcao/HTTPretty/issues/122).
-    """
-    import httpretty as _httpretty
-
-    restore_proxy = os.environ.pop("http_proxy", None)
-    _httpretty.HTTPretty.allow_net_connect = False
-    _httpretty.reset()
-    _httpretty.enable()
-
-    yield _httpretty
-
-    _httpretty.disable()
-    _httpretty.reset()
-    if restore_proxy is not None:
-        os.environ["http_proxy"] = restore_proxy
+def mocked_responses() -> Iterator[_responses.RequestsMock]:
+    with _responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        yield rsps
 
 
 @pytest.fixture

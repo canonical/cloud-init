@@ -2,8 +2,8 @@
 import logging
 import textwrap
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit import util
 from cloudinit.config import cc_puppet
@@ -409,7 +409,6 @@ URL_MOCK = mock.Mock()
 URL_MOCK.contents = b'#!/bin/bash\necho "Hi Mom"'
 
 
-@httpretty.activate
 @pytest.mark.usefixtures("fake_tempdir")
 @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=(None, None))
 @mock.patch(
@@ -471,6 +470,7 @@ class TestInstallPuppetAio:
             ),
         ],
     )
+    @responses.activate
     def test_install_puppet_aio(
         self,
         m_readurl,

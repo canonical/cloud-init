@@ -9,9 +9,9 @@ import stat
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import httpretty
 import pytest
 import requests
+import responses
 
 from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
@@ -31,7 +31,7 @@ from cloudinit.version import version_string as vs
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
-    HttprettyTestCase,
+    ResponsesTestCase,
     mock,
     populate_dir,
     resourceLocation,
@@ -761,7 +761,7 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
 
-class TestGetMetadataFromIMDS(HttprettyTestCase):
+class TestGetMetadataFromIMDS(ResponsesTestCase):
 
     with_logs = True
 
@@ -880,14 +880,19 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
     @mock.patch("cloudinit.url_helper.time.sleep")
     def test_get_metadata_from_imds_empty_when_no_imds_present(self, m_sleep):
         """Return empty dict when IMDS network metadata is absent."""
-        httpretty.register_uri(
-            httpretty.GET,
-            dsaz.IMDS_URL + "/instance?api-version=2017-12-01",
-            body={},
+        response = requests.Response()
+        response.status_code = 404
+        self.responses.add(
+            responses.GET,
+            dsaz.IMDS_URL + "/instance?api-version=2019-12-01",
+            body=requests.HTTPError("...", response=response),
             status=404,
         )
 
-        self.assertEqual({}, dsaz.get_metadata_from_imds(retries=2))
+        self.assertEqual(
+            {},
+            dsaz.get_metadata_from_imds(retries=2, api_version="2019-12-01"),
+        )
 
         self.assertEqual([mock.call(1), mock.call(1)], m_sleep.call_args_list)
         self.assertIn(
@@ -909,8 +914,8 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             self.attempt += 1
             raise requests.Timeout("Fake connection timeout")
 
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             dsaz.IMDS_URL + "instance?api-version=2017-12-01",
             body=retry_callback,
         )

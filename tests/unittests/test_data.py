@@ -13,8 +13,8 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from unittest import mock
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
@@ -638,21 +638,21 @@ c: 4
         self.assertEqual("quxC", cfg["foo"])
 
 
-class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
+class TestConsumeUserDataHttp(TestConsumeUserData, helpers.ResponsesTestCase):
     def setUp(self):
         TestConsumeUserData.setUp(self)
-        helpers.HttprettyTestCase.setUp(self)
+        helpers.ResponsesTestCase.setUp(self)
 
     def tearDown(self):
         TestConsumeUserData.tearDown(self)
-        helpers.HttprettyTestCase.tearDown(self)
+        helpers.ResponsesTestCase.tearDown(self)
 
     @mock.patch("cloudinit.url_helper.time.sleep")
     def test_include(self, mock_sleep):
         """Test #include."""
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        httpretty.register_uri(httpretty.GET, included_url, included_data)
+        self.responses.add(responses.GET, included_url, included_data)
 
         blob = "#include\n%s\n" % included_url
 
@@ -670,11 +670,11 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
         """Test #include with a bad URL."""
         bad_url = "http://bad/forbidden"
         bad_data = "#cloud-config\nbad: true\n"
-        httpretty.register_uri(httpretty.GET, bad_url, bad_data, status=403)
+        self.responses.add(responses.GET, bad_url, bad_data, status=403)
 
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        httpretty.register_uri(httpretty.GET, included_url, included_data)
+        self.responses.add(responses.GET, included_url, included_data)
 
         blob = "#include\n%s\n%s" % (bad_url, included_url)
 
@@ -697,11 +697,11 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
         """Test #include with a bad URL and failure disabled"""
         bad_url = "http://bad/forbidden"
         bad_data = "#cloud-config\nbad: true\n"
-        httpretty.register_uri(httpretty.GET, bad_url, bad_data, status=403)
+        self.responses.add(responses.GET, bad_url, bad_data, status=403)
 
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        httpretty.register_uri(httpretty.GET, included_url, included_data)
+        self.responses.add(responses.GET, included_url, included_data)
 
         blob = "#include\n%s\n%s" % (bad_url, included_url)
 

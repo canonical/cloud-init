@@ -5,10 +5,10 @@ from functools import partial
 from threading import Event
 from time import process_time
 
-import httpretty
 import pytest
 import requests
 import responses
+from responses import matchers
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -82,56 +82,53 @@ class TestReadFileOrUrl(CiTestCase):
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode("utf-8"))
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url(self):
         """Test that str(result.contents) on url is text version of contents.
         It should not be "b'data'", but just "'data'" """
         url = "http://hostname/path"
         data = b"This is my url content\n"
-        httpretty.register_uri(httpretty.GET, url, data)
+        responses.add(responses.GET, url, data)
         result = read_file_or_url(url)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode("utf-8"))
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url_streamed(self):
         """Test that str(result.contents) on url is text version of contents.
         It should not be "b'data'", but just "'data'" """
         url = "http://hostname/path"
         data = b"This is my url content\n"
-        httpretty.register_uri(httpretty.GET, url, data)
+        responses.add(responses.GET, url, data)
         result = read_file_or_url(url, stream=True)
         assert isinstance(result, UrlResponse)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode("utf-8"))
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
         """Headers are redacted from logs but unredacted in requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        httpretty.register_uri(httpretty.GET, url)
-        # By default, httpretty will log our request along with the header,
-        # so if we don't change this the secret will show up in the logs
-        logging.getLogger("httpretty.core").setLevel(logging.CRITICAL)
+        responses.add(
+            responses.GET, url, match=[matchers.header_matcher(headers)]
+        )
 
         read_file_or_url(url, headers=headers, headers_redact=["sensitive"])
         logs = self.logs.getvalue()
-        for k in headers.keys():
-            self.assertEqual(headers[k], httpretty.last_request().headers[k])
         self.assertIn(REDACTED, logs)
         self.assertNotIn("sekret", logs)
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url_redacts_noheaders(self):
         """When no headers_redact, header values are in logs and requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        httpretty.register_uri(httpretty.GET, url)
+        responses.add(
+            responses.GET, url, match=[matchers.header_matcher(headers)]
+        )
 
         read_file_or_url(url, headers=headers)
-        for k in headers.keys():
-            self.assertEqual(headers[k], httpretty.last_request().headers[k])
         logs = self.logs.getvalue()
         self.assertNotIn(REDACTED, logs)
         self.assertIn("sekret", logs)
@@ -514,7 +511,7 @@ class TestUrlHelper:
         If this test proves flaky, increase wait time. Since it is async,
         increasing wait time for the non-responding endpoint should not
         increase total test time, assuming async_delay=0 is used and at least
-        one non-waiting endpoint is registered with httpretty.
+        one non-waiting endpoint is registered with responses.
         Subsequent tests will continue execution after the first response is
         received.
         """

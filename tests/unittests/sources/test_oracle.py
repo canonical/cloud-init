@@ -7,6 +7,7 @@ import logging
 from unittest import mock
 
 import pytest
+import responses
 
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
@@ -615,41 +616,41 @@ class TestNetworkConfigFiltersNetFailover:
         assert expected_cfg == netcfg
 
 
-def _mock_v2_urls(httpretty):
-    def instance_callback(request, uri, response_headers):
-        print(response_headers)
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_V2_METADATA]
+def _mock_v2_urls(mocked_responses):
+    def instance_callback(response):
+        print(response.url)
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_V2_METADATA]
 
-    def vnics_callback(request, uri, response_headers):
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
+    def vnics_callback(response):
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
 
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
-        body=instance_callback,
+        callback=instance_callback,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/vnics/",
-        body=vnics_callback,
+        callback=vnics_callback,
     )
 
 
-def _mock_no_v2_urls(httpretty):
-    httpretty.register_uri(
-        httpretty.GET,
+def _mock_no_v2_urls(mocked_responses):
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
         status=404,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/instance/",
         body=OPC_V1_METADATA,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/vnics/",
         body=OPC_BM_SECONDARY_VNIC_RESPONSE,
     )
@@ -688,9 +689,9 @@ class TestReadOpcMetadata:
         instance_data,
         fetch_vnics,
         vnics_data,
-        httpretty,
+        mocked_responses,
     ):
-        setup_urls(httpretty)
+        setup_urls(mocked_responses)
         metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
 
         assert version == metadata.version
@@ -716,22 +717,32 @@ class TestReadOpcMetadata:
         v1_failure_count,
         expected_body,
         expectation,
-        httpretty,
+        mocked_responses,
     ):
-        v2_responses = [httpretty.Response("", status=404)] * v2_failure_count
-        v2_responses.append(httpretty.Response(OPC_V2_METADATA))
-        v1_responses = [httpretty.Response("", status=404)] * v1_failure_count
-        v1_responses.append(httpretty.Response(OPC_V1_METADATA))
-
-        httpretty.register_uri(
-            httpretty.GET,
+        for _ in range(v1_failure_count):
+            mocked_responses.add(
+                responses.GET,
+                "http://169.254.169.254/opc/v1/instance/",
+                body="",
+                status=404,
+            )
+        mocked_responses.add(
+            responses.GET,
             "http://169.254.169.254/opc/v1/instance/",
-            responses=v1_responses,
+            OPC_V1_METADATA,
         )
-        httpretty.register_uri(
-            httpretty.GET,
+
+        for _ in range(v2_failure_count):
+            mocked_responses.add(
+                responses.GET,
+                "http://169.254.169.254/opc/v2/instance/",
+                body="",
+                status=404,
+            )
+        mocked_responses.add(
+            responses.GET,
             "http://169.254.169.254/opc/v2/instance/",
-            responses=v2_responses,
+            OPC_V2_METADATA,
         )
         with expectation:
             assert expected_body == oracle.read_opc_metadata().instance_data

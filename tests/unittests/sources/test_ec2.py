@@ -259,8 +259,8 @@ def _register_ssh_keys(rfunc, base_url, keys_data):
         rfunc(burl + "/%s/openssh-key/" % name, val)
 
 
-def register_mock_metaserver(base_url, data):
-    """Register with httpretty a ec2 metadata like service serving 'data'.
+def register_mock_metaserver(base_url, data, responses_mock=None):
+    """Register with responses a ec2 metadata like service serving 'data'.
 
     If given a dictionary, it will populate urls under base_url for
     that dictionary.  For example, input of
@@ -272,6 +272,7 @@ def register_mock_metaserver(base_url, data):
        base_url/mac with 00:16:3e:00:00:00
     In the index, references to lists or dictionaries have a trailing /.
     """
+    responses_mock = responses_mock or responses
 
     def register_helper(register, base_url, body):
         if not isinstance(base_url, str):
@@ -304,12 +305,12 @@ def register_mock_metaserver(base_url, data):
         url, body = argc
         method = responses.PUT if ec2.API_TOKEN_ROUTE in url else responses.GET
         status = kwargs.get("status", 200)
-        return responses.add(method, url, body, status=status)
+        return responses_mock.add(method, url, body, status=status)
 
     register_helper(myreg, base_url, data)
 
 
-class TestEc2(test_helpers.HttprettyTestCase):
+class TestEc2(test_helpers.ResponsesTestCase):
     with_logs = True
     maxDiff = None
 
@@ -364,37 +365,46 @@ class TestEc2(test_helpers.HttprettyTestCase):
                 ds.min_metadata_version
             ] + ds.extended_metadata_versions
             token_url = self.data_url("latest", data_item="api/token")
-            register_mock_metaserver(token_url, "API-TOKEN")
+            register_mock_metaserver(token_url, "API-TOKEN", self.responses)
             for version in all_versions:
                 metadata_url = self.data_url(version) + "/"
                 if version == md_version:
                     # Register all metadata for desired version
                     register_mock_metaserver(
-                        metadata_url, md.get("md", DEFAULT_METADATA)
+                        metadata_url,
+                        md.get("md", DEFAULT_METADATA),
+                        self.responses,
                     )
                     userdata_url = self.data_url(
                         version, data_item="user-data"
                     )
-                    register_mock_metaserver(userdata_url, md.get("ud", ""))
+                    register_mock_metaserver(
+                        userdata_url, md.get("ud", ""), self.responses
+                    )
                     identity_url = self.data_url(
                         version, data_item="dynamic/instance-identity"
                     )
                     register_mock_metaserver(
-                        identity_url, md.get("id", DYNAMIC_METADATA)
+                        identity_url,
+                        md.get("id", DYNAMIC_METADATA),
+                        self.responses,
                     )
                 else:
                     instance_id_url = metadata_url + "instance-id"
                     if version == ds.min_metadata_version:
                         # Add min_metadata_version service availability check
                         register_mock_metaserver(
-                            instance_id_url, DEFAULT_METADATA["instance-id"]
+                            instance_id_url,
+                            DEFAULT_METADATA["instance-id"],
+                            self.responses,
                         )
                     else:
                         # Register 404s for all unrequested extended versions
-                        register_mock_metaserver(instance_id_url, None)
+                        register_mock_metaserver(
+                            instance_id_url, None, self.responses
+                        )
         return ds
 
-    @responses.activate
     def test_network_config_property_returns_version_2_network_data(self):
         """network_config property returns network version 2 for metadata"""
         ds = self._setup_ds(
@@ -429,7 +439,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_mac.return_value = mac1
                     self.assertEqual(expected, ds.network_config)
 
-    @responses.activate
     def test_network_config_property_set_dhcp4(self):
         """network_config property configures dhcp4 on nics with local-ipv4s.
 
@@ -468,7 +477,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_mac.return_value = mac1
                     self.assertEqual(expected, ds.network_config)
 
-    @responses.activate
     def test_network_config_property_secondary_private_ips(self):
         """network_config property configures any secondary ipv4 addresses.
 
@@ -512,7 +520,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_mac.return_value = mac1
                     self.assertEqual(expected, ds.network_config)
 
-    @responses.activate
     def test_network_config_property_is_cached_in_datasource(self):
         """network_config property is cached in DataSourceEc2."""
         ds = self._setup_ds(
@@ -524,7 +531,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertEqual({"cached": "data"}, ds.network_config)
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    @responses.activate
     def test_network_config_cached_property_refreshed_on_upgrade(self, m_dhcp):
         """Refresh the network_config Ec2 cache if network key is absent.
 
@@ -558,7 +564,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
-            "http://169.254.169.254/2009-04-04/meta-data/", DEFAULT_METADATA
+            "http://169.254.169.254/2009-04-04/meta-data/",
+            DEFAULT_METADATA,
+            self.responses,
         )
         mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
         get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
@@ -584,7 +592,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         }
         self.assertEqual(expected, ds.network_config)
 
-    @responses.activate
     def test_ec2_get_instance_id_refreshes_identity_on_upgrade(self):
         """get_instance-id gets DataSourceEc2Local.identity if not present.
 
@@ -606,24 +613,26 @@ class TestEc2(test_helpers.HttprettyTestCase):
             register_mock_metaserver(
                 "http://[fd00:ec2::254]/{0}/meta-data/instance-id".format(ver),
                 None,
+                self.responses,
             )
 
         ds.metadata_address = "http://[fd00:ec2::254]"
         register_mock_metaserver(
             "{0}/{1}/meta-data/".format(ds.metadata_address, all_versions[-1]),
             DEFAULT_METADATA,
+            self.responses,
         )
         # Register dynamic/instance-identity document which we now read.
         register_mock_metaserver(
             "{0}/{1}/dynamic/".format(ds.metadata_address, all_versions[-1]),
             DYNAMIC_METADATA,
+            self.responses,
         )
         ds._cloud_name = ec2.CloudNames.AWS
         # Setup cached metadata on the Datasource
         ds.metadata = DEFAULT_METADATA
         self.assertEqual("my-identity-id", ds.get_instance_id())
 
-    @responses.activate
     def test_classic_instance_true(self):
         """If no vpc-id in metadata, is_classic_instance must return true."""
         md_copy = copy.deepcopy(DEFAULT_METADATA)
@@ -640,7 +649,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
         self.assertTrue(ds.is_classic_instance())
 
-    @responses.activate
     def test_classic_instance_false(self):
         """If vpc-id in metadata, is_classic_instance must return false."""
         ds = self._setup_ds(
@@ -651,7 +659,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
         self.assertFalse(ds.is_classic_instance())
 
-    @responses.activate
     def test_aws_inaccessible_imds_service_fails_with_retries(self):
         """Inaccessibility of http://169.254.169.254 are retried."""
         ds = self._setup_ds(
@@ -698,7 +705,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         for readurl_call in m_readurl.call_args_list:
             self.assertIn("latest/api/token", readurl_call[0][0])
 
-    @responses.activate
     def test_aws_token_403_fails_without_retries(self):
         """Verify that 403s fetching AWS tokens are not retried."""
         ds = self._setup_ds(
@@ -708,7 +714,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         )
 
         token_url = self.data_url("latest", data_item="api/token")
-        responses.add(responses.PUT, token_url, status=403)
+        self.responses.add(responses.PUT, token_url, status=403)
         self.assertFalse(ds.get_data())
         # Just one /latest/api/token request
         logs = self.logs.getvalue()
@@ -720,7 +726,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         for log in expected_logs:
             self.assertIn(log, logs)
 
-    @responses.activate
     def test_aws_token_redacted(self):
         """Verify that aws tokens are redacted when logged."""
         ds = self._setup_ds(
@@ -739,7 +744,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertEqual(83, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
-    @responses.activate
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_valid_platform_with_strict_true(self, m_dhcp):
         """Valid platform data should return true with strict_id true."""
@@ -755,7 +759,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertEqual("ec2", ds.platform_type)
         self.assertEqual("metadata (%s)" % ds.metadata_address, ds.subplatform)
 
-    @responses.activate
     def test_valid_platform_with_strict_false(self):
         """Valid platform data should return true with strict_id false."""
         ds = self._setup_ds(
@@ -766,7 +769,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
-    @responses.activate
     def test_unknown_platform_with_strict_true(self):
         """Unknown platform data with strict_id true should return False."""
         uuid = "ab439480-72bf-11d3-91fc-b8aded755F9a"
@@ -778,7 +780,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertFalse(ret)
 
-    @responses.activate
     def test_unknown_platform_with_strict_false(self):
         """Unknown platform data with strict_id false should return True."""
         uuid = "ab439480-72bf-11d3-91fc-b8aded755F9a"
@@ -790,7 +791,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
-    @responses.activate
     def test_ec2_local_returns_false_on_non_aws(self):
         """DataSourceEc2Local returns False when platform is not AWS."""
         self.datasource = ec2.DataSourceEc2Local
@@ -818,7 +818,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                 self.assertIn(message, self.logs.getvalue())
 
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
-    @responses.activate
     def test_ec2_local_returns_false_on_bsd(self, m_is_freebsd):
         """DataSourceEc2Local returns False on BSD.
 
@@ -843,7 +842,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
-    @responses.activate
     def test_ec2_local_performs_dhcp_on_non_bsd(
         self, m_is_bsd, m_dhcp, m_fallback_nic, m_net4, m_net6
     ):
@@ -885,7 +883,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         )
         self.assertIn("Crawl of metadata service ", self.logs.getvalue())
 
-    @responses.activate
     def test_get_instance_tags(self):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,

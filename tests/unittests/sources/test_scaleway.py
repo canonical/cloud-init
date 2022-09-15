@@ -2,12 +2,12 @@
 
 import json
 
-import httpretty
 import requests
+import responses
 
 from cloudinit import helpers, settings, sources
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
+from tests.unittests.helpers import CiTestCase, ResponsesTestCase, mock
 
 
 class DataResponses:
@@ -20,23 +20,23 @@ class DataResponses:
     FAKE_USER_DATA = '#!/bin/bash\necho "user-data"'
 
     @staticmethod
-    def rate_limited(method, uri, headers):
-        return 429, headers, ""
+    def rate_limited(response):
+        return 429, response.headers, ""
 
     @staticmethod
-    def api_error(method, uri, headers):
-        return 500, headers, ""
+    def api_error(response):
+        return 500, response.headers, ""
 
     @classmethod
-    def get_ok(cls, method, uri, headers):
-        return 200, headers, cls.FAKE_USER_DATA
+    def get_ok(cls, response):
+        return 200, response.headers, cls.FAKE_USER_DATA
 
     @staticmethod
-    def empty(method, uri, headers):
+    def empty(response):
         """
         No user data for this server.
         """
-        return 404, headers, ""
+        return 404, response.headers, ""
 
 
 class MetadataResponses:
@@ -63,8 +63,8 @@ class MetadataResponses:
     }
 
     @classmethod
-    def get_ok(cls, method, uri, headers):
-        return 200, headers, json.dumps(cls.FAKE_METADATA)
+    def get_ok(cls, response):
+        return 200, response.headers, json.dumps(cls.FAKE_METADATA)
 
 
 class TestOnScaleway(CiTestCase):
@@ -163,13 +163,13 @@ def get_source_address_adapter(*args, **kwargs):
     to bind on ports below 1024.
 
     This function removes the bind on a privileged address, since anyway the
-    HTTP call is mocked by httpretty.
+    HTTP call is mocked by responses.
     """
     kwargs.pop("source_address")
     return requests.adapters.HTTPAdapter(*args, **kwargs)
 
 
-class TestDataSourceScaleway(HttprettyTestCase):
+class TestDataSourceScaleway(ResponsesTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
         distro = mock.MagicMock()
@@ -214,14 +214,14 @@ class TestDataSourceScaleway(HttprettyTestCase):
         m_get_cmdline.return_value = "scaleway"
 
         # Make user data API return a valid response
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=DataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=DataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.get_ok
         )
         self.datasource.get_data()
 
@@ -345,14 +345,14 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=DataResponses.empty
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
         self.datasource.get_data()
         self.assertIsNone(self.datasource.get_userdata_raw())
@@ -373,21 +373,22 @@ class TestDataSourceScaleway(HttprettyTestCase):
         """
         m_get_cmdline.return_value = "scaleway"
 
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
 
-        httpretty.register_uri(
-            httpretty.GET,
-            self.userdata_url,
-            responses=[
-                httpretty.Response(body=DataResponses.rate_limited),
-                httpretty.Response(body=DataResponses.rate_limited),
-                httpretty.Response(body=DataResponses.get_ok),
-            ],
+        for _ in range(2):
+            self.responses.add_callback(
+                responses.GET,
+                self.userdata_url,
+                callback=DataResponses.rate_limited,
+            )
+
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=DataResponses.get_ok
         )
         self.datasource.get_data()
         self.assertEqual(
