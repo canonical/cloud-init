@@ -2,6 +2,7 @@
 import logging
 import re
 import sys
+from builtins import __import__
 from collections import namedtuple
 
 import pytest
@@ -27,6 +28,17 @@ from tests.unittests.util import get_cloud
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
+
+
+def decorate__import__with_errors(name_startswith):
+    """Decorates __import__ with errors"""
+
+    def __import__with_error(name, *args, **kwargs):
+        if name.startswith(name_startswith):
+            raise ImportError(f"No module named '{name_startswith}'")
+        return __import__(name, *args, **kwargs)
+
+    return __import__with_error
 
 
 class FakeUserFacingError(Exception):
@@ -838,15 +850,17 @@ class TestHandle:
                 "nomatter",
                 cfg=cfg,
                 log=mock.Mock(),
-                cloud=None,
+                cloud=self.cloud,
                 args=None,
             )
 
 
 class TestShouldAutoAttach:
     def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules.pop("uaclient", None)
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors("uaclient"),
+        )
         assert not _should_auto_attach(ua_section={})
         assert (
             "Unable to import `uaclient`: No module named 'uaclient'"
@@ -862,7 +876,12 @@ class TestShouldAutoAttach:
         sys.modules["uaclient"] = mock.Mock()
         sys.modules["uaclient.api"] = mock.Mock()
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        sys.modules.pop("uaclient.api.exceptions", None)
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors(
+                "uaclient.api.exceptions"
+            ),
+        )
         assert not _should_auto_attach({})
         assert (
             "Unable to import `uaclient`: No module named"
@@ -921,8 +940,10 @@ class TestAutoAttach:
     ua_section: dict = {}
 
     def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules.pop("uaclient", None)
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors("uaclient"),
+        )
         expected_msg = (
             "Unable to import `uaclient`: No module named 'uaclient'"
         )
@@ -936,13 +957,15 @@ class TestAutoAttach:
         sys.modules["uaclient.api"] = mock.Mock()
         sys.modules["uaclient.api.exceptions"] = mock.Mock()
         sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        sys.modules.pop(
-            "uaclient.api.u.pro.attach.auto.full_auto_attach", None
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors(
+                "uaclient.api.u.pro.attach.auto.full_auto_attach"
+            ),
         )
         expected_msg = (
             "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.u.pro.attach.auto.full_auto_attach';"
-            " 'uaclient.api.u.pro.attach.auto' is not a package"
+            " 'uaclient.api.u.pro.attach.auto.full_auto_attach'"
         )
         with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
             _auto_attach(self.ua_section)
