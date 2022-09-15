@@ -153,14 +153,6 @@ def validate_schema_features(ua_section: dict):
         LOG.error(msg)
         raise RuntimeError(msg)
 
-    # Validate extra keys under ubuntu_advantage.features
-    extra_keys = set(features.keys()) - {"disable_auto_attach"}
-    if extra_keys:
-        LOG.debug(
-            "Ignoring unknown 'ubuntu_advantage.features': %s",
-            ", ".join(sorted(extra_keys)),
-        )
-
     # Validate ubuntu_advantage.features.disable_auto_attach
     if "disable_auto_attach" not in features:
         return

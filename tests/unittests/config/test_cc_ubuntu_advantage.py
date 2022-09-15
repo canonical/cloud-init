@@ -414,7 +414,13 @@ class TestUbuntuAdvantageSchema:
                         "token": "<token>",
                     }
                 },
-                does_not_raise(),
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "ubuntu_advantage.features: Additional properties are"
+                        " not allowed ('asdf'"
+                    ),
+                ),
                 id="pro_additional_features",
             ),
         ],
@@ -462,14 +468,6 @@ class TestUbuntuAdvantageSchema:
                 [
                     "'ubuntu_advantage.features.disable_auto_attach' should be"
                     " a bool, not a list\n"
-                ],
-            ),
-            (
-                {"features": {"unknown": True, "foobar": False}},
-                does_not_raise(),
-                [
-                    "Ignoring unknown 'ubuntu_advantage.features': foobar,"
-                    " unknown\n"
                 ],
             ),
         ],
