@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import contextlib
 import logging
 import os
 import re
@@ -13,7 +14,7 @@ from io import StringIO
 
 import configobj
 
-from cloudinit import subp, temp_utils, util
+from cloudinit import subp, util
 from cloudinit.net import find_fallback_nic, get_devicelist
 
 LOG = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class NoDHCPLeaseError(Exception):
 
 
 class InvalidDHCPLeaseFileError(NoDHCPLeaseError):
-    """Raised when parsing an empty or invalid dhcp.leases file.
+    """Raised when parsing an empty or invalid dhclient.lease file.
 
     Current uses are DataSourceAzure and DataSourceEc2 during ephemeral
     boot to scrape metadata.
@@ -69,14 +70,7 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None, tmp_dir=None):
     if not dhclient_path:
         LOG.debug("Skip dhclient configuration: No dhclient command found.")
         raise NoDHCPLeaseMissingDhclientError()
-    with temp_utils.tempdir(
-        rmtree_ignore_errors=True,
-        prefix="cloud-init-dhcp-",
-        needs_exe=True,
-        dir=tmp_dir,
-    ) as tdir:
-        # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
-        return dhcp_discovery(dhclient_path, nic, tdir, dhcp_log_func)
+    return dhcp_discovery(dhclient_path, nic, dhcp_log_func)
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -113,36 +107,30 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
-def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
+def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
     @param dhclient_cmd_path: Full path to the dhclient used.
-    @param interface: Name of the network inteface on which to dhclient.
-    @param cleandir: The directory from which to run dhclient as well as store
-        dhcp leases.
+    @param interface: Name of the network interface on which to dhclient.
     @param dhcp_log_func: A callable accepting the dhclient output and error
         streams.
 
     @return: A list of dicts of representing the dhcp leases parsed from the
-        dhcp.leases file or empty list.
+        dhclient.lease file or empty list.
     """
     LOG.debug("Performing a dhcp discovery on %s", interface)
 
-    # XXX We copy dhclient out of /sbin/dhclient to avoid dealing with strict
-    # app armor profiles which disallow running dhclient -sf <our-script-file>.
     # We want to avoid running /sbin/dhclient-script because of side-effects in
     # /etc/resolv.conf any any other vendor specific scripts in
     # /etc/dhcp/dhclient*hooks.d.
-    sandbox_dhclient_cmd = os.path.join(cleandir, "dhclient")
-    util.copy(dhclient_cmd_path, sandbox_dhclient_cmd)
-    pid_file = os.path.join(cleandir, "dhclient.pid")
-    lease_file = os.path.join(cleandir, "dhcp.leases")
+    pid_file = "/run/dhclient.pid"
+    lease_file = "/run/dhclient.lease"
 
-    # In some cases files in /var/tmp may not be executable, launching dhclient
-    # from there will certainly raise 'Permission denied' error. Try launching
-    # the original dhclient instead.
-    if not os.access(sandbox_dhclient_cmd, os.X_OK):
-        sandbox_dhclient_cmd = dhclient_cmd_path
+    # this function waits for these files to exist, clean previous runs
+    # to avoid false positive in wait_for_files
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(pid_file)
+        os.remove(lease_file)
 
     # ISC dhclient needs the interface up to send initial discovery packets.
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
@@ -150,7 +138,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     # we need to do that "link up" ourselves first.
     subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
     cmd = [
-        sandbox_dhclient_cmd,
+        dhclient_cmd_path,
         "-1",
         "-v",
         "-lf",
