@@ -46,6 +46,10 @@ CFG_FULL = {
     "ansible": {
         "install-method": "distro",
         "package-name": "ansible-core",
+        "galaxy": {
+            "actions": [["ansible-galaxy", "install", "debops.apt"]],
+            "ANSIBLE_CONFIG": "/etc/ansible/ansible.cfg",
+        },
         "pull": {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "arch.yml",
@@ -230,6 +234,7 @@ class TestAnsible:
             M_PATH + "AnsiblePullDistro.is_installed",
             return_value=False,
         )
+        mocker.patch.dict(M_PATH + "os.environ", clear=True)
         if exception:
             with raises(exception):
                 cc_ansible.handle("", cfg, get_cloud(), None, None)
@@ -246,24 +251,33 @@ class TestAnsible:
                 assert 0 == cloud.distro.install_packages.call_count
                 m_subp.assert_has_calls(
                     [
-                        call(["python3", "-m", "pip", "list"]),
                         call(
-                            [
+                            args=["python3", "-m", "pip", "list"],
+                            env={"PATH": ""},
+                        ),
+                        call(
+                            args=[
                                 "python3",
                                 "-m",
                                 "pip",
                                 "install",
                                 "--user",
                                 "ansible",
-                            ]
+                            ],
+                            env={"PATH": ""},
                         ),
                     ]
                 )
-                assert m_subp.call_args[0][0] == [
-                    "ansible-pull",
-                    "--url=https://github/holmanb/vmboot",
-                    "ubuntu.yml",
-                ]
+                print(m_subp.call_args)
+                print(m_subp.call_args[0])
+                assert m_subp.call_args == call(
+                    args=[
+                        "ansible-pull",
+                        "--url=https://github/holmanb/vmboot",
+                        "ubuntu.yml",
+                    ],
+                    env={"PATH": ""},
+                )
 
     @mock.patch(M_PATH + "which", return_value=False)
     def test_deps_not_installed(self, m_which):
@@ -328,15 +342,20 @@ class TestAnsible:
         """verify expected ansible invocation from userdata config"""
         pull_type = cfg["ansible"]["install-method"]
         distro = get_cloud().distro
-        ansible_pull = (
-            cc_ansible.AnsiblePullPip(distro)
-            if pull_type == "pip"
-            else cc_ansible.AnsiblePullDistro(distro)
-        )
+        with mock.patch.dict(M_PATH + "os.environ", clear=True):
+            ansible_pull = (
+                cc_ansible.AnsiblePullPip(distro)
+                if pull_type == "pip"
+                else cc_ansible.AnsiblePullDistro(distro)
+            )
         cc_ansible.run_ansible_pull(
             ansible_pull, deepcopy(cfg["ansible"]["pull"])
         )
-        assert m_subp.call_args[0][0] == expected
+
+        if pull_type == "pip":
+            assert m_subp.call_args == call(args=expected, env={"PATH": ""})
+        else:
+            assert m_subp.call_args == call(expected)
 
     @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):

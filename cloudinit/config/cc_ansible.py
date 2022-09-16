@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from copy import deepcopy
-from logging import Logger
 from textwrap import dedent
 from typing import Optional
 
@@ -64,15 +63,16 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 PIP_PKG = "python3-pip"
+CFG_OVERRIDE = "ANSIBLE_CONFIG"
 
 
 class AnsiblePull(abc.ABC):
     cmd_version: list = []
     cmd_pull: list = []
-    env: dict = os.environ.copy()
+    env: dict = {}
 
     def get_version(self) -> Optional[Version]:
-        stdout, _ = subp(self.cmd_version, env=self.env)
+        stdout, _ = self.subp(self.cmd_version)
         first_line = stdout.splitlines().pop(0)
         matches = re.search(r"([\d\.]+)", first_line)
         if matches:
@@ -81,12 +81,15 @@ class AnsiblePull(abc.ABC):
         return None
 
     def pull(self, *args) -> str:
-        stdout, _ = subp([*self.cmd_pull, *args], env=self.env)
+        stdout, _ = self.subp([*self.cmd_pull, *args])
         return stdout
 
     def check_deps(self):
         if not self.is_installed():
             raise ValueError("command: ansible is not installed")
+
+    def subp(self, command, **kwargs):
+        return subp(command, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):
@@ -101,8 +104,14 @@ class AnsiblePullPip(AnsiblePull):
     def __init__(self, distro: Distro):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
-        self.env["PATH"] = ":".join([self.env["PATH"], "/root/.local/bin/"])
         self.distro = distro
+
+        self.env = os.environ.copy()
+        old_path = self.env.get("PATH")
+        if old_path:
+            self.env["PATH"] = ":".join([old_path, "/root/.local/bin/"])
+        else:
+            self.env["PATH"] = ""
 
     def install(self, pkg_name: str):
         """should cloud-init grow an interface for non-distro package
@@ -112,11 +121,14 @@ class AnsiblePullPip(AnsiblePull):
             # bootstrap pip if required
             if not which("pip3"):
                 self.distro.install_packages(PIP_PKG)
-            subp(["python3", "-m", "pip", "install", "--user", pkg_name])
+            self.subp(["python3", "-m", "pip", "install", "--user", pkg_name])
 
     def is_installed(self) -> bool:
-        stdout, _ = subp(["python3", "-m", "pip", "list"])
+        stdout, _ = self.subp(["python3", "-m", "pip", "list"])
         return "ansible" in stdout
+
+    def subp(self, command, **kwargs):
+        return subp(args=command, env=self.env, **kwargs)
 
 
 class AnsiblePullDistro(AnsiblePull):
@@ -124,6 +136,7 @@ class AnsiblePullDistro(AnsiblePull):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
+        self.env = os.environ.copy()
 
     def install(self, pkg_name: str):
         if not self.is_installed():
@@ -133,23 +146,30 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, _, __) -> None:
+
     ansible_cfg: dict = cfg.get("ansible", {})
+    install_method = ansible_cfg.get("install-method")
+    galaxy_cfg = ansible_cfg.get("galaxy")
+    pull_cfg = ansible_cfg.get("pull")
+    package_name = ansible_cfg.get("package-name", "")
+
     if ansible_cfg:
         ansible: AnsiblePull
         validate_config(ansible_cfg)
-        install = ansible_cfg["install-method"]
-        pull_cfg = ansible_cfg.get("pull")
+
+        distro: Distro = cloud.distro
+        if install_method == "pip":
+            ansible = AnsiblePullPip(distro)
+        else:
+            ansible = AnsiblePullDistro(distro)
+        ansible.install(package_name)
+        ansible.check_deps()
+
+        if galaxy_cfg:
+            ansible_galaxy(galaxy_cfg, ansible)
+
         if pull_cfg:
-            distro: Distro = cloud.distro
-            if install == "pip":
-                ansible = AnsiblePullPip(distro)
-            else:
-                ansible = AnsiblePullDistro(distro)
-            ansible.install(ansible_cfg["package-name"])
-            ansible.check_deps()
             run_ansible_pull(ansible, deepcopy(pull_cfg))
 
 
@@ -196,3 +216,15 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
     )
     if stdout:
         sys.stdout.write(f"{stdout}")
+
+
+def ansible_galaxy(cfg: dict, ansible: AnsiblePull):
+    actions = cfg.get("actions", [])
+    ansible_config = cfg.get(CFG_OVERRIDE, "")
+    if ansible_config:
+        ansible.env[CFG_OVERRIDE] = ansible_config
+
+    if not actions:
+        LOG.warning("Invalid config: %s", cfg)
+    for command in actions:
+        ansible.subp(command)

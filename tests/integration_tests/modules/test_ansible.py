@@ -88,6 +88,9 @@ INSTALL_METHOD = """
 ansible:
   install-method: {method}
   package-name: {package}
+  galaxy:
+    actions:
+     - ["ansible-galaxy", "collection", "install", "community.grafana"]
   pull:
     url: "http://0.0.0.0:8000/"
     playbook-name: ubuntu.yml
