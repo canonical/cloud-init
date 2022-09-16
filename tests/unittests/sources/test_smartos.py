@@ -350,7 +350,7 @@ SUCCESS_LEN = len("0123abcd SUCCESS ")
 NOTFOUND_LEN = len("0123abcd NOTFOUND")
 
 
-class PsuedoJoyentClient(object):
+class PsuedoJoyentClient:
     def __init__(self, data=None):
         if data is None:
             data = MOCK_RETURNS.copy()
@@ -736,7 +736,7 @@ class TestIdentifyFile(CiTestCase):
         )
 
 
-class ShortReader(object):
+class ShortReader:
     """Implements a 'read' interface for bytes provided.
     much like io.BytesIO but the 'endbyte' acts as if EOF.
     When it is reached a short will be returned."""

@@ -17,6 +17,7 @@ Example
     from logging import Logger
 
     from cloudinit.cloud import Cloud
+    from cloudinit.config import Config
     from cloudinit.config.schema import MetaSchema, get_meta_doc
     from cloudinit.distros import ALL_DISTROS
     from cloudinit.settings import PER_INSTANCE
@@ -44,7 +45,9 @@ Example
     __doc__ = get_meta_doc(meta)
 
 
-    def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
+    def handle(
+        name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+    ) -> None:
         log.debug(f"Hi from module {name}")
 
 

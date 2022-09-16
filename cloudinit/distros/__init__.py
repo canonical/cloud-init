@@ -16,11 +16,19 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Optional, Type
+from typing import Any, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net, persistence, ssh_util, subp, type_utils, util
+from cloudinit import (
+    net,
+    persistence,
+    ssh_util,
+    subp,
+    temp_utils,
+    type_utils,
+    util,
+)
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
@@ -79,7 +87,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
-    renderer_configs: Mapping[str, Mapping[str, Any]] = {}
+    renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
@@ -89,6 +97,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     _ci_pkl_version = 1
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
+
+    osfamily: str
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -941,6 +951,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         else:
             raise NotImplementedError()
+
+    def get_tmp_exec_path(self) -> str:
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        if not util.has_mount_opt(tmp_dir, "noexec"):
+            return tmp_dir
+        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

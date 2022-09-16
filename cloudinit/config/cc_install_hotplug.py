@@ -1,9 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Install hotplug udev rules if supported and enabled"""
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import stages, subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
@@ -65,7 +68,9 @@ LABEL="cloudinit_end"
 """
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     network_hotplug_enabled = (
         "updates" in cfg
         and "network" in cfg["updates"]

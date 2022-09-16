@@ -131,7 +131,7 @@ def total_time_record(total_time):
     return "Total Time: %3.5f seconds\n" % total_time
 
 
-class SystemctlReader(object):
+class SystemctlReader:
     """
     Class for dealing with all systemctl subp calls in a consistent manner.
     """

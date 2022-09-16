@@ -9,9 +9,12 @@
 """Keys to Console: Control which SSH host keys may be written to console"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -74,7 +77,9 @@ def _get_helper_tool_path(distro):
     return HELPER_TOOL_TPL % base_lib
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
         log.debug(
             "Skipping module named %s, logging of SSH host keys disabled", name

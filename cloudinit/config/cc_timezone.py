@@ -7,7 +7,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Timezone: Set the system timezone"""
 
+from logging import Logger
+
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -32,7 +36,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if len(args) != 0:
         timezone = args[0]
     else:

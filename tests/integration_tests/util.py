@@ -47,6 +47,12 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         )
         log = "\n".join(log_lines)
 
+    error_logs = re.findall("ERROR.*", log)
+    if error_logs:
+        raise AssertionError(
+            "Found unexpected errors: %s" % "\n".join(error_logs)
+        )
+
     warning_count = log.count("WARN")
     expected_warnings = 0
     traceback_count = log.count("Traceback")

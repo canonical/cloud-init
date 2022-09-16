@@ -3,9 +3,12 @@
 """Autoinstall: Support ubuntu live-server autoinstall syntax."""
 
 import re
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import (
     MetaSchema,
     SchemaProblem,
@@ -21,20 +24,21 @@ distros = ["ubuntu"]
 
 meta: MetaSchema = {
     "id": "cc_ubuntu_autoinstall",
-    "name": "Autoinstall",
+    "name": "Ubuntu Autoinstall",
     "title": "Support Ubuntu live-server install syntax",
     "description": dedent(
         """\
-        Ubuntu's autoinstall syntax supports single-system automated installs
-        in either the live-server or live-desktop installers.
+        Ubuntu's autoinstall YAML supports single-system automated installs
+        in either the live-server install, via the ``subiquity`` snap, or the
+        next generation desktop installer, via `ubuntu-desktop-install` snap.
         When "autoinstall" directives are provided in either
-        #cloud-config user-data or ``/etc/cloud/cloud.cfg.d`` validate
+        ``#cloud-config`` user-data or ``/etc/cloud/cloud.cfg.d`` validate
         minimal autoinstall schema adherance and emit a warning if the
         live-installer is not present.
 
         The live-installer will use autoinstall directives to seed answers to
         configuration prompts during system install to allow for a
-        "touchless" Ubuntu system install.
+        "touchless" or non-interactive Ubuntu system install.
 
         For more details on Ubuntu's autoinstaller:
             https://ubuntu.com/server/docs/install/autoinstall
@@ -71,7 +75,9 @@ __doc__ = get_meta_doc(meta)
 LIVE_INSTALLER_SNAPS = ("subiquity", "ubuntu-desktop-installer")
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     if "autoinstall" not in cfg:
         LOG.debug(

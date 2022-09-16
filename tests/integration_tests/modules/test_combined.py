@@ -67,8 +67,8 @@ snap:
   commands:
     - snap install hello-world
 ssh_import_id:
-  - gh:powersj
   - lp:smoser
+
 timezone: US/Aleutian
 """
 
@@ -217,10 +217,7 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            if ImageSpecification.from_os_image().release in [
-                "bionic",
-                "focal",
-            ]:
+            if ImageSpecification.from_os_image().release == "bionic":
                 datasource = "DataSourceNoCloud"
             else:
                 datasource = "DataSourceLXD"
@@ -294,10 +291,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
+        if ImageSpecification.from_os_image().release != "bionic":
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -333,10 +327,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
+        if ImageSpecification.from_os_image().release != "bionic":
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -428,5 +419,4 @@ class TestCombinedNoCI:
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
 
-        assert "# ssh-import-id gh:powersj" in ssh_output
         assert "# ssh-import-id lp:smoser" in ssh_output

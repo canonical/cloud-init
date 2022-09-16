@@ -12,11 +12,14 @@ import glob
 import os
 import pathlib
 import re
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp, templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -160,7 +163,9 @@ def get_default_mirrors(arch=None, target=None):
     raise ValueError("No default mirror known for arch %s" % arch)
 
 
-def handle(name, ocfg, cloud, log, _):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
@@ -170,18 +175,18 @@ def handle(name, ocfg, cloud, log, _):
         global LOG
         LOG = log
     # feed back converted config, but only work on the subset under 'apt'
-    ocfg = convert_to_v3_apt_format(ocfg)
-    cfg = ocfg.get("apt", {})
+    cfg = convert_to_v3_apt_format(cfg)
+    apt_cfg = cfg.get("apt", {})
 
-    if not isinstance(cfg, dict):
+    if not isinstance(apt_cfg, dict):
         raise ValueError(
             "Expected dictionary for 'apt' config, found {config_type}".format(
-                config_type=type(cfg)
+                config_type=type(apt_cfg)
             )
         )
 
-    apply_debconf_selections(cfg, target)
-    apply_apt(cfg, cloud, target)
+    apply_debconf_selections(apt_cfg, target)
+    apply_apt(apt_cfg, cloud, target)
 
 
 def _should_configure_on_empty_apt():

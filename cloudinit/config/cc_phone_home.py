@@ -8,9 +8,12 @@
 
 """Phone Home: Post data to url"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import templater, url_helper, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -105,7 +108,9 @@ __doc__ = get_meta_doc(meta)
 #
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
@@ -130,7 +135,7 @@ def handle(name, cfg, cloud, log, args):
     post_list = ph_cfg.get("post", "all")
     tries = ph_cfg.get("tries")
     try:
-        tries = int(tries)  # pyright: ignore
+        tries = int(tries)  # type: ignore
     except (ValueError, TypeError):
         tries = 10
         util.logexc(

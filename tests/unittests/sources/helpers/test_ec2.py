@@ -273,5 +273,55 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(iam["info"]["LastUpdated"], "2016-10-27T17:29:39Z")
         self.assertNotIn("security-credentials", iam)
 
+    def test_metadata_children_with_invalid_character(self):
+        def _skip_tags(exception):
+            if isinstance(exception, uh.UrlError) and exception.code == 404:
+                if "meta-data/tags/" in exception.url:
+                    print(exception.url)
+                    return True
+            return False
+
+        base_url = "http://169.254.169.254/%s/meta-data/" % (self.VERSION)
+        hp.register_uri(
+            hp.GET,
+            base_url,
+            status=200,
+            body="\n".join(["tags/", "ami-launch-index"]),
+        )
+        hp.register_uri(
+            hp.GET,
+            uh.combine_url(base_url, "tags/"),
+            status=200,
+            body="\n".join(["test/invalid", "valid"]),
+        )
+        hp.register_uri(
+            hp.GET,
+            uh.combine_url(base_url, "tags/valid"),
+            status=200,
+            body="OK",
+        )
+        hp.register_uri(
+            hp.GET,
+            uh.combine_url(base_url, "tags/test/invalid"),
+            status=404,
+        )
+        hp.register_uri(
+            hp.GET,
+            uh.combine_url(base_url, "ami-launch-index"),
+            status=200,
+            body="1",
+        )
+        md = ec2.get_instance_metadata(
+            self.VERSION,
+            retries=0,
+            timeout=0.1,
+            retrieval_exception_ignore_cb=_skip_tags,
+        )
+        self.assertEqual(md["tags"]["valid"], "OK")
+        self.assertEqual(md["tags"]["test/invalid"], "(skipped)")
+        self.assertEqual(md["ami-launch-index"], "1")
+        md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        self.assertEqual(len(md), 0)
+
 
 # vi: ts=4 expandtab

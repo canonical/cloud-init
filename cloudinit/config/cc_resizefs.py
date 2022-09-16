@@ -11,9 +11,12 @@
 import errno
 import os
 import stat
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
@@ -207,7 +210,9 @@ def maybe_get_writable_device_path(devpath, info, log):
     return devpath  # The writable block devpath
 
 
-def handle(name, cfg, _cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if len(args) != 0:
         resize_root = args[0]
     else:

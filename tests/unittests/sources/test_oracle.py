@@ -929,6 +929,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
+                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
@@ -971,6 +972,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
+                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 

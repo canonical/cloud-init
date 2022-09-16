@@ -32,8 +32,13 @@ DMI_ASSET_TAG_OPENTELEKOM = "OpenTelekomCloud"
 # See github.com/sapcc/helm-charts/blob/master/openstack/nova/values.yaml
 # -> compute.defaults.vmware.smbios_asset_tag for this value
 DMI_ASSET_TAG_SAPCCLOUD = "SAP CCloud VM"
+DMI_ASSET_TAG_HUAWEICLOUD = "HUAWEICLOUD"
 VALID_DMI_ASSET_TAGS = VALID_DMI_PRODUCT_NAMES
-VALID_DMI_ASSET_TAGS += [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
+VALID_DMI_ASSET_TAGS += [
+    DMI_ASSET_TAG_HUAWEICLOUD,
+    DMI_ASSET_TAG_OPENTELEKOM,
+    DMI_ASSET_TAG_SAPCCLOUD,
+]
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
@@ -150,7 +155,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
-                with EphemeralDHCPv4(self.fallback_interface):
+                with EphemeralDHCPv4(
+                    self.fallback_interface,
+                    tmp_dir=self.distro.get_tmp_exec_path(),
+                ):
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",

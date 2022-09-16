@@ -10,7 +10,7 @@ from cloudinit.sources import DataSourceScaleway
 from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
 
 
-class DataResponses(object):
+class DataResponses:
     """
     Possible responses of the API endpoint
     169.254.42.42/user_data/cloud-init and
@@ -39,7 +39,7 @@ class DataResponses(object):
         return 404, headers, ""
 
 
-class MetadataResponses(object):
+class MetadataResponses:
     """
     Possible responses of the metadata API.
     """
@@ -172,8 +172,10 @@ def get_source_address_adapter(*args, **kwargs):
 class TestDataSourceScaleway(HttprettyTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
         )
         super(TestDataSourceScaleway, self).setUp()
 

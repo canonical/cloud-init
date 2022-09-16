@@ -3,11 +3,14 @@
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
 import re
+from logging import Logger
 from textwrap import dedent
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -24,9 +27,10 @@ meta: MetaSchema = {
         Attach machine to an existing Ubuntu Advantage support contract and
         enable or disable support services such as Livepatch, ESM,
         FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
-        one can also specify services to enable.  When the 'enable'
-        list is present, any named service will supplement the contract-default
-        enabled services.
+        one can also specify services to enable. When the 'enable'
+        list is present, only named services will be activated. Whereas
+        'enable' list is not present, any named service will supplement
+        contract-default enabled services.
 
         Note that when enabling FIPS or FIPS updates you will need to schedule
         a reboot to ensure the machine is running the FIPS-compliant kernel.
@@ -96,6 +100,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
+REDACTED = "REDACTED"
 
 
 def supplemental_schema_validation(ua_config):
@@ -199,29 +204,40 @@ def configure_ua(token=None, enable=None, config=None):
                 ", ".join('"{}"'.format(param) for param, _ in enable_errors)
             )
         )
-    attach_cmd = ["ua", "attach", token]
-    LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(attach_cmd))
+
+    if enable:
+        attach_cmd = ["ua", "attach", "--no-auto-enable", token]
+    else:
+        attach_cmd = ["ua", "attach", token]
+    redacted_cmd = attach_cmd[:-1] + [REDACTED]
+    LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(redacted_cmd))
     try:
-        subp.subp(attach_cmd)
+        # Allow `ua attach` to fail in already attached machines
+        subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        msg = "Failure attaching Ubuntu Advantage:\n{error}".format(
-            error=str(e)
-        )
+        error = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Advantage:\n{error}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
+
     enable_errors = []
     for service in enable:
         try:
             cmd = ["ua", "enable", "--assume-yes", service]
             subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
-            enable_errors.append((service, e))
+            if re.search("is already enabled.", str(e)):
+                LOG.debug('Service "%s" already enabled.', service)
+            else:
+                enable_errors.append((service, e))
+
     if enable_errors:
         for service, error in enable_errors:
             msg = 'Failure enabling "{service}":\n{error}'.format(
                 service=service, error=str(error)
             )
             util.logexc(LOG, msg)
+
         raise RuntimeError(
             "Failure enabling Ubuntu Advantage service(s): {}".format(
                 ", ".join(
@@ -247,7 +263,9 @@ def maybe_install_ua_tools(cloud):
         raise
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     ua_section = None
     if "ubuntu-advantage" in cfg:
         LOG.warning(

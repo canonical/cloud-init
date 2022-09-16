@@ -138,7 +138,7 @@ class CommandHandlerMeta(type):
         return super(CommandHandlerMeta, cls).__new__(cls, name, parents, dct)
 
 
-class NetworkState(object):
+class NetworkState:
     def __init__(
         self, network_state: dict, version: int = NETWORK_STATE_VERSION
     ):
@@ -796,7 +796,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             " netplan rendering support."
         )
 
-    def _v2_common(self, cfg):
+    def _v2_common(self, cfg) -> None:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
             if "set-name" in dev_cfg:
@@ -813,10 +813,13 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     name_cmd.update({"address": dns})
                 self.handle_nameserver(name_cmd)
 
-                mac_address = dev_cfg.get("match", {}).get("macaddress")
-                real_if_name = find_interface_name_from_mac(mac_address)
-                if real_if_name:
-                    iface = real_if_name
+                mac_address: Optional[str] = dev_cfg.get("match", {}).get(
+                    "macaddress"
+                )
+                if mac_address:
+                    real_if_name = find_interface_name_from_mac(mac_address)
+                    if real_if_name:
+                        iface = real_if_name
 
                 self._handle_individual_nameserver(name_cmd, iface)
 

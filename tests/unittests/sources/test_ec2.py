@@ -336,7 +336,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
     def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
         self.uris = []
-        distro = {}
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         paths = helpers.Paths({"run_dir": self.tmp})
         if sys_cfg is None:
             sys_cfg = {}
@@ -805,13 +806,13 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ]
         for attr_name in platform_attrs:
             platform_name = getattr(ec2.CloudNames, attr_name)
-            if platform_name != "aws":
+            if platform_name not in ["aws", "outscale"]:
                 ds._cloud_name = platform_name
                 ret = ds.get_data()
                 self.assertEqual("ec2", ds.platform_type)
                 self.assertFalse(ret)
                 message = (
-                    "Local Ec2 mode only supported on ('aws',),"
+                    "Local Ec2 mode only supported on ('aws', 'outscale'),"
                     " not {0}".format(platform_name)
                 )
                 self.assertIn(message, self.logs.getvalue())
@@ -873,7 +874,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with("eth9", None)
+        m_dhcp.assert_called_once_with("eth9", None, mock.ANY)
         m_net4.assert_called_once_with(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -1176,6 +1177,7 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
             "uuid": "81c7e555-6471-4833-9551-1ab366c4cfd2",
             "uuid_source": "dmi",
             "vendor": "tothecloud",
+            "product_name": "cloudproduct",
         }
         unspecial.update(**kwargs)
         return unspecial
@@ -1206,6 +1208,34 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
     def test_identify_e24cloud_negative(self, m_collect):
         """e24cloud identified if vendor is e24cloud"""
         m_collect.return_value = self.collmock(vendor="e24cloudyday")
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
+
+    # Outscale
+    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
+    def test_identify_outscale(self, m_collect):
+        """Should return true if the dmi product data has expected value."""
+        m_collect.return_value = self.collmock(
+            vendor="3DS Outscale".lower(),
+            product_name="3DS Outscale VM".lower(),
+        )
+        self.assertEqual(ec2.CloudNames.OUTSCALE, ec2.identify_platform())
+
+    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
+    def test_false_on_wrong_sys_vendor(self, m_collect):
+        """Should return false on empty value returned."""
+        m_collect.return_value = self.collmock(
+            vendor="Not 3DS Outscale".lower(),
+            product_name="3DS Outscale VM".lower(),
+        )
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
+
+    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
+    def test_false_on_wrong_product_name(self, m_collect):
+        """Should return false on an unrelated string."""
+        m_collect.return_value = self.collmock(
+            vendor="3DS Outscale".lower(),
+            product_name="Not 3DS Outscale VM".lower(),
+        )
         self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
 
 

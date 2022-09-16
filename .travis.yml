@@ -133,7 +133,7 @@ matrix:
             TOXENV=lowest-supported
             PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: bionic
-        - python: 3.7
+        - python: 3.10
           env: TOXENV=doc
           install:
             - git fetch --unshallow

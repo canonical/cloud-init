@@ -1,9 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Spacewalk: Install and configure spacewalk"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -85,7 +88,9 @@ def do_register(
     subp.subp(cmd, capture=False)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "spacewalk" not in cfg:
         log.debug(
             "Skipping module named %s, no 'spacewalk' key in configuration",

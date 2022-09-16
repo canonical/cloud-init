@@ -18,6 +18,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
 from tests.unittests import helpers as test_helpers
+from tests.unittests.helpers import mock
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
@@ -291,8 +292,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         ds_os_local = ds.DataSourceOpenStackLocal(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os_local._fallback_interface = "eth9"  # Monkey patch for dhcp
         m_dhcp.return_value = [
@@ -322,7 +325,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
         self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
-        m_dhcp.assert_called_with("eth9", None)
+        m_dhcp.assert_called_with("eth9", None, mock.ANY)
 
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -601,6 +604,26 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         self.assertTrue(
             ds.detect_openstack(),
             "Expected detect_openstack == True on SAP CCloud VM",
+        )
+
+    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    def test_detect_openstack_huaweicloud_chassis_asset_tag(
+        self, m_dmi, m_is_x86
+    ):
+        """Return True on OpenStack reporting Huawei Cloud VM asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_asset_tag_dmi_read(dmi_key):
+            if dmi_key == "system-product-name":
+                return "c7.large.2"  # No match
+            if dmi_key == "chassis-asset-tag":
+                return "HUAWEICLOUD"
+            assert False, "Unexpected dmi read of %s" % dmi_key
+
+        m_dmi.side_effect = fake_asset_tag_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            "Expected detect_openstack == True on Huawei Cloud VM",
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")

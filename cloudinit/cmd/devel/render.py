@@ -9,8 +9,11 @@ import os
 import sys
 
 from cloudinit import log
-from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
-from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.handlers.jinja_template import (
+    JinjaLoadError,
+    NotJinjaError,
+    render_jinja_payload_from_file,
+)
 
 from . import addLogHandlerCLI, read_cfg_paths
 
@@ -51,7 +54,7 @@ def get_parser(parser=None):
     return parser
 
 
-def handle_args(name, args):
+def render_template(user_data_path, instance_data_path=None, debug=False):
     """Render the provided user-data template file using instance-data values.
 
     Also setup CLI log handlers to report to stderr since this is a development
@@ -59,17 +62,15 @@ def handle_args(name, args):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
-    if args.instance_data:
-        instance_data_fn = args.instance_data
+    addLogHandlerCLI(LOG, log.DEBUG if debug else log.WARNING)
+    if instance_data_path:
+        instance_data_fn = instance_data_path
     else:
         paths = read_cfg_paths()
         uid = os.getuid()
-        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        redacted_data_fn = paths.get_runpath("instance_data")
         if uid == 0:
-            instance_data_fn = os.path.join(
-                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-            )
+            instance_data_fn = paths.get_runpath("instance_data_sensitive")
             if not os.path.exists(instance_data_fn):
                 LOG.warning(
                     "Missing root-readable %s. Using redacted %s instead.",
@@ -83,32 +84,33 @@ def handle_args(name, args):
         LOG.error("Missing instance-data.json file: %s", instance_data_fn)
         return 1
     try:
-        with open(args.user_data) as stream:
+        with open(user_data_path) as stream:
             user_data = stream.read()
     except IOError:
-        LOG.error("Missing user-data file: %s", args.user_data)
+        LOG.error("Missing user-data file: %s", user_data_path)
         return 1
     try:
         rendered_payload = render_jinja_payload_from_file(
             payload=user_data,
-            payload_fn=args.user_data,
+            payload_fn=user_data_path,
             instance_data_file=instance_data_fn,
-            debug=True if args.debug else False,
+            debug=True if debug else False,
         )
-    except RuntimeError as e:
-        LOG.error("Cannot render from instance data: %s", str(e))
+    except (JinjaLoadError, NotJinjaError) as e:
+        LOG.error(
+            "Cannot render from instance data due to exception: %s", repr(e)
+        )
         return 1
     if not rendered_payload:
-        LOG.error("Unable to render user-data file: %s", args.user_data)
+        LOG.error("Unable to render user-data file: %s", user_data_path)
         return 1
     sys.stdout.write(rendered_payload)
     return 0
 
 
-def main():
-    args = get_parser().parse_args()
-    return handle_args(NAME, args)
+def handle_args(_name, args):
+    return render_template(args.user_data, args.instance_data, args.debug)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(handle_args(NAME, get_parser().parse_args()))
