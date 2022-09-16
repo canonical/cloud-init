@@ -1,3 +1,6 @@
+22.3.3
+ - Fix Oracle DS not setting subnet when using IMDS (LP: #1989686)
+
 22.3.2
  - azure: define new attribute for pre-22.3 pickles (#1725)
  - sources/azure: ensure instance id is always correct (#1727)
