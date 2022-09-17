@@ -250,8 +250,9 @@ class TestApt:
         assert (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_write.gpg] "
             "http://ppa.launchpad.net/juju/devel/ubuntu"
-            " {} main".format(release)           
+            " {} main".format(release)
         ) in test_write_content
+
 
 _DEFAULT_DATA = """\
 #cloud-config
