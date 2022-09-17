@@ -63,13 +63,15 @@ def remove_machine_id(delFiles: frozenset):
       # /etc/machine-id
       # /var/lib/dbus/machine-id
 
-    @raises: OSError
+    @param: frozenset of files to delete
+
+    @raises: Exception
     """
     try:
         for file in delFiles:
             LOG.info("Removing file %s", file)
             util.del_file(file)
-    except OSError as e:
+    except Exception as e:
         raise RuntimeError(f"Failed to remove file '{file}'") from e
 
 
