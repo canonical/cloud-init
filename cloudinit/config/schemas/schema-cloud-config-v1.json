@@ -704,7 +704,7 @@
     "cc_create_machine_id": {
       "type": "object",
       "properties": {
-        "create-machine-id": {
+        "create_machine_id": {
           "type": "boolean",
           "default": false,
           "description": "Creates an machine-id"

@@ -30,10 +30,10 @@ class TestCreateMachineID(CiTestCase):
 
     def test_suppl_schema_non_boolean_values(self):
         """ValueError raised for any values expected as boolean type."""
-        cmid_enabled = {"create-machine-id": "not-a-bool"}
+        cmid_enabled = {"create_machine_id": "not-a-bool"}
         match = (
-            f"Invalid 'create-machine-id' configuration:{NL}"
-            "Expected a bool for create-machine-id. Found not-a-bool"
+            f"Invalid 'create_machine_id' configuration:{NL}"
+            "Expected a bool for create_machine_id. Found not-a-bool"
         )
         with self.assertRaisesRegex(ValueError, match):
             cc_create_machine_id.supplemental_schema_validation(cmid_enabled)
@@ -73,7 +73,7 @@ class TestCreateMachineIDSchema:
         [
             # Valid schemas
             (
-                {"create-machine-id": True},
+                {"create_machine_id": True},
                 None,
             ),
         ],

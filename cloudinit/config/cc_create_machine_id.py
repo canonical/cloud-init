@@ -1,7 +1,7 @@
 # Author: Fabian Lichtenegger-Lukas <fabian.lichtenegger-lukas@nts.eu>
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""create-machine-id"""
+"""create_machine_id"""
 from logging import Logger
 
 from cloudinit import log as logging
@@ -19,14 +19,14 @@ This will likely take multiple lines.
 
 meta: MetaSchema = {
     "id": "cc_create_machine_id",
-    "name": "create-machine-id",
+    "name": "create_machine_id",
     "title": "Re/creates machine-id",
     "description": MODULE_DESCRIPTION,
     "distros": ["ubuntu"],
     "frequency": PER_ONCE,
-    "activate_by_schema_keys": ["create-machine-id"],
+    "activate_by_schema_keys": ["create_machine_id"],
     "examples": [
-        "create-machine-id: true",
+        "create_machine_id: true",
     ],
 }
 
@@ -50,13 +50,13 @@ def supplemental_schema_validation(mid: dict):
     """
     errors = []
     for key, value in sorted(mid.items()):
-        if key == "create-machine-id":
+        if key == "create_machine_id":
             if not isinstance(value, bool):
                 errors.append(f"Expected a bool for {key}. Found {value}")
 
     if errors:
         raise ValueError(
-            f"Invalid 'create-machine-id' configuration:{NL}{NL.join(errors)}"
+            f"Invalid 'create_machine_id' configuration:{NL}{NL.join(errors)}"
         )
 
 
@@ -69,6 +69,7 @@ def remove_machine_id(delFiles: frozenset):
     """
     try:
         for file in delFiles:
+            LOG.info("Removing file %s", file)
             util.del_file(file)
     except OSError as e:
         raise RuntimeError(f"Failed to remove file '{file}'") from e
@@ -80,7 +81,9 @@ def create_machine_id():
     @raises: ProcessExecutionError
     """
     try:
-        subp.subp("systemd-machine-id-setup")
+        LOG.info("Creating new machine-id")
+        (out, _) = subp.subp("systemd-machine-id-setup")
+        LOG.info("%s", out)
     except subp.ProcessExecutionError as e:
         util.logexc(LOG, f"Could not create machine-id:{NL}{str(e)}")
         raise
@@ -91,13 +94,13 @@ def handle(
 ) -> None:
     cmid_section = None
 
-    if "create-machine-id" in cfg:
-        LOG.debug("Found create-machine-id section in config")
-        cmid_section = util.get_cfg_option_str(cfg, "create-machine-id", False)
+    if "create_machine_id" in cfg:
+        LOG.debug("Found create_machine_id section in config")
+        cmid_section = util.get_cfg_option_str(cfg, "create_machine_id", False)
     else:
         LOG.debug(
             """Skipping module named %s,
-            no 'create-machine-id' configuration found""",
+            no 'create_machine_id' configuration found""",
             name,
         )
         return
