@@ -28,16 +28,16 @@ class TestCreateMachineID(CiTestCase):
         super(TestCreateMachineID, self).setUp()
         self.tmp = self.tmp_dir()
 
-#    def test_remove_machine_id_failed(self):
-#        """OSError when machine-id gets removed"""
-#        machine_id_files = frozenset(["/etc/machine-id"])
-#
-#        with self.assertRaises(RuntimeError) as context_mgr:
-#            cc_create_machine_id.remove_machine_id(machine_id_files)
-#        self.assertIn(
-#            "Failed to remove file '/etc/machine-id'",
-#            str(context_mgr.exception),
-#        )
+    def test_remove_machine_id_failed(self):
+        """OSError when machine-id gets removed"""
+        machine_id_files = frozenset(["/etc/machine-id"])
+
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_create_machine_id.remove_machine_id(machine_id_files)
+        self.assertIn(
+            "Failed to remove file '/etc/machine-id'",
+            str(context_mgr.exception),
+        )
 
     @mock.patch("%s.subp.subp" % MPATH)
     def test_create_machine_id_failed(self, m_subp):

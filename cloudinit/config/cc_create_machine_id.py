@@ -12,9 +12,17 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ONCE
 
 MODULE_DESCRIPTION = """\
-Description that will be used in module documentation.
+This module is responsible for creating a new machine-id
+during cloud-init's init stage.
 
-This will likely take multiple lines.
+How this module works:
+  1. Remove the following files and links:
+      - /etc/machine-id
+      - /var/lib/dbus/machine-id
+  2. Create new machine-id with "systemd-machine-id-setup"
+
+Attention, this module will only work with systemd
+installed.
 """
 
 meta: MetaSchema = {
