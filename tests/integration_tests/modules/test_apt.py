@@ -78,6 +78,16 @@ apt:
         pb0uBy+g0oxJQg15
         =uy53
         -----END PGP PUBLIC KEY BLOCK-----
+    test_write:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+      append: false
+    test_write:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/devel/ubuntu $RELEASE main"
+      append: false
 apt_pipelining: os
 """  # noqa: E501
 
