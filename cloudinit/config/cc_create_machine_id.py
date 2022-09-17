@@ -38,21 +38,19 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-def supplemental_schema_validation(mid: dict):
+def supplemental_schema_validation(mid: str):
     """Validate user-provided machine-id option values.
 
     This function supplements flexible jsonschema validation with specific
     value checks to aid in triage of invalid user-provided configuration.
 
-    @param mid: Dict of configuration value under 'machine-id'.
+    @param mid: String
 
     @raises: ValueError describing invalid values provided.
     """
     errors = []
-    for key, value in sorted(mid.items()):
-        if key == "create_machine_id":
-            if not isinstance(value, bool):
-                errors.append(f"Expected a bool for {key}. Found {value}")
+    if not isinstance(mid, bool):
+        errors.append(f"Expected a bool for create_machine_id. Found {mid}")
 
     if errors:
         raise ValueError(
