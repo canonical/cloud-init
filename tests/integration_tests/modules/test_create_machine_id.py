@@ -7,8 +7,6 @@ from tests.integration_tests.util import verify_clean_log
 USER_DATA = """\
 #cloud-config
 create_machine_id: true
-runcmd:
-  - "touch /test.txt"
 """
 
 
@@ -46,3 +44,4 @@ class TestCreateMachineID:
         cloud_init_log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(cloud_init_log)
         assert "Removing file /etc/machine-id" in cloud_init_log
+        assert "Creating new machine-id" in cloud_init_log
