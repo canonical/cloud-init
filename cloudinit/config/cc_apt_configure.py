@@ -589,7 +589,12 @@ def add_apt_sources(
         sourcefn = subp.target_path(target, ent["filename"])
         try:
             contents = "%s\n" % (source)
-            util.write_file(sourcefn, contents, omode="a")
+            omode = "a"
+
+            if "append" in ent and not ent["append"]:
+                omode = "w"
+
+            util.write_file(sourcefn, contents, omode=omode)
         except IOError as detail:
             LOG.exception("failed write to file %s: %s", sourcefn, detail)
             raise

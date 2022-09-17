@@ -479,6 +479,10 @@
                       },
                       "filename": {
                           "type": "string"
+                      },
+                      "append": {
+                          "type": "boolean",
+                          "default": true
                       }
                   },
                   "minProperties": 1
