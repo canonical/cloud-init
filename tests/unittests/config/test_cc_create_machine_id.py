@@ -28,16 +28,6 @@ class TestCreateMachineID(CiTestCase):
         super(TestCreateMachineID, self).setUp()
         self.tmp = self.tmp_dir()
 
-    def test_suppl_schema_non_boolean_values(self):
-        """ValueError raised for any values expected as boolean type."""
-        cmid_enabled = "not-a-bool"
-        match = (
-            f"Invalid 'create_machine_id' configuration:{NL}"
-            "Expected a bool for create_machine_id. Found not-a-bool"
-        )
-        with self.assertRaisesRegex(ValueError, match):
-            cc_create_machine_id.supplemental_schema_validation(cmid_enabled)
-
     def test_remove_machine_id_failed(self):
         """OSError when machine-id gets removed"""
         machine_id_files = frozenset(["/etc/machine-id"])

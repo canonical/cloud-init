@@ -38,26 +38,6 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-def supplemental_schema_validation(mid: str):
-    """Validate user-provided machine-id option values.
-
-    This function supplements flexible jsonschema validation with specific
-    value checks to aid in triage of invalid user-provided configuration.
-
-    @param mid: String
-
-    @raises: ValueError describing invalid values provided.
-    """
-    errors = []
-    if not isinstance(mid, bool):
-        errors.append(f"Expected a bool for create_machine_id. Found {mid}")
-
-    if errors:
-        raise ValueError(
-            f"Invalid 'create_machine_id' configuration:{NL}{NL.join(errors)}"
-        )
-
-
 def remove_machine_id(delFiles: frozenset):
     """Removes following files:
       # /etc/machine-id
@@ -92,11 +72,11 @@ def create_machine_id():
 def handle(
     name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
 ) -> None:
-    cmid_section = None
+    cmid_sctn = None
 
     if "create_machine_id" in cfg:
         LOG.debug("Found create_machine_id section in config")
-        cmid_section = util.get_cfg_option_str(cfg, "create_machine_id", False)
+        cmid_sctn = util.get_cfg_option_bool(cfg, "create_machine_id", False)
     else:
         LOG.debug(
             """Skipping module named %s,
@@ -110,8 +90,6 @@ def handle(
         LOG.error("systemd is not installed! Won't execute module!")
         return
 
-    supplemental_schema_validation(cmid_section)
-
-    if cmid_section:
+    if cmid_sctn:
         remove_machine_id(MACHINE_ID_FILES)
         create_machine_id()
