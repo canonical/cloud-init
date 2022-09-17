@@ -589,10 +589,10 @@ def add_apt_sources(
         sourcefn = subp.target_path(target, ent["filename"])
         try:
             contents = "%s\n" % (source)
-            omode = "a"
+            omode = 'a'
 
             if "append" in ent and not ent["append"]:
-                omode = "w"
+                omode = 'w'
 
             util.write_file(sourcefn, contents, omode=omode)
         except IOError as detail:

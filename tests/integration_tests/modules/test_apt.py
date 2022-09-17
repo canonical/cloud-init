@@ -242,11 +242,11 @@ class TestApt:
         assert conf_exists is False
 
     def test_sources_write(self, class_client: IntegrationInstance):
-        """"""
+        """Test overwrite or append to sources file"""
         release = ImageSpecification.from_os_image().release
         test_write_content = class_client.read_from_file(
-            "/etc/apt/sources.list.d/test_wite.list"
-        ).ok
+            "/etc/apt/sources.list.d/test_write.list"
+        )
         assert (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_write.gpg] "
             "http://ppa.launchpad.net/juju/devel/ubuntu"
