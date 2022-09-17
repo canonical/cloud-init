@@ -85,6 +85,9 @@ cloud_init_modules:
 {% if variant not in ["netbsd"] %}
  - seed_random
 {% endif %}
+{% if variant in ["ubuntu"] %}
+ - create_machine_id
+{% endif %}
  - bootcmd
  - write-files
 {% if variant not in ["netbsd", "openbsd"] %}
