@@ -45,4 +45,4 @@ class TestCreateMachineID:
     def test_check_log(self, class_client: IntegrationInstance):
         cloud_init_log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(cloud_init_log)
-        assert "Removing file" in cloud_init_log
+        assert "Removing file /etc/machine-id" in cloud_init_log
