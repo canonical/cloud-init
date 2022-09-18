@@ -117,6 +117,13 @@ meta: MetaSchema = {
                   key: |
                       ------BEGIN PGP PUBLIC KEY BLOCK-------
                       <key data>
+                      ------END PGP PUBLIC KEY BLOCK-------
+              source4:
+                  source: 'deb $MIRROR $RELEASE multiverse'
+                  append: false
+                  key: |
+                      ------BEGIN PGP PUBLIC KEY BLOCK-------
+                      <key data>
                       ------END PGP PUBLIC KEY BLOCK-------"""
         )
     ],
