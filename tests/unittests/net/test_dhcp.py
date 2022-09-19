@@ -4,8 +4,8 @@ import os
 import signal
 from textwrap import dedent
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError,
@@ -22,7 +22,7 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import (
     CiTestCase,
-    HttprettyTestCase,
+    ResponsesTestCase,
     mock,
     populate_dir,
 )
@@ -662,13 +662,13 @@ class TestSystemdParseLeases(CiTestCase):
         )
 
 
-class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
+class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_no_network_if_url_connectivity(self, m_dhcp):
         """No EphemeralDhcp4 network setup when connectivity_url succeeds."""
         url = "http://example.org/index.html"
 
-        httpretty.register_uri(httpretty.GET, url)
+        self.responses.add(responses.GET, url)
         with EphemeralDHCPv4(
             connectivity_url_data={"url": url},
         ) as lease:
@@ -691,7 +691,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         m_dhcp.return_value = [fake_lease]
         m_subp.return_value = ("", "")
 
-        httpretty.register_uri(httpretty.GET, url, body={}, status=404)
+        self.responses.add(responses.GET, url, body=b"", status=404)
         with EphemeralDHCPv4(
             connectivity_url_data={"url": url},
         ) as lease:

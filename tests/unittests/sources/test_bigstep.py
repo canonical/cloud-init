@@ -1,8 +1,8 @@
 import json
 import os
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceBigstep as bigstep
@@ -21,11 +21,11 @@ METADATA_BODY = json.dumps(
 
 
 class TestBigstep:
-    @httpretty.activate
     @pytest.mark.parametrize("custom_paths", [False, True])
     @mock.patch(M_PATH + "util.load_file", return_value=IMDS_URL)
+    @responses.activate
     def test_get_data_honor_cloud_dir(self, m_load_file, custom_paths, tmpdir):
-        httpretty.register_uri(httpretty.GET, IMDS_URL, body=METADATA_BODY)
+        responses.add(responses.GET, IMDS_URL, body=METADATA_BODY)
 
         paths = {}
         url_file = "/var/lib/cloud/data/seed/bigstep/url"
