@@ -369,7 +369,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.add_callback(
             responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
-        # import pdb; pdb.set_trace()
         self.datasource.get_data()
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
