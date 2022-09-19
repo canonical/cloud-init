@@ -5,6 +5,7 @@
 import re
 from logging import Logger
 from textwrap import dedent
+from typing import Any
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -29,8 +30,8 @@ meta: MetaSchema = {
         FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
         one can also specify services to enable. When the 'enable'
         list is present, only named services will be activated. Whereas
-        'enable' list is not present, any named service will supplement
-        contract-default enabled services.
+        'enable' list is not present, the contract-default services will be
+        enabled.
 
         On Pro instances, when ``ubuntu_advantage`` config is provided to
         cloud-init, Pro's auto-attach feature will be disabled and cloud-init
@@ -90,8 +91,8 @@ meta: MetaSchema = {
           config:
             http_proxy: 'http://some-proxy:8088'
             https_proxy: 'https://some-proxy:8088'
-            global_apt_https_proxy: 'http://some-global-apt-proxy:8088/'
-            global_apt_http_proxy: 'https://some-global-apt-proxy:8088/'
+            global_apt_https_proxy: 'https://some-global-apt-proxy:8088/'
+            global_apt_http_proxy: 'http://some-global-apt-proxy:8088/'
             ua_apt_http_proxy: 'http://10.0.10.10:3128'
             ua_apt_https_proxy: 'https://10.0.10.10:3128'
           enable:
@@ -137,6 +138,14 @@ ERROR_MSG_SHOULD_AUTO_ATTACH = (
     "Unable to determine if this is an Ubuntu Pro instance."
     " Fallback to normal UA attach."
 )
+UA_CONFIG_PROPS = (
+    "http_proxy",
+    "https_proxy",
+    "global_apt_http_proxy",
+    "global_apt_https_proxy",
+    "ua_apt_http_proxy",
+    "ua_apt_https_proxy",
+)
 
 
 def validate_schema_features(ua_section: dict):
@@ -172,47 +181,87 @@ def supplemental_schema_validation(ua_config: dict):
     This function supplements flexible jsonschema validation with specific
     value checks to aid in triage of invalid user-provided configuration.
 
+    Note: It does not log/raise config values as they could be urls containing
+    sensitive auth info.
+
     @param ua_config: Dictionary of config value under 'ubuntu_advantage'.
 
     @raises: ValueError describing invalid values provided.
     """
     errors = []
-    nl = "\n"
     for key, value in sorted(ua_config.items()):
-        if key in (
-            "http_proxy",
-            "https_proxy",
-            "global_apt_http_proxy",
-            "global_apt_https_proxy",
-            "ua_apt_http_proxy",
-            "ua_apt_https_proxy",
-        ):
-            try:
-                parsed_url = urlparse(value)
-                if parsed_url.scheme not in ("http", "https"):
-                    errors.append(
-                        f"Expected URL scheme http/https for ua:config:{key}."
-                        f" Found: {value}"
-                    )
-            except (AttributeError, ValueError):
+        if key not in UA_CONFIG_PROPS:
+            LOG.warning(
+                "Ignoring unknown ubuntu_advantage.config.%s property", key
+            )
+            continue
+        elif value is None:  # key will be unset
+            continue
+        try:
+            parsed_url = urlparse(value)
+            if parsed_url.scheme not in ("http", "https"):
                 errors.append(
-                    f"Expected a URL for ua:config:{key}. Found: {value}"
+                    f"Expected URL scheme http/https for ua:config:{key}"
                 )
+        except (AttributeError, ValueError):
+            errors.append(f"Expected a URL for ua:config:{key}")
 
     if errors:
         raise ValueError(
-            f"Invalid ubuntu_advantage configuration:{nl}{nl.join(errors)}"
+            "Invalid ubuntu_advantage configuration:\n{}".format(
+                "\n".join(errors)
+            )
         )
 
 
-def configure_ua(token=None, enable=None, config=None):
-    """Call ua commandline client to attach or enable services."""
-    error = None
-    if not token:
-        error = "ubuntu_advantage: token must be provided"
-        LOG.error(error)
-        raise RuntimeError(error)
+def set_ua_config(ua_config: Any = None):
+    if ua_config is None:
+        return
+    if not isinstance(ua_config, dict):
+        raise RuntimeError(
+            f"ubuntu_advantage: config should be a dict, not"
+            f" a {type(ua_config).__name__};"
+            " skipping enabling config parameters"
+        )
+    supplemental_schema_validation(ua_config)
 
+    enable_errors = []
+    for key, value in sorted(ua_config.items()):
+        if key not in UA_CONFIG_PROPS:
+            continue  # Already logged in `supplemental_schema_validation`
+        redacted_key_value = None
+        subp_kwargs: dict = {}
+        if value is None:
+            LOG.debug("Disabling UA config for %s", key)
+            config_cmd = ["ua", "config", "unset", key]
+        else:
+            redacted_key_value = f"{key}=REDACTED"
+            LOG.debug("Enabling UA config %s", redacted_key_value)
+            if re.search(r"\s", value):
+                key_value = f"{key}={re.escape(value)}"
+            else:
+                key_value = f"{key}={value}"
+            config_cmd = ["ua", "config", "set", key_value]
+            subp_kwargs = {"logstring": config_cmd[:-1] + [redacted_key_value]}
+        try:
+            subp.subp(config_cmd, **subp_kwargs)
+        except subp.ProcessExecutionError as e:
+            err_msg = str(e)
+            if redacted_key_value is not None:
+                err_msg = err_msg.replace(value, REDACTED)
+            enable_errors.append((key, err_msg))
+    if enable_errors:
+        for param, error in enable_errors:
+            LOG.warning('Failure enabling/disabling "%s":\n%s', param, error)
+        raise RuntimeError(
+            "Failure enabling/disabling Ubuntu Advantage config(s): {}".format(
+                ", ".join('"{}"'.format(param) for param, _ in enable_errors)
+            )
+        )
+
+
+def configure_ua(token, enable=None):
+    """Call ua commandline client to attach and/or enable services."""
     if enable is None:
         enable = []
     elif isinstance(enable, str):
@@ -228,45 +277,6 @@ def configure_ua(token=None, enable=None, config=None):
             type(enable).__name__,
         )
         enable = []
-
-    if config is None:
-        config = dict()
-    elif not isinstance(config, dict):
-        LOG.warning(
-            "ubuntu_advantage: config should be a dict, not"
-            " a %s; skipping enabling config parameters",
-            type(config).__name__,
-        )
-        config = dict()
-
-    enable_errors = []
-
-    # UA Config
-    for key, value in sorted(config.items()):
-        if value is None:
-            LOG.debug("Unsetting UA config for %s", key)
-            config_cmd = ["ua", "config", "unset", key]
-        else:
-            LOG.debug("Setting UA config %s=%s", key, value)
-            if re.search(r"\s", value):
-                key_value = f"{key}={re.escape(value)}"
-            else:
-                key_value = f"{key}={value}"
-            config_cmd = ["ua", "config", "set", key_value]
-
-        try:
-            subp.subp(config_cmd)
-        except subp.ProcessExecutionError as e:
-            enable_errors.append((key, e))
-
-    if enable_errors:
-        for param, error in enable_errors:
-            LOG.warning('Failure enabling "%s":\n%s', param, error)
-        raise RuntimeError(
-            "Failure enabling Ubuntu Advantage config(s): {}".format(
-                ", ".join('"{}"'.format(param) for param, _ in enable_errors)
-            )
-        )
 
     if enable:
         attach_cmd = ["ua", "attach", "--no-auto-enable", token]
@@ -364,11 +374,7 @@ def _attach(ua_section: dict):
             " %s",
             ", ".join(enable_beta),
         )
-    configure_ua(
-        token=token,
-        enable=ua_section.get("enable"),
-        config=ua_section.get("config"),
-    )
+    configure_ua(token=token, enable=ua_section.get("enable"))
 
 
 def _auto_attach(ua_section: dict):
@@ -431,6 +437,7 @@ def handle(
         raise RuntimeError(msg)
 
     maybe_install_ua_tools(cloud)
+    set_ua_config(ua_section.get("config"))
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
     validate_schema_features(ua_section)
@@ -448,9 +455,6 @@ def handle(
     # 3) The user wants to disable auto-attach and attach by giving:
     #    `{"ubuntu_advantage": "features": {"disable_auto_attach": True}}`
     elif not ua_section.keys() <= {"features"}:
-        config = ua_section.get("config")
-        if config is not None:
-            supplemental_schema_validation(config)
         _attach(ua_section)
 
 

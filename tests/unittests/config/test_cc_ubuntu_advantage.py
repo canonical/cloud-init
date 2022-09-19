@@ -15,7 +15,7 @@ from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua,
     handle,
     maybe_install_ua_tools,
-    supplemental_schema_validation,
+    set_ua_config,
     validate_schema_features,
 )
 from cloudinit.config.schema import (
@@ -311,62 +311,6 @@ class TestConfigureUA:
         ) in caplog.record_tuples
         assert 'Failure enabling "fips"' not in caplog.text
 
-    def test_configure_ua_config_with_weird_params(self, m_subp, caplog):
-        """When configs not string or list, warn but still attach"""
-        configure_ua(
-            token="SomeToken", config=["http_proxy=http://some-proxy.net:3128"]
-        )
-        assert [
-            mock.call(
-                ["ua", "attach", "SomeToken"],
-                logstring=["ua", "attach", "REDACTED"],
-                rcs={0, 2},
-            )
-        ] == m_subp.call_args_list
-        assert (
-            MPATH,
-            logging.WARNING,
-            "ubuntu_advantage: config should be a dict, not a"
-            " list; skipping enabling config parameters",
-        ) == caplog.record_tuples[-2]
-        assert (
-            MPATH,
-            logging.DEBUG,
-            "Attaching to Ubuntu Advantage. ua attach REDACTED",
-        ) == caplog.record_tuples[-1]
-
-    def test_configure_ua_config_error_invalid_url(self, m_subp, caplog):
-        """Errors from ua config command are raised."""
-        m_subp.side_effect = subp.ProcessExecutionError(
-            'Failure enabling "http_proxy"'
-        )
-        with pytest.raises(
-            RuntimeError,
-            match=re.escape(
-                'Failure enabling Ubuntu Advantage config(s): "http_proxy"'
-            ),
-        ):
-            configure_ua(
-                token="SomeToken", config={"http_proxy": "not-a-valid-url"}
-            )
-
-    def test_configure_ua_config_error_non_string_values(self, m_subp):
-        """ValueError raised for any values expected as string type."""
-        cfg = {
-            "global_apt_http_proxy": "noscheme",
-            "http_proxy": ["no-proxy"],
-            "https_proxy": 1,
-        }
-        match = re.escape(
-            "Expected URL scheme http/https for"
-            " ua:config:global_apt_http_proxy. Found: noscheme\n"
-            "Expected a URL for ua:config:http_proxy. Found: ['no-proxy']\n"
-            "Expected a URL for ua:config:https_proxy. Found: 1"
-        )
-        with pytest.raises(ValueError, match=match):
-            supplemental_schema_validation(cfg)
-        assert 0 == m_subp.call_count
-
 
 class TestUbuntuAdvantageSchema:
     @pytest.mark.parametrize(
@@ -435,10 +379,105 @@ class TestUbuntuAdvantageSchema:
                 ),
                 id="pro_additional_features",
             ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "token": "<token>",
+                        "config": {
+                            "http_proxy": "http://some-proxy:8088",
+                            "https_proxy": "https://some-proxy:8088",
+                            "global_apt_https_proxy": "https://some-global-apt-proxy:8088/",  # noqa: E501
+                            "global_apt_http_proxy": "http://some-global-apt-proxy:8088/",  # noqa: E501
+                            "ua_apt_http_proxy": "http://10.0.10.10:3128",
+                            "ua_apt_https_proxy": "https://10.0.10.10:3128",
+                        },
+                    }
+                },
+                does_not_raise(),
+                id="ua_config_valid_set",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "token": "<token>",
+                        "config": {
+                            "http_proxy": None,
+                            "https_proxy": None,
+                            "global_apt_https_proxy": None,
+                            "global_apt_http_proxy": None,
+                            "ua_apt_http_proxy": None,
+                            "ua_apt_https_proxy": None,
+                        },
+                    }
+                },
+                does_not_raise(),
+                id="ua_config_valid_unset",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "token": "<token>",
+                        "config": ["http_proxy=http://some-proxy:8088"],
+                    }
+                },
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "errors: ubuntu_advantage.config:"
+                        " ['http_proxy=http://some-proxy:8088']"
+                    ),
+                ),
+                id="ua_config_invalid_type",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "token": "<token>",
+                        "config": {
+                            "http_proxy": 8888,
+                            "https_proxy": ["http://some-proxy:8088"],
+                        },
+                    }
+                },
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "errors: ubuntu_advantage.config.http_proxy: 8888"
+                        " is not of type 'string', 'null',"
+                        " ubuntu_advantage.config.https_proxy:"
+                        " ['http://some-proxy:8088']"
+                    ),
+                ),
+                id="ua_config_invalid_type",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "token": "<token>",
+                        "config": {
+                            "http_proxy": "http://some-proxy:8088",
+                            "hola": "adios",
+                        },
+                    }
+                },
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "errors: ubuntu_advantage.config: Additional"
+                        " properties are not allowed ('hola' was unexpected)"
+                    ),
+                ),
+                id="ua_config_extra_props_not_allowed",
+            ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, expectation):
+    def test_schema_validation(self, config, expectation, caplog):
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
@@ -506,6 +545,7 @@ class TestHandle:
             "cloud",
             "log_record_tuples",
             "maybe_install_call_args_list",
+            "set_ua_config_call_args_list",
             "configure_ua_call_args_list",
         ],
         [
@@ -523,6 +563,7 @@ class TestHandle:
                 ],
                 [],
                 [],
+                [],
                 id="no_config",
             ),
             # If ubuntu_advantage is provided, try installing ua-tools package.
@@ -531,8 +572,24 @@ class TestHandle:
                 cloud,
                 [],
                 [mock.call(cloud)],
+                [mock.call(None)],
                 None,
                 id="tries_to_install_ubuntu_advantage_tools",
+            ),
+            # If ubuntu_advantage config provided, configure it.
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "token": "valid",
+                        "config": {"http_proxy": "http://proxy.org"},
+                    }
+                },
+                cloud,
+                [],
+                None,
+                [mock.call({"http_proxy": "http://proxy.org"})],
+                None,
+                id="set_ua_config",
             ),
             # All ubuntu_advantage config keys are passed to configure_ua.
             pytest.param(
@@ -540,7 +597,8 @@ class TestHandle:
                 cloud,
                 [],
                 [mock.call(cloud)],
-                [mock.call(token="token", enable=["esm"], config=None)],
+                [mock.call(None)],
+                [mock.call(token="token", enable=["esm"])],
                 id="passes_credentials_and_services_to_configure_ua",
             ),
             # Warning when ubuntu-advantage key is present with new config
@@ -557,7 +615,8 @@ class TestHandle:
                     )
                 ],
                 None,
-                [mock.call(token="token", enable=["esm"], config=None)],
+                [mock.call(None)],
+                [mock.call(token="token", enable=["esm"])],
                 id="warns_on_deprecated_ubuntu_advantage_key_w_config",
             ),
             # Warning with beta services during attach
@@ -579,7 +638,8 @@ class TestHandle:
                     )
                 ],
                 None,
-                [mock.call(token="token", enable=["esm"], config=None)],
+                [mock.call(None)],
+                [mock.call(token="token", enable=["esm"])],
                 id="warns_on_enable_beta_in_attach",
             ),
             # ubuntu_advantage should be preferred over ubuntu-advantage
@@ -599,7 +659,8 @@ class TestHandle:
                     )
                 ],
                 None,
-                [mock.call(token="token", enable=["esm"], config=None)],
+                [mock.call(None)],
+                [mock.call(token="token", enable=["esm"])],
                 id="prefers_new_style_config",
             ),
         ],
@@ -607,10 +668,12 @@ class TestHandle:
     @mock.patch(f"{MPATH}._should_auto_attach", return_value=False)
     @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}.configure_ua")
+    @mock.patch(f"{MPATH}.set_ua_config")
     @mock.patch(f"{MPATH}.maybe_install_ua_tools")
     def test_handle_attach(
         self,
         m_maybe_install_ua_tools,
+        m_set_ua_config,
         m_configure_ua,
         m_auto_attach,
         m_should_auto_attach,
@@ -618,6 +681,7 @@ class TestHandle:
         cloud,
         log_record_tuples,
         maybe_install_call_args_list,
+        set_ua_config_call_args_list,
         configure_ua_call_args_list,
         caplog,
     ):
@@ -629,6 +693,10 @@ class TestHandle:
             assert (
                 maybe_install_call_args_list
                 == m_maybe_install_ua_tools.call_args_list
+            )
+        if set_ua_config_call_args_list is not None:
+            assert (
+                set_ua_config_call_args_list == m_set_ua_config.call_args_list
             )
         if configure_ua_call_args_list is not None:
             assert configure_ua_call_args_list == m_configure_ua.call_args_list
@@ -853,6 +921,60 @@ class TestHandle:
                 cloud=self.cloud,
                 args=None,
             )
+
+    @mock.patch(f"{MPATH}.subp.subp")
+    def test_ua_config_error_invalid_url(self, m_subp, caplog):
+        """Errors from ua config command are raised."""
+        cfg = {
+            "ubuntu_advantage": {
+                "token": "SomeToken",
+                "config": {"http_proxy": "not-a-valid-url"},
+            }
+        }
+        m_subp.side_effect = subp.ProcessExecutionError(
+            'Failure enabling "http_proxy"'
+        )
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Invalid ubuntu_advantage configuration:\nExpected URL scheme"
+                " http/https for ua:config:http_proxy"
+            ),
+        ):
+            handle(
+                "nomatter",
+                cfg=cfg,
+                log=mock.Mock(),
+                cloud=self.cloud,
+                args=None,
+            )
+        assert not caplog.text
+
+    @mock.patch(f"{MPATH}._should_auto_attach", return_value=False)
+    @mock.patch(f"{MPATH}.subp.subp")
+    def test_fallback_to_attach_no_token(
+        self, m_subp, m_should_auto_attach, caplog
+    ):
+        cfg = {"ubuntu_advantage": {"enable": ["esm"]}}
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape(
+                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                " instances."
+            ),
+        ):
+            handle(
+                "nomatter",
+                cfg=cfg,
+                log=mock.Mock(),
+                cloud=self.cloud,
+                args=None,
+            )
+        assert [] == m_subp.call_args_list
+        assert (
+            "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+            " instances.\n"
+        ) in caplog.text
 
 
 class TestShouldAutoAttach:
@@ -1085,6 +1207,164 @@ class TestMaybeInstallUATools:
         assert [
             mock.call(["ubuntu-advantage-tools"])
         ] == cloud.distro.install_packages.call_args_list
+
+
+@mock.patch(f"{MPATH}.subp.subp")
+class TestSetUAConfig:
+    def test_valid_config(self, m_subp, caplog):
+        ua_config = {
+            "http_proxy": "http://some-proxy:8088",
+            "https_proxy": "https://user:pass@some-proxy:8088",
+            "global_apt_https_proxy": "https://some-global-apt-proxy:8088/",
+            "global_apt_http_proxy": "http://some-global-apt-proxy:8088/",
+            "ua_apt_http_proxy": "http://10.0.10.10:3128",
+            "ua_apt_https_proxy": "https://10.0.10.10:3128",
+        }
+        set_ua_config(ua_config)
+        for ua_arg, redacted_arg in [
+            (
+                "http_proxy=http://some-proxy:8088",
+                "http_proxy=REDACTED",
+            ),
+            (
+                "https_proxy=https://user:pass@some-proxy:8088",
+                "https_proxy=REDACTED",
+            ),
+            (
+                "global_apt_https_proxy=https://some-global-apt-proxy:8088/",
+                "global_apt_https_proxy=REDACTED",
+            ),
+            (
+                "global_apt_http_proxy=http://some-global-apt-proxy:8088/",
+                "global_apt_http_proxy=REDACTED",
+            ),
+            (
+                "ua_apt_http_proxy=http://10.0.10.10:3128",
+                "ua_apt_http_proxy=REDACTED",
+            ),
+            (
+                "ua_apt_https_proxy=https://10.0.10.10:3128",
+                "ua_apt_https_proxy=REDACTED",
+            ),
+        ]:
+            assert (
+                mock.call(
+                    ["ua", "config", "set", ua_arg],
+                    logstring=["ua", "config", "set", redacted_arg],
+                )
+                in m_subp.call_args_list
+            )
+            assert f"Enabling UA config {redacted_arg}\n" in caplog.text
+            assert ua_arg not in caplog.text
+
+        assert 6 == m_subp.call_count
+
+    def test_ua_config_unset(self, m_subp, caplog):
+        ua_config = {
+            "https_proxy": "https://user:pass@some-proxy:8088",
+            "http_proxy": None,
+        }
+        set_ua_config(ua_config)
+        for call in [
+            mock.call(["ua", "config", "unset", "http_proxy"]),
+            mock.call(
+                [
+                    "ua",
+                    "config",
+                    "set",
+                    "https_proxy=https://user:pass@some-proxy:8088",
+                ],
+                logstring=["ua", "config", "set", "https_proxy=REDACTED"],
+            ),
+        ]:
+            assert call in m_subp.call_args_list
+        assert 2 == m_subp.call_count
+        assert "Enabling UA config https_proxy=REDACTED\n" in caplog.text
+        assert "https://user:pass@some-proxy:8088" not in caplog.text
+        assert "Disabling UA config for http_proxy\n" in caplog.text
+
+    def test_ua_config_error_non_string_values(self, m_subp, caplog):
+        """ValueError raised for any values expected as string type."""
+        ua_config = {
+            "global_apt_http_proxy": "noscheme",
+            "http_proxy": ["no-proxy"],
+            "https_proxy": 3.14,
+        }
+        match = re.escape(
+            "Invalid ubuntu_advantage configuration:\n"
+            "Expected URL scheme http/https for"
+            " ua:config:global_apt_http_proxy\n"
+            "Expected a URL for ua:config:http_proxy\n"
+            "Expected a URL for ua:config:https_proxy"
+        )
+        with pytest.raises(ValueError, match=match):
+            set_ua_config(ua_config)
+        assert 0 == m_subp.call_count
+        assert not caplog.text
+
+    def test_ua_config_unknown_prop(self, m_subp, caplog):
+        """On unknown config props, a log is issued and the prop is not set."""
+        ua_config = {"asdf": "qwer"}
+        set_ua_config(ua_config)
+        assert 0 == m_subp.call_count
+        assert "qwer" not in caplog.text
+        assert (
+            "Ignoring unknown ubuntu_advantage.config.asdf property\n"
+            in caplog.text
+        )
+
+    def test_ua_config_wrong_type(self, m_subp, caplog):
+        ua_config = ["asdf", "qwer"]
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "ubuntu_advantage: config should be a dict, not"
+                " a list; skipping enabling config parameters"
+            ),
+        ):
+            set_ua_config(ua_config)
+        assert 0 == m_subp.call_count
+        assert not caplog.text
+
+    def test_set_ua_config_error(self, m_subp, caplog):
+        ua_config = {
+            "https_proxy": "https://user:pass@some-proxy:8088",
+        }
+        # Simulate UA error
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "Invalid proxy: https://user:pass@some-proxy:8088"
+        )
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape(
+                "Failure enabling/disabling Ubuntu Advantage config(s):"
+                ' "https_proxy"'
+            ),
+        ):
+            set_ua_config(ua_config)
+        assert 1 == m_subp.call_count
+        assert "https://user:pass@some-proxy:8088" not in caplog.text
+        assert "Enabling UA config https_proxy=REDACTED\n" in caplog.text
+        assert 'Failure enabling/disabling "https_proxy":\n' in caplog.text
+
+    def test_unset_ua_config_error(self, m_subp, caplog):
+        ua_config = {"https_proxy": None}
+        # Simulate UA error
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "Error unsetting https_proxy"
+        )
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape(
+                "Failure enabling/disabling Ubuntu Advantage config(s): "
+                '"https_proxy"'
+            ),
+        ):
+            set_ua_config(ua_config)
+        assert 1 == m_subp.call_count
+        assert "https://user:pass@some-proxy:8088" not in caplog.text
+        assert "Disabling UA config for https_proxy\n" in caplog.text
+        assert 'Failure enabling/disabling "https_proxy":\n' in caplog.text
 
 
 # vi: ts=4 expandtab
