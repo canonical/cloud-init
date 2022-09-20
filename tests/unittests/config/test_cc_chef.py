@@ -5,8 +5,8 @@ import logging
 import os
 import re
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit import util
 from cloudinit.config import cc_chef
@@ -17,7 +17,7 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
-    HttprettyTestCase,
+    ResponsesTestCase,
     cloud_init_project_dir,
     mock,
     skipIf,
@@ -29,25 +29,18 @@ LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = cloud_init_project_dir("templates/chef_client.rb.tmpl")
 
-# This is adjusted to use http because using with https causes issue
-# in some openssl/httpretty combinations.
-#   https://github.com/gabrielfalcao/HTTPretty/issues/242
-# We saw issue in opensuse 42.3 with
-#    httpretty=0.8.8-7.1 ndg-httpsclient=0.4.0-3.2 pyOpenSSL=16.0.0-4.1
-OMNIBUS_URL_HTTP = cc_chef.OMNIBUS_URL.replace("https:", "http:")
 
-
-class TestInstallChefOmnibus(HttprettyTestCase):
+class TestInstallChefOmnibus(ResponsesTestCase):
     def setUp(self):
         super(TestInstallChefOmnibus, self).setUp()
         self.new_root = self.tmp_dir()
 
-    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     def test_install_chef_from_omnibus_runs_chef_url_content(self):
         """install_chef_from_omnibus calls subp_blob_in_tempfile."""
         response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200
+        self.responses.add(
+            responses.GET, cc_chef.OMNIBUS_URL, body=response, status=200
         )
         ret = (None, None)  # stdout, stderr but capture=False
         distro = mock.Mock()
@@ -104,15 +97,13 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             expected_subp_kwargs, m_subp_blob.call_args_list[0][1]
         )
 
-    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     @mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile")
     def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
         """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""
         chef_outfile = self.tmp_path("chef.out", self.new_root)
         response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
-        httpretty.register_uri(
-            httpretty.GET, cc_chef.OMNIBUS_URL, body=response
-        )
+        self.responses.add(responses.GET, cc_chef.OMNIBUS_URL, body=response)
         distro = mock.Mock()
         cc_chef.install_chef_from_omnibus(distro=distro, omnibus_version="2.0")
 

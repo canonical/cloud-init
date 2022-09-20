@@ -2199,21 +2199,37 @@
       "properties": {
         "ubuntu_advantage": {
           "type": "object",
-          "required": ["token"],
           "additionalProperties": false,
           "properties": {
             "enable": {
               "type": "array",
               "items": {"type": "string"},
-              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
+            },
+            "enable_beta": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
             },
             "token": {
               "type": "string",
-              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+              "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
+            },
+            "features": {
+              "type": "object",
+              "description": "Ubuntu Advantage features.",
+              "additionalProperties": false,
+              "properties": {
+                "disable_auto_attach": {
+                  "type": "boolean",
+                  "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
+                  "default": false
+                }
+              }
             },
             "config": {
               "type": "object",
-              "description": "Configuration settings or override Ubuntu Advantage config",
+              "description": "Configuration settings or override Ubuntu Advantage config. Only used in non Ubuntu Pro instances.",
               "properties": {
                 "http_proxy": {
                   "type": "string",

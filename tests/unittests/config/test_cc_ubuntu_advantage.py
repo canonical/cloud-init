@@ -1,15 +1,22 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import re
+import sys
+from builtins import __import__
+from collections import namedtuple
 
 import pytest
 
 from cloudinit import subp
 from cloudinit.config.cc_ubuntu_advantage import (
+    _attach,
+    _auto_attach,
+    _should_auto_attach,
     configure_ua,
     handle,
     maybe_install_ua_tools,
     supplemental_schema_validation,
+    validate_schema_features,
 )
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -21,6 +28,36 @@ from tests.unittests.util import get_cloud
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
+
+
+def decorate__import__with_errors(name_startswith):
+    """Decorates __import__ with errors"""
+
+    def __import__with_error(name, *args, **kwargs):
+        if name.startswith(name_startswith):
+            raise ImportError(f"No module named '{name_startswith}'")
+        return __import__(name, *args, **kwargs)
+
+    return __import__with_error
+
+
+class FakeUserFacingError(Exception):
+    pass
+
+
+@pytest.fixture
+def fake_uaclient(mocker):
+    mocker.patch.dict("sys.modules")
+    sys.modules["uaclient"] = mock.Mock()
+    sys.modules["uaclient.config"] = mock.Mock()
+    sys.modules[
+        "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+    ] = mock.Mock()
+    sys.modules["uaclient.api"] = mock.Mock()
+    _exceptions = namedtuple("exceptions", ["UserFacingError"])(
+        FakeUserFacingError
+    )
+    sys.modules["uaclient.api.exceptions"] = _exceptions
 
 
 @mock.patch(f"{MPATH}.subp.subp")
@@ -333,26 +370,130 @@ class TestConfigureUA:
 
 class TestUbuntuAdvantageSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         [
-            ({"ubuntu_advantage": {}}, "'token' is a required property"),
+            ({"ubuntu_advantage": {}}, does_not_raise()),
             # Strict keys
-            (
+            pytest.param(
                 {"ubuntu_advantage": {"token": "win", "invalidkey": ""}},
-                re.escape(
-                    "ubuntu_advantage: Additional properties are not allowed"
-                    " ('invalidkey"
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "ubuntu_advantage: Additional properties are not"
+                        " allowed ('invalidkey"
+                    ),
                 ),
+                id="additional_properties",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": True}
+                    }
+                },
+                does_not_raise(),
+                id="disable_auto_attach",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False},
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                does_not_raise(),
+                id="pro_custom_services",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                does_not_raise(),
+                id="non_pro_beta_services",
+            ),
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"asdf": False},
+                        "enable": ["fips"],
+                        "enable_beta": ["realtime-kernel"],
+                        "token": "<token>",
+                    }
+                },
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "ubuntu_advantage.features: Additional properties are"
+                        " not allowed ('asdf'"
+                    ),
+                ),
+                id="pro_additional_features",
             ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, expectation):
+        with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @pytest.mark.parametrize(
+        "ua_section, expectation, log_msgs",
+        [
+            ({}, does_not_raise(), None),
+            ({"features": {}}, does_not_raise(), None),
+            (
+                {"features": {"disable_auto_attach": True}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"features": {"disable_auto_attach": False}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"features": [0, 1]},
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "'ubuntu_advantage.features' should be a dict,"
+                        " not a list"
+                    ),
+                ),
+                ["'ubuntu_advantage.features' should be a dict, not a list\n"],
+            ),
+            (
+                {"features": {"disable_auto_attach": [0, 1]}},
+                pytest.raises(
+                    RuntimeError,
+                    match=(
+                        "'ubuntu_advantage.features.disable_auto_attach'"
+                        " should be a bool, not a list"
+                    ),
+                ),
+                [
+                    "'ubuntu_advantage.features.disable_auto_attach' should be"
+                    " a bool, not a list\n"
+                ],
+            ),
+        ],
+    )
+    def test_validate_schema_features(
+        self, ua_section, expectation, log_msgs, caplog
+    ):
+        with expectation:
+            validate_schema_features(ua_section)
+        if log_msgs is not None:
+            for log_msg in log_msgs:
+                assert log_msg in caplog.text
         else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, get_schema(), strict=True)
+            assert not caplog.text
 
 
 class TestHandle:
@@ -419,6 +560,28 @@ class TestHandle:
                 [mock.call(token="token", enable=["esm"], config=None)],
                 id="warns_on_deprecated_ubuntu_advantage_key_w_config",
             ),
+            # Warning with beta services during attach
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "token": "token",
+                        "enable": ["esm"],
+                        "enable_beta": ["realtime-kernel"],
+                    }
+                },
+                None,
+                [
+                    (
+                        MPATH,
+                        logging.DEBUG,
+                        "Ignoring `ubuntu-advantage.enable_beta` services in"
+                        " UA attach: realtime-kernel",
+                    )
+                ],
+                None,
+                [mock.call(token="token", enable=["esm"], config=None)],
+                id="warns_on_enable_beta_in_attach",
+            ),
             # ubuntu_advantage should be preferred over ubuntu-advantage
             pytest.param(
                 {
@@ -441,12 +604,16 @@ class TestHandle:
             ),
         ],
     )
+    @mock.patch(f"{MPATH}._should_auto_attach", return_value=False)
+    @mock.patch(f"{MPATH}._auto_attach")
     @mock.patch(f"{MPATH}.configure_ua")
     @mock.patch(f"{MPATH}.maybe_install_ua_tools")
-    def test_handle(
+    def test_handle_attach(
         self,
         m_maybe_install_ua_tools,
         m_configure_ua,
+        m_auto_attach,
+        m_should_auto_attach,
         cfg,
         cloud,
         log_record_tuples,
@@ -454,6 +621,7 @@ class TestHandle:
         configure_ua_call_args_list,
         caplog,
     ):
+        """Non-Pro schemas and instance."""
         handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
@@ -464,6 +632,171 @@ class TestHandle:
             )
         if configure_ua_call_args_list is not None:
             assert configure_ua_call_args_list == m_configure_ua.call_args_list
+        assert [] == m_auto_attach.call_args_list
+
+    @pytest.mark.parametrize(
+        [
+            "cfg",
+            "cloud",
+            "log_record_tuples",
+            "auto_attach_side_effect",
+            "should_auto_attach",
+            "auto_attach_call_args_list",
+            "attach_call_args_list",
+            "expectation",
+        ],
+        [
+            # When auto_attach successes, no call to configure_ua.
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                None,  # auto_attach successes
+                True,  # Pro instance
+                [
+                    mock.call({"features": {"disable_auto_attach": False}})
+                ],  # auto_attach_call_args_list
+                [],  # attach_call_args_list
+                does_not_raise(),
+                id="auto_attach_success",
+            ),
+            # When auto_attach fails in a Pro instance, no call to
+            # configure_ua.
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False}
+                    }
+                },
+                cloud,
+                [],
+                RuntimeError("Auto attach error"),
+                True,  # Pro instance
+                [
+                    mock.call({"features": {"disable_auto_attach": False}})
+                ],  # auto_attach_call_args_list
+                [],  # attach_call_args_list
+                pytest.raises(RuntimeError, match="Auto attach error"),
+                id="auto_attach_error",
+            ),
+            # In a non-Pro instance with token, fallback to normal attach.
+            pytest.param(
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False},
+                        "token": "token",
+                    }
+                },
+                cloud,
+                [],
+                None,
+                False,  # non-Pro instance
+                [],  # auto_attach_call_args_list
+                [
+                    mock.call(
+                        {
+                            "features": {"disable_auto_attach": False},
+                            "token": "token",
+                        },
+                    )
+                ],  # attach_call_args_list
+                does_not_raise(),
+                id="not_pro_with_token",
+            ),
+            # In a non-Pro instance with enable, fallback to normal attach.
+            pytest.param(
+                {"ubuntu_advantage": {"enable": ["esm"]}},
+                cloud,
+                [],
+                None,
+                False,  # non-Pro instance
+                [],  # auto_attach_call_args_list
+                [
+                    mock.call(
+                        {
+                            "enable": ["esm"],
+                        },
+                    )
+                ],  # attach_call_args_list
+                does_not_raise(),
+                id="not_pro_with_enable",
+            ),
+        ],
+    )
+    @mock.patch(f"{MPATH}._should_auto_attach")
+    @mock.patch(f"{MPATH}._auto_attach")
+    @mock.patch(f"{MPATH}._attach")
+    def test_handle_auto_attach_vs_attach(
+        self,
+        m_attach,
+        m_auto_attach,
+        m_should_auto_attach,
+        cfg,
+        cloud,
+        log_record_tuples,
+        auto_attach_side_effect,
+        should_auto_attach,
+        auto_attach_call_args_list,
+        attach_call_args_list,
+        expectation,
+        caplog,
+    ):
+        m_should_auto_attach.return_value = should_auto_attach
+        if auto_attach_side_effect is not None:
+            m_auto_attach.side_effect = auto_attach_side_effect
+
+        with expectation:
+            handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
+
+        for record_tuple in log_record_tuples:
+            assert record_tuple in caplog.record_tuples
+        if attach_call_args_list is not None:
+            assert attach_call_args_list == m_attach.call_args_list
+        else:
+            assert [] == m_attach.call_args_list
+        assert auto_attach_call_args_list == m_auto_attach.call_args_list
+
+    @pytest.mark.parametrize("is_pro", [False, True])
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": False},
+                    }
+                }
+            ),
+            (
+                {
+                    "ubuntu_advantage": {
+                        "features": {"disable_auto_attach": True},
+                    }
+                }
+            ),
+        ],
+    )
+    @mock.patch(f"{MPATH}._should_auto_attach")
+    @mock.patch(f"{MPATH}._auto_attach")
+    @mock.patch(f"{MPATH}._attach")
+    def test_no_fallback_attach(
+        self,
+        m_attach,
+        m_auto_attach,
+        m_should_auto_attach,
+        cfg,
+        is_pro,
+    ):
+        """Checks that attach is not called in the case where we want only to
+        enable or disable ua auto-attach.
+        """
+        m_should_auto_attach.return_value = is_pro
+        handle("nomatter", cfg=cfg, cloud=self.cloud, log=None, args=None)
+        assert not m_attach.call_args_list
 
     @pytest.mark.parametrize(
         "cfg, handle_kwargs, match",
@@ -495,6 +828,186 @@ class TestHandle:
         with pytest.raises(RuntimeError, match=match):
             handle("nomatter", cfg=cfg, log=mock.Mock(), **handle_kwargs)
         assert 0 == m_configure_ua.call_count
+
+    @pytest.mark.parametrize(
+        "cfg, match",
+        [
+            pytest.param(
+                {"ubuntu_advantage": [0, 1]},
+                "'ubuntu_advantage' should be a dict, not a list",
+                id="on_non_dict_config",
+            ),
+            pytest.param(
+                {"ubuntu_advantage": {"features": [0, 1]}},
+                "'ubuntu_advantage.features' should be a dict, not a list",
+                id="on_non_dict_ua_section",
+            ),
+        ],
+    )
+    def test_handle_errors(self, cfg, match):
+        with pytest.raises(RuntimeError, match=match):
+            handle(
+                "nomatter",
+                cfg=cfg,
+                log=mock.Mock(),
+                cloud=self.cloud,
+                args=None,
+            )
+
+
+class TestShouldAutoAttach:
+    def test_uaclient_not_installed(self, caplog, mocker):
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors("uaclient"),
+        )
+        assert not _should_auto_attach(ua_section={})
+        assert (
+            "Unable to import `uaclient`: No module named 'uaclient'"
+            in caplog.text
+        )
+        assert (
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach."
+        ) in caplog.text
+
+    def test_uaclient_old_version(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient"] = mock.Mock()
+        sys.modules["uaclient.api"] = mock.Mock()
+        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors(
+                "uaclient.api.exceptions"
+            ),
+        )
+        assert not _should_auto_attach({})
+        assert (
+            "Unable to import `uaclient`: No module named"
+            " 'uaclient.api.exceptions'"
+        ) in caplog.text
+        assert (
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach."
+        ) in caplog.text
+
+    def test_should_auto_attach_error(self, caplog, fake_uaclient):
+        m_should_auto_attach = mock.Mock()
+        m_should_auto_attach.should_auto_attach.side_effect = (
+            FakeUserFacingError("Some error")  # noqa: E501
+        )
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
+        ] = m_should_auto_attach
+        assert not _should_auto_attach({})
+        assert "Error during `should_auto_attach`: Some error" in caplog.text
+        assert (
+            "Unable to determine if this is an Ubuntu Pro instance."
+            " Fallback to normal UA attach." in caplog.text
+        )
+
+    @pytest.mark.parametrize(
+        "ua_section, expected_result",
+        [
+            ({}, None),
+            ({"features": {"disable_auto_attach": False}}, None),
+            # The user explicitly disables auto-attach, therefore we do not do
+            # it:
+            ({"features": {"disable_auto_attach": True}}, False),
+        ],
+    )
+    def test_happy_path(
+        self, ua_section, expected_result, caplog, fake_uaclient
+    ):
+        m_should_auto_attach = mock.Mock()
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
+        ] = m_should_auto_attach
+        should_auto_attach_value = object()
+        m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
+            should_auto_attach_value
+        )
+        if expected_result is None:  # UA API does respond
+            assert should_auto_attach_value == _should_auto_attach(ua_section)
+        else:  # cloud-init does respond
+            assert expected_result == _should_auto_attach(ua_section)
+        assert not caplog.text
+
+
+class TestAutoAttach:
+
+    ua_section: dict = {}
+
+    def test_uaclient_not_installed(self, caplog, mocker):
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors("uaclient"),
+        )
+        expected_msg = (
+            "Unable to import `uaclient`: No module named 'uaclient'"
+        )
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_uaclient_old_version(self, caplog, mocker):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient"] = mock.Mock()
+        sys.modules["uaclient.api"] = mock.Mock()
+        sys.modules["uaclient.api.exceptions"] = mock.Mock()
+        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
+        mocker.patch(
+            "builtins.__import__",
+            side_effect=decorate__import__with_errors(
+                "uaclient.api.u.pro.attach.auto.full_auto_attach"
+            ),
+        )
+        expected_msg = (
+            "Unable to import `uaclient`: No module named"
+            " 'uaclient.api.u.pro.attach.auto.full_auto_attach'"
+        )
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_full_auto_attach_error(self, caplog, mocker, fake_uaclient):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient.config"] = mock.Mock()
+        m_full_auto_attach = mock.Mock()
+        m_full_auto_attach.full_auto_attach.side_effect = FakeUserFacingError(
+            "Some error"
+        )
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+        ] = m_full_auto_attach
+        expected_msg = "Error during `full_auto_attach`: Some error"
+        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
+            _auto_attach(self.ua_section)
+        assert expected_msg in caplog.text
+
+    def test_happy_path(self, caplog, mocker, fake_uaclient):
+        mocker.patch.dict("sys.modules")
+        sys.modules["uaclient.config"] = mock.Mock()
+        sys.modules[
+            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
+        ] = mock.Mock()
+        _auto_attach(self.ua_section)
+        assert not caplog.text
+
+
+class TestAttach:
+    @mock.patch(f"{MPATH}.configure_ua")
+    def test_attach_without_token_raises_error(self, m_configure_ua):
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                " instances."
+            ),
+        ):
+            _attach({"enable": ["esm"]})
+        assert [] == m_configure_ua.call_args_list
 
 
 @mock.patch(f"{MPATH}.subp.which")

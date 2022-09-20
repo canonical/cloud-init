@@ -7,6 +7,7 @@ import logging
 from unittest import mock
 
 import pytest
+import responses
 
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
@@ -299,7 +300,7 @@ class TestNetworkConfigFromOpcImds:
         assert 1 == len(secondary_nic_cfg["subnets"])
         subnet_cfg = secondary_nic_cfg["subnets"][0]
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231" == subnet_cfg["address"]
+        assert "10.0.0.231/24" == subnet_cfg["address"]
 
     def test_secondary_nic_v2(self, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
@@ -325,7 +326,7 @@ class TestNetworkConfigFromOpcImds:
 
         assert 1 == len(secondary_nic_cfg["addresses"])
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231" == secondary_nic_cfg["addresses"][0]
+        assert "10.0.0.231/24" == secondary_nic_cfg["addresses"][0]
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
@@ -615,41 +616,41 @@ class TestNetworkConfigFiltersNetFailover:
         assert expected_cfg == netcfg
 
 
-def _mock_v2_urls(httpretty):
-    def instance_callback(request, uri, response_headers):
-        print(response_headers)
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_V2_METADATA]
+def _mock_v2_urls(mocked_responses):
+    def instance_callback(response):
+        print(response.url)
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_V2_METADATA]
 
-    def vnics_callback(request, uri, response_headers):
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
+    def vnics_callback(response):
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
 
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
-        body=instance_callback,
+        callback=instance_callback,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/vnics/",
-        body=vnics_callback,
+        callback=vnics_callback,
     )
 
 
-def _mock_no_v2_urls(httpretty):
-    httpretty.register_uri(
-        httpretty.GET,
+def _mock_no_v2_urls(mocked_responses):
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
         status=404,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/instance/",
         body=OPC_V1_METADATA,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/vnics/",
         body=OPC_BM_SECONDARY_VNIC_RESPONSE,
     )
@@ -688,9 +689,9 @@ class TestReadOpcMetadata:
         instance_data,
         fetch_vnics,
         vnics_data,
-        httpretty,
+        mocked_responses,
     ):
-        setup_urls(httpretty)
+        setup_urls(mocked_responses)
         metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
 
         assert version == metadata.version
@@ -716,23 +717,48 @@ class TestReadOpcMetadata:
         v1_failure_count,
         expected_body,
         expectation,
-        httpretty,
+        mocked_responses,
     ):
-        v2_responses = [httpretty.Response("", status=404)] * v2_failure_count
-        v2_responses.append(httpretty.Response(OPC_V2_METADATA))
-        v1_responses = [httpretty.Response("", status=404)] * v1_failure_count
-        v1_responses.append(httpretty.Response(OPC_V1_METADATA))
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v2_call_count = 0
 
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v1/instance/",
-            responses=v1_responses,
+        def url_v2_callback(request):
+            nonlocal url_v2_call_count
+            url_v2_call_count += 1
+            if url_v2_call_count <= v2_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v2}",
+                )
+            return 200, request.headers, OPC_V2_METADATA
+
+        url_v2 = "http://169.254.169.254/opc/v2/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v2, callback=url_v2_callback
         )
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v2/instance/",
-            responses=v2_responses,
+
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v1_call_count = 0
+
+        def url_v1_callback(request):
+            nonlocal url_v1_call_count
+            url_v1_call_count += 1
+            if url_v1_call_count <= v1_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v1}",
+                )
+            return 200, request.headers, OPC_V1_METADATA
+
+        url_v1 = "http://169.254.169.254/opc/v1/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v1, callback=url_v1_callback
         )
+
         with expectation:
             assert expected_body == oracle.read_opc_metadata().instance_data
 
