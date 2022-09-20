@@ -1,6 +1,6 @@
 """ansible enables running on first boot either ansible-pull"""
 import abc
-import logging
+from logging import Logger, getLogger
 import os
 import re
 import sys
@@ -61,7 +61,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
-LOG = logging.getLogger(__name__)
+LOG = getLogger(__name__)
 PIP_PKG = "python3-pip"
 CFG_OVERRIDE = "ANSIBLE_CONFIG"
 
@@ -139,7 +139,9 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, _, __) -> None:
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     ansible_cfg: dict = cfg.get("ansible", {})
     install_method = ansible_cfg.get("install-method")
