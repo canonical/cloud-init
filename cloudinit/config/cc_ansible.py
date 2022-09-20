@@ -67,9 +67,11 @@ CFG_OVERRIDE = "ANSIBLE_CONFIG"
 
 
 class AnsiblePull(abc.ABC):
-    cmd_version: list = []
-    cmd_pull: list = []
-    env: dict = {}
+    def __init__(self, distro: Distro):
+        self.cmd_pull = ["ansible-pull"]
+        self.cmd_version = ["ansible-pull", "--version"]
+        self.distro = distro
+        self.env = os.environ.copy()
 
     def get_version(self) -> Optional[Version]:
         stdout, _ = self.subp(self.cmd_version)
@@ -102,11 +104,8 @@ class AnsiblePull(abc.ABC):
 
 class AnsiblePullPip(AnsiblePull):
     def __init__(self, distro: Distro):
-        self.cmd_pull = ["ansible-pull"]
-        self.cmd_version = ["ansible-pull", "--version"]
-        self.distro = distro
+        super().__init__(distro)
 
-        self.env = os.environ.copy()
         old_path = self.env.get("PATH")
         if old_path:
             self.env["PATH"] = ":".join([old_path, "/root/.local/bin/"])
@@ -132,12 +131,6 @@ class AnsiblePullPip(AnsiblePull):
 
 
 class AnsiblePullDistro(AnsiblePull):
-    def __init__(self, distro: Distro):
-        self.cmd_pull = ["ansible-pull"]
-        self.cmd_version = ["ansible-pull", "--version"]
-        self.distro = distro
-        self.env = os.environ.copy()
-
     def install(self, pkg_name: str):
         if not self.is_installed():
             self.distro.install_packages(pkg_name)
