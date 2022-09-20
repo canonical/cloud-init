@@ -1,10 +1,10 @@
 """ansible enables running on first boot either ansible-pull"""
 import abc
-from logging import Logger, getLogger
 import os
 import re
 import sys
 from copy import deepcopy
+from logging import Logger, getLogger
 from textwrap import dedent
 from typing import Optional
 

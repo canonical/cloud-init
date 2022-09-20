@@ -46,9 +46,9 @@ CFG_FULL = {
     "ansible": {
         "install-method": "distro",
         "package-name": "ansible-core",
+        "ANSIBLE_CONFIG": "/etc/ansible/ansible.cfg",
         "galaxy": {
             "actions": [["ansible-galaxy", "install", "debops.apt"]],
-            "ANSIBLE_CONFIG": "/etc/ansible/ansible.cfg",
         },
         "pull": {
             "url": "https://github/holmanb/vmboot",
