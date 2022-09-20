@@ -79,7 +79,7 @@ LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-
+    pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"

@@ -62,7 +62,6 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 LOG = getLogger(__name__)
-PIP_PKG = "python3-pip"
 CFG_OVERRIDE = "ANSIBLE_CONFIG"
 
 
@@ -119,7 +118,7 @@ class AnsiblePullPip(AnsiblePull):
         if not self.is_installed():
             # bootstrap pip if required
             if not which("pip3"):
-                self.distro.install_packages(PIP_PKG)
+                self.distro.install_packages(self.distro.pip_package_name)
             self.subp(["python3", "-m", "pip", "install", "--user", pkg_name])
 
     def is_installed(self) -> bool:
