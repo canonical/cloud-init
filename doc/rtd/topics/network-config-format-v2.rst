@@ -8,6 +8,8 @@ version 2 format defined for the `netplan`_ tool.  Cloud-init supports
 both reading and writing of Version 2; the latter support requires a
 distro with `netplan`_ present.
 
+.. _Netplan Passthrough:
+
 Netplan Passthrough
 -------------------
 
@@ -176,6 +178,48 @@ Enable DHCP for IPv4. Off by default.
 **dhcp6**: *<(bool)>*
 
 Enable DHCP for IPv6. Off by default.
+
+**dhcp4-overrides** and **dhcp6-overrides**: *<(mapping)>*
+
+DHCP behavior overrides. Overrides will only have an effect if
+the corresponding DHCP type is enabled. Refer to `netplan#dhcp-overrides`_
+for more documentation.
+
+.. note::
+
+  These properties are only consumed on ``netplan`` and ``networkd``
+  renderers.
+
+The ``netplan`` renderer :ref:`passes through <Netplan Passthrough>`
+everything and the ``networkd`` renderer consumes the following sub-properties:
+
+* ``hostname`` *
+* ``route-metric`` *
+* ``send-hostname`` *
+* ``use-dns``
+* ``use-domains``
+* ``use-hostname``
+* ``use-mtu`` *
+* ``use-ntp``
+* ``use-routes`` *
+
+.. note::
+
+   Sub-properties marked with a ``*`` are unsupported for ``dhcp6-overrides``
+   when used with the ``networkd`` renderer.
+
+Example: ::
+
+  dhcp4-overrides:
+    hostname: hal
+    route-metric: 1100
+    send-hostname: false
+    use-dns: false
+    use-domains: false
+    use-hostname: false
+    use-mtu: false
+    use-ntp: false
+    use-routes: false
 
 **addresses**: *<(sequence of scalars)>*
 
@@ -527,4 +571,5 @@ This is a complex example which shows most available features: ::
         dhcp4: yes
 
 .. _netplan: https://netplan.io
+.. _netplan#dhcp-overrides: https://netplan.io/reference#dhcp-overrides
 .. vi: textwidth=79
