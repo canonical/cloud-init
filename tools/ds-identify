@@ -1447,9 +1447,9 @@ dscheck_VMware() {
     # Checks to see if there is valid data for the VMware datasource.
     # The data transports are checked in the following order:
     #
-    #   * vmware-imc (VMware Guest Customization)
     #   * envvars
     #   * guestinfo
+    #   * imc (VMware Guest Customization)
     #
     # Please note when updating this function with support for new data
     # transports, the order should match the order in the _get_data
@@ -1457,8 +1457,6 @@ dscheck_VMware() {
 
     # Check to see if running in a container and the VMware
     # datasource is configured via environment variables.
-    vmware_guest_customization && return "${DS_FOUND}"
-
     if vmware_has_envvar_vmx_guestinfo; then
         if vmware_has_envvar_vmx_guestinfo_metadata || \
             vmware_has_envvar_vmx_guestinfo_userdata || \
@@ -1484,6 +1482,10 @@ dscheck_VMware() {
          vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
         return "${DS_FOUND}"
     fi
+
+    # Activate the VMware datasource only if tools plugin is available and
+    # guest customization is enabled.
+    vmware_guest_customization && return "${DS_FOUND}"
 
     return "${DS_NOT_FOUND}"
 }

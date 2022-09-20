@@ -19,8 +19,8 @@ from cloudinit.net import (
     sysconfig,
 )
 from cloudinit.sources import DataSourceAzure as azure
-from cloudinit.sources import DataSourceVMware as vmware
 from cloudinit.sources.helpers import openstack
+from cloudinit.sources.helpers.vmware.imc import guestcust_util
 
 NAME = "net-convert"
 
@@ -130,8 +130,12 @@ def handle_args(name, args):
             json.loads(net_data)["network"]
         )
     elif args.kind == "vmware-imc":
-        config = vmware.Config(vmware.ConfigFile(args.network_data.name))
-        pre_ns = vmware.get_network_data_from_vmware_cust_cfg(config, False)
+        config = guestcust_util.Config(
+            guestcust_util.ConfigFile(args.network_data.name)
+        )
+        pre_ns = guestcust_util.get_network_data_from_vmware_cust_cfg(
+            config, False
+        )
 
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)

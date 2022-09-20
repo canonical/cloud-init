@@ -12,10 +12,6 @@ import sys
 import tempfile
 import textwrap
 
-from cloudinit.sources.DataSourceVMware import (
-    get_network_data_from_vmware_cust_cfg,
-    get_non_network_data_from_vmware_cust_cfg,
-)
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import (
@@ -24,6 +20,10 @@ from cloudinit.sources.helpers.vmware.imc.config_file import (
 from cloudinit.sources.helpers.vmware.imc.config_nic import (
     NicConfigurator,
     gen_subnet,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    get_network_data_from_vmware_cust_cfg,
+    get_non_network_data_from_vmware_cust_cfg,
 )
 from tests.unittests.helpers import CiTestCase, cloud_init_project_dir
 

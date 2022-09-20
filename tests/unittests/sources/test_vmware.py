@@ -15,6 +15,7 @@ import pytest
 
 from cloudinit import dmi, helpers, safeyaml, settings, util
 from cloudinit.sources import DataSourceVMware
+from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
@@ -520,7 +521,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         self.assertFalse(result, "Expected False return from ds.get_data")
         self.assertIn("No system-product-name found", self.logs.getvalue())
 
-    def test_get_vmware_imc_data_vmware_customization_disabled(self):
+    def test_get_imc_data_vmware_customization_disabled(self):
         """
         When vmware customization is disabled via sys_cfg and
         allow_raw_data is disabled via ds_cfg, log a message.
@@ -547,7 +548,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             {
                 "dmi.read_dmi_data": "vmware",
             },
-            ds.get_vmware_imc_data_fn,
+            ds.get_imc_data_fn,
         )
         self.assertEqual(result, (None, None, None))
         self.assertIn(
@@ -555,7 +556,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_vmware_customization_sys_cfg_disabled(self):
+    def test_get_imc_data_vmware_customization_sys_cfg_disabled(self):
         """
         When vmware customization is disabled via sys_cfg and
         no meta data is found, log a message.
@@ -582,10 +583,10 @@ class TestDataSourceVMwareIMC(CiTestCase):
             {
                 "dmi.read_dmi_data": "vmware",
                 "util.del_dir": True,
-                "search_file": self.tdir,
-                "wait_for_cust_cfg_file": conf_file,
+                "guestcust_util.search_file": self.tdir,
+                "guestcust_util.wait_for_cust_cfg_file": conf_file,
             },
-            ds.get_vmware_imc_data_fn,
+            ds.get_imc_data_fn,
         )
         self.assertEqual(result, (None, None, None))
         self.assertIn(
@@ -593,7 +594,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_allow_raw_data_disabled(self):
+    def test_get_imc_data_allow_raw_data_disabled(self):
         """
         When allow_raw_data is disabled via ds_cfg and
         meta data is found, log a message.
@@ -622,10 +623,10 @@ class TestDataSourceVMwareIMC(CiTestCase):
             {
                 "dmi.read_dmi_data": "vmware",
                 "util.del_dir": True,
-                "search_file": self.tdir,
-                "wait_for_cust_cfg_file": conf_file,
+                "guestcust_util.search_file": self.tdir,
+                "guestcust_util.wait_for_cust_cfg_file": conf_file,
             },
-            ds.get_vmware_imc_data_fn,
+            ds.get_imc_data_fn,
         )
         self.assertEqual(result, (None, None, None))
         self.assertIn(
@@ -633,7 +634,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_vmware_customization_enabled(self):
+    def test_get_imc_data_vmware_customization_enabled(self):
         """
         When cloud-init workflow for vmware is enabled via sys_cfg log a
         message.
@@ -654,16 +655,19 @@ class TestDataSourceVMwareIMC(CiTestCase):
             """
         )
         util.write_file(conf_file, conf_content)
-        with mock.patch(MPATH + "get_tools_config", return_value="true"):
+        with mock.patch(
+            MPATH + "guestcust_util.get_tools_config",
+            return_value="true",
+        ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
                 },
-                ds.get_vmware_imc_data_fn,
+                ds.get_imc_data_fn,
             )
             self.assertEqual(result, (None, None, None))
         custom_script = self.tmp_path("test-script", self.tdir)
@@ -672,7 +676,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_cust_script_disabled(self):
+    def test_get_imc_data_cust_script_disabled(self):
         """
         If custom script is disabled by VMware tools configuration,
         log a message.
@@ -698,19 +702,23 @@ class TestDataSourceVMwareIMC(CiTestCase):
         customscript = self.tmp_path("test-script", self.tdir)
         util.write_file(customscript, "This is the post cust script")
 
-        with mock.patch(MPATH + "get_tools_config", return_value="invalid"):
+        with mock.patch(
+            MPATH + "guestcust_util.get_tools_config",
+            return_value="invalid",
+        ):
             with mock.patch(
-                MPATH + "set_customization_status", return_value=("msg", b"")
+                MPATH + "guestcust_util.set_customization_status",
+                return_value=("msg", b""),
             ):
                 result = wrap_and_call(
                     "cloudinit.sources.DataSourceVMware",
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "search_file": self.tdir,
-                        "wait_for_cust_cfg_file": conf_file,
+                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
-                    ds.get_vmware_imc_data_fn,
+                    ds.get_imc_data_fn,
                 )
                 self.assertEqual(result, (None, None, None))
         self.assertIn(
@@ -718,7 +726,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_cust_script_enabled(self):
+    def test_get_imc_data_cust_script_enabled(self):
         """
         If custom script is enabled by VMware tools configuration,
         execute the script.
@@ -743,19 +751,23 @@ class TestDataSourceVMwareIMC(CiTestCase):
 
         # Mock custom script is enabled by return true when calling
         # get_tools_config
-        with mock.patch(MPATH + "get_tools_config", return_value="true"):
+        with mock.patch(
+            MPATH + "guestcust_util.get_tools_config",
+            return_value="true",
+        ):
             with mock.patch(
-                MPATH + "set_customization_status", return_value=("msg", b"")
+                MPATH + "guestcust_util.set_customization_status",
+                return_value=("msg", b""),
             ):
                 result = wrap_and_call(
                     "cloudinit.sources.DataSourceVMware",
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "search_file": self.tdir,
-                        "wait_for_cust_cfg_file": conf_file,
+                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
-                    ds.get_vmware_imc_data_fn,
+                    ds.get_imc_data_fn,
                 )
                 self.assertEqual(result, (None, None, None))
         # Verify custom script is trying to be executed
@@ -765,7 +777,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_force_run_post_script_is_yes(self):
+    def test_get_imc_data_force_run_post_script_is_yes(self):
         """
         If DEFAULT-RUN-POST-CUST-SCRIPT is yes, custom script could run if
         enable-custom-scripts is not defined in VM Tools configuration
@@ -797,20 +809,22 @@ class TestDataSourceVMwareIMC(CiTestCase):
             return args[2]
 
         with mock.patch(
-            MPATH + "get_tools_config", side_effect=my_get_tools_config
+            MPATH + "guestcust_util.get_tools_config",
+            side_effect=my_get_tools_config,
         ):
             with mock.patch(
-                MPATH + "set_customization_status", return_value=("msg", b"")
+                MPATH + "guestcust_util.set_customization_status",
+                return_value=("msg", b""),
             ):
                 result = wrap_and_call(
                     "cloudinit.sources.DataSourceVMware",
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "search_file": self.tdir,
-                        "wait_for_cust_cfg_file": conf_file,
+                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
-                    ds.get_vmware_imc_data_fn,
+                    ds.get_imc_data_fn,
                 )
                 self.assertEqual(result, (None, None, None))
         # Verify custom script still runs although it is
@@ -865,16 +879,17 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
                 ds._get_data,
             )
@@ -922,16 +937,17 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
                 ds._get_data,
             )
@@ -941,7 +957,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         self.assertEqual(2, ds.network_config["version"])
         self.assertTrue(ds.network_config["ethernets"]["nics"]["dhcp4"])
 
-    def test_get_vmware_imc_data_cloudinit_metadata_not_valid(self):
+    def test_get_imc_data_cloudinit_metadata_not_valid(self):
         """
         Test metadata is not JSON or YAML format, log a message
         """
@@ -968,26 +984,27 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
-                ds.get_vmware_imc_data_fn,
+                ds.get_data,
             )
-            self.assertEqual(result, (None, None, None))
+        self.assertFalse(result)
         self.assertIn(
             "expected '<document start>', but found '<scalar>'",
             self.logs.getvalue(),
         )
 
-    def test_get_vmware_imc_data_cloudinit_metadata_not_found(self):
+    def test_get_imc_data_cloudinit_metadata_not_found(self):
         """
         Test metadata file can't be found, log a message
         """
@@ -1009,18 +1026,19 @@ class TestDataSourceVMwareIMC(CiTestCase):
         # Don't prepare the meta data file
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
-                ds.get_vmware_imc_data_fn,
+                ds.get_imc_data_fn,
             )
             self.assertEqual(result, (None, None, None))
         self.assertIn("Meta data file is not found", self.logs.getvalue())
@@ -1070,16 +1088,17 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(userdata_file, userdata_content)
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
                 ds._get_data,
             )
@@ -1087,7 +1106,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         self.assertEqual("cloud-vm", ds.metadata["instance-id"])
         self.assertEqual(userdata_content, ds.userdata_raw)
 
-    def test_get_vmware_imc_data_cloudinit_userdata_not_found(self):
+    def test_get_imc_data_cloudinit_userdata_not_found(self):
         """
         Test userdata file can't be found.
         """
@@ -1129,18 +1148,19 @@ class TestDataSourceVMwareIMC(CiTestCase):
         # Don't prepare the user data file
 
         with mock.patch(
-            MPATH + "set_customization_status", return_value=("msg", b"")
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
         ):
             result = wrap_and_call(
                 "cloudinit.sources.DataSourceVMware",
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "search_file": self.tdir,
-                    "wait_for_cust_cfg_file": conf_file,
-                    "get_vmware_imc_dir": self.tdir,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
                 },
-                ds.get_vmware_imc_data_fn,
+                ds.get_imc_data_fn,
             )
             self.assertEqual(result, (None, None, None))
         self.assertIn("Userdata file is not found", self.logs.getvalue())
@@ -1154,7 +1174,7 @@ class TestDataSourceVMwareIMC_MarkerFiles(CiTestCase):
     def test_false_when_markerid_none(self):
         """Return False when markerid provided is None."""
         self.assertFalse(
-            DataSourceVMware.check_marker_exists(
+            guestcust_util.check_marker_exists(
                 markerid=None, marker_dir=self.tdir
             )
         )
@@ -1162,21 +1182,16 @@ class TestDataSourceVMwareIMC_MarkerFiles(CiTestCase):
     def test_markerid_file_exist(self):
         """Return False when markerid file path does not exist,
         True otherwise."""
-        self.assertFalse(
-            DataSourceVMware.check_marker_exists("123", self.tdir)
-        )
-
+        self.assertFalse(guestcust_util.check_marker_exists("123", self.tdir))
         marker_file = self.tmp_path(".markerfile-123.txt", self.tdir)
         util.write_file(marker_file, "")
-        self.assertTrue(DataSourceVMware.check_marker_exists("123", self.tdir))
+        self.assertTrue(guestcust_util.check_marker_exists("123", self.tdir))
 
     def test_marker_file_setup(self):
         """Test creation of marker files."""
         markerfilepath = self.tmp_path(".markerfile-hi.txt", self.tdir)
         self.assertFalse(os.path.exists(markerfilepath))
-        DataSourceVMware.setup_marker_files(
-            marker_id="hi", marker_dir=self.tdir
-        )
+        guestcust_util.setup_marker_files(marker_id="hi", marker_dir=self.tdir)
         self.assertTrue(os.path.exists(markerfilepath))
 
 

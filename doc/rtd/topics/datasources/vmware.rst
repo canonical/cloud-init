@@ -278,7 +278,7 @@ If either of the above values are true, then the datasource will sleep for a
 second, check the network status, and repeat until one or both addresses from
 the specified families are available.
 
-Walkthrough of GuestInfo Keys Transport
+Walkthrough of GuestInfo Transport
 ---------------------------------------
 
 The following series of steps is a demonstration on how to configure a VM with
