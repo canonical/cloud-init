@@ -218,8 +218,11 @@ class TestUbuntuDrivers:
         debconf_file = tmpdir.join("nvidia.template")
         m_tmp.return_value = tdir
         pkg_install = mock.MagicMock()
+        distro = mock.Mock()
         drivers.install_drivers(
-            cfg_accepted["drivers"], pkg_install_func=pkg_install
+            cfg_accepted["drivers"],
+            pkg_install_func=pkg_install,
+            distro=distro,
         )
         assert 0 == pkg_install.call_count
         assert [mock.call("ubuntu-drivers")] == m_which.call_args_list
@@ -233,8 +236,11 @@ class TestUbuntuDrivers:
     ):
         """install_drivers should raise TypeError if not given a config dict"""
         pkg_install = mock.MagicMock()
+        distro = mock.Mock()
         with pytest.raises(TypeError, match=".*expected dict.*"):
-            drivers.install_drivers("mystring", pkg_install_func=pkg_install)
+            drivers.install_drivers(
+                "mystring", pkg_install_func=pkg_install, distro=distro
+            )
         assert 0 == pkg_install.call_count
 
     @mock.patch(M_TMP_PATH)

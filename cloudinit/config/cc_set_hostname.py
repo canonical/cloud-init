@@ -8,10 +8,13 @@
 """Set Hostname: Set hostname and FQDN"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -76,7 +79,9 @@ class SetHostnameError(Exception):
     """
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug(
             "Configuration option 'preserve_hostname' is set,"

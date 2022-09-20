@@ -7,10 +7,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+from logging import Logger
 from urllib.parse import parse_qs
 
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -67,13 +70,15 @@ __doc__ = get_meta_doc(meta)
 #
 
 
-def handle(name, _cfg, cloud, log, _args):
-    try:
-        ud = cloud.get_userdata_raw()
-    except Exception:
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
+    get_userdata_raw = getattr(cloud, "get_userdata_raw", None)
+    if not get_userdata_raw or not callable(get_userdata_raw):
         log.debug("Failed to get raw userdata in module %s", name)
         return
 
+    ud = get_userdata_raw()
     try:
         mdict = parse_qs(ud)
         if not mdict or MY_HOOKNAME not in mdict:

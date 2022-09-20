@@ -4,26 +4,36 @@ cloud-init Documentation
 ########################
 
 Cloud-init is the *industry standard* multi-distribution method for
-cross-platform cloud instance initialization. It is supported across all
-major public cloud providers, provisioning systems for private cloud
-infrastructure, and bare-metal installations.
+cross-platform cloud instance initialization.
 
-On instance boot, cloud-init will identify the cloud it is running on, read
-any provided metadata from the cloud, and initialize the system accordingly.
-This may involve setting up the network and storage devices, configuring SSH
-access keys, and setting up many other aspects of a system. Later,
-cloud-init will parse and process any optional user or vendor data that was
-passed to the instance.
+During boot, cloud-init identifies the cloud it is running on and initializes
+the system accordingly. Cloud instances will automatically be provisioned
+during first boot with networking, storage, ssh keys, packages and various
+other system aspects already configured.
 
-Getting help
-************
+Cloud-init provides the necessary glue between launching a cloud instance and
+connecting to it so that it works as expected.
+
+For cloud users, cloud-init provides no-install first-boot configuration
+management of a cloud instance. For cloud providers, it provides instance setup
+that can be integrated with your cloud.
+
+Project and community
+*********************
+Cloud-init is an open source project that warmly welcomes community
+projects, contributions, suggestions, fixes and constructive feedback.
+
+* `Code of conduct <https://ubuntu.com/community/code-of-conduct>`_
+* Ask questions in IRC on ``#cloud-init`` on Libera
+* `Mailing list <https://launchpad.net/~cloud-init>`_
+* `Contribute on Github <https://github.com/canonical/cloud-init/blob/main/CONTRIBUTING.rst>`_
+* `Release schedule <https://discourse.ubuntu.com/search?q=cloud-init%20release%20schedule%20order%3Alatest>`_
 
 Having trouble? We would like to help!
+**************************************
 
 - Check out the :ref:`lxd_tutorial` if you're new to cloud-init
 - Try the :ref:`FAQ` for answers to some common questions
-- Ask a question in the ``#cloud-init`` IRC channel on Libera
-- Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
 
 .. toctree::
@@ -75,5 +85,3 @@ Having trouble? We would like to help!
    topics/docs.rst
    topics/testing.rst
    topics/integration_tests.rst
-
-.. vi: textwidth=79

@@ -9,7 +9,7 @@
 from .nic import Nic
 
 
-class Config(object):
+class Config:
     """
     Stores the Contents specified in the Customization
     Specification file.

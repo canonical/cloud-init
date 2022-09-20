@@ -29,6 +29,7 @@ KNOWN_CLOUD_NAMES = [
     "DigitalOcean",
     "E24Cloud",
     "GCE - Google Compute Engine",
+    "Huawei Cloud",
     "Exoscale",
     "Hetzner Cloud",
     "IBM - (aka SoftLayer or BlueMix)",
@@ -48,6 +49,7 @@ KNOWN_CLOUD_NAMES = [
     "VMware",
     "Vultr",
     "ZStack",
+    "Outscale",
     "Other",
 ]
 

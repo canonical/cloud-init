@@ -1133,6 +1133,13 @@ ec2_identify_platform() {
         e24cloud) _RET="E24cloud"; return 0;;
     esac
 
+
+    local product_name="${DI_DMI_PRODUCT_NAME}"
+    if [ "${product_name}" = "3DS Outscale VM" ]  && \
+       [ "${vendor}" = "3DS Outscale" ]; then
+        _RET="Outscale"; return 0
+    fi
+
     # AWS http://docs.aws.amazon.com/AWSEC2/
     #     latest/UserGuide/identify_ec2_instances.html
     local uuid="" hvuuid="${PATH_SYS_HYPERVISOR}/uuid"
@@ -1235,6 +1242,10 @@ dscheck_OpenStack() {
     fi
 
     if dmi_chassis_asset_tag_matches "SAP CCloud VM"; then
+        return ${DS_FOUND}
+    fi
+
+    if dmi_chassis_asset_tag_matches "HUAWEICLOUD"; then
         return ${DS_FOUND}
     fi
 

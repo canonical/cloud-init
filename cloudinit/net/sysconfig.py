@@ -65,7 +65,7 @@ def _quote_value(value):
         return value
 
 
-class ConfigMap(object):
+class ConfigMap:
     """Sysconfig like dictionary object."""
 
     # Why does redhat prefer yes/no to true/false??

@@ -13,6 +13,7 @@ import yaml
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.DataSourceLXD import MetaDataKeys
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
@@ -237,15 +238,16 @@ class TestIsPlatformViable:
 
 class TestReadMetadata:
     @pytest.mark.parametrize(
-        "url_responses,expected,logs",
+        "get_devices,url_responses,expected,logs",
         (
             (  # Assert non-JSON format from config route
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[NOT_JSON",
                 },
                 InvalidMetaDataException(
-                    "Unable to determine cloud-init config from"
+                    "Unable to process LXD config at"
                     " http://lxd/1.0/config. Expected JSON but found:"
                     " [NOT_JSON"
                 ),
@@ -255,6 +257,7 @@ class TestReadMetadata:
                 ],
             ),
             (  # Assert success on just meta-data
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
@@ -269,7 +272,65 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                 ],
             ),
+            (  # Assert success on devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                    "http://lxd/1.0/devices": (
+                        '{"root": {"path": "/", "pool": "default",'
+                        ' "type": "disk"}}'
+                    ),
+                },
+                {
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {},
+                    "meta-data": "local-hostname: md\n",
+                    "devices": {
+                        "root": {
+                            "path": "/",
+                            "pool": "default",
+                            "type": "disk",
+                        }
+                    },
+                },
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
+            (  # Assert 404 on devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                },
+                InvalidMetaDataException(
+                    "Invalid HTTP response [404] from http://lxd/1.0/devices"
+                ),
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
+            (  # Assert non-JSON format from devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                    "http://lxd/1.0/devices": '{"root"',
+                },
+                InvalidMetaDataException(
+                    "Unable to process LXD config at"
+                    ' http://lxd/1.0/devices. Expected JSON but found: {"root"'
+                ),
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
             (  # Assert 404s for config routes log skipping
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -308,6 +369,7 @@ class TestReadMetadata:
                 ],
             ),
             (  # Assert all CONFIG_KEY_ALIASES promoted to top-level keys
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -348,7 +410,8 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.vendor-data",
                 ],
             ),
-            (  # Assert cloud-init.* config key values prefered over user.*
+            (  # Assert cloud-init.* config key values preferred over user.*
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -425,7 +488,7 @@ class TestReadMetadata:
     )
     @mock.patch.object(lxd.requests.Session, "get")
     def test_read_metadata_handles_unexpected_content_or_http_status(
-        self, session_get, url_responses, expected, logs, caplog
+        self, m_session_get, get_devices, url_responses, expected, logs, caplog
     ):
         """read_metadata handles valid and invalid content and status codes."""
 
@@ -446,16 +509,48 @@ class TestReadMetadata:
             type(m_resp).text = mock_text
             return m_resp
 
-        session_get.side_effect = fake_get
-
+        m_session_get.side_effect = fake_get
+        metadata_keys = MetaDataKeys.META_DATA | MetaDataKeys.CONFIG
+        if get_devices:
+            metadata_keys |= MetaDataKeys.DEVICES
         if isinstance(expected, Exception):
             with pytest.raises(type(expected), match=re.escape(str(expected))):
-                lxd.read_metadata()
+                lxd.read_metadata(metadata_keys=metadata_keys)
         else:
-            assert expected == lxd.read_metadata()
-        caplogs = caplog.text
+            assert expected == lxd.read_metadata(metadata_keys=metadata_keys)
         for log in logs:
-            assert log in caplogs
+            assert log in caplog.text
+
+    @pytest.mark.parametrize(
+        "metadata_keys, expected_get_urls",
+        [
+            (MetaDataKeys.NONE, []),
+            (MetaDataKeys.META_DATA, ["http://lxd/1.0/meta-data"]),
+            (MetaDataKeys.CONFIG, ["http://lxd/1.0/config"]),
+            (MetaDataKeys.DEVICES, ["http://lxd/1.0/devices"]),
+            (
+                MetaDataKeys.DEVICES | MetaDataKeys.CONFIG,
+                ["http://lxd/1.0/config", "http://lxd/1.0/devices"],
+            ),
+            (
+                MetaDataKeys.ALL,
+                [
+                    "http://lxd/1.0/meta-data",
+                    "http://lxd/1.0/config",
+                    "http://lxd/1.0/devices",
+                ],
+            ),
+        ],
+    )
+    @mock.patch.object(lxd.requests.Session, "get")
+    def test_read_metadata_keys(
+        self, m_session_get, metadata_keys, expected_get_urls
+    ):
+        lxd.read_metadata(metadata_keys=metadata_keys)
+        assert (
+            list(map(mock.call, expected_get_urls))
+            == m_session_get.call_args_list
+        )
 
 
 # vi: ts=4 expandtab

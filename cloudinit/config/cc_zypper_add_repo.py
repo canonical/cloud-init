@@ -6,12 +6,15 @@
 """zypper_add_repo: Add zypper repositories to the system"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 import configobj
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -177,7 +180,9 @@ def _write_zypp_config(zypper_config):
     util.write_file(zypp_config, new_config)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     zypper_section = cfg.get("zypper")
     if not zypper_section:
         LOG.debug(

@@ -802,12 +802,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]["errors"])
 
 
-def _maybe_persist_instance_data(init):
+def _maybe_persist_instance_data(init: stages.Init):
     """Write instance-data.json file if absent and datasource is restored."""
-    if init.ds_restored:
-        instance_data_file = os.path.join(
-            init.paths.run_dir, sources.INSTANCE_JSON_FILE
-        )
+    if init.datasource and init.ds_restored:
+        instance_data_file = init.paths.get_runpath("instance_data")
         if not os.path.exists(instance_data_file):
             init.datasource.persist_instance_data(write_cache=False)
 

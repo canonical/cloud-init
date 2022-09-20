@@ -255,7 +255,7 @@ class Renderer(renderer.Renderer):
                 self.parse_routes(route, cfg)
 
             if ns.version == 2:
-                name = iface["name"]
+                name: Optional[str] = iface["name"]
                 # network state doesn't give dhcp domain info
                 # using ns.config as a workaround here
 
@@ -270,8 +270,8 @@ class Renderer(renderer.Renderer):
                         if dev_cfg.get("set-name") == name:
                             name = dev_name
                             break
-
-                self.dhcp_domain(ns.config["ethernets"][name], cfg)
+                if name in ns.config["ethernets"]:
+                    self.dhcp_domain(ns.config["ethernets"][name], cfg)
 
             ret_dict.update({link: cfg.get_final_conf()})
 

@@ -4,8 +4,11 @@
 
 """Write Files Deferred: Defer writing certain files"""
 
+from logging import Logger
+
 from cloudinit import util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
@@ -35,7 +38,9 @@ meta: MetaSchema = {
 __doc__ = ""
 
 
-def handle(name, cfg, cloud: Cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f

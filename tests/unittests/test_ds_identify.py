@@ -557,6 +557,10 @@ class TestDsIdentify(DsIdentifyBase):
         """SAP Converged Cloud identification"""
         self._test_ds_found("OpenStack-SAPCCloud")
 
+    def test_openstack_huawei_cloud(self):
+        """Open Huawei Cloud identification."""
+        self._test_ds_found("OpenStack-HuaweiCloud")
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found("OpenStack-AssetTag-Nova")
@@ -762,6 +766,18 @@ class TestDsIdentify(DsIdentifyBase):
     def test_e24cloud_not_active(self):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found("Ec2-E24Cloud-negative")
+
+    def test_outscale_is_ec2(self):
+        """EC2: outscale identified by sys_vendor and product_name"""
+        self._test_ds_found("Ec2-Outscale")
+
+    def test_outscale_not_active_sysvendor(self):
+        """EC2: outscale in sys_vendor is not outscale'"""
+        self._test_ds_not_found("Ec2-Outscale-negative-sysvendor")
+
+    def test_outscale_not_active_productname(self):
+        """EC2: outscale in product_name is not outscale'"""
+        self._test_ds_not_found("Ec2-Outscale-negative-productname")
 
     def test_vmware_no_valid_transports(self):
         """VMware: no valid transports"""
@@ -1211,6 +1227,12 @@ VALID_CFG = {
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
         "mocks": [MOCK_VIRT_IS_VMWARE],
+    },
+    "OpenStack-HuaweiCloud": {
+        # Huawei Cloud hosts use OpenStack
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "HUAWEICLOUD\n"},
+        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "OpenStack-AssetTag-Nova": {
         # VMware vSphere can't modify product-name, LP: #1669875
@@ -1800,6 +1822,27 @@ VALID_CFG = {
             },
             MOCK_VIRT_IS_VMWARE,
         ],
+    },
+    "Ec2-Outscale": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "3DS Outscale VM\n",
+            P_SYS_VENDOR: "3DS Outscale\n",
+        },
+    },
+    "Ec2-Outscale-negative-sysvendor": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "3DS Outscale VM\n",
+            P_SYS_VENDOR: "Not 3DS Outscale\n",
+        },
+    },
+    "Ec2-Outscale-negative-productname": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "Not 3DS Outscale VM\n",
+            P_SYS_VENDOR: "3DS Outscale\n",
+        },
     },
 }
 

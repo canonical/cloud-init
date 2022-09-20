@@ -14,6 +14,7 @@ Notes:
 """
 
 import base64
+import ipaddress
 from collections import namedtuple
 from typing import Optional, Tuple
 
@@ -155,6 +156,7 @@ class DataSourceOracle(sources.DataSource):
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
                 "headers": V2_HEADERS,
             },
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(
@@ -295,11 +297,14 @@ class DataSourceOracle(sources.DataSource):
                 )
                 continue
             name = interfaces_by_mac[mac_address]
+            prefix = ipaddress.ip_network(
+                vnic_dict["subnetCidrBlock"]
+            ).prefixlen
 
             if self._network_config["version"] == 1:
                 subnet = {
                     "type": "static",
-                    "address": vnic_dict["privateIp"],
+                    "address": f"{vnic_dict['privateIp']}/{prefix}",
                 }
                 self._network_config["config"].append(
                     {
@@ -312,7 +317,7 @@ class DataSourceOracle(sources.DataSource):
                 )
             elif self._network_config["version"] == 2:
                 self._network_config["ethernets"][name] = {
-                    "addresses": [vnic_dict["privateIp"]],
+                    "addresses": [f"{vnic_dict['privateIp']}/{prefix}"],
                     "mtu": MTU,
                     "dhcp4": False,
                     "dhcp6": False,

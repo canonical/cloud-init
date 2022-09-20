@@ -144,7 +144,7 @@ def handle_args(name, args):
         config = distro.renderer_configs.get("eni")
     elif args.output_kind == "netplan":
         r_cls = netplan.Renderer
-        config = distro.renderer_configs.get("netplan")
+        config = distro.renderer_configs.get("netplan", {})
         # don't run netplan generate/apply
         config["postcmds"] = False
         # trim leading slash

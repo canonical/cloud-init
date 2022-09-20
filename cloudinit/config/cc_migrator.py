@@ -8,8 +8,11 @@
 
 import os
 import shutil
+from logging import Logger
 
 from cloudinit import helpers, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -86,7 +89,9 @@ def _migrate_legacy_sems(cloud, log):
                         pass
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     do_migrate = util.get_cfg_option_str(cfg, "migrate", True)
     if not util.translate_bool(do_migrate):
         log.debug("Skipping module named %s, migration disabled", name)

@@ -5,6 +5,9 @@
 import os
 from textwrap import dedent
 
+from cloudinit.cloud import Cloud
+from cloudinit.distros import Distro
+
 try:
     import debconf
 
@@ -13,8 +16,11 @@ except ImportError:
     debconf = None
     HAS_DEBCONF = False
 
+from logging import Logger
+
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -70,7 +76,7 @@ Description: Late-link NVIDIA kernel modules?
 X_LOADTEMPLATEFILE = "X_LOADTEMPLATEFILE"
 
 
-def install_drivers(cfg, pkg_install_func):
+def install_drivers(cfg, pkg_install_func, distro: Distro):
     if not isinstance(cfg, dict):
         raise TypeError(
             "'drivers' config expected dict, found '%s': %s"
@@ -106,7 +112,7 @@ def install_drivers(cfg, pkg_install_func):
     )
 
     # Register and set debconf selection linux/nvidia/latelink = true
-    tdir = temp_utils.mkdtemp(needs_exe=True)
+    tdir = temp_utils.mkdtemp(dir=distro.get_tmp_exec_path(), needs_exe=True)
     debconf_file = os.path.join(tdir, "nvidia.template")
     try:
         util.write_file(debconf_file, NVIDIA_DEBCONF_CONTENT)
@@ -134,7 +140,9 @@ def install_drivers(cfg, pkg_install_func):
         raise
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if "drivers" not in cfg:
         log.debug("Skipping module named %s, no 'drivers' key in config", name)
         return
@@ -145,4 +153,6 @@ def handle(name, cfg, cloud, log, _args):
         )
         return
 
-    install_drivers(cfg["drivers"], cloud.distro.install_packages)
+    install_drivers(
+        cfg["drivers"], cloud.distro.install_packages, cloud.distro
+    )
