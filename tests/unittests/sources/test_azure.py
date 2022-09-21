@@ -3999,6 +3999,20 @@ class TestIMDS:
         ]
 
 
+class TestInstanceId:
+    def test_metadata(self, azure_ds, mock_dmi_read_dmi_data):
+        azure_ds.metadata = {"instance-id": "test-id"}
+
+        id = azure_ds.get_instance_id()
+
+        assert id == "test-id"
+
+    def test_fallback(self, azure_ds, mock_dmi_read_dmi_data):
+        id = azure_ds.get_instance_id()
+
+        assert id == "fake-system-uuid"
+
+
 class TestProvisioning:
     @pytest.fixture(autouse=True)
     def provisioning_setup(
