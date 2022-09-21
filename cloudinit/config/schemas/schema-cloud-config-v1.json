@@ -263,8 +263,8 @@
               ],
               "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
             },
-            "ANSIBLE_CONFIG": {
-              "description": "If set, overrides default config.",
+            "ansible_config": {
+              "description": "Sets the ANSIBLE_CONFIG environment variable. If set, overrides default config.",
               "type": "string"
             },
             "galaxy": {

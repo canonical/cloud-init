@@ -46,7 +46,7 @@ CFG_FULL = {
     "ansible": {
         "install-method": "distro",
         "package-name": "ansible-core",
-        "ANSIBLE_CONFIG": "/etc/ansible/ansible.cfg",
+        "ansible_config": "/etc/ansible/ansible.cfg",
         "galaxy": {
             "actions": [["ansible-galaxy", "install", "debops.apt"]],
         },
@@ -253,7 +253,7 @@ class TestAnsible:
                     [
                         call(
                             args=["python3", "-m", "pip", "list"],
-                            env={"PATH": ""},
+                            env={"PATH": "/root/.local/bin/"},
                         ),
                         call(
                             args=[
@@ -264,7 +264,7 @@ class TestAnsible:
                                 "--user",
                                 "ansible",
                             ],
-                            env={"PATH": ""},
+                            env={"PATH": "/root/.local/bin/"},
                         ),
                     ]
                 )
@@ -276,7 +276,7 @@ class TestAnsible:
                         "--url=https://github/holmanb/vmboot",
                         "ubuntu.yml",
                     ],
-                    env={"PATH": ""},
+                    env={"PATH": "/root/.local/bin/"},
                 )
 
     @mock.patch(M_PATH + "which", return_value=False)
@@ -353,7 +353,8 @@ class TestAnsible:
         )
 
         if pull_type == "pip":
-            assert m_subp.call_args == call(args=expected, env={"PATH": ""})
+            assert m_subp.call_args == call(
+                args=expected, env={"PATH": "/root/.local/bin/"})
         else:
             assert m_subp.call_args == call(expected)
 

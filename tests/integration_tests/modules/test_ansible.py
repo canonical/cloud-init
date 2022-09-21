@@ -118,6 +118,8 @@ def _test_ansible_pull_from_local_server(my_client):
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
     assert "ok=3" in output_log
     assert "SUCCESS: config-ansible ran successfully" in log
+    collection = my_client.execute("ansible-galaxy collection list")
+    assert "community.grafana" in collection.stdout
 
 
 @pytest.mark.user_data(

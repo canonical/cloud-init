@@ -105,11 +105,12 @@ class AnsiblePullPip(AnsiblePull):
     def __init__(self, distro: Distro):
         super().__init__(distro)
 
+        ansible_path = "/root/.local/bin/"
         old_path = self.env.get("PATH")
         if old_path:
-            self.env["PATH"] = ":".join([old_path, "/root/.local/bin/"])
+            self.env["PATH"] = ":".join([old_path, ansible_path])
         else:
-            self.env["PATH"] = ""
+            self.env["PATH"] = ansible_path
 
     def install(self, pkg_name: str):
         """should cloud-init grow an interface for non-distro package
