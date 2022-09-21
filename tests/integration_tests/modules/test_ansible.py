@@ -122,7 +122,8 @@ def _test_ansible_pull_from_local_server(my_client):
     # binary location is dependent on install-type, check the filepath
     # to ensure that the installed collection directory exists
     output = my_client.execute(
-        "ls /root/.ansible/collections/ansible_collections/community/grafana")
+        "ls /root/.ansible/collections/ansible_collections/community/grafana"
+    )
     assert not output.stderr.strip() and output.ok
 
 

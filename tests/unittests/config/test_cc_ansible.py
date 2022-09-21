@@ -354,7 +354,8 @@ class TestAnsible:
 
         if pull_type == "pip":
             assert m_subp.call_args == call(
-                args=expected, env={"PATH": "/root/.local/bin/"})
+                args=expected, env={"PATH": "/root/.local/bin/"}
+            )
         else:
             assert m_subp.call_args == call(expected)
 
