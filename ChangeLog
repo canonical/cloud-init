@@ -1,3 +1,29 @@
+22.3.3
+ - Fix Oracle DS not setting subnet when using IMDS (LP: #1989686)
+
+22.3.2
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - sources/azure: ensure instance id is always correct (#1727)
+
+22.3.1
+ - Fix v2 interface matching when no MAC (LP: #1986551)
+ - test: reduce number of network dependencies in flaky test (#1702)
+ - docs: publish cc_ubuntu_autoinstall docs to rtd (#1696)
+ - net: Fix EphemeraIPNetwork (#1697) [Alberto Contreras]
+ - test: make ansible test work across older versions (#1691)
+ - Networkd multi-address support/fix (#1685) [Teodor Garzdin]
+ - make: drop broken targets (#1688)
+ - net: Passthough v2 netconfigs in netplan systems (#1650)
+   [Alberto Contreras] (LP: #1978543)
+ - NM ipv6 connection does not work on Azure and Openstack (#1616)
+   [Emanuele Giuseppe Esposito]
+ - Fix check_format_tip (#1679) [Alberto Contreras]
+ - DataSourceVMware: fix var use before init (#1674)
+   [Andrew Kutz] (LP: #1987005)
+ - rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
+ - test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo
+   (#1676)
+
 22.3
  - sources: obj.pkl cache should be written anyime get_data is run (#1669)
  - schema: drop release number from version file (#1664)
