@@ -1,3 +1,14 @@
+cloud-init (22.3.3-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+
+  * New upstream bugfix release. (LP: #1987318)
+    + Release 22.3.3
+    + Fix Oracle DS not setting subnet when using IMDS (#1735)
+    + azure: define new attribute for pre-22.3 pickles (#1725)
+    + sources/azure: ensure instance id is always correct (#1727)
+      [Chris Patterson]
+
+ -- Brett Holman <brett.holman@canonical.com>  Wed, 21 Sep 2022 14:12:15 -0600
+
 cloud-init (22.3-13-g70ce6442-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/control: add python3-debconf to Depends and Build-Depends
