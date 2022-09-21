@@ -118,8 +118,12 @@ def _test_ansible_pull_from_local_server(my_client):
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
     assert "ok=3" in output_log
     assert "SUCCESS: config-ansible ran successfully" in log
-    collection = my_client.execute("ansible-galaxy collection list")
-    assert "community.grafana" in collection.stdout
+
+    # binary location is dependent on install-type, check the filepath
+    # to ensure that the installed collection directory exists
+    output = my_client.execute(
+        "ls /root/.ansible/collections/ansible_collections/community/grafana")
+    assert not output.stderr.strip() and output.ok
 
 
 @pytest.mark.user_data(
