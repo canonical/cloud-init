@@ -58,11 +58,7 @@ def test_substitution_in_etc_cloud(client: IntegrationInstance):
         "/etc/cloud/cloud.cfg.d/50-jinja-test.cfg", new_cloud_part
     )
 
-    cloud_part_no_jinja = (
-        "write_files:\n"
-        " - content: hi {{v1.local_hostname}}\n"
-        "   path: /var/tmp/writefiles_output\n"
-    )
+    cloud_part_no_jinja = "final_message: final hi {{v1.local_hostname}}"
     client.write_to_file(
         "/etc/cloud/cloud.cfg.d/70-no-jinja-test.cfg", cloud_part_no_jinja
     )
@@ -70,7 +66,8 @@ def test_substitution_in_etc_cloud(client: IntegrationInstance):
     client.execute("cloud-init clean --logs")
     client.restart()
 
-    verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
 
     # Ensure /etc/cloud/cloud.cfg template works as expected
     hostname = client.execute("hostname").stdout.strip()
@@ -83,10 +80,7 @@ def test_substitution_in_etc_cloud(client: IntegrationInstance):
     )
 
     # Ensure a file without '## template: jinja' isn't interpreted as jinja
-    assert (
-        client.read_from_file("/var/tmp/writefiles_output").strip()
-        == "hi {{v1.local_hostname}}"
-    )
+    assert "final hi {{v1.local_hostname}}" in log
 
 
 def test_invalid_etc_cloud_substitution(client: IntegrationInstance):
@@ -95,9 +89,7 @@ def test_invalid_etc_cloud_substitution(client: IntegrationInstance):
         "runcmd:\n"
         " - echo {{bad}} > /var/tmp/runcmd_bad\n"
         " - echo {{v1.local_hostname}} > /var/tmp/runcmd_output\n"
-        "write_files:\n"
-        " - content: {{v1.local_hostname}}\n"
-        "   path: /var/tmp/writefiles_output\n"
+        "final_message: final hi {{v1.local_hostname}}"
     )
     client.write_to_file("/etc/cloud/cloud.cfg.d/50-no-var.cfg", no_var_part)
 
@@ -123,9 +115,7 @@ def test_invalid_etc_cloud_substitution(client: IntegrationInstance):
     )
     hostname = client.execute("hostname").stdout.strip()
     assert client.read_from_file("/var/tmp/runcmd_output").strip() == hostname
-    assert (
-        client.read_from_file("/var/tmp/writefiles_output").strip() == hostname
-    )
+    assert f"final hi {hostname}" in log
 
     # Ensure other files continue to load correctly
     assert client.read_from_file("/var/tmp/bootcmd_output").strip() == "hi"

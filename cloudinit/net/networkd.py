@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # vi: ts=4 expandtab
 #
-# Copyright (C) 2021 VMware Inc.
+# Copyright (C) 2021-2022 VMware Inc.
 #
 # Author: Shreenidhi Shedi <yesshedi@gmail.com>
 #
@@ -175,6 +175,8 @@ class Renderer(renderer.Renderer):
         ):
             cfg.update_section(sec, "IPv6AcceptRA", iface["accept-ra"])
 
+        return dhcp
+
     # This is to accommodate extra keys present in VMware config
     def dhcp_domain(self, d, cfg):
         for item in ["dhcp4domain", "dhcp6domain"]:
@@ -216,6 +218,34 @@ class Renderer(renderer.Renderer):
             if k in dns and dns[k]:
                 cfg.update_section(sec, v, " ".join(dns[k]))
 
+    def parse_dhcp_overrides(self, cfg, device, dhcp, version):
+        dhcp_config_maps = {
+            "UseDNS": "use-dns",
+            "UseDomains": "use-domains",
+            "UseHostname": "use-hostname",
+            "UseNTP": "use-ntp",
+        }
+
+        if version == "4":
+            dhcp_config_maps.update(
+                {
+                    "SendHostname": "send-hostname",
+                    "Hostname": "hostname",
+                    "RouteMetric": "route-metric",
+                    "UseMTU": "use-mtu",
+                    "UseRoutes": "use-routes",
+                }
+            )
+
+        if f"dhcp{version}-overrides" in device and dhcp in [
+            "yes",
+            f"ipv{version}",
+        ]:
+            dhcp_overrides = device[f"dhcp{version}-overrides"]
+            for k, v in dhcp_config_maps.items():
+                if v in dhcp_overrides:
+                    cfg.update_section(f"DHCPv{version}", k, dhcp_overrides[v])
+
     def create_network_file(self, link, conf, nwk_dir):
         net_fn_owner = "systemd-network"
 
@@ -248,7 +278,7 @@ class Renderer(renderer.Renderer):
 
             link = self.generate_match_section(iface, cfg)
             self.generate_link_section(iface, cfg)
-            self.parse_subnets(iface, cfg)
+            dhcp = self.parse_subnets(iface, cfg)
             self.parse_dns(iface, cfg, ns)
 
             for route in ns.iter_routes():
@@ -271,7 +301,25 @@ class Renderer(renderer.Renderer):
                             name = dev_name
                             break
                 if name in ns.config["ethernets"]:
-                    self.dhcp_domain(ns.config["ethernets"][name], cfg)
+                    device = ns.config["ethernets"][name]
+
+                    # dhcp{version}domain are extra keys only present in
+                    # VMware config
+                    self.dhcp_domain(device, cfg)
+                    for version in ["4", "6"]:
+                        if (
+                            f"dhcp{version}domain" in device
+                            and "use-domains"
+                            in device.get(f"dhcp{version}-overrides", {})
+                        ):
+                            exception = (
+                                f"{name} has both dhcp{version}domain"
+                                f" and dhcp{version}-overrides.use-domains"
+                                f" configured. Use one"
+                            )
+                            raise Exception(exception)
+
+                        self.parse_dhcp_overrides(cfg, device, dhcp, version)
 
             ret_dict.update({link: cfg.get_final_conf()})
 
