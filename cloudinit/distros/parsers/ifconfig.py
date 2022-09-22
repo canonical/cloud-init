@@ -88,7 +88,7 @@ class IfconfigParser:
         self._text = text
         self._ifs = []
 
-    def parse(self):
+    def parse(self, text: str) -> dict:
         ifs = {}
         for line in text.splitlines():
             if len(line) == 0:
@@ -103,17 +103,8 @@ class IfconfigParser:
 
             toks = line.lower().strip().split()
 
-            if len(toks) > 1:
-                if re.search(r"flags=[x\d]+<.*>", toks[1]):
-                    flags = re.split(r"<|>", toks[1])
-                    if len(flags) > 1:
-                        ifs[curif]["flags"] = flags[1].split(",")
-                        if up in ifs[curif]["flags"]:
-                            ifs[curif]["up"] = True
-                        if toks[2] == "metric":
-                            ifs[curif]["metric"] = int(toks[3])
-                        if toks[4] == "mtu":
-                            ifs[curif]["mtu"] = int(toks[5])
+            if len(toks) > 1 and toks[1].startswith("flags="):
+                ifs[curif] = copy.deepcopy(self._parse_flags(toks))
 
             if toks[0] == "description:":
                 ifs[curif]["description"] = line[line.index(":") + 2:]
@@ -145,20 +136,61 @@ class IfconfigParser:
                 ifs[curif]["status"] = toks[1]
 
             if toks[0] == "inet":
-                if "/" in toks[1]:
-                    ip = IP4Interface(toks[1])
-                    netmask = inet.netmask
-                    broadcast = toks[3]
-                else:
-                    netmask = str(IP4Address(int(toks[3], 16)))
-                    broadcast = toks[5]
-                    ip = IPv4Interface("%s/%s" % (toks[1], netmask))
+                ip = self._parse_inet(toks)
+                ifs[curif]["inet"][ip[0]] = copy.deepcopy(ip[1])
 
-                prefixlen = ip.with_prefixlen.split("/")[1]
-                ifs[curif][inet][str(ip.ip)] = { "netmask": netmask,
-                                                 "broadcast": broadcast,
-                                                 "prefixlen": prefixlen}
+            if toks[0] == "inet6":
+                ip = self._parse_inet6(toks)
+                ifs[curif]["inet6"][ip[0]] = copy.deepcopy(ip[1])
 
-        return []
+        return ifs
+
+    def _parse_inet(self, toks: list) -> tuple:
+        if "/" in toks[1]:
+            ip = IP4Interface(toks[1])
+            netmask = ip.netmask
+            broadcast = toks[3]
+        else:
+            netmask = str(IP4Address(int(toks[3], 0)))
+            broadcast = toks[5]
+            ip = IPv4Interface("%s/%s" % (toks[1], netmask))
+
+        prefixlen = ip.with_prefixlen.split("/")[1]
+        return (str(ip.ip),  { "netmask": netmask,
+                               "broadcast": broadcast,
+                               "prefixlen": prefixlen})
+
+    def _parse_inet6(self, toks: list) -> tuple:
+        if "/" in toks[1]:
+            ip = IP6Interface(toks[1])
+            prefixlen = toks[1].split("/")[1]
+            broadcast = toks[3]
+        else:
+            for i in range(2, len(toks)):
+                if toks[i] == "prefixlen":
+                    prefixlen = toks[i+1]
+                    break
+            ip = IPv6Interface("%s/%s" % (toks[1], prefixlen))
+
+        if ip.is_link_local:
+            scope = 'link-local'
+        elif ip.is_site_local:
+            scope = 'site-local'
+
+        return (str(ip.ip), { "prefixlen": prefixlen,
+                              "scope": scope})
+
+    def _parse_flags(self, toks: list) -> dict:
+        flags = re.split(r"<|>", toks[1])
+        ret = {}
+        if len(flags) > 1:
+            ret["flags"] = flags[1].split(",")
+            if up in ret["flags"]:
+                ret["up"] = True
+            if toks[2] == "metric":
+                ret["metric"] = int(toks[3])
+            if toks[4] == "mtu":
+                ret["mtu"] = int(toks[5])
+        return ret
 
 # vi: ts=4 expandtab
