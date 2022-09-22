@@ -87,7 +87,7 @@ class Renderer(renderer.Renderer):
             "network_conf_dir", "/etc/systemd/network/"
         )
 
-    def generate_match_section(self, iface, cfg):
+    def generate_match_section(self, iface, cfg: CfgParser):
         sec = "Match"
         match_dict = {
             "name": "Name",
@@ -104,7 +104,7 @@ class Renderer(renderer.Renderer):
 
         return iface["name"]
 
-    def generate_link_section(self, iface, cfg):
+    def generate_link_section(self, iface, cfg: CfgParser):
         sec = "Link"
 
         if not iface:
@@ -113,7 +113,7 @@ class Renderer(renderer.Renderer):
         if "mtu" in iface and iface["mtu"]:
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
 
-    def parse_routes(self, conf, cfg):
+    def parse_routes(self, conf, cfg: CfgParser):
         sec = "Route"
         route_cfg_map = {
             "gateway": "Gateway",
@@ -133,7 +133,7 @@ class Renderer(renderer.Renderer):
                 v += prefix
             cfg.update_section(sec, route_cfg_map[k], v)
 
-    def parse_subnets(self, iface, cfg):
+    def parse_subnets(self, iface, cfg: CfgParser):
         dhcp = "no"
         sec = "Network"
         for e in iface.get("subnets", []):
@@ -178,7 +178,7 @@ class Renderer(renderer.Renderer):
         return dhcp
 
     # This is to accommodate extra keys present in VMware config
-    def dhcp_domain(self, d, cfg):
+    def dhcp_domain(self, d, cfg: CfgParser):
         for item in ["dhcp4domain", "dhcp6domain"]:
             if item not in d:
                 continue
@@ -196,7 +196,7 @@ class Renderer(renderer.Renderer):
                 section = "DHCPv6"
             cfg.update_section(section, "UseDomains", ret)
 
-    def parse_dns(self, iface, cfg, ns):
+    def parse_dns(self, iface, cfg: CfgParser, ns: NetworkState):
         sec = "Network"
 
         dns_cfg_map = {
@@ -218,7 +218,7 @@ class Renderer(renderer.Renderer):
             if k in dns and dns[k]:
                 cfg.update_section(sec, v, " ".join(dns[k]))
 
-    def parse_dhcp_overrides(self, cfg, device, dhcp, version):
+    def parse_dhcp_overrides(self, cfg: CfgParser, device, dhcp, version):
         dhcp_config_maps = {
             "UseDNS": "use-dns",
             "UseDomains": "use-domains",
@@ -271,7 +271,7 @@ class Renderer(renderer.Renderer):
         for k, v in ret_dict.items():
             self.create_network_file(k, v, network_dir)
 
-    def _render_content(self, ns):
+    def _render_content(self, ns: NetworkState) -> dict:
         ret_dict = {}
         for iface in ns.iter_interfaces():
             cfg = CfgParser()
@@ -335,6 +335,6 @@ def available(target=None):
     return True
 
 
-def network_state_to_networkd(ns):
+def network_state_to_networkd(ns: NetworkState):
     renderer = Renderer({})
     return renderer._render_content(ns)
