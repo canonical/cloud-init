@@ -1,3 +1,5 @@
+.. _vendordata:
+
 ***********
 Vendor Data
 ***********
