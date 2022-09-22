@@ -461,6 +461,7 @@ def create_marker_file(cloud_dir, cust_cfg):
             cust_cfg,
         )
         return False
+    return True
 
 
 def setup_marker_files(marker_id, marker_dir):

@@ -631,6 +631,9 @@ def load_json_or_yaml(data):
     """
     if not data:
         return {}
+    # If data is already a dictionary, here will return it directly.
+    if isinstance(data, dict):
+        return data
     try:
         return util.load_json(data)
     except (json.JSONDecodeError, TypeError):
