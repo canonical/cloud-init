@@ -46,7 +46,7 @@ OSFAMILIES = {
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
     "freebsd": ["freebsd"],
-    "gentoo": ["gentoo"],
+    "gentoo": ["gentoo", "cos"],
     "redhat": [
         "almalinux",
         "amazon",
