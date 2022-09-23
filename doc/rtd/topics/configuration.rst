@@ -13,7 +13,7 @@ From lowest priority to highest, configuration sources are:
 * **Hardcoded config**: Config_ that lives within the source of cloud-init
   and cannot be changed.
 * **Configuration directory**: Anything defined in ``/etc/cloud/cloud.cfg`` and
-  ``/etc/cloud/cloud.cfg.d``
+  ``/etc/cloud/cloud.cfg.d``.
 * **Runtime config**: Anything defined in ``/run/cloud-init/cloud.cfg``
 * **Kernel command line**: On the kernel command line, anything found between
   ``cc:`` and ``end_cc`` will be interpreted as cloud-config user data.
