@@ -155,6 +155,50 @@ DNS=8.8.8.8 2001:4860:4860::8888
 """
 )
 
+V1_CONFIG_MULTI_SUBNETS = """
+network:
+  version: 1
+  config:
+    - type: physical
+      name: eth0
+      mac_address: 'ae:98:25:fa:36:9e'
+      subnets:
+      - type: static
+        address: '10.0.0.2'
+        netmask: '255.255.255.255'
+        gateway: '10.0.0.1'
+      - type: static6
+        address: '2a01:4f8:10a:19d2::4/64'
+        gateway: '2a01:4f8:10a:19d2::2'
+    - type: nameserver
+      address:
+      - '100.100.100.100'
+      search:
+      - 'rgrunbla.github.beta.tailscale.net'
+"""
+
+V1_CONFIG_MULTI_SUBNETS_RENDERED = """\
+[Address]
+Address=10.0.0.2/32
+
+[Address]
+Address=2a01:4f8:10a:19d2::4/64
+
+[Match]
+MACAddress=ae:98:25:fa:36:9e
+Name=eth0
+
+[Network]
+DHCP=no
+DNS=100.100.100.100
+Domains=rgrunbla.github.beta.tailscale.net
+
+[Route]
+Gateway=10.0.0.1
+Gateway=2a01:4f8:10a:19d2::2
+
+"""
+
 
 class TestNetworkdRenderState:
     def _parse_network_state_from_config(self, config):
@@ -248,6 +292,20 @@ class TestNetworkdRenderState:
         ] == V2_CONFIG_DHCP_OVERRIDES_RENDERED.substitute(
             dhcp_version=dhcp_version, key=rendered_key, value=rendered_value
         )
+
+    def test_networkd_render_v1_multi_subnets(self):
+        """
+        Ensure a device with multiple subnets gets correctly rendered.
+
+        Per systemd-networkd docs, [Address] can only contain a single instance
+        of Address.
+        """
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(V1_CONFIG_MULTI_SUBNETS)
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert rendered_content["eth0"] == V1_CONFIG_MULTI_SUBNETS_RENDERED
 
 
 # vi: ts=4 expandtab
