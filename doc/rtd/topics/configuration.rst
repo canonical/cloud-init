@@ -33,7 +33,7 @@ to provide the full configuration are:
 Network Configuration
 =====================
 Network configuration happens independently from other cloud-init
-configuration. It is sourced from the cloud provided metadata servce and is
+configuration. It is sourced from the cloud provided metadata service and is
 not user editable. If you need to change your network configuration,
 your options are:
 
