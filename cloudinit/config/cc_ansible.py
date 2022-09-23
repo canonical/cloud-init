@@ -90,7 +90,7 @@ class AnsiblePull(abc.ABC):
             raise ValueError("command: ansible is not installed")
 
     def subp(self, command, **kwargs):
-        return subp(command, **kwargs)
+        return subp(command, env=self.env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):
@@ -160,6 +160,10 @@ def handle(
             ansible = AnsiblePullDistro(distro)
         ansible.install(package_name)
         ansible.check_deps()
+        ansible_config = ansible_cfg.get("ansible_config", "")
+
+        if ansible_config:
+            ansible.env[CFG_OVERRIDE] = ansible_config
 
         if galaxy_cfg:
             ansible_galaxy(galaxy_cfg, ansible)
@@ -215,9 +219,6 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
 
 def ansible_galaxy(cfg: dict, ansible: AnsiblePull):
     actions = cfg.get("actions", [])
-    ansible_config = cfg.get(CFG_OVERRIDE, "")
-    if ansible_config:
-        ansible.env[CFG_OVERRIDE] = ansible_config
 
     if not actions:
         LOG.warning("Invalid config: %s", cfg)
