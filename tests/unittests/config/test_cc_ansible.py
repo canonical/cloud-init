@@ -16,6 +16,7 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
+
 M_PATH = "cloudinit.config.cc_ansible."
 distro_version = dedent(
     """ansible 2.10.8
@@ -357,7 +358,7 @@ class TestAnsible:
                 args=expected, env={"PATH": "/root/.local/bin/"}
             )
         else:
-            assert m_subp.call_args == call(expected)
+            assert m_subp.call_args == call(expected, env={})
 
     @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):
@@ -391,4 +392,13 @@ class TestAnsible:
         assert (
             util.Version(2, 1, 0, -1)
             == cc_ansible.AnsiblePullDistro(distro).get_version()
+        )
+
+    @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "which", return_value=True)
+    def test_ansible_env_var(self, m_which, m_subp):
+        cc_ansible.handle("", CFG_FULL, get_cloud(), mock.Mock(), [])
+        assert (
+            "/etc/ansible/ansible.cfg"
+            == m_subp.call_args.kwargs["env"]["ANSIBLE_CONFIG"]
         )
