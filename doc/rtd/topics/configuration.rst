@@ -14,7 +14,7 @@ From lowest priority to highest, configuration sources are:
   and cannot be changed.
 * **Configuration directory**: Anything defined in ``/etc/cloud/cloud.cfg`` and
   ``/etc/cloud/cloud.cfg.d``.
-* **Runtime config**: Anything defined in ``/run/cloud-init/cloud.cfg``
+* **Runtime config**: Anything defined in ``/run/cloud-init/cloud.cfg``.
 * **Kernel command line**: On the kernel command line, anything found between
   ``cc:`` and ``end_cc`` will be interpreted as cloud-config user data.
 
