@@ -1,12 +1,15 @@
 .. _configuration:
 
-Configuration
-*************
+Configuration Sources
+*********************
 
 Internally, cloud-init builds a single configuration that is then referenced
 throughout the life of cloud-init. The configuration is built from multiple
 sources such that if a key is defined in multiple sources, the higher priority
 source overwrites the lower priority source.
+
+Base Configuration
+==================
 
 From lowest priority to highest, configuration sources are:
 
@@ -18,17 +21,22 @@ From lowest priority to highest, configuration sources are:
 * **Kernel command line**: On the kernel command line, anything found between
   ``cc:`` and ``end_cc`` will be interpreted as cloud-config user data.
 
-These four sources make up the **base configuration**. Added to these
-to provide the full configuration are:
+These four sources make up the base configuration.
+
+Vendor and User Data
+====================
+Added to the base configuration are:
 
 * **Vendor data**: :ref:`Data<vendordata>` provided by the datasource
 * **User data**: :ref:`Data<user_data_formats>` also provided by
   the datasource
 
+These get fetched from the datasource and are defined at instance launch.
+
 .. note::
-  Even though baseconfiguration is found in ``/etc/cloud/cloud.cfg``, it is
-  distinct from :ref:`#cloud-config<topics/format:Cloud Config Data>`, which
-  is a specific user data format.
+  While much of what is defined in the base configuration can be overridden by
+  vendor data and user data, base configuration sources do not conform to
+  :ref:`#cloud-config<topics/format:Cloud Config Data>`
 
 Network Configuration
 =====================
