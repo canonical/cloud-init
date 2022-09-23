@@ -16,7 +16,6 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-
 M_PATH = "cloudinit.config.cc_ansible."
 distro_version = dedent(
     """ansible 2.10.8
@@ -398,7 +397,10 @@ class TestAnsible:
     @mock.patch(M_PATH + "which", return_value=True)
     def test_ansible_env_var(self, m_which, m_subp):
         cc_ansible.handle("", CFG_FULL, get_cloud(), mock.Mock(), [])
-        assert (
-            "/etc/ansible/ansible.cfg"
-            == m_subp.call_args.kwargs["env"]["ANSIBLE_CONFIG"]
-        )
+
+        # python 3.8 required for Mock.call_args.kwargs attribute
+        if hasattr(m_subp.call_args, "kwargs"):
+            assert (
+                "/etc/ansible/ansible.cfg"
+                == m_subp.call_args.kwargs["env"]["ANSIBLE_CONFIG"]
+            )
