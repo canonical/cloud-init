@@ -398,8 +398,8 @@ class TestAnsible:
     def test_ansible_env_var(self, m_which, m_subp):
         cc_ansible.handle("", CFG_FULL, get_cloud(), mock.Mock(), [])
 
-        # python 3.8 required for Mock.call_args.kwargs attribute
-        if hasattr(m_subp.call_args, "kwargs"):
+        # python 3.8 required for Mock.call_args.kwargs dict attribute
+        if isinstance(m_subp.call_args.kwargs, dict):
             assert (
                 "/etc/ansible/ansible.cfg"
                 == m_subp.call_args.kwargs["env"]["ANSIBLE_CONFIG"]
