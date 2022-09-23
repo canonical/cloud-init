@@ -86,6 +86,7 @@ runcmd:
 
 INSTALL_METHOD = """
 ansible:
+  ansible_config: /etc/ansible/ansible.cfg
   install-method: {method}
   package-name: {package}
   galaxy:
