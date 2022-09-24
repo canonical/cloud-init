@@ -83,11 +83,19 @@ apt:
       keyserver: keyserver.ubuntu.com
       source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
       append: false
-    test_write:
+    test_write.list:
       keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
       keyserver: keyserver.ubuntu.com
       source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/devel/ubuntu $RELEASE main"
       append: false
+    test_append:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+    test_append.list:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/devel/ubuntu $RELEASE main"
 apt_pipelining: os
 """  # noqa: E501
 
@@ -247,11 +255,25 @@ class TestApt:
         test_write_content = class_client.read_from_file(
             "/etc/apt/sources.list.d/test_write.list"
         )
-        assert (
+        expected_contents = (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_write.gpg] "
-            "http://ppa.launchpad.net/juju/devel/ubuntu"
-            " {} main".format(release)
-        ) in test_write_content
+            f"http://ppa.launchpad.net/juju/devel/ubuntu {release} main"
+        )
+        assert expected_contents.strip() == test_write_content.strip()
+
+    def test_sources_append(self, class_client: IntegrationInstance):
+        release = ImageSpecification.from_os_image().release
+        test_append_content = class_client.read_from_file(
+            "/etc/apt/sources.list.d/test_append.list"
+        )
+
+        expected_contents = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_append.gpg] "
+            f"http://ppa.launchpad.net/juju/stable/ubuntu {release} main\n"
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_append.gpg] "
+            f"http://ppa.launchpad.net/juju/devel/ubuntu {release} main"
+        )
+        assert expected_contents.strip() == test_append_content.strip()
 
 
 _DEFAULT_DATA = """\
