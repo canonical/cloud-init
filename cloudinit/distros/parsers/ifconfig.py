@@ -7,22 +7,18 @@
 import copy
 from cloudinit import log as logging
 from cloudinit import util
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from ipaddress import IP4Address, IPv4Interface, IPv6Address
 
 LOG = logging.getLogger(__name__)
 
-class IfConfig:
-    def __init__(self, ifname: str, state: dict):
-        self._ifname = name
-        self._state = copy.deepcopy(state)
 
 DEFAULT_IF = {"inet": [], "inet6": [], "mac": "", "macs": [], "up": False, "options": []}
 # see man ifconfig(8)
 # - https://man.freebsd.org/ifconfig(8)
 # - https://man.netbsd.org/ifconfig.8
 # - https://man.openbsd.org/ifconfig.8
-class IfconfigParser:
+class Ifconfig:
     def __init__(self, text):
         self._text = text
         self._ifs = []
