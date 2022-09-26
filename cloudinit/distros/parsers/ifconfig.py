@@ -40,14 +40,19 @@ class Ifconfig:
 
             if len(toks) > 1 and toks[1].startswith("flags="):
                 ifs[curif] = copy.deepcopy(self._parse_flags(toks))
+            if toks[0].startswith("capabilities="):
+                flags = re.split(r"<|>", toks[0])
+                ifs[curif]["flags"].append(flags)
 
             if toks[0] == "description:":
                 ifs[curif]["description"] = line[line.index(":") + 2:]
 
-            if toks[0].startswith("options="):
+            if (toks[0].startswith("options=") or
+                toks[0].startswith("ec_capabilities") or
+                toks[0].startswith("ec_enabled")):
                 options = re.split(r"<|>", toks[0])
                 if len(options) > 1:
-                    ifs[curif]["options"] = options[1].split(",")
+                    ifs[curif]["options"].append(options[1].split(","))
 
             if toks[0] == "ether":
                 ifs[curif]["mac"] = toks[1]
@@ -63,9 +68,9 @@ class Ifconfig:
                 ifs[curif]["media"] = line[line.index(": ")+2:]
 
             if toks[0] == "nd6":
-                nd6_options = re.split(r"<|>", toks[0])
-                if len(nd6_options) > 1:
-                    ifs[curif]["nd6_options"] = nd6_options[1].split(",")
+                nd6_opts = re.split(r"<|>", toks[0])
+                if len(nd6_opts) > 1:
+                    ifs[curif]["nd6_options"] = nd6_opts[1].split(",")
 
             if toks[0] == "status":
                 ifs[curif]["status"] = toks[1]
@@ -80,7 +85,7 @@ class Ifconfig:
 
         return ifs
 
-    def _parse_inet(self, toks: list) -> tuple:
+    def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         if "/" in toks[1]:
             ip = IP4Interface(toks[1])
             netmask = ip.netmask
@@ -95,7 +100,7 @@ class Ifconfig:
                                "broadcast": broadcast,
                                "prefixlen": prefixlen})
 
-    def _parse_inet6(self, toks: list) -> tuple:
+    def _parse_inet6(self, toks: list) -> Tuple[str, dict]:
         if "/" in toks[1]:
             ip = IP6Interface(toks[1])
             prefixlen = toks[1].split("/")[1]
