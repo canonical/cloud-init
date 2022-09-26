@@ -30,8 +30,8 @@ meta: MetaSchema = {
         FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
         one can also specify services to enable. When the 'enable'
         list is present, only named services will be activated. Whereas
-        'enable' list is not present, the contract-default services will be
-        enabled.
+        if the 'enable' list is not present, the contract's default
+        services will be enabled.
 
         On Pro instances, when ``ubuntu_advantage`` config is provided to
         cloud-init, Pro's auto-attach feature will be disabled and cloud-init
