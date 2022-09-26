@@ -17,68 +17,7 @@ class IfConfig:
         self._ifname = name
         self._state = copy.deepcopy(state)
 
-    @property
-    def ifname(self) -> str:
-        return self._ifname
-
-    @property
-    def description(self) -> Optional[str]:
-        if self._state['description'] is not None:
-            return self._state['description']
-
-    @property
-    def flags(self) -> List[str]:
-        pass
-
-    @property
-    def options(self) -> List[str]:
-        pass
-
-    @property
-    def metric(self) -> int:
-        pass
-
-    @property
-    def mtu(self) -> int:
-        pass
-
-    @property
-    def mac(self) -> str:
-        pass
-
-    @property
-    def macs(self) -> List[str]:
-        pass
-
-    @property
-    def inet(self) -> List[IPv4Address]:
-        pass
-
-    @property
-    def inet6(self) -> List[IPv6Address]:
-        pass
-
-    @property
-    def nd6_options(self) -> List[str]:
-        pass
-
-    @property
-    def groups(self) -> Optional[List[str]]:
-        pass
-
-    @property
-    def media(self) -> str:
-        pass
-
-    @property
-    def status(self) -> Optional[str]:
-        pass
-
-    @property
-    def bridge_members(self) -> Optional[List[str]]:
-        pass
-
-DEFAULT_IF = {"inet": [], "inet6": [], "mac": "", "macs": [], "up": False}
+DEFAULT_IF = {"inet": [], "inet6": [], "mac": "", "macs": [], "up": False, "options": []}
 # see man ifconfig(8)
 # - https://man.freebsd.org/ifconfig(8)
 # - https://man.netbsd.org/ifconfig.8
