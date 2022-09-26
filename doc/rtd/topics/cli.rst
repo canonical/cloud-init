@@ -277,8 +277,9 @@ single
 Attempt to run a single named cloud config module.
 
 * ``--name``: the cloud-config module name to run
-* ``--frequency``: optionally override the declared module frequency
-  with one of (always|once-per-instance|once)
+* ``--frequency``: module frequency for this run.
+  One of (always|once-per-instance|once)
+* ``--report``: enable reporting
 
 The following example re-runs the cc_set_hostname module ignoring the module
 default frequency of once-per-instance:

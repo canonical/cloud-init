@@ -41,14 +41,8 @@ These get fetched from the datasource and are defined at instance launch.
 Network Configuration
 =====================
 Network configuration happens independently from other cloud-init
-configuration. It is sourced from the cloud provided metadata service and is
-not user editable. If you need to change your network configuration,
-your options are:
-
-* Use the cloud-provided tools to update your network topology in the cloud.
-* :ref:`Disable cloud-init network configuration entirely
-  <topics/network-config:Disabling Network Configuration>`.
-  This leaves network configuration entirely up to you.
+configuration. See :ref:`network configuration documentation<default_behavior>`
+for more information.
 
 Specifying Configuration
 ==========================
@@ -65,10 +59,6 @@ section.
 Once an instance has been initialized, the user data may not be edited.
 It is sourced directly from the cloud, so even if you find a local file
 that contains user data, it will likely be overwritten next boot.
-
-To modify the run frequency of a particular cloud-init module,
-:ref:`cloud-init single<cli_single>` may be used. This can be used to
-disable a module you no longer with to run.
 
 Distro Providers
 ----------------
