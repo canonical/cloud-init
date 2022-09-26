@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -21,6 +22,7 @@ ubuntu_advantage:
   token: {token}
 """
 
+# bootcmd disables UA daemon on gce
 UA_DAILY = """\
 #cloud-config
 apt:
@@ -32,7 +34,8 @@ package_upgrade: true
 packages:
 - ubuntu-advantage-tools
 bootcmd:
-- systemctl mask ua-auto-attach.service
+- sudo systemctl mask ubuntu-advantage-pro.service
+- sudo systemctl mask ubuntu-advantage.service
 """
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
@@ -52,10 +55,45 @@ def did_ua_service_noop(client: IntegrationInstance) -> bool:
 
 
 def is_auto_attached(client: IntegrationInstance) -> bool:
-    return (
-        "machine is attached to an Ubuntu Pro subscription."
-        in client.execute("pro status").stdout
-    )
+    status_resp = client.execute("sudo pro status --format json")
+    assert status_resp.ok
+    status = json.loads(status_resp.stdout)
+    return status.get("attached")
+
+
+def get_services_status(client: IntegrationInstance) -> dict:
+    """Creates a map of service -> is_enable.
+
+    pro status --format json contains a key with list of service objects like:
+
+    {
+      ...
+      "services":[
+        {
+          "available":"yes",
+          "blocked_by":[
+
+          ],
+          "description":"Common Criteria EAL2 Provisioning Packages",
+          "description_override":null,
+          "entitled":"yes",
+          "name":"cc-eal",
+          "status":"disabled",
+          "status_details":"CC EAL2 is not configured"
+        },
+        ...
+      ]
+    }
+
+    :return: Dict where the keys are ua service names and the values
+    are booleans representing if the service is enable or not.
+    """
+    status_resp = client.execute("sudo pro status --format json")
+    assert status_resp.ok
+    status = json.loads(status_resp.stdout)
+    return {
+        svc["name"]: svc["status"] == "enabled" for svc in status["services"]
+    }
 
 
 @pytest.mark.adhoc
@@ -88,6 +126,7 @@ def install_ua_daily(session_cloud: IntegrationCloud):
     ) as client:
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        client.execute("sudo pro detach --assume-yes")  # Force detach
         assert not is_auto_attached(
             client
         ), "Test precondition error. Instance is auto-attached."
@@ -127,3 +166,13 @@ class TestUbuntuAdvantagePro:
             verify_clean_log(log)
             assert did_ua_service_noop(client)
             assert is_auto_attached(client)
+            services_status = get_services_status(client)
+            assert services_status.pop(
+                "livepatch"
+            ), "livepatch expected to be enabled"
+            enabled_services = {
+                svc for svc, status in services_status.items() if status
+            }
+            assert (
+                not enabled_services
+            ), f"Only livepatch must be enabled. Found: {enabled_services}"
