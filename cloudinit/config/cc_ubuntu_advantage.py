@@ -373,7 +373,10 @@ def _attach(ua_section: dict):
 
 def _auto_attach(ua_section: dict):
     try:
-        from uaclient.api.exceptions import UserFacingError
+        from uaclient.api.exceptions import (
+            AlreadyAttachedError,
+            UserFacingError,
+        )
         from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
             FullAutoAttachOptions,
             full_auto_attach,
@@ -383,12 +386,21 @@ def _auto_attach(ua_section: dict):
         LOG.error(msg)
         raise RuntimeError(msg) from ex
 
+    enable = ua_section.get("enable")
+    enable_beta = ua_section.get("enable_beta")
     options = FullAutoAttachOptions(
-        enable=ua_section.get("enable"),
-        enable_beta=ua_section.get("enable_beta"),
+        enable=enable,
+        enable_beta=enable_beta,
     )
     try:
         full_auto_attach(options=options)
+    except AlreadyAttachedError:
+        if enable_beta is None or enable is None:
+            # Only warn if the user defined some service to enable/disable.
+            LOG.warning(
+                "The instance is already attached."
+                " Leaving Pro services untouched."
+            )
     except UserFacingError as ex:
         msg = f"Error during `full_auto_attach`: {ex}"
         LOG.error(msg)

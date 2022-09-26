@@ -45,6 +45,14 @@ class FakeUserFacingError(Exception):
     pass
 
 
+class FakeAlreadyAttachedError(FakeUserFacingError):
+    pass
+
+
+class FakeAlreadyAttachedOnPROError(FakeUserFacingError):
+    pass
+
+
 @pytest.fixture
 def fake_uaclient(mocker):
     mocker.patch.dict("sys.modules")
@@ -54,8 +62,15 @@ def fake_uaclient(mocker):
         "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
     ] = mock.Mock()
     sys.modules["uaclient.api"] = mock.Mock()
-    _exceptions = namedtuple("exceptions", ["UserFacingError"])(
-        FakeUserFacingError
+    _exceptions = namedtuple(
+        "exceptions",
+        [
+            "UserFacingError",
+            "AlreadyAttachedError",
+        ],
+    )(
+        FakeUserFacingError,
+        FakeAlreadyAttachedError,
     )
     sys.modules["uaclient.api.exceptions"] = _exceptions
 

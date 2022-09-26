@@ -31,6 +31,8 @@ package_update: true
 package_upgrade: true
 packages:
 - ubuntu-advantage-tools
+bootcmd:
+- systemctl mask ua-auto-attach.service
 """
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
@@ -84,12 +86,26 @@ def install_ua_daily(session_cloud: IntegrationCloud):
             )
         },
     ) as client:
-        client.execute("ua detach")
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        assert not is_auto_attached(
+            client
+        ), "Test precondition error. Instance is auto-attached."
         source = get_validated_source(session_cloud)
-        if source is not CloudInitSource.NONE:
+
+        if source is CloudInitSource.NONE:
+            # Confirm cloud-init now supports auto-attach customization
+            client.write_to_file("/tmp/auto-attach.cfg", ATTACH_FALLBACK)
+            result = client.execute(
+                "cloud-init schema -c /tmp/auto-attach.cfg"
+            )
+            assert result.ok, (
+                "cloud-init in image doesn't support custom auto-attach."
+                " Try CLOUD_INIT_SOURCE=ppa:cloud-init-dev/daily."
+            )
+        else:
             client.install_new_cloud_init(source)
+
         client.destroy()
 
 
