@@ -2230,7 +2230,7 @@
             "config": {
               "type": "object",
               "description": "Configuration settings or override Ubuntu Advantage config.",
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "http_proxy": {
                   "type": ["string", "null"],

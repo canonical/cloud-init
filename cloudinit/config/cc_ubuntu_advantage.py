@@ -138,7 +138,7 @@ ERROR_MSG_SHOULD_AUTO_ATTACH = (
     "Unable to determine if this is an Ubuntu Pro instance."
     " Fallback to normal UA attach."
 )
-UA_CONFIG_PROPS = (
+KNOWN_UA_CONFIG_PROPS = (
     "http_proxy",
     "https_proxy",
     "global_apt_http_proxy",
@@ -190,12 +190,14 @@ def supplemental_schema_validation(ua_config: dict):
     """
     errors = []
     for key, value in sorted(ua_config.items()):
-        if key not in UA_CONFIG_PROPS:
+        if key not in KNOWN_UA_CONFIG_PROPS:
             LOG.warning(
-                "Ignoring unknown ubuntu_advantage.config.%s property", key
+                "Not validating unknown ubuntu_advantage.config.%s property",
+                key,
             )
             continue
-        elif value is None:  # key will be unset
+        elif value is None:
+            # key will be unset. No extra validation needed.
             continue
         try:
             parsed_url = urlparse(value)
@@ -227,8 +229,6 @@ def set_ua_config(ua_config: Any = None):
 
     enable_errors = []
     for key, value in sorted(ua_config.items()):
-        if key not in UA_CONFIG_PROPS:
-            continue  # Already logged in `supplemental_schema_validation`
         redacted_key_value = None
         subp_kwargs: dict = {}
         if value is None:

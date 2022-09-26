@@ -465,14 +465,8 @@ class TestUbuntuAdvantageSchema:
                         },
                     }
                 },
-                pytest.raises(
-                    SchemaValidationError,
-                    match=re.escape(
-                        "errors: ubuntu_advantage.config: Additional"
-                        " properties are not allowed ('hola' was unexpected)"
-                    ),
-                ),
-                id="ua_config_extra_props_not_allowed",
+                does_not_raise(),
+                id="ua_config_unknown_props_allowed",
             ),
         ],
     )
@@ -1303,13 +1297,18 @@ class TestSetUAConfig:
         assert not caplog.text
 
     def test_ua_config_unknown_prop(self, m_subp, caplog):
-        """On unknown config props, a log is issued and the prop is not set."""
+        """On unknown config props, a log is issued and the prop is set."""
         ua_config = {"asdf": "qwer"}
         set_ua_config(ua_config)
-        assert 0 == m_subp.call_count
+        assert [
+            mock.call(
+                ["ua", "config", "set", "asdf=qwer"],
+                logstring=["ua", "config", "set", "asdf=REDACTED"],
+            )
+        ] == m_subp.call_args_list
         assert "qwer" not in caplog.text
         assert (
-            "Ignoring unknown ubuntu_advantage.config.asdf property\n"
+            "Not validating unknown ubuntu_advantage.config.asdf property\n"
             in caplog.text
         )
 
