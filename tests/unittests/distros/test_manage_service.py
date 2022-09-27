@@ -28,6 +28,13 @@ class TestManageService(CiTestCase):
         self.dist.manage_service("start", "myssh")
         m_subp.assert_called_with(["service", "myssh", "start"], capture=True)
 
+    @mock.patch.object(MockDistro, "uses_systemd", return_value=False)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_rcctl_initcmd(self, m_subp, m_sysd):
+        self.dist.init_cmd = ["rcctl"]
+        self.dist.manage_service("start", "myssh")
+        m_subp.assert_called_with(["rcctl", "start", "myssh"], capture=True)
+
     @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_systemctl(self, m_subp, m_sysd):
