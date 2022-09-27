@@ -23,8 +23,8 @@ class Ifconfig:
         self._text = text
         self._ifs = []
 
-    def parse(self, text: str) -> dict:
-        ifs = {}
+    def parse(self, text: str) -> list:
+        ifs = []
         for line in text.splitlines():
             if len(line) == 0:
                 continue
