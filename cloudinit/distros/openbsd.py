@@ -14,6 +14,7 @@ LOG = logging.getLogger(__name__)
 
 class Distro(cloudinit.distros.netbsd.NetBSD):
     hostname_conf_fn = "/etc/myname"
+    init_cmd = ["rcctl"]
 
     def _read_hostname(self, filename, default=None):
         return util.load_file(self.hostname_conf_fn)

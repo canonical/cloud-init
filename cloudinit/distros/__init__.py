@@ -923,6 +923,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "try-reload": ["reload-or-try-restart", service],
                 "status": ["status", service],
             }
+        elif "rcctl" in init_cmd:
+            cmds = {
+                "stop": ["stop", service],
+                "start": ["start", service],
+                "enable": ["enable", service],
+                "restart": ["restart", service],
+                "reload": ["restart", service],
+                "try-reload": ["restart", service],
+                "status": ["check", service],
+            }
         else:
             cmds = {
                 "stop": [service, "stop"],
