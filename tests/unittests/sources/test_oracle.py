@@ -298,9 +298,12 @@ class TestNetworkConfigFromOpcImds:
         assert 9000 == secondary_nic_cfg["mtu"]
 
         assert 1 == len(secondary_nic_cfg["subnets"])
+
         subnet_cfg = secondary_nic_cfg["subnets"][0]
-        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         assert "10.0.0.231/24" == subnet_cfg["address"]
+        assert "10.0.0.1" == subnet_cfg["routes"][0]["gateway"]
+        assert 24 == subnet_cfg["routes"][0]["prefix"]
+        assert "10.0.0.0" == subnet_cfg["routes"][0]["network"]
 
     def test_secondary_nic_v2(self, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
@@ -327,6 +330,8 @@ class TestNetworkConfigFromOpcImds:
         assert 1 == len(secondary_nic_cfg["addresses"])
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         assert "10.0.0.231/24" == secondary_nic_cfg["addresses"][0]
+        assert "10.0.0.1" == secondary_nic_cfg["routes"][0]["via"]
+        assert "10.0.0.0" == secondary_nic_cfg["routes"][0]["to"]
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(

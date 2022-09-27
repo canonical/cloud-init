@@ -297,14 +297,20 @@ class DataSourceOracle(sources.DataSource):
                 )
                 continue
             name = interfaces_by_mac[mac_address]
-            prefix = ipaddress.ip_network(
-                vnic_dict["subnetCidrBlock"]
-            ).prefixlen
+            network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
+            gateway = vnic_dict["virtualRouterIp"]
 
             if self._network_config["version"] == 1:
                 subnet = {
                     "type": "static",
-                    "address": f"{vnic_dict['privateIp']}/{prefix}",
+                    "address": f"{vnic_dict['privateIp']}/{network.prefixlen}",
+                    "routes": [
+                        {
+                            "network": str(network.network_address),
+                            "prefix": network.prefixlen,
+                            "gateway": gateway,
+                        },
+                    ],
                 }
                 self._network_config["config"].append(
                     {
@@ -317,11 +323,19 @@ class DataSourceOracle(sources.DataSource):
                 )
             elif self._network_config["version"] == 2:
                 self._network_config["ethernets"][name] = {
-                    "addresses": [f"{vnic_dict['privateIp']}/{prefix}"],
+                    "addresses": [
+                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                    ],
                     "mtu": MTU,
                     "dhcp4": False,
                     "dhcp6": False,
                     "match": {"macaddress": mac_address},
+                    "routes": [
+                        {
+                            "to": str(network.network_address),
+                            "via": gateway,
+                        },
+                    ],
                 }
 
 
