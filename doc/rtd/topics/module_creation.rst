@@ -66,7 +66,9 @@ Guidelines
     instance types.
   * ``log``: A logger object that can be used to log messages.
   * ``args``: An argument list. This is usually empty and is only populated
-    if the module is called independently from the command line.
+    if the module is called independently from the command line or if the
+    module definition in ``/etc/cloud/cloud.cfg[.d]`` has been modified
+    to pass arguments to this module.
 
 * If your module introduces any new cloud-config keys, you must provide a
   schema definition in `cloud-init-schema.json`_.
