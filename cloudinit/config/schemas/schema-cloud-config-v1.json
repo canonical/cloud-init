@@ -1388,6 +1388,76 @@
         }
       }
     },
+    "cc_kernel_modules": {
+      "type": "object",
+      "properties": {
+        "kernel_modules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Kernel module name"
+              },
+              "load": {
+                "type": "boolean",
+                "description": "Load kernel module at boot (``/etc/modules-load.d``). Default: ``true``.",
+                "default": true
+              },
+              "modprobe": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "alias": {
+                    "type": "string",
+                    "description": "This allows you to give an alternate name for a module."
+                  },
+                  "blacklist": {
+                    "type": "boolean",
+                    "description": "Prevent the kernel module from loading the module. Default: ``false``.",
+                    "default": false
+                  },
+                  "install": {
+                    "type": "string",
+                    "description": "This command instructs modprobe to run your command instead of inserting the module in the kernel as normal. The command can be any shell command: this allows you to do any kind of complex processing you might wish."
+                  },
+                  "options": {
+                    "type": "string",
+                    "description": "This command allows you to add options to the module modulename (which might be an alias) every time it is inserted into the kernel."
+                  },
+                  "remove": {
+                    "type": "string",
+                    "description": "This command instructs modprobe to run your command when issuing ``modprobe -r``."
+                  },
+                  "softdep": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "The softdep command allows you to specify soft, or optional, module dependencies.",
+                    "properties": {
+                      "pre": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "uniqueItems": true,
+                        "description": "pre-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order before the main module given in the modulename argument."
+                      },
+                      "post": {
+                        "type": "string",
+                        "items": {"type": "string"},
+                        "uniqueItems": true,
+                        "description": "post-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order after the main module given in the modulename argument."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "cc_keyboard": {
       "type": "object",
       "properties": {
@@ -3448,6 +3518,9 @@
     },
     {
       "$ref": "#/$defs/cc_keyboard"
+    },
+    {
+      "$ref": "#/$defs/cc_kernel_modules"
     },
     {
       "$ref": "#/$defs/cc_keys_to_console"
