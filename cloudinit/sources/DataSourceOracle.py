@@ -307,7 +307,7 @@ class DataSourceOracle(sources.DataSource):
                     "routes": [
                         {
                             "network": str(network.network_address),
-                            "netmask": network.netmask,
+                            "netmask": str(network.netmask),
                             "gateway": gateway,
                         },
                     ],
