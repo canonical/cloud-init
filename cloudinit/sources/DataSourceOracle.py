@@ -306,7 +306,7 @@ class DataSourceOracle(sources.DataSource):
                     "address": f"{vnic_dict['privateIp']}/{network.prefixlen}",
                     "routes": [
                         {
-                            "network": "0.0.0.0/0",
+                            "network": str(network.network_address),
                             "netmask": str(network.netmask),
                             "gateway": gateway,
                         },
@@ -332,7 +332,7 @@ class DataSourceOracle(sources.DataSource):
                     "match": {"macaddress": mac_address},
                     "routes": [
                         {
-                            "to": "default",
+                            "to": str(network.network_address),
                             "via": gateway,
                         },
                     ],
