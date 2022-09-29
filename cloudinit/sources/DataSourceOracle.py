@@ -289,6 +289,7 @@ class DataSourceOracle(sources.DataSource):
         vnics_data = self._vnics_data if set_primary else self._vnics_data[1:]
 
         for index, vnic_dict in enumerate(vnics_data):
+            is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
@@ -298,61 +299,39 @@ class DataSourceOracle(sources.DataSource):
                 continue
             name = interfaces_by_mac[mac_address]
             network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
-            gateway = vnic_dict["virtualRouterIp"]
 
             if self._network_config["version"] == 1:
-                network_config = {
+                interface_config = {
                     "name": name,
                     "type": "physical",
                     "mac_address": mac_address,
                     "mtu": MTU,
-                    "subnets": [],
+                    "subnets": [
+                        {
+                            "address": (
+                                f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                            )
+                        }
+                    ],
                 }
-                # The first interface is our primary interface, so use
-                # DHCP for setup
-                if index == 0:
-                    network_config["subnets"].append({"type": "dhcp"})
-                else:
-                    subnet = {
-                        "type": "static",
-                        "address": (
-                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                        ),
-                        "routes": [
-                            {
-                                "network": str(network.network_address),
-                                "netmask": str(network.netmask),
-                                "gateway": gateway,
-                            },
-                        ],
-                    }
-                    network_config["subnets"].append(subnet)
-                self._network_config["config"].append(network_config)
+                # Primary interface uses DHCP as is our first entry
+                interface_config["subnets"][0]["type"] = (
+                    "dhcp" if is_primary else "static"
+                )
+                self._network_config["config"].append(interface_config)
             elif self._network_config["version"] == 2:
-                # Oracle uses v1...are there plans to switch to v2?
                 # Why does this elif exist???
-                network_config = {
+                # Are there plans to switch to v2?
+                interface_config = {
                     "addresses": [
                         f"{vnic_dict['privateIp']}/{network.prefixlen}"
                     ],
                     "mtu": MTU,
                     "match": {"macaddress": mac_address},
+                    "dhcp6": False,
+                    "dhcp4": is_primary,
                 }
-                # The first interface is our primary interface, so use
-                # DHCP for setup
-                if index == 0:
-                    network_config["dhcp4"] = True
-                else:
-                    routes = (
-                        [
-                            {
-                                "to": str(network.network_address),
-                                "via": gateway,
-                            },
-                        ],
-                    )
-                    network_config["routes"] = routes
-                self._network_config["ethernets"][name] = network_config
+                self._network_config["ethernets"][name] = interface_config
 
 
 def _read_system_uuid() -> Optional[str]:
