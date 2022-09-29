@@ -357,6 +357,9 @@ class DataSourceAzure(sources.DataSource):
         self._ephemeral_dhcp_ctx = None
         self._iso_dev = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        self._reported_ready_marker_file = os.path.join(
+            self.paths.cloud_dir, "data", "reported_ready"
+        )
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -821,6 +824,11 @@ class DataSourceAzure(sources.DataSource):
                 logger_func=LOG.error,
             )
             return {}
+
+    def get_instance_id(self):
+        if not self.metadata or "instance-id" not in self.metadata:
+            return self._iid()
+        return str(self.metadata["instance-id"])
 
     def device_name_to_device(self, name):
         return self.ds_cfg["disk_aliases"].get(name)

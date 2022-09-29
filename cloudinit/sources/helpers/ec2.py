@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])
 
 
-class MetadataLeafDecoder(object):
+class MetadataLeafDecoder:
     """Decodes a leaf blob into something meaningful."""
 
     def _maybe_json_object(self, text):
@@ -51,7 +51,7 @@ class MetadataLeafDecoder(object):
 
 # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
 #         ec2-instance-metadata.html
-class MetadataMaterializer(object):
+class MetadataMaterializer:
     def __init__(self, blob, base_url, caller, leaf_decoder=None):
         self._blob = blob
         self._md = None

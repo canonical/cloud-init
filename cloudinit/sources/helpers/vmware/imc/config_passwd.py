@@ -14,7 +14,7 @@ from cloudinit import subp, util
 LOG = logging.getLogger(__name__)
 
 
-class PasswordConfigurator(object):
+class PasswordConfigurator:
     """
     Class for changing configurations related to passwords in a VM. Includes
     setting and expiring passwords.

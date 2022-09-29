@@ -37,7 +37,7 @@ AWS_TOKEN_REQ_HEADER = AWS_TOKEN_PUT_HEADER + "-ttl-seconds"
 AWS_TOKEN_REDACT = [AWS_TOKEN_PUT_HEADER, AWS_TOKEN_REQ_HEADER]
 
 
-class CloudNames(object):
+class CloudNames:
     ALIYUN = "aliyun"
     AWS = "aws"
     BRIGHTBOX = "brightbox"

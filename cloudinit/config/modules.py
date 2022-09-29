@@ -80,7 +80,7 @@ def _is_active(module_details: ModuleDetails, cfg: dict) -> bool:
     return True
 
 
-class Modules(object):
+class Modules:
     def __init__(self, init: Init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files

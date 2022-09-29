@@ -107,7 +107,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-class PuppetConstants(object):
+class PuppetConstants:
     def __init__(
         self, puppet_conf_file, puppet_ssl_dir, csr_attributes_path, log
     ):

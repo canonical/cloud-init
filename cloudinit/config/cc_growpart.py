@@ -99,7 +99,7 @@ DEFAULT_CONFIG = {
 KEYDATA_PATH = Path("/cc_growpart_keydata")
 
 
-class RESIZE(object):
+class RESIZE:
     SKIPPED = "SKIPPED"
     CHANGED = "CHANGED"
     NOCHANGE = "NOCHANGE"

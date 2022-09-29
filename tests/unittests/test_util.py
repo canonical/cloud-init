@@ -257,18 +257,6 @@ OS_RELEASE_CLOUDLINUX_8 = dedent(
 """
 )
 
-OS_RELEASE_COS = dedent(
-    """\
-    NAME="Container-Optimized OS"
-    ID=cos
-    PRETTY_NAME="Container-Optimized OS from Google"
-    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
-    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
-    VERSION=93
-    VERSION_ID=93
-"""
-)
-
 OS_RELEASE_OPENEULER_20 = dedent(
     """\
     NAME="openEuler"
@@ -353,6 +341,16 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 """
 )
 
+OS_RELEASE_COS = dedent("""\
+    NAME="Container-Optimized OS"
+    ID=cos
+    PRETTY_NAME="Container-Optimized OS from Google"
+    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
+    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
+    VERSION=93
+    VERSION_ID=93
+""")
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
@@ -380,7 +378,7 @@ class TestUtil:
     @mock.patch(
         M_PATH + "get_mount_info",
         return_value=("/dev/sda", "ext4", "/", "rw,relatime,idmapped"),
-        )
+    )
     def test_has_mount_opt(self, m_get_mount_info, opt, expected_result):
         assert expected_result == util.has_mount_opt("/", opt)
 
@@ -415,9 +413,9 @@ class TestUtil:
         conf = util.read_conf("cfg_path", instance_data_file="vars_path")
         assert conf == {"a": "d"}
         assert (
-                   "Applied instance data in 'vars_path' to configuration loaded "
-                   "from 'cfg_path'"
-               ) in caplog.text
+            "Applied instance data in 'vars_path' to configuration loaded "
+            "from 'cfg_path'"
+        ) in caplog.text
 
     @skipUnlessJinja()
     def test_read_conf_with_failed_template(self, mocker, caplog):
@@ -452,7 +450,7 @@ class TestUtil:
     @mock.patch(
         M_PATH + "read_conf",
         side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
-        )
+    )
     def test_read_conf_d_no_permissions(
         self, m_read_conf, caplog, capsys, tmpdir
     ):
@@ -525,8 +523,8 @@ class TestUtil:
         assert not err
         if create_confd:
             assert [
-                       mock.call(confd_fn, instance_data_file=None)
-                   ] == m_read_confd.call_args_list
+                mock.call(confd_fn, instance_data_file=None)
+            ] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
 
     @pytest.mark.parametrize("custom_cloud_dir", [True, False])
@@ -689,8 +687,8 @@ class TestGetHostnameFqdn(CiTestCase):
         self.assertEqual("myhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
         assert [
-                   mock.call(fqdn=True, metadata_only=False)
-               ] == cloud.get_hostname.call_args_list
+            mock.call(fqdn=True, metadata_only=False)
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
@@ -703,9 +701,9 @@ class TestGetHostnameFqdn(CiTestCase):
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
         assert [
-                   mock.call(fqdn=True, metadata_only=False),
-                   mock.call(metadata_only=False),
-               ] == cloud.get_hostname.call_args_list
+            mock.call(fqdn=True, metadata_only=False),
+            mock.call(metadata_only=False),
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
@@ -718,9 +716,9 @@ class TestGetHostnameFqdn(CiTestCase):
             cfg={}, cloud=cloud, metadata_only=True
         )
         assert [
-                   mock.call(fqdn=True, metadata_only=True),
-                   mock.call(metadata_only=True),
-               ] == cloud.get_hostname.call_args_list
+            mock.call(fqdn=True, metadata_only=True),
+            mock.call(metadata_only=True),
+        ] == cloud.get_hostname.call_args_list
 
 
 class TestBlkid(CiTestCase):
@@ -857,7 +855,7 @@ class TestUdevadmSettle(CiTestCase):
                 "settle",
                 "--exit-if-exists=%s" % mydev,
                 "--timeout=%s" % timeout,
-                ]
+            ]
         )
 
     def test_subp_exception_raises_to_caller(self, m_subp):
@@ -1147,7 +1145,6 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
 
-
     @mock.patch(M_PATH + "load_file")
     def test_get_linux_cos(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on COS"""
@@ -1330,8 +1327,8 @@ class TestReadCcFromCmdline:
             (
                 (
                     "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn"
-                             "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                             "%20echo%20hi%20%5D" + " end_cc"
+                    "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
+                    "%20echo%20hi%20%5D" + " end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
@@ -1345,8 +1342,8 @@ class TestReadCcFromCmdline:
             (
                 (
                     "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A"
-                             "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                             "%20echo%20hi%20%5D" + " end_cc"
+                    "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
+                    "%20echo%20hi%20%5D" + " end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
@@ -1481,8 +1478,8 @@ class TestMountCb:
         )
 
         assert [
-                   mock.call(mock.ANY, mock.sentinel.data)
-               ] == callback.call_args_list
+            mock.call(mock.ANY, mock.sentinel.data)
+        ] == callback.call_args_list
 
 
 @mock.patch(M_PATH + "write_file")
@@ -2194,7 +2191,7 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
     @mock.patch(
         M_PATH + "write_to_console",
         mock.Mock(side_effect=OSError("Failed to write to console")),
-        )
+    )
     def test_logs_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
         self,
     ):
@@ -2208,7 +2205,7 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
     @mock.patch(
         M_PATH + "write_to_console",
         mock.Mock(side_effect=OSError("Failed to write to console")),
-        )
+    )
     def test_logs_go_nowhere_if_writing_to_console_fails_and_fallback_false(
         self,
     ):

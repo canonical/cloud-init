@@ -479,12 +479,16 @@
                       },
                       "filename": {
                           "type": "string"
+                      },
+                      "append": {
+                          "type": "boolean",
+                          "default": true
                       }
                   },
                   "minProperties": 1
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file.\n - ``append``: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
             }
           }
         }
@@ -2199,51 +2203,68 @@
       "properties": {
         "ubuntu_advantage": {
           "type": "object",
-          "required": ["token"],
           "additionalProperties": false,
           "properties": {
             "enable": {
               "type": "array",
               "items": {"type": "string"},
-              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled."
+              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
+            },
+            "enable_beta": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
             },
             "token": {
               "type": "string",
-              "description": "Required contract token obtained from https://ubuntu.com/advantage to attach."
+              "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
+            },
+            "features": {
+              "type": "object",
+              "description": "Ubuntu Advantage features.",
+              "additionalProperties": false,
+              "properties": {
+                "disable_auto_attach": {
+                  "type": "boolean",
+                  "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
+                  "default": false
+                }
+              }
             },
             "config": {
               "type": "object",
-              "description": "Configuration settings or override Ubuntu Advantage config",
+              "description": "Configuration settings or override Ubuntu Advantage config.",
+              "additionalProperties": true,
               "properties": {
                 "http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "Ubuntu Advantage HTTP Proxy URL"
+                  "description": "Ubuntu Advantage HTTP Proxy URL or null to unset."
                 },
                 "https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "Ubuntu Advantage HTTPS Proxy URL"
+                  "description": "Ubuntu Advantage HTTPS Proxy URL or null to unset."
                 },
                 "global_apt_http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTP Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTP Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "global_apt_https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTPS Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTPS Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "ua_apt_http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                   "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                   "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "ua_apt_https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 }
               }
             }

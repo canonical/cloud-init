@@ -267,7 +267,7 @@ network:
 """
 
 
-class WriteBuffer(object):
+class WriteBuffer:
     def __init__(self):
         self.buffer = StringIO()
         self.mode = None

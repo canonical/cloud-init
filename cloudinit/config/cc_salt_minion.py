@@ -70,7 +70,7 @@ __doc__ = get_meta_doc(meta)
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
 
 
-class SaltConstants(object):
+class SaltConstants:
     """
     defines default distribution specific salt variables
     """

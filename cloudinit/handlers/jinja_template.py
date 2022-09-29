@@ -10,7 +10,11 @@ from cloudinit import handlers
 from cloudinit import log as logging
 from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS
-from cloudinit.templater import MISSING_JINJA_PREFIX, render_string
+from cloudinit.templater import (
+    MISSING_JINJA_PREFIX,
+    detect_template,
+    render_string,
+)
 from cloudinit.util import b64d, json_dumps, load_file, load_json
 
 JUndefinedError: Type[Exception]
@@ -23,6 +27,14 @@ except ImportError:
     operator_re = re.compile(r"[-.]")
 
 LOG = logging.getLogger(__name__)
+
+
+class JinjaLoadError(Exception):
+    pass
+
+
+class NotJinjaError(Exception):
+    pass
 
 
 class JinjaTemplatePartHandler(handlers.Handler):
@@ -82,21 +94,26 @@ def render_jinja_payload_from_file(
     @return: A string of jinja-rendered content with the jinja header removed.
         Returns None on error.
     """
+    if detect_template(payload)[0] != "jinja":
+        raise NotJinjaError("Payload is not a jinja template")
     instance_data = {}
     rendered_payload = None
     if not os.path.exists(instance_data_file):
-        raise RuntimeError(
+        raise JinjaLoadError(
             "Cannot render jinja template vars. Instance data not yet"
             " present at %s" % instance_data_file
         )
     try:
         instance_data = load_json(load_file(instance_data_file))
-    except (IOError, OSError) as e:
-        if e.errno == EACCES:
-            raise RuntimeError(
-                "Cannot render jinja template vars. No read permission on"
-                " '%s'. Try sudo" % instance_data_file
-            ) from e
+    except Exception as e:
+        msg = "Loading Jinja instance data failed"
+        if isinstance(e, (IOError, OSError)):
+            if e.errno == EACCES:
+                msg = (
+                    "Cannot render jinja template vars. No read permission on"
+                    " '%s'. Try sudo" % instance_data_file
+                )
+        raise JinjaLoadError(msg) from e
 
     rendered_payload = render_jinja_payload(
         payload, payload_fn, instance_data, debug
@@ -190,6 +207,3 @@ def convert_jinja_instance_data(
             if alias_name:
                 result[alias_name] = copy.deepcopy(result[key])
     return result
-
-
-# vi: ts=4 expandtab

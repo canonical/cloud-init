@@ -15,7 +15,7 @@ MERGER_PREFIX = "m_"
 MERGER_ATTR = "Merger"
 
 
-class UnknownMerger(object):
+class UnknownMerger:
     # Named differently so auto-method finding
     # doesn't pick this up if there is ever a type
     # named "unknown"
