@@ -34,7 +34,6 @@ package_upgrade: true
 packages:
 - ubuntu-advantage-tools
 bootcmd:
-- sudo systemctl mask ubuntu-advantage-pro.service
 - sudo systemctl mask ubuntu-advantage.service
 """
 

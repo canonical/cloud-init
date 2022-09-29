@@ -395,7 +395,7 @@ def _auto_attach(ua_section: dict):
     try:
         full_auto_attach(options=options)
     except AlreadyAttachedError:
-        if enable_beta is None or enable is None:
+        if enable_beta is not None or enable is not None:
             # Only warn if the user defined some service to enable/disable.
             LOG.warning(
                 "The instance is already attached."
