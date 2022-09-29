@@ -104,6 +104,20 @@ DISTRO_CLIENT_CONFIG = {
             "confpath": "/etc/chrony/chrony.conf",
         },
     },
+    "freebsd": {
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+            "template_name": "ntp.conf.{distro}",
+        },
+    },
+    "openbsd": {
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+            "template_name": "ntpd.conf.{distro}",
+        },
+    },
     "openmandriva": {
         "chrony": {
             "service_name": "chronyd",
