@@ -301,36 +301,36 @@ class DataSourceOracle(sources.DataSource):
             network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
             if self._network_config["version"] == 1:
+                if is_primary:
+                    subnet = {"type": "dhcp"}
+                else:
+                    subnet = {
+                        "type": "static",
+                        "address": (
+                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                        ),
+                    }
                 interface_config = {
                     "name": name,
                     "type": "physical",
                     "mac_address": mac_address,
                     "mtu": MTU,
-                    "subnets": [
-                        {
-                            "address": (
-                                f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                            )
-                        }
-                    ],
+                    "subnets": [subnet],
                 }
-                # Primary interface uses DHCP as is our first entry
-                interface_config["subnets"][0]["type"] = (
-                    "dhcp" if is_primary else "static"
-                )
                 self._network_config["config"].append(interface_config)
             elif self._network_config["version"] == 2:
                 # Why does this elif exist???
                 # Are there plans to switch to v2?
                 interface_config = {
-                    "addresses": [
-                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                    ],
                     "mtu": MTU,
                     "match": {"macaddress": mac_address},
                     "dhcp6": False,
                     "dhcp4": is_primary,
                 }
+                if not is_primary:
+                    interface_config["addresses"] = [
+                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                    ]
                 self._network_config["ethernets"][name] = interface_config
 
 
