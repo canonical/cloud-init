@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-from .nic import Nic
+from cloudinit.sources.helpers.vmware.imc.nic import Nic
 
 
 class Config:

@@ -5,7 +5,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from .config_source import ConfigSource
+from cloudinit.sources.helpers.vmware.imc.config_source import ConfigSource
 
 
 class ConfigNamespace(ConfigSource):
