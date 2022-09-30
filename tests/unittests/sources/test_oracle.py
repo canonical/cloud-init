@@ -274,58 +274,90 @@ class TestNetworkConfigFromOpcImds:
         )
         assert 1 == caplog.text.count(" not found; skipping")
 
-    def test_secondary_nic(self, oracle_ds):
+    @pytest.mark.parametrize(
+        "set_primary",
+        [True, False],
+    )
+    def test_imds_nic_setup_v1(self, set_primary, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
             "version": 1,
             "config": [{"primary": "nic"}],
         }
-        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
-            DS_PATH + ".get_interfaces_by_mac",
-            return_value={mac_addr: nic_name},
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:05:d1:db": "ens3",
+                "00:00:17:02:2b:b1": "ens4",
+            },
         ):
-            oracle_ds._add_network_config_from_opc_imds(set_primary=False)
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
 
-        # The input is mutated
-        assert 2 == len(oracle_ds.network_config["config"])
+        secondary_nic_index = 1
+        nic_cfg = oracle_ds.network_config["config"]
+        if set_primary:
+            primary_cfg = nic_cfg[1]
+            secondary_nic_index += 1
 
-        secondary_nic_cfg = oracle_ds.network_config["config"][1]
-        assert nic_name == secondary_nic_cfg["name"]
-        assert "physical" == secondary_nic_cfg["type"]
-        assert mac_addr == secondary_nic_cfg["mac_address"]
-        assert 9000 == secondary_nic_cfg["mtu"]
+            assert "ens3" == primary_cfg["name"]
+            assert "physical" == primary_cfg["type"]
+            assert "02:00:17:05:d1:db" == primary_cfg["mac_address"]
+            assert 9000 == primary_cfg["mtu"]
+            assert 1 == len(primary_cfg["subnets"])
+            assert "address" not in primary_cfg["subnets"][0]
+            assert "dhcp" == primary_cfg["subnets"][0]["type"]
+        secondary_cfg = nic_cfg[secondary_nic_index]
+        assert "ens4" == secondary_cfg["name"]
+        assert "physical" == secondary_cfg["type"]
+        assert "00:00:17:02:2b:b1" == secondary_cfg["mac_address"]
+        assert 9000 == secondary_cfg["mtu"]
+        assert 1 == len(secondary_cfg["subnets"])
+        assert "10.0.0.231/24" == secondary_cfg["subnets"][0]["address"]
+        assert "static" == secondary_cfg["subnets"][0]["type"]
 
-        assert 1 == len(secondary_nic_cfg["subnets"])
-        subnet_cfg = secondary_nic_cfg["subnets"][0]
-        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231/24" == subnet_cfg["address"]
-
-    def test_secondary_nic_v2(self, oracle_ds):
+    @pytest.mark.parametrize(
+        "set_primary",
+        [True, False],
+    )
+    def test_secondary_nic_v2(self, set_primary, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
             "version": 2,
             "ethernets": {"primary": {"nic": {}}},
         }
-        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
-            DS_PATH + ".get_interfaces_by_mac",
-            return_value={mac_addr: nic_name},
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:05:d1:db": "ens3",
+                "00:00:17:02:2b:b1": "ens4",
+            },
         ):
-            oracle_ds._add_network_config_from_opc_imds(set_primary=False)
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
 
-        # The input is mutated
-        assert 2 == len(oracle_ds.network_config["ethernets"])
+        nic_cfg = oracle_ds.network_config["ethernets"]
+        if set_primary:
+            assert "ens3" in nic_cfg
+            primary_cfg = nic_cfg["ens3"]
 
-        secondary_nic_cfg = oracle_ds.network_config["ethernets"]["ens3"]
-        assert secondary_nic_cfg["dhcp4"] is False
-        assert secondary_nic_cfg["dhcp6"] is False
-        assert mac_addr == secondary_nic_cfg["match"]["macaddress"]
-        assert 9000 == secondary_nic_cfg["mtu"]
+            assert primary_cfg["dhcp4"] is True
+            assert primary_cfg["dhcp6"] is False
+            assert "02:00:17:05:d1:db" == primary_cfg["match"]["macaddress"]
+            assert 9000 == primary_cfg["mtu"]
+            assert "addresses" not in primary_cfg
 
-        assert 1 == len(secondary_nic_cfg["addresses"])
-        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231/24" == secondary_nic_cfg["addresses"][0]
+        assert "ens4" in nic_cfg
+        secondary_cfg = nic_cfg["ens4"]
+        assert secondary_cfg["dhcp4"] is False
+        assert secondary_cfg["dhcp6"] is False
+        assert "00:00:17:02:2b:b1" == secondary_cfg["match"]["macaddress"]
+        assert 9000 == secondary_cfg["mtu"]
+
+        assert 1 == len(secondary_cfg["addresses"])
+        assert "10.0.0.231/24" == secondary_cfg["addresses"][0]
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
