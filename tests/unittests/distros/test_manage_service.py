@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.util import MockDistro
-
-from . import _get_distro
 
 
 class TestManageService(CiTestCase):
@@ -30,12 +29,11 @@ class TestManageService(CiTestCase):
         self.dist.manage_service("start", "myssh")
         m_subp.assert_called_with(["service", "myssh", "start"], capture=True)
 
-    @mock.patch.object(MockDistro, "uses_systemd", return_value=False)
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_manage_service_rcctl_initcmd(self, m_subp, m_sysd):
-        self.dist = _get_distro("openbsd")
-        self.dist.init_cmd = ["rcctl"]
-        self.dist.manage_service("start", "myssh")
+    def test_manage_service_rcctl_initcmd(self, m_subp):
+        dist = _get_distro("openbsd")
+        dist.init_cmd = ["rcctl"]
+        dist.manage_service("start", "myssh")
         m_subp.assert_called_with(["rcctl", "start", "myssh"], capture=True)
 
     @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
