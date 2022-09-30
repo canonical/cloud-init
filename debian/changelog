@@ -1,4 +1,4 @@
-cloud-init (22.3.4-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (22.3.4-0ubuntu1) kinetic; urgency=medium
 
   * New upstream bug fix release.
     + Release 22.3.4 (LP: #1986703)
