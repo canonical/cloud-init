@@ -583,6 +583,26 @@ def handle(
         packages=ntp_client_config["packages"],
         check_exe=ntp_client_config["check_exe"],
     )
+    if util.is_BSD() and ntp_client_config.get("service_name") != "ntpd":
+        try:
+            cloud.distro.manage_service(
+                "stop", "ntpd"
+            )
+            cloud.distro.manage_service(
+                "disable", "ntpd"
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.exception("Failed to disable/stop base ntpd service", e)
+            raise
+
+    if util.is_BSD():
+        try:
+            cloud.distro.manage_service(
+                "enable", ntp_client_config.get("service_name")
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.exception("Failed to enable ntp service: %s", e)
+            raise
     try:
         cloud.distro.manage_service(
             "reload", ntp_client_config.get("service_name")
