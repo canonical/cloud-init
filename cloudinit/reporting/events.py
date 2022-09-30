@@ -13,9 +13,11 @@ import os.path
 import time
 from typing import List
 
+from cloudinit.reporting import (
+    available_handlers,
+    instantiated_handler_registry,
+)
 from cloudinit.reporting.handlers import ReportingHandler
-
-from . import available_handlers, instantiated_handler_registry
 
 FINISH_EVENT_TYPE = "finish"
 START_EVENT_TYPE = "start"

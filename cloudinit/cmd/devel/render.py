@@ -9,13 +9,12 @@ import os
 import sys
 
 from cloudinit import log
+from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     JinjaLoadError,
     NotJinjaError,
     render_jinja_payload_from_file,
 )
-
-from . import addLogHandlerCLI, read_cfg_paths
 
 NAME = "render"
 

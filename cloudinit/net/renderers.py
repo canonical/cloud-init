@@ -2,7 +2,7 @@
 
 from typing import List, Tuple, Type
 
-from . import (
+from cloudinit.net import (
     RendererNotFoundError,
     eni,
     freebsd,

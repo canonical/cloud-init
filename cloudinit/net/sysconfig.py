@@ -13,11 +13,10 @@ from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     is_ipv6_address,
     net_prefix_to_ipv4_mask,
+    renderer,
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NetworkState
-
-from . import renderer
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [

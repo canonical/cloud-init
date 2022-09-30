@@ -12,9 +12,8 @@ from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.net import renderer
 from cloudinit.net.network_state import NetworkState
-
-from . import renderer
 
 LOG = logging.getLogger(__name__)
 

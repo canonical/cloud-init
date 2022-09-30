@@ -2,9 +2,8 @@
 
 from cloudinit import util
 from cloudinit.distros.arch import _render_network
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, dir2dict
-
-from . import _get_distro
 
 
 class TestArch(CiTestCase):

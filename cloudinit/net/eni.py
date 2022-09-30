@@ -8,10 +8,8 @@ from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.net import subnet_is_ipv6
+from cloudinit.net import ParserError, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
-
-from . import ParserError, renderer
 
 LOG = logging.getLogger(__name__)
 
