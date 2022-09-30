@@ -70,6 +70,14 @@ NTP_CLIENT_CONFIG = {
         "template_name": "ntp.conf.{distro}",
         "template": None,
     },
+    "openntpd": {
+        "check_exe": "ntpd",
+        "confpath": "/etc/ntpd.conf",
+        "packages": [],
+        "service_name": "ntpd",
+        "template_name": "ntpd.conf.{distro}",
+        "template": None,
+    },
     "systemd-timesyncd": {
         "check_exe": "/lib/systemd/systemd-timesyncd",
         "confpath": "/etc/systemd/timesyncd.conf.d/cloud-init.conf",
@@ -112,13 +120,22 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "ntpd",
             "template_name": "ntp.conf.{distro}",
         },
+        "chrony": {
+            "confpath": "/usr/local//etc/chrony.conf",
+            "packages": ["chrony"],
+            "service_name": "chronyd",
+            "template_name": "chrony.conf.{distro}",
+        },
+        "openntpd": {
+            "check_exe": "/usr/local/sbin/ntpd",
+            "confpath": "/usr/local/etc/ntp.conf",
+            "packages": ["openntpd"],
+            "service_name": "openntpd",
+            "template_name": "ntpd.conf.openbsd",
+        }
     },
     "openbsd": {
-        "ntp": {
-            "confpath": "/etc/ntp.conf",
-            "service_name": "ntpd",
-            "template_name": "ntpd.conf.{distro}",
-        },
+        "openntpd": {},
     },
     "openmandriva": {
         "chrony": {
