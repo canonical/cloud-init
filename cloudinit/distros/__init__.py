@@ -29,13 +29,12 @@ from cloudinit import (
     type_utils,
     util,
 )
+from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
-
-from .networking import LinuxNetworking, Networking
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.
