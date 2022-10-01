@@ -36,6 +36,13 @@ class TestManageService(CiTestCase):
         dist.manage_service("start", "myssh")
         m_subp.assert_called_with(["rcctl", "start", "myssh"], capture=True)
 
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_fbsd_service_initcmd(self, m_subp):
+        dist = _get_distro("freebsd")
+        dist.init_cmd = ["service"]
+        dist.manage_service("enable", "myssh")
+        m_subp.assert_called_with(["service", "myssh", "enable"], capture=True)
+
     @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_systemctl(self, m_subp, m_sysd):
