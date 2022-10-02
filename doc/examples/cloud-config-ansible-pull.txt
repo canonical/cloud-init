@@ -7,7 +7,6 @@ packages_upgrade: true
 # wish to manually install ansible to avoid multiple calls
 # to your package manager
 packages:
-  - ansible
   - git
 ansible:
   install-method: pip

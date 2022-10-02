@@ -148,6 +148,9 @@ class MockDistro(distros.Distro):
     def update_package_sources(self):
         return (True, "yay")
 
+    def do_as(self, command, args=None, **kwargs):
+        return ("stdout", "stderr")
+
 
 TEST_INSTANCE_ID = "i-testing"
 

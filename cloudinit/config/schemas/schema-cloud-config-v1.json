@@ -393,9 +393,128 @@
               ],
               "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
             },
+            "run-user": {
+              "type": "string",
+              "description": "User to run module commands as. If install-method: pip, the pip install runs as this user as well."
+			},
             "ansible_config": {
               "description": "Sets the ANSIBLE_CONFIG environment variable. If set, overrides default config.",
               "type": "string"
+            },
+            "setup_controller": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "repositories": {
+                  "type": "array",
+                  "items": {
+                    "required": ["path", "source"],
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "run_ansible": {
+                  "type": "array",
+                  "items": {
+                    "properties": {
+                      "playbook-name": {
+                        "type": "string"
+                      },
+                      "playbook-dir": {
+                        "type": "string"
+                      },
+                      "become-password-file": {
+                        "type": "string"
+                      },
+                      "connection-password-file": {
+                        "type": "string"
+                      },
+                      "list-hosts": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "syntax-check": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "timeout": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "vault-id": {
+                        "type": "string"
+                      },
+                      "vault-password-file": {
+                        "type": "string"
+                      },
+                      "background": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "check": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "diff": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "module-path": {
+                        "type": "string"
+                      },
+                      "poll": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "args": {
+                        "type": "string"
+                      },
+                      "extra-vars": {
+                        "type": "string"
+                      },
+                      "forks": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "inventory": {
+                        "type": "string"
+                      },
+                      "scp-extra-args": {
+                        "type": "string"
+                      },
+                      "sftp-extra-args": {
+                        "type": "string"
+                      },
+                      "private-key": {
+                        "type": "string"
+                      },
+                      "connection": {
+                        "type": "string"
+                      },
+                      "module-name": {
+                        "type": "string"
+                      },
+                      "sleep": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "string"
+                      },
+                      "skip-tags": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
             },
             "galaxy": {
               "required": ["actions"],

@@ -961,6 +961,25 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return tmp_dir
         return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
 
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
+        """
+        Perform a command as the requested user. Behaves like subp()
+
+        Is there a more platform-independant way? sudo -D failed for me
+        """
+        directory = f"cd {cwd} && " if cwd else ""
+        return subp.subp(
+            [
+                "su",
+                "--whitelist-environment=PATH",
+                "-",
+                user,
+                "-c",
+                directory + " ".join(command),
+            ],
+            **kwargs,
+        )
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """

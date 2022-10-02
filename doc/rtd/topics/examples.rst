@@ -41,10 +41,24 @@ Install and run `chef`_ recipes
    :language: yaml
    :linenos:
 
-Install and run `ansible`_
+Install and run `ansible-pull`_
 ==========================
 
-.. literalinclude:: ../../examples/cloud-config-ansible.txt
+.. literalinclude:: ../../examples/cloud-config-ansible-pull.txt
+   :language: yaml
+   :linenos:
+
+Configure Instance to be Managed by Ansible
+===========================================
+
+.. literalinclude:: ../../examples/cloud-config-ansible-managed.txt
+   :language: yaml
+   :linenos:
+
+Configure Instance to be An Ansible Controller
+==============================================
+
+.. literalinclude:: ../../examples/cloud-config-ansible-controller.txt
    :language: yaml
    :linenos:
 
