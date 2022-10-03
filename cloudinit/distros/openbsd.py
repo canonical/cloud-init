@@ -29,7 +29,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     def manage_service(self, action: str, service: str):
         """
         Perform the requested action on a service. This handles OpenBSD's
-        'rcctl' case as necessary.
+        'rcctl'.
         May raise ProcessExecutionError
         """
         init_cmd = self.init_cmd

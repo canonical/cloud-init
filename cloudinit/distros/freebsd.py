@@ -40,8 +40,8 @@ class Distro(cloudinit.distros.bsd.BSD):
     def manage_service(self, action: str, service: str):
         """
         Perform the requested action on a service. This handles FreeBSD's
-        'service' case as necessary. The FreeBSD 'service' is closer in
-        features systemctl than SysV init's service.
+        'service' case. The FreeBSD 'service' is closer in features to
+        'systemctl' than SysV init's 'service', so we override it.
         May raise ProcessExecutionError
         """
         init_cmd = self.init_cmd
