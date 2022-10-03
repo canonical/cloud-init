@@ -1,4 +1,4 @@
-cloud-init (22.3.4-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (22.3.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream bugfix release. (LP: #1987318)
     + Release 22.3.4 (LP: #1986703)
