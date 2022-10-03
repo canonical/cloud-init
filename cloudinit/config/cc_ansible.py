@@ -120,10 +120,12 @@ class AnsiblePullPip(AnsiblePull):
             # bootstrap pip if required
             if not which("pip3"):
                 self.distro.install_packages(self.distro.pip_package_name)
-            self.subp(["python3", "-m", "pip", "install", "--user", pkg_name])
+            self.subp(
+                [sys.executable, "-m", "pip", "install", "--user", pkg_name]
+            )
 
     def is_installed(self) -> bool:
-        stdout, _ = self.subp(["python3", "-m", "pip", "list"])
+        stdout, _ = self.subp([sys.executable, "-m", "pip", "list"])
         return "ansible" in stdout
 
     def subp(self, command, **kwargs):
