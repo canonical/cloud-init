@@ -118,8 +118,11 @@ class AnsiblePullPip(AnsiblePull):
         """
         if not self.is_installed():
             # bootstrap pip if required
-            if not which("pip3"):
+            try:
+                import pip
+            except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
+
             self.subp(
                 [sys.executable, "-m", "pip", "install", "--user", pkg_name]
             )
