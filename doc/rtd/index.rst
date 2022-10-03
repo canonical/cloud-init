@@ -51,6 +51,13 @@ Having trouble? We would like to help!
 .. toctree::
    :hidden:
    :titlesonly:
+   :caption: Explanation
+
+   topics/configuration.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
    :caption: User Data
 
    topics/format.rst
