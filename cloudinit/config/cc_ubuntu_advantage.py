@@ -398,8 +398,9 @@ def _auto_attach(ua_section: dict):
         if enable_beta is not None or enable is not None:
             # Only warn if the user defined some service to enable/disable.
             LOG.warning(
-                "The instance is already attached."
-                " Leaving Pro services untouched."
+                "The instance is already attached to Pro. Leaving enabled"
+                " services untouched. Ignoring config directives"
+                " ubuntu_advantage: enable and enable_beta"
             )
     except UserFacingError as ex:
         msg = f"Error during `full_auto_attach`: {ex}"
