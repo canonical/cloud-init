@@ -6,5 +6,5 @@ Downstream packaging resources:
 
 * [debian](https://packages.debian.org/sid/cloud-init)
 * [fedora](https://src.fedoraproject.org/rpms/cloud-init)
-* [suse](https://build.opensuse.org/package/show/Cloud:Tools/cloud-init)
+* [opensuse](https://build.opensuse.org/package/show/Cloud:Tools/cloud-init)
 * [ubuntu](https://launchpad.net/cloud-init)
