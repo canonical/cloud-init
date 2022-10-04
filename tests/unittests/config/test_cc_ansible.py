@@ -402,5 +402,5 @@ class TestAnsible:
         if isinstance(m_subp.call_args.kwargs, dict):
             assert (
                 "/etc/ansible/ansible.cfg"
-                == m_subp.call_args.kwargs["env"]["ANSIBLE_CONFIG"]
+                == m_subp.call_args.kwargs["env"]["ansible_config"]
             )

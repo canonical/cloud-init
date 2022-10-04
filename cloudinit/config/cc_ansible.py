@@ -62,7 +62,7 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 LOG = getLogger(__name__)
-CFG_OVERRIDE = "ANSIBLE_CONFIG"
+CFG_OVERRIDE = "ansible_config"
 
 
 class AnsiblePull(abc.ABC):
