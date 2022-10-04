@@ -44,8 +44,10 @@ OSFAMILIES = {
     "alpine": ["alpine"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
-    "freebsd": ["freebsd"],
+    "freebsd": ["freebsd", "dragonfly"],
     "gentoo": ["gentoo"],
+    "netbsd": ["netbsd"],
+    "openbsd": ["openbsd"],
     "redhat": [
         "almalinux",
         "amazon",
