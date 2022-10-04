@@ -1407,7 +1407,7 @@
                 "description": "Load kernel module at boot (``/etc/modules-load.d``). Default: ``true``.",
                 "default": true
               },
-              "modprobe": {
+              "persist": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
@@ -1444,7 +1444,7 @@
                         "description": "pre-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order before the main module given in the modulename argument."
                       },
                       "post": {
-                        "type": "string",
+                        "type": "array",
                         "items": {"type": "string"},
                         "uniqueItems": true,
                         "description": "post-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order after the main module given in the modulename argument."
