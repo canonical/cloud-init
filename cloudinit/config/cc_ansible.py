@@ -119,7 +119,7 @@ class AnsiblePullPip(AnsiblePull):
         if not self.is_installed():
             # bootstrap pip if required
             try:
-                import pip  # noqa: F401
+                import pip  # type: ignore # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
 
