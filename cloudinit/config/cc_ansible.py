@@ -119,13 +119,11 @@ class AnsiblePullPip(AnsiblePull):
         if not self.is_installed():
             # bootstrap pip if required
             try:
-                import pip
+                import pip  # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
 
-            self.subp(
-                [sys.executable, "-m", "pip", "install", "--user", pkg_name]
-            )
+            self.subp([sys.executable, "-m", "pip", "install", pkg_name])
 
     def is_installed(self) -> bool:
         stdout, _ = self.subp([sys.executable, "-m", "pip", "list"])

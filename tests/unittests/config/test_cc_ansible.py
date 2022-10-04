@@ -1,4 +1,5 @@
 import re
+import sys
 from copy import deepcopy
 from textwrap import dedent
 from unittest import mock
@@ -252,16 +253,15 @@ class TestAnsible:
                 m_subp.assert_has_calls(
                     [
                         call(
-                            args=["python3", "-m", "pip", "list"],
+                            args=[sys.executable, "-m", "pip", "list"],
                             env={"PATH": "/root/.local/bin/"},
                         ),
                         call(
                             args=[
-                                "python3",
+                                sys.executable,
                                 "-m",
                                 "pip",
                                 "install",
-                                "--user",
                                 "ansible",
                             ],
                             env={"PATH": "/root/.local/bin/"},
@@ -293,8 +293,11 @@ class TestAnsible:
     @mock.patch(M_PATH + "which", return_value=False)
     @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     def test_pip_bootstrap(self, m_which, m_subp):
+
         distro = get_cloud(mocked_distro=True).distro
-        cc_ansible.AnsiblePullPip(distro).install("")
+        ansible = cc_ansible.AnsiblePullPip(distro)
+        with mock.patch("builtins.__import__", side_effect=ImportError):
+            ansible.install("")
         distro.install_packages.assert_called_once()
 
     @mock.patch(M_PATH + "which", return_value=True)
