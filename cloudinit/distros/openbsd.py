@@ -37,6 +37,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             "stop": ["stop", service],
             "start": ["start", service],
             "enable": ["enable", service],
+            "disable": ["disable", service],
             "restart": ["restart", service],
             "reload": ["restart", service],
             "try-reload": ["restart", service],
