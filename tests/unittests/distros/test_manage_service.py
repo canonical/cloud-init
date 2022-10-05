@@ -52,5 +52,11 @@ class TestManageService(CiTestCase):
             ["systemctl", "start", "myssh"], capture=True
         )
 
-
-# vi: ts=4 sw=4 expandtab
+    @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_disable_systemctl(self, m_subp, m_sysd):
+        self.dist.init_cmd = ["ignore"]
+        self.dist.manage_service("disable", "myssh")
+        m_subp.assert_called_with(
+            ["systemctl", "disable", "myssh"], capture=True
+        )
