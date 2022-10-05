@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import json
 import logging
 import re
 import sys
@@ -146,7 +147,15 @@ class TestConfigureUA:
                         rcs={0, 2},
                     ),
                     mock.call(
-                        ["ua", "enable", "--assume-yes", "fips"], capture=True
+                        [
+                            "ua",
+                            "enable",
+                            "--assume-yes",
+                            "--format",
+                            "json",
+                            "fips",
+                        ],
+                        capture=True,
                     ),
                 ],
                 [
@@ -174,7 +183,15 @@ class TestConfigureUA:
                         rcs={0, 2},
                     ),
                     mock.call(
-                        ["ua", "enable", "--assume-yes", "fips"], capture=True
+                        [
+                            "ua",
+                            "enable",
+                            "--assume-yes",
+                            "--format",
+                            "json",
+                            "fips",
+                        ],
+                        capture=True,
                     ),
                 ],
                 [
@@ -224,6 +241,7 @@ class TestConfigureUA:
     def test_configure_ua_attach(
         self, m_subp, kwargs, call_args_list, log_record_tuples, caplog
     ):
+        m_subp.return_value = subp.SubpResult(json.dumps({"errors": []}), "")
         configure_ua(**kwargs)
         assert call_args_list == m_subp.call_args_list
         for record_tuple in log_record_tuples:
@@ -251,13 +269,21 @@ class TestConfigureUA:
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
-                ["ua", "enable", "--assume-yes", svc] for svc in ["livepatch"]
+                ["ua", "enable", "--assume-yes", "--format", "json", svc]
+                for svc in ["livepatch"]
             ]
             if cmd in fail_cmds and capture:
-                svc = cmd[-1]
-                raise subp.ProcessExecutionError(
-                    'Service "{}" is already enabled.'.format(svc)
-                )
+                response = {
+                    "errors": [
+                        {
+                            "message": "Does not matter",
+                            "message_code": "service-already-enabled",
+                            "service": cmd[-1],
+                            "type": "service",
+                        }
+                    ]
+                }
+                return subp.SubpResult(json.dumps(response), "")
 
         m_subp.side_effect = fake_subp
 
@@ -269,7 +295,15 @@ class TestConfigureUA:
                 rcs={0, 2},
             ),
             mock.call(
-                ["ua", "enable", "--assume-yes", "livepatch"], capture=True
+                [
+                    "ua",
+                    "enable",
+                    "--assume-yes",
+                    "--format",
+                    "json",
+                    "livepatch",
+                ],
+                capture=True,
             ),
         ]
         assert (
@@ -283,13 +317,23 @@ class TestConfigureUA:
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
-                ["ua", "enable", "--assume-yes", svc] for svc in ["esm", "cc"]
+                ["ua", "enable", "--assume-yes", "--format", "json", svc]
+                for svc in ["esm", "cc"]
             ]
             if cmd in fail_cmds and capture:
                 svc = cmd[-1]
-                raise subp.ProcessExecutionError(
-                    "Invalid {} credentials".format(svc.upper())
-                )
+                response = {
+                    "errors": [
+                        {
+                            "message": f"Invalid {svc} credentials",
+                            "message_code": "some-code",
+                            "service": svc,
+                            "type": "service",
+                        }
+                    ]
+                }
+                return subp.SubpResult(json.dumps(response), "")
+            return subp.SubpResult(json.dumps({"errors": []}), "")
 
         m_subp.side_effect = fake_subp
 
@@ -306,23 +350,28 @@ class TestConfigureUA:
                 logstring=["ua", "attach", "--no-auto-enable", "REDACTED"],
                 rcs={0, 2},
             ),
-            mock.call(["ua", "enable", "--assume-yes", "esm"], capture=True),
-            mock.call(["ua", "enable", "--assume-yes", "cc"], capture=True),
-            mock.call(["ua", "enable", "--assume-yes", "fips"], capture=True),
+            mock.call(
+                ["ua", "enable", "--assume-yes", "--format", "json", "esm"],
+                capture=True,
+            ),
+            mock.call(
+                ["ua", "enable", "--assume-yes", "--format", "json", "cc"],
+                capture=True,
+            ),
+            mock.call(
+                ["ua", "enable", "--assume-yes", "--format", "json", "fips"],
+                capture=True,
+            ),
         ]
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "esm":\nUnexpected error'
-            " while running command.\nCommand: -\nExit code: -\nReason: -\n"
-            "Stdout: Invalid ESM credentials\nStderr: -",
+            'Failure enabling "esm":\nInvalid esm credentials',
         ) in caplog.record_tuples
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "cc":\nUnexpected error'
-            " while running command.\nCommand: -\nExit code: -\nReason: -\n"
-            "Stdout: Invalid CC credentials\nStderr: -",
+            'Failure enabling "cc":\nInvalid cc credentials',
         ) in caplog.record_tuples
         assert 'Failure enabling "fips"' not in caplog.text
 

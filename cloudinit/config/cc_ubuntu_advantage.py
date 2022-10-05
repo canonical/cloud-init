@@ -2,10 +2,11 @@
 
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
+import json
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Any
+from typing import Any, List, Tuple
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -146,6 +147,9 @@ KNOWN_UA_CONFIG_PROPS = (
     "ua_apt_http_proxy",
     "ua_apt_https_proxy",
 )
+
+# Pro cli message codes
+_PRO_MC_SERVICE_ALREADY_ENABLED = "service-already-enabled"
 
 
 def validate_schema_features(ua_section: dict):
@@ -293,21 +297,25 @@ def configure_ua(token, enable=None):
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 
-    enable_errors = []
+    enable_errors: List[Tuple[str, str]] = []
     for service in enable:
         try:
-            cmd = ["ua", "enable", "--assume-yes", service]
-            subp.subp(cmd, capture=True)
+            cmd = ["ua", "enable", "--assume-yes", "--format", "json", service]
+            enable_cmd_result = subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
-            if re.search("is already enabled.", str(e)):
+            enable_errors.append((service, str(e)))
+
+        enable_result = json.loads(enable_cmd_result.stdout)
+        for error in enable_result.get("errors", []):
+            if error["message_code"] == _PRO_MC_SERVICE_ALREADY_ENABLED:
                 LOG.debug('Service "%s" already enabled.', service)
-            else:
-                enable_errors.append((service, e))
+                continue
+            enable_errors.append((service, str(error["message"])))
 
     if enable_errors:
         for service, error in enable_errors:
             msg = 'Failure enabling "{service}":\n{error}'.format(
-                service=service, error=str(error)
+                service=service, error=error
             )
             util.logexc(LOG, msg)
 
