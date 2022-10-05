@@ -160,7 +160,7 @@ To check if cloud-init is running still, run:
 
         $ cloud-init status
 
-To wait for clous-init to complete, run:
+To wait for cloud-init to complete, run:
 
 .. code-block:: shell-session
 
