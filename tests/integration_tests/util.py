@@ -5,12 +5,14 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from functools import lru_cache
 from itertools import chain
 from pathlib import Path
 from typing import Set
 
 import pytest
 
+from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 
 log = logging.getLogger("integration_testing")
@@ -161,3 +163,12 @@ def get_console_log(client: IntegrationInstance):
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
     return console_log
+
+
+@lru_cache()
+def lxd_has_nocloud(client: IntegrationInstance) -> bool:
+    # Bionic or Focal may be detected as NoCloud rather than LXD
+    lxd_image_metadata = subp(
+        ["lxc", "config", "metadata", "show", client.instance.name]
+    )
+    return "/var/lib/cloud/seed/nocloud" in lxd_image_metadata.stdout

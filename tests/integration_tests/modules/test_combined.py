@@ -20,6 +20,7 @@ from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
     get_inactive_modules,
+    lxd_has_nocloud,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -217,7 +218,7 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            if ImageSpecification.from_os_image().release == "bionic":
+            if lxd_has_nocloud(client):
                 datasource = "DataSourceNoCloud"
             else:
                 datasource = "DataSourceLXD"
@@ -291,7 +292,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release != "bionic":
+        if not lxd_has_nocloud(client):
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -327,7 +328,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release != "bionic":
+        if not lxd_has_nocloud(client):
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
