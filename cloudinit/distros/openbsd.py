@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import platform
 
 import cloudinit.distros.netbsd
 from cloudinit import log as logging
