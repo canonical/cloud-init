@@ -168,7 +168,6 @@ def install_ua_daily(session_cloud: IntegrationCloud):
         client.destroy()
 
 
-@pytest.mark.adhoc
 @pytest.mark.azure
 @pytest.mark.ec2
 @pytest.mark.gce
