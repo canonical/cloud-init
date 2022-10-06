@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import platform
 
 import cloudinit.distros.netbsd
 from cloudinit import log as logging
@@ -57,13 +56,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""
-        os_release = platform.release()
-        os_arch = platform.machine()
         e = os.environ.copy()
-        e["PKG_PATH"] = (
-            "ftp://ftp.openbsd.org/pub/OpenBSD/{os_release}/"
-            "packages/{os_arch}/"
-        ).format(os_arch=os_arch, os_release=os_release)
         return e
 
 

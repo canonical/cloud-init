@@ -176,7 +176,8 @@ class Distro(cloudinit.distros.bsd.BSD):
                 )
 
     def _get_pkg_cmd_environ(self):
-        """Return environment vars used in *BSD package_command operations"""
+        """Return environment vars used in FreeBSD package_command
+        operations"""
         e = os.environ.copy()
         e["ASSUME_ALWAYS_YES"] = "YES"
         return e
