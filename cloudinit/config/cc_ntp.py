@@ -586,10 +586,12 @@ def handle(
     if util.is_BSD() and ntp_client_config.get("service_name") != "ntpd":
         try:
             cloud.distro.manage_service("stop", "ntpd")
+        except subp.ProcessExecutionError as e:
+            LOG.warning("Failed to stop base ntpd service", e)
+        try:
             cloud.distro.manage_service("disable", "ntpd")
         except subp.ProcessExecutionError as e:
-            LOG.exception("Failed to disable/stop base ntpd service", e)
-            raise
+            LOG.warning("Failed to disable base ntpd service", e)
 
     if util.is_BSD():
         try:
