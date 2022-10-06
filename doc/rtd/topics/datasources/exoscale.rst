@@ -38,8 +38,9 @@ Configuration
 Users of this datasource are discouraged from changing the default settings
 unless instructed to by Exoscale support.
 
-The following settings are available and can be set for the datasource in
-system configuration (in `/etc/cloud/cloud.cfg.d/`).
+The following settings are available and can be set for the
+:ref:`datasouce system configuration<datasource_system_config>`
+(in `/etc/cloud/cloud.cfg.d/`).
 
 The settings available are:
 

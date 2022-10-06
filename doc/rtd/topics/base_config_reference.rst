@@ -4,12 +4,13 @@ Base Configuration
 ******************
 
 .. warning::
-    This documentation is intended for distro and cloud providers, not
+    This documentation is intended for custom image creators, such as
+    distros and cloud providers, not
     end users. Modifying the base configuration should not be necessary for
-    end users and can result in a system that will no longer boot or
-    be reachable.
+    end users and can result in a system that may be unreachable or
+    may no longer boot.
 
-Cloud-init config is primarily defined in two places:
+Cloud-init base config is primarily defined in two places:
 
 * **/etc/cloud/cloud.cfg**
 * **/etc/cloud/cloud.cfg.d/*.cfg**
@@ -82,6 +83,8 @@ user data):
     cloud_final_modules:
     - [final_message, once, "my final message"]
 
+.. _datasource_system_config:
+
 Datasource Keys
 ---------------
 
@@ -125,8 +128,8 @@ Both keys will be processed independently.
     either ``ssh`` or ``sshd``.
   - **network**: Top-level key for distro-specific networking configuration
 
-    + **renderers**: List of networking configurations to try on this
-      system. The first valid entry found will be used.
+    + **renderers**: Prioritized list of networking configurations to try
+      on this system. The first valid entry found will be used.
       Options are:
 
       * **eni** - For /etc/network/interfaces
@@ -137,8 +140,8 @@ Both keys will be processed independently.
       * **netbsd**
       * **openbsd**
 
-    + **activators**: List of networking tools to try to activate network
-      on this system. The first valid entry found will be used.
+    + **activators**: Prioritized list of networking tools to try to activate
+      network on this system. The first valid entry found will be used.
       Options are:
 
       * **eni** - For ``ifup``/``ifdown``
@@ -186,14 +189,21 @@ Other Keys
 
 **network**: The :ref:`network_config` to be applied to this instance.
 
-**datasource_pkg_list**: A list of python packages to search when finding
-a datasource. Automatically includes ``cloudinit.sources``.
+**datasource_pkg_list**: Prioritized list of python packages to search when
+finding a datasource. Automatically includes ``cloudinit.sources``.
 
-**datasource_list**: List of datasources that cloud-init will attempt to
-find on boot. This should already be defined in ``/etc/cloud/cloud.cfg.d``
-and generally shouldn't be modified unless cloud-init is misdetecting
-a datasource, which indicates a bug in cloud-init itself. If
-**datasource_list** has only a single entry (or a single entry + ``None``),
+**datasource_list**: Prioritized list of datasources that cloud-init will
+attempt to find on boot. By default, this will be defined in
+``/etc/cloud/cloud.cfg.d``. There are two primary use cases for modifying
+the datasource_list:
+
+1. Remove known invalid datasources. This may avoid long timeouts attempting
+   to detect datasources on any system without a systemd-generator hook
+   that invokes ds-identify.
+2. Override default datasource ordering to discover a different datasource
+   type than would typically be prioritized.
+
+If **datasource_list** has only a single entry (or a single entry + ``None``),
 :ref:`cloud-init's generator script<topics/boot:generator>`
 will automatically assume and use this datasource without
 attempting detection.
@@ -213,8 +223,7 @@ On an ubuntu system, ``/etc/cloud/cloud.cfg`` should look similar to:
 
 .. code-block:: yaml
 
-    # The top level settings are used as module
-    # and system configuration.
+    # The top level settings are used as module and base configuration.
     # A set of users which may be applied and/or used by various modules
     # when a 'default' entry is found it will reference the 'default_user'
     # from the distro configuration specified below
@@ -303,25 +312,25 @@ On an ubuntu system, ``/etc/cloud/cloud.cfg`` should look similar to:
     # System and/or distro specific settings
     # (not accessible to handlers/transforms)
     system_info:
-    # This will affect which distro class gets used
-    distro: ubuntu
-    # Default user name + that default users groups (if added/used)
-    default_user:
+      # This will affect which distro class gets used
+      distro: ubuntu
+      # Default user name + that default users groups (if added/used)
+      default_user:
         name: ubuntu
         lock_passwd: True
         gecos: Ubuntu
         groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         shell: /bin/bash
-    network:
+      network:
         renderers: ['netplan', 'eni', 'sysconfig']
-    # Automatically discover the best ntp_client
-    ntp_client: auto
-    # Other config here will be given to the distro class and/or path classes
-    paths:
+      # Automatically discover the best ntp_client
+      ntp_client: auto
+      # Other config here will be given to the distro class and/or path classes
+      paths:
         cloud_dir: /var/lib/cloud/
         templates_dir: /etc/cloud/templates/
-    package_mirrors:
+      package_mirrors:
         - arches: [i386, amd64]
         failsafe:
             primary: http://archive.ubuntu.com/ubuntu
@@ -346,7 +355,7 @@ On an ubuntu system, ``/etc/cloud/cloud.cfg`` should look similar to:
         failsafe:
             primary: http://ports.ubuntu.com/ubuntu-ports
             security: http://ports.ubuntu.com/ubuntu-ports
-    ssh_svcname: ssh
+      ssh_svcname: ssh
 
 
 .. _configuration is templated: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl
