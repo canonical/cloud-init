@@ -121,7 +121,7 @@ DISTRO_CLIENT_CONFIG = {
             "template_name": "ntp.conf.{distro}",
         },
         "chrony": {
-            "confpath": "/usr/local//etc/chrony.conf",
+            "confpath": "/usr/local/etc/chrony.conf",
             "packages": ["chrony"],
             "service_name": "chronyd",
             "template_name": "chrony.conf.{distro}",
@@ -132,7 +132,7 @@ DISTRO_CLIENT_CONFIG = {
             "packages": ["openntpd"],
             "service_name": "openntpd",
             "template_name": "ntpd.conf.openbsd",
-        }
+        },
     },
     "openbsd": {
         "openntpd": {},
@@ -585,12 +585,8 @@ def handle(
     )
     if util.is_BSD() and ntp_client_config.get("service_name") != "ntpd":
         try:
-            cloud.distro.manage_service(
-                "stop", "ntpd"
-            )
-            cloud.distro.manage_service(
-                "disable", "ntpd"
-            )
+            cloud.distro.manage_service("stop", "ntpd")
+            cloud.distro.manage_service("disable", "ntpd")
         except subp.ProcessExecutionError as e:
             LOG.exception("Failed to disable/stop base ntpd service", e)
             raise
