@@ -30,6 +30,7 @@ class BSDRenderer(renderer.Renderer):
             config = {}
         self.target = None
         self.interface_configurations = {}
+        self.interface_configurations_ipv6 = {}
         self._postcmds = config.get("postcmds", True)
 
     def _ifconfig_entries(self, settings):
@@ -62,8 +63,6 @@ class BSDRenderer(renderer.Renderer):
 
             LOG.info("Configuring interface %s", device_name)
 
-            self.interface_configurations[device_name] = "DHCP"
-
             for subnet in interface.get("subnets", []):
                 if subnet.get("type") == "static":
                     if not subnet.get("netmask"):
@@ -84,30 +83,64 @@ class BSDRenderer(renderer.Renderer):
                         "netmask": subnet.get("netmask"),
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
+                
+                elif subnet.get("type") == "static6":
+                    if not subnet.get("prefix"):
+                        LOG.debug(
+                            "Skipping IP %s, because there is no prefix",
+                            subnet.get("address"),
+                        )
+                        continue
+                    LOG.debug(
+                        "Configuring dev %s with %s / %s",
+                        device_name,
+                        subnet.get("address"),
+                        subnet.get("prefix"),
+                    )
+
+                    self.interface_configurations_ipv6[device_name] = {
+                        "address": subnet.get("address"),
+                        "prefix": subnet.get("prefix"),
+                        "mtu": subnet.get("mtu") or interface.get("mtu"),
+                    }
+                elif subnet.get("type") == "dhcp" or subnet.get("type") == "dhcp4":
+                    self.interface_configurations[device_name] = "DHCP" 
 
     def _route_entries(self, settings):
         routes = list(settings.iter_routes())
         for interface in settings.iter_interfaces():
             subnets = interface.get("subnets", [])
             for subnet in subnets:
-                if subnet.get("type") != "static":
-                    continue
-                gateway = subnet.get("gateway")
-                if gateway and len(gateway.split(".")) == 4:
-                    routes.append(
-                        {
-                            "network": "0.0.0.0",
-                            "netmask": "0.0.0.0",
-                            "gateway": gateway,
-                        }
-                    )
+                if subnet.get("type") == "static":
+                    gateway = subnet.get("gateway")
+                    if gateway and len(gateway.split(".")) == 4:
+                        routes.append(
+                            {
+                                "network": "0.0.0.0",
+                                "netmask": "0.0.0.0",
+                                "gateway": gateway,
+                            }
+                        )
+                elif subnet.get("type") == "static6":
+                    gateway = subnet.get("gateway")
+                    if gateway and len(gateway.split(":")) > 1:
+                        routes.append(
+                            {
+                                "network": "::",
+                                "prefix": "0",
+                                "gateway": gateway,
+                            }
+                        )
+                else:
+                    continue 
                 routes += subnet.get("routes", [])
+
         for route in routes:
             network = route.get("network")
             if not network:
                 LOG.debug("Skipping a bad route entry")
                 continue
-            netmask = route.get("netmask")
+            netmask = route.get("netmask") if route.get("netmask") else route.get("prefix")
             gateway = route.get("gateway")
             self.set_route(network, netmask, gateway)
 
@@ -190,3 +223,4 @@ class BSDRenderer(renderer.Renderer):
 
     def set_route(self, network, netmask, gateway):
         raise NotImplementedError()
+

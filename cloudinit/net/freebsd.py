@@ -17,13 +17,22 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
     def write_config(self):
         for device_name, v in self.interface_configurations.items():
-            net_config = "DHCP"
             if isinstance(v, dict):
-                net_config = v.get("address") + " netmask " + v.get("netmask")
+                net_config = "inet %s netmask %s" % (v.get("address"), v.get("netmask"))
                 mtu = v.get("mtu")
                 if mtu:
                     net_config += " mtu %d" % mtu
+            elif v == "DHCP":
+                net_config = "DHCP"
             self.set_rc_config_value("ifconfig_" + device_name, net_config)
+        
+        for device_name, v in self.interface_configurations_ipv6.items():
+            if isinstance(v, dict):
+                net_config = "inet6 %s/%d" % (v.get("address"), v.get("prefix"))
+                mtu = v.get("mtu")
+                if mtu:
+                    net_config += " mtu %d" % mtu
+            self.set_rc_config_value("ifconfig_%s_ipv6" % device_name, net_config)
 
     def start_services(self, run=False):
         if not run:
@@ -58,6 +67,8 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
     def set_route(self, network, netmask, gateway):
         if network == "0.0.0.0":
             self.set_rc_config_value("defaultrouter", gateway)
+        elif network == "::":
+            self.set_rc_config_value("ipv6_defaultrouter", gateway)
         else:
             route_name = "route_net%d" % self._route_cpt
             route_cmd = "-route %s/%s %s" % (network, netmask, gateway)
@@ -67,3 +78,4 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
 def available(target=None):
     return util.is_FreeBSD() or util.is_DragonFlyBSD()
+
