@@ -22,6 +22,14 @@ ubuntu_advantage:
   token: {token}
 """
 
+ATTACH = """\
+#cloud-config
+ubuntu_advantage:
+  token: {token}
+  enable:
+  - esm-infra
+"""
+
 # bootcmd disables UA daemon on gce
 UA_DAILY = """\
 #cloud-config
@@ -101,6 +109,25 @@ class TestUbuntuAdvantage:
     @pytest.mark.user_data(ATTACH_FALLBACK.format(token=CLOUD_INIT_UA_TOKEN))
     def test_valid_token(self, client: IntegrationInstance):
         assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        status = client.execute("ua status")
+        assert status.ok
+        assert "This machine is not attached" not in status.stdout
+
+    @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
+    def test_idempotency(self, client: IntegrationInstance):
+        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        status = client.execute("ua status")
+        assert status.ok
+        assert "This machine is not attached" not in status.stdout
+
+        # Clean reboot to change instance-id and trigger cc_ua in next boot
+        assert client.execute("cloud-init clean --logs").ok
+        client.restart()
+
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         status = client.execute("ua status")

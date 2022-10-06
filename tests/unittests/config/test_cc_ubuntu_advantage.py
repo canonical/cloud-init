@@ -153,9 +153,11 @@ class TestConfigureUA:
                             "--assume-yes",
                             "--format",
                             "json",
+                            "--",
                             "fips",
                         ],
                         capture=True,
+                        rcs={0, 1},
                     ),
                 ],
                 [
@@ -189,9 +191,11 @@ class TestConfigureUA:
                             "--assume-yes",
                             "--format",
                             "json",
+                            "--",
                             "fips",
                         ],
                         capture=True,
+                        rcs={0, 1},
                     ),
                 ],
                 [
@@ -269,10 +273,15 @@ class TestConfigureUA:
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
-                ["ua", "enable", "--assume-yes", "--format", "json", svc]
-                for svc in ["livepatch"]
+                "ua",
+                "enable",
+                "--assume-yes",
+                "--format",
+                "json",
+                "--",
+                "livepatch",
             ]
-            if cmd in fail_cmds and capture:
+            if cmd == fail_cmds and capture:
                 response = {
                     "errors": [
                         {
@@ -301,27 +310,32 @@ class TestConfigureUA:
                     "--assume-yes",
                     "--format",
                     "json",
+                    "--",
                     "livepatch",
                 ],
                 capture=True,
+                rcs={0, 1},
             ),
         ]
         assert (
             MPATH,
             logging.DEBUG,
-            'Service "livepatch" already enabled.',
+            "Service `livepatch` already enabled.",
         ) in caplog.record_tuples
 
     def test_configure_ua_attach_on_service_error(self, m_subp, caplog):
         """all services should be enabled and then any failures raised"""
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
-            fail_cmds = [
-                ["ua", "enable", "--assume-yes", "--format", "json", svc]
-                for svc in ["esm", "cc"]
+            fail_cmd = [
+                "ua",
+                "enable",
+                "--assume-yes",
+                "--format",
+                "json",
+                "--",
             ]
-            if cmd in fail_cmds and capture:
-                svc = cmd[-1]
+            if cmd[: len(fail_cmd)] == fail_cmd and capture:
                 response = {
                     "errors": [
                         {
@@ -329,6 +343,15 @@ class TestConfigureUA:
                             "message_code": "some-code",
                             "service": svc,
                             "type": "service",
+                        }
+                        for svc in ["esm", "cc"]
+                    ]
+                    + [
+                        {
+                            "message": "Cannot enable unknown service 'asdf'",
+                            "message_code": "invalid-service-or-failure",
+                            "service": None,
+                            "type": "system",
                         }
                     ]
                 }
@@ -340,10 +363,12 @@ class TestConfigureUA:
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                'Failure enabling Ubuntu Advantage service(s): "esm", "cc"'
+                "Failure enabling Ubuntu Advantage service(s): esm, cc"
             ),
         ):
-            configure_ua(token="SomeToken", enable=["esm", "cc", "fips"])
+            configure_ua(
+                token="SomeToken", enable=["esm", "cc", "fips", "asdf"]
+            )
         assert m_subp.call_args_list == [
             mock.call(
                 ["ua", "attach", "--no-auto-enable", "SomeToken"],
@@ -351,29 +376,66 @@ class TestConfigureUA:
                 rcs={0, 2},
             ),
             mock.call(
-                ["ua", "enable", "--assume-yes", "--format", "json", "esm"],
+                [
+                    "ua",
+                    "enable",
+                    "--assume-yes",
+                    "--format",
+                    "json",
+                    "--",
+                    "esm",
+                    "cc",
+                    "fips",
+                    "asdf",
+                ],
                 capture=True,
-            ),
-            mock.call(
-                ["ua", "enable", "--assume-yes", "--format", "json", "cc"],
-                capture=True,
-            ),
-            mock.call(
-                ["ua", "enable", "--assume-yes", "--format", "json", "fips"],
-                capture=True,
+                rcs={0, 1},
             ),
         ]
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "esm":\nInvalid esm credentials',
+            "Failure enabling `esm`: Invalid esm credentials",
         ) in caplog.record_tuples
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "cc":\nInvalid cc credentials',
+            "Failure enabling `cc`: Invalid cc credentials",
+        ) in caplog.record_tuples
+        assert (
+            MPATH,
+            logging.WARNING,
+            "Failure of type `system`: Cannot enable unknown service 'asdf'",
         ) in caplog.record_tuples
         assert 'Failure enabling "fips"' not in caplog.text
+
+    def test_ua_enable_unexpected_error_codes(self, m_subp):
+        def fake_subp(cmd, capture=None, **kwargs):
+            if cmd[:2] == ["ua", "enable"] and capture:
+                raise subp.ProcessExecutionError(exit_code=255)
+            return subp.SubpResult(json.dumps({"errors": []}), "")
+
+        m_subp.side_effect = fake_subp
+
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape("Error while enabling service(s): esm"),
+        ):
+            configure_ua(token="SomeToken", enable=["esm"])
+
+    def test_ua_enable_non_json_response(self, m_subp):
+        def fake_subp(cmd, capture=None, **kwargs):
+            if cmd[:2] == ["ua", "enable"] and capture:
+                return subp.SubpResult("I dream to be a Json", "")
+            return subp.SubpResult(json.dumps({"errors": []}), "")
+
+        m_subp.side_effect = fake_subp
+
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape("UA response was not json: I dream to be a Json"),
+        ):
+            configure_ua(token="SomeToken", enable=["esm"])
 
 
 class TestUbuntuAdvantageSchema:

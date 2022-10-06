@@ -6,7 +6,7 @@ import json
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Any, List, Tuple
+from typing import Any, List, Sequence
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -148,8 +148,9 @@ KNOWN_UA_CONFIG_PROPS = (
     "ua_apt_https_proxy",
 )
 
-# Pro cli message codes
-_PRO_MC_SERVICE_ALREADY_ENABLED = "service-already-enabled"
+
+def _format_services(services: Sequence[str]) -> str:
+    return ", ".join(services)
 
 
 def validate_schema_features(ua_section: dict):
@@ -282,6 +283,7 @@ def configure_ua(token, enable=None):
         )
         enable = []
 
+    # Perform attach
     if enable:
         attach_cmd = ["ua", "attach", "--no-auto-enable", token]
     else:
@@ -292,39 +294,78 @@ def configure_ua(token, enable=None):
         # Allow `ua attach` to fail in already attached machines
         subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        error = str(e).replace(token, REDACTED)
-        msg = f"Failure attaching Ubuntu Advantage:\n{error}"
+        err = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Advantage:\n{err}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 
-    enable_errors: List[Tuple[str, str]] = []
-    for service in enable:
-        try:
-            cmd = ["ua", "enable", "--assume-yes", "--format", "json", service]
-            enable_cmd_result = subp.subp(cmd, capture=True)
-        except subp.ProcessExecutionError as e:
-            enable_errors.append((service, str(e)))
+    # Enable services
+    if not enable:
+        return
+    cmd = ["ua", "enable", "--assume-yes", "--format", "json", "--"] + enable
+    try:
+        enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            f"Error while enabling service(s): {_format_services(enable)}"
+        ) from e
 
-        enable_result = json.loads(enable_cmd_result.stdout)
-        for error in enable_result.get("errors", []):
-            if error["message_code"] == _PRO_MC_SERVICE_ALREADY_ENABLED:
-                LOG.debug('Service "%s" already enabled.', service)
-                continue
-            enable_errors.append((service, str(error["message"])))
+    try:
+        enable_resp = json.loads(enable_stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"UA response was not json: {enable_stdout}") from e
+
+    # At this point we were able to load the json response from UA. This
+    # response contains a list of errors under the key 'errors'. E.g.
+    #
+    #   {
+    #      "errors": [
+    #        {
+    #           "message": "UA Apps: ESM is already enabled ...",
+    #           "message_code": "service-already-enabled",
+    #           "service": "esm-apps",
+    #           "type": "service"
+    #        },
+    #        {
+    #           "message": "Cannot enable unknown service 'asdf' ...",
+    #           "message_code": "invalid-service-or-failure",
+    #           "service": null,
+    #           "type": "system"
+    #        }
+    #      ]
+    #   }
+    #
+    # From our pov there are two type of errors, service and non-service
+    # related. We can distinguish them by checking if `service` is non-null
+    # or null respectively.
+
+    try:
+        from uaclient.messages import ALREADY_ENABLED  # noqa
+
+        UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
+    except ImportError:
+        UA_MC_ALREADY_ENABLED = "service-already-enabled"
+
+    enable_errors: List[dict] = []
+    for err in enable_resp.get("errors", []):
+        if err["message_code"] == UA_MC_ALREADY_ENABLED:
+            LOG.debug("Service `%s` already enabled.", err["service"])
+            continue
+        enable_errors.append(err)
 
     if enable_errors:
-        for service, error in enable_errors:
-            msg = 'Failure enabling "{service}":\n{error}'.format(
-                service=service, error=error
-            )
+        error_services: List[str] = []
+        for err in enable_errors:
+            if err["service"] is not None:
+                error_services.append(err["service"])
+                msg = f'Failure enabling `{err["service"]}`: {err["message"]}'
+            else:
+                msg = f'Failure of type `{err["type"]}`: {err["message"]}'
             util.logexc(LOG, msg)
 
         raise RuntimeError(
-            "Failure enabling Ubuntu Advantage service(s): {}".format(
-                ", ".join(
-                    '"{}"'.format(service) for service, _ in enable_errors
-                )
-            )
+            f"Failure enabling Ubuntu Advantage service(s): "
+            f"{_format_services(error_services)}"
         )
 
 
