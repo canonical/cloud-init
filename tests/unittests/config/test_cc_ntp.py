@@ -442,6 +442,8 @@ class TestNtp(FilesystemMockingTestCase):
 
             hosts = cc_ntp.generate_server_names(mycloud.distro.name)
             uses_systemd = True
+            is_FreeBSD = False
+            is_OpenBSD = False
             expected_service_call = [
                 "systemctl",
                 "reload-or-restart",
@@ -457,6 +459,16 @@ class TestNtp(FilesystemMockingTestCase):
                 # supports servers and not pools.
                 expected_content = "servers {0}\npools []\n".format(hosts)
 
+            if distro == "freebsd":
+                uses_systemd = False
+                is_FreeBSD = True
+                expected_service_call = ["service", service_name, "restart"]
+
+            if distro == "openbsd":
+                uses_systemd = False
+                is_OpenBSD = True
+                expected_service_call = ["rcctl", "restart", service_name]
+
             m_sysd.return_value = uses_systemd
             with mock.patch("cloudinit.config.cc_ntp.util") as m_util:
                 # allow use of util.mergemanydict
@@ -467,6 +479,9 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_false.return_value = util.is_false(
                     cfg["ntp"]["enabled"]
                 )
+                m_util.is_BSD.return_value = is_FreeBSD or is_OpenBSD
+                m_util.is_FreeBSD.return_value = is_FreeBSD
+                m_util.is_OpenBSD.return_value = is_OpenBSD
                 cc_ntp.handle("notimportant", cfg, mycloud, None, None)
                 m_dsubp.subp.assert_called_with(
                     expected_service_call, capture=True
