@@ -83,7 +83,7 @@ user data):
     cloud_final_modules:
     - [final_message, once, "my final message"]
 
-.. _datasource_system_config:
+.. _datasource_base_config:
 
 Datasource Keys
 ---------------

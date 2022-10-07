@@ -126,7 +126,7 @@ are provided by SmartOS:
  * user-script
 
 This list can be changed through
-:ref:`datasouce system configuration<datasource_system_config>` variable
+:ref:`datasource base configuration<datasource_base_config>` variable
 'no_base64_decode'.
 
 This means that user-script and user-data as well as other values can be
