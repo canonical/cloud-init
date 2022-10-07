@@ -463,7 +463,14 @@ class TestNtp(FilesystemMockingTestCase):
             if distro == "freebsd":
                 uses_systemd = False
                 is_FreeBSD = True
-                expected_service_call = ["service", service_name, "restart"]
+                if service_name != "ntpd":
+                    expected_service_call = ["service", "ntpd", "disable"]
+                else:
+                    expected_service_call = [
+                        "service",
+                        service_name,
+                        "restart",
+                    ]
 
             if distro == "openbsd":
                 uses_systemd = False
