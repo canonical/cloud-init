@@ -1,6 +1,7 @@
 ## template:jinja
+
 # The top level settings are used as module
-# and system configuration.
+# and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
 {% set is_rhel = variant in ["rhel", "centos"] %}
 {% if is_bsd %}

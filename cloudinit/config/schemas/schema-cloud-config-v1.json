@@ -1,6 +1,111 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "all_modules": {
+      "enum": [
+        "ansible",
+        "apk-configure",
+        "apk_configure",
+        "apt-configure",
+        "apt_configure",
+        "apt-pipelining",
+        "apt_pipelining",
+        "bootcmd",
+        "byobu",
+        "ca-certs",
+        "ca_certs",
+        "chef",
+        "disable-ec2-metadata",
+        "disable_ec2_metadata",
+        "disk-setup",
+        "disk_setup",
+        "fan",
+        "final-message",
+        "final_message",
+        "growpart",
+        "grub-dpkg",
+        "grub_dpkg",
+        "install-hotplug",
+        "install_hotplug",
+        "keyboard",
+        "keys-to-console",
+        "keys_to_console",
+        "landscape",
+        "locale",
+        "lxd",
+        "mcollective",
+        "migrator",
+        "mounts",
+        "ntp",
+        "package-update-upgrade-install",
+        "package_update_upgrade_install",
+        "phone-home",
+        "phone_home",
+        "power-state-change",
+        "power_state_change",
+        "puppet",
+        "refresh-rmc-and-interface",
+        "refresh_rmc_and_interface",
+        "reset-rmc",
+        "reset_rmc",
+        "resizefs",
+        "resolv-conf",
+        "resolv_conf",
+        "rh-subscription",
+        "rh_subscription",
+        "rightscale-userdata",
+        "rightscale_userdata",
+        "rsyslog",
+        "runcmd",
+        "salt-minion",
+        "salt_minion",
+        "scripts-per-boot",
+        "scripts_per_boot",
+        "scripts-per-instance",
+        "scripts_per_instance",
+        "scripts-per-once",
+        "scripts_per_once",
+        "scripts-user",
+        "scripts_user",
+        "scripts-vendor",
+        "scripts_vendor",
+        "seed-random",
+        "seed_random",
+        "set-hostname",
+        "set_hostname",
+        "set-passwords",
+        "set_passwords",
+        "snap",
+        "spacewalk",
+        "ssh",
+        "ssh-authkey-fingerprints",
+        "ssh_authkey_fingerprints",
+        "ssh-import-id",
+        "ssh_import_id",
+        "timezone",
+        "ubuntu-advantage",
+        "ubuntu_advantage",
+        "ubuntu-autoinstall",
+        "ubuntu_autoinstall",
+        "ubuntu-drivers",
+        "ubuntu_drivers",
+        "update-etc-hosts",
+        "update_etc_hosts",
+        "update-hostname",
+        "update_hostname",
+        "users-groups",
+        "users_groups",
+        "wireguard",
+        "write-files",
+        "write_files",
+        "write-files-deferred",
+        "write_files_deferred",
+        "yum-add-repo",
+        "yum_add_repo",
+        "zypper-add-repo",
+        "zypper_add_repo"
+      ]
+    },
     "users_groups.groups_by_groupname": {
       "additionalProperties": false,
       "patternProperties": {
@@ -230,6 +335,31 @@
         }
       },
       "minProperties": 1
+    },
+    "modules_definition": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/all_modules"
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              { "enum": {"$ref": "#/$defs/all_modules"}},
+              { "enum": ["always", "once", "once-per-instance"]}
+            ]
+          }
+        ]
+      }
+    },
+    "base_config": {
+      "type": "object",
+      "properties": {
+        "cloud_init_modules": {"$ref": "#/$defs/modules_definition"},
+        "cloud_config_modules": {"$ref": "#/$defs/modules_definition"},
+        "cloud_final_modules": {"$ref": "#/$defs/modules_definition"}
+      }
     },
     "cc_ubuntu_autoinstall": {
       "type": "object",
@@ -2684,6 +2814,7 @@
     }
   },
   "allOf": [
+    { "$ref": "#/$defs/base_config"},
     { "$ref": "#/$defs/cc_ansible" },
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },
