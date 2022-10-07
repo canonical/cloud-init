@@ -1,6 +1,8 @@
 #cloud-config
-# uses deploy keys to pull from a remote repo and run
-# inside a container
+#
+# Uses deploy keys to pull playbooks from a remote repo and run
+# those plays.
+#
 
 packages_update: true
 packages_upgrade: true

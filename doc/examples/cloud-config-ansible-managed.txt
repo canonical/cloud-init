@@ -1,5 +1,5 @@
 #cloud-config
-
+#
 # A common use-case for cloud-init is to bootstrap user and ssh
 # settings to be managed by a remote configuration management tool,
 # such as ansible.
@@ -12,7 +12,7 @@ ssh_pwauth: false
 users:
 - name: ansible
   gecos: Ansible User
-  groups: users, admin, wheel
+  groups: users,admin,wheel
   sudo: ALL=(ALL) NOPASSWD:ALL
   shell: /bin/bash
   lock_passwd: true
