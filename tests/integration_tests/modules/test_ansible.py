@@ -253,8 +253,8 @@ def _test_ansible_pull_from_local_server(my_client):
     USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
 class TestAnsiblePullPip:
-    def test_ansible_pull_pip(self, class_client):
-        _test_ansible_pull_from_local_server(class_client)
+    def test_ansible_pull_pip(self, client):
+        _test_ansible_pull_from_local_server(client)
 
 
 # temporarily disable this test on jenkins until firewall rules are in place
