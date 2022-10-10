@@ -47,7 +47,11 @@ class Ifconfig:
             toks = line.lower().strip().split()
 
             if len(toks) > 1 and toks[1].startswith("flags="):
-                ifs[curif] = copy.deepcopy(self._parse_flags(toks))
+                flags = self._parse_flags(toks)
+                ifs[curif]["flags"] = copy.deepcopy(flags["flags"])
+                ifs[curif]["up"] = flags["flags"]["up"]
+                ifs[curif]["mtu"] = flags["flags"]["mtu"]
+                ifs[curif]["metric"] = flags["flags"]["metric"]
             if toks[0].startswith("capabilities="):
                 flags = re.split(r"<|>", toks[0])
                 ifs[curif]["flags"] += flags
