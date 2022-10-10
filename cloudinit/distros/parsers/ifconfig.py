@@ -14,8 +14,8 @@ LOG = logging.getLogger(__name__)
 
 
 DEFAULT_IF = {
-    "inet": [],
-    "inet6": [],
+    "inet": {},
+    "inet6": {},
     "mac": "",
     "macs": [],
     "up": False,
@@ -50,7 +50,7 @@ class Ifconfig:
                 ifs[curif] = copy.deepcopy(self._parse_flags(toks))
             if toks[0].startswith("capabilities="):
                 flags = re.split(r"<|>", toks[0])
-                ifs[curif]["flags"].append(flags)
+                ifs[curif]["flags"] += flags
 
             if toks[0] == "description:":
                 ifs[curif]["description"] = line[line.index(":") + 2 :]
@@ -62,14 +62,14 @@ class Ifconfig:
             ):
                 options = re.split(r"<|>", toks[0])
                 if len(options) > 1:
-                    ifs[curif]["options"].append(options[1].split(","))
+                    ifs[curif]["options"] += options[1].split(",")
 
             if toks[0] == "ether":
                 ifs[curif]["mac"] = toks[1]
-                ifs[curif]["macs"].append(toks[1])
+                ifs[curif]["macs"] += toks[1]
 
             if toks[0] == "hwaddr":
-                ifs[curif]["macs"].append(toks[1])
+                ifs[curif]["macs"] += toks[1]
 
             if toks[0] == "groups:":
                 ifs[curif]["groups"] = toks[1:]
