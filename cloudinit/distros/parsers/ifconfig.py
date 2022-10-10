@@ -100,13 +100,16 @@ class Ifconfig:
         return ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
+        broadcast = None
         if "/" in toks[1]:
             ip = IPv4Interface(toks[1])
             netmask = ip.netmask
-            broadcast = toks[3]
+            if "broadcast" in toks:
+                broadcast = toks[toks.index("broadcast") + 1]
         else:
             netmask = str(IPv4Address(int(toks[3], 0)))
-            broadcast = toks[5]
+            if "broadcast" in toks:
+                broadcast = toks[toks.index("broadcast") + 1]
             ip = IPv4Interface("%s/%s" % (toks[1], netmask))
 
         prefixlen = ip.with_prefixlen.split("/")[1]
