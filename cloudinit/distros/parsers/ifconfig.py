@@ -42,7 +42,7 @@ class Ifconfig:
                 if curif.endswith(":"):
                     curif = curif[:-1]
                 if curif not in ifs:
-                    ifs["curif"] = copy.deepcopy(DEFAULT_IF)
+                    ifs[curif] = copy.deepcopy(DEFAULT_IF)
 
             toks = line.lower().strip().split()
 
