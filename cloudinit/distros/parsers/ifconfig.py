@@ -130,6 +130,8 @@ class Ifconfig:
                     break
             ip = IPv6Interface("%s/%s" % (toks[1], prefixlen))
 
+        # ipaddress.IPv6Address/Interface only knows these two:
+        scope = None
         if ip.is_link_local:
             scope = "link-local"
         elif ip.is_site_local:
