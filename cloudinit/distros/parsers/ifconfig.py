@@ -70,10 +70,10 @@ class Ifconfig:
 
             if toks[0] == "ether":
                 ifs[curif]["mac"] = toks[1]
-                ifs[curif]["macs"] += toks[1]
+                ifs[curif]["macs"].append(toks[1])
 
             if toks[0] == "hwaddr":
-                ifs[curif]["macs"] += toks[1]
+                ifs[curif]["macs"].append(toks[1])
 
             if toks[0] == "groups:":
                 ifs[curif]["groups"] = toks[1:]
