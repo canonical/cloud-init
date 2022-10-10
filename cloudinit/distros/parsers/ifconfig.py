@@ -28,12 +28,11 @@ DEFAULT_IF = {
 # - https://man.netbsd.org/ifconfig.8
 # - https://man.openbsd.org/ifconfig.8
 class Ifconfig:
-    def __init__(self, text):
-        self._text = text
-        self._ifs = []
+    def __init__(self):
+        self._ifs = {}
 
-    def parse(self, text: str) -> list:
-        ifs = []
+    def parse(self, text: str) -> dict:
+        ifs = {}
         for line in text.splitlines():
             if len(line) == 0:
                 continue
