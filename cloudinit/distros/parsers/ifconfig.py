@@ -49,9 +49,9 @@ class Ifconfig:
             if len(toks) > 1 and toks[1].startswith("flags="):
                 flags = self._parse_flags(toks)
                 ifs[curif]["flags"] = copy.deepcopy(flags["flags"])
-                ifs[curif]["up"] = flags["flags"]["up"]
-                ifs[curif]["mtu"] = flags["flags"]["mtu"]
-                ifs[curif]["metric"] = flags["flags"]["metric"]
+                ifs[curif]["up"] = flags["up"]
+                ifs[curif]["mtu"] = flags["mtu"]
+                ifs[curif]["metric"] = flags["metric"]
             if toks[0].startswith("capabilities="):
                 flags = re.split(r"<|>", toks[0])
                 ifs[curif]["flags"] += flags
