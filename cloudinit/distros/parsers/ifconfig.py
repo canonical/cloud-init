@@ -6,9 +6,10 @@
 
 import copy
 import re
-from cloudinit import log as logging
+from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 from typing import Tuple
-from ipaddress import IPv4Interface, IPv4Address, IPv6Interface
+
+from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 

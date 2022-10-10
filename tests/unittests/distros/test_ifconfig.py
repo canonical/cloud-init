@@ -1,14 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import re
-
 from cloudinit.distros.parsers.ifconfig import Ifconfig
 from tests.unittests.helpers import TestCase
 
 
 class TestSysConfHelper(TestCase):
     def test_parse_freebsd(self):
-        ifs = """
+        ifs_txt = """
 vtnet0: flags=8863<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
         options=c00b8<VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,VLAN_HWTSO,LINKSTATE>
         ether 96:00:00:a3:2d:e0
@@ -65,5 +63,4 @@ epair30a: flags=8963<UP,BROADCAST,RUNNING,PROMISC,SIMPLEX,MULTICAST> metric 0 mt
         status: active
         nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
         """
-        ifs = Ifconfig(contents)
-
+        ifs = Ifconfig().parse(ifs_txt)
