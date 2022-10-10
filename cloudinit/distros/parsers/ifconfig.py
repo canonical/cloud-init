@@ -18,6 +18,7 @@ DEFAULT_IF = {
     "inet6": {},
     "mac": "",
     "macs": [],
+    "groups": [],
     "up": False,
     "options": [],
 }
@@ -76,7 +77,7 @@ class Ifconfig:
                 ifs[curif]["macs"].append(toks[1])
 
             if toks[0] == "groups:":
-                ifs[curif]["groups"] = toks[1:]
+                ifs[curif]["groups"] += toks[1:]
 
             if toks[0] == "media:":
                 ifs[curif]["media"] = line[line.index(": ") + 2 :]
