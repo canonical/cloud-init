@@ -5,15 +5,24 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import re
 from cloudinit import log as logging
-from cloudinit import util
-from typing import Dict, List, Optional, Tuple
-from ipaddress import IP4Address, IPv4Interface, IPv6Address
+from typing import Tuple
+from ipaddress import IPv4Interface, IPv4Address, IPv6Interface
 
 LOG = logging.getLogger(__name__)
 
 
-DEFAULT_IF = {"inet": [], "inet6": [], "mac": "", "macs": [], "up": False, "options": []}
+DEFAULT_IF = {
+    "inet": [],
+    "inet6": [],
+    "mac": "",
+    "macs": [],
+    "up": False,
+    "options": [],
+}
+
+
 # see man ifconfig(8)
 # - https://man.freebsd.org/ifconfig(8)
 # - https://man.netbsd.org/ifconfig.8
@@ -34,7 +43,7 @@ class Ifconfig:
                 if curif.endswith(":"):
                     curif = curif[:-1]
                 if curif not in ifs:
-                    ifs['curif'] = copy.deepcopy(DEFAULT_NETDEV_INFO)
+                    ifs["curif"] = copy.deepcopy(DEFAULT_IF)
 
             toks = line.lower().strip().split()
 
@@ -45,11 +54,13 @@ class Ifconfig:
                 ifs[curif]["flags"].append(flags)
 
             if toks[0] == "description:":
-                ifs[curif]["description"] = line[line.index(":") + 2:]
+                ifs[curif]["description"] = line[line.index(":") + 2 :]
 
-            if (toks[0].startswith("options=") or
-                toks[0].startswith("ec_capabilities") or
-                toks[0].startswith("ec_enabled")):
+            if (
+                toks[0].startswith("options=")
+                or toks[0].startswith("ec_capabilities")
+                or toks[0].startswith("ec_enabled")
+            ):
                 options = re.split(r"<|>", toks[0])
                 if len(options) > 1:
                     ifs[curif]["options"].append(options[1].split(","))
@@ -65,7 +76,7 @@ class Ifconfig:
                 ifs[curif]["groups"] = toks[1:]
 
             if toks[0] == "media:":
-                ifs[curif]["media"] = line[line.index(": ")+2:]
+                ifs[curif]["media"] = line[line.index(": ") + 2 :]
 
             if toks[0] == "nd6":
                 nd6_opts = re.split(r"<|>", toks[0])
@@ -87,50 +98,51 @@ class Ifconfig:
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         if "/" in toks[1]:
-            ip = IP4Interface(toks[1])
+            ip = IPv4Interface(toks[1])
             netmask = ip.netmask
             broadcast = toks[3]
         else:
-            netmask = str(IP4Address(int(toks[3], 0)))
+            netmask = str(IPv4Address(int(toks[3], 0)))
             broadcast = toks[5]
             ip = IPv4Interface("%s/%s" % (toks[1], netmask))
 
         prefixlen = ip.with_prefixlen.split("/")[1]
-        return (str(ip.ip),  { "netmask": netmask,
-                               "broadcast": broadcast,
-                               "prefixlen": prefixlen})
+        return (
+            str(ip.ip),
+            {
+                "netmask": netmask,
+                "broadcast": broadcast,
+                "prefixlen": prefixlen,
+            },
+        )
 
     def _parse_inet6(self, toks: list) -> Tuple[str, dict]:
         if "/" in toks[1]:
-            ip = IP6Interface(toks[1])
+            ip = IPv6Interface(toks[1])
             prefixlen = toks[1].split("/")[1]
-            broadcast = toks[3]
         else:
             for i in range(2, len(toks)):
                 if toks[i] == "prefixlen":
-                    prefixlen = toks[i+1]
+                    prefixlen = toks[i + 1]
                     break
             ip = IPv6Interface("%s/%s" % (toks[1], prefixlen))
 
         if ip.is_link_local:
-            scope = 'link-local'
+            scope = "link-local"
         elif ip.is_site_local:
-            scope = 'site-local'
+            scope = "site-local"
 
-        return (str(ip.ip), { "prefixlen": prefixlen,
-                              "scope": scope})
+        return (str(ip.ip), {"prefixlen": prefixlen, "scope": scope})
 
     def _parse_flags(self, toks: list) -> dict:
         flags = re.split(r"<|>", toks[1])
         ret = {}
         if len(flags) > 1:
             ret["flags"] = flags[1].split(",")
-            if up in ret["flags"]:
+            if "up" in ret["flags"]:
                 ret["up"] = True
             if toks[2] == "metric":
                 ret["metric"] = int(toks[3])
             if toks[4] == "mtu":
                 ret["mtu"] = int(toks[5])
         return ret
-
-# vi: ts=4 expandtab
