@@ -41,8 +41,8 @@ Install and run `chef`_ recipes
    :language: yaml
    :linenos:
 
-Install and run `ansible-pull`_
-==========================
+Install and run `ansible-pull`
+===============================
 
 .. literalinclude:: ../../examples/cloud-config-ansible-pull.txt
    :language: yaml
