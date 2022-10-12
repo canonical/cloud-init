@@ -426,14 +426,15 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.handle("notimportant", cfg, mycloud, None, None)
             self.assertEqual(0, m_select.call_count)
 
-    @mock.patch("cloudinit.distros.subp")
-    @mock.patch("cloudinit.config.cc_ntp.subp")
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.subp.which", return_value=True)
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp, m_dsubp):
+    def test_ntp_the_whole_package(self, m_sysd, m_select, m_which, m_subp):
         """Test enabled config renders template, and restarts service"""
         cfg = {"ntp": {"enabled": True}}
         for distro in cc_ntp.distros:
+            m_subp.reset_mock()
             mycloud = self._get_cloud(distro)
             ntpconfig = self._mock_ntp_client_config(distro=distro)
             confpath = ntpconfig["confpath"]
@@ -473,8 +474,6 @@ class TestNtp(FilesystemMockingTestCase):
             with mock.patch("cloudinit.config.cc_ntp.util") as m_util:
                 # allow use of util.mergemanydict
                 m_util.mergemanydict.side_effect = util.mergemanydict
-                # default client is present
-                m_subp.which.return_value = True
                 # use the config 'enabled' value
                 m_util.is_false.return_value = util.is_false(
                     cfg["ntp"]["enabled"]
@@ -483,9 +482,7 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_FreeBSD.return_value = is_FreeBSD
                 m_util.is_OpenBSD.return_value = is_OpenBSD
                 cc_ntp.handle("notimportant", cfg, mycloud, None, None)
-                m_dsubp.subp.assert_called_with(
-                    expected_service_call, capture=True
-                )
+                m_subp.assert_called_with(expected_service_call, capture=True)
 
             self.assertEqual(expected_content, util.load_file(confpath))
 
