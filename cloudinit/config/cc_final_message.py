@@ -40,10 +40,10 @@ meta: MetaSchema = {
         dedent(
             """\
             final_message: |
-              cloud-init has finished
-              version: $version
-              timestamp: $timestamp
-              datasource: $datasource
+              cloud-init has finished \n
+              version: $version \n
+              timestamp: $timestamp \n
+              datasource: $datasource \n
               uptime: $uptime
             """
         )
