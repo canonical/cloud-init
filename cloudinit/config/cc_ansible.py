@@ -162,6 +162,8 @@ def handle(
     ansible_cfg: dict = cfg.get("ansible", {})
     ansible_user = ansible_cfg.get("run-user")
     install_method = ansible_cfg.get("install-method")
+    setup_controller = ansible_cfg.get("setup_controller")
+
     galaxy_cfg = ansible_cfg.get("galaxy")
     pull_cfg = ansible_cfg.get("pull")
     package_name = ansible_cfg.get("package-name", "")
@@ -187,6 +189,9 @@ def handle(
 
         if pull_cfg:
             run_ansible_pull(ansible, deepcopy(pull_cfg))
+
+        if setup_controller:
+            ansible_controller(setup_controller, ansible)
 
 
 def validate_config(cfg: dict):
