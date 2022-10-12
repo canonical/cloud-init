@@ -636,6 +636,7 @@ def _get_variant(info):
             "debian",
             "eurolinux",
             "fedora",
+            "mariner",
             "miraclelinux",
             "openeuler",
             "openmandriva",

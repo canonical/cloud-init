@@ -31,6 +31,7 @@ distros = [
     "debian",
     "eurolinux",
     "fedora",
+    "mariner",
     "miraclelinux",
     "openEuler",
     "openmandriva",
@@ -102,6 +103,15 @@ DISTRO_CLIENT_CONFIG = {
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
+    "mariner": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
     "openmandriva": {
