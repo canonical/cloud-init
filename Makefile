@@ -29,7 +29,7 @@ flake8:
 	@$(CWD)/tools/run-flake8
 
 unittest: clean_pyc
-	python3 -m pytest -v tests/unittests cloudinit
+	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
 render-template:
 	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
