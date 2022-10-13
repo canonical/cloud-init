@@ -1,5 +1,4 @@
 import re
-import sys
 from copy import deepcopy
 from textwrap import dedent
 from unittest import mock
@@ -192,92 +191,6 @@ class TestAnsible:
             "skip-tags": "cisco",
             "private-key": "{nope}",
         }
-
-    @mark.parametrize(
-        ("cfg", "exception"),
-        (
-            (CFG_FULL, None),
-            (CFG_MINIMAL, None),
-            (
-                {
-                    "ansible": {
-                        "package-name": "ansible-core",
-                        "install-method": "distro",
-                        "pull": {
-                            "playbook-name": "ubuntu.yml",
-                        },
-                    }
-                },
-                ValueError,
-            ),
-            (
-                {
-                    "ansible": {
-                        "install-method": "pip",
-                        "pull": {
-                            "url": "https://github/holmanb/vmboot",
-                        },
-                    }
-                },
-                ValueError,
-            ),
-        ),
-    )
-    def test_required_keys(self, cfg, exception, mocker):
-        m_subp = mocker.patch(M_PATH + "subp", return_value=("", ""))
-        mocker.patch(M_PATH + "which", return_value=True)
-        mocker.patch(M_PATH + "AnsiblePull.check_deps")
-        mocker.patch(
-            M_PATH + "AnsiblePull.get_version",
-            return_value=cc_ansible.Version(2, 7, 1),
-        )
-        mocker.patch(
-            M_PATH + "AnsiblePullDistro.is_installed",
-            return_value=False,
-        )
-        mocker.patch.dict(M_PATH + "os.environ", clear=True)
-        if exception:
-            with raises(exception):
-                cc_ansible.handle("", cfg, get_cloud(), None, None)
-        else:
-            cloud = get_cloud(mocked_distro=True)
-            install = cfg["ansible"]["install-method"]
-            cc_ansible.handle("", cfg, cloud, None, None)
-            if install == "distro":
-                cloud.distro.install_packages.assert_called_once()
-                cloud.distro.install_packages.assert_called_with(
-                    "ansible-core"
-                )
-            elif install == "pip":
-                assert 0 == cloud.distro.install_packages.call_count
-                m_subp.assert_has_calls(
-                    [
-                        call(
-                            args=[sys.executable, "-m", "pip", "list"],
-                            env={"PATH": "/root/.local/bin/"},
-                        ),
-                        call(
-                            args=[
-                                sys.executable,
-                                "-m",
-                                "pip",
-                                "install",
-                                "ansible",
-                            ],
-                            env={"PATH": "/root/.local/bin/"},
-                        ),
-                    ]
-                )
-                print(m_subp.call_args)
-                print(m_subp.call_args[0])
-                assert m_subp.call_args == call(
-                    args=[
-                        "ansible-pull",
-                        "--url=https://github/holmanb/vmboot",
-                        "ubuntu.yml",
-                    ],
-                    env={"PATH": "/root/.local/bin/"},
-                )
 
     @mock.patch(M_PATH + "which", return_value=False)
     def test_deps_not_installed(self, m_which):
