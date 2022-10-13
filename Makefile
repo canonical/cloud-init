@@ -4,7 +4,7 @@ VARIANT ?= ubuntu
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
-PYTHON = python3
+PYTHON ?= python3
 
 NUM_ITER ?= 100
 
