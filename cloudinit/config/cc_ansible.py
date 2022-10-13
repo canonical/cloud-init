@@ -117,7 +117,7 @@ class AnsiblePullPip(AnsiblePull):
 
         # Add pip install site to PATH
         user_base, _ = self.do_as(
-            ["python3", "-c", "'import site; print(site.getuserbase())'"]
+            [sys.executable, "-c", "'import site; print(site.getuserbase())'"]
         )
         ansible_path = f"{user_base}/bin/"
         old_path = self.env.get("PATH")
@@ -136,13 +136,13 @@ class AnsiblePullPip(AnsiblePull):
                 import pip  # type: ignore # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
-            cmd = ["python3", "-m", "pip", "install"]
+            cmd = [sys.executable, "-m", "pip", "install"]
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, pkg_name])
 
     def is_installed(self) -> bool:
-        stdout, _ = self.do_as(["python3", "-m", "pip", "list"])
+        stdout, _ = self.do_as([sys.executable, "-m", "pip", "list"])
         return "ansible" in stdout
 
 
