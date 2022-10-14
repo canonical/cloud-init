@@ -45,9 +45,11 @@ INSTALLER_APPORT_FILES = [
     ApportFile(
         "/var/log/installer/subiquity-client-debug.log", "SubiquityClientLog"
     ),
-    ApportFile("/var/log/curtin/install.log", "CurtinLog"),
-    ApportFile("/var/log/curtin-install.log", "CurtinLogPostReboot"),
-    ApportFile("/var/log/curtin/curtin-error-logs.tar", "CurtinError"),
+    ApportFile("/var/log/installer/curtin-install.log", "CurtinLog"),
+    ApportFile(
+        "/var/log/installer/subiquity-curtin-install.cfg", "CurtinConfig"
+    ),
+    ApportFile("/var/log/installer/curtin-error-logs.tar", "CurtinError"),
     ApportFile("/var/log/installer/block/probe-data.json", "ProbeData"),
 ]
 
