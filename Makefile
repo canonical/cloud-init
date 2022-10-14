@@ -4,7 +4,7 @@ VARIANT ?= ubuntu
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
-PYTHON = python3
+PYTHON ?= python3
 
 NUM_ITER ?= 100
 
@@ -29,7 +29,7 @@ flake8:
 	@$(CWD)/tools/run-flake8
 
 unittest: clean_pyc
-	python3 -m pytest -v tests/unittests cloudinit
+	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
 render-template:
 	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
