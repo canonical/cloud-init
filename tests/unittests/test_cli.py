@@ -247,10 +247,10 @@ class TestCLI:
                 [
                     "**Supported distros:** all",
                     "**Supported distros:** almalinux, alpine, centos, "
-                    "cloudlinux, debian, eurolinux, fedora, "
+                    "cloudlinux, debian, eurolinux, fedora, freebsd, "
                     "mariner, miraclelinux, "
-                    "openEuler, openmandriva, opensuse, photon, rhel, rocky, "
-                    "sles, ubuntu, virtuozzo",
+                    "openbsd, openEuler, openmandriva, "
+                    "opensuse, photon, rhel, rocky, sles, ubuntu, virtuozzo",
                     "**Config schema**:\n    **resize_rootfs:** "
                     "(``true``/``false``/``noblock``)",
                     "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",

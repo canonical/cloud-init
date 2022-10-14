@@ -1488,7 +1488,7 @@
             "ntp_client": {
               "type": "string",
               "default": "auto",
-              "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, ntpdate,\nsystemd-timesyncd."
+                "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, openntpd,\nntpdate, systemd-timesyncd."
             },
             "enabled": {
               "type": "boolean",

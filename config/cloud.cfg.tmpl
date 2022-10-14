@@ -153,9 +153,7 @@ cloud_config_modules:
 {% if variant in ["alpine"] %}
  - apk-configure
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
  - ntp
-{% endif %}
  - timezone
  - disable-ec2-metadata
  - runcmd
