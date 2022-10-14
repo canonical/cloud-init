@@ -344,13 +344,14 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 OS_RELEASE_MARINER = dedent(
     """\
     NAME="CBL-Mariner"
-    VERSION="2.0"
+    VERSION="2.0.20221004"
     ID=mariner
     VERSION_ID=2.0
     PRETTY_NAME="CBL-Mariner/Linux"
     ANSI_COLOR="1;34"
-    HOME_URL="https://github.com/microsoft/CBL-Mariner"
-    BUG_REPORT_URL="https://github.com/microsoft/CBL-Mariner/issues"
+    HOME_URL="https://aka.ms/cbl-mariner"
+    BUG_REPORT_URL="https://aka.ms/cbl-mariner"
+    SUPPORT_URL="https://aka.ms/cbl-mariner"
 """
 )
 

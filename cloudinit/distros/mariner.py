@@ -100,7 +100,6 @@ class Distro(distros.Distro):
         self.exec_cmd(cmd)
 
     def install_packages(self, pkglist):
-        # self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 
     def _write_hostname(self, hostname, filename):
@@ -132,7 +131,7 @@ class Distro(distros.Distro):
         return out.strip() if out else default
 
     def _get_localhost_ip(self):
-        return "127.0.1.1"
+        return "127.0.0.1"
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
