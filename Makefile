@@ -8,9 +8,7 @@ PYTHON ?= python3
 
 NUM_ITER ?= 100
 
-ifeq ($(distro),)
-  distro = redhat
-endif
+distro ?= redhat
 
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
