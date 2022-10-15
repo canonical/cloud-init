@@ -52,7 +52,7 @@ LOG = logging.getLogger(__name__)
 NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 DEFAULT_CONFIG = {
-    "km_update_cmd": [["update-initramfs", "-u", "-k", "all"]],
+    "km_update_cmd": ["update-initramfs", "-u", "-k", "all"],
     "km_files": {
         "load": {
             "path": "/etc/modules-load.d/cloud-init.conf",
@@ -179,7 +179,7 @@ def prepare_module(distro_cfg: dict, module_name: str):
         LOG.debug("Appending kernel module %s", module_name)
         util.write_file(
             CFG_FILES["load"]["path"],
-            module_name,
+            module_name + NL,
             CFG_FILES["load"]["permissions"],
             omode="a",
         )
@@ -216,7 +216,7 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
         try:
             util.write_file(
                 CFG_FILES["persist"]["path"],
-                entry,
+                entry + NL,
                 CFG_FILES["persist"]["permissions"],
                 omode="a",
             )
@@ -305,21 +305,22 @@ def handle(
     # create distro config
     distro_cfg = _distro_kernel_modules_configs(cloud.distro.name)
 
-    # check schema
-    supplemental_schema_validation(kernel_modules_section)
-
     # iterate over modules
-    for module in kernel_modules_section.items():
+    for module in kernel_modules_section:
+        # check schema
+        supplemental_schema_validation(module)
+
         # cleanup when module has no elements
         if not kernel_modules_section:
             LOG.info("Cleaning up kernel modules")
             cleanup(distro_cfg)
         # Load module
-        if module["load"]:
+        if module.get("load"):
             prepare_module(distro_cfg, module["name"])
 
         # Enhance module
-        enhance_module(distro_cfg, module["name"], module["persist"])
+        if module.get("persist"):
+            enhance_module(distro_cfg, module["name"], module["persist"])
 
     # rebuild initial ramdisk
     log.info("Update initramfs")
