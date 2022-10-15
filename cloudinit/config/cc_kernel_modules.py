@@ -290,6 +290,7 @@ def is_loaded(distro_cfg: dict, module_name: str):
             distro_cfg["km_is_loaded_cmd"], capture=True, shell=True
         )
         if re.search("^" + module_name, out.stdout.strip()):
+            LOG.debug("Kernel module %s is loaded", module_name)
             loaded = True
     except subp.ProcessExecutionError as e:
         util.logexc(
@@ -314,6 +315,7 @@ def unload_modules(distro_cfg: dict, modules: list):
         cmd = distro_cfg["km_unload_cmd"].append(module)
         try:
             if is_loaded(distro_cfg, module):
+                LOG.debug("Unloading kernel module %s", module)
                 subp.subp(cmd)
         except subp.ProcessExecutionError as e:
             raise RuntimeError(
@@ -365,14 +367,14 @@ def handle(
     # create distro config
     distro_cfg = _distro_kernel_modules_configs(cloud.distro.name)
 
+    # cleanup
+    LOG.info("Cleaning up kernel modules")
+    cleanup(distro_cfg)
+
     # iterate over modules
     for module in kernel_modules_section:
         # check schema
         supplemental_schema_validation(module)
-
-        # cleanup
-        LOG.info("Cleaning up kernel modules")
-        cleanup(distro_cfg)
 
         # Load module
         if module.get("load"):
