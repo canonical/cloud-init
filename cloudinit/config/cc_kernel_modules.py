@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Kernel Modules"""
+import re
 from array import array
 from logging import Logger
 from textwrap import dedent
@@ -53,6 +54,8 @@ NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 DEFAULT_CONFIG = {
     "km_update_cmd": ["update-initramfs", "-u", "-k", "all"],
+    "km_unload_cmd": ["rmmod"],
+    "km_is_loaded_cmd": ["lsmod"],
     "km_files": {
         "load": {
             "path": "/etc/modules-load.d/cloud-init.conf",
@@ -65,6 +68,7 @@ DEFAULT_CONFIG = {
     },
 }
 DISTRO_OVERRIDES = {}  # type: dict
+UNLOAD_MODULES = []  # type: list
 
 
 def _distro_kernel_modules_configs(distro_name):
@@ -164,6 +168,7 @@ def prepare_module(distro_cfg: dict, module_name: str):
     This function appends a kernel module to a file
     (depends on operating system) for loading a module on boot.
 
+    @param distro_cfg: Distro config
     @param module_name: string.
 
     @raises: RuntimeError when write operation fails.
@@ -197,10 +202,11 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
     for a kernel module, which will be applied when kernel
     module get's loaded.
 
+    @param distro_cfg: Distro config
     @param module_name: string.
     @param persist: Dictionary
 
-    @raises: RuntimeError when write operation fails.
+    @raises RuntimeError when write operation fails.
     """
     CFG_FILES = distro_cfg["km_files"]
 
@@ -212,6 +218,10 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
         # softdep special case
         if key == "softdep":
             entry += " pre:".join({key["pre"]}) + " post: ".join({key["post"]})
+        # blacklist special case
+        elif key == "blacklist":
+            if value:
+                UNLOAD_MODULES.append(module_name)
 
         try:
             util.write_file(
@@ -232,7 +242,9 @@ def cleanup(distro_cfg: dict):
     This function removes all files, which are
     responsible for loading and enhancing kernel modules.
 
-    @raises: RuntimeError when remove operation fails
+    @param distro_cfg: Distro config
+
+    @raises RuntimeError when remove operation fails
     """
     CFG_FILES = distro_cfg["km_files"]
 
@@ -265,8 +277,54 @@ def reload_modules(cloud: Cloud):
         ) from e
 
 
+def is_loaded(distro_cfg: dict, module_name: str):
+    """
+    Checks if a kernel module is already loaded
+
+    @param distro_cfg: Distro config
+    @param module_name: name of kernel module
+    """
+    loaded = False
+    try:
+        out = subp.subp(
+            distro_cfg["km_is_loaded_cmd"], capture=True, shell=True
+        )
+        if re.search("^" + module_name, out.stdout.strip()):
+            loaded = True
+    except subp.ProcessExecutionError as e:
+        util.logexc(
+            LOG,
+            f"Could not determine status of module {module_name}:{NL}{str(e)}",
+        )
+
+    return loaded
+
+
+def unload_modules(distro_cfg: dict, modules: list):
+    """Unloads a list of kernel module
+
+    This function unloads a list of kernel modules.
+
+    @param distro_cfg: Distro config
+    @param modules: list of module names
+
+    @raises RuntimeError
+    """
+    for module in set(modules):
+        cmd = distro_cfg["km_unload_cmd"].append(module)
+        try:
+            if is_loaded(distro_cfg, module):
+                subp.subp(cmd)
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                f"Could not unload kernel module {module}:{NL}{str(e)}"
+            ) from e
+
+
 def update_initial_ramdisk(distro_cfg: dict):
     """Update initramfs for all installed kernels
+
+    @param distro_cfg: Distro config
 
     @raises RuntimeError
     """
@@ -285,7 +343,9 @@ def handle(
 
     if "kernel_modules" in cfg:
         LOG.debug("Found kernel_modules section in config")
-        kernel_modules_section = util.get_cfg_option_list(cfg, "kernel_modules", [])
+        kernel_modules_section = util.get_cfg_option_list(
+            cfg, "kernel_modules", []
+        )
     else:
         LOG.debug(
             "Skipping module named %s, no "
@@ -313,10 +373,12 @@ def handle(
         # cleanup
         LOG.info("Cleaning up kernel modules")
         cleanup(distro_cfg)
-        
+
         # Load module
         if module.get("load"):
             prepare_module(distro_cfg, module["name"])
+        else:
+            UNLOAD_MODULES.append(module["name"])
 
         # Enhance module
         if module.get("persist"):
@@ -325,6 +387,10 @@ def handle(
     # rebuild initial ramdisk
     log.info("Update initramfs")
     update_initial_ramdisk(distro_cfg)
+
+    # Unload modules (blacklisted or 'load' is false)
+    log.info("Unloading kernel modules")
+    unload_modules(distro_cfg, UNLOAD_MODULES)
 
     # reload kernel modules
     log.info("Reloading kernel modules")

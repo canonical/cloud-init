@@ -164,6 +164,27 @@ class TestKernelModules(CiTestCase):
                 str(context_mgr.exception),
             )
 
+    @mock.patch("%s.subp.subp" % MPATH)
+    @mock.patch("%s.is_loaded" % MPATH)
+    def test_unload_modules_failed(self, m_subp, m_is_loaded):
+        """Errors when unloading kernel modules"""
+
+        m_subp.side_effect = subp.ProcessExecutionError("unload exception")
+        m_is_loaded.return_value = True
+
+        unload_modules = ["wireguard"]
+
+        for distro_name in cc_kernel_modules.DISTROS:
+            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
+                distro_name
+            )
+            with self.assertRaises(RuntimeError) as context_mgr:
+                cc_kernel_modules.unload_modules(distro_cfg, unload_modules)
+            self.assertIn(
+                "Could not unload kernel module wireguard:\n",
+                str(context_mgr.exception),
+            )
+
 
 class TestKernelModulesSchema:
     @pytest.mark.parametrize(
