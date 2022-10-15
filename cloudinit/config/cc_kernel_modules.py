@@ -285,7 +285,7 @@ def handle(
 
     if "kernel_modules" in cfg:
         LOG.debug("Found kernel_modules section in config")
-        kernel_modules_section = cfg["kernel_modules"]
+        kernel_modules_section = util.get_cfg_option_list(cfg, "kernel_modules", [])
     else:
         LOG.debug(
             "Skipping module named %s, no "
@@ -310,10 +310,10 @@ def handle(
         # check schema
         supplemental_schema_validation(module)
 
-        # cleanup when module has no elements
-        if not kernel_modules_section:
-            LOG.info("Cleaning up kernel modules")
-            cleanup(distro_cfg)
+        # cleanup
+        LOG.info("Cleaning up kernel modules")
+        cleanup(distro_cfg)
+        
         # Load module
         if module.get("load"):
             prepare_module(distro_cfg, module["name"])
