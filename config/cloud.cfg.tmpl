@@ -112,9 +112,9 @@ cloud_init_modules:
 {% endif %}
  - users-groups
  - ssh
- {% if variant in ["ubuntu", "debian"] %}
+{% if variant in ["ubuntu", "debian"] %}
  - kernel_modules
- {% endif %}
+{% endif %}
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
