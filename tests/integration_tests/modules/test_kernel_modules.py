@@ -7,6 +7,9 @@ ASCII_TEXT = "ASCII text"
 
 USER_DATA = """\
 #cloud-config
+packages:
+  - zfsutils-linux
+  - v4l2loopback-dkms
 kernel_modules:
   - name: v4l2loopback
     load: true
