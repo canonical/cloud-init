@@ -9,15 +9,19 @@ USER_DATA = """\
 #cloud-config
 packages:
   - zfsutils-linux
-  - v4l2loopback-dkms
+  - wireguard
+  - multipath-tools
 kernel_modules:
-  - name: v4l2loopback
+  - name: lockd
     load: true
     persist:
-      options: "devices=1 video_nr=20 card_label=fakecam exclusive_caps=1"
+      options: "nlm_udpport=4045 nlm_tcpport=4045"
   - name: wireguard
     load: false
   - name: zfs
+  - name: dm_multipath
+    persist:
+      blacklist: true
 """
 
 
@@ -37,6 +41,8 @@ class TestKernelModules:
             # ASCII check
             ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
             ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
+            # check loaded modules
+            ("lsmod | grep -e '^lockd\\|^zfs' | wc -l", "2"),
         ),
     )
     def test_kernel_modules(
