@@ -17,8 +17,8 @@ kernel_modules:
     persist:
       options: "nlm_udpport=4045 nlm_tcpport=4045"
   - name: wireguard
-    load: false
   - name: zfs
+    load: true
   - name: dm_multipath
     persist:
       blacklist: true
