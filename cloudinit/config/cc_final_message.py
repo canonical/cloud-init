@@ -31,7 +31,7 @@ as well as stderr (which usually redirects to /var/log/cloud-init-output.log).
 
 Upon exit, this module writes the system uptime, timestamp, and cloud-init
 version to ``/var/lib/cloud/instance/boot-finished`` independent of any
-configuration here.
+user data specified for this module.
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {
