@@ -148,7 +148,7 @@ def _collect_file(path, out_dir, verbosity):
 
 
 def collect_installer_logs(log_dir, include_userdata, verbosity):
-    """Obtain subiquity logs and confg flies."""
+    """Obtain subiquity logs and config files."""
     for src_file in INSTALLER_APPORT_FILES:
         destination_dir = Path(log_dir + src_file.path).parent
         if not destination_dir.exists():
