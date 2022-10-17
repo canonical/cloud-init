@@ -12,7 +12,7 @@ from textwrap import dedent
 from typing import List, Tuple
 
 from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -50,6 +50,7 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
+            # LXD init showcasing cloud-init's LXD config options
             lxd:
               init:
                 network_address: 0.0.0.0
@@ -73,12 +74,127 @@ meta: MetaSchema = {
                 domain: lxd
             """
         ),
+        dedent(
+            """\
+            # For more complex non-iteractive LXD configuration of networks,
+            # storage_pools, profiles, projects, clusters and core config,
+            # `lxd:preseed` config can be passed directly to the command:
+            #  lxd init --preseed
+            # See https://linuxcontainers.org/lxd/docs/master/preseed/ or
+            # run: lxd init --dump to see viable preseed YAML allowed.
+            #
+            # Preseed settings configuring the LXD daemon for HTTPS connections
+            # on 192.168.1.1 port 9999, a nested profile which allows for
+            # LXD nesting on containers and a limited project allowing for
+            # RBAC approach when defining behavior for sub projects.
+            lxd:
+              preseed:
+                config:
+                  core.https_address: 192.168.1.1:9999
+                  preseed:
+                networks:
+                - config:
+                    ipv4.address: 10.42.42.1/24
+                    ipv4.nat: true
+                    ipv6.address: fd42:4242:4242:4242::1/64
+                    ipv6.nat: true
+                  description: ""
+                  name: lxdbr0
+                  type: bridge
+                  project: default
+                  storage_pools:
+                  - config:
+                      size: 5GiB
+                      source: /var/snap/lxd/common/lxd/disks/default.img
+                    description: ""
+                    name: default
+                    driver: {}
+                profiles:
+                - config: {}
+                  description: Default LXD profile
+                  devices:
+                    eth0:
+                      name: eth0
+                      network: lxdbr0
+                      type: nic
+                    root:
+                      path: /
+                      pool: default
+                      type: disk
+                  name: default
+                - config: {security.nesting: true}
+                  devices:
+                    eth0:
+                      name: eth0
+                      network: lxdbr0
+                      type: nic
+                    root:
+                      eath: /
+                      pool: default
+                      type: disk
+                  name: nested
+                projects:
+                - config:
+                    features.images: true
+                    features.networks: true
+                    features.profiles: true
+                    features.storage.buckets: true
+                    features.storage.volumes: true
+                  description: Default LXD project
+                  name: default
+                - config:
+                    features.images: false
+                    features.networks: true
+                    features.profiles: false
+                    features.storage.buckets: false
+                    features.storage.volumes: false
+                  description: Limited Access LXD project
+                  name: limited
+            """
+        ),
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["lxd"],
 }
 
 __doc__ = get_meta_doc(meta)
+
+
+def supplemental_schema_validation(
+    init_cfg: dict, bridge_cfg: dict, preseed_cfg: dict
+):
+    """Validate user-provided lxd network and bridge config option values.
+
+    @raises: ValueError describing invalid values provided.
+    """
+    errors = []
+    if not isinstance(init_cfg, dict):
+        errors.append(
+            f"lxd.init config must be a dictionary. found a"
+            f" '{type(init_cfg).__name__}'",
+        )
+
+    if not isinstance(bridge_cfg, dict):
+        errors.append(
+            f"lxd.bridge config must be a dictionary. found a"
+            f" '{type(bridge_cfg).__name__}'",
+        )
+
+    if not isinstance(preseed_cfg, dict):
+        errors.append(
+            f"lxd.preseed config must be a dictionary. found a"
+            f" '{type(preseed_cfg).__name__}'",
+        )
+    if preseed_cfg and (init_cfg or bridge_cfg):
+        incompat_cfg = ["lxd.init"] if init_cfg else []
+        incompat_cfg += ["lxd.bridge"] if bridge_cfg else []
+
+        errors.append(
+            "Unable to configure LXD. lxd.preseed config can not be provided"
+            f" with key(s): {', '.join(incompat_cfg)}"
+        )
+    if errors:
+        raise ValueError(". ".join(errors))
 
 
 def handle(
@@ -92,28 +208,18 @@ def handle(
         )
         return
     if not isinstance(lxd_cfg, dict):
-        log.warning(
-            "lxd config must be a dictionary. found a '%s'", type(lxd_cfg)
+        raise ValueError(
+            f"lxd config must be a dictionary. found a"
+            f" '{type(lxd_cfg).__name__}'"
         )
-        return
 
     # Grab the configuration
-    init_cfg = lxd_cfg.get("init")
-    if not isinstance(init_cfg, dict):
-        log.warning(
-            "lxd/init config must be a dictionary. found a '%s'",
-            type(init_cfg),
-        )
-        init_cfg = {}
-
+    init_cfg = lxd_cfg.get("init", {})
+    preseed_cfg = lxd_cfg.get("preseed", {})
     bridge_cfg = lxd_cfg.get("bridge", {})
-    if not isinstance(bridge_cfg, dict):
-        log.warning(
-            "lxd/bridge config must be a dictionary. found a '%s'",
-            type(bridge_cfg),
-        )
-        bridge_cfg = {}
-    packages = get_required_packages(init_cfg)
+    supplemental_schema_validation(init_cfg, bridge_cfg, preseed_cfg)
+
+    packages = get_required_packages(init_cfg, preseed_cfg)
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
@@ -121,6 +227,12 @@ def handle(
             log.warning("failed to install packages %s: %s", packages, exc)
             return
 
+    if preseed_cfg:
+        subp.subp(["lxd", "waitready", "--timeout=300"])
+        subp.subp(
+            ["lxd", "init", "--preseed"], data=safeyaml.dumps(preseed_cfg)
+        )
+        return
     # Set up lxd if init config is given
     if init_cfg:
 
@@ -388,7 +500,7 @@ def maybe_cleanup_default(
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
-def get_required_packages(cfg: dict) -> List[str]:
+def get_required_packages(init_cfg: dict, preseed_cfg: dict) -> List[str]:
     """identify required packages for install"""
     packages = []
     if not subp.which("lxd"):
@@ -396,12 +508,16 @@ def get_required_packages(cfg: dict) -> List[str]:
 
     # binary for pool creation must be available for the requested backend:
     # zfs, lvcreate, mkfs.btrfs
-    storage: str = cfg.get("storage_backend", "")
-    if storage:
-        if storage == "zfs" and not subp.which("zfs"):
-            packages.append("zfsutils-linux")
-        if storage == "lvm" and not subp.which("lvcreate"):
-            packages.append("lvm2")
-        if storage == "btrfs" and not subp.which("mkfs.btrfs"):
-            packages.append("btrfs-progs")
+    storage_drivers: List[str] = []
+    if "storage_backend" in init_cfg:
+        storage_drivers.append(init_cfg["storage_backend"])
+    for storage_pool in preseed_cfg.get("storage_pools", []):
+        if storage_pool.get("driver"):
+            storage_drivers.append(storage_pool["driver"])
+    if "zfs" in storage_drivers and not subp.which("zfs"):
+        packages.append("zfsutils-linux")
+    if "lvm" in storage_drivers and not subp.which("lvcreate"):
+        packages.append("lvm2")
+    if "btrfs" in storage_drivers and not subp.which("mkfs.btrfs"):
+        packages.append("btrfs-progs")
     return packages

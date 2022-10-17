@@ -14,26 +14,26 @@ from cloudinit.config.schema import (
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
 
+BACKEND_DEF = (
+    ("zfs", "zfs", "zfsutils-linux"),
+    ("btrfs", "mkfs.btrfs", "btrfs-progs"),
+    ("lvm", "lvcreate", "lvm2"),
+    ("dir", None, None),
+)
+LXD_INIT_CFG = {
+    "lxd": {
+        "init": {
+            "network_address": "0.0.0.0",
+            "storage_backend": "zfs",
+            "storage_pool": "poolname",
+        }
+    }
+}
+
 
 class TestLxd(t_help.CiTestCase):
 
     with_logs = True
-
-    lxd_cfg = {
-        "lxd": {
-            "init": {
-                "network_address": "0.0.0.0",
-                "storage_backend": "zfs",
-                "storage_pool": "poolname",
-            }
-        }
-    }
-    backend_def = (
-        ("zfs", "zfs", "zfsutils-linux"),
-        ("btrfs", "mkfs.btrfs", "btrfs-progs"),
-        ("lvm", "lvcreate", "lvm2"),
-        ("dir", None, None),
-    )
 
     @mock.patch("cloudinit.config.cc_lxd.util.system_info")
     @mock.patch("cloudinit.config.cc_lxd.os.path.exists", return_value=True)
@@ -47,8 +47,8 @@ class TestLxd(t_help.CiTestCase):
         cc = get_cloud(mocked_distro=True)
         install = cc.distro.install_packages
 
-        for backend, cmd, package in self.backend_def:
-            lxd_cfg = deepcopy(self.lxd_cfg)
+        for backend, cmd, package in BACKEND_DEF:
+            lxd_cfg = deepcopy(LXD_INIT_CFG)
             lxd_cfg["lxd"]["init"]["storage_backend"] = backend
             subp.call_args_list = []
             install.call_args_list = []
@@ -94,27 +94,16 @@ class TestLxd(t_help.CiTestCase):
             else:
                 self.assertEqual([], exists.call_args_list)
 
-    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
-    def test_lxd_package_install(self, m_which):
-        for backend, _, package in self.backend_def:
-            lxd_cfg = deepcopy(self.lxd_cfg)
-            lxd_cfg["lxd"]["init"]["storage_backend"] = backend
-
-            packages = cc_lxd.get_required_packages(lxd_cfg["lxd"]["init"])
-            assert "lxd" in packages
-            if package:
-                assert package in packages
-
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     def test_lxd_install(self, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
-        cc_lxd.handle("cc_lxd", self.lxd_cfg, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
         self.assertNotIn("WARN", self.logs.getvalue())
         self.assertTrue(cc.distro.install_packages.called)
-        cc_lxd.handle("cc_lxd", self.lxd_cfg, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
         self.assertFalse(m_maybe_clean.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEqual(sorted(install_pkg), ["lxd", "zfsutils-linux"])
@@ -330,11 +319,35 @@ class TestLxdMaybeCleanupDefault(t_help.CiTestCase):
         )
 
 
+class TestGetRequiredPackages:
+    @pytest.mark.parametrize(
+        "storage_type, cmd, package",
+        (
+            ("zfs", "zfs", "zfsutils-linux"),
+            ("btrfs", "mkfs.btrfs", "btrfs-progs"),
+            ("lvm", "lvcreate", "lvm2"),
+            ("dir", None, None),
+        ),
+    )
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    def test_lxd_package_install(self, m_which, storage_type, cmd, package):
+        lxd_cfg = deepcopy(LXD_INIT_CFG)
+        lxd_cfg["lxd"]["init"]["storage_backend"] = storage_type
+
+        packages = cc_lxd.get_required_packages(lxd_cfg["lxd"]["init"], {})
+        assert "lxd" in packages
+        which_calls = [mock.call("lxd")]
+        if package:
+            which_calls.append(mock.call(cmd))
+            assert package in packages
+        assert which_calls == m_which.call_args_list
+
+
 class TestLXDSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         [
-            # Only allow init and bridge keys
+            # Only allow init, bridge and preseed keys
             ({"lxd": {"bridgeo": 1}}, "Additional properties are not allowed"),
             # Only allow init.storage_backend values zfs and dir
             (
@@ -348,6 +361,8 @@ class TestLXDSchema:
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
             ({"lxd": {}}, "does not have enough properties"),
+            # Require some non-empty preseed config
+            ({"lxd": {"preseed": {}}}, "does not have enough properties"),
             # Require bridge.mode
             ({"lxd": {"bridge": {"mode": "new", "mtu": 9000}}}, None),
             # LXD's default value
@@ -370,6 +385,65 @@ class TestLXDSchema:
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @pytest.mark.parametrize(
+        "init_cfg, bridge_cfg, preseed_cfg, error_expectation",
+        (
+            pytest.param(
+                {}, {}, {}, t_help.does_not_raise(), id="empty_cfgs_no_errors"
+            ),
+            pytest.param(
+                {"init-cfg": 1},
+                {"bridge-cfg": 2},
+                {},
+                t_help.does_not_raise(),
+                id="cfg_init_and_bridge_allowed",
+            ),
+            pytest.param(
+                {},
+                {},
+                {"preseed-cfg": 3},
+                t_help.does_not_raise(),
+                id="cfg_preseed_allowed_without_bridge_or_init",
+            ),
+            pytest.param(
+                {"init-cfg": 1},
+                {"bridge-cfg": 2},
+                {"preseed-cfg": 3},
+                pytest.raises(
+                    ValueError,
+                    match=re.escape(
+                        "Unable to configure LXD. lxd.preseed config can not"
+                        " be provided with key(s): lxd.init, lxd.bridge"
+                    ),
+                ),
+            ),
+            pytest.param(
+                "nope",
+                {},
+                {},
+                pytest.raises(
+                    ValueError,
+                    match=re.escape(
+                        "lxd.init config must be a dictionary. found a 'str'"
+                    ),
+                ),
+            ),
+        ),
+    )
+    def test_supplemental_schema_validation_raises_value_error(
+        self, init_cfg, bridge_cfg, preseed_cfg, error_expectation
+    ):
+        """LXD is strict on invalid user-data raising conspicuous ValueErrors
+        cc_lxd.supplemental_schema_validation
+
+        Hard errors result is faster triage/awareness of config problems than
+        warnings do.
+        """
+        with error_expectation:
+            cc_lxd.supplemental_schema_validation(
+                init_cfg, bridge_cfg, preseed_cfg
+            )
 
 
 # vi: ts=4 expandtab

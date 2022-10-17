@@ -1259,6 +1259,7 @@
             "init": {
               "type": "object",
               "additionalProperties": false,
+              "description": "LXD init configuration values to provide to `lxd init --auto` command. Can not be combined with ``lxd.preseed``.",
               "properties": {
                 "network_address": {
                   "type": "string",
@@ -1296,6 +1297,7 @@
               "type": "object",
               "required": ["mode"],
               "additionalProperties": false,
+              "description": "LXD bridge configuration provided to setup the host lxd bridge. Can not be combined with ``lxd.preseed``.",
               "properties": {
                 "mode": {
                   "type": "string",
@@ -1356,6 +1358,11 @@
                   "description": "Domain to advertise to DHCP clients and use for DNS resolution."
                 }
               }
+            },
+            "preseed": {
+              "type": "object",
+              "minProperties": 1,
+              "description": "Opaque LXD preseed YAML config passed directly to lxd init --preseed. See: https://linuxcontainers.org/lxd/docs/master/preseed/ of lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
             }
           }
         }
