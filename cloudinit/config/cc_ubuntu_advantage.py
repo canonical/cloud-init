@@ -338,6 +338,8 @@ def configure_ua(token, enable=None):
     # pylint: disable=import-error
     from uaclient.messages import ALREADY_ENABLED
 
+    # pylint: enable=import-error
+
     UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
 
     enable_errors: List[dict] = []
