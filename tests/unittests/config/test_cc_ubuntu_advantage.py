@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import sys
-from builtins import __import__
 from collections import namedtuple
 
 import pytest
@@ -31,17 +30,6 @@ from tests.unittests.util import get_cloud
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
 
 
-def decorate__import__with_errors(name_startswith):
-    """Decorates __import__ with errors"""
-
-    def __import__with_error(name, *args, **kwargs):
-        if name.startswith(name_startswith):
-            raise ImportError(f"No module named '{name_startswith}'")
-        return __import__(name, *args, **kwargs)
-
-    return __import__with_error
-
-
 class FakeUserFacingError(Exception):
     pass
 
@@ -56,13 +44,14 @@ class FakeAlreadyAttachedOnPROError(FakeUserFacingError):
 
 @pytest.fixture
 def fake_uaclient(mocker):
+    """Mocks `uaclient` module"""
+
     mocker.patch.dict("sys.modules")
-    sys.modules["uaclient"] = mock.Mock()
-    sys.modules["uaclient.config"] = mock.Mock()
-    sys.modules[
-        "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
-    ] = mock.Mock()
-    sys.modules["uaclient.api"] = mock.Mock()
+    m_uaclient = mock.Mock()
+
+    sys.modules["uaclient"] = m_uaclient
+
+    # Exceptions
     _exceptions = namedtuple(
         "exceptions",
         [
@@ -75,7 +64,13 @@ def fake_uaclient(mocker):
     )
     sys.modules["uaclient.api.exceptions"] = _exceptions
 
+    # Messages
+    m_messages = mock.Mock()
+    m_messages.ALREADY_ENABLED.name = "service-already-enabled"
+    sys.modules["uaclient.messages"] = m_messages
 
+
+@pytest.mark.usefixtures("fake_uaclient")
 @mock.patch(f"{MPATH}.subp.subp")
 class TestConfigureUA:
     def test_configure_ua_attach_error(self, m_subp):
@@ -268,7 +263,9 @@ class TestConfigureUA:
             "Attaching to Ubuntu Advantage. ua attach REDACTED",
         ) in caplog.record_tuples
 
-    def test_configure_ua_attach_on_service_enabled(self, m_subp, caplog):
+    def test_configure_ua_attach_on_service_enabled(
+        self, m_subp, caplog, fake_uaclient
+    ):
         """retry enabling an already enabled service"""
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
@@ -1098,42 +1095,6 @@ class TestHandle:
 
 
 class TestShouldAutoAttach:
-    def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors("uaclient"),
-        )
-        assert not _should_auto_attach(ua_section={})
-        assert (
-            "Unable to import `uaclient`: No module named 'uaclient'"
-            in caplog.text
-        )
-        assert (
-            "Unable to determine if this is an Ubuntu Pro instance."
-            " Fallback to normal UA attach."
-        ) in caplog.text
-
-    def test_uaclient_old_version(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules["uaclient"] = mock.Mock()
-        sys.modules["uaclient.api"] = mock.Mock()
-        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors(
-                "uaclient.api.exceptions"
-            ),
-        )
-        assert not _should_auto_attach({})
-        assert (
-            "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.exceptions'"
-        ) in caplog.text
-        assert (
-            "Unable to determine if this is an Ubuntu Pro instance."
-            " Fallback to normal UA attach."
-        ) in caplog.text
-
     def test_should_auto_attach_error(self, caplog, fake_uaclient):
         m_should_auto_attach = mock.Mock()
         m_should_auto_attach.should_auto_attach.side_effect = (
@@ -1180,38 +1141,6 @@ class TestShouldAutoAttach:
 class TestAutoAttach:
 
     ua_section: dict = {}
-
-    def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors("uaclient"),
-        )
-        expected_msg = (
-            "Unable to import `uaclient`: No module named 'uaclient'"
-        )
-        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
-            _auto_attach(self.ua_section)
-        assert expected_msg in caplog.text
-
-    def test_uaclient_old_version(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules["uaclient"] = mock.Mock()
-        sys.modules["uaclient.api"] = mock.Mock()
-        sys.modules["uaclient.api.exceptions"] = mock.Mock()
-        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors(
-                "uaclient.api.u.pro.attach.auto.full_auto_attach"
-            ),
-        )
-        expected_msg = (
-            "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.u.pro.attach.auto.full_auto_attach'"
-        )
-        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
-            _auto_attach(self.ua_section)
-        assert expected_msg in caplog.text
 
     def test_full_auto_attach_error(self, caplog, mocker, fake_uaclient):
         mocker.patch.dict("sys.modules")

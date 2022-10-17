@@ -6,7 +6,7 @@ import json
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Any, List, Sequence
+from typing import Any, List
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -147,10 +147,6 @@ KNOWN_UA_CONFIG_PROPS = (
     "ua_apt_http_proxy",
     "ua_apt_https_proxy",
 )
-
-
-def _format_services(services: Sequence[str]) -> str:
-    return ", ".join(services)
 
 
 def validate_schema_features(ua_section: dict):
@@ -307,7 +303,7 @@ def configure_ua(token, enable=None):
         enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
     except subp.ProcessExecutionError as e:
         raise RuntimeError(
-            f"Error while enabling service(s): {_format_services(enable)}"
+            "Error while enabling service(s): " + ", ".join(enable)
         ) from e
 
     try:
@@ -339,12 +335,10 @@ def configure_ua(token, enable=None):
     # related. We can distinguish them by checking if `service` is non-null
     # or null respectively.
 
-    try:
-        from uaclient.messages import ALREADY_ENABLED  # noqa
+    # pylint: disable=import-error
+    from uaclient.messages import ALREADY_ENABLED
 
-        UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
-    except ImportError:
-        UA_MC_ALREADY_ENABLED = "service-already-enabled"
+    UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
 
     enable_errors: List[dict] = []
     for err in enable_resp.get("errors", []):
@@ -356,16 +350,17 @@ def configure_ua(token, enable=None):
     if enable_errors:
         error_services: List[str] = []
         for err in enable_errors:
-            if err["service"] is not None:
-                error_services.append(err["service"])
-                msg = f'Failure enabling `{err["service"]}`: {err["message"]}'
+            service = err.get("service")
+            if service is not None:
+                error_services.append(service)
+                msg = f'Failure enabling `{service}`: {err["message"]}'
             else:
                 msg = f'Failure of type `{err["type"]}`: {err["message"]}'
             util.logexc(LOG, msg)
 
         raise RuntimeError(
-            f"Failure enabling Ubuntu Advantage service(s): "
-            f"{_format_services(error_services)}"
+            "Failure enabling Ubuntu Advantage service(s): "
+            + ", ".join(error_services)
         )
 
 
@@ -392,15 +387,14 @@ def _should_auto_attach(ua_section: dict) -> bool:
     if disable_auto_attach:
         return False
 
-    try:
-        from uaclient.api.exceptions import UserFacingError
-        from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
-            should_auto_attach,
-        )
-    except ImportError as ex:
-        LOG.debug("Unable to import `uaclient`: %s", ex)
-        LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
-        return False
+    # pylint: disable=import-error
+    from uaclient.api.exceptions import UserFacingError
+    from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
+        should_auto_attach,
+    )
+
+    # pylint: enable=import-error
+
     try:
         result = should_auto_attach()
     except UserFacingError as ex:
@@ -427,19 +421,15 @@ def _attach(ua_section: dict):
 
 
 def _auto_attach(ua_section: dict):
-    try:
-        from uaclient.api.exceptions import (
-            AlreadyAttachedError,
-            UserFacingError,
-        )
-        from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
-            FullAutoAttachOptions,
-            full_auto_attach,
-        )
-    except ImportError as ex:
-        msg = f"Unable to import `uaclient`: {ex}"
-        LOG.error(msg)
-        raise RuntimeError(msg) from ex
+
+    # pylint: disable=import-error
+    from uaclient.api.exceptions import AlreadyAttachedError, UserFacingError
+    from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
+        FullAutoAttachOptions,
+        full_auto_attach,
+    )
+
+    # pylint: enable=import-error
 
     enable = ua_section.get("enable")
     enable_beta = ua_section.get("enable_beta")

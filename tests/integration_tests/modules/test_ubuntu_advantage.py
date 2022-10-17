@@ -61,11 +61,11 @@ def did_ua_service_noop(client: IntegrationInstance) -> bool:
     )
 
 
-def is_auto_attached(client: IntegrationInstance) -> bool:
+def is_attached(client: IntegrationInstance) -> bool:
     status_resp = client.execute("sudo pro status --format json")
     assert status_resp.ok
     status = json.loads(status_resp.stdout)
-    return status.get("attached")
+    return bool(status.get("attached"))
 
 
 def get_services_status(client: IntegrationInstance) -> dict:
@@ -111,18 +111,14 @@ class TestUbuntuAdvantage:
         assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
-        status = client.execute("ua status")
-        assert status.ok
-        assert "This machine is not attached" not in status.stdout
+        assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
     def test_idempotency(self, client: IntegrationInstance):
         assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
-        status = client.execute("ua status")
-        assert status.ok
-        assert "This machine is not attached" not in status.stdout
+        assert is_attached(client)
 
         # Clean reboot to change instance-id and trigger cc_ua in next boot
         assert client.execute("cloud-init clean --logs").ok
@@ -130,9 +126,7 @@ class TestUbuntuAdvantage:
 
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
-        status = client.execute("ua status")
-        assert status.ok
-        assert "This machine is not attached" not in status.stdout
+        assert is_attached(client)
 
 
 def install_ua_daily(session_cloud: IntegrationCloud):
@@ -153,7 +147,7 @@ def install_ua_daily(session_cloud: IntegrationCloud):
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         client.execute("sudo pro detach --assume-yes")  # Force detach
-        assert not is_auto_attached(
+        assert not is_attached(
             client
         ), "Test precondition error. Instance is auto-attached."
         source = get_validated_source(session_cloud)
@@ -191,7 +185,7 @@ class TestUbuntuAdvantagePro:
             log = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log)
             assert did_ua_service_noop(client)
-            assert is_auto_attached(client)
+            assert is_attached(client)
             services_status = get_services_status(client)
             assert services_status.pop(
                 "livepatch"
