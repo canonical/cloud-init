@@ -182,7 +182,7 @@ def is_enabled(hotplug_init, subsystem):
     )
 
 
-def initialize_datasource(hotplug_init, subsystem):
+def initialize_datasource(hotplug_init: Init, subsystem: str):
     LOG.debug("Fetching datasource")
     datasource = hotplug_init.fetch(existing="trust")
 
@@ -220,8 +220,9 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         try:
             LOG.debug("Refreshing metadata")
             event_handler.update_metadata()
-            LOG.debug("Detecting device in updated metadata")
-            event_handler.detect_hotplugged_device()
+            if not datasource.skip_hotplug_detect:
+                LOG.debug("Detecting device in updated metadata")
+                event_handler.detect_hotplugged_device()
             LOG.debug("Applying config change")
             event_handler.apply()
             LOG.debug("Updating cache")

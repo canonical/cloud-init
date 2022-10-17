@@ -251,6 +251,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         "security-credentials",
     )
 
+    # True on datasources that may not see hotplugged devices reflected
+    # in the updated metadata
+    skip_hotplug_detect = False
+
     _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):

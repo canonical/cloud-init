@@ -14,7 +14,7 @@ import socket
 import stat
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -25,6 +25,8 @@ from urllib3.connectionpool import HTTPConnectionPool
 
 from cloudinit import log as logging
 from cloudinit import sources, subp, url_helper, util
+from cloudinit.event import EventScope, EventType
+from cloudinit.net import find_fallback_nic
 
 LOG = logging.getLogger(__name__)
 
@@ -43,18 +45,8 @@ CONFIG_KEY_ALIASES = {
 }
 
 
-def generate_fallback_network_config() -> dict:
-    """Return network config V1 dict representing instance network config."""
-    network_v1: Dict[str, Any] = {
-        "version": 1,
-        "config": [
-            {
-                "type": "physical",
-                "name": "eth0",
-                "subnets": [{"type": "dhcp", "control": "auto"}],
-            }
-        ],
-    }
+def _get_fallback_interface_name() -> str:
+    default_name = "eth0"
     if subp.which("systemd-detect-virt"):
         try:
             virt_type, _ = subp.subp(["systemd-detect-virt"])
@@ -64,19 +56,44 @@ def generate_fallback_network_config() -> dict:
                 " Rendering default network config.",
                 err,
             )
-            return network_v1
+            return default_name
         if virt_type.strip() in (
             "kvm",
             "qemu",
         ):  # instance.type VIRTUAL-MACHINE
             arch = util.system_info()["uname"][4]
             if arch == "ppc64le":
-                network_v1["config"][0]["name"] = "enp0s5"
+                return "enp0s5"
             elif arch == "s390x":
-                network_v1["config"][0]["name"] = "enc9"
+                return "enc9"
             else:
-                network_v1["config"][0]["name"] = "enp5s0"
-    return network_v1
+                return "enp5s0"
+    return default_name
+
+
+def generate_network_config(
+    nics: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Return network config V1 dict representing instance network config."""
+    if not nics:
+        primary_nic = _get_fallback_interface_name()
+    elif len(nics) > 1:
+        primary_nic = find_fallback_nic()
+        if primary_nic not in nics:
+            primary_nic = nics[0]
+    else:
+        primary_nic = nics[0]
+
+    return {
+        "version": 1,
+        "config": [
+            {
+                "type": "physical",
+                "name": primary_nic,
+                "subnets": [{"type": "dhcp", "control": "auto"}],
+            }
+        ],
+    }
 
 
 class SocketHTTPConnection(HTTPConnection):
@@ -146,6 +163,8 @@ class DataSourceLXD(sources.DataSource):
         "user.user-data",
     )
 
+    skip_hotplug_detect = True
+
     def _is_platform_viable(self) -> bool:
         """Check platform environment to report if this datasource may run."""
         return is_platform_viable()
@@ -207,14 +226,30 @@ class DataSourceLXD(sources.DataSource):
         if self._network_config == sources.UNSET:
             if self._crawled_metadata == sources.UNSET:
                 self._get_data()
-            if isinstance(
-                self._crawled_metadata, dict
-            ) and self._crawled_metadata.get("network-config"):
-                self._network_config = self._crawled_metadata.get(
-                    "network-config", {}
-                )
-            else:
-                self._network_config = generate_fallback_network_config()
+            if isinstance(self._crawled_metadata, dict):
+                if self._crawled_metadata.get("network-config"):
+                    LOG.debug("LXD datasource using provided network config")
+                    self._network_config = self._crawled_metadata.get(
+                        "network-config", {}
+                    )
+                elif self._crawled_metadata.get("devices"):
+                    # If no explicit network config, but we have net devices
+                    # available to us, find the primary and set it up.
+                    devices: List[str] = self._crawled_metadata[
+                        "devices"
+                    ].keys()
+                    LOG.debug(
+                        "LXD datasource generating network config using "
+                        f"{len(devices)} detected devices"
+                    )
+                    self._network_config = generate_network_config(devices)
+        if self._network_config == sources.UNSET:
+            # We know nothing about network, so setup fallback
+            LOG.debug(
+                "LXD datasource generating network config using fallback."
+            )
+            self._network_config = generate_network_config()
+
         return cast(dict, self._network_config)
 
 
@@ -338,13 +373,15 @@ class _MetaDataReader:
                 md.update(self._process_config(session))
             if MetaDataKeys.DEVICES in metadata_keys:
                 url = url_helper.combine_url(self._version_url, "devices")
-                md.update({"devices": _get_json_response(session, url)})
+                md["devices"] = _get_json_response(session, url)
             return md
 
 
 def read_metadata(
     api_version: str = LXD_SOCKET_API_VERSION,
-    metadata_keys: MetaDataKeys = MetaDataKeys.CONFIG | MetaDataKeys.META_DATA,
+    metadata_keys: MetaDataKeys = MetaDataKeys.CONFIG
+    | MetaDataKeys.META_DATA
+    | MetaDataKeys.DEVICES,
 ) -> dict:
     """Fetch metadata from the /dev/lxd/socket routes.
 
