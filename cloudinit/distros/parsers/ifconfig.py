@@ -174,8 +174,8 @@ class Ifconfig:
                 ifs[curif]["mtu"] = flags["mtu"]
                 ifs[curif]["metric"] = flags["metric"]
             if toks[0].startswith("capabilities="):
-                flags = re.split(r"<|>", toks[0])
-                ifs[curif]["flags"] += flags
+                caps = re.split(r"<|>", toks[0])
+                ifs[curif]["flags"].append(caps)
 
             if toks[0] == "description:":
                 ifs[curif]["description"] = line[line.index(":") + 2 :]
