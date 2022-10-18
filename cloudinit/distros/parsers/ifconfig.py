@@ -7,7 +7,7 @@
 import copy
 import re
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from cloudinit import log as logging
 
