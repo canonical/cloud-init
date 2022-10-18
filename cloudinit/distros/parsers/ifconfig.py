@@ -7,7 +7,7 @@
 import copy
 import re
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from cloudinit import log as logging
 
@@ -49,16 +49,16 @@ class Ifstate:
         return self._state["up"]
 
     @property
-    def options(self) -> list[str]:
+    def options(self) -> List[str]:
         return self._state["options"]
 
     @property
-    def nd6(self) -> Optional[list[str]]:
+    def nd6(self) -> Optional[List[str]]:
         if "nd6_options" in self._state:
             return self._state["nd6_options"]
 
     @property
-    def flags(self) -> list[str]:
+    def flags(self) -> List[str]:
         return self._state["flags"]
 
     @property
@@ -85,19 +85,19 @@ class Ifstate:
         return self._state["vlan"]
 
     @property
-    def macs(self) -> Optional[list[str]]:
+    def macs(self) -> Optional[List[str]]:
         if self._state["macs"] != []:
             return self._state["macs"]
         return None
 
     @property
-    def groups(self) -> list[str]:
+    def groups(self) -> List[str]:
         # groups are so categorically useful, that it would be a shame to make
         # them optional
         return self._state["groups"]
 
     @property
-    def members(self) -> list[str]:
+    def members(self) -> List[str]:
         if "members" in self._state:
             return self._state["members"]
 
@@ -143,7 +143,7 @@ class Ifconfig:
     def __init__(self):
         self._ifs = []
 
-    def parse(self, text: str) -> list[Ifstate]:
+    def parse(self, text: str) -> List[Ifstate]:
         ifs = {}
         for line in text.splitlines():
             if len(line) == 0:
