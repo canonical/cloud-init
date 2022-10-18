@@ -108,7 +108,7 @@ class Ifstate:
     @property
     def is_physical(self) -> bool:
         # OpenBSD makes this very easy:
-        if self.groups and self.groups["egress"]:
+        if self.groups and "egress" in self.groups:
             return True
         if not self.groups and self.media and "Ethernet" in self.media:
             return True
@@ -116,7 +116,7 @@ class Ifstate:
 
     @property
     def is_bridge(self) -> bool:
-        if self.groups and self.groups["bridge"]:
+        if self.groups and "bridge" in self.groups:
             return True
         if self.members:
             return True
