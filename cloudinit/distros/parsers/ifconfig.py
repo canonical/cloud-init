@@ -81,6 +81,10 @@ class Ifstate:
         return self._state["mac"]
 
     @property
+    def vlan(self) -> Optional[dict]:
+        return self._state["vlan"]
+
+    @property
     def macs(self) -> Optional[list[str]]:
         if self._state["macs"] != []:
             return self._state["macs"]
