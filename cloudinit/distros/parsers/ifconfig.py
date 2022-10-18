@@ -193,10 +193,10 @@ class Ifconfig:
                 ifs[curif]["inet6"][ip[0]] = copy.deepcopy(ip[1])
 
             if toks[0] == "member:":
-                if "members" in ifs["curif"]:
-                    ifs[curif]["members"] = [toks[1]]
-                else:
+                if "members" in ifs[curif]:
                     ifs[curif]["members"] += toks[1]
+                else:
+                    ifs[curif]["members"] = [toks[1]]
 
         for i in ifs:
             ifstate = Ifstate(i, ifs[i])
