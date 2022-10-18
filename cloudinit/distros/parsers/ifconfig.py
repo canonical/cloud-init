@@ -124,7 +124,7 @@ class Ifstate:
 # - https://man.openbsd.org/ifconfig.8
 class Ifconfig:
     def __init__(self):
-        self._ifs = []
+        self.__ifs = []
 
     def parse(self, text: str) -> list[Ifstate]:
         ifs = {}
@@ -200,7 +200,7 @@ class Ifconfig:
 
         for i in ifs:
             ifstate = Ifstate(i, ifs[i])
-            self.__ifs.append(ifstate)
+            self.__ifs += ifstate
         return self.__ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
