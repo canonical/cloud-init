@@ -200,7 +200,7 @@ class Ifconfig:
 
         for i in ifs:
             ifstate = Ifstate(i, ifs[i])
-            self.__ifs += ifstate
+            self.__ifs.append(ifstate)
         return self.__ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
