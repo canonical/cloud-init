@@ -153,7 +153,7 @@ class Ifconfig:
         broadcast = None
         if "/" in toks[1]:
             ip = IPv4Interface(toks[1])
-            netmask = ip.netmask
+            netmask = str(ip.netmask)
             if "broadcast" in toks:
                 broadcast = toks[toks.index("broadcast") + 1]
         else:
