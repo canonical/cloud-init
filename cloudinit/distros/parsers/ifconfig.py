@@ -67,6 +67,11 @@ class Ifstate:
             return self._state["description"]
 
     @property
+    def media(self) -> Optional[str]:
+        if "media" in self._state:
+            return self._state["media"]
+
+    @property
     def status(self) -> Optional[str]:
         if "status" in self._state:
             return self._state["status"]
