@@ -231,8 +231,8 @@ class Ifconfig:
                     if toks[i] == "interface:":
                         ifs[curif]["vlan"]["link"] = toks[i + 1]
 
-        for i in ifs:
-            ifstate = Ifstate(i, ifs[i])
+        for dev in ifs:
+            ifstate = Ifstate(dev, ifs[dev])
             self._ifs.append(ifstate)
         return self._ifs
 
