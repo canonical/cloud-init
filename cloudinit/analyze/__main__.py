@@ -8,9 +8,8 @@ import sys
 from datetime import datetime
 from typing import IO
 
+from cloudinit.analyze import dump, show
 from cloudinit.util import json_dumps
-
-from . import dump, show
 
 
 def get_parser(parser=None):

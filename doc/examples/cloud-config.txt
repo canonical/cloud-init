@@ -143,17 +143,6 @@ bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 
-# cloud_config_modules:
-# default:
-# cloud_config_modules:
-# - mounts
-# - ssh
-# - apt-update-upgrade
-# - puppet
-# - updates-check
-# - disable-ec2-metadata
-# - runcmd
-#
 # This is an array of arrays or strings.
 # if item is a string, then it is read as a module name
 # if the item is an array it is of the form:
@@ -171,7 +160,6 @@ cloud_config_modules:
  - grub-dpkg
  - [ apt-update-upgrade, always ]
  - puppet
- - updates-check
  - disable-ec2-metadata
  - runcmd
  - byobu

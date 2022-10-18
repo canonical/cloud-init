@@ -32,7 +32,9 @@ distros = [
     "debian",
     "eurolinux",
     "fedora",
+    "freebsd",
     "miraclelinux",
+    "openbsd",
     "openEuler",
     "openmandriva",
     "opensuse",
@@ -67,6 +69,14 @@ NTP_CLIENT_CONFIG = {
         "packages": ["ntpdate"],
         "service_name": "ntpdate",
         "template_name": "ntp.conf.{distro}",
+        "template": None,
+    },
+    "openntpd": {
+        "check_exe": "ntpd",
+        "confpath": "/etc/ntpd.conf",
+        "packages": [],
+        "service_name": "ntpd",
+        "template_name": "ntpd.conf.{distro}",
         "template": None,
     },
     "systemd-timesyncd": {
@@ -110,6 +120,29 @@ DISTRO_CLIENT_CONFIG = {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
         },
+    },
+    "freebsd": {
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+            "template_name": "ntp.conf.{distro}",
+        },
+        "chrony": {
+            "confpath": "/usr/local/etc/chrony.conf",
+            "packages": ["chrony"],
+            "service_name": "chronyd",
+            "template_name": "chrony.conf.{distro}",
+        },
+        "openntpd": {
+            "check_exe": "/usr/local/sbin/ntpd",
+            "confpath": "/usr/local/etc/ntp.conf",
+            "packages": ["openntpd"],
+            "service_name": "openntpd",
+            "template_name": "ntpd.conf.openbsd",
+        },
+    },
+    "openbsd": {
+        "openntpd": {},
     },
     "openmandriva": {
         "chrony": {
@@ -397,7 +430,7 @@ def write_ntp_config_template(
     if not pools:
         pools = []
 
-    if distro_name == "cos":
+    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
         return
     if (
         len(servers) == 0
@@ -559,6 +592,24 @@ def handle(
         packages=ntp_client_config["packages"],
         check_exe=ntp_client_config["check_exe"],
     )
+    if util.is_BSD():
+        if ntp_client_config.get("service_name") != "ntpd":
+            try:
+                cloud.distro.manage_service("stop", "ntpd")
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to stop base ntpd service")
+            try:
+                cloud.distro.manage_service("disable", "ntpd")
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to disable base ntpd service")
+
+        try:
+            cloud.distro.manage_service(
+                "enable", ntp_client_config.get("service_name")
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.exception("Failed to enable ntp service: %s", e)
+            raise
     try:
         cloud.distro.manage_service(
             "reload", ntp_client_config.get("service_name")

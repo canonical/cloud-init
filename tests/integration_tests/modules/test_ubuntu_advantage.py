@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -21,6 +22,15 @@ ubuntu_advantage:
   token: {token}
 """
 
+ATTACH = """\
+#cloud-config
+ubuntu_advantage:
+  token: {token}
+  enable:
+  - esm-infra
+"""
+
+# bootcmd disables UA daemon on gce
 UA_DAILY = """\
 #cloud-config
 apt:
@@ -31,6 +41,8 @@ package_update: true
 package_upgrade: true
 packages:
 - ubuntu-advantage-tools
+bootcmd:
+- sudo systemctl mask ubuntu-advantage.service
 """
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
@@ -49,11 +61,46 @@ def did_ua_service_noop(client: IntegrationInstance) -> bool:
     )
 
 
-def is_auto_attached(client: IntegrationInstance) -> bool:
-    return (
-        "machine is attached to an Ubuntu Pro subscription."
-        in client.execute("pro status").stdout
-    )
+def is_attached(client: IntegrationInstance) -> bool:
+    status_resp = client.execute("sudo pro status --format json")
+    assert status_resp.ok
+    status = json.loads(status_resp.stdout)
+    return bool(status.get("attached"))
+
+
+def get_services_status(client: IntegrationInstance) -> dict:
+    """Creates a map of service -> is_enable.
+
+    pro status --format json contains a key with list of service objects like:
+
+    {
+      ...
+      "services":[
+        {
+          "available":"yes",
+          "blocked_by":[
+
+          ],
+          "description":"Common Criteria EAL2 Provisioning Packages",
+          "description_override":null,
+          "entitled":"yes",
+          "name":"cc-eal",
+          "status":"disabled",
+          "status_details":"CC EAL2 is not configured"
+        },
+        ...
+      ]
+    }
+
+    :return: Dict where the keys are ua service names and the values
+    are booleans representing if the service is enable or not.
+    """
+    status_resp = client.execute("sudo pro status --format json")
+    assert status_resp.ok
+    status = json.loads(status_resp.stdout)
+    return {
+        svc["name"]: svc["status"] == "enabled" for svc in status["services"]
+    }
 
 
 @pytest.mark.adhoc
@@ -64,9 +111,22 @@ class TestUbuntuAdvantage:
         assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
-        status = client.execute("ua status")
-        assert status.ok
-        assert "This machine is not attached" not in status.stdout
+        assert is_attached(client)
+
+    @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
+    def test_idempotency(self, client: IntegrationInstance):
+        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert is_attached(client)
+
+        # Clean reboot to change instance-id and trigger cc_ua in next boot
+        assert client.execute("cloud-init clean --logs").ok
+        client.restart()
+
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert is_attached(client)
 
 
 def install_ua_daily(session_cloud: IntegrationCloud):
@@ -84,12 +144,27 @@ def install_ua_daily(session_cloud: IntegrationCloud):
             )
         },
     ) as client:
-        client.execute("ua detach")
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        client.execute("sudo pro detach --assume-yes")  # Force detach
+        assert not is_attached(
+            client
+        ), "Test precondition error. Instance is auto-attached."
         source = get_validated_source(session_cloud)
-        if source is not CloudInitSource.NONE:
+
+        if source is CloudInitSource.NONE:
+            # Confirm cloud-init now supports auto-attach customization
+            client.write_to_file("/tmp/auto-attach.cfg", ATTACH_FALLBACK)
+            result = client.execute(
+                "cloud-init schema -c /tmp/auto-attach.cfg"
+            )
+            assert result.ok, (
+                "cloud-init in image doesn't support custom auto-attach."
+                " Try CLOUD_INIT_SOURCE=ppa:cloud-init-dev/daily."
+            )
+        else:
             client.install_new_cloud_init(source)
+
         client.destroy()
 
 
@@ -110,4 +185,14 @@ class TestUbuntuAdvantagePro:
             log = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log)
             assert did_ua_service_noop(client)
-            assert is_auto_attached(client)
+            assert is_attached(client)
+            services_status = get_services_status(client)
+            assert services_status.pop(
+                "livepatch"
+            ), "livepatch expected to be enabled"
+            enabled_services = {
+                svc for svc, status in services_status.items() if status
+            }
+            assert (
+                not enabled_services
+            ), f"Only livepatch must be enabled. Found: {enabled_services}"

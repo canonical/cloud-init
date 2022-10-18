@@ -341,7 +341,8 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 """
 )
 
-OS_RELEASE_COS = dedent("""\
+OS_RELEASE_COS = dedent(
+    """\
     NAME="Container-Optimized OS"
     ID=cos
     PRETTY_NAME="Container-Optimized OS from Google"
@@ -349,7 +350,8 @@ OS_RELEASE_COS = dedent("""\
     BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
     VERSION=93
     VERSION_ID=93
-""")
+"""
+)
 
 
 @pytest.mark.usefixtures("fake_filesystem")

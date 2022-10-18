@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import util
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, mock
-
-from . import _get_distro
 
 SYSTEM_INFO = {
     "paths": {

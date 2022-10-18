@@ -4,8 +4,9 @@ from cloudinit.distros import gentoo
 
 
 # Support for Container-Optimized OS
+# https://cloud.google.com/container-optimized-os/docs
 class Distro(gentoo.Distro):
-  pass
+    pass
 
 
 # vi: ts=4 expandtab

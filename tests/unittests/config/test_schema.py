@@ -165,6 +165,7 @@ class TestGetSchema:
         assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
+            {"$ref": "#/$defs/base_config"},
             {"$ref": "#/$defs/cc_ansible"},
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_configure"},
