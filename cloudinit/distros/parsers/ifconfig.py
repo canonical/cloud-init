@@ -108,12 +108,15 @@ class Ifconfig:
                 if len(options) > 1:
                     dev.options += options[1].split(",")
 
+            # We also store the Ifstate reference under all mac addresses
+            # so we can easier reverse-find it.
             if toks[0] == "ether":
                 dev.mac = toks[1]
                 dev.macs.append(toks[1])
-
+                self._ifs[toks[1]] = dev
             if toks[0] == "hwaddr":
                 dev.macs.append(toks[1])
+                self._ifs[toks[1]] = dev
 
             if toks[0] == "groups:":
                 dev.groups += toks[1:]
