@@ -1,4 +1,4 @@
-# Copyright(C) 2022 Mina Galić
+# Copyright(C) 2022 FreeBSD Foundation
 #
 # Author: Mina Galić <me+FreeBSD@igalic.co>
 #
@@ -7,129 +7,51 @@
 import copy
 import re
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
 
-DEFAULT_IF = {
-    "inet": {},
-    "inet6": {},
-    "mac": None,
-    "macs": [],
-    "groups": [],
-    "up": False,
-    "options": [],
-}
-
-
 class Ifstate:
-    def __init__(self, name, state):
-        self._name = name
-        self._state = copy.deepcopy(state)
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def inet(self) -> Optional[dict]:
-        if "inet" in self._state:
-            return self._state["inet"]
-        return None
-
-    @property
-    def inet6(self) -> Optional[dict]:
-        if "inet6" in self._state:
-            return self._state["inet6"]
-        return None
-
-    @property
-    def up(self) -> bool:
-        return self._state["up"]
-
-    @property
-    def options(self) -> List[str]:
-        return self._state["options"]
-
-    @property
-    def nd6(self) -> List[str]:
-        if "nd6_options" in self._state:
-            return self._state["nd6_options"]
-        return []
-
-    @property
-    def flags(self) -> List[str]:
-        return self._state["flags"]
-
-    @property
-    def description(self) -> Optional[str]:
-        if "description" in self._state:
-            return self._state["description"]
-        return None
-
-    @property
-    def media(self) -> Optional[str]:
-        if "media" in self._state:
-            return self._state["media"]
-        return None
-
-    @property
-    def status(self) -> Optional[str]:
-        if "status" in self._state:
-            return self._state["status"]
-        return None
-
-    @property
-    def mac(self) -> Optional[str]:
-        return self._state["mac"]
-
-    @property
-    def vlan(self) -> Optional[dict]:
-        if "status" in self._state:
-            return self._state["vlan"]
-        return None
-
-    @property
-    def macs(self) -> List[str]:
-        if self._state["macs"] != []:
-            return self._state["macs"]
-        return []
-
-    @property
-    def groups(self) -> List[str]:
-        # groups are so categorically useful, that it would be a shame to make
-        # them optional
-        return self._state["groups"]
-
-    @property
-    def members(self) -> Optional[List[str]]:
-        if "members" in self._state:
-            return self._state["members"]
-        return None
+    def __init__(self, name):
+        self.name = name
+        self.inet = {}
+        self.inet6 = {}
+        self.up = False
+        self.options = []
+        self.nd6 = []
+        self.flags = []
+        self.mtu: int = 0
+        self.metric: int = 0
+        self.groups = []
+        self.description: Optional[str] = None
+        self.media: Optional[str] = None
+        self.status: Optional[str] = None
+        self.mac: Optional[str] = None
+        self.macs = []
+        self.vlan = {}
+        self.members = []
 
     @property
     def is_loopback(self) -> bool:
-        if "loopback" in self.flags or (
-            self.groups and "lo" in self._state["groups"]
-        ):
+        if "loopback" in self.flags or ("lo" in self.groups):
             return True
         return False
 
     @property
     def is_physical(self) -> bool:
         # OpenBSD makes this very easy:
-        if self.groups and "egress" in self.groups:
+        if "egress" in self.groups:
             return True
-        if not self.groups and self.media and "Ethernet" in self.media:
+        if self.groups == [] and self.media and "Ethernet" in self.media:
             return True
         return False
 
     @property
     def is_bridge(self) -> bool:
-        if self.groups and "bridge" in self.groups:
+        if "bridge" in self.groups:
             return True
         if self.members:
             return True
@@ -137,9 +59,7 @@ class Ifstate:
 
     @property
     def is_vlan(self) -> bool:
-        if self.groups and "vlan" in self.groups:
-            return True
-        if "vlan" in self._state:
+        if "vlan" in self.groups or self.vlan:
             return True
         return False
 
@@ -150,10 +70,9 @@ class Ifstate:
 # - https://man.openbsd.org/ifconfig.8
 class Ifconfig:
     def __init__(self):
-        self._ifs = []
+        self._ifs = {}
 
-    def parse(self, text: str) -> List[Ifstate]:
-        ifs = {}
+    def parse(self, text: str) -> Dict[str, Ifstate]:
         for line in text.splitlines():
             if len(line) == 0:
                 continue
@@ -162,23 +81,23 @@ class Ifconfig:
                 # current ifconfig pops a ':' on the end of the device
                 if curif.endswith(":"):
                     curif = curif[:-1]
-                if curif not in ifs:
-                    ifs[curif] = copy.deepcopy(DEFAULT_IF)
+                dev = Ifstate(curif)
+                self._ifs[curif] = dev
 
             toks = line.lower().strip().split()
 
             if len(toks) > 1 and toks[1].startswith("flags="):
                 flags = self._parse_flags(toks)
-                ifs[curif]["flags"] = copy.deepcopy(flags["flags"])
-                ifs[curif]["up"] = flags["up"]
-                ifs[curif]["mtu"] = flags["mtu"]
-                ifs[curif]["metric"] = flags["metric"]
+                dev.flags = copy.deepcopy(flags["flags"])
+                dev.up = flags["up"]
+                dev.mtu = flags["mtu"]
+                dev.metric = flags["metric"]
             if toks[0].startswith("capabilities="):
                 caps = re.split(r"<|>", toks[0])
-                ifs[curif]["flags"].append(caps)
+                dev.flags.append(caps)
 
             if toks[0] == "description:":
-                ifs[curif]["description"] = line[line.index(":") + 2 :]
+                dev.description = line[line.index(":") + 2 :]
 
             if (
                 toks[0].startswith("options=")
@@ -187,53 +106,47 @@ class Ifconfig:
             ):
                 options = re.split(r"<|>", toks[0])
                 if len(options) > 1:
-                    ifs[curif]["options"] += options[1].split(",")
+                    dev.options += options[1].split(",")
 
             if toks[0] == "ether":
-                ifs[curif]["mac"] = toks[1]
-                ifs[curif]["macs"].append(toks[1])
+                dev.mac = toks[1]
+                dev.macs.append(toks[1])
 
             if toks[0] == "hwaddr":
-                ifs[curif]["macs"].append(toks[1])
+                dev.macs.append(toks[1])
 
             if toks[0] == "groups:":
-                ifs[curif]["groups"] += toks[1:]
+                dev.groups += toks[1:]
 
             if toks[0] == "media:":
-                ifs[curif]["media"] = line[line.index(": ") + 2 :]
+                dev.media = line[line.index(": ") + 2 :]
 
             if toks[0] == "nd6":
                 nd6_opts = re.split(r"<|>", toks[0])
                 if len(nd6_opts) > 1:
-                    ifs[curif]["nd6_options"] = nd6_opts[1].split(",")
+                    dev.nd6 = nd6_opts[1].split(",")
 
             if toks[0] == "status":
-                ifs[curif]["status"] = toks[1]
+                dev.status = toks[1]
 
             if toks[0] == "inet":
                 ip = self._parse_inet(toks)
-                ifs[curif]["inet"][ip[0]] = copy.deepcopy(ip[1])
+                dev.inet[ip[0]] = copy.deepcopy(ip[1])
 
             if toks[0] == "inet6":
                 ip = self._parse_inet6(toks)
-                ifs[curif]["inet6"][ip[0]] = copy.deepcopy(ip[1])
+                dev.inet6[ip[0]] = copy.deepcopy(ip[1])
 
             if toks[0] == "member:":
-                if "members" in ifs[curif]:
-                    ifs[curif]["members"] += toks[1]
-                else:
-                    ifs[curif]["members"] = [toks[1]]
+                dev.members += toks[1]
 
             if toks[0] == "vlan:":
-                ifs[curif]["vlan"] = {}
-                ifs[curif]["vlan"]["id"] = toks[1]
+                dev.vlan = {}
+                dev.vlan["id"] = toks[1]
                 for i in range(2, len(toks)):
                     if toks[i] == "interface:":
-                        ifs[curif]["vlan"]["link"] = toks[i + 1]
+                        dev.vlan["link"] = toks[i + 1]
 
-        for dev in ifs:
-            ifstate = Ifstate(dev, ifs[dev])
-            self._ifs.append(ifstate)
         return self._ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:

@@ -16,19 +16,19 @@ class TestIfconfigParser(TestCase):
     def test_is_bridge(self):
         """assert bridge0 is_bridge"""
         ifs = Ifconfig().parse(self.ifs_txt)
-        assert ifs[2].is_bridge
+        assert ifs["bridge0"].is_bridge
 
     def test_is_vlan(self):
         """assert re0.33 is_vlan"""
         ifs = Ifconfig().parse(self.ifs_txt)
-        assert ifs[1].is_vlan
+        assert ifs["re0.33"].is_vlan
 
     def test_description(self):
         """assert vnet0:11 is associated with jail: webirc"""
         ifs = Ifconfig().parse(self.ifs_txt)
-        assert ifs[3].description == "'associated with jail: webirc'"
+        assert ifs["vnet0:11"].description == "'associated with jail: webirc'"
 
     def test_vtnet_options(self):
         """assert vtnet has TXCSUM"""
         ifs = Ifconfig().parse(self.ifs_txt)
-        assert "txcsum" in ifs[0].options
+        assert "txcsum" in ifs["vtnet0"].options
