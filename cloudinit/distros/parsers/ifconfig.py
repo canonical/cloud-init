@@ -7,7 +7,7 @@
 import copy
 import re
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import Tuple
+from typing import Tuple, Optional
 
 from cloudinit import log as logging
 
@@ -17,12 +17,105 @@ LOG = logging.getLogger(__name__)
 DEFAULT_IF = {
     "inet": {},
     "inet6": {},
-    "mac": "",
+    "mac": None,
     "macs": [],
     "groups": [],
     "up": False,
     "options": [],
 }
+
+
+class Ifstate:
+    def __init__(self, name, state):
+        self._name = name
+        self._state = copy.deepcopy(state)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def inet(self) -> Optional[dict]:
+        if "inet" in self.__state:
+            return self.__state["inet"]
+
+    @property
+    def inet6(self) -> Optional[dict]:
+        if "inet6" in self.__state:
+            return self.__state["inet6"]
+
+    @property
+    def up(self) -> bool:
+        return self._state["up"]
+
+    @property
+    def options(self) -> list[str]:
+        return self._state["options"]
+
+    @property
+    def nd6(self) -> Optional[list[str]]:
+        if "nd6_options" in self._state:
+            return self._state["nd6_options"]
+
+    @property
+    def flags(self) -> list[str]:
+        return self._state["flags"]
+
+    @property
+    def description(self) -> Optional[str]:
+        if "description" in self._state:
+            return self._state["description"]
+
+    @property
+    def status(self) -> Optional[str]:
+        if "status" in self._state:
+            return self._state["status"]
+
+    @property
+    def mac(self) -> Optional[str]:
+        return self._state["mac"]
+
+    @property
+    def macs(self) -> Optional[list[str]]:
+        if self._state["macs"] != []:
+            return self._state["macs"]
+        return None
+
+    @property
+    def groups(self) -> list[str]:
+        # groups are so categorically useful, that it would be a shame to make
+        # them optional
+        return self._state["groups"]
+
+    @property
+    def members(self) -> list[str]:
+        if "members" in self._state:
+            return self._state["members"]
+
+    @property
+    def is_loopback(self) -> bool:
+        if "loopback" in self.flags or (
+            self.groups and "lo" in self._state["groups"]
+        ):
+            return True
+        return False
+
+    @property
+    def is_physical(self) -> bool:
+        # OpenBSD makes this very easy:
+        if self.groups and self.groups["egress"]:
+            return True
+        if not self.groups and self.media and "Ethernet" in self.media:
+            return True
+        return False
+
+    @property
+    def is_bridge(self) -> bool:
+        if self.groups and self.groups["bridge"]:
+            return True
+        if self.bridge_members:
+            return True
+        return False
 
 
 # see man ifconfig(8)
@@ -31,9 +124,9 @@ DEFAULT_IF = {
 # - https://man.openbsd.org/ifconfig.8
 class Ifconfig:
     def __init__(self):
-        self._ifs = {}
+        self._ifs = []
 
-    def parse(self, text: str) -> dict:
+    def parse(self, text: str) -> list[Ifstate]:
         ifs = {}
         for line in text.splitlines():
             if len(line) == 0:
@@ -99,7 +192,16 @@ class Ifconfig:
                 ip = self._parse_inet6(toks)
                 ifs[curif]["inet6"][ip[0]] = copy.deepcopy(ip[1])
 
-        return ifs
+            if toks[0] == "member:":
+                if "members" in ifs["curif"]:
+                    ifs[curif]["members"] = [toks[1]]
+                else:
+                    ifs[curif]["members"] += toks[1]
+
+        for i in ifs:
+            ifstate = Ifstate(i, ifs[i])
+            self.__ifs += ifstate
+        return self.__ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None
