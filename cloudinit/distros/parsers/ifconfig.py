@@ -124,22 +124,32 @@ class Ifconfig:
             },
         )
 
+    def _get_prefixlen(self, toks):
+        for i in range(2, len(toks)):
+            if toks[i] == "prefixlen":
+                return toks[i + 1]
+
     def _parse_inet6(self, toks: list) -> Tuple[str, dict]:
-        if "/" in toks[1]:
+        scope = None
+        # workaround https://github.com/python/cpython/issues/78969
+        if "%" in toks[1]:
+            scope = "link-local"
+            ip6, rest = toks[1].split("%")
+            if "/" in rest:
+                prefixlen = rest.split("/")[1]
+            else:
+                prefixlen = self._get_prefixlen(toks)
+            ip = IPv6Interface("%s/%s" % (ip6, prefixlen))
+        elif "/" in toks[1]:
             ip = IPv6Interface(toks[1])
             prefixlen = toks[1].split("/")[1]
         else:
-            for i in range(2, len(toks)):
-                if toks[i] == "prefixlen":
-                    prefixlen = toks[i + 1]
-                    break
+            prefixlen = self._get_prefixlen(toks)
             ip = IPv6Interface("%s/%s" % (toks[1], prefixlen))
 
-        # ipaddress.IPv6Address/Interface only knows these two:
-        scope = None
-        if ip.is_link_local:
+        if not scope and ip.is_link_local:
             scope = "link-local"
-        elif ip.is_site_local:
+        elif not scope and ip.is_site_local:
             scope = "site-local"
 
         return (str(ip.ip), {"prefixlen": prefixlen, "scope": scope})
