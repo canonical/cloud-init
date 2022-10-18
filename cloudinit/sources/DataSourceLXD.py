@@ -25,7 +25,6 @@ from urllib3.connectionpool import HTTPConnectionPool
 
 from cloudinit import log as logging
 from cloudinit import sources, subp, url_helper, util
-from cloudinit.event import EventScope, EventType
 from cloudinit.net import find_fallback_nic
 
 LOG = logging.getLogger(__name__)
@@ -78,9 +77,11 @@ def generate_network_config(
     if not nics:
         primary_nic = _get_fallback_interface_name()
     elif len(nics) > 1:
-        primary_nic = find_fallback_nic()
-        if primary_nic not in nics:
+        fallback_nic = find_fallback_nic()
+        if not fallback_nic or fallback_nic not in nics:
             primary_nic = nics[0]
+        else:
+            primary_nic = fallback_nic
     else:
         primary_nic = nics[0]
 
@@ -242,7 +243,8 @@ class DataSourceLXD(sources.DataSource):
                     ]
                     LOG.debug(
                         "LXD datasource generating network config using "
-                        f"{len(devices)} detected devices"
+                        "%s detected devices",
+                        len(devices),
                     )
                     self._network_config = generate_network_config(devices)
         if self._network_config == sources.UNSET:
