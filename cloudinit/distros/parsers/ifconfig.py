@@ -38,11 +38,13 @@ class Ifstate:
     def inet(self) -> Optional[dict]:
         if "inet" in self._state:
             return self._state["inet"]
+        return None
 
     @property
     def inet6(self) -> Optional[dict]:
         if "inet6" in self._state:
             return self._state["inet6"]
+        return None
 
     @property
     def up(self) -> bool:
@@ -53,9 +55,10 @@ class Ifstate:
         return self._state["options"]
 
     @property
-    def nd6(self) -> Optional[List[str]]:
+    def nd6(self) -> List[str]:
         if "nd6_options" in self._state:
             return self._state["nd6_options"]
+        return []
 
     @property
     def flags(self) -> List[str]:
@@ -65,16 +68,19 @@ class Ifstate:
     def description(self) -> Optional[str]:
         if "description" in self._state:
             return self._state["description"]
+        return None
 
     @property
     def media(self) -> Optional[str]:
         if "media" in self._state:
             return self._state["media"]
+        return None
 
     @property
     def status(self) -> Optional[str]:
         if "status" in self._state:
             return self._state["status"]
+        return None
 
     @property
     def mac(self) -> Optional[str]:
@@ -82,13 +88,15 @@ class Ifstate:
 
     @property
     def vlan(self) -> Optional[dict]:
-        return self._state["vlan"]
+        if "status" in self._state:
+            return self._state["vlan"]
+        return None
 
     @property
-    def macs(self) -> Optional[List[str]]:
+    def macs(self) -> List[str]:
         if self._state["macs"] != []:
             return self._state["macs"]
-        return None
+        return []
 
     @property
     def groups(self) -> List[str]:
@@ -97,9 +105,10 @@ class Ifstate:
         return self._state["groups"]
 
     @property
-    def members(self) -> List[str]:
+    def members(self) -> Optional[List[str]]:
         if "members" in self._state:
             return self._state["members"]
+        return None
 
     @property
     def is_loopback(self) -> bool:
