@@ -1,4 +1,5 @@
 from collections import namedtuple
+from contextlib import suppress
 from unittest import mock
 from unittest.mock import call
 
@@ -24,6 +25,7 @@ def mocks():
     m_distro.network_activator = mock.PropertyMock(return_value=m_activator)
     m_datasource = mock.MagicMock(spec=DataSource)
     m_datasource.distro = m_distro
+    m_datasource.skip_hotplug_detect = False
     m_init.datasource = m_datasource
     m_init.fetch.return_value = m_datasource
 
@@ -80,8 +82,8 @@ class TestUnsupportedActions:
             handle_hotplug(
                 hotplug_init=mocks.m_init,
                 devpath="/dev/fake",
-                udevaction="not_real",
                 subsystem="net",
+                udevaction="not_real",
             )
 
 
@@ -121,6 +123,18 @@ class TestHotplug:
         mocks.m_activator.bring_down_interface.assert_called_once_with("fake")
         mocks.m_activator.bring_up_interface.assert_not_called()
         init._write_to_cache.assert_called_once_with()
+
+    @pytest.mark.parametrize("skip", [True, False])
+    def test_skip_detected(self, skip, mocks):
+        mocks.m_init.datasource.skip_hotplug_detect = skip
+        exc = suppress() if skip else pytest.raises(ValueError)
+        with exc:
+            handle_hotplug(
+                hotplug_init=mocks.m_init,
+                devpath="/dev/fake",
+                udevaction="asdf",
+                subsystem="net",
+            )
 
     def test_update_event_disabled(self, mocks, caplog):
         init = mocks.m_init

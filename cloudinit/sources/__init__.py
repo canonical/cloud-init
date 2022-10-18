@@ -286,6 +286,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, "vendordata2_raw"):
             self.vendordata2_raw = None
+        if not hasattr(self, "skip_hotplug_detect"):
+            self.skip_hotplug_detect = False
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.

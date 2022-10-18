@@ -235,9 +235,11 @@ class DataSourceLXD(sources.DataSource):
                 elif self._crawled_metadata.get("devices"):
                     # If no explicit network config, but we have net devices
                     # available to us, find the primary and set it up.
-                    devices: List[str] = self._crawled_metadata[
-                        "devices"
-                    ].keys()
+                    devices: List[str] = [
+                        k
+                        for k, v in self._crawled_metadata["devices"].items()
+                        if v["type"] == "nic"
+                    ]
                     LOG.debug(
                         "LXD datasource generating network config using "
                         f"{len(devices)} detected devices"
@@ -379,9 +381,7 @@ class _MetaDataReader:
 
 def read_metadata(
     api_version: str = LXD_SOCKET_API_VERSION,
-    metadata_keys: MetaDataKeys = MetaDataKeys.CONFIG
-    | MetaDataKeys.META_DATA
-    | MetaDataKeys.DEVICES,
+    metadata_keys: MetaDataKeys = MetaDataKeys.ALL,
 ) -> dict:
     """Fetch metadata from the /dev/lxd/socket routes.
 
