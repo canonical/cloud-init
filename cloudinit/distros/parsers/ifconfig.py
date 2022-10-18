@@ -36,13 +36,13 @@ class Ifstate:
 
     @property
     def inet(self) -> Optional[dict]:
-        if "inet" in self.__state:
-            return self.__state["inet"]
+        if "inet" in self._state:
+            return self._state["inet"]
 
     @property
     def inet6(self) -> Optional[dict]:
-        if "inet6" in self.__state:
-            return self.__state["inet6"]
+        if "inet6" in self._state:
+            return self._state["inet6"]
 
     @property
     def up(self) -> bool:
@@ -118,7 +118,7 @@ class Ifstate:
     def is_bridge(self) -> bool:
         if self.groups and self.groups["bridge"]:
             return True
-        if self.bridge_members:
+        if self.members:
             return True
         return False
 
@@ -129,7 +129,7 @@ class Ifstate:
 # - https://man.openbsd.org/ifconfig.8
 class Ifconfig:
     def __init__(self):
-        self.__ifs = []
+        self._ifs = []
 
     def parse(self, text: str) -> list[Ifstate]:
         ifs = {}
@@ -205,8 +205,8 @@ class Ifconfig:
 
         for i in ifs:
             ifstate = Ifstate(i, ifs[i])
-            self.__ifs.append(ifstate)
-        return self.__ifs
+            self._ifs.append(ifstate)
+        return self._ifs
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None
