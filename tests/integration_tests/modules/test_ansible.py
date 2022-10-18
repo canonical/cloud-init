@@ -128,6 +128,8 @@ def _test_ansible_pull_from_local_server(my_client):
     assert not output.stderr.strip() and output.ok
 
 
+# temporarily disable this test on jenkins until firewall rules are in place
+@pytest.mark.adhoc
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
@@ -136,6 +138,8 @@ class TestAnsiblePullPip:
         _test_ansible_pull_from_local_server(class_client)
 
 
+# temporarily disable this test on jenkins until firewall rules are in place
+@pytest.mark.adhoc
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
