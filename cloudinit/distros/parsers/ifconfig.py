@@ -122,6 +122,14 @@ class Ifstate:
             return True
         return False
 
+    @property
+    def is_vlan(self) -> bool:
+        if self.groups and "vlan" in self.groups:
+            return True
+        if "vlan" in self._state:
+            return True
+        return False
+
 
 # see man ifconfig(8)
 # - https://man.freebsd.org/ifconfig(8)
@@ -202,6 +210,13 @@ class Ifconfig:
                     ifs[curif]["members"] += toks[1]
                 else:
                     ifs[curif]["members"] = [toks[1]]
+
+            if toks[0] == "vlan:":
+                ifs[curif]["vlan"] = {}
+                ifs[curif]["vlan"]["id"] = toks[1]
+                for i in range(2, len(toks)):
+                    if toks[i] == "interface:":
+                        ifs[curif]["vlan"]["link"] = toks[i + 1]
 
         for i in ifs:
             ifstate = Ifstate(i, ifs[i])
