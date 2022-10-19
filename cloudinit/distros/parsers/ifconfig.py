@@ -67,6 +67,12 @@ class Ifstate:
             return True
         return False
 
+    @property
+    def is_wlan(self) -> bool:
+        if "wlan" in self.groups or self.vlan:
+            return True
+        return False
+
 
 # see man ifconfig(8)
 # - https://man.freebsd.org/ifconfig(8)
