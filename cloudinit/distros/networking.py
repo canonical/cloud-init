@@ -187,11 +187,12 @@ class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
     def __init__(self):
+        self.ifc = ifconfig.Ifconfig()
         self.ifs = {}
 
     def _update_ifs(self):
         ifs_txt, _ = subp.subp(["ifconfig", "-a"])
-        self.ifs = ifconfig.Ifconfig().parse(ifs_txt)
+        self.ifs = self.ifc.parse(ifs_txt)
 
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
         LOG.debug("Cannot rename network interface.")
