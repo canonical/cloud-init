@@ -252,10 +252,10 @@ class FreeBSDNetworking(BSDNetworking):
             # (success: not renamed) or 1 (failure: renamed), instead of
             # ripping thru the stack with an exception.
             # unfortunately, subp doesn't return exit codes.
-            subp.subp(["devinfo", "-p", devname], capture=False)
+            subp.subp(["devinfo", "-p", devname])
         except subp.ProcessExecutionError:
-            return False
-        return True
+            return True
+        return False
 
 
 class LinuxNetworking(Networking):
