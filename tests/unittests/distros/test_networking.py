@@ -13,7 +13,7 @@ from cloudinit.distros.networking import (
     LinuxNetworking,
     Networking,
 )
-from tests.unittests.helpers import does_not_raise
+from tests.unittests.helpers import does_not_raise, readResource
 
 
 @pytest.fixture
@@ -57,10 +57,12 @@ def sys_class_net(tmpdir):
         yield sys_class_net_path
 
 
+@mock.patch("cloudinit.subp.subp")
 class TestBSDNetworkingIsPhysical:
-    def test_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().is_physical("eth0")
+    def test_is_physical(self, m_subp):
+        ifs_txt = readResource("netinfo/freebsd-ifconfig-output")
+        m_subp.return_value = (ifs_txt, None)
+        assert BSDNetworking().is_physical("vtnet0")
 
 
 class TestLinuxNetworkingIsPhysical:
