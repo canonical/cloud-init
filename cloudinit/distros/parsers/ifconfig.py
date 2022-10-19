@@ -6,6 +6,7 @@
 
 import copy
 import re
+from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 from typing import Dict, Optional, Tuple
 
@@ -89,7 +90,14 @@ class Ifconfig:
     def __init__(self):
         self._ifs = {}
 
+    @lru_cache()
     def parse(self, text: str) -> Dict[str, Ifstate]:
+        """
+        parse returns a dict of Ifstates
+        This dict will always be the same, given the same input, so we can
+        lru_cache() it. note that lru_cache() takes only the __hash__() of the
+        input (text), so it should be fairly quick, despite our giant inputs.
+        """
         for line in text.splitlines():
             if len(line) == 0:
                 continue
