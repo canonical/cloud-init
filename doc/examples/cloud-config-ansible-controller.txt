@@ -22,11 +22,8 @@ lxd:
     storage_backend: dir
 
 # use a deploy key to clone a remote private repository then run two playbooks
-#
 # the first playbook starts a lxd container and creates a new inventory file
-#
 # the second playbook connects to and configures the container using ansible
-#
 # the playbooks can be inspected here [1]
 #
 # [1] https://github.com/holmanb/ansible-lxd-public
