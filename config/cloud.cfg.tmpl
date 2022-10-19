@@ -13,7 +13,7 @@ syslog_fix_perms: root:root
 # when a 'default' entry is found it will reference the 'default_user'
 # from the distro configuration specified below
 users:
-{% if variant in ["mariner", "photon"] %}
+{% if variant in ["photon"] %}
    - name: root
      lock_passwd: false
 {% else %}
