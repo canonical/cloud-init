@@ -34,7 +34,6 @@ write_files:
        WorkingDirectory=/root/playbooks/.git
        ExecStart=/usr/bin/env python3 -m http.server --bind 0.0.0.0 8000
 
-
   - path: /etc/systemd/system/repo_waiter.service
     content: |
        [Unit]
@@ -79,6 +78,7 @@ write_files:
              - "{{ item }}"
            state: latest
          loop: "{{ packages }}"
+
 runcmd:
   - [systemctl, enable, repo_server.service]
   - [systemctl, enable, repo_waiter.service]
@@ -239,6 +239,12 @@ write_files:
       Ok11rJYIe7+e9B0lhku0AFwGyqlWQmS/MhIpnjHIk5tP4heHGSmzKQWJDbTskNWd6aq1G7
       6HWfDpX4HgoM8AAAALaG9sbWFuYkBhcmM=
       -----END OPENSSH PRIVATE KEY-----
+
+# Work around this bug [1] by dropping the second interface after it is no
+# longer required
+# [1] https://github.com/canonical/pycloudlib/issues/220
+runcmd:
+  - [ip, link, delete, lxdbr0]
 """
 
 
@@ -287,9 +293,6 @@ class TestAnsiblePullDistro:
 class TestAnsibleController:
     def test_ansible_controller(self, client):
         log = client.read_from_file("/var/log/cloud-init.log")
-        # lxc pull file from container
-        # setup = client.execute("")
-        # assert not setup.stderr and not log.return_code
         verify_clean_log(log)
         content_ansible = client.execute(
             "lxc exec lxd-container-00 -- cat /home/ansible/ansible.txt"
