@@ -91,65 +91,65 @@ meta: MetaSchema = {
               preseed:
                 config:
                   core.https_address: 192.168.1.1:9999
-                  preseed:
                 networks:
-                - config:
-                    ipv4.address: 10.42.42.1/24
-                    ipv4.nat: true
-                    ipv6.address: fd42:4242:4242:4242::1/64
-                    ipv6.nat: true
-                  description: ""
-                  name: lxdbr0
-                  type: bridge
-                  project: default
-                  storage_pools:
+                  - config:
+                      ipv4.address: 10.42.42.1/24
+                      ipv4.nat: true
+                      ipv6.address: fd42:4242:4242:4242::1/64
+                      ipv6.nat: true
+                    description: ""
+                    name: lxdbr0
+                    type: bridge
+                    project: default
+                storage_pools:
                   - config:
                       size: 5GiB
                       source: /var/snap/lxd/common/lxd/disks/default.img
                     description: ""
                     name: default
-                    driver: {}
+                    driver: zfs
                 profiles:
-                - config: {}
-                  description: Default LXD profile
-                  devices:
-                    eth0:
-                      name: eth0
-                      network: lxdbr0
-                      type: nic
-                    root:
-                      path: /
-                      pool: default
-                      type: disk
-                  name: default
-                - config: {security.nesting: true}
-                  devices:
-                    eth0:
-                      name: eth0
-                      network: lxdbr0
-                      type: nic
-                    root:
-                      eath: /
-                      pool: default
-                      type: disk
-                  name: nested
+                  - config: {}
+                    description: Default LXD profile
+                    devices:
+                      eth0:
+                        name: eth0
+                        network: lxdbr0
+                        type: nic
+                      root:
+                        path: /
+                        pool: default
+                        type: disk
+                    name: default
+                  - config: {}
+                    security.nesting: true
+                    devices:
+                      eth0:
+                        name: eth0
+                        network: lxdbr0
+                        type: nic
+                      root:
+                        path: /
+                        pool: default
+                        type: disk
+                    name: nested
                 projects:
-                - config:
-                    features.images: true
-                    features.networks: true
-                    features.profiles: true
-                    features.storage.buckets: true
-                    features.storage.volumes: true
-                  description: Default LXD project
-                  name: default
-                - config:
-                    features.images: false
-                    features.networks: true
-                    features.profiles: false
-                    features.storage.buckets: false
-                    features.storage.volumes: false
-                  description: Limited Access LXD project
-                  name: limited
+                  - config:
+                      features.images: true
+                      features.networks: true
+                      features.profiles: true
+                      features.storage.volumes: true
+                    description: Default LXD project
+                    name: default
+                  - config:
+                      features.images: false
+                      features.networks: true
+                      features.profiles: false
+                      features.storage.volumes: false
+                    description: Limited Access LXD project
+                    name: limited
+
+
             """
         ),
     ],
@@ -227,8 +227,8 @@ def handle(
             log.warning("failed to install packages %s: %s", packages, exc)
             return
 
+    subp.subp(["lxd", "waitready", "--timeout=300"])
     if preseed_cfg:
-        subp.subp(["lxd", "waitready", "--timeout=300"])
         subp.subp(
             ["lxd", "init", "--preseed"], data=safeyaml.dumps(preseed_cfg)
         )
@@ -247,8 +247,6 @@ def handle(
             "storage_pool",
             "trust_password",
         )
-
-        subp.subp(["lxd", "waitready", "--timeout=300"])
 
         # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
         kernel = util.system_info()["uname"][2]

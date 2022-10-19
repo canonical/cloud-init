@@ -162,11 +162,7 @@ def validate_preseed_projects(client, preseed_cfg):
         project = yaml.safe_load(
             client.execute(f"lxc project show {src_project['name']}")
         )
-        assert [
-            "/1.0/profiles/bionic-vm-lxc-setup",
-            "/1.0/profiles/default",
-            "/1.0/networks/lxdbr0",
-        ] == project.pop("used_by")
+        project.pop("used_by", None)
         assert project == src_project
 
 
@@ -186,32 +182,33 @@ def test_storage_preseed_btrfs(client):
     validate_preseed_storage_pools(client, preseed_cfg)
     validate_preseed_projects(client, preseed_cfg)
 
-    @pytest.mark.no_container
-    @pytest.mark.user_data(STORAGE_USER_DATA.format("lvm"))
-    def test_storage_lvm(client):
-        log = client.read_from_file("/var/log/cloud-init.log")
 
-        # Note to self
-        if (
-            "doesn't use thinpool by default on Ubuntu due to LP" not in log
-            and "-kvm" not in client.execute("uname -r")
-        ):
-            warnings.warn(
-                "LP 1982780 has been fixed, update to allow thinpools"
-            )
-        validate_storage(client, "lvm2", "lvcreate")
+@pytest.mark.no_container
+@pytest.mark.user_data(STORAGE_USER_DATA.format("lvm"))
+def test_storage_lvm(client):
+    log = client.read_from_file("/var/log/cloud-init.log")
 
-    @pytest.mark.no_container
-    @pytest.mark.user_data(STORAGE_USER_DATA.format("zfs"))
-    def test_storage_zfs(client):
-        validate_storage(client, "zfsutils-linux", "zpool")
+    # Note to self
+    if (
+        "doesn't use thinpool by default on Ubuntu due to LP" not in log
+        and "-kvm" not in client.execute("uname -r")
+    ):
+        warnings.warn("LP 1982780 has been fixed, update to allow thinpools")
+    validate_storage(client, "lvm2", "lvcreate")
 
-    @pytest.mark.no_container
-    @pytest.mark.user_data(STORAGE_PRESEED_USER_DATA.format("zfs"))
-    def test_storage_preseed_zfs(client):
-        validate_storage(client, "zfsutils-linux", "zpool")
-        src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
-        preseed_cfg = src_cfg["lxd"]["preseed"]
-        validate_preseed_profiles(client, preseed_cfg)
-        validate_preseed_storage_pools(client, preseed_cfg)
-        validate_preseed_projects(client, preseed_cfg)
+
+@pytest.mark.no_container
+@pytest.mark.user_data(STORAGE_USER_DATA.format("zfs"))
+def test_storage_zfs(client):
+    validate_storage(client, "zfsutils-linux", "zpool")
+
+
+@pytest.mark.no_container
+@pytest.mark.user_data(STORAGE_PRESEED_USER_DATA.format("zfs"))
+def test_storage_preseed_zfs(client):
+    validate_storage(client, "zfsutils-linux", "zpool")
+    src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
+    preseed_cfg = src_cfg["lxd"]["preseed"]
+    validate_preseed_profiles(client, preseed_cfg)
+    validate_preseed_storage_pools(client, preseed_cfg)
+    validate_preseed_projects(client, preseed_cfg)
