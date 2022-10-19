@@ -223,6 +223,30 @@ class FreeBSDNetworking(BSDNetworking):
         # FreeBSD network script will rename the interface automatically.
         pass
 
+    def is_renamed(self, devname: DeviceName) -> bool:
+        if not self.ifs[devname].is_physical:
+            # Only physical devices can be renamed.
+            # cloned devices can be given any arbitrary name, so it makes no
+            # sense on them anyway
+            return False
+
+        try:
+            # check that `devinfo -p devname` returns the driver chain:
+            # $ devinfo -p em0
+            # => em0 pci0 pcib0 acpi0 nexus0
+            # if it doesn't, we know something's up:
+            # $ devinfo -p eth0
+            # => devinfo: eth0: Not found
+
+            # we could be catching exit codes here and check if they are 0
+            # (success: not renamed) or 1 (failure: renamed), instead of
+            # ripping thru the stack with an exception.
+            # unfortunately, subp doesn't return exit codes.
+            subp.subp(["devinfo", "-p", devname], capture=False)
+        except subp.ProcessExecutionError:
+            return False
+        return True
+
 
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
