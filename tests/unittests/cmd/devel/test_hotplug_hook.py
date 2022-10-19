@@ -1,5 +1,4 @@
 from collections import namedtuple
-from contextlib import suppress
 from unittest import mock
 from unittest.mock import call
 
