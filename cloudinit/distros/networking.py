@@ -4,6 +4,7 @@ import os
 from typing import List, Optional
 
 from cloudinit import net, subp, util
+from cloudinit.distros.parsers import ifconfig
 
 LOG = logging.getLogger(__name__)
 
@@ -185,11 +186,27 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def __init__(self):
+        ifs_txt = subp.subp(["ifconfig", "-a"])
+        self.ifs = ifconfig.Ifconfig().parse(ifs_txt)
+
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
         LOG.debug("Cannot rename network interface.")
 
     def is_physical(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        return self.ifs[devname].is_physical
+
+    def is_bond(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bond
+
+    def is_bridge(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bridge
+
+    def is_vlan(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_vlan
+
+    def is_up(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].up
 
     def settle(self, *, exists=None) -> None:
         """BSD has no equivalent to `udevadm settle`; noop."""
