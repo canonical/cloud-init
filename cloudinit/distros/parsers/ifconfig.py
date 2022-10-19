@@ -15,6 +15,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Ifstate:
+    """
+    This class holds the parsed state of a BSD network interface.
+    It is itself side-effect free.
+    All methods with side-effects should be implemented on one of the
+    BSDNetworking classes.
+    """
+
     def __init__(self, name):
         self.name = name
         self.inet = {}
