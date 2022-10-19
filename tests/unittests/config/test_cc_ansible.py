@@ -3,7 +3,7 @@ from copy import deepcopy
 from os import environ
 from textwrap import dedent
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import call, MagicMock
 
 from pytest import mark, param, raises
 
@@ -263,13 +263,13 @@ class TestAnsible:
         """assert exception not raised if package installed"""
         cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
 
-#    @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
-#    @mock.patch("cloudinit.distros.subp", return_value=("stdout", "stderr"))
-#    @mock.patch(M_PATH + "which", return_value=False)
-#    def test_pip_bootstrap(self, m_which, m_subp, m_subp2):
-#        distro = get_cloud(mocked_distro=True).distro
-#        cc_ansible.AnsiblePullPip(distro, "ansible").install("")
-#        distro.install_packages.assert_called_once()
+    @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "which", return_value=False)
+    def test_pip_bootstrap(self, m_which, m_subp):
+        distro = get_cloud(mocked_distro=True).distro
+        with mock.patch('builtins.__import__', side_effect=ImportError):
+            cc_ansible.AnsiblePullPip(distro, "ansible").install("")
+        distro.install_packages.assert_called_once()
 
     @mock.patch(M_PATH + "which", return_value=True)
     @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
@@ -339,34 +339,29 @@ class TestAnsible:
         cc_ansible.handle("", {}, get_cloud(), None, None)  # pyright: ignore
         assert not m_validate.called
 
-    #    @mock.patch(
-    #        "cloudinit.distros.subp",
-    #        side_effect=[
-    #            (distro_version, ""),
-    #            (pip_version, ""),
-    #            (" ansible 2.1.0", ""),
-    #            (" ansible 2.1.0", ""),
-    #        ],
-    #    )
-    #    def test_parse_version(self, m_subp1, m_subp2):
-    #        """Verify that the expected version is returned"""
-    #        distro = get_cloud().distro
-    #        assert cc_ansible.AnsiblePullDistro(
-    #            distro
-    #        ).get_version() == cc_ansible.Version(2, 10, 8)
-    #        assert cc_ansible.AnsiblePullPip(
-    #            distro,
-    #            "root"
-    #        ).get_version() == cc_ansible.Version(2, 13, 2)
-    #
-    #        assert (
-    #            util.Version(2, 1, 0, -1)
-    #            == cc_ansible.AnsiblePullPip(distro, "root").get_version()
-    #        )
-    #        assert (
-    #            util.Version(2, 1, 0, -1)
-    #            == cc_ansible.AnsiblePullDistro(distro).get_version()
-    #        )
+    @mock.patch(
+        "cloudinit.config.cc_ansible.subp", side_effect=[(distro_version, "")]
+    )
+    def test_parse_version_distro(self, m_subp):
+        """Verify that the expected version is returned"""
+        assert cc_ansible.AnsiblePullDistro(
+            get_cloud().distro
+        ).get_version() == util.Version(2, 10, 8)
+
+    @mock.patch(
+        "cloudinit.subp.subp", side_effect=[(pip_version, "")]
+    )
+    def test_parse_version_pip(self, m_subp):
+        """Verify that the expected version is returned"""
+        distro = get_cloud().distro
+        distro.do_as = MagicMock(return_value=(pip_version, ""))
+        pip = cc_ansible.AnsiblePullPip(
+            distro,
+            "root"
+        )
+        received = pip.get_version()
+        expected = util.Version(2, 13, 2)
+        assert received == expected
 
     @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     @mock.patch(M_PATH + "which", return_value=True)
