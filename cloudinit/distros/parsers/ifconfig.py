@@ -53,7 +53,11 @@ class Ifstate:
     def is_bridge(self) -> bool:
         if "bridge" in self.groups:
             return True
-        if self.members:
+        return False
+
+    @property
+    def is_bond(self) -> bool:
+        if "lagg" in self.groups:
             return True
         return False
 
@@ -140,7 +144,8 @@ class Ifconfig:
                 ip = self._parse_inet6(toks)
                 dev.inet6[ip[0]] = copy.deepcopy(ip[1])
 
-            if toks[0] == "member:":
+            # bridges and ports are kind of the same thing, right?
+            if toks[0] == "member:" or toks[0] == "laggport:":
                 dev.members += toks[1]
 
             if toks[0] == "vlan:":
