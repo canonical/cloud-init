@@ -20,7 +20,7 @@ class Ifstate:
     This class holds the parsed state of a BSD network interface.
     It is itself side-effect free.
     All methods with side-effects should be implemented on one of the
-    BSDNetworking classes.
+    ``BSDNetworking`` classes.
     """
 
     def __init__(self, name):
@@ -84,13 +84,13 @@ class Ifstate:
 
 class Ifconfig:
     """
-    A parser for BSD style ifconfig(8) output.
+    A parser for BSD style ``ifconfig(8)`` output.
     For documentation here:
     - https://man.freebsd.org/ifconfig(8)
     - https://man.netbsd.org/ifconfig.8
     - https://man.openbsd.org/ifconfig.8
     All output is considered equally, and then massaged into a singular form:
-    an Ifstate object.
+    an ``Ifstate`` object.
     """
 
     def __init__(self):
@@ -99,16 +99,16 @@ class Ifconfig:
     @lru_cache()
     def parse(self, text: str) -> Dict[str, Ifstate]:
         """
-        Parse the ifconfig -a output `text`, into a dict of `Ifstate`
-        objects, referenced by `name` *and* by `mac` address.
+        Parse the ``ifconfig -a`` output ``text``, into a dict of ``Ifstate``
+        objects, referenced by ``name`` *and* by ``mac`` address.
 
         This dict will always be the same, given the same input, so we can
-        `@lru_cache()` it. n.b.: `@lru_cache()` takes only the `__hash__()` of
-        the input (`text`), so it should be fairly quick, despite our giant
-        inputs.
+        ``@lru_cache()`` it. n.b.: ``@lru_cache()`` takes only the
+        ``__hash__()`` of the input (``text``), so it should be fairly quick,
+        despite our giant inputs.
 
-        @param text: The output of `ifconfig -a`
-        @returns: A dict of `Ifstate`s, referenced by `name` and by `mac`
+        @param text: The output of ``ifconfig -a``
+        @returns: A dict of ``Ifstate``s, referenced by ``name`` and ``mac``
         """
         for line in text.splitlines():
             if len(line) == 0:
