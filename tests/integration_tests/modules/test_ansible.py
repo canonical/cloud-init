@@ -109,8 +109,10 @@ git commit -m auto                                            &&\
 
 ANSIBLE_CONTROL = """\
 #cloud-config
-# uses deploy keys to pull from a remote repo and run
-# inside a container
+#
+# Demonstrate setting up an ansible controller host on boot.
+# This example installs a playbook repository from a remote private repository
+# and then runs two of the plays.
 
 packages_update: true
 packages_upgrade: true
@@ -118,6 +120,10 @@ packages:
   - git
   - python3-pip
 
+# Set up an ansible user
+# ----------------------
+# In this case I give the local ansible user passwordless sudo so that ansible
+# may write to a local root-only file.
 users:
 - name: ansible
   gecos: Ansible User
@@ -125,20 +131,25 @@ users:
   groups: users,admin,wheel,lxd
   sudo: ALL=(ALL) NOPASSWD:ALL
 
+# Initialize lxd using cloud-init.
+# --------------------------------
+# In this example, a lxd container is
+# started using ansible on boot, so having lxd initialized is required.
 lxd:
   init:
     storage_backend: dir
 
-# use a deploy key to clone a remote private repository then run two playbooks
+# Configure and run ansible on boot
+# ---------------------------------
+# Install ansible using pip, ensure that community.general collection is
+# installed [1].
+# Use a deploy key to clone a remote private repository then run two playbooks.
+# The first playbook starts a lxd container and creates a new inventory file.
+# The second playbook connects to and configures the container using ansible.
+# The public version of the playbooks can be inspected here [2]
 #
-# the first playbook starts a lxd container and creates a new inventory file
-#
-# the second playbook connects to and configures the container using ansible
-#
-# the playbooks can be inspected here [1]
-#
-# [1] https://github.com/holmanb/ansible-lxd-public
-# TODO: do we want this repo somewhere else?
+# [1] community.general is likely already installed by pip
+# [2] https://github.com/holmanb/ansible-lxd-public
 #
 ansible:
   install-method: pip
@@ -166,10 +177,14 @@ ansible:
         private-key: /home/ansible/.ssh/id_rsa
         inventory: new_ansible_hosts
 
-# this deploy key is tied to a private github repository[1]
-# this key exists to demonstrate deploy key usage in ansible
+# Write a deploy key to the filesystem for ansible.
+# -------------------------------------------------
+# This deploy key is tied to a private github repository [1]
+# This key exists to demonstrate deploy key usage in ansible
+# a duplicate public copy of the repository exists here[2]
 #
 # [1] https://github.com/holmanb/ansible-lxd-private
+# [2] https://github.com/holmanb/ansible-lxd-public
 #
 write_files:
   - path: /home/ansible/.ssh/known_hosts
