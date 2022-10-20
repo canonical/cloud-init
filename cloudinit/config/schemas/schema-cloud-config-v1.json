@@ -1,6 +1,111 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$defs": {
+    "all_modules": {
+      "enum": [
+        "ansible",
+        "apk-configure",
+        "apk_configure",
+        "apt-configure",
+        "apt_configure",
+        "apt-pipelining",
+        "apt_pipelining",
+        "bootcmd",
+        "byobu",
+        "ca-certs",
+        "ca_certs",
+        "chef",
+        "disable-ec2-metadata",
+        "disable_ec2_metadata",
+        "disk-setup",
+        "disk_setup",
+        "fan",
+        "final-message",
+        "final_message",
+        "growpart",
+        "grub-dpkg",
+        "grub_dpkg",
+        "install-hotplug",
+        "install_hotplug",
+        "keyboard",
+        "keys-to-console",
+        "keys_to_console",
+        "landscape",
+        "locale",
+        "lxd",
+        "mcollective",
+        "migrator",
+        "mounts",
+        "ntp",
+        "package-update-upgrade-install",
+        "package_update_upgrade_install",
+        "phone-home",
+        "phone_home",
+        "power-state-change",
+        "power_state_change",
+        "puppet",
+        "refresh-rmc-and-interface",
+        "refresh_rmc_and_interface",
+        "reset-rmc",
+        "reset_rmc",
+        "resizefs",
+        "resolv-conf",
+        "resolv_conf",
+        "rh-subscription",
+        "rh_subscription",
+        "rightscale-userdata",
+        "rightscale_userdata",
+        "rsyslog",
+        "runcmd",
+        "salt-minion",
+        "salt_minion",
+        "scripts-per-boot",
+        "scripts_per_boot",
+        "scripts-per-instance",
+        "scripts_per_instance",
+        "scripts-per-once",
+        "scripts_per_once",
+        "scripts-user",
+        "scripts_user",
+        "scripts-vendor",
+        "scripts_vendor",
+        "seed-random",
+        "seed_random",
+        "set-hostname",
+        "set_hostname",
+        "set-passwords",
+        "set_passwords",
+        "snap",
+        "spacewalk",
+        "ssh",
+        "ssh-authkey-fingerprints",
+        "ssh_authkey_fingerprints",
+        "ssh-import-id",
+        "ssh_import_id",
+        "timezone",
+        "ubuntu-advantage",
+        "ubuntu_advantage",
+        "ubuntu-autoinstall",
+        "ubuntu_autoinstall",
+        "ubuntu-drivers",
+        "ubuntu_drivers",
+        "update-etc-hosts",
+        "update_etc_hosts",
+        "update-hostname",
+        "update_hostname",
+        "users-groups",
+        "users_groups",
+        "wireguard",
+        "write-files",
+        "write_files",
+        "write-files-deferred",
+        "write_files_deferred",
+        "yum-add-repo",
+        "yum_add_repo",
+        "zypper-add-repo",
+        "zypper_add_repo"
+      ]
+    },
     "users_groups.groups_by_groupname": {
       "additionalProperties": false,
       "patternProperties": {
@@ -231,6 +336,31 @@
       },
       "minProperties": 1
     },
+    "modules_definition": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/all_modules"
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              { "enum": {"$ref": "#/$defs/all_modules"}},
+              { "enum": ["always", "once", "once-per-instance"]}
+            ]
+          }
+        ]
+      }
+    },
+    "base_config": {
+      "type": "object",
+      "properties": {
+        "cloud_init_modules": {"$ref": "#/$defs/modules_definition"},
+        "cloud_config_modules": {"$ref": "#/$defs/modules_definition"},
+        "cloud_final_modules": {"$ref": "#/$defs/modules_definition"}
+      }
+    },
     "cc_ubuntu_autoinstall": {
       "type": "object",
       "properties": {
@@ -262,6 +392,27 @@
                 "pip"
               ],
               "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+            },
+            "ansible_config": {
+              "description": "Sets the ANSIBLE_CONFIG environment variable. If set, overrides default config.",
+              "type": "string"
+            },
+            "galaxy": {
+              "required": ["actions"],
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^.*$"
+                    }
+                  }
+                }
+              }
             },
             "package-name": {
               "type": "string",
@@ -479,12 +630,16 @@
                       },
                       "filename": {
                           "type": "string"
+                      },
+                      "append": {
+                          "type": "boolean",
+                          "default": true
                       }
                   },
                   "minProperties": 1
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file.\n - ``append``: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
             }
           }
         }
@@ -1333,7 +1488,7 @@
             "ntp_client": {
               "type": "string",
               "default": "auto",
-              "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, ntpdate,\nsystemd-timesyncd."
+                "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, openntpd,\nntpdate, systemd-timesyncd."
             },
             "enabled": {
               "type": "boolean",
@@ -2229,37 +2384,38 @@
             },
             "config": {
               "type": "object",
-              "description": "Configuration settings or override Ubuntu Advantage config. Only used in non Ubuntu Pro instances.",
+              "description": "Configuration settings or override Ubuntu Advantage config.",
+              "additionalProperties": true,
               "properties": {
                 "http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "Ubuntu Advantage HTTP Proxy URL"
+                  "description": "Ubuntu Advantage HTTP Proxy URL or null to unset."
                 },
                 "https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "Ubuntu Advantage HTTPS Proxy URL"
+                  "description": "Ubuntu Advantage HTTPS Proxy URL or null to unset."
                 },
                 "global_apt_http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTP Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTP Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "global_apt_https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTPS Proxy URL used for all APT repositories on a system. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTPS Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "ua_apt_http_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                   "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                   "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 },
                 "ua_apt_https_proxy": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "format": "uri",
-                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
                 }
               }
             }
@@ -2658,6 +2814,7 @@
     }
   },
   "allOf": [
+    { "$ref": "#/$defs/base_config"},
     { "$ref": "#/$defs/cc_ansible" },
     { "$ref": "#/$defs/cc_apk_configure" },
     { "$ref": "#/$defs/cc_apt_configure" },

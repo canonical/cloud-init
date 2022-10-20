@@ -51,12 +51,18 @@ Having trouble? We would like to help!
 .. toctree::
    :hidden:
    :titlesonly:
+   :caption: Explanation
+
+   topics/configuration.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
    :caption: User Data
 
    topics/format.rst
    topics/examples.rst
    topics/events.rst
-   topics/modules.rst
    topics/merging.rst
 
 .. toctree::
@@ -68,6 +74,14 @@ Having trouble? We would like to help!
    topics/datasources.rst
    topics/vendordata.rst
    topics/network-config.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
+   :caption: Reference
+
+   topics/base_config_reference.rst
+   topics/modules.rst
 
 .. toctree::
    :hidden:

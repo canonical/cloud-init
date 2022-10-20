@@ -6,7 +6,7 @@
 
 import argparse
 
-from . import hotplug_hook, make_mime, net_convert, render
+from cloudinit.cmd.devel import hotplug_hook, make_mime, net_convert, render
 
 
 def get_parser(parser=None):

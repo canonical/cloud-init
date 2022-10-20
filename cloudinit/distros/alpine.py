@@ -21,6 +21,7 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(distros.Distro):
+    pip_package_name = "py3-pip"
     init_cmd = ["rc-service"]  # init scripts
     locale_conf_fn = "/etc/profile.d/locale.sh"
     network_conf_fn = "/etc/network/interfaces"

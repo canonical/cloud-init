@@ -30,7 +30,8 @@ The ``network`` key has at least two required elements.  First
 it must include ``version: 2``  and one or more of possible device
 ``types``.
 
-Cloud-init will read this format from system config.
+Cloud-init will read this format from :ref:`base_config_reference`.
+
 For example the following could be present in
 ``/etc/cloud/cloud.cfg.d/custom-networking.cfg``::
 

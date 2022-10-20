@@ -3005,6 +3005,17 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
             and self.rev == other.rev
         )
 
+    def __iter__(self):
+        """Iterate over the version (drop sentinels)"""
+        for n in (self.major, self.minor, self.patch, self.rev):
+            if n != -1:
+                yield str(n)
+            else:
+                break
+
+    def __str__(self):
+        return ".".join(self)
+
     def _compare_version(self, other) -> int:
         """
         return values:

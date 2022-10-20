@@ -2763,6 +2763,20 @@ class TestVersion:
             ) or util.Version.from_str(v1) == util.Version.from_str(v2)
 
     @pytest.mark.parametrize(
+        ("version"),
+        (
+            ("3.1.0"),
+            ("3.0.1"),
+            ("3.1"),
+            ("3.1.0.0"),
+            ("3.1.1"),
+        ),
+    )
+    def test_to_version_and_back_to_str(self, version):
+        """Verify __str__, __iter__, and Version.from_str()"""
+        assert version == str(util.Version.from_str(version))
+
+    @pytest.mark.parametrize(
         ("str_ver", "cls_ver"),
         (
             (

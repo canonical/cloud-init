@@ -47,6 +47,9 @@ Cloud-init config is provided in two places:
 These files can define the modules that run during instance initialization,
 the datasources to evaluate on boot, and other settings.
 
+See the :ref:`configuration sources explanation<configuration>` and
+:ref:`configuration reference<base_config_reference>` for more information.
+
 Where are the data files?
 =========================
 
@@ -160,7 +163,7 @@ To check if cloud-init is running still, run:
 
         $ cloud-init status
 
-To wait for clous-init to complete, run:
+To wait for cloud-init to complete, run:
 
 .. code-block:: shell-session
 

@@ -26,7 +26,12 @@ specified as a jinja template with the following variables set:
     - ``datasource``: cloud-init data source
     - ``uptime``: system uptime
 
-Upon exit, this module writes ``/var/lib/cloud/instance/boot-finished``.
+This message is written to the cloud-init log (usually /var/log/cloud-init.log)
+as well as stderr (which usually redirects to /var/log/cloud-init-output.log).
+
+Upon exit, this module writes the system uptime, timestamp, and cloud-init
+version to ``/var/lib/cloud/instance/boot-finished`` independent of any
+user data specified for this module.
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {

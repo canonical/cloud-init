@@ -917,13 +917,13 @@ def main(sysv_args=None):
         "--name",
         "-n",
         action="store",
-        help="module name to run",
+        help="Module name to run.",
         required=True,
     )
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="Set module frequency.",
+        help="Module frequency for this run.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )

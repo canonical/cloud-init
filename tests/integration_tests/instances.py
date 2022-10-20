@@ -210,4 +210,4 @@ class IntegrationInstance:
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
         else:
-            log.info("Keeping Instance, public ip: %s", self.ip)
+            log.info("Keeping Instance, public ip: %s", self.ip())
