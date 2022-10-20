@@ -8,6 +8,7 @@ import json
 import os
 import re
 import textwrap
+from typing import Optional
 
 import pytest
 from yaml.serializer import Serializer
@@ -379,7 +380,6 @@ network:
         bondM:
             addresses:
             - 10.101.10.47/23
-            gateway4: 10.101.11.254
             interfaces:
             - eno1
             - eno3
@@ -401,6 +401,10 @@ network:
                 mode: 802.3ad
                 transmit-hash-policy: layer3+4
                 up-delay: 0
+            routes:
+            -   metric: 100
+                to: default
+                via: 10.101.11.254
     vlans:
         bond0.3502:
             addresses:
@@ -2247,7 +2251,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         addresses:
                         - 192.168.0.2/24
                         - 192.168.2.10/24
-                        gateway4: 192.168.0.1
                         id: 101
                         link: eth0
                         macaddress: aa:bb:cc:dd:ee:11
@@ -2260,6 +2263,10 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                             - barley.maas
                             - sacchromyces.maas
                             - brettanomyces.maas
+                        routes:
+                        -   metric: 100
+                            to: default
+                            via: 192.168.0.1
         """
         ).rstrip(" "),
         "expected_sysconfig_opensuse": {
@@ -2971,7 +2978,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      - 192.168.0.2/24
                      - 192.168.1.2/24
                      - 2001:1::1/92
-                     gateway4: 192.168.0.1
                      interfaces:
                      - bond0s0
                      - bond0s1
@@ -2988,6 +2994,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          transmit-hash-policy: layer3+4
                          up-delay: 20
                      routes:
+                     -   metric: 100
+                         to: default
+                         via: 192.168.0.1
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
                      -   to: 2001:67c::/32
@@ -5993,26 +6002,96 @@ iface eth0 inet dhcp
             )
 
 
-class TestNetplanNetRendering(CiTestCase):
+class TestNetplanNetRendering:
+    @pytest.mark.parametrize(
+        "network_cfg,expected",
+        [
+            pytest.param(
+                None,
+                """
+                network:
+                  ethernets:
+                    eth1000:
+                      dhcp4: true
+                      match:
+                        macaddress: 07-1c-c6-75-a4-be
+                      set-name: eth1000
+                  version: 2
+                """,
+                id="default_generation",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      set-name: interface0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                          metric: 100
+                        - to: default
+                          via: 11.0.0.1
+                          metric: 100
+                """,
+                id="one_gateway4",
+            ),
+        ],
+    )
+    @mock.patch(
+        "cloudinit.net.netplan.Renderer.features",
+        new_callable=mock.PropertyMock(return_value=[]),
+    )
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.netplan._clean_default")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
-    def test_default_generation(
+    def test_render(
         self,
         mock_get_devicelist,
         mock_read_sys_net,
         mock_sys_dev_path,
         mock_clean_default,
         m_get_cmdline,
+        m_renderer_features,
+        network_cfg: Optional[str],
+        expected: str,
+        tmpdir,
     ):
-        tmp_dir = self.tmp_dir()
+        tmp_dir = str(tmpdir)
         _setup_test(
             tmp_dir, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
         )
 
-        network_cfg = net.generate_fallback_config()
+        if network_cfg is None:
+            network_cfg = net.generate_fallback_config()
+        else:
+            network_cfg = yaml.load(network_cfg)
+        assert isinstance(network_cfg, dict)
+
         ns = network_state.parse_net_config_data(
             network_cfg, skip_broken=False
         )
@@ -6026,25 +6105,13 @@ class TestNetplanNetRendering(CiTestCase):
         )
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(
-            os.path.exists(os.path.join(render_dir, render_target))
-        )
+        assert os.path.exists(os.path.join(render_dir, render_target))
         with open(os.path.join(render_dir, render_target)) as fh:
             contents = fh.read()
             print(contents)
 
-        expected = """
-network:
-    ethernets:
-        eth1000:
-            dhcp4: true
-            match:
-                macaddress: 07-1c-c6-75-a4-be
-            set-name: eth1000
-    version: 2
-"""
-        self.assertEqual(expected.lstrip(), contents.lstrip())
-        self.assertEqual(1, mock_clean_default.call_count)
+        assert yaml.load(expected) == yaml.load(contents)
+        assert 1, mock_clean_default.call_count
 
 
 class TestNetplanCleanDefault(CiTestCase):

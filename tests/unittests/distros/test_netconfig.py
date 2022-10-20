@@ -186,7 +186,10 @@ network:
         eth0:
             addresses:
             - 192.168.1.5/24
-            gateway4: 192.168.1.254
+            routes:
+            -   metric: 100
+                to: default
+                via: 192.168.1.254
         eth1:
             dhcp4: true
 """
@@ -203,7 +206,10 @@ network:
         eth0:
             addresses:
             - 2607:f0d0:1002:0011::2/64
-            gateway6: 2607:f0d0:1002:0011::1
+            routes:
+            -   metric: 100
+                to: default
+                via: 2607:f0d0:1002:0011::1
         eth1:
             dhcp4: true
 """
@@ -967,7 +973,10 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                         eth0:
                             addresses:
                             - 192.168.1.5/24
-                            gateway4: 192.168.1.254
+                            routes:
+                            -   metric: 100
+                                to: default
+                                via: 192.168.1.254
                         eth1:
                             dhcp4: true
                 """
