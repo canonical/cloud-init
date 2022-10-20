@@ -44,42 +44,29 @@ class Ifstate:
 
     @property
     def is_loopback(self) -> bool:
-        if "loopback" in self.flags or ("lo" in self.groups):
-            return True
-        return False
+        return "loopback" in self.flags or "lo" in self.groups
 
     @property
     def is_physical(self) -> bool:
         # OpenBSD makes this very easy:
-        if "egress" in self.groups:
-            return True
-        if self.groups == [] and self.media and "Ethernet" in self.media:
-            return True
-        return False
+        return "egress" in self.groups
+        return self.groups == [] and self.media and "Ethernet" in self.media
 
     @property
     def is_bridge(self) -> bool:
-        if "bridge" in self.groups:
-            return True
-        return False
+        return "bridge" in self.groups
 
     @property
     def is_bond(self) -> bool:
-        if "lagg" in self.groups:
-            return True
-        return False
+        return "lagg" in self.groups
 
     @property
     def is_vlan(self) -> bool:
-        if "vlan" in self.groups or self.vlan:
-            return True
-        return False
+        return "vlan" in self.groups or self.vlan
 
     @property
     def is_wlan(self) -> bool:
-        if "wlan" in self.groups or self.vlan:
-            return True
-        return False
+        return "wlan" in self.groups or self.vlan
 
 
 class Ifconfig:
