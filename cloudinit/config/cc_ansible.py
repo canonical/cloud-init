@@ -209,12 +209,13 @@ def validate_config(cfg: dict):
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:
-        if not any([
-            controller_cfg.get("repositories"),
-            controller_cfg.get("run_ansible")
-        ]):
-            raise ValueError(
-                f"Missing required key from {controller_cfg}")
+        if not any(
+            [
+                controller_cfg.get("repositories"),
+                controller_cfg.get("run_ansible"),
+            ]
+        ):
+            raise ValueError(f"Missing required key from {controller_cfg}")
 
     install = cfg["install-method"]
     if install not in ("pip", "distro"):

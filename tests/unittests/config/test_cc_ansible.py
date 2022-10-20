@@ -3,7 +3,7 @@ from copy import deepcopy
 from os import environ
 from textwrap import dedent
 from unittest import mock
-from unittest.mock import call, MagicMock
+from unittest.mock import MagicMock, call
 
 from pytest import mark, param, raises
 
@@ -43,7 +43,55 @@ pip_version = dedent(
   libyaml = True """
 )
 
-CFG_FULL = {
+CFG_CTRL = {
+    "ansible": {
+        "install-method": "distro",
+        "package-name": "ansible-core",
+        "ansible_config": "/etc/ansible/ansible.cfg",
+        "galaxy": {
+            "actions": [["ansible-galaxy", "install", "debops.apt"]],
+        },
+        "setup_controller": {
+            "repositories": [
+                {
+                    "path": "/home/ansible/public/",
+                    "source": "git@github.com:holmanb/ansible-lxd-public.git",
+                },
+                {
+                    "path": "/home/ansible/private/",
+                    "source": "git@github.com:holmanb/ansible-lxd-private.git",
+                },
+                {
+                    "path": "/home/ansible/vmboot",
+                    "source": "git@github.com:holmanb/vmboot.git",
+                },
+            ],
+            "run_ansible": [
+                {
+                    "playbook-dir": "/home/ansible/my-repo",
+                    "playbook-name": "start-lxd.yml",
+                    "timeout": 120,
+                    "forks": 1,
+                    "private-key": "/home/ansible/.ssh/id_rsa",
+                }, {
+                    "playbook-name": "configure-lxd.yml",
+                    "become-user": "ansible",
+                    "timeout": 120,
+                    "forks": 1,
+                    "private-key": "/home/ansible/.ssh/id_rsa",
+                    "become-password-file": "/path/less/traveled",
+                    "connection-password-file": "/path/more/traveled",
+                    "module-path": "/path/head/traveled",
+                    "vault-password-file": "/path/tail/traveled",
+                    "playbook-dir": "/path/to/nowhere",
+                    "inventory": "/a/file/as/well",
+                }
+            ]
+        },
+    },
+}
+
+CFG_FULL_PULL = {
     "ansible": {
         "install-method": "distro",
         "package-name": "ansible-core",
@@ -76,6 +124,7 @@ CFG_FULL = {
         },
     }
 }
+
 CFG_MINIMAL = {
     "ansible": {
         "install-method": "pip",
@@ -113,9 +162,14 @@ class TestSchema:
                 id="additional-properties",
             ),
             param(
-                CFG_FULL,
+                CFG_FULL_PULL,
                 None,
-                id="all-keys",
+                id="all-pull-keys",
+            ),
+            param(
+                CFG_CTRL,
+                None,
+                id="ctrl-keys",
             ),
             param(
                 {
@@ -169,7 +223,7 @@ class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
         out = cc_ansible.filter_args(
-            CFG_FULL.get("ansible", {}).get("pull", {})
+            CFG_FULL_PULL.get("ansible", {}).get("pull", {})
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
@@ -197,7 +251,7 @@ class TestAnsible:
     @mark.parametrize(
         ("cfg", "exception"),
         (
-            (CFG_FULL, None),
+            (CFG_FULL_PULL, None),
             (CFG_MINIMAL, None),
             (
                 {
@@ -267,7 +321,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "which", return_value=False)
     def test_pip_bootstrap(self, m_which, m_subp):
         distro = get_cloud(mocked_distro=True).distro
-        with mock.patch('builtins.__import__', side_effect=ImportError):
+        with mock.patch("builtins.__import__", side_effect=ImportError):
             cc_ansible.AnsiblePullPip(distro, "ansible").install("")
         distro.install_packages.assert_called_once()
 
@@ -278,7 +332,7 @@ class TestAnsible:
         ("cfg", "expected"),
         (
             (
-                CFG_FULL,
+                CFG_FULL_PULL,
                 [
                     "ansible-pull",
                     "--url=https://github/holmanb/vmboot",
@@ -348,17 +402,12 @@ class TestAnsible:
             get_cloud().distro
         ).get_version() == util.Version(2, 10, 8)
 
-    @mock.patch(
-        "cloudinit.subp.subp", side_effect=[(pip_version, "")]
-    )
+    @mock.patch("cloudinit.subp.subp", side_effect=[(pip_version, "")])
     def test_parse_version_pip(self, m_subp):
         """Verify that the expected version is returned"""
         distro = get_cloud().distro
         distro.do_as = MagicMock(return_value=(pip_version, ""))
-        pip = cc_ansible.AnsiblePullPip(
-            distro,
-            "root"
-        )
+        pip = cc_ansible.AnsiblePullPip(distro, "root")
         received = pip.get_version()
         expected = util.Version(2, 13, 2)
         assert received == expected
@@ -366,7 +415,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "subp", return_value=("stdout", "stderr"))
     @mock.patch(M_PATH + "which", return_value=True)
     def test_ansible_env_var(self, m_which, m_subp):
-        cc_ansible.handle("", CFG_FULL, get_cloud(), mock.Mock(), [])
+        cc_ansible.handle("", CFG_FULL_PULL, get_cloud(), mock.Mock(), [])
 
         # python 3.8 required for Mock.call_args.kwargs dict attribute
         if isinstance(m_subp.call_args.kwargs, dict):
