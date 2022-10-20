@@ -5,7 +5,6 @@ import re
 import sys
 from copy import deepcopy
 from logging import Logger, getLogger
-from site import getuserbase
 from textwrap import dedent
 from typing import Optional
 
@@ -133,7 +132,7 @@ class AnsiblePullPip(AnsiblePull):
         if not self.is_installed():
             # bootstrap pip if required
             try:
-                import pip  # type: ignore # noqa: F401
+                import pip  # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
             cmd = [sys.executable, "-m", "pip", "install"]

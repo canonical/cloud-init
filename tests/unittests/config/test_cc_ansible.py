@@ -3,7 +3,7 @@ from copy import deepcopy
 from os import environ
 from textwrap import dedent
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from pytest import mark, param, raises
 
@@ -73,7 +73,8 @@ CFG_CTRL = {
                     "timeout": 120,
                     "forks": 1,
                     "private-key": "/home/ansible/.ssh/id_rsa",
-                }, {
+                },
+                {
                     "playbook-name": "configure-lxd.yml",
                     "become-user": "ansible",
                     "timeout": 120,
@@ -85,8 +86,8 @@ CFG_CTRL = {
                     "vault-password-file": "/path/tail/traveled",
                     "playbook-dir": "/path/to/nowhere",
                     "inventory": "/a/file/as/well",
-                }
-            ]
+                },
+            ],
         },
     },
 }
@@ -279,7 +280,7 @@ class TestAnsible:
         ),
     )
     def test_required_keys(self, cfg, exception, mocker):
-        m_subp = mocker.patch(M_PATH + "subp", return_value=("", ""))
+        mocker.patch(M_PATH + "subp", return_value=("", ""))
         mocker.patch(M_PATH + "which", return_value=True)
         mocker.patch(M_PATH + "AnsiblePull.check_deps")
         mocker.patch(
