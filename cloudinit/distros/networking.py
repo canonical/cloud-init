@@ -217,7 +217,11 @@ class BSDNetworking(Networking):
         """BSD has no equivalent to `udevadm settle`; noop."""
 
     def try_set_link_up(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        """Try setting the link to up explicitly and return if it is up.
+        Not guaranteed to bring the interface up. The caller is expected to
+        add wait times before retrying."""
+        subp.subp(["ifconfig", devname, "up"])
+        return self.is_up(devname)
 
 
 class FreeBSDNetworking(BSDNetworking):
