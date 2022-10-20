@@ -7,7 +7,7 @@ This datasource is for use with systems running on a VMware platform such as
 vSphere and currently supports the following data transports:
 
 
-* `Guest OS Customization <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-58E346FF-83AE-42B8-BE58-253641D257BC.html>`_
+* `Guest OS Customization <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-58E346FF-83AE-42B8-BE58-253641D257BC.html>`_
 * `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md>`_ keys
 
 Configuration

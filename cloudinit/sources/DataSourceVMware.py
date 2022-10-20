@@ -124,19 +124,19 @@ class DataSourceVMware(sources.DataSource):
         0.7.9 and does not support Network Config Version 2.
 
         imc transport:
-        Either Network Config Version 1 or Network Config Version 2 is
-        supported which depends on the customization type.
-        For LinuxPrep customization, Network config Version 1 data is
-        parsed from the customization specification.
-        For CloudinitPrep customization, Network config Version 2 data
-        is parsed from the customization specification.
+            Either Network Config Version 1 or Network Config Version 2 is
+            supported which depends on the customization type.
+            For LinuxPrep customization, Network config Version 1 data is
+            parsed from the customization specification.
+            For CloudinitPrep customization, Network config Version 2 data
+            is parsed from the customization specification.
 
         envvar and guestinfo tranports:
-        Network Config Version 2 data is supported as long as the Linux
-        distro's cloud-init package is new enough to parse the data.
-        The metadata key "network.encoding" may be used to indicate the
-        format of the metadata key "network". Valid encodings are base64
-        and gzip+base64.
+            Network Config Version 2 data is supported as long as the Linux
+            distro's cloud-init package is new enough to parse the data.
+            The metadata key "network.encoding" may be used to indicate the
+            format of the metadata key "network". Valid encodings are base64
+            and gzip+base64.
     """
 
     dsname = "VMware"
