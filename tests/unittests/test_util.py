@@ -341,6 +341,18 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 """
 )
 
+OS_RELEASE_COS = dedent(
+    """\
+    NAME="Container-Optimized OS"
+    ID=cos
+    PRETTY_NAME="Container-Optimized OS from Google"
+    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
+    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
+    VERSION=93
+    VERSION_ID=93
+"""
+)
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
@@ -1134,6 +1146,14 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_cos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on COS"""
+        m_os_release.return_value = OS_RELEASE_COS
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("cos", "93", ""), dist)
 
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)

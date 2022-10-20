@@ -372,6 +372,10 @@ class TestNtp(FilesystemMockingTestCase):
         valid_empty_configs = [{"ntp": {}}, {"ntp": None}]
         for valid_empty_config in valid_empty_configs:
             for distro in cc_ntp.distros:
+                # skip the test if the distro is COS. As in COS, the default
+                # config file is installed
+                if distro == "cos":
+                    return
                 mycloud = self._get_cloud(distro)
                 ntpconfig = self._mock_ntp_client_config(distro=distro)
                 confpath = ntpconfig["confpath"]
@@ -451,6 +455,11 @@ class TestNtp(FilesystemMockingTestCase):
                 service_name,
             ]
             expected_content = "servers []\npools {0}\n".format(hosts)
+
+            # skip the test if the distro is COS. As in COS, the default
+            # config file is installed
+            if distro == "cos":
+                return
 
             if distro == "alpine":
                 uses_systemd = False

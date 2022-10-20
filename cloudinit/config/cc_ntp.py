@@ -28,6 +28,7 @@ distros = [
     "alpine",
     "centos",
     "cloudlinux",
+    "cos",
     "debian",
     "eurolinux",
     "fedora",
@@ -107,6 +108,12 @@ DISTRO_CLIENT_CONFIG = {
         },
         "chrony": {
             "service_name": "chronyd",
+        },
+    },
+    "cos": {
+        "chrony": {
+            "service_name": "chronyd",
+            "confpath": "/etc/chrony/chrony.conf",
         },
     },
     "debian": {
@@ -423,6 +430,8 @@ def write_ntp_config_template(
     if not pools:
         pools = []
 
+    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
+        return
     if (
         len(servers) == 0
         and distro_name == "alpine"

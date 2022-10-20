@@ -247,7 +247,7 @@ class TestCLI:
                 [
                     "**Supported distros:** all",
                     "**Supported distros:** almalinux, alpine, centos, "
-                    "cloudlinux, debian, eurolinux, fedora, freebsd, "
+                    "cloudlinux, cos, debian, eurolinux, fedora, freebsd, "
                     "miraclelinux, openbsd, openEuler, openmandriva, "
                     "opensuse, photon, rhel, rocky, sles, ubuntu, virtuozzo",
                     "**Config schema**:\n    **resize_rootfs:** "
