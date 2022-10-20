@@ -112,10 +112,11 @@ class Ifconfig:
 
             if len(toks) > 1 and toks[1].startswith("flags="):
                 flags = self._parse_flags(toks)
-                dev.flags = copy.deepcopy(flags["flags"])
-                dev.up = flags["up"]
-                dev.mtu = flags["mtu"]
-                dev.metric = flags["metric"]
+                if flags != {}:
+                    dev.flags = copy.deepcopy(flags["flags"])
+                    dev.up = flags["up"]
+                    dev.mtu = flags["mtu"]
+                    dev.metric = flags["metric"]
             if toks[0].startswith("capabilities="):
                 caps = re.split(r"<|>", toks[0])
                 dev.flags.append(caps)
