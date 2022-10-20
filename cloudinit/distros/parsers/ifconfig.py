@@ -51,7 +51,9 @@ class Ifstate:
         # OpenBSD makes this very easy:
         if "egress" in self.groups:
             return True
-        return self.groups == [] and self.media and "Ethernet" in self.media
+        if self.groups == [] and self.media and "Ethernet" in self.media:
+            return True
+        return False
 
     @property
     def is_bridge(self) -> bool:
