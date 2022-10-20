@@ -189,6 +189,7 @@ class BSDNetworking(Networking):
     def __init__(self):
         self.ifc = ifconfig.Ifconfig()
         self.ifs = {}
+        self._update_ifs()
 
     def _update_ifs(self):
         ifs_txt, _ = subp.subp(["ifconfig", "-a"])
@@ -198,23 +199,18 @@ class BSDNetworking(Networking):
         LOG.debug("Cannot rename network interface.")
 
     def is_physical(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         return self.ifs[devname].is_physical
 
     def is_bond(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         return self.ifs[devname].is_bond
 
     def is_bridge(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         return self.ifs[devname].is_bridge
 
     def is_vlan(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         return self.ifs[devname].is_vlan
 
     def is_up(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         return self.ifs[devname].up
 
     def settle(self, *, exists=None) -> None:
@@ -233,7 +229,6 @@ class FreeBSDNetworking(BSDNetworking):
         pass
 
     def is_renamed(self, devname: DeviceName) -> bool:
-        self._update_ifs()
         if not self.ifs[devname].is_physical:
             # Only physical devices can be renamed.
             # cloned devices can be given any arbitrary name, so it makes no
