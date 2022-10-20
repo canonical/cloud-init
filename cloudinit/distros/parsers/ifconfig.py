@@ -49,7 +49,8 @@ class Ifstate:
     @property
     def is_physical(self) -> bool:
         # OpenBSD makes this very easy:
-        return "egress" in self.groups
+        if "egress" in self.groups:
+            return True
         return self.groups == [] and self.media and "Ethernet" in self.media
 
     @property
