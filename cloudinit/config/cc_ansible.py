@@ -69,7 +69,7 @@ class AnsiblePull(abc.ABC):
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
         self.env = os.environ
-        self.run_user = None
+        self.run_user: Optional[str] = None
 
         # some ansible modules directly reference os.environ["HOME"]
         # and cloud-init might not have that set, default: /root
