@@ -132,7 +132,20 @@ class TestLxd(t_help.CiTestCase):
     def test_lxd_preseed(self, mock_subp):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
-        cc_lxd.handle("cc_lxd", {"chad": True}, cc, self.logger, [])
+        cc_lxd.handle(
+            "cc_lxd",
+            {"lxd": {"preseed": '{"chad": True}'}},
+            cc,
+            self.logger,
+            [],
+        )
+        self.assertEqual(
+            [
+                mock.call(["lxd", "waitready", "--timeout=300"]),
+                mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
+            ],
+            mock_subp.subp.call_args_list,
+        )
 
     def test_lxd_debconf_new_full(self):
         data = {
@@ -373,9 +386,11 @@ class TestLXDSchema:
             # Require bridge.mode
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
-            ({"lxd": {}}, "does not have enough properties"),
-            # Require some non-empty preseed config
-            ({"lxd": {"preseed": {}}}, "does not have enough properties"),
+            ({"lxd": {}}, "lxd: {} does not have enough properties"),
+            # Require some non-empty preseed config of type string
+            ({"lxd": {"preseed": {}}}, "not of type 'string'"),
+            ({"lxd": {"preseed": ""}}, None),
+            ({"lxd": {"preseed": "this is {} opaque"}}, None),
             # Require bridge.mode
             ({"lxd": {"bridge": {"mode": "new", "mtu": 9000}}}, None),
             # LXD's default value
