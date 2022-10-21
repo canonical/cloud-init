@@ -757,6 +757,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Hetzner cloud is identified in sys_vendor."""
         self._test_ds_found("Hetzner")
 
+    def test_nwcs_found(self):
+        """NWCS is identified in sys_vendor."""
+        self._test_ds_found("NWCS")
+
     def test_smartos_bhyve(self):
         """SmartOS cloud identified by SmartDC in dmi."""
         self._test_ds_found("SmartOS-bhyve")
@@ -1446,6 +1450,21 @@ VALID_CFG = {
     "Hetzner-dmidecode": {
         "ds": "Hetzner",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Hetzner"}],
+    },
+    "NWCS": {
+        "ds": "NWCS",
+        "files": {P_SYS_VENDOR: "NWCS\n"},
+    },
+    "NWCS-kenv": {
+        "ds": "NWCS",
+        "mocks": [
+            MOCK_UNAME_IS_FREEBSD,
+            {"name": "get_kenv_field", "ret": 0, "RET": "NWCS"},
+        ],
+    },
+    "NWCS-dmidecode": {
+        "ds": "NWCS",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "NWCS"}],
     },
     "IBMCloud-metadata": {
         "ds": "IBMCloud",

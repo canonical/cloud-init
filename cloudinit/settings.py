@@ -41,6 +41,7 @@ CFG_BUILTIN = {
         "Bigstep",
         "Scaleway",
         "Hetzner",
+        "NWCS",
         "IBMCloud",
         "Oracle",
         "Exoscale",
