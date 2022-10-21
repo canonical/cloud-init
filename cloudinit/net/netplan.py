@@ -46,7 +46,7 @@ def _get_params_dict_by_match(config, match):
 def _extract_addresses(config: dict, entry: dict, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
-       netplan yaml.
+       netplan yaml. (network config v1 -> v2)
 
     An example config dictionary might look like:
 
@@ -118,7 +118,7 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                 new_route = {
                     "via": subnet.get("gateway"),
                     "to": "default",
-                    "metric": 100,
+                    "metric": 100,  # do not deprioritize this route
                 }
                 routes.append(new_route)
             if "dns_nameservers" in subnet:

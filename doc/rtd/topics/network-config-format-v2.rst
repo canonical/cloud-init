@@ -233,6 +233,7 @@ Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
 
 **gateway4**: or **gateway6**: *<(scalar)>*
 
+Deprecated, see `netplan#default-routes`_.
 Set default gateway for IPv4/6, for manual address configuration. This
 requires setting ``addresses`` too. Gateway IPs must be in a form
 recognized by ``inet_pton(3)``
@@ -572,5 +573,6 @@ This is a complex example which shows most available features: ::
         dhcp4: yes
 
 .. _netplan: https://netplan.io
+.. _netplan#default-routes: https://netplan.io/reference#default-routes
 .. _netplan#dhcp-overrides: https://netplan.io/reference#dhcp-overrides
 .. vi: textwidth=79
