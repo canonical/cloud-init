@@ -239,20 +239,20 @@ class FreeBSDNetworking(BSDNetworking):
             # sense on them anyway
             return False
 
-        try:
-            # check that `devinfo -p devname` returns the driver chain:
-            # $ devinfo -p em0
-            # => em0 pci0 pcib0 acpi0 nexus0
-            # if it doesn't, we know something's up:
-            # $ devinfo -p eth0
-            # => devinfo: eth0: Not found
+        # check that `devinfo -p devname` returns the driver chain:
+        # $ devinfo -p em0
+        # => em0 pci0 pcib0 acpi0 nexus0
+        # if it doesn't, we know something's up:
+        # $ devinfo -p eth0
+        # => devinfo: eth0: Not found
 
-            # we could be catching exit codes here and check if they are 0
-            # (success: not renamed) or 1 (failure: renamed), instead of
-            # ripping thru the stack with an exception.
-            # unfortunately, subp doesn't return exit codes.
-            subp.subp(["devinfo", "-p", devname])
-        except subp.ProcessExecutionError:
+        # we could be catching exit codes here and check if they are 0
+        # (success: not renamed) or 1 (failure: renamed), instead of
+        # ripping thru the stack with an exception.
+        # unfortunately, subp doesn't return exit codes.
+        # so we do the next best thing, and compare the output.
+        _, err = subp.subp(["devinfo", "-p", devname], rcs=[0, 1])
+        if err == "devinfo: {}: Not found\n".format(devname):
             return True
         return False
 
