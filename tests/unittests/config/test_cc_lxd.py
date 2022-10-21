@@ -128,6 +128,12 @@ class TestLxd(t_help.CiTestCase):
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
 
+    @mock.patch("cloudinit.config.cc_lxd.subp")
+    def test_lxd_preseed(self, mock_subp):
+        cc = get_cloud()
+        cc.distro = mock.MagicMock()
+        cc_lxd.handle("cc_lxd", {"chad": True}, cc, self.logger, [])
+
     def test_lxd_debconf_new_full(self):
         data = {
             "mode": "new",
@@ -321,20 +327,27 @@ class TestLxdMaybeCleanupDefault(t_help.CiTestCase):
 
 class TestGetRequiredPackages:
     @pytest.mark.parametrize(
-        "storage_type, cmd, package",
+        "storage_type, cmd, preseed, package",
         (
-            ("zfs", "zfs", "zfsutils-linux"),
-            ("btrfs", "mkfs.btrfs", "btrfs-progs"),
-            ("lvm", "lvcreate", "lvm2"),
-            ("dir", None, None),
+            ("zfs", "zfs", "", "zfsutils-linux"),
+            ("btrfs", "mkfs.btrfs", "", "btrfs-progs"),
+            ("lvm", "lvcreate", "", "lvm2"),
+            ("lvm", "lvcreate", "storage_pools: [{driver: lvm}]", "lvm2"),
+            ("dir", None, "", None),
         ),
     )
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
-    def test_lxd_package_install(self, m_which, storage_type, cmd, package):
-        lxd_cfg = deepcopy(LXD_INIT_CFG)
-        lxd_cfg["lxd"]["init"]["storage_backend"] = storage_type
+    def test_lxd_package_install(
+        self, m_which, storage_type, cmd, preseed, package
+    ):
+        if preseed:  # preseed & lxd.init mutually exclusive
+            init_cfg = {}
+        else:
+            lxd_cfg = deepcopy(LXD_INIT_CFG)
+            lxd_cfg["lxd"]["init"]["storage_backend"] = storage_type
+            init_cfg = lxd_cfg["lxd"]["init"]
 
-        packages = cc_lxd.get_required_packages(lxd_cfg["lxd"]["init"], {})
+        packages = cc_lxd.get_required_packages(init_cfg, preseed)
         assert "lxd" in packages
         which_calls = [mock.call("lxd")]
         if package:
@@ -387,29 +400,29 @@ class TestLXDSchema:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
     @pytest.mark.parametrize(
-        "init_cfg, bridge_cfg, preseed_cfg, error_expectation",
+        "init_cfg, bridge_cfg, preseed_str, error_expectation",
         (
             pytest.param(
-                {}, {}, {}, t_help.does_not_raise(), id="empty_cfgs_no_errors"
+                {}, {}, "", t_help.does_not_raise(), id="empty_cfgs_no_errors"
             ),
             pytest.param(
                 {"init-cfg": 1},
                 {"bridge-cfg": 2},
-                {},
+                "",
                 t_help.does_not_raise(),
                 id="cfg_init_and_bridge_allowed",
             ),
             pytest.param(
                 {},
                 {},
-                {"preseed-cfg": 3},
+                "profiles: []",
                 t_help.does_not_raise(),
                 id="cfg_preseed_allowed_without_bridge_or_init",
             ),
             pytest.param(
                 {"init-cfg": 1},
                 {"bridge-cfg": 2},
-                {"preseed-cfg": 3},
+                "profiles: []",
                 pytest.raises(
                     ValueError,
                     match=re.escape(
@@ -421,7 +434,7 @@ class TestLXDSchema:
             pytest.param(
                 "nope",
                 {},
-                {},
+                "",
                 pytest.raises(
                     ValueError,
                     match=re.escape(
@@ -432,7 +445,7 @@ class TestLXDSchema:
         ),
     )
     def test_supplemental_schema_validation_raises_value_error(
-        self, init_cfg, bridge_cfg, preseed_cfg, error_expectation
+        self, init_cfg, bridge_cfg, preseed_str, error_expectation
     ):
         """LXD is strict on invalid user-data raising conspicuous ValueErrors
         cc_lxd.supplemental_schema_validation
@@ -442,7 +455,7 @@ class TestLXDSchema:
         """
         with error_expectation:
             cc_lxd.supplemental_schema_validation(
-                init_cfg, bridge_cfg, preseed_cfg
+                init_cfg, bridge_cfg, preseed_str
             )
 
 

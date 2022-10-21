@@ -78,7 +78,7 @@ meta: MetaSchema = {
             """\
             # For more complex non-iteractive LXD configuration of networks,
             # storage_pools, profiles, projects, clusters and core config,
-            # `lxd:preseed` config can be passed directly to the command:
+            # `lxd:preseed` config will be passed as stdin to the command:
             #  lxd init --preseed
             # See https://linuxcontainers.org/lxd/docs/master/preseed/ or
             # run: lxd init --dump to see viable preseed YAML allowed.
@@ -88,7 +88,7 @@ meta: MetaSchema = {
             # LXD nesting on containers and a limited project allowing for
             # RBAC approach when defining behavior for sub projects.
             lxd:
-              preseed:
+              preseed: |
                 config:
                   core.https_address: 192.168.1.1:9999
                 networks:
@@ -161,7 +161,7 @@ __doc__ = get_meta_doc(meta)
 
 
 def supplemental_schema_validation(
-    init_cfg: dict, bridge_cfg: dict, preseed_cfg: dict
+    init_cfg: dict, bridge_cfg: dict, preseed_str: str
 ):
     """Validate user-provided lxd network and bridge config option values.
 
@@ -180,12 +180,12 @@ def supplemental_schema_validation(
             f" '{type(bridge_cfg).__name__}'",
         )
 
-    if not isinstance(preseed_cfg, dict):
+    if not isinstance(preseed_str, str):
         errors.append(
-            f"lxd.preseed config must be a dictionary. found a"
-            f" '{type(preseed_cfg).__name__}'",
+            f"lxd.preseed config must be a string. found a"
+            f" '{type(preseed_str).__name__}'",
         )
-    if preseed_cfg and (init_cfg or bridge_cfg):
+    if preseed_str and (init_cfg or bridge_cfg):
         incompat_cfg = ["lxd.init"] if init_cfg else []
         incompat_cfg += ["lxd.bridge"] if bridge_cfg else []
 
@@ -215,11 +215,11 @@ def handle(
 
     # Grab the configuration
     init_cfg = lxd_cfg.get("init", {})
-    preseed_cfg = lxd_cfg.get("preseed", {})
+    preseed_str = lxd_cfg.get("preseed", "")
     bridge_cfg = lxd_cfg.get("bridge", {})
-    supplemental_schema_validation(init_cfg, bridge_cfg, preseed_cfg)
+    supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str)
 
-    packages = get_required_packages(init_cfg, preseed_cfg)
+    packages = get_required_packages(init_cfg, preseed_str)
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
@@ -228,10 +228,8 @@ def handle(
             return
 
     subp.subp(["lxd", "waitready", "--timeout=300"])
-    if preseed_cfg:
-        subp.subp(
-            ["lxd", "init", "--preseed"], data=safeyaml.dumps(preseed_cfg)
-        )
+    if preseed_str:
+        subp.subp(["lxd", "init", "--preseed"], data=preseed_str)
         return
     # Set up lxd if init config is given
     if init_cfg:
@@ -498,7 +496,7 @@ def maybe_cleanup_default(
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
-def get_required_packages(init_cfg: dict, preseed_cfg: dict) -> List[str]:
+def get_required_packages(init_cfg: dict, preseed_str: str) -> List[str]:
     """identify required packages for install"""
     packages = []
     if not subp.which("lxd"):
@@ -507,8 +505,19 @@ def get_required_packages(init_cfg: dict, preseed_cfg: dict) -> List[str]:
     # binary for pool creation must be available for the requested backend:
     # zfs, lvcreate, mkfs.btrfs
     storage_drivers: List[str] = []
+    preseed_cfg: dict = {}
     if "storage_backend" in init_cfg:
         storage_drivers.append(init_cfg["storage_backend"])
+    if preseed_str and "storage_pools" in preseed_str:
+        # Assume correct YAML preseed format
+        try:
+            preseed_cfg = safeyaml.load(preseed_str)
+        except (safeyaml.YAMLError, TypeError, ValueError):
+            LOG.warning(
+                "lxd.preseed string value is not YAML. "
+                " Unable to determine required storage driver packages to"
+                " support storage_pools config."
+            )
     for storage_pool in preseed_cfg.get("storage_pools", []):
         if storage_pool.get("driver"):
             storage_drivers.append(storage_pool["driver"])

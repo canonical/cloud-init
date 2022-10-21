@@ -37,7 +37,7 @@ lxd:
 STORAGE_PRESEED_USER_DATA = """\
 #cloud-config
 lxd:
-  preseed:
+  preseed: |
     networks:
     - config:
         ipv4.address: 10.42.42.1/24
@@ -177,7 +177,7 @@ def test_storage_btrfs(client):
 def test_storage_preseed_btrfs(client):
     validate_storage(client, "btrfs-progs", "mkfs.btrfs")
     src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("btrfs"))
-    preseed_cfg = src_cfg["lxd"]["preseed"]
+    preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
     validate_preseed_profiles(client, preseed_cfg)
     validate_preseed_storage_pools(client, preseed_cfg)
     validate_preseed_projects(client, preseed_cfg)
@@ -208,7 +208,7 @@ def test_storage_zfs(client):
 def test_storage_preseed_zfs(client):
     validate_storage(client, "zfsutils-linux", "zpool")
     src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
-    preseed_cfg = src_cfg["lxd"]["preseed"]
+    preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
     validate_preseed_profiles(client, preseed_cfg)
     validate_preseed_storage_pools(client, preseed_cfg)
     validate_preseed_projects(client, preseed_cfg)
