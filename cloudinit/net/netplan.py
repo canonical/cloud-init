@@ -118,7 +118,6 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                 new_route = {
                     "via": subnet.get("gateway"),
                     "to": "default",
-                    "metric": 100,  # do not deprioritize this route
                 }
                 routes.append(new_route)
             if "dns_nameservers" in subnet:

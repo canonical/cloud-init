@@ -402,8 +402,7 @@ network:
                 transmit-hash-policy: layer3+4
                 up-delay: 0
             routes:
-            -   metric: 100
-                to: default
+            -   to: default
                 via: 10.101.11.254
     vlans:
         bond0.3502:
@@ -2264,8 +2263,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                             - sacchromyces.maas
                             - brettanomyces.maas
                         routes:
-                        -   metric: 100
-                            to: default
+                        -   to: default
                             via: 192.168.0.1
         """
         ).rstrip(" "),
@@ -2994,8 +2992,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          transmit-hash-policy: layer3+4
                          up-delay: 20
                      routes:
-                     -   metric: 100
-                         to: default
+                     -   to: default
                          via: 192.168.0.1
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -6051,10 +6048,8 @@ class TestNetplanNetRendering:
                       routes:
                         - to: default
                           via: 192.168.23.1
-                          metric: 100
                         - to: default
                           via: 11.0.0.1
-                          metric: 100
                 """,
                 id="one_gateway4",
             ),
