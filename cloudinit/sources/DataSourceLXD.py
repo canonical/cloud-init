@@ -6,7 +6,6 @@ Notes:
    still be detected on those images.
  * Detect LXD datasource when /dev/lxd/sock is an active socket file.
  * Info on dev-lxd API: https://linuxcontainers.org/lxd/docs/master/dev-lxd
- * TODO( Hotplug support using websockets API 1.0/events )
 """
 
 import os
@@ -78,10 +77,7 @@ def generate_network_config(
         primary_nic = _get_fallback_interface_name()
     elif len(nics) > 1:
         fallback_nic = find_fallback_nic()
-        if not fallback_nic or fallback_nic not in nics:
-            primary_nic = nics[0]
-        else:
-            primary_nic = fallback_nic
+        primary_nic = nics[0] if fallback_nic not in nics else fallback_nic
     else:
         primary_nic = nics[0]
 
@@ -166,6 +162,10 @@ class DataSourceLXD(sources.DataSource):
 
     skip_hotplug_detect = True
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        self.skip_hotplug_detect = True
+
     def _is_platform_viable(self) -> bool:
         """Check platform environment to report if this datasource may run."""
         return is_platform_viable()
@@ -230,9 +230,9 @@ class DataSourceLXD(sources.DataSource):
             if isinstance(self._crawled_metadata, dict):
                 if self._crawled_metadata.get("network-config"):
                     LOG.debug("LXD datasource using provided network config")
-                    self._network_config = self._crawled_metadata.get(
-                        "network-config", {}
-                    )
+                    self._network_config = self._crawled_metadata[
+                        "network-config"
+                    ]
                 elif self._crawled_metadata.get("devices"):
                     # If no explicit network config, but we have net devices
                     # available to us, find the primary and set it up.
@@ -243,8 +243,8 @@ class DataSourceLXD(sources.DataSource):
                     ]
                     LOG.debug(
                         "LXD datasource generating network config using "
-                        "%s detected devices",
-                        len(devices),
+                        "devices: %s",
+                        ", ".join(devices),
                     )
                     self._network_config = generate_network_config(devices)
         if self._network_config == sources.UNSET:

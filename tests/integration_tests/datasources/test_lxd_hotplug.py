@@ -4,6 +4,7 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.subp import subp
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 
@@ -29,12 +30,15 @@ def ensure_hotplug_exited(client):
     assert "cloud-init" not in client.execute("ps -A")
 
 
-def get_parent_network():
+def get_parent_network(instance_name: str):
     lxd_network = json.loads(
         subp("lxc network list --format json".split()).stdout
     )
-    managed_networks = [n for n in lxd_network if n["managed"] is True]
-    return managed_networks[0]["name"] if managed_networks else "lxdbr0"
+    for net in lxd_network:
+        if net["type"] == "bridge" and net["managed"]:
+            if f"/1.0/instances/{instance_name}" in net.get("used_by", []):
+                return net["name"]
+    return "lxdbr0"
 
 
 @pytest.mark.lxd_container
@@ -59,9 +63,10 @@ class TestLxdHotplug:
         client = class_client
         assert "eth1" not in client.execute("ip address")
         pre_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+        parent_network = get_parent_network(client.instance.name)
         assert subp(
             f"lxc config device add {client.instance.name} eth1 nic name=eth1 "
-            f"nictype=bridged parent={get_parent_network()}".split()
+            f"nictype=bridged parent={parent_network}".split()
         )
         ensure_hotplug_exited(client)
         post_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
@@ -76,22 +81,30 @@ class TestLxdHotplug:
         assert "eth2" not in client.execute("ip address")
         pre_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         assert "eth2" not in pre_netplan
+        if ImageSpecification.from_os_image().release in [
+            "bionic",
+            "focal",
+        ]:  # pyright: ignore
+            top_key = "user"
+        else:
+            top_key = "cloud-init"
         assert subp(
             [
                 "lxc",
                 "config",
                 "set",
                 client.instance.name,
-                f"cloud-init.network-config={UPDATED_NETWORK_CONFIG}",
+                f"{top_key}.network-config={UPDATED_NETWORK_CONFIG}",
             ]
         )
         assert (
             client.read_from_file("/etc/netplan/50-cloud-init.yaml")
             == pre_netplan
         )
+        parent_network = get_parent_network(client.instance.name)
         assert subp(
             f"lxc config device add {client.instance.name} eth2 nic name=eth2 "
-            f"nictype=bridged parent={get_parent_network()}".split()
+            f"nictype=bridged parent={parent_network}".split()
         )
         ensure_hotplug_exited(client)
         post_netplan = safeyaml.load(
