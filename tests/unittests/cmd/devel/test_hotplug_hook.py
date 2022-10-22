@@ -24,6 +24,7 @@ def mocks():
     m_distro.network_activator = mock.PropertyMock(return_value=m_activator)
     m_datasource = mock.MagicMock(spec=DataSource)
     m_datasource.distro = m_distro
+    m_datasource.skip_hotplug_detect = False
     m_init.datasource = m_datasource
     m_init.fetch.return_value = m_datasource
 
@@ -80,8 +81,8 @@ class TestUnsupportedActions:
             handle_hotplug(
                 hotplug_init=mocks.m_init,
                 devpath="/dev/fake",
-                udevaction="not_real",
                 subsystem="net",
+                udevaction="not_real",
             )
 
 
@@ -121,6 +122,21 @@ class TestHotplug:
         mocks.m_activator.bring_down_interface.assert_called_once_with("fake")
         mocks.m_activator.bring_up_interface.assert_not_called()
         init._write_to_cache.assert_called_once_with()
+
+    @mock.patch(
+        "cloudinit.cmd.devel.hotplug_hook.NetHandler.detect_hotplugged_device"
+    )
+    @pytest.mark.parametrize("skip", [True, False])
+    def test_skip_detected(self, m_detect, skip, mocks):
+        mocks.m_init.datasource.skip_hotplug_detect = skip
+        expected_call_count = 0 if skip else 1
+        handle_hotplug(
+            hotplug_init=mocks.m_init,
+            devpath="/dev/fake",
+            udevaction="add",
+            subsystem="net",
+        )
+        assert m_detect.call_count == expected_call_count
 
     def test_update_event_disabled(self, mocks, caplog):
         init = mocks.m_init
