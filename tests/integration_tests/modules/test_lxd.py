@@ -8,6 +8,7 @@ import warnings
 import pytest
 import yaml
 
+from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.util import verify_clean_log
 
 BRIDGE_USER_DATA = """\
@@ -22,7 +23,7 @@ lxd:
     ipv4_netmask: 24
     ipv4_dhcp_first: 10.100.100.100
     ipv4_dhcp_last: 10.100.100.200
-    ipv4_nat: "true"
+    ipv4_nat: true
     domain: lxd
     mtu: 9000
 """
@@ -98,6 +99,7 @@ lxd:
         features.networks: "true"
         features.profiles: "true"
         features.storage.volumes: "true"
+        features.storage.buckets: "true"
       description: Default LXD project
       name: default
     - config:
@@ -105,6 +107,7 @@ lxd:
         features.networks: "true"
         features.profiles: "false"
         features.storage.volumes: "true"
+        features.storage.buckets: "true"
       description: Limited project
       name: limited
 """
@@ -153,6 +156,8 @@ def validate_preseed_storage_pools(client, preseed_cfg):
         assert storage_pool["config"]["source"] == storage_pool["config"].pop(
             "volatile.initial_source"
         )
+        if storage_pool["driver"] == "zfs":
+            "default" == storage_pool["config"].pop("zfs.pool_name")
         assert storage_pool["config"] == src_storage["config"]
         assert storage_pool["driver"] == src_storage["driver"]
 
@@ -173,14 +178,20 @@ def test_storage_btrfs(client):
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_PRESEED_USER_DATA.format("btrfs"))
-def test_storage_preseed_btrfs(client):
-    validate_storage(client, "btrfs-progs", "mkfs.btrfs")
-    src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("btrfs"))
-    preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
-    validate_preseed_profiles(client, preseed_cfg)
-    validate_preseed_storage_pools(client, preseed_cfg)
-    validate_preseed_projects(client, preseed_cfg)
+@pytest.mark.not_bionic
+def test_storage_preseed_btrfs(setup_image, session_cloud: IntegrationCloud):
+    cfg_image_spec = ImageSpecification.from_os_image()
+    if cfg_image_spec.release in ("bionic", "focal"):
+        pytest.skip(f"Test does not support {cfg_image_spec.release}")
+    with session_cloud.launch(
+        user_data=STORAGE_PRESEED_USER_DATA.format("btrfs")
+    ) as client:
+        validate_storage(client, "btrfs-progs", "mkfs.btrfs")
+        src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("btrfs"))
+        preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
+        validate_preseed_profiles(client, preseed_cfg)
+        validate_preseed_storage_pools(client, preseed_cfg)
+        validate_preseed_projects(client, preseed_cfg)
 
 
 @pytest.mark.no_container
@@ -204,11 +215,17 @@ def test_storage_zfs(client):
 
 
 @pytest.mark.no_container
-@pytest.mark.user_data(STORAGE_PRESEED_USER_DATA.format("zfs"))
-def test_storage_preseed_zfs(client):
-    validate_storage(client, "zfsutils-linux", "zpool")
-    src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
-    preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
-    validate_preseed_profiles(client, preseed_cfg)
-    validate_preseed_storage_pools(client, preseed_cfg)
-    validate_preseed_projects(client, preseed_cfg)
+@pytest.mark.not_bionic
+def test_storage_preseed_zfs(setup_image, session_cloud: IntegrationCloud):
+    cfg_image_spec = ImageSpecification.from_os_image()
+    if cfg_image_spec.release in ("bionic", "focal"):
+        pytest.skip(f"Test does not support {cfg_image_spec.release}")
+    with session_cloud.launch(
+        user_data=STORAGE_PRESEED_USER_DATA.format("zfs")
+    ) as client:
+        validate_storage(client, "zfsutils-linux", "zpool")
+        src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
+        preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
+        validate_preseed_profiles(client, preseed_cfg)
+        validate_preseed_storage_pools(client, preseed_cfg)
+        validate_preseed_projects(client, preseed_cfg)
