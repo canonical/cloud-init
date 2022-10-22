@@ -75,3 +75,36 @@ of static NoCloud seed files.
 
 .. _LXD socket device: https://linuxcontainers.org/lxd/docs/master/dev-lxd
 .. vi: textwidth=79
+
+Hotplug
+-------
+
+Network hotplug functionality is supported for the LXD datasource as described
+in the :ref:`events` documentation. As hotplug functionality relies on the
+cloud provided network metadata, the LXD datasource will only meaningfully
+react to a hotplug event if it has the configuration necessary to respond to
+the change has been provided to LXD. Practically, this means that
+even with hotplug enabled, **the default behavior for adding a new virtual
+NIC will result no change**.
+
+To update the configuration to be used by hotplug, first pass the network
+configuration via the ``cloud-init.network-config`` (or
+``user.network-config`` on older versions).
+
+For example, given an LXD instance named ``my-lxd`` with hotplug enabled and
+an LXD bridge named ``my-bridge``, the following will allow for additional
+DHCP configuration of ``eth1``:
+
+.. code-block:: shell-session
+
+    $ cat /tmp/cloud-network-config.yaml
+    version: 2
+    ethernets:
+        eth0:
+            dhcp4: true
+        eth1:
+            dhcp4: true
+
+    $ lxc config set my-lxd cloud-init.network-config="$(cat /tmp/cloud-network-config.yaml)"
+    $ lxc config device add my-lxd eth1 nic name=eth1 nictype=bridged parent=my-bridge
+    Device eth1 added to my-lxd

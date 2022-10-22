@@ -7,6 +7,7 @@ from cloudinit.subp import subp
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import lxd_has_nocloud
 
 USER_DATA = """\
 #cloud-config
@@ -41,6 +42,20 @@ def get_parent_network(instance_name: str):
     return "lxdbr0"
 
 
+def _prefer_lxd_datasource_over_nocloud(client: IntegrationInstance):
+    """For hotplug support we need LXD datasource detected instead of NoCloud
+
+    Bionic and Focal still deliver nocloud-net seed files so override it
+    with /etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg
+    """
+    client.write_to_file(
+        "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
+        "datasource_list: [LXD, NoCloud]\n",
+    )
+    client.execute("cloud-init clean --logs")
+    client.restart()
+
+
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.user_data(USER_DATA)
@@ -56,17 +71,27 @@ class TestLxdHotplug:
         name = class_client.instance.name
         subp(f"lxc config device remove {name} eth1".split())
         subp(f"lxc config device remove {name} eth2".split())
+        subp("lxc network delete ci-test-br-eth1".split())
+        subp("lxc network delete ci-test-br-eth2".split())
 
     def test_no_network_change_default(
         self, class_client: IntegrationInstance
     ):
         client = class_client
+        if lxd_has_nocloud(client):
+            _prefer_lxd_datasource_over_nocloud(client)
         assert "eth1" not in client.execute("ip address")
         pre_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
-        parent_network = get_parent_network(client.instance.name)
-        assert subp(
+
+        networks = subp("lxc network list".split())
+        if "ci-test-br-eth1" not in networks.stdout:
+            subp(
+                "lxc network create ci-test-br-eth1 --type=bridge "
+                "ipv4.address=10.10.41.1/24 ipv4.nat=true".split()
+            )
+        subp(
             f"lxc config device add {client.instance.name} eth1 nic name=eth1 "
-            f"nictype=bridged parent={parent_network}".split()
+            f"nictype=bridged parent=ci-test-br-eth1".split()
         )
         ensure_hotplug_exited(client)
         post_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
@@ -78,6 +103,8 @@ class TestLxdHotplug:
 
     def test_network_config_applied(self, class_client: IntegrationInstance):
         client = class_client
+        if lxd_has_nocloud(client):
+            _prefer_lxd_datasource_over_nocloud(client)
         assert "eth2" not in client.execute("ip address")
         pre_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         assert "eth2" not in pre_netplan
@@ -101,10 +128,15 @@ class TestLxdHotplug:
             client.read_from_file("/etc/netplan/50-cloud-init.yaml")
             == pre_netplan
         )
-        parent_network = get_parent_network(client.instance.name)
+        networks = subp("lxc network list".split())
+        if "ci-test-br-eth2" not in networks.stdout:
+            assert subp(
+                "lxc network create ci-test-br-eth2 --type=bridge"
+                " ipv4.address=10.10.42.1/24 ipv4.nat=true".split()
+            )
         assert subp(
             f"lxc config device add {client.instance.name} eth2 nic name=eth2 "
-            f"nictype=bridged parent={parent_network}".split()
+            f"nictype=bridged parent=ci-test-br-eth2".split()
         )
         ensure_hotplug_exited(client)
         post_netplan = safeyaml.load(

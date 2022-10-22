@@ -86,9 +86,13 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "lxd" == v1["platform"]
     assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == v1["subplatform"]
     ds_cfg = json.loads(client.execute("cloud-init query ds").stdout)
-    assert ["_doc", "_metadata_api_version", "config", "meta-data"] == sorted(
-        list(ds_cfg.keys())
-    )
+    assert [
+        "_doc",
+        "_metadata_api_version",
+        "config",
+        "devices",
+        "meta-data",
+    ] == sorted(list(ds_cfg.keys()))
     if (
         client.settings.PLATFORM == "lxd_vm"
         and ImageSpecification.from_os_image().release == "bionic"
