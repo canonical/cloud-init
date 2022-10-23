@@ -35,6 +35,43 @@ lxd:
     storage_backend: {}
 """
 
+PRESEED_USER_DATA = """\
+#cloud-config
+lxd:
+  preseed: |
+    config: {}
+    networks:
+    - config:
+        ipv4.address: auto
+        ipv6.address: auto
+      description: ""
+      managed: false
+      name: lxdbr0
+      type: ""
+    storage_pools:
+    - config:
+        source: /var/snap/lxd/common/lxd/storage-pools/default
+      description: ""
+      name: default
+      driver: dir
+    profiles:
+    - config: {}
+      description: ""
+      devices:
+        eth0:
+          name: eth0
+          nictype: bridged
+          parent: lxdbr0
+          type: nic
+        root:
+          path: /
+          pool: default
+          type: disk
+      name: default
+    cluster: null
+"""
+
+
 STORAGE_PRESEED_USER_DATA = """\
 #cloud-config
 lxd:
@@ -55,14 +92,15 @@ lxd:
         source: /var/snap/lxd/common/lxd/disks/default.img
       description: ""
       name: default
-      driver: {}
+      driver: {driver}
     profiles:
     - config: {{ }}
       description: Default LXD profile
       devices:
         eth0:
-          nictype: bridged
-          parent: lxdbr0
+          {nictype}
+          {parent}
+          {network}
           type: nic
         root:
           path: /
@@ -153,9 +191,10 @@ def validate_preseed_storage_pools(client, preseed_cfg):
         storage_pool = yaml.safe_load(
             client.execute(f"lxc storage show {src_storage['name']}")
         )
-        assert storage_pool["config"]["source"] == storage_pool["config"].pop(
-            "volatile.initial_source"
-        )
+        if "volatile.initial_source" in storage_pool["config"]:
+            assert storage_pool["config"]["source"] == storage_pool[
+                "config"
+            ].pop("volatile.initial_source")
         if storage_pool["driver"] == "zfs":
             "default" == storage_pool["config"].pop("zfs.pool_name")
         assert storage_pool["config"] == src_storage["config"]
@@ -163,7 +202,7 @@ def validate_preseed_storage_pools(client, preseed_cfg):
 
 
 def validate_preseed_projects(client, preseed_cfg):
-    for src_project in preseed_cfg["projects"]:
+    for src_project in preseed_cfg.get("projects", []):
         project = yaml.safe_load(
             client.execute(f"lxc project show {src_project['name']}")
         )
@@ -181,13 +220,20 @@ def test_storage_btrfs(client):
 @pytest.mark.not_bionic
 def test_storage_preseed_btrfs(setup_image, session_cloud: IntegrationCloud):
     cfg_image_spec = ImageSpecification.from_os_image()
-    if cfg_image_spec.release in ("bionic", "focal"):
-        pytest.skip(f"Test does not support {cfg_image_spec.release}")
-    with session_cloud.launch(
-        user_data=STORAGE_PRESEED_USER_DATA.format("btrfs")
-    ) as client:
+    if cfg_image_spec.release in ("bionic"):
+        nictype = "nictype: bridged"
+        parent = "parent: lxdbr0"
+        network = ""
+    else:
+        nictype = ""
+        parent = ""
+        network = "network: lxdbr0"
+    user_data = STORAGE_PRESEED_USER_DATA.format(
+        driver="btrfs", nictype=nictype, parent=parent, network=network
+    )
+    with session_cloud.launch(user_data=user_data) as client:
         validate_storage(client, "btrfs-progs", "mkfs.btrfs")
-        src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("btrfs"))
+        src_cfg = yaml.safe_load(user_data)
         preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
         validate_preseed_profiles(client, preseed_cfg)
         validate_preseed_storage_pools(client, preseed_cfg)
@@ -208,6 +254,15 @@ def test_storage_lvm(client):
     validate_storage(client, "lvm2", "lvcreate")
 
 
+@pytest.mark.user_data(PRESEED_USER_DATA)
+def test_basic_preseed(client):
+    preseed_cfg = yaml.safe_load(PRESEED_USER_DATA)["lxd"]["preseed"]
+    preseed_cfg = yaml.safe_load(preseed_cfg)
+    validate_preseed_profiles(client, preseed_cfg)
+    validate_preseed_storage_pools(client, preseed_cfg)
+    validate_preseed_projects(client, preseed_cfg)
+
+
 @pytest.mark.no_container
 @pytest.mark.user_data(STORAGE_USER_DATA.format("zfs"))
 def test_storage_zfs(client):
@@ -218,13 +273,20 @@ def test_storage_zfs(client):
 @pytest.mark.not_bionic
 def test_storage_preseed_zfs(setup_image, session_cloud: IntegrationCloud):
     cfg_image_spec = ImageSpecification.from_os_image()
-    if cfg_image_spec.release in ("bionic", "focal"):
-        pytest.skip(f"Test does not support {cfg_image_spec.release}")
-    with session_cloud.launch(
-        user_data=STORAGE_PRESEED_USER_DATA.format("zfs")
-    ) as client:
+    if cfg_image_spec.release in ("bionic"):
+        nictype = "nictype: bridged"
+        parent = "parent: lxdbr0"
+        network = ""
+    else:
+        nictype = ""
+        parent = ""
+        network = "network: lxdbr0"
+    user_data = STORAGE_PRESEED_USER_DATA.format(
+        driver="zfs", nictype=nictype, parent=parent, network=network
+    )
+    with session_cloud.launch(user_data=user_data) as client:
         validate_storage(client, "zfsutils-linux", "zpool")
-        src_cfg = yaml.safe_load(STORAGE_PRESEED_USER_DATA.format("zfs"))
+        src_cfg = yaml.safe_load(user_data)
         preseed_cfg = yaml.safe_load(src_cfg["lxd"]["preseed"])
         validate_preseed_profiles(client, preseed_cfg)
         validate_preseed_storage_pools(client, preseed_cfg)
