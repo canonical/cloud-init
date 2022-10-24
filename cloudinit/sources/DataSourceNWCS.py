@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from requests import exceptions
+
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import net, sources, util, url_helper
+from cloudinit import net, sources, subp, util, url_helper
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -49,25 +51,10 @@ class DataSourceNWCS(sources.DataSource):
 
         LOG.info("Machine is a NWCS instance")
 
-        try:
-            LOG.info("Attempting to get metadata via DHCP")
+        md = self.get_metadata()
 
-            with EphemeralDHCPv4(
-                iface=net.find_fallback_nic(),
-                connectivity_url_data={
-                    "url": BASE_URL_V1 + "/metadata/instance-id",
-                },
-            ):
-                md = read_metadata(
-                    self.metadata_address,
-                    timeout=self.timeout,
-                    sec_between=self.wait_retry,
-                    retries=self.retries,
-                )
-            
-        except (NoDHCPLeaseError) as e:
-            LOG.error("DHCP failure: %s", e)
-            raise
+        if md is None:
+            raise Exception("failed to get metadata")
 
         self.metadata_full = md
 
@@ -81,6 +68,32 @@ class DataSourceNWCS(sources.DataSource):
         self.vendordata_raw = md.get("vendordata", None)
 
         return True
+
+    def get_metadata(self):
+        try:
+            LOG.info("Attempting to get metadata via DHCP")
+
+            with EphemeralDHCPv4(
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": BASE_URL_V1 + "/metadata/instance-id",
+                },
+            ):
+                return read_metadata(
+                    self.metadata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+            
+        except (
+            NoDHCPLeaseError,
+            subp.ProcessExecutionError,
+            RuntimeError,
+            exceptions.RequestException,
+        ) as e:
+            LOG.error("DHCP failure: %s", e)
+            raise
 
     @property
     def network_config(self):
@@ -139,7 +152,7 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
     if not response.ok():
         raise RuntimeError("unable to read metadata at %s" % url)
     
-    return util.load_yaml(response.contents.decode())
+    return util.load_json(response.contents.decode())
 
 # Used to match classes to dependencies
 datasources = [
