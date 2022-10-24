@@ -251,6 +251,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         "security-credentials",
     )
 
+    # True on datasources that may not see hotplugged devices reflected
+    # in the updated metadata
+    skip_hotplug_detect = False
+
     _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
@@ -282,6 +286,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, "vendordata2_raw"):
             self.vendordata2_raw = None
+        if not hasattr(self, "skip_hotplug_detect"):
+            self.skip_hotplug_detect = False
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
