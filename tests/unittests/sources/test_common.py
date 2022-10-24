@@ -29,6 +29,7 @@ from cloudinit.sources import DataSourceSmartOS as SmartOS
 from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
+from cloudinit.sources import DataSourceNWCS as NWCS
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
@@ -52,6 +53,7 @@ DEFAULT_LOCAL = [
     Scaleway.DataSourceScaleway,
     UpCloud.DataSourceUpCloudLocal,
     VMware.DataSourceVMware,
+    NWCS.DataSourceNWCS,
 ]
 
 DEFAULT_NETWORK = [
