@@ -965,17 +965,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         Perform a command as the requested user. Behaves like subp()
 
-        Is there a more platform-independant way? sudo -D failed for me
+        Note: We pass `PATH` to the user env by using `env`. This could be
+        probably simplified after bionic EOL by using
+        `su --whitelist-environment=PATH ...`, more info on:
+        https://lore.kernel.org/all/20180815110445.4qefy5zx5gfgbqly@ws.net.home/T/
         """
         directory = f"cd {cwd} && " if cwd else ""
         return subp.subp(
             [
                 "su",
-                "--whitelist-environment=PATH",
                 "-",
                 user,
                 "-c",
-                directory + " ".join(command),
+                directory + "env PATH=$PATH " + " ".join(command),
             ],
             **kwargs,
         )
