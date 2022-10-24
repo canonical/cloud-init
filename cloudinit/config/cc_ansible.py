@@ -138,6 +138,7 @@ class AnsiblePullPip(AnsiblePull):
             cmd = [sys.executable, "-m", "pip", "install"]
             if self.run_user:
                 cmd.append("--user")
+            self.do_as([*cmd, "--upgrade", "pip"])
             self.do_as([*cmd, pkg_name])
 
     def is_installed(self) -> bool:

@@ -272,32 +272,33 @@ def _test_ansible_pull_from_local_server(my_client):
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
-class TestAnsiblePullPip:
-    def test_ansible_pull_pip(self, client):
-        _test_ansible_pull_from_local_server(client)
+def test_ansible_pull_pip(client):
+    _test_ansible_pull_from_local_server(client)
 
 
 # temporarily disable this test on jenkins until firewall rules are in place
 @pytest.mark.adhoc
+# Ansible packaged in bionic is 2.5.1. This test relies on ansible collections,
+# which requires Ansible 2.9+, so no bionic. The functionality is covered
+# in `test_ansible_pull_pip` using pip rather than the bionic package.
+@pytest.mark.not_bionic
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
-class TestAnsiblePullDistro:
-    def test_ansible_pull_distro(self, class_client):
-        _test_ansible_pull_from_local_server(class_client)
+def test_ansible_pull_distro(client):
+    _test_ansible_pull_from_local_server(client)
 
 
 @pytest.mark.user_data(ANSIBLE_CONTROL)
 @pytest.mark.lxd_vm
-class TestAnsibleController:
-    def test_ansible_controller(self, client):
-        log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
-        content_ansible = client.execute(
-            "lxc exec lxd-container-00 -- cat /home/ansible/ansible.txt"
-        )
-        content_root = client.execute(
-            "lxc exec lxd-container-00 -- cat /root/root.txt"
-        )
-        assert content_ansible == "hello as ansible"
-        assert content_root == "hello as root"
+def test_ansible_controller(client):
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
+    content_ansible = client.execute(
+        "lxc exec lxd-container-00 -- cat /home/ansible/ansible.txt"
+    )
+    content_root = client.execute(
+        "lxc exec lxd-container-00 -- cat /root/root.txt"
+    )
+    assert content_ansible == "hello as ansible"
+    assert content_root == "hello as root"
