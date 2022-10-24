@@ -137,7 +137,6 @@ lxd:
         features.networks: "true"
         features.profiles: "true"
         features.storage.volumes: "true"
-        features.storage.buckets: "true"
       description: Default LXD project
       name: default
     - config:
@@ -145,7 +144,6 @@ lxd:
         features.networks: "true"
         features.profiles: "false"
         features.storage.volumes: "true"
-        features.storage.buckets: "true"
       description: Limited project
       name: limited
 """
@@ -220,7 +218,7 @@ def test_storage_btrfs(client):
 @pytest.mark.not_bionic
 def test_storage_preseed_btrfs(setup_image, session_cloud: IntegrationCloud):
     cfg_image_spec = ImageSpecification.from_os_image()
-    if cfg_image_spec.release in ("bionic"):
+    if cfg_image_spec.release in ("bionic",):
         nictype = "nictype: bridged"
         parent = "parent: lxdbr0"
         network = ""
@@ -273,7 +271,7 @@ def test_storage_zfs(client):
 @pytest.mark.not_bionic
 def test_storage_preseed_zfs(setup_image, session_cloud: IntegrationCloud):
     cfg_image_spec = ImageSpecification.from_os_image()
-    if cfg_image_spec.release in ("bionic"):
+    if cfg_image_spec.release in ("bionic",):
         nictype = "nictype: bridged"
         parent = "parent: lxdbr0"
         network = ""
