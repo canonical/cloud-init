@@ -1090,8 +1090,8 @@ def main(sysv_args=None):
             func=functor,
             args=(name, args),
         )
-        reporting.flush_events()
-        return retval
+    reporting.flush_events()
+    return retval
 
 
 if __name__ == "__main__":
