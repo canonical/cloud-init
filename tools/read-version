@@ -69,7 +69,9 @@ travis_ci_release_br = bool(
 is_release_branch_ci = bool(github_ci_release_br or travis_ci_release_br)
 
 if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
-    branch_name = tiny_p(["git", "branch", "--show-current"]).strip()
+    # This cmd can be simplified to ["git", "branch", "--show-current"]
+    # after bionic EOL.
+    branch_name = tiny_p(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
     if branch_name.startswith(f"upstream/{src_version}"):
         version = src_version
         version_long = None
