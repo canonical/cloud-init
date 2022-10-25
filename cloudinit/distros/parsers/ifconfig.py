@@ -104,6 +104,10 @@ class Ifconfig:
             if len(line) == 0:
                 continue
             if line[0] not in ("\t", " "):
+                # We hit the start of a device block in the ifconfig output
+                # These start with devN: flags=NNNN<flags> and then continue
+                # *indented* for the rest of the config.
+                # Here our loop resets ``curif`` & ``dev`` to this new device
                 curif = line.split()[0]
                 # current ifconfig pops a ':' on the end of the device
                 if curif.endswith(":"):
