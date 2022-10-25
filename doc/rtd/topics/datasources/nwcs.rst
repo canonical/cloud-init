@@ -3,8 +3,8 @@
 NWCS
 =====
 
-The `NWCS`_ datasource retrieves basic configuration values from the locally
-accessible `metadata service`_. All data is served over HTTP from the address
+The NWCS datasource retrieves basic configuration values from the locally
+accessible metadata service. All data is served over HTTP from the address
 169.254.169.254.
 
 Configuration
