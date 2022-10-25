@@ -19,6 +19,7 @@ from cloudinit.sources import DataSourceLXD as LXD
 from cloudinit.sources import DataSourceMAAS as MAAS
 from cloudinit.sources import DataSourceNoCloud as NoCloud
 from cloudinit.sources import DataSourceNone as DSNone
+from cloudinit.sources import DataSourceNWCS as NWCS
 from cloudinit.sources import DataSourceOpenNebula as OpenNebula
 from cloudinit.sources import DataSourceOpenStack as OpenStack
 from cloudinit.sources import DataSourceOracle as Oracle
@@ -29,7 +30,6 @@ from cloudinit.sources import DataSourceSmartOS as SmartOS
 from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
-from cloudinit.sources import DataSourceNWCS as NWCS
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
