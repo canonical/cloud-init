@@ -145,7 +145,8 @@ def attach_user_data(report, ui=None):
         if response is None:
             raise StopIteration  # User cancelled
         if response:
-            attach_file(report, user_data_file, "user_data.txt")
+            realpath = os.path.realpath(user_data_file)
+            attach_file(report, realpath, "user_data.txt")
             for apport_file in INSTALLER_APPORT_SENSITIVE_FILES:
                 realpath = os.path.realpath(apport_file.path)
                 attach_file_if_exists(report, realpath, apport_file.label)
