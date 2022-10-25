@@ -4,7 +4,7 @@ from requests import exceptions
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import net, sources, subp, util, url_helper
+from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -19,6 +19,7 @@ BUILTIN_DS_CONFIG = {
 MD_RETRIES = 30
 MD_TIMEOUT = 5
 MD_WAIT_RETRY = 5
+
 
 class DataSourceNWCS(sources.DataSource):
 
@@ -58,9 +59,9 @@ class DataSourceNWCS(sources.DataSource):
 
         self.metadata_full = md
 
-        self.metadata["instance-id"]    = md["instance-id"]
-        self.metadata["public-keys"]    = md["public-keys"]
-        self.metadata["network"]        = md["network"]
+        self.metadata["instance-id"] = md["instance-id"]
+        self.metadata["public-keys"] = md["public-keys"]
+        self.metadata["network"] = md["network"]
         self.metadata["local-hostname"] = md["hostname"]
 
         self.userdata_raw = md.get("userdata", None)
@@ -85,7 +86,7 @@ class DataSourceNWCS(sources.DataSource):
                     sec_between=self.wait_retry,
                     retries=self.retries,
                 )
-            
+
         except (
             NoDHCPLeaseError,
             subp.ProcessExecutionError,
@@ -124,6 +125,7 @@ class DataSourceNWCS(sources.DataSource):
 
         return self._network_config
 
+
 def get_nwcs_data():
     vendor_name = dmi.read_dmi_data("system-manufacturer")
 
@@ -132,17 +134,20 @@ def get_nwcs_data():
 
     return True
 
+
 def get_interface_name(mac):
     macs_to_nic = net.get_interfaces_by_mac()
 
     if mac not in macs_to_nic:
         return None
-    
+
     return macs_to_nic.get(mac)
+
 
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 def read_metadata(url, timeout=2, sec_between=2, retries=30):
     response = url_helper.readurl(
@@ -151,8 +156,9 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
 
     if not response.ok():
         raise RuntimeError("unable to read metadata at %s" % url)
-    
+
     return util.load_json(response.contents.decode())
+
 
 # Used to match classes to dependencies
 datasources = [

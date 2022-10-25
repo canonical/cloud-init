@@ -27,6 +27,7 @@ vendordata: "test"
 """
 )
 
+
 class TestDataSourceNWCS(CiTestCase):
     """
     Test reading the metadata
@@ -78,7 +79,7 @@ class TestDataSourceNWCS(CiTestCase):
             iface="eth0",
             connectivity_url_data={
                 "url": "http://169.254.169.254/api/v1/metadata/instance-id"
-            }
+            },
         )
 
         self.assertTrue(m_readmd.called)
@@ -109,9 +110,9 @@ class TestDataSourceNWCS(CiTestCase):
         m_read_md.assert_not_called()
 
     @mock.patch("cloudinit.sources.DataSourceNWCS.get_interface_name")
-    def test_get_interface_name(
-        self, m_ifname
-    ):
+    def test_get_interface_name(self, m_ifname):
         m_ifname.return_value = "eth0"
-        
-        self.assertEqual(m_ifname.return_value, METADATA["network"]["config"][0]["name"])
+
+        self.assertEqual(
+            m_ifname.return_value, METADATA["network"]["config"][0]["name"]
+        )
