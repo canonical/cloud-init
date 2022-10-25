@@ -40,10 +40,10 @@ INSTALLER_APPORT_SENSITIVE_FILES = [
 INSTALLER_APPORT_FILES = [
     ApportFile("/var/log/installer/ubuntu_desktop_installer.log", "UdiLog"),
     ApportFile(
-        "/var/log/installer/subiquity-server-debug.log", "SubiquityLog"
+        "/var/log/installer/subiquity-server-debug.log", "SubiquityServerDebug"
     ),
     ApportFile(
-        "/var/log/installer/subiquity-client-debug.log", "SubiquityClientLog"
+        "/var/log/installer/subiquity-client-debug.log", "SubiquityClientDebug"
     ),
     ApportFile("/var/log/installer/curtin-install.log", "CurtinLog"),
     ApportFile(
