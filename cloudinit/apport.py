@@ -4,6 +4,8 @@
 
 """Cloud-init apport interface"""
 
+import os
+
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.devel.logs import (
     INSTALLER_APPORT_FILES,
@@ -125,7 +127,8 @@ def attach_installer_files(report, ui=None):
     python modules.
     """
     for apport_file in INSTALLER_APPORT_FILES:
-        attach_file_if_exists(report, apport_file.path, apport_file.label)
+        realpath = os.path.realpath(apport_file.path)
+        attach_file_if_exists(report, realpath, apport_file.label)
 
 
 def attach_user_data(report, ui=None):
@@ -142,11 +145,11 @@ def attach_user_data(report, ui=None):
         if response is None:
             raise StopIteration  # User cancelled
         if response:
-            attach_file(report, user_data_file, "user_data.txt")
+            realpath = os.path.realpath(user_data_file)
+            attach_file(report, realpath, "user_data.txt")
             for apport_file in INSTALLER_APPORT_SENSITIVE_FILES:
-                attach_file_if_exists(
-                    report, apport_file.path, apport_file.label
-                )
+                realpath = os.path.realpath(apport_file.path)
+                attach_file_if_exists(report, realpath, apport_file.label)
 
 
 def add_bug_tags(report):
