@@ -162,7 +162,9 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
         LOG.info(
             "Restore `ubuntu-advantage.service` original status for next boot"
         )
-        client.execute("sudo systemctl unmask ubuntu-advantage.service")
+        assert client.execute(
+            "sudo systemctl unmask ubuntu-advantage.service"
+        ).ok
 
         source = get_validated_source(session_cloud)
         client.install_new_cloud_init(source)
