@@ -1,8 +1,9 @@
 cloud-init (22.3-13-g70ce6442-0ubuntu1~20.04.2) UNRELEASED; urgency=medium
 
   * d/control: drop python3-httpretty from Build-Depends
+  * d/cloud-init.templates: Add NWCS to datasource list
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 26 Sep 2022 17:04:44 +0200
+ -- James Falcon <james.falcon@canonical.com>  Wed, 26 Oct 2022 16:35:15 -0500
 
 cloud-init (22.3-13-g70ce6442-0ubuntu1~20.04.1) focal; urgency=medium
 
