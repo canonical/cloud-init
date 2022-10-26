@@ -6051,7 +6051,204 @@ class TestNetplanNetRendering:
                         - to: default
                           via: 11.0.0.1
                 """,
-                id="one_gateway4",
+                id="physical_gateway46",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: bond
+                    name: bond0
+                    bond_interfaces:
+                    - eth0
+                    - eth1
+                    params: {}
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  bonds:
+                    bond0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      interfaces:
+                      - eth0
+                      - eth1
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                    eth0: {}
+                    eth1: {}
+                """,
+                id="bond_gateway46",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: bridge
+                    name: bridge0
+                    bridge_interfaces:
+                    - eth0
+                    params: {}
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  bridges:
+                    bridge0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      interfaces:
+                      - eth0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                """,
+                id="bridge_gateway46",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: vlan
+                    name: vlan0
+                    vlan_link: eth0
+                    vlan_id: 101
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  vlans:
+                    vlan0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      id: 101
+                      link: eth0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                """,
+                id="vlan_gateway46",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                  - type: nameserver
+                    address:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                    search:
+                    - exemplary
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/27
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      nameservers:
+                        addresses:
+                        - 192.168.23.14/27
+                        - 11.0.0.11/24
+                        search:
+                        - exemplary
+                      set-name: interface0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                """,
+                id="nameserver_gateway4",
+            ),
+            # Asserts a netconf v1 with two gateways does not produce a
+            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                       - type: static
+                         address: 192.168.23.14/24
+                         gateway: 192.168.23.1
+                  - type: route
+                    destination: 192.168.24.0/24
+                    gateway: 192.168.24.1
+                    metric: 3
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.23.1
+                      set-name: interface0
+                """,
+                id="route_gateway46",
             ),
         ],
     )
