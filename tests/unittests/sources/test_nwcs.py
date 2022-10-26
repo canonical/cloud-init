@@ -1,7 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import pytest
-
 from cloudinit import helpers, settings, util
 from cloudinit.sources import DataSourceNWCS
 from tests.unittests.helpers import CiTestCase, mock
