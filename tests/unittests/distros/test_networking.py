@@ -73,6 +73,30 @@ class TestBSDNetworkingIsPhysical:
         networking = bsd_networking_cls()
         assert networking.is_physical("vtnet0")
 
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_physical("re0.33")
+
+
+class TestBSDNetworkingIsVLAN:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_vlan("re0.33")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_vlan("vtnet0")
+
+
+class TestBSDNetworkingIsBridge:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_bridge("bridge0")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_bridge("vtnet0")
+
 
 class TestLinuxNetworkingIsPhysical:
     def test_returns_false_by_default(self, sys_class_net):
