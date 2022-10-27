@@ -192,8 +192,9 @@ class BSDNetworking(Networking):
         self._update_ifs()
 
     def _update_ifs(self):
-        ifs_txt, _ = subp.subp(["ifconfig", "-a"])
-        self.ifs = self.ifc.parse(ifs_txt)
+        ifconf = subp.subp(["ifconfig", "-a"])
+        if ifconf[0]:
+            self.ifs = self.ifc.parse(ifconf[0])
 
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
         LOG.debug("Cannot rename network interface.")
