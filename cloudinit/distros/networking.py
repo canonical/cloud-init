@@ -193,6 +193,8 @@ class BSDNetworking(Networking):
 
     def _update_ifs(self):
         ifconf = subp.subp(["ifconfig", "-a"])
+        # ``ifconfig -a`` always returns at least ``lo0``.
+        # So this ``if`` is really just to make testing/mocking easier
         if ifconf[0]:
             self.ifs = self.ifc.parse(ifconf[0])
 

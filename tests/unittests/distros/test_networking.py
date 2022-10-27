@@ -51,7 +51,9 @@ def bsd_networking_cls(asset="netinfo/freebsd-ifconfig-output"):
     """Returns a patched BSDNetworking class which already comes pre-loaded
     with output for ``ifconfig -a``"""
     ifs_txt = readResource(asset)
-    with mock.patch("cloudinit.subp.subp", return_value=(ifs_txt, None)):
+    with mock.patch(
+        "cloudinit.distros.networking.subp.subp", return_value=(ifs_txt, None)
+    ):
         yield BSDNetworking
 
 
