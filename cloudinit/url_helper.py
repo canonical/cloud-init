@@ -303,12 +303,11 @@ def readurl(
 
             if log_req_resp:
                 LOG.debug(
-                    "[%s/%s] open '%s' with %s configuration%s",
+                    "[%s/%s] open '%s' with %s configuration",
                     i,
                     "infinite" if infinite else manual_tries,
                     url,
                     filtered_req_args,
-                    f" and POST data: {data}" if data else "",
                 )
 
             if session is None:

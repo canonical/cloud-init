@@ -128,6 +128,7 @@ class WebHookHandler(ReportingHandler):
                     timeout=args[2],
                     retries=args[3],
                     ssl_details=args[4],
+                    log_req_resp=False,
                 )
                 consecutive_failed = 0
             except Exception as e:
@@ -141,10 +142,16 @@ class WebHookHandler(ReportingHandler):
                 self.queue.task_done()
 
     def publish_event(self, event):
+        event_data = event.as_dict()
+        LOG.debug(
+            "Queuing POST to %s, data: %s",
+            self.endpoint,
+            event_data,
+        )
         self.queue.put(
             (
                 self.endpoint,
-                json.dumps(event.as_dict()),
+                json.dumps(event_data),
                 self.timeout,
                 self.retries,
                 self.ssl_details,
