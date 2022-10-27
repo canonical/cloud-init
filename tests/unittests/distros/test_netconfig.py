@@ -10,7 +10,11 @@ from unittest import mock
 from cloudinit import distros, helpers, safeyaml, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
-from tests.unittests.helpers import FilesystemMockingTestCase, dir2dict
+from tests.unittests.helpers import (
+    FilesystemMockingTestCase,
+    dir2dict,
+    readResource,
+)
 
 BASE_NET_CFG = """
 auto lo
@@ -314,7 +318,12 @@ class TestNetCfgDistroBase(FilesystemMockingTestCase):
 class TestNetCfgDistroFreeBSD(TestNetCfgDistroBase):
     def setUp(self):
         super(TestNetCfgDistroFreeBSD, self).setUp()
-        self.distro = self._get_distro("freebsd", renderers=["freebsd"])
+        ifs_txt = readResource("netinfo/freebsd-ifconfig-output")
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp",
+            return_value=(ifs_txt, None),
+        ):
+            self.distro = self._get_distro("freebsd", renderers=["freebsd"])
 
     def _apply_and_verify_freebsd(
         self, apply_fn, config, expected_cfgs=None, bringup=False
