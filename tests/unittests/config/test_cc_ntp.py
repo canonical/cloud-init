@@ -463,7 +463,12 @@ class TestNtp(FilesystemMockingTestCase):
 
             if distro == "alpine":
                 uses_systemd = False
-                expected_service_call = ["rc-service", service_name, "restart"]
+                expected_service_call = [
+                    "rc-service",
+                    "--nocolor",
+                    service_name,
+                    "restart",
+                ]
                 # _mock_ntp_client_config call above did not specify a client
                 # value and so it defaults to "ntp" which on Alpine Linux only
                 # supports servers and not pools.
