@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Kernel Modules"""
+import copy
 import re
 from array import array
 from logging import Logger
 from textwrap import dedent
+from typing import TypedDict
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -52,10 +54,20 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
-DEFAULT_CONFIG = {
-    "km_update_cmd": ["update-initramfs", "-u", "-k", "all"],
-    "km_unload_cmd": ["rmmod"],
-    "km_is_loaded_cmd": ["lsmod"],
+
+
+class DefaultConfigType(TypedDict):
+    km_cmd: dict[str, list[str]]
+    km_files: dict[str, dict[str, str | int]]
+
+
+DEFAULT_CONFIG: DefaultConfigType = {
+    "km_cmd": {
+        "update": ["update-initramfs", "-u", "-k", "all"],
+        "unload": ["rmmod"],
+        "reload": ["/lib/systemd/systemd-modules-load"],
+        "is_loaded": ["lsmod"],
+    },
     "km_files": {
         "load": {
             "path": "/etc/modules-load.d/cloud-init.conf",
@@ -67,18 +79,6 @@ DEFAULT_CONFIG = {
         },
     },
 }
-DISTRO_OVERRIDES = {}  # type: dict
-UNLOAD_MODULES = []  # type: list
-
-
-def _distro_kernel_modules_configs(distro_name):
-    """Return a distro-specific kernel_modules config dictionary
-
-    @param distro_name: String providing the distro class name.
-    @returns: Dict of distro configurations for kernel_modules.
-    """
-    cfg = DISTRO_OVERRIDES.get(distro_name, DEFAULT_CONFIG)
-    return cfg
 
 
 def persist_schema_validation(persist: dict):
@@ -162,7 +162,7 @@ def supplemental_schema_validation(kernel_module: dict):
         )
 
 
-def prepare_module(distro_cfg: dict, module_name: str):
+def prepare_module(module_name: str):
     """Prepare kernel module to be loaded on boot.
 
     This function appends a kernel module to a file
@@ -173,29 +173,28 @@ def prepare_module(distro_cfg: dict, module_name: str):
 
     @raises: RuntimeError when write operation fails.
     """
-    CFG_FILES = distro_cfg["km_files"]
 
     LOG.info(
         "Writing %s file for loading kernel modules on boot",
-        CFG_FILES["load"]["path"],
+        DEFAULT_CONFIG["km_files"]["load"].get("path"),
     )
 
     try:
         LOG.debug("Appending kernel module %s", module_name)
         util.write_file(
-            CFG_FILES["load"]["path"],
+            DEFAULT_CONFIG["km_files"]["load"]["path"],
             module_name + NL,
-            CFG_FILES["load"]["permissions"],
+            DEFAULT_CONFIG["km_files"]["load"]["permissions"],
             omode="a",
         )
     except Exception as e:
         raise RuntimeError(
             f"Failure appending kernel module '{module_name}' to file "
-            f'{CFG_FILES["load"]["path"]}:{NL}{str(e)}'
+            f'{DEFAULT_CONFIG["km_files"]["load"]["path"]}:{NL}{str(e)}'
         ) from e
 
 
-def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
+def enhance_module(module_name: str, persist: dict, unload_modules: list):
     """Enhances a kernel modules behavior
 
     This function appends specific settings and options
@@ -208,7 +207,6 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
 
     @raises RuntimeError when write operation fails.
     """
-    CFG_FILES = distro_cfg["km_files"]
 
     for (key, value) in persist.items():
         LOG.debug(
@@ -221,13 +219,13 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
         # blacklist special case
         elif key == "blacklist":
             if value:
-                UNLOAD_MODULES.append(module_name)
+                unload_modules.append(module_name)
 
         try:
             util.write_file(
-                CFG_FILES["persist"]["path"],
+                DEFAULT_CONFIG["km_files"]["persist"]["path"],
                 entry + NL,
-                CFG_FILES["persist"]["permissions"],
+                DEFAULT_CONFIG["km_files"]["persist"]["permissions"],
                 omode="a",
             )
         except Exception as e:
@@ -236,7 +234,7 @@ def enhance_module(distro_cfg: dict, module_name: str, persist: dict):
             ) from e
 
 
-def cleanup(distro_cfg: dict):
+def cleanup():
     """Clean up all kernel specific files
 
     This function removes all files, which are
@@ -246,10 +244,9 @@ def cleanup(distro_cfg: dict):
 
     @raises RuntimeError when remove operation fails
     """
-    CFG_FILES = distro_cfg["km_files"]
 
-    for (key, _) in sorted(CFG_FILES.items()):
-        file_path = CFG_FILES[key]["path"]
+    for action in sorted(DEFAULT_CONFIG["km_files"].keys()):
+        file_path = DEFAULT_CONFIG["km_files"][action]["path"]
         LOG.debug("Removing file %s", file_path)
         try:
             util.del_file(file_path)
@@ -259,7 +256,7 @@ def cleanup(distro_cfg: dict):
             ) from e
 
 
-def reload_modules(cloud: Cloud):
+def reload_modules():
     """Reload kernel modules
 
     This function restarts service 'systemd-modules-load'
@@ -269,15 +266,21 @@ def reload_modules(cloud: Cloud):
 
     @raises RuntimeError
     """
+
+    cmd = copy.copy(DEFAULT_CONFIG["km_cmd"]["reload"])
+    cmd.append(DEFAULT_CONFIG["km_files"]["load"]["path"])
+
     try:
-        cloud.distro.manage_service("restart", "systemd-modules-load")
-    except subp.ProcessExecutionError as e:
+        out = subp.subp(cmd, capture=True)
+        if re.search("Failed", out.stdout.strip()):
+            raise Exception(out.stdout.strip())
+    except (subp.ProcessExecutionError, Exception) as e:
         raise RuntimeError(
             f"Could not restart service systemd-modules-load:{NL}{str(e)}"
         ) from e
 
 
-def is_loaded(distro_cfg: dict, module_name: str):
+def is_loaded(module_name: str):
     """
     Checks if a kernel module is already loaded
 
@@ -287,7 +290,7 @@ def is_loaded(distro_cfg: dict, module_name: str):
     loaded = False
     try:
         out = subp.subp(
-            distro_cfg["km_is_loaded_cmd"], capture=True, shell=True
+            DEFAULT_CONFIG["km_cmd"]["is_loaded"], capture=True, shell=True
         )
         if re.search("^" + module_name, out.stdout.strip()):
             LOG.debug("Kernel module %s is loaded", module_name)
@@ -301,7 +304,7 @@ def is_loaded(distro_cfg: dict, module_name: str):
     return loaded
 
 
-def unload_modules(distro_cfg: dict, modules: list):
+def unload(modules: list):
     """Unloads a list of kernel module
 
     This function unloads a list of kernel modules.
@@ -311,10 +314,12 @@ def unload_modules(distro_cfg: dict, modules: list):
 
     @raises RuntimeError
     """
+
+    cmd = copy.copy(DEFAULT_CONFIG["km_cmd"]["unload"])
     for module in set(modules):
-        cmd = distro_cfg["km_unload_cmd"].append(module)
+        cmd.append(module)
         try:
-            if is_loaded(distro_cfg, module):
+            if is_loaded(module):
                 LOG.debug("Unloading kernel module %s", module)
                 subp.subp(cmd)
         except subp.ProcessExecutionError as e:
@@ -323,7 +328,7 @@ def unload_modules(distro_cfg: dict, modules: list):
             ) from e
 
 
-def update_initial_ramdisk(distro_cfg: dict):
+def update_initial_ramdisk():
     """Update initramfs for all installed kernels
 
     @param distro_cfg: Distro config
@@ -331,7 +336,7 @@ def update_initial_ramdisk(distro_cfg: dict):
     @raises RuntimeError
     """
     try:
-        subp.subp(distro_cfg["km_update_cmd"])
+        subp.subp(DEFAULT_CONFIG["km_cmd"]["update"])
     except subp.ProcessExecutionError as e:
         raise RuntimeError(
             f"Failed to update initial ramdisk:{NL}{str(e)}"
@@ -342,19 +347,21 @@ def handle(
     name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
 ) -> None:
     kernel_modules_section = None
+    unload_modules = []  # type: list
 
-    if "kernel_modules" in cfg:
-        LOG.debug("Found kernel_modules section in config")
-        kernel_modules_section = util.get_cfg_option_list(
-            cfg, "kernel_modules", []
-        )
-    else:
+    kernel_modules_section = util.get_cfg_option_list(
+        cfg, "kernel_modules", []
+    )
+
+    if not kernel_modules_section:
         LOG.debug(
             "Skipping module named %s, no "
             "'kernel_modules' configuration found",
             name,
         )
         return
+
+    LOG.debug("Found kernel_modules section in config")
 
     # check systemd usage
     if not uses_systemd:
@@ -364,12 +371,9 @@ def handle(
         )
         return
 
-    # create distro config
-    distro_cfg = _distro_kernel_modules_configs(cloud.distro.name)
-
     # cleanup
     LOG.info("Cleaning up kernel modules")
-    cleanup(distro_cfg)
+    cleanup()
 
     # iterate over modules
     for module in kernel_modules_section:
@@ -377,23 +381,23 @@ def handle(
         supplemental_schema_validation(module)
 
         # Load module
-        if module.get("load"):
-            prepare_module(distro_cfg, module["name"])
+        if module.get("load", True):
+            prepare_module(module["name"])
         else:
-            UNLOAD_MODULES.append(module["name"])
+            unload_modules.append(module["name"])
 
         # Enhance module
         if module.get("persist"):
-            enhance_module(distro_cfg, module["name"], module["persist"])
+            enhance_module(module["name"], module["persist"], unload_modules)
 
     # rebuild initial ramdisk
     log.info("Update initramfs")
-    update_initial_ramdisk(distro_cfg)
+    update_initial_ramdisk()
 
     # Unload modules (blacklisted or 'load' is false)
     log.info("Unloading kernel modules")
-    unload_modules(distro_cfg, UNLOAD_MODULES)
+    unload(unload_modules)
 
     # reload kernel modules
     log.info("Reloading kernel modules")
-    reload_modules(cloud)
+    reload_modules()
