@@ -3,10 +3,11 @@
 """Kernel Modules"""
 import copy
 import re
+import typing
 from array import array
 from logging import Logger
 from textwrap import dedent
-from typing import TypedDict
+from typing_extensions import TypedDict
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -57,8 +58,8 @@ REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
 
 class DefaultConfigType(TypedDict):
-    km_cmd: dict[str, list[str]]
-    km_files: dict[str, dict[str, str | int]]
+    km_cmd: typing.Dict[str, typing.List[str]]
+    km_files: typing.Dict[str, typing.Dict[str, str | int]]
 
 
 DEFAULT_CONFIG: DefaultConfigType = {
@@ -81,7 +82,7 @@ DEFAULT_CONFIG: DefaultConfigType = {
 }
 
 
-def persist_schema_validation(persist: dict):
+def persist_schema_validation(persist: dict) -> typing.List[str]:
     """Validate user-provided kernel_modules:persist option values.
 
     This function supplements flexible jsonschema validation with specific
@@ -280,7 +281,7 @@ def reload_modules():
         ) from e
 
 
-def is_loaded(module_name: str):
+def is_loaded(module_name: str) -> bool:
     """
     Checks if a kernel module is already loaded
 
