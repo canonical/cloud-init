@@ -65,11 +65,11 @@ class Ifstate:
 
     @property
     def is_vlan(self) -> bool:
-        return "vlan" in self.groups or self.vlan
+        return ("vlan" in self.groups) or (self.vlan != {})
 
     @property
     def is_wlan(self) -> bool:
-        return "wlan" in self.groups or self.vlan
+        return "wlan" in self.groups
 
 
 class Ifconfig:
