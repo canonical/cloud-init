@@ -59,7 +59,7 @@ REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
 class DefaultConfigType(TypedDict):
     km_cmd: typing.Dict[str, typing.List[str]]
-    km_files: typing.Dict[str, typing.Dict[str, str | int]]
+    km_files: typing.Dict[str, typing.Dict[str, typing.Union[str,int]]]
 
 
 DEFAULT_CONFIG: DefaultConfigType = {
