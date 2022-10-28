@@ -22,7 +22,6 @@ NETWORK_FILE_HEADER = """\
 
 class Distro(distros.Distro):
     pip_package_name = "py3-pip"
-    init_cmd = ["rc-service"]  # init scripts
     locale_conf_fn = "/etc/profile.d/locale.sh"
     network_conf_fn = "/etc/network/interfaces"
     renderer_configs = {
@@ -174,5 +173,33 @@ class Distro(distros.Distro):
 
         return command
 
+    def uses_systemd(self):
+        """
+        Alpine uses OpenRC, not systemd
+        """
+        return False
 
-# vi: ts=4 expandtab
+    def manage_service(self, action: str, service: str):
+        """
+        Perform the requested action on a service. This handles OpenRC
+        specific implementation details.
+
+        OpenRC has two distinct commands relating to services,
+        'rc-service' and 'rc-update' and the order of their argument
+        lists differ.
+        May raise ProcessExecutionError
+        """
+        init_cmd = ["rc-service", "--nocolor"]
+        update_cmd = ["rc-update", "--nocolor"]
+        cmds = {
+            "stop": list(init_cmd) + [service, "stop"],
+            "start": list(init_cmd) + [service, "start"],
+            "disable": list(update_cmd) + ["del", service],
+            "enable": list(update_cmd) + ["add", service],
+            "restart": list(init_cmd) + [service, "restart"],
+            "reload": list(init_cmd) + [service, "restart"],
+            "try-reload": list(init_cmd) + [service, "restart"],
+            "status": list(init_cmd) + [service, "status"],
+        }
+        cmd = list(cmds[action])
+        return subp.subp(cmd, capture=True)
