@@ -14,6 +14,8 @@ from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
+MAC_RE = r"""([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}"""
+
 
 class Ifstate:
     """
@@ -184,6 +186,16 @@ class Ifconfig:
                         dev.vlan["link"] = toks[i + 1]
 
         return self._ifs
+
+    def ifs_by_name(self):
+        return {
+            k: v for (k, v) in self._ifs.items() if not re.fullmatch(MAC_RE, k)
+        }
+
+    def ifs_by_mac(self):
+        return {
+            k: v for (k, v) in self._ifs.items() if re.fullmatch(MAC_RE, k)
+        }
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None
