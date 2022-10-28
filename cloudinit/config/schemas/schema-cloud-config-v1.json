@@ -1393,6 +1393,7 @@
       "properties": {
         "kernel_modules": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
             "required": ["name"],
@@ -1410,6 +1411,7 @@
               "persist": {
                 "type": "object",
                 "additionalProperties": false,
+                "description": "Enhance a module by setting different options",
                 "properties": {
                   "alias": {
                     "type": "string",

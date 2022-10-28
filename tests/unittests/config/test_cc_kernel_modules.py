@@ -71,18 +71,14 @@ class TestKernelModules(CiTestCase):
         """Errors when trying to prepare modules"""
         module_name = "wireguard"
 
-        for distro_name in cc_kernel_modules.DISTROS:
-            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
-                distro_name
-            )
-            CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
-            with self.assertRaises(RuntimeError) as context_mgr:
-                cc_kernel_modules.prepare_module(distro_cfg, module_name)
-            self.assertIn(
-                "Failure appending kernel module 'wireguard' to file "
-                f"{CFG_FILES['load']['path']}:\n",
-                str(context_mgr.exception),
-            )
+        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_kernel_modules.prepare_module(module_name)
+        self.assertIn(
+            "Failure appending kernel module 'wireguard' to file "
+            f"{CFG_FILES['load']['path']}:\n",
+            str(context_mgr.exception),
+        )
 
     def test_enhance_module_failed(self):
         """Errors when trying to enhance modules"""
@@ -91,29 +87,25 @@ class TestKernelModules(CiTestCase):
             "alias": "wireguard-alias",
             "install": "/usr/sbin/modprobe zfs",
         }
+        unload_modules = []
 
-        for distro_name in cc_kernel_modules.DISTROS:
-            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
-                distro_name
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_kernel_modules.enhance_module(
+                module_name, persist, unload_modules
             )
-            with self.assertRaises(RuntimeError) as context_mgr:
-                cc_kernel_modules.enhance_module(
-                    distro_cfg, module_name, persist
-                )
-            self.assertIn(
-                "Failure enhancing kernel module 'wireguard':\n",
-                str(context_mgr.exception),
-            )
+        self.assertIn(
+            "Failure enhancing kernel module 'wireguard':\n",
+            str(context_mgr.exception),
+        )
 
-    def test_reload_modules_failed(self):
+    @mock.patch("%s.subp.subp" % MPATH)
+    def test_reload_modules_failed(self, m_subp):
         """Errors when reloading modules"""
-        distro = mock.MagicMock()  # No errors raised
-        distro.manage_service.side_effect = subp.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             "systemctl restart systemd-modules-load failed: exit code 1"
         )
-        mycloud = FakeCloud(distro)
         with self.assertRaises(RuntimeError) as context_mgr:
-            cc_kernel_modules.reload_modules(mycloud)
+            cc_kernel_modules.reload_modules()
         self.assertEqual(
             "Could not restart service systemd-modules-load:\n"
             "Unexpected error while running command.\n"
@@ -132,19 +124,15 @@ class TestKernelModules(CiTestCase):
             "update-initramfs: execution error"
         )
 
-        for distro_name in cc_kernel_modules.DISTROS:
-            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
-                distro_name
-            )
-            with self.assertRaises(RuntimeError) as context_mgr:
-                cc_kernel_modules.update_initial_ramdisk(distro_cfg)
-            self.assertIn(
-                "Failed to update initial ramdisk:\n"
-                "Unexpected error while running command.\n"
-                "Command: -\nExit code: -\nReason: -\n"
-                "Stdout: update-initramfs: execution error\nStderr: -",
-                str(context_mgr.exception),
-            )
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_kernel_modules.update_initial_ramdisk()
+        self.assertIn(
+            "Failed to update initial ramdisk:\n"
+            "Unexpected error while running command.\n"
+            "Command: -\nExit code: -\nReason: -\n"
+            "Stdout: update-initramfs: execution error\nStderr: -",
+            str(context_mgr.exception),
+        )
 
     @mock.patch("cloudinit.util.del_file")
     def test_cleanup_failed(self, m_wr):
@@ -152,21 +140,17 @@ class TestKernelModules(CiTestCase):
 
         m_wr.side_effect = Exception("file write exception")
 
-        for distro_name in cc_kernel_modules.DISTROS:
-            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
-                distro_name
-            )
-            CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
-            with self.assertRaises(RuntimeError) as context_mgr:
-                cc_kernel_modules.cleanup(distro_cfg)
-            self.assertIn(
-                f"Could not delete file {CFG_FILES['load']['path']}:\n",
-                str(context_mgr.exception),
-            )
+        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_kernel_modules.cleanup()
+        self.assertIn(
+            f"Could not delete file {CFG_FILES['load']['path']}:\n",
+            str(context_mgr.exception),
+        )
 
     @mock.patch("%s.subp.subp" % MPATH)
     @mock.patch("%s.is_loaded" % MPATH)
-    def test_unload_modules_failed(self, m_subp, m_is_loaded):
+    def test_unload_failed(self, m_subp, m_is_loaded):
         """Errors when unloading kernel modules"""
 
         m_subp.side_effect = subp.ProcessExecutionError("unload exception")
@@ -174,16 +158,12 @@ class TestKernelModules(CiTestCase):
 
         unload_modules = ["wireguard"]
 
-        for distro_name in cc_kernel_modules.DISTROS:
-            distro_cfg = cc_kernel_modules._distro_kernel_modules_configs(
-                distro_name
-            )
-            with self.assertRaises(RuntimeError) as context_mgr:
-                cc_kernel_modules.unload_modules(distro_cfg, unload_modules)
-            self.assertIn(
-                "Could not unload kernel module wireguard:\n",
-                str(context_mgr.exception),
-            )
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_kernel_modules.unload(unload_modules)
+        self.assertIn(
+            "Could not unload kernel module wireguard:\n",
+            str(context_mgr.exception),
+        )
 
 
 class TestKernelModulesSchema:

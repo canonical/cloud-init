@@ -4,6 +4,7 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import verify_clean_log
 
 ASCII_TEXT = "ASCII text"
 
@@ -77,6 +78,10 @@ class TestKernelModules:
         assert result.ok
         assert expected_out in result.stdout
 
+    def test_clean_log(self, class_client: IntegrationInstance):
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+
 
 @pytest.mark.ci
 @pytest.mark.lxd_container
@@ -118,3 +123,7 @@ class TestKernelModulesWithoutKmod:
         result = class_client.execute(cmd)
         assert result.ok
         assert expected_out in result.stdout
+
+    def test_clean_log(self, class_client: IntegrationInstance):
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
