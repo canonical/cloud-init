@@ -27,6 +27,7 @@ class Ifstate:
 
     def __init__(self, name):
         self.name = name
+        self.index: int = 0
         self.inet = {}
         self.inet6 = {}
         self.up = False
@@ -102,6 +103,7 @@ class Ifconfig:
         @param text: The output of ``ifconfig -a``
         @returns: A dict of ``Ifstate``s, referenced by ``name`` and ``mac``
         """
+        ifindex = 0
         for line in text.splitlines():
             if len(line) == 0:
                 continue
@@ -110,11 +112,13 @@ class Ifconfig:
                 # These start with devN: flags=NNNN<flags> and then continue
                 # *indented* for the rest of the config.
                 # Here our loop resets ``curif`` & ``dev`` to this new device
+                ifindex += 1
                 curif = line.split()[0]
                 # current ifconfig pops a ':' on the end of the device
                 if curif.endswith(":"):
                     curif = curif[:-1]
                 dev = Ifstate(curif)
+                dev.index = ifindex
                 self._ifs[curif] = dev
 
             toks = line.lower().strip().split()
@@ -124,11 +128,17 @@ class Ifconfig:
                 if flags != {}:
                     dev.flags = copy.deepcopy(flags["flags"])
                     dev.up = flags["up"]
-                    dev.mtu = flags["mtu"]
-                    dev.metric = flags["metric"]
+                    if "mtu" in flags:
+                        dev.mtu = flags["mtu"]
+                    if "metric" in flags:
+                        dev.metric = flags["metric"]
             if toks[0].startswith("capabilities="):
                 caps = re.split(r"<|>", toks[0])
                 dev.flags.append(caps)
+
+            if toks[0] == "index":
+                # We have found a real index! override our fake one
+                dev.index = int(toks[1])
 
             if toks[0] == "description:":
                 dev.description = line[line.index(":") + 2 :]
@@ -257,8 +267,11 @@ class Ifconfig:
             ret["flags"] = flags[1].split(",")
             if "up" in ret["flags"]:
                 ret["up"] = True
-            if toks[2] == "metric":
-                ret["metric"] = int(toks[3])
-            if toks[4] == "mtu":
-                ret["mtu"] = int(toks[5])
+            else:
+                ret["up"] = False
+            for t in range(2, len(toks)):
+                if toks[t] == "metric":
+                    ret["metric"] = int(toks[t + 1])
+                elif toks[t] == "mtu":
+                    ret["mtu"] = int(toks[t + 1])
         return ret
