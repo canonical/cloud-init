@@ -64,7 +64,7 @@ class TestIfconfigParserOpenBSD(TestCase):
         assert ifs["vio0"].index == 1
 
     def test_gif_ipv6(self):
-        """assert that we can parse a tunnel's inet6 address, despite the -->"""
+        """assert that we can parse a gif inet6 address, despite the -->"""
         ifs = Ifconfig().parse(self.ifs_txt)
         assert ifs["gif0"].inet6["fe80::be30:5bff:fed0:471"] == {
             "prefixlen": "64",
