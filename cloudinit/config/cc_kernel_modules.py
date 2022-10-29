@@ -220,6 +220,7 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
         elif key == "blacklist":
             if value:
                 unload_modules.append(module_name)
+                entry = f"{key} {module_name}"
 
         try:
             util.write_file(
