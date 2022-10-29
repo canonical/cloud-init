@@ -11,18 +11,17 @@ ASCII_TEXT = "ASCII text"
 USER_DATA = """\
 #cloud-config
 packages:
-  - zfsutils-linux
   - wireguard
-  - multipath-tools
 kernel_modules:
   - name: lockd
     load: true
     persist:
       options: "nlm_udpport=4045 nlm_tcpport=4045"
   - name: wireguard
-  - name: zfs
+  - name: ip_tables
     load: true
-  - name: dm_multipath
+  - name: ahci
+    load: false
     persist:
       blacklist: true
 """
@@ -56,18 +55,18 @@ class TestKernelModules:
             ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
             ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
             # check loaded modules
-            ("lsmod | grep -e '^lockd\\|^zfs' | wc -l", "2"),
+            ("lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l", "3"),
             # sha256sum check modul
             (
                 "sha256sum </etc/modules-load.d/cloud-init.conf",
-                "ea8244ae0b5639f26f58c7e881c31f88"
-                "3c2098202694719e28f4a5adb08fd5c1",
+                "9d14d5d585dd3e5e9a3c414b5b7af7ed"
+                "9d44e7ee3584652fbf388cad455b5053",
             ),
             # sha256sum check modprobe
             (
                 "sha256sum   </etc/modprobe.d/cloud-init.conf",
-                "30983eed6c4d3048402ad6605f296308"
-                "39551a3487f5e12875a5037c93792083",
+                "229ccc941ec34fc8c49bf14285ffeb65"
+                "ea2796c4840f9377d6df76bda42c878e",
             ),
         ),
     )
@@ -102,18 +101,18 @@ class TestKernelModulesWithoutKmod:
             ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
             ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
             # check loaded modules
-            ("lsmod | grep -e '^lockd\\|^zfs' | wc -l", "2"),
+            ("lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l", "3"),
             # sha256sum check modul
             (
                 "sha256sum </etc/modules-load.d/cloud-init.conf",
-                "ea8244ae0b5639f26f58c7e881c31f88"
-                "3c2098202694719e28f4a5adb08fd5c1",
+                "9d14d5d585dd3e5e9a3c414b5b7af7ed"
+                "9d44e7ee3584652fbf388cad455b5053",
             ),
             # sha256sum check modprobe
             (
                 "sha256sum   </etc/modprobe.d/cloud-init.conf",
-                "30983eed6c4d3048402ad6605f296308"
-                "39551a3487f5e12875a5037c93792083",
+                "229ccc941ec34fc8c49bf14285ffeb65"
+                "ea2796c4840f9377d6df76bda42c878e",
             ),
         ),
     )
