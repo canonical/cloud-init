@@ -26,7 +26,7 @@ kernel_modules:
       blacklist: true
 """
 
-KERNEL_MODULES_LXD = "lockd,zfs"
+KERNEL_MODULES_LXD = "lockd,zfs,wireguard"
 
 
 def load_kernel_modules_lxd(instance: LXDInstance):
@@ -55,7 +55,10 @@ class TestKernelModules:
             ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
             ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
             # check loaded modules
-            ("lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l", "3"),
+            (
+                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
+                "3",
+            ),
             # sha256sum check modul
             (
                 "sha256sum </etc/modules-load.d/cloud-init.conf",
@@ -101,7 +104,10 @@ class TestKernelModulesWithoutKmod:
             ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
             ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
             # check loaded modules
-            ("lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l", "3"),
+            (
+                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
+                "3",
+            ),
             # sha256sum check modul
             (
                 "sha256sum </etc/modules-load.d/cloud-init.conf",

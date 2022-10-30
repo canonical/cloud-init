@@ -3,10 +3,16 @@
 """Kernel Modules"""
 import copy
 import re
-import typing
+import sys
 from array import array
 from logging import Logger
 from textwrap import dedent
+from typing import Dict, List, Union
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -56,9 +62,9 @@ NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
 
-class DefaultConfigType(typing.TypedDict):
-    km_cmd: typing.Dict[str, typing.List[str]]
-    km_files: typing.Dict[str, typing.Dict[str, typing.Union[str, int]]]
+class DefaultConfigType(TypedDict):
+    km_cmd: Dict[str, List[str]]
+    km_files: Dict[str, Dict[str, Union[str, int]]]
 
 
 DEFAULT_CONFIG: DefaultConfigType = {
@@ -81,7 +87,7 @@ DEFAULT_CONFIG: DefaultConfigType = {
 }
 
 
-def persist_schema_validation(persist: dict) -> typing.List[str]:
+def persist_schema_validation(persist: dict) -> List[str]:
     """Validate user-provided kernel_modules:persist option values.
 
     This function supplements flexible jsonschema validation with specific
@@ -90,6 +96,8 @@ def persist_schema_validation(persist: dict) -> typing.List[str]:
     @param kernel_module: Dictionary.
 
     @raises: ValueError describing invalid values provided.
+
+    @return list of strings
     """
     errors = []
     for key, value in sorted(persist.items()):
@@ -168,7 +176,6 @@ def prepare_module(module_name: str):
     This function appends a kernel module to a file
     (depends on operating system) for loading a module on boot.
 
-    @param distro_cfg: Distro config
     @param module_name: string.
 
     @raises: RuntimeError when write operation fails.
@@ -201,9 +208,9 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
     for a kernel module, which will be applied when kernel
     module get's loaded.
 
-    @param distro_cfg: Distro config
     @param module_name: string.
     @param persist: Dictionary
+    qparam unload_modules: list
 
     @raises RuntimeError when write operation fails.
     """
@@ -241,8 +248,6 @@ def cleanup():
     This function removes all files, which are
     responsible for loading and enhancing kernel modules.
 
-    @param distro_cfg: Distro config
-
     @raises RuntimeError when remove operation fails
     """
 
@@ -260,10 +265,8 @@ def cleanup():
 def reload_modules():
     """Reload kernel modules
 
-    This function restarts service 'systemd-modules-load'
-    for reloading kernel modules
-
-    @param cloud: Cloud object
+    This function reload modules in /etc/modules-load.d/cloud-init.conf
+    with 'systemd-modules-load' executable.
 
     @raises RuntimeError
     """
@@ -277,7 +280,7 @@ def reload_modules():
             raise Exception(out.stdout.strip())
     except (subp.ProcessExecutionError, Exception) as e:
         raise RuntimeError(
-            f"Could not restart service systemd-modules-load:{NL}{str(e)}"
+            f"Could not load modules with systemd-modules-load:{NL}{str(e)}"
         ) from e
 
 
@@ -285,8 +288,9 @@ def is_loaded(module_name: str) -> bool:
     """
     Checks if a kernel module is already loaded
 
-    @param distro_cfg: Distro config
     @param module_name: name of kernel module
+
+    @return bool
     """
     loaded = False
     try:
