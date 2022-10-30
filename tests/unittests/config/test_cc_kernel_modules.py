@@ -102,16 +102,15 @@ class TestKernelModules(CiTestCase):
     def test_reload_modules_failed(self, m_subp):
         """Errors when reloading modules"""
         m_subp.side_effect = subp.ProcessExecutionError(
-            "systemctl restart systemd-modules-load failed: exit code 1"
+            "Failed to find module 'ip_tables'"
         )
         with self.assertRaises(RuntimeError) as context_mgr:
             cc_kernel_modules.reload_modules()
         self.assertEqual(
-            "Could not restart service systemd-modules-load:\n"
+            "Could not load modules with systemd-modules-load:\n"
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
-            "Stdout: systemctl restart systemd-modules-load failed: "
-            "exit code 1\n"
+            "Stdout: Failed to find module 'ip_tables'\n"
             "Stderr: -",
             str(context_mgr.exception),
         )
