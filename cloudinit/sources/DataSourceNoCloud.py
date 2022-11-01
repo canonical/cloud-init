@@ -50,12 +50,17 @@ class DataSourceNoCloud(sources.DataSource):
         return devlist
 
     def _var_sub_seed(self, seedfrom):
-        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-        if "_chassis-asset-tag_" in seedfrom and asset_tag:
+        
+        if "_chassis-asset-tag_" in seedfrom:
+            asset_tag = dmi.read_dmi_data("chassis-asset-tag")
+            if not asset_tag:
+                asset_tag = ""
             seedfrom = seedfrom.replace("_chassis-asset-tag_", str(asset_tag))
 
-        serial_num = dmi.read_dmi_data("system-serial-number")
-        if "_system-serial-number_" in seedfrom and serial_num:
+        if "_system-serial-number_" in seedfrom:
+            serial_num = dmi.read_dmi_data("system-serial-number")
+            if not serial_num:
+                serial_num = ""
             seedfrom = seedfrom.replace(
                 "_system-serial-number_", str(serial_num)
             )
