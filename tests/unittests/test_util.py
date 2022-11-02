@@ -341,6 +341,18 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 """
 )
 
+OS_RELEASE_COS = dedent(
+    """\
+    NAME="Container-Optimized OS"
+    ID=cos
+    PRETTY_NAME="Container-Optimized OS from Google"
+    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
+    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
+    VERSION=93
+    VERSION_ID=93
+"""
+)
+
 OS_RELEASE_MARINER = dedent(
     """\
     NAME="CBL-Mariner"
@@ -1156,6 +1168,14 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_cos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on COS"""
+        m_os_release.return_value = OS_RELEASE_COS
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("cos", "93", ""), dist)
 
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)
@@ -2784,6 +2804,20 @@ class TestVersion:
             assert util.Version.from_str(v1) < util.Version.from_str(
                 v2
             ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("version"),
+        (
+            ("3.1.0"),
+            ("3.0.1"),
+            ("3.1"),
+            ("3.1.0.0"),
+            ("3.1.1"),
+        ),
+    )
+    def test_to_version_and_back_to_str(self, version):
+        """Verify __str__, __iter__, and Version.from_str()"""
+        assert version == str(util.Version.from_str(version))
 
     @pytest.mark.parametrize(
         ("str_ver", "cls_ver"),

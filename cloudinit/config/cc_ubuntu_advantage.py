@@ -2,10 +2,11 @@
 
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
+import json
 import re
 from logging import Logger
 from textwrap import dedent
-from typing import Any
+from typing import Any, List
 from urllib.parse import urlparse
 
 from cloudinit import log as logging
@@ -278,6 +279,7 @@ def configure_ua(token, enable=None):
         )
         enable = []
 
+    # Perform attach
     if enable:
         attach_cmd = ["ua", "attach", "--no-auto-enable", token]
     else:
@@ -288,35 +290,79 @@ def configure_ua(token, enable=None):
         # Allow `ua attach` to fail in already attached machines
         subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        error = str(e).replace(token, REDACTED)
-        msg = f"Failure attaching Ubuntu Advantage:\n{error}"
+        err = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Advantage:\n{err}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 
-    enable_errors = []
-    for service in enable:
-        try:
-            cmd = ["ua", "enable", "--assume-yes", service]
-            subp.subp(cmd, capture=True)
-        except subp.ProcessExecutionError as e:
-            if re.search("is already enabled.", str(e)):
-                LOG.debug('Service "%s" already enabled.', service)
-            else:
-                enable_errors.append((service, e))
+    # Enable services
+    if not enable:
+        return
+    cmd = ["ua", "enable", "--assume-yes", "--format", "json", "--"] + enable
+    try:
+        enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Error while enabling service(s): " + ", ".join(enable)
+        ) from e
+
+    try:
+        enable_resp = json.loads(enable_stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"UA response was not json: {enable_stdout}") from e
+
+    # At this point we were able to load the json response from UA. This
+    # response contains a list of errors under the key 'errors'. E.g.
+    #
+    #   {
+    #      "errors": [
+    #        {
+    #           "message": "UA Apps: ESM is already enabled ...",
+    #           "message_code": "service-already-enabled",
+    #           "service": "esm-apps",
+    #           "type": "service"
+    #        },
+    #        {
+    #           "message": "Cannot enable unknown service 'asdf' ...",
+    #           "message_code": "invalid-service-or-failure",
+    #           "service": null,
+    #           "type": "system"
+    #        }
+    #      ]
+    #   }
+    #
+    # From our pov there are two type of errors, service and non-service
+    # related. We can distinguish them by checking if `service` is non-null
+    # or null respectively.
+
+    # pylint: disable=import-error
+    from uaclient.messages import ALREADY_ENABLED
+
+    # pylint: enable=import-error
+
+    UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
+
+    enable_errors: List[dict] = []
+    for err in enable_resp.get("errors", []):
+        if err["message_code"] == UA_MC_ALREADY_ENABLED:
+            LOG.debug("Service `%s` already enabled.", err["service"])
+            continue
+        enable_errors.append(err)
 
     if enable_errors:
-        for service, error in enable_errors:
-            msg = 'Failure enabling "{service}":\n{error}'.format(
-                service=service, error=str(error)
-            )
+        error_services: List[str] = []
+        for err in enable_errors:
+            service = err.get("service")
+            if service is not None:
+                error_services.append(service)
+                msg = f'Failure enabling `{service}`: {err["message"]}'
+            else:
+                msg = f'Failure of type `{err["type"]}`: {err["message"]}'
             util.logexc(LOG, msg)
 
         raise RuntimeError(
-            "Failure enabling Ubuntu Advantage service(s): {}".format(
-                ", ".join(
-                    '"{}"'.format(service) for service, _ in enable_errors
-                )
-            )
+            "Failure enabling Ubuntu Advantage service(s): "
+            + ", ".join(error_services)
         )
 
 
@@ -343,15 +389,14 @@ def _should_auto_attach(ua_section: dict) -> bool:
     if disable_auto_attach:
         return False
 
-    try:
-        from uaclient.api.exceptions import UserFacingError
-        from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
-            should_auto_attach,
-        )
-    except ImportError as ex:
-        LOG.debug("Unable to import `uaclient`: %s", ex)
-        LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
-        return False
+    # pylint: disable=import-error
+    from uaclient.api.exceptions import UserFacingError
+    from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
+        should_auto_attach,
+    )
+
+    # pylint: enable=import-error
+
     try:
         result = should_auto_attach()
     except UserFacingError as ex:
@@ -378,19 +423,15 @@ def _attach(ua_section: dict):
 
 
 def _auto_attach(ua_section: dict):
-    try:
-        from uaclient.api.exceptions import (
-            AlreadyAttachedError,
-            UserFacingError,
-        )
-        from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
-            FullAutoAttachOptions,
-            full_auto_attach,
-        )
-    except ImportError as ex:
-        msg = f"Unable to import `uaclient`: {ex}"
-        LOG.error(msg)
-        raise RuntimeError(msg) from ex
+
+    # pylint: disable=import-error
+    from uaclient.api.exceptions import AlreadyAttachedError, UserFacingError
+    from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
+        FullAutoAttachOptions,
+        full_auto_attach,
+    )
+
+    # pylint: enable=import-error
 
     enable = ua_section.get("enable")
     enable_beta = ua_section.get("enable_beta")

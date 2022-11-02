@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import json
 import logging
 import re
 import sys
-from builtins import __import__
 from collections import namedtuple
 
 import pytest
@@ -30,17 +30,6 @@ from tests.unittests.util import get_cloud
 MPATH = "cloudinit.config.cc_ubuntu_advantage"
 
 
-def decorate__import__with_errors(name_startswith):
-    """Decorates __import__ with errors"""
-
-    def __import__with_error(name, *args, **kwargs):
-        if name.startswith(name_startswith):
-            raise ImportError(f"No module named '{name_startswith}'")
-        return __import__(name, *args, **kwargs)
-
-    return __import__with_error
-
-
 class FakeUserFacingError(Exception):
     pass
 
@@ -55,13 +44,14 @@ class FakeAlreadyAttachedOnPROError(FakeUserFacingError):
 
 @pytest.fixture
 def fake_uaclient(mocker):
+    """Mocks `uaclient` module"""
+
     mocker.patch.dict("sys.modules")
-    sys.modules["uaclient"] = mock.Mock()
-    sys.modules["uaclient.config"] = mock.Mock()
-    sys.modules[
-        "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
-    ] = mock.Mock()
-    sys.modules["uaclient.api"] = mock.Mock()
+    m_uaclient = mock.Mock()
+
+    sys.modules["uaclient"] = m_uaclient
+
+    # Exceptions
     _exceptions = namedtuple(
         "exceptions",
         [
@@ -74,7 +64,13 @@ def fake_uaclient(mocker):
     )
     sys.modules["uaclient.api.exceptions"] = _exceptions
 
+    # Messages
+    m_messages = mock.Mock()
+    m_messages.ALREADY_ENABLED.name = "service-already-enabled"
+    sys.modules["uaclient.messages"] = m_messages
 
+
+@pytest.mark.usefixtures("fake_uaclient")
 @mock.patch(f"{MPATH}.subp.subp")
 class TestConfigureUA:
     def test_configure_ua_attach_error(self, m_subp):
@@ -146,7 +142,17 @@ class TestConfigureUA:
                         rcs={0, 2},
                     ),
                     mock.call(
-                        ["ua", "enable", "--assume-yes", "fips"], capture=True
+                        [
+                            "ua",
+                            "enable",
+                            "--assume-yes",
+                            "--format",
+                            "json",
+                            "--",
+                            "fips",
+                        ],
+                        capture=True,
+                        rcs={0, 1},
                     ),
                 ],
                 [
@@ -174,7 +180,17 @@ class TestConfigureUA:
                         rcs={0, 2},
                     ),
                     mock.call(
-                        ["ua", "enable", "--assume-yes", "fips"], capture=True
+                        [
+                            "ua",
+                            "enable",
+                            "--assume-yes",
+                            "--format",
+                            "json",
+                            "--",
+                            "fips",
+                        ],
+                        capture=True,
+                        rcs={0, 1},
                     ),
                 ],
                 [
@@ -224,6 +240,7 @@ class TestConfigureUA:
     def test_configure_ua_attach(
         self, m_subp, kwargs, call_args_list, log_record_tuples, caplog
     ):
+        m_subp.return_value = subp.SubpResult(json.dumps({"errors": []}), "")
         configure_ua(**kwargs)
         assert call_args_list == m_subp.call_args_list
         for record_tuple in log_record_tuples:
@@ -246,18 +263,33 @@ class TestConfigureUA:
             "Attaching to Ubuntu Advantage. ua attach REDACTED",
         ) in caplog.record_tuples
 
-    def test_configure_ua_attach_on_service_enabled(self, m_subp, caplog):
+    def test_configure_ua_attach_on_service_enabled(
+        self, m_subp, caplog, fake_uaclient
+    ):
         """retry enabling an already enabled service"""
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
             fail_cmds = [
-                ["ua", "enable", "--assume-yes", svc] for svc in ["livepatch"]
+                "ua",
+                "enable",
+                "--assume-yes",
+                "--format",
+                "json",
+                "--",
+                "livepatch",
             ]
-            if cmd in fail_cmds and capture:
-                svc = cmd[-1]
-                raise subp.ProcessExecutionError(
-                    'Service "{}" is already enabled.'.format(svc)
-                )
+            if cmd == fail_cmds and capture:
+                response = {
+                    "errors": [
+                        {
+                            "message": "Does not matter",
+                            "message_code": "service-already-enabled",
+                            "service": cmd[-1],
+                            "type": "service",
+                        }
+                    ]
+                }
+                return subp.SubpResult(json.dumps(response), "")
 
         m_subp.side_effect = fake_subp
 
@@ -269,62 +301,138 @@ class TestConfigureUA:
                 rcs={0, 2},
             ),
             mock.call(
-                ["ua", "enable", "--assume-yes", "livepatch"], capture=True
+                [
+                    "ua",
+                    "enable",
+                    "--assume-yes",
+                    "--format",
+                    "json",
+                    "--",
+                    "livepatch",
+                ],
+                capture=True,
+                rcs={0, 1},
             ),
         ]
         assert (
             MPATH,
             logging.DEBUG,
-            'Service "livepatch" already enabled.',
+            "Service `livepatch` already enabled.",
         ) in caplog.record_tuples
 
     def test_configure_ua_attach_on_service_error(self, m_subp, caplog):
         """all services should be enabled and then any failures raised"""
 
         def fake_subp(cmd, capture=None, rcs=None, logstring=None):
-            fail_cmds = [
-                ["ua", "enable", "--assume-yes", svc] for svc in ["esm", "cc"]
+            fail_cmd = [
+                "ua",
+                "enable",
+                "--assume-yes",
+                "--format",
+                "json",
+                "--",
             ]
-            if cmd in fail_cmds and capture:
-                svc = cmd[-1]
-                raise subp.ProcessExecutionError(
-                    "Invalid {} credentials".format(svc.upper())
-                )
+            if cmd[: len(fail_cmd)] == fail_cmd and capture:
+                response = {
+                    "errors": [
+                        {
+                            "message": f"Invalid {svc} credentials",
+                            "message_code": "some-code",
+                            "service": svc,
+                            "type": "service",
+                        }
+                        for svc in ["esm", "cc"]
+                    ]
+                    + [
+                        {
+                            "message": "Cannot enable unknown service 'asdf'",
+                            "message_code": "invalid-service-or-failure",
+                            "service": None,
+                            "type": "system",
+                        }
+                    ]
+                }
+                return subp.SubpResult(json.dumps(response), "")
+            return subp.SubpResult(json.dumps({"errors": []}), "")
 
         m_subp.side_effect = fake_subp
 
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                'Failure enabling Ubuntu Advantage service(s): "esm", "cc"'
+                "Failure enabling Ubuntu Advantage service(s): esm, cc"
             ),
         ):
-            configure_ua(token="SomeToken", enable=["esm", "cc", "fips"])
+            configure_ua(
+                token="SomeToken", enable=["esm", "cc", "fips", "asdf"]
+            )
         assert m_subp.call_args_list == [
             mock.call(
                 ["ua", "attach", "--no-auto-enable", "SomeToken"],
                 logstring=["ua", "attach", "--no-auto-enable", "REDACTED"],
                 rcs={0, 2},
             ),
-            mock.call(["ua", "enable", "--assume-yes", "esm"], capture=True),
-            mock.call(["ua", "enable", "--assume-yes", "cc"], capture=True),
-            mock.call(["ua", "enable", "--assume-yes", "fips"], capture=True),
+            mock.call(
+                [
+                    "ua",
+                    "enable",
+                    "--assume-yes",
+                    "--format",
+                    "json",
+                    "--",
+                    "esm",
+                    "cc",
+                    "fips",
+                    "asdf",
+                ],
+                capture=True,
+                rcs={0, 1},
+            ),
         ]
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "esm":\nUnexpected error'
-            " while running command.\nCommand: -\nExit code: -\nReason: -\n"
-            "Stdout: Invalid ESM credentials\nStderr: -",
+            "Failure enabling `esm`: Invalid esm credentials",
         ) in caplog.record_tuples
         assert (
             MPATH,
             logging.WARNING,
-            'Failure enabling "cc":\nUnexpected error'
-            " while running command.\nCommand: -\nExit code: -\nReason: -\n"
-            "Stdout: Invalid CC credentials\nStderr: -",
+            "Failure enabling `cc`: Invalid cc credentials",
+        ) in caplog.record_tuples
+        assert (
+            MPATH,
+            logging.WARNING,
+            "Failure of type `system`: Cannot enable unknown service 'asdf'",
         ) in caplog.record_tuples
         assert 'Failure enabling "fips"' not in caplog.text
+
+    def test_ua_enable_unexpected_error_codes(self, m_subp):
+        def fake_subp(cmd, capture=None, **kwargs):
+            if cmd[:2] == ["ua", "enable"] and capture:
+                raise subp.ProcessExecutionError(exit_code=255)
+            return subp.SubpResult(json.dumps({"errors": []}), "")
+
+        m_subp.side_effect = fake_subp
+
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape("Error while enabling service(s): esm"),
+        ):
+            configure_ua(token="SomeToken", enable=["esm"])
+
+    def test_ua_enable_non_json_response(self, m_subp):
+        def fake_subp(cmd, capture=None, **kwargs):
+            if cmd[:2] == ["ua", "enable"] and capture:
+                return subp.SubpResult("I dream to be a Json", "")
+            return subp.SubpResult(json.dumps({"errors": []}), "")
+
+        m_subp.side_effect = fake_subp
+
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape("UA response was not json: I dream to be a Json"),
+        ):
+            configure_ua(token="SomeToken", enable=["esm"])
 
 
 class TestUbuntuAdvantageSchema:
@@ -987,42 +1095,6 @@ class TestHandle:
 
 
 class TestShouldAutoAttach:
-    def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors("uaclient"),
-        )
-        assert not _should_auto_attach(ua_section={})
-        assert (
-            "Unable to import `uaclient`: No module named 'uaclient'"
-            in caplog.text
-        )
-        assert (
-            "Unable to determine if this is an Ubuntu Pro instance."
-            " Fallback to normal UA attach."
-        ) in caplog.text
-
-    def test_uaclient_old_version(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules["uaclient"] = mock.Mock()
-        sys.modules["uaclient.api"] = mock.Mock()
-        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors(
-                "uaclient.api.exceptions"
-            ),
-        )
-        assert not _should_auto_attach({})
-        assert (
-            "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.exceptions'"
-        ) in caplog.text
-        assert (
-            "Unable to determine if this is an Ubuntu Pro instance."
-            " Fallback to normal UA attach."
-        ) in caplog.text
-
     def test_should_auto_attach_error(self, caplog, fake_uaclient):
         m_should_auto_attach = mock.Mock()
         m_should_auto_attach.should_auto_attach.side_effect = (
@@ -1069,38 +1141,6 @@ class TestShouldAutoAttach:
 class TestAutoAttach:
 
     ua_section: dict = {}
-
-    def test_uaclient_not_installed(self, caplog, mocker):
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors("uaclient"),
-        )
-        expected_msg = (
-            "Unable to import `uaclient`: No module named 'uaclient'"
-        )
-        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
-            _auto_attach(self.ua_section)
-        assert expected_msg in caplog.text
-
-    def test_uaclient_old_version(self, caplog, mocker):
-        mocker.patch.dict("sys.modules")
-        sys.modules["uaclient"] = mock.Mock()
-        sys.modules["uaclient.api"] = mock.Mock()
-        sys.modules["uaclient.api.exceptions"] = mock.Mock()
-        sys.modules["uaclient.api.u.pro.attach.auto"] = mock.Mock()
-        mocker.patch(
-            "builtins.__import__",
-            side_effect=decorate__import__with_errors(
-                "uaclient.api.u.pro.attach.auto.full_auto_attach"
-            ),
-        )
-        expected_msg = (
-            "Unable to import `uaclient`: No module named"
-            " 'uaclient.api.u.pro.attach.auto.full_auto_attach'"
-        )
-        with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
-            _auto_attach(self.ua_section)
-        assert expected_msg in caplog.text
 
     def test_full_auto_attach_error(self, caplog, mocker, fake_uaclient):
         mocker.patch.dict("sys.modules")
