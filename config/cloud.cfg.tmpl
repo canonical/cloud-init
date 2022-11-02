@@ -103,7 +103,7 @@ cloud_init_modules:
  - resolv_conf
 {% endif %}
 {% if not variant.endswith("bsd") %}
-{% if variant not in ["mariner", "photon"] %}
+{% if variant not in ["photon"] %}
  - ca-certs
 {% endif %}
  - rsyslog
@@ -122,7 +122,7 @@ cloud_config_modules:
 {% if variant in ["ubuntu"] %}
  - ubuntu_autoinstall
 {% endif %}
-{% if variant not in ["mariner", "photon"] %}
+{% if variant not in ["photon"] %}
  - ssh-import-id
 {% if not is_rhel %}
  - keyboard
@@ -343,6 +343,19 @@ system_info:
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
+   # Other config here will be given to the distro class and/or path classes
+   paths:
+      cloud_dir: /var/lib/cloud/
+      templates_dir: /etc/cloud/templates/
+   network:
+      renderers: ['networkd']
+
+   ssh_svcname: sshd
+
+   # If set to true, cloud-init will not use fallback network config.
+   # In Photon, we have default network settings, hence if network settings are
+   # not explicitly given in metadata, don't use fallback network config.
+   disable_fallback_netcfg: true
 {% elif variant in ["mariner"] %}
    default_user:
      name: mariner
@@ -359,11 +372,6 @@ system_info:
       renderers: ['networkd']
 
    ssh_svcname: sshd
-
-   # If set to true, cloud-init will not use fallback network config.
-   # In Photon, we have default network settings, hence if network settings are
-   # not explicitly given in metadata, don't use fallback network config.
-   disable_fallback_netcfg: true
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
