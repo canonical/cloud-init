@@ -49,3 +49,18 @@ jobs:
         env:
           TOXENV: tip-${{ matrix.env }}
         run: tox
+  schema-format:
+    strategy:
+      fail-fast: false
+      matrix:
+        lint-with:
+          - {tip-versions: true, os: ubuntu-latest}
+    name: Check json format
+    runs-on: ${{ matrix.lint-with.os }}
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Test format"
+        run: |
+          tools/check_json_format.sh
