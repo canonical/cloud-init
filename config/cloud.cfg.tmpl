@@ -99,7 +99,7 @@ cloud_init_modules:
  - set_hostname
  - update_hostname
  - update_etc_hosts
-{% if variant in ["alpine", "mariner", "photon"] %}
+{% if variant in ["alpine", "photon"] %}
  - resolv_conf
 {% endif %}
 {% if not variant.endswith("bsd") %}
