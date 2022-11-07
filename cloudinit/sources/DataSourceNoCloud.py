@@ -50,20 +50,19 @@ class DataSourceNoCloud(sources.DataSource):
         return devlist
 
     def _var_sub_seed(self, seedfrom):
-        
-        if "_chassis-asset-tag_" in seedfrom:
-            asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-            if not asset_tag:
-                asset_tag = ""
-            seedfrom = seedfrom.replace("_chassis-asset-tag_", str(asset_tag))
+        allowed_string_replacements = [
+            "chassis-asset-tag",
+            "system-serial-number",
+        ]
 
-        if "_system-serial-number_" in seedfrom:
-            serial_num = dmi.read_dmi_data("system-serial-number")
-            if not serial_num:
-                serial_num = ""
-            seedfrom = seedfrom.replace(
-                "_system-serial-number_", str(serial_num)
-            )
+        for substr in allowed_string_replacements:
+            substr_formatted = "_{}_".format(substr)
+
+        if substr_formatted in seedfrom:
+            dmi_data_lookup = dmi.read_dmi_data(substr)
+            if not dmi_data_lookup:
+                dmi_data_lookup = ""
+            seedfrom = seedfrom.replace(substr_formatted, str(dmi_data_lookup))
         return seedfrom
 
     def _get_data(self):
