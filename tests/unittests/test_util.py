@@ -353,6 +353,20 @@ OS_RELEASE_COS = dedent(
 """
 )
 
+OS_RELEASE_MARINER = dedent(
+    """\
+    NAME="CBL-Mariner"
+    VERSION="2.0.20221004"
+    ID=mariner
+    VERSION_ID=2.0
+    PRETTY_NAME="CBL-Mariner/Linux"
+    ANSI_COLOR="1;34"
+    HOME_URL="https://aka.ms/cbl-mariner"
+    BUG_REPORT_URL="https://aka.ms/cbl-mariner"
+    SUPPORT_URL="https://aka.ms/cbl-mariner"
+"""
+)
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
@@ -1139,6 +1153,14 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("photon", "4.0", "VMware Photon OS/Linux"), dist)
 
+    @mock.patch("cloudinit.util.load_file")
+    def test_get_linux_mariner_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on MarinerOS"""
+        m_os_release.return_value = OS_RELEASE_MARINER
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("mariner", "2.0", ""), dist)
+
     @mock.patch(M_PATH + "load_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on OpenMandriva"""
@@ -1205,6 +1227,7 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("debian",)}, "debian"),
             ({"system": "linux", "dist": ("eurolinux",)}, "eurolinux"),
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
+            ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
