@@ -58,11 +58,11 @@ class DataSourceNoCloud(sources.DataSource):
         for substr in allowed_string_replacements:
             substr_formatted = "_{}_".format(substr)
 
-        if substr_formatted in seedfrom:
-            dmi_data_lookup = dmi.read_dmi_data(substr)
-            if not dmi_data_lookup:
-                dmi_data_lookup = ""
-            seedfrom = seedfrom.replace(substr_formatted, str(dmi_data_lookup))
+            if substr_formatted in seedfrom:
+                dmi_data_lookup = dmi.read_dmi_data(substr)
+                if not dmi_data_lookup:
+                    dmi_data_lookup = ""
+                seedfrom = seedfrom.replace(substr_formatted, str(dmi_data_lookup))
         return seedfrom
 
     def _get_data(self):
