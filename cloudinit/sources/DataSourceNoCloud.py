@@ -62,7 +62,10 @@ class DataSourceNoCloud(sources.DataSource):
                 dmi_data_lookup = dmi.read_dmi_data(substr)
                 if not dmi_data_lookup:
                     dmi_data_lookup = ""
-                seedfrom = seedfrom.replace(substr_formatted, str(dmi_data_lookup))
+                seedfrom = seedfrom.replace(
+                    substr_formatted,
+                    str(dmi_data_lookup),
+                )
         return seedfrom
 
     def _get_data(self):
