@@ -28,10 +28,12 @@ distros = [
     "alpine",
     "centos",
     "cloudlinux",
+    "cos",
     "debian",
     "eurolinux",
     "fedora",
     "freebsd",
+    "mariner",
     "miraclelinux",
     "openbsd",
     "openEuler",
@@ -109,6 +111,12 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
     },
+    "cos": {
+        "chrony": {
+            "service_name": "chronyd",
+            "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
@@ -132,6 +140,15 @@ DISTRO_CLIENT_CONFIG = {
             "packages": ["openntpd"],
             "service_name": "openntpd",
             "template_name": "ntpd.conf.openbsd",
+        },
+    },
+    "mariner": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
     "openbsd": {
@@ -423,6 +440,8 @@ def write_ntp_config_template(
     if not pools:
         pools = []
 
+    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
+        return
     if (
         len(servers) == 0
         and distro_name == "alpine"

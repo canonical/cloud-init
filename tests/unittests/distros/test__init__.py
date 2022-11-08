@@ -210,7 +210,11 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
     def test_expire_passwd_freebsd_uses_pw_command(self):
         """Test FreeBSD.expire_passwd uses the pw command."""
         cls = distros.fetch("freebsd")
-        d = cls("freebsd", {}, None)
+        # patch ifconfig -a
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp", return_value=("", None)
+        ):
+            d = cls("freebsd", {}, None)
         with mock.patch("cloudinit.subp.subp") as m_subp:
             d.expire_passwd("myuser")
         m_subp.assert_called_once_with(

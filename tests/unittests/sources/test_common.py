@@ -19,6 +19,7 @@ from cloudinit.sources import DataSourceLXD as LXD
 from cloudinit.sources import DataSourceMAAS as MAAS
 from cloudinit.sources import DataSourceNoCloud as NoCloud
 from cloudinit.sources import DataSourceNone as DSNone
+from cloudinit.sources import DataSourceNWCS as NWCS
 from cloudinit.sources import DataSourceOpenNebula as OpenNebula
 from cloudinit.sources import DataSourceOpenStack as OpenStack
 from cloudinit.sources import DataSourceOracle as Oracle
@@ -52,6 +53,7 @@ DEFAULT_LOCAL = [
     Scaleway.DataSourceScaleway,
     UpCloud.DataSourceUpCloudLocal,
     VMware.DataSourceVMware,
+    NWCS.DataSourceNWCS,
 ]
 
 DEFAULT_NETWORK = [

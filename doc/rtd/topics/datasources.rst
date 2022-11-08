@@ -52,6 +52,7 @@ The following is a list of documents for each supported datasource:
    datasources/vmware.rst
    datasources/vultr.rst
    datasources/zstack.rst
+   datasources/nwcs.rst
 
 Creation
 ========

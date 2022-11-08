@@ -372,6 +372,10 @@ class TestNtp(FilesystemMockingTestCase):
         valid_empty_configs = [{"ntp": {}}, {"ntp": None}]
         for valid_empty_config in valid_empty_configs:
             for distro in cc_ntp.distros:
+                # skip the test if the distro is COS. As in COS, the default
+                # config file is installed
+                if distro == "cos":
+                    return
                 mycloud = self._get_cloud(distro)
                 ntpconfig = self._mock_ntp_client_config(distro=distro)
                 confpath = ntpconfig["confpath"]
@@ -452,9 +456,19 @@ class TestNtp(FilesystemMockingTestCase):
             ]
             expected_content = "servers []\npools {0}\n".format(hosts)
 
+            # skip the test if the distro is COS. As in COS, the default
+            # config file is installed
+            if distro == "cos":
+                return
+
             if distro == "alpine":
                 uses_systemd = False
-                expected_service_call = ["rc-service", service_name, "restart"]
+                expected_service_call = [
+                    "rc-service",
+                    "--nocolor",
+                    service_name,
+                    "restart",
+                ]
                 # _mock_ntp_client_config call above did not specify a client
                 # value and so it defaults to "ntp" which on Alpine Linux only
                 # supports servers and not pools.

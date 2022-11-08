@@ -11,6 +11,8 @@ import os
 import shutil
 import sys
 from datetime import datetime
+from pathlib import Path
+from typing import NamedTuple
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.helpers import Paths
@@ -22,9 +24,44 @@ CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
 
 
+class ApportFile(NamedTuple):
+    path: str
+    label: str
+
+
+INSTALLER_APPORT_SENSITIVE_FILES = [
+    ApportFile(
+        "/var/log/installer/autoinstall-user-data", "AutoInstallUserData"
+    ),
+    ApportFile("/autoinstall.yaml", "AutoInstallYAML"),
+    ApportFile("/etc/cloud/cloud.cfg.d/99-installer.cfg", "InstallerCloudCfg"),
+]
+
+INSTALLER_APPORT_FILES = [
+    ApportFile("/var/log/installer/ubuntu_desktop_installer.log", "UdiLog"),
+    ApportFile(
+        "/var/log/installer/subiquity-server-debug.log", "SubiquityServerDebug"
+    ),
+    ApportFile(
+        "/var/log/installer/subiquity-client-debug.log", "SubiquityClientDebug"
+    ),
+    ApportFile("/var/log/installer/curtin-install.log", "CurtinLog"),
+    ApportFile(
+        "/var/log/installer/subiquity-curtin-install.cfg", "CurtinConfig"
+    ),
+    ApportFile("/var/log/installer/curtin-error-logs.tar", "CurtinError"),
+    ApportFile("/var/log/installer/block/probe-data.json", "ProbeData"),
+]
+
+
 def _get_user_data_file() -> str:
     paths = read_cfg_paths()
     return paths.get_ipath_cur("userdata_raw")
+
+
+def _get_cloud_data_path() -> str:
+    paths = read_cfg_paths()
+    return paths.get_cpath("data")
 
 
 def get_parser(parser=None):
@@ -110,6 +147,21 @@ def _collect_file(path, out_dir, verbosity):
         _debug("file %s did not exist\n" % path, 2, verbosity)
 
 
+def collect_installer_logs(log_dir, include_userdata, verbosity):
+    """Obtain subiquity logs and config files."""
+    for src_file in INSTALLER_APPORT_FILES:
+        destination_dir = Path(log_dir + src_file.path).parent
+        if not destination_dir.exists():
+            ensure_dir(str(destination_dir))
+        _collect_file(src_file.path, str(destination_dir), verbosity)
+    if include_userdata:
+        for src_file in INSTALLER_APPORT_SENSITIVE_FILES:
+            destination_dir = Path(log_dir + src_file.path).parent
+            if not destination_dir.exists():
+                ensure_dir(str(destination_dir))
+            _collect_file(src_file.path, str(destination_dir), verbosity)
+
+
 def collect_logs(tarfile, include_userdata: bool, verbosity=0):
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
@@ -123,8 +175,7 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
         )
         return 1
     tarfile = os.path.abspath(tarfile)
-    date = datetime.utcnow().date().strftime("%Y-%m-%d")
-    log_dir = "cloud-init-logs-{0}".format(date)
+    log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
     with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
         version = _write_command_output_to_file(
@@ -160,6 +211,8 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
         if include_userdata:
             user_data_file = _get_user_data_file()
             _collect_file(user_data_file, log_dir, verbosity)
+        collect_installer_logs(log_dir, include_userdata, verbosity)
+
         run_dir = os.path.join(log_dir, "run")
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):
@@ -179,6 +232,14 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
                 1,
                 verbosity,
             )
+        if os.path.exists(os.path.join(CLOUDINIT_RUN_DIR, "disabled")):
+            # Fallback to grab previous cloud/data
+            cloud_data_dir = Path(_get_cloud_data_path())
+            if cloud_data_dir.exists():
+                shutil.copytree(
+                    str(cloud_data_dir),
+                    Path(log_dir + str(cloud_data_dir)),
+                )
         with chdir(tmp_dir):
             subp(["tar", "czvf", tarfile, log_dir.replace(tmp_dir + "/", "")])
     sys.stderr.write("Wrote %s\n" % tarfile)

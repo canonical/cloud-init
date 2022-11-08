@@ -133,8 +133,8 @@ cloud_config_modules:
 {% if is_rhel %}
  - rh_subscription
 {% endif %}
-{% if variant in ["fedora", "openmandriva", "photon"] or is_rhel %}
-{% if variant not in ["photon"] %}
+{% if variant in ["fedora", "mariner", "openmandriva", "photon"] or is_rhel %}
+{% if variant not in ["mariner", "photon"] %}
  - spacewalk
 {% endif %}
  - yum-add-repo
@@ -198,7 +198,7 @@ cloud_final_modules:
 system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "cloudlinux", "debian",
-                  "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "miraclelinux", "openbsd", "openEuler",
+                  "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "mariner", "miraclelinux", "openbsd", "openEuler",
                   "openmandriva", "photon", "rocky", "suse", "ubuntu", "virtuozzo"] or is_rhel %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
@@ -356,6 +356,22 @@ system_info:
    # In Photon, we have default network settings, hence if network settings are
    # not explicitly given in metadata, don't use fallback network config.
    disable_fallback_netcfg: true
+{% elif variant in ["mariner"] %}
+   default_user:
+     name: mariner
+     lock_passwd: True
+     gecos: MarinerOS
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/bash
+   # Other config here will be given to the distro class and/or path classes
+   paths:
+      cloud_dir: /var/lib/cloud/
+      templates_dir: /etc/cloud/templates/
+   network:
+      renderers: ['networkd']
+
+   ssh_svcname: sshd
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:

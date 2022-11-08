@@ -17,6 +17,7 @@ DISTRO_VARIANTS = [
     "fedora",
     "freebsd",
     "gentoo",
+    "mariner",
     "netbsd",
     "openbsd",
     "photon",

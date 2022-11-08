@@ -127,7 +127,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD"
+LXD NWCS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -735,7 +735,6 @@ probe_floppy() {
     STATE_FLOPPY_PROBED=$?
     return "${STATE_FLOPPY_PROBED}"
 }
-
 
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
@@ -1346,6 +1345,11 @@ dscheck_Scaleway() {
 
 dscheck_Hetzner() {
     dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_NWCS() {
+    dmi_sys_vendor_is NWCS && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
