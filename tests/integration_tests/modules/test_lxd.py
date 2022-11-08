@@ -201,6 +201,10 @@ def validate_preseed_storage_pools(client, preseed_cfg):
 
 
 def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
+    # Support for projects by lxd init --preseed was added in lxd 4.12
+    # https://discuss.linuxcontainers.org/t/lxd-4-12-has-been-released/10424#projects-now-supported-by-lxd-init-dump-and-preseed-9
+    if client.instance.series in {"bionic", "focal"}:
+        return
     for src_project in preseed_cfg.get("projects", []):
         proj_name = src_project["name"]
         proj_result = client.execute(f"lxc project show {proj_name}")
@@ -211,12 +215,6 @@ def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
             client.execute(f"lxc project show {src_project['name']}")
         )
         project.pop("used_by", None)
-
-        # `features.networks` was introduced in lxd 4.6 . More info:
-        # https://discuss.linuxcontainers.org/t/lxd-4-6-has-been-released/8981
-        if client.instance.series in {"bionic", "focal"}:
-            src_project["config"].pop("features.networks", None)
-            project["config"].pop("features.networks", None)
 
         # `features.storage.buckets` was introduced in lxd 5.5 . More info:
         # https://discuss.linuxcontainers.org/t/lxd-5-5-has-been-released/14899
