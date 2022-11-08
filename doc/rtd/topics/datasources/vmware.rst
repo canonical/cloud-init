@@ -24,7 +24,7 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 System configuration:
 
 ``disable_vmware_customization``:
-true(disable) or false(enable) the vmware traditional Linux guest customization. Traditional Linux guest customization is customizing a Linux virtual machine with a `traditional Linux customization specification <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html>`_. Also set this configuration to false is required to make sure this datasource is found in ds-identify when using guest os customization transport. (default: true)
+true(disable) or false(enable) the vmware traditional Linux guest customization. Traditional Linux guest customization is customizing a Linux virtual machine with a `traditional Linux customization specification <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E>`_. Also set this configuration to false is required to make sure this datasource is found in ds-identify when using guest os customization transport. (default: true)
 
 Datasource configuration:
 
@@ -35,7 +35,7 @@ can create a Linux customizatino specification with barely cloud-init
 metadata and userdata and apply this kind specification to a virtual
 machine, this datasource will parse the metadata and userdata and
 configure virtual machine with them. See `Guest Customization Using
-cloud-init <https://developer.vmware.com/docs/14558/vsphere-web-services-sdk-programming-guide--7-0-update-3-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
+cloud-init <https://developer.vmware.com/docs/17020/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
 
 ``vmware_cust_file_max_wait``:
 The maximum amount of clock time in seconds that should be spent waiting
@@ -89,7 +89,7 @@ specification settings.
 
 VMware admin can refer to `customization configuration <https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py>`_ and set the customization specification settings.
 
-For more information, see `VMware vSphere Product Documentation <https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html>`_ and specific VMware Tools configuration options.
+For more information, see `VMware vSphere Product Documentation <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E>`_ and specific VMware Tools configuration options.
 
 GuestInfo Keys
 ^^^^^^^^^^^^^^
