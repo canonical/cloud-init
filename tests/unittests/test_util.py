@@ -822,46 +822,60 @@ class TestBlkid(CiTestCase):
         )
 
 
+@mock.patch("cloudinit.subp.which")
 @mock.patch("cloudinit.subp.subp")
 class TestUdevadmSettle(CiTestCase):
-    def test_with_no_params(self, m_subp):
+    def test_with_no_params(self, m_which, m_subp):
         """called with no parameters."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         util.udevadm_settle()
         m_subp.called_once_with(mock.call(["udevadm", "settle"]))
 
-    def test_with_exists_and_not_exists(self, m_subp):
+    def test_udevadm_not_present(self, m_which, m_subp):
+        """where udevadm program does not exist should not invoke subp."""
+        m_which.side_effect = lambda m: m in ("",)
+        util.udevadm_settle()
+        m_subp.called_once_with(["which", "udevadm"])
+
+    def test_with_exists_and_not_exists(self, m_which, m_subp):
         """with exists=file where file does not exist should invoke subp."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.udevadm_settle(exists=mydev)
         m_subp.called_once_with(
             ["udevadm", "settle", "--exit-if-exists=%s" % mydev]
         )
 
-    def test_with_exists_and_file_exists(self, m_subp):
-        """with exists=file where file does exist should not invoke subp."""
+    def test_with_exists_and_file_exists(self, m_which, m_subp):
+        """with exists=file where file does exist should only invoke subp
+        once for 'which' call."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.write_file(mydev, "foo\n")
         util.udevadm_settle(exists=mydev)
-        self.assertIsNone(m_subp.call_args)
+        m_subp.called_once_with(["which", "udevadm"])
 
-    def test_with_timeout_int(self, m_subp):
+    def test_with_timeout_int(self, m_which, m_subp):
         """timeout can be an integer."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = 9
         util.udevadm_settle(timeout=timeout)
         m_subp.called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_timeout_string(self, m_subp):
+    def test_with_timeout_string(self, m_which, m_subp):
         """timeout can be a string."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = "555"
         util.udevadm_settle(timeout=timeout)
-        m_subp.assert_called_once_with(
+        m_subp.called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_exists_and_timeout(self, m_subp):
+    def test_with_exists_and_timeout(self, m_which, m_subp):
         """test call with both exists and timeout."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         timeout = "3"
         util.udevadm_settle(exists=mydev)
@@ -874,7 +888,8 @@ class TestUdevadmSettle(CiTestCase):
             ]
         )
 
-    def test_subp_exception_raises_to_caller(self, m_subp):
+    def test_subp_exception_raises_to_caller(self, m_which, m_subp):
+        m_which.side_effect = lambda m: m in ("udevadm",)
         m_subp.side_effect = subp.ProcessExecutionError("BOOM")
         self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
 

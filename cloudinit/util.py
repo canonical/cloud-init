@@ -2934,6 +2934,10 @@ def mount_is_read_write(mount_point):
 
 def udevadm_settle(exists=None, timeout=None):
     """Invoke udevadm settle with optional exists and timeout parameters"""
+    if not subp.which("udevadm"):
+        # a distro, such as Alpine, may not have udev installed if
+        # it relies on a udev alternative such as mdev/mdevd.
+        return
     settle_cmd = ["udevadm", "settle"]
     if exists:
         # skip the settle if the requested path already exists
