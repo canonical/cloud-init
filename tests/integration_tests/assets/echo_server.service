@@ -1,6 +1,7 @@
 [Unit]
 Description=echo_server
 Before=cloud-init-local.service
+DefaultDependencies=no
 
 [Service]
 ExecStart=/usr/bin/env python3 /var/tmp/echo_server.py
