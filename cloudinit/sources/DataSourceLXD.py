@@ -73,13 +73,16 @@ def generate_network_config(
     nics: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Return network config V1 dict representing instance network config."""
-    if not nics:
+    # TODO: The original intent of this function was to use the nics retrieved
+    # from LXD's devices endpoint to determine the primary nic and write
+    # that out to network config. However, for LXD VMs, the device name
+    # may differ from the interface name in the VM, so we'll instead rely
+    # on our fallback nic code. Once LXD's devices endpoint grows the
+    # ability to provide a MAC address, we should rely on that information
+    # rather than just the glorified guessing that we're doing here.
+    primary_nic = find_fallback_nic()
+    if not primary_nic:
         primary_nic = _get_fallback_interface_name()
-    elif len(nics) > 1:
-        fallback_nic = find_fallback_nic()
-        primary_nic = nics[0] if fallback_nic not in nics else fallback_nic
-    else:
-        primary_nic = nics[0]
 
     return {
         "version": 1,
