@@ -81,8 +81,19 @@ def generate_network_config(
     # ability to provide a MAC address, we should rely on that information
     # rather than just the glorified guessing that we're doing here.
     primary_nic = find_fallback_nic()
-    if not primary_nic:
+    if primary_nic:
+        LOG.debug(
+            "LXD datasource generating network from discovered active"
+            " device: %s",
+            primary_nic,
+        )
+    else:
         primary_nic = _get_fallback_interface_name()
+        LOG.debug(
+            "LXD datasource generating network from systemd-detect-virt"
+            " platform default device: %s",
+            primary_nic,
+        )
 
     return {
         "version": 1,
@@ -244,11 +255,6 @@ class DataSourceLXD(sources.DataSource):
                         for k, v in self._crawled_metadata["devices"].items()
                         if v["type"] == "nic"
                     ]
-                    LOG.debug(
-                        "LXD datasource generating network config using "
-                        "devices: %s",
-                        ", ".join(devices),
-                    )
                     self._network_config = generate_network_config(devices)
         if self._network_config == sources.UNSET:
             # We know nothing about network, so setup fallback
