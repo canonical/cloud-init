@@ -460,7 +460,7 @@
             "run-user": {
               "type": "string",
               "description": "User to run module commands as. If install-method: pip, the pip install runs as this user as well."
-			},
+            },
             "ansible_config": {
               "description": "Sets the ANSIBLE_CONFIG environment variable. If set, overrides default config.",
               "type": "string"
@@ -472,7 +472,10 @@
                 "repositories": {
                   "type": "array",
                   "items": {
-                    "required": ["path", "source"],
+                    "required": [
+                      "path",
+                      "source"
+                    ],
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
