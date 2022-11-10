@@ -153,8 +153,10 @@ class TestGenerateFallbackNetworkConfig:
     @mock.patch(DS_PATH + "util.system_info")
     @mock.patch(DS_PATH + "subp.subp")
     @mock.patch(DS_PATH + "subp.which")
+    @mock.patch(DS_PATH + "find_fallback_nic")
     def test_net_v2_based_on_network_mode_virt_type_and_uname_machine(
         self,
+        m_fallback,
         m_which,
         m_subp,
         m_system_info,
@@ -163,6 +165,7 @@ class TestGenerateFallbackNetworkConfig:
         expected,
     ):
         """Return network config v2 based on uname -m, systemd-detect-virt."""
+        m_fallback.return_value = None
         if systemd_detect_virt is None:
             m_which.return_value = None
         m_system_info.return_value = {"uname": ["", "", "", "", uname_machine]}
@@ -212,7 +215,7 @@ class TestNetworkConfig:
                     "version": 1,
                     "config": [
                         {
-                            "name": "enp1s0",
+                            "name": "eth0",
                             "subnets": [{"control": "auto", "type": "dhcp"}],
                             "type": "physical",
                         }
@@ -227,7 +230,7 @@ class TestNetworkConfig:
                     "version": 1,
                     "config": [
                         {
-                            "name": "enp1s1",
+                            "name": "eth0",
                             "subnets": [{"control": "auto", "type": "dhcp"}],
                             "type": "physical",
                         }
@@ -242,7 +245,7 @@ class TestNetworkConfig:
                     "version": 1,
                     "config": [
                         {
-                            "name": "enp1s0",
+                            "name": "eth0",
                             "subnets": [{"control": "auto", "type": "dhcp"}],
                             "type": "physical",
                         }
@@ -270,6 +273,16 @@ class TestNetworkConfig:
     def test_provided_devices(
         self, devices_to_remove, expected_config, lxd_ds, mocker
     ):
+        # TODO: The original point of these tests was to ensure that when
+        # presented nics by the LXD devices endpoint, that we setup the correct
+        # device accordingly. Once LXD provides us MAC addresses for these
+        # devices, we can continue this functionality, but these tests have
+        # been modified to ensure that regardless of the number of devices
+        # present, we generate the proper fallback
+        m_fallback = mocker.patch(
+            "cloudinit.sources.DataSourceLXD.find_fallback_nic",
+            return_value=None,
+        )
         devices = copy.deepcopy(DEVICES)
         for name in devices_to_remove:
             del devices["devices"][name]
@@ -284,6 +297,7 @@ class TestNetworkConfig:
             side_effect=_get_data,
         )
         assert lxd_ds.network_config == expected_config
+        assert m_fallback.call_count == 1
 
 
 class TestDataSourceLXD:

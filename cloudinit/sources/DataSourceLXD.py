@@ -73,13 +73,27 @@ def generate_network_config(
     nics: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Return network config V1 dict representing instance network config."""
-    if not nics:
-        primary_nic = _get_fallback_interface_name()
-    elif len(nics) > 1:
-        fallback_nic = find_fallback_nic()
-        primary_nic = nics[0] if fallback_nic not in nics else fallback_nic
+    # TODO: The original intent of this function was to use the nics retrieved
+    # from LXD's devices endpoint to determine the primary nic and write
+    # that out to network config. However, for LXD VMs, the device name
+    # may differ from the interface name in the VM, so we'll instead rely
+    # on our fallback nic code. Once LXD's devices endpoint grows the
+    # ability to provide a MAC address, we should rely on that information
+    # rather than just the glorified guessing that we're doing here.
+    primary_nic = find_fallback_nic()
+    if primary_nic:
+        LOG.debug(
+            "LXD datasource generating network from discovered active"
+            " device: %s",
+            primary_nic,
+        )
     else:
-        primary_nic = nics[0]
+        primary_nic = _get_fallback_interface_name()
+        LOG.debug(
+            "LXD datasource generating network from systemd-detect-virt"
+            " platform default device: %s",
+            primary_nic,
+        )
 
     return {
         "version": 1,
@@ -241,11 +255,6 @@ class DataSourceLXD(sources.DataSource):
                         for k, v in self._crawled_metadata["devices"].items()
                         if v["type"] == "nic"
                     ]
-                    LOG.debug(
-                        "LXD datasource generating network config using "
-                        "devices: %s",
-                        ", ".join(devices),
-                    )
                     self._network_config = generate_network_config(devices)
         if self._network_config == sources.UNSET:
             # We know nothing about network, so setup fallback

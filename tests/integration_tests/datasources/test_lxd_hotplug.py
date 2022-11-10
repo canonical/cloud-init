@@ -56,8 +56,9 @@ def _prefer_lxd_datasource_over_nocloud(client: IntegrationInstance):
     client.restart()
 
 
+# TODO: Once LXD adds MACs to the devices endpoint, support LXD VMs here
+# Currently the names are too unpredictable to be worth testing on VMs.
 @pytest.mark.lxd_container
-@pytest.mark.lxd_vm
 @pytest.mark.user_data(USER_DATA)
 class TestLxdHotplug:
     @pytest.fixture(autouse=True, scope="class")
