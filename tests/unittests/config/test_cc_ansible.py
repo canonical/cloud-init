@@ -269,7 +269,7 @@ class TestAnsible:
             (
                 {
                     "ansible": {
-                        "install-method": "pip",
+                        "install_method": "pip",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
                         },
