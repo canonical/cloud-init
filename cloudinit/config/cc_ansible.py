@@ -224,7 +224,11 @@ def validate_config(cfg: dict):
 
 def filter_args(cfg: dict) -> dict:
     """remove boolean false values"""
-    return {key.replace("_", "-"): value for (key, value) in cfg.items() if value is not False}
+    return {
+        key.replace("_", "-"): value
+        for (key, value) in cfg.items()
+        if value is not False
+    }
 
 
 def run_ansible_pull(pull: AnsiblePull, cfg: dict):
