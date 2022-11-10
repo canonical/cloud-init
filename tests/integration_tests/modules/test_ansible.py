@@ -87,14 +87,14 @@ runcmd:
 INSTALL_METHOD = """
 ansible:
   ansible_config: /etc/ansible/ansible.cfg
-  install-method: {method}
-  package-name: {package}
+  install_method: {method}
+  package_name: {package}
   galaxy:
     actions:
      - ["ansible-galaxy", "collection", "install", "community.grafana"]
   pull:
     url: "http://0.0.0.0:8000/"
-    playbook-name: ubuntu.yml
+    playbook_name: ubuntu.yml
     full: true
 """
 
