@@ -38,7 +38,6 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
-            #cloud-config
             ansible:
               install-method: distro
               pull:
@@ -48,7 +47,6 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-            #cloud-config
             ansible:
               package-name: ansible-core
               install-method: pip
@@ -70,10 +68,15 @@ class AnsiblePull(abc.ABC):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
-        self.env = os.environ.copy()
+        self.env = os.environ
+        self.run_user: Optional[str] = None
+
+        # some ansible modules directly reference os.environ["HOME"]
+        # and cloud-init might not have that set, default: /root
+        self.env["HOME"] = self.env.get("HOME", "/root")
 
     def get_version(self) -> Optional[Version]:
-        stdout, _ = self.subp(self.cmd_version)
+        stdout, _ = self.do_as(self.cmd_version)
         first_line = stdout.splitlines().pop(0)
         matches = re.search(r"([\d\.]+)", first_line)
         if matches:
@@ -82,12 +85,17 @@ class AnsiblePull(abc.ABC):
         return None
 
     def pull(self, *args) -> str:
-        stdout, _ = self.subp([*self.cmd_pull, *args])
+        stdout, _ = self.do_as([*self.cmd_pull, *args])
         return stdout
 
     def check_deps(self):
         if not self.is_installed():
             raise ValueError("command: ansible is not installed")
+
+    def do_as(self, command: list, **kwargs):
+        if not self.run_user:
+            return self.subp(command, **kwargs)
+        return self.distro.do_as(command, self.run_user, **kwargs)
 
     def subp(self, command, **kwargs):
         return subp(command, env=self.env, **kwargs)
@@ -102,10 +110,15 @@ class AnsiblePull(abc.ABC):
 
 
 class AnsiblePullPip(AnsiblePull):
-    def __init__(self, distro: Distro):
+    def __init__(self, distro: Distro, user: Optional[str]):
         super().__init__(distro)
+        self.run_user = user
 
-        ansible_path = "/root/.local/bin/"
+        # Add pip install site to PATH
+        user_base, _ = self.do_as(
+            [sys.executable, "-c", "'import site; print(site.getuserbase())'"]
+        )
+        ansible_path = f"{user_base}/bin/"
         old_path = self.env.get("PATH")
         if old_path:
             self.env["PATH"] = ":".join([old_path, ansible_path])
@@ -122,15 +135,15 @@ class AnsiblePullPip(AnsiblePull):
                 import pip  # type: ignore # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
-
-            self.subp([sys.executable, "-m", "pip", "install", pkg_name])
+            cmd = [sys.executable, "-m", "pip", "install"]
+            if self.run_user:
+                cmd.append("--user")
+            self.do_as([*cmd, "--upgrade", "pip"])
+            self.do_as([*cmd, pkg_name])
 
     def is_installed(self) -> bool:
-        stdout, _ = self.subp([sys.executable, "-m", "pip", "list"])
+        stdout, _ = self.do_as([sys.executable, "-m", "pip", "list"])
         return "ansible" in stdout
-
-    def subp(self, command, **kwargs):
-        return subp(args=command, env=self.env, **kwargs)
 
 
 class AnsiblePullDistro(AnsiblePull):
@@ -147,7 +160,10 @@ def handle(
 ) -> None:
 
     ansible_cfg: dict = cfg.get("ansible", {})
+    ansible_user = ansible_cfg.get("run-user")
     install_method = ansible_cfg.get("install-method")
+    setup_controller = ansible_cfg.get("setup_controller")
+
     galaxy_cfg = ansible_cfg.get("galaxy")
     pull_cfg = ansible_cfg.get("pull")
     package_name = ansible_cfg.get("package-name", "")
@@ -158,7 +174,7 @@ def handle(
 
         distro: Distro = cloud.distro
         if install_method == "pip":
-            ansible = AnsiblePullPip(distro)
+            ansible = AnsiblePullPip(distro, ansible_user)
         else:
             ansible = AnsiblePullDistro(distro)
         ansible.install(package_name)
@@ -174,17 +190,32 @@ def handle(
         if pull_cfg:
             run_ansible_pull(ansible, deepcopy(pull_cfg))
 
+        if setup_controller:
+            ansible_controller(setup_controller, ansible)
+
 
 def validate_config(cfg: dict):
-    required_keys = {
+    required_keys = (
         "install-method",
         "package-name",
-        "pull/url",
-        "pull/playbook-name",
-    }
+    )
     for key in required_keys:
         if not get_cfg_by_path(cfg, key):
-            raise ValueError(f"Invalid value config key: '{key}'")
+            raise ValueError(f"Missing required key '{key}' from {cfg}")
+    if cfg.get("pull"):
+        for key in "pull/url", "pull/playbook-name":
+            if not get_cfg_by_path(cfg, key):
+                raise ValueError(f"Missing required key '{key}' from {cfg}")
+
+    controller_cfg = cfg.get("setup_controller")
+    if controller_cfg:
+        if not any(
+            [
+                controller_cfg.get("repositories"),
+                controller_cfg.get("run_ansible"),
+            ]
+        ):
+            raise ValueError(f"Missing required key from {controller_cfg}")
 
     install = cfg["install-method"]
     if install not in ("pip", "distro"):
@@ -226,4 +257,20 @@ def ansible_galaxy(cfg: dict, ansible: AnsiblePull):
     if not actions:
         LOG.warning("Invalid config: %s", cfg)
     for command in actions:
-        ansible.subp(command)
+        ansible.do_as(command)
+
+
+def ansible_controller(cfg: dict, ansible: AnsiblePull):
+    for repository in cfg.get("repositories", []):
+        ansible.do_as(
+            ["git", "clone", repository["source"], repository["path"]]
+        )
+    for args in cfg.get("run_ansible", []):
+        playbook_dir = args.pop("playbook-dir")
+        playbook_name = args.pop("playbook-name")
+        command = [
+            "ansible-playbook",
+            playbook_name,
+            *[f"--{key}={value}" for key, value in filter_args(args).items()],
+        ]
+        ansible.do_as(command, cwd=playbook_dir)
