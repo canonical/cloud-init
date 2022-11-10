@@ -8,7 +8,7 @@ packages_upgrade: true
 packages:
   - git
 ansible:
-  install-method: pip
+  install_method: pip
   pull:
     url: "https://github.com/holmanb/vmboot.git"
-    playbook-name: ubuntu.yml
+    playbook_name: ubuntu.yml

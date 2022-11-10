@@ -448,7 +448,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "install-method": {
+            "install_method": {
               "type": "string",
               "default": "distro",
               "enum": [
@@ -457,9 +457,9 @@
               ],
               "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
             },
-            "run-user": {
+            "run_user": {
               "type": "string",
-              "description": "User to run module commands as. If install-method: pip, the pip install runs as this user as well."
+              "description": "User to run module commands as. If install_method: pip, the pip install runs as this user as well."
             },
             "ansible_config": {
               "description": "Sets the ANSIBLE_CONFIG environment variable. If set, overrides default config.",
@@ -492,23 +492,23 @@
                   "type": "array",
                   "items": {
                     "properties": {
-                      "playbook-name": {
+                      "playbook_name": {
                         "type": "string"
                       },
-                      "playbook-dir": {
+                      "playbook_dir": {
                         "type": "string"
                       },
-                      "become-password-file": {
+                      "become_password_file": {
                         "type": "string"
                       },
-                      "connection-password-file": {
+                      "connection_password_file": {
                         "type": "string"
                       },
-                      "list-hosts": {
+                      "list_hosts": {
                         "type": "boolean",
                         "default": false
                       },
-                      "syntax-check": {
+                      "syntax_check": {
                         "type": "boolean",
                         "default": false
                       },
@@ -516,10 +516,10 @@
                         "type": "number",
                         "minimum": 0
                       },
-                      "vault-id": {
+                      "vault_id": {
                         "type": "string"
                       },
-                      "vault-password-file": {
+                      "vault_password_file": {
                         "type": "string"
                       },
                       "background": {
@@ -534,7 +534,7 @@
                         "type": "boolean",
                         "default": false
                       },
-                      "module-path": {
+                      "module_path": {
                         "type": "string"
                       },
                       "poll": {
@@ -544,7 +544,7 @@
                       "args": {
                         "type": "string"
                       },
-                      "extra-vars": {
+                      "extra_vars": {
                         "type": "string"
                       },
                       "forks": {
@@ -554,19 +554,19 @@
                       "inventory": {
                         "type": "string"
                       },
-                      "scp-extra-args": {
+                      "scp_extra_args": {
                         "type": "string"
                       },
-                      "sftp-extra-args": {
+                      "sftp_extra_args": {
                         "type": "string"
                       },
-                      "private-key": {
+                      "private_key": {
                         "type": "string"
                       },
                       "connection": {
                         "type": "string"
                       },
-                      "module-name": {
+                      "module_name": {
                         "type": "string"
                       },
                       "sleep": {
@@ -575,7 +575,7 @@
                       "tags": {
                         "type": "string"
                       },
-                      "skip-tags": {
+                      "skip_tags": {
                         "type": "string"
                       }
                     }
@@ -602,19 +602,19 @@
                 }
               }
             },
-            "package-name": {
+            "package_name": {
               "type": "string",
               "default": "ansible"
             },
             "pull": {
               "required": [
                 "url",
-                "playbook-name"
+                "playbook_name"
               ],
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "accept-host-key": {
+                "accept_host_key": {
                   "type": "boolean",
                   "default": false
                 },
@@ -630,22 +630,22 @@
                   "type": "boolean",
                   "default": false
                 },
-                "ssh-common-args": {
+                "ssh_common_args": {
                   "type": "string"
                 },
-                "scp-extra-args": {
+                "scp_extra_args": {
                   "type": "string"
                 },
-                "sftp-extra-args": {
+                "sftp_extra_args": {
                   "type": "string"
                 },
-                "private-key": {
+                "private_key": {
                   "type": "string"
                 },
                 "checkout": {
                   "type": "string"
                 },
-                "module-path": {
+                "module_path": {
                   "type": "string"
                 },
                 "timeout": {
@@ -657,13 +657,13 @@
                 "connection": {
                   "type": "string"
                 },
-                "vault-id": {
+                "vault_id": {
                   "type": "string"
                 },
-                "vault-password-file": {
+                "vault_password_file": {
                   "type": "string"
                 },
-                "module-name": {
+                "module_name": {
                   "type": "string"
                 },
                 "sleep": {
@@ -672,10 +672,10 @@
                 "tags": {
                   "type": "string"
                 },
-                "skip-tags": {
+                "skip_tags": {
                   "type": "string"
                 },
-                "playbook-name": {
+                "playbook_name": {
                   "type": "string"
                 }
               }

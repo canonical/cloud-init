@@ -39,20 +39,20 @@ meta: MetaSchema = {
         dedent(
             """\
             ansible:
-              install-method: distro
+              install_method: distro
               pull:
                 url: "https://github.com/holmanb/vmboot.git"
-                playbook-name: ubuntu.yml
+                playbook_name: ubuntu.yml
             """
         ),
         dedent(
             """\
             ansible:
-              package-name: ansible-core
-              install-method: pip
+              package_name: ansible-core
+              install_method: pip
               pull:
                 url: "https://github.com/holmanb/vmboot.git"
-                playbook-name: ubuntu.yml
+                playbook_name: ubuntu.yml
             """
         ),
     ],
@@ -160,13 +160,13 @@ def handle(
 ) -> None:
 
     ansible_cfg: dict = cfg.get("ansible", {})
-    ansible_user = ansible_cfg.get("run-user")
-    install_method = ansible_cfg.get("install-method")
+    ansible_user = ansible_cfg.get("run_user")
+    install_method = ansible_cfg.get("install_method")
     setup_controller = ansible_cfg.get("setup_controller")
 
     galaxy_cfg = ansible_cfg.get("galaxy")
     pull_cfg = ansible_cfg.get("pull")
-    package_name = ansible_cfg.get("package-name", "")
+    package_name = ansible_cfg.get("package_name", "")
 
     if ansible_cfg:
         ansible: AnsiblePull
@@ -196,14 +196,14 @@ def handle(
 
 def validate_config(cfg: dict):
     required_keys = (
-        "install-method",
-        "package-name",
+        "install_method",
+        "package_name",
     )
     for key in required_keys:
         if not get_cfg_by_path(cfg, key):
             raise ValueError(f"Missing required key '{key}' from {cfg}")
     if cfg.get("pull"):
-        for key in "pull/url", "pull/playbook-name":
+        for key in "pull/url", "pull/playbook_name":
             if not get_cfg_by_path(cfg, key):
                 raise ValueError(f"Missing required key '{key}' from {cfg}")
 
@@ -217,18 +217,18 @@ def validate_config(cfg: dict):
         ):
             raise ValueError(f"Missing required key from {controller_cfg}")
 
-    install = cfg["install-method"]
+    install = cfg["install_method"]
     if install not in ("pip", "distro"):
         raise ValueError("Invalid install method {install}")
 
 
 def filter_args(cfg: dict) -> dict:
     """remove boolean false values"""
-    return {key: value for (key, value) in cfg.items() if value is not False}
+    return {key.replace("_", "-"): value for (key, value) in cfg.items() if value is not False}
 
 
 def run_ansible_pull(pull: AnsiblePull, cfg: dict):
-    playbook_name: str = cfg.pop("playbook-name")
+    playbook_name: str = cfg.pop("playbook_name")
 
     v = pull.get_version()
     if not v:
@@ -266,8 +266,8 @@ def ansible_controller(cfg: dict, ansible: AnsiblePull):
             ["git", "clone", repository["source"], repository["path"]]
         )
     for args in cfg.get("run_ansible", []):
-        playbook_dir = args.pop("playbook-dir")
-        playbook_name = args.pop("playbook-name")
+        playbook_dir = args.pop("playbook_dir")
+        playbook_name = args.pop("playbook_name")
         command = [
             "ansible-playbook",
             playbook_name,

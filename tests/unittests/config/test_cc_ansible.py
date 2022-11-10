@@ -45,8 +45,8 @@ pip_version = dedent(
 
 CFG_CTRL = {
     "ansible": {
-        "install-method": "distro",
-        "package-name": "ansible-core",
+        "install_method": "distro",
+        "package_name": "ansible-core",
         "ansible_config": "/etc/ansible/ansible.cfg",
         "galaxy": {
             "actions": [["ansible-galaxy", "install", "debops.apt"]],
@@ -68,23 +68,23 @@ CFG_CTRL = {
             ],
             "run_ansible": [
                 {
-                    "playbook-dir": "/home/ansible/my-repo",
-                    "playbook-name": "start-lxd.yml",
+                    "playbook_dir": "/home/ansible/my-repo",
+                    "playbook_name": "start-lxd.yml",
                     "timeout": 120,
                     "forks": 1,
-                    "private-key": "/home/ansible/.ssh/id_rsa",
+                    "private_key": "/home/ansible/.ssh/id_rsa",
                 },
                 {
-                    "playbook-name": "configure-lxd.yml",
-                    "become-user": "ansible",
+                    "playbook_name": "configure-lxd.yml",
+                    "become_user": "ansible",
                     "timeout": 120,
                     "forks": 1,
-                    "private-key": "/home/ansible/.ssh/id_rsa",
-                    "become-password-file": "/path/less/traveled",
+                    "private_key": "/home/ansible/.ssh/id_rsa",
+                    "become_password_file": "/path/less/traveled",
                     "connection-password-file": "/path/more/traveled",
-                    "module-path": "/path/head/traveled",
-                    "vault-password-file": "/path/tail/traveled",
-                    "playbook-dir": "/path/to/nowhere",
+                    "module_path": "/path/head/traveled",
+                    "vault_password_file": "/path/tail/traveled",
+                    "playbook_dir": "/path/to/nowhere",
                     "inventory": "/a/file/as/well",
                 },
             ],
@@ -94,46 +94,46 @@ CFG_CTRL = {
 
 CFG_FULL_PULL = {
     "ansible": {
-        "install-method": "distro",
-        "package-name": "ansible-core",
+        "install_method": "distro",
+        "package_name": "ansible-core",
         "ansible_config": "/etc/ansible/ansible.cfg",
         "galaxy": {
             "actions": [["ansible-galaxy", "install", "debops.apt"]],
         },
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook-name": "arch.yml",
-            "accept-host-key": True,
+            "playbook_name": "arch.yml",
+            "accept_host_key": True,
             "clean": True,
             "full": True,
             "diff": False,
-            "ssh-common-args": "-y",
-            "scp-extra-args": "-l",
-            "sftp-extra-args": "-f",
+            "ssh_common_args": "-y",
+            "scp_extra_args": "-l",
+            "sftp_extra_args": "-f",
             "checkout": "tree",
-            "module-path": "~/.ansible/plugins/modules:"
+            "module_path": "~/.ansible/plugins/modules:"
             "/usr/share/ansible/plugins/modules",
             "timeout": "10",
-            "vault-id": "me",
+            "vault_id": "me",
             "connection": "smart",
-            "vault-password-file": "/path/to/file",
-            "module-name": "git",
+            "vault_password_file": "/path/to/file",
+            "module_name": "git",
             "sleep": "1",
             "tags": "cumulus",
-            "skip-tags": "cisco",
-            "private-key": "{nope}",
+            "skip_tags": "cisco",
+            "private_key": "{nope}",
         },
     }
 }
 
 CFG_MINIMAL = {
     "ansible": {
-        "install-method": "pip",
-        "package-name": "ansible",
-        "run-user": "ansible",
+        "install_method": "pip",
+        "package_name": "ansible",
+        "run_user": "ansible",
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook-name": "ubuntu.yml",
+            "playbook_name": "ubuntu.yml",
         },
     }
 }
@@ -151,10 +151,10 @@ class TestSchema:
             param(
                 {
                     "ansible": {
-                        "install-method": "distro",
+                        "install_method": "distro",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook-name": "centos.yml",
+                            "playbook_name": "centos.yml",
                             "dance": "bossa nova",
                         },
                     }
@@ -175,10 +175,10 @@ class TestSchema:
             param(
                 {
                     "ansible": {
-                        "install-method": "true",
+                        "install_method": "true",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook-name": "debian.yml",
+                            "playbook_name": "debian.yml",
                         },
                     }
                 },
@@ -188,9 +188,9 @@ class TestSchema:
             param(
                 {
                     "ansible": {
-                        "install-method": "pip",
+                        "install_method": "pip",
                         "pull": {
-                            "playbook-name": "fedora.yml",
+                            "playbook_name": "fedora.yml",
                         },
                     }
                 },
@@ -200,13 +200,13 @@ class TestSchema:
             param(
                 {
                     "ansible": {
-                        "install-method": "pip",
+                        "install_method": "pip",
                         "pull": {
                             "url": "gophers://encrypted-gophers/",
                         },
                     }
                 },
-                "'playbook-name' is a required property",
+                "'playbook_name' is a required property",
                 id="require-url",
             ),
         ),
@@ -257,10 +257,10 @@ class TestAnsible:
             (
                 {
                     "ansible": {
-                        "package-name": "ansible-core",
-                        "install-method": "distro",
+                        "package_name": "ansible-core",
+                        "install_method": "distro",
                         "pull": {
-                            "playbook-name": "ubuntu.yml",
+                            "playbook_name": "ubuntu.yml",
                         },
                     }
                 },
@@ -297,7 +297,7 @@ class TestAnsible:
                 cc_ansible.handle("", cfg, get_cloud(), None, None)
         else:
             cloud = get_cloud(mocked_distro=True)
-            install = cfg["ansible"]["install-method"]
+            install = cfg["ansible"]["install_method"]
             cc_ansible.handle("", cfg, cloud, None, None)
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
@@ -370,7 +370,7 @@ class TestAnsible:
     )
     def test_ansible_pull(self, m_subp1, m_subp2, m_which, cfg, expected):
         """verify expected ansible invocation from userdata config"""
-        pull_type = cfg["ansible"]["install-method"]
+        pull_type = cfg["ansible"]["install_method"]
         distro = get_cloud().distro
         with mock.patch.dict(M_PATH + "os.environ", clear=True):
             ansible_pull = (
