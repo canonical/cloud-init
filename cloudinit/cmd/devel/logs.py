@@ -46,10 +46,30 @@ INSTALLER_APPORT_FILES = [
         "/var/log/installer/subiquity-client-debug.log", "SubiquityClientDebug"
     ),
     ApportFile("/var/log/installer/curtin-install.log", "CurtinLog"),
+    # Legacy single curtin config < 22.1
     ApportFile(
-        "/var/log/installer/subiquity-curtin-install.cfg", "CurtinConfig"
+        "/var/log/installer/subiquity-curtin-install.conf",
+        "CurtinInstallConfig",
     ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-initial.conf",
+        "CurtinConfigInitial",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-curthooks.conf",
+        "CurtinConfigCurtHooks",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-extract.conf",
+        "CurtinConfigExtract",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-partitioning.conf",
+        "CurtinConfigPartitioning",
+    ),
+    # Legacy curtin < 22.1 curtin error tar path
     ApportFile("/var/log/installer/curtin-error-logs.tar", "CurtinError"),
+    ApportFile("/var/log/installer/curtin-errors.tar", "CurtinError"),
     ApportFile("/var/log/installer/block/probe-data.json", "ProbeData"),
 ]
 
