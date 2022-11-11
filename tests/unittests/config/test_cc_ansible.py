@@ -17,6 +17,13 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
+try:
+    import pip as _pip  # type: ignore # noqa: F401
+
+    HAS_PIP = True
+except ImportError:
+    HAS_PIP = False
+
 M_PATH = "cloudinit.config.cc_ansible."
 distro_version = dedent(
     """ansible 2.10.8
@@ -297,6 +304,7 @@ class TestAnsible:
                 cc_ansible.handle("", cfg, get_cloud(), None, None)
         else:
             cloud = get_cloud(mocked_distro=True)
+            cloud.distro.pip_package_name = "python3-pip"
             install = cfg["ansible"]["install_method"]
             cc_ansible.handle("", cfg, cloud, None, None)
             if install == "distro":
@@ -305,7 +313,12 @@ class TestAnsible:
                     "ansible-core"
                 )
             elif install == "pip":
-                assert 0 == cloud.distro.install_packages.call_count
+                if HAS_PIP:
+                    assert 0 == cloud.distro.install_packages.call_count
+                else:
+                    cloud.distro.install_packages.assert_called_with(
+                        "python3-pip"
+                    )
 
     @mock.patch(M_PATH + "which", return_value=False)
     def test_deps_not_installed(self, m_which):
