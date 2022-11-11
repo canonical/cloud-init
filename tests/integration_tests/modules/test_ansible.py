@@ -152,9 +152,9 @@ lxd:
 # [2] https://github.com/holmanb/ansible-lxd-public
 #
 ansible:
-  install-method: pip
-  package-name: ansible
-  run-user: ansible
+  install_method: pip
+  package_name: ansible
+  run_user: ansible
   galaxy:
     actions:
       - ["ansible-galaxy", "collection", "install", "community.general"]
@@ -164,17 +164,17 @@ ansible:
       - path: /home/ansible/my-repo/
         source: git@github.com:holmanb/ansible-lxd-private.git
     run_ansible:
-      - playbook-dir: /home/ansible/my-repo
-        playbook-name: start-lxd.yml
+      - playbook_dir: /home/ansible/my-repo
+        playbook_name: start-lxd.yml
         timeout: 120
         forks: 1
-        private-key: /home/ansible/.ssh/id_rsa
-      - playbook-dir: /home/ansible/my-repo
-        playbook-name: configure-lxd.yml
-        become-user: ansible
+        private_key: /home/ansible/.ssh/id_rsa
+      - playbook_dir: /home/ansible/my-repo
+        playbook_name: configure-lxd.yml
+        become_user: ansible
         timeout: 120
         forks: 1
-        private-key: /home/ansible/.ssh/id_rsa
+        private_key: /home/ansible/.ssh/id_rsa
         inventory: new_ansible_hosts
 
 # Write a deploy key to the filesystem for ansible.
