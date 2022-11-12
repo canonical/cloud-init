@@ -218,14 +218,8 @@ def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
 
         # `features.storage.buckets` was introduced in lxd 5.5 . More info:
         # https://discuss.linuxcontainers.org/t/lxd-5-5-has-been-released/14899
-        if ImageSpecification.from_os_image().release in (
-            "bionic",
-            "focal",
-            "jammy",
-        ):
-            src_project["config"].pop("features.storage.buckets", None)
-            project["config"].pop("features.storage.buckets", None)
-
+        if "features.storage.buckets" in project["config"]:
+            assert "true" == project["config"].pop("features.storage.buckets")
         assert project == src_project
 
 
