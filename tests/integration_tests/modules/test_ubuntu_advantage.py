@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import pytest
@@ -11,6 +12,8 @@ from tests.integration_tests.instances import (
     IntegrationInstance,
 )
 from tests.integration_tests.util import verify_clean_log
+
+LOG = logging.getLogger("integration_testing.test_ubuntu_advantage")
 
 CLOUD_INIT_UA_TOKEN = os.environ.get("CLOUD_INIT_UA_TOKEN")
 
@@ -30,17 +33,9 @@ ubuntu_advantage:
   - esm-infra
 """
 
-# bootcmd disables UA daemon on gce
-UA_DAILY = """\
+PRO_DAEMON_DISABLED = """\
 #cloud-config
-apt:
-  sources:
-    ua-daily:
-      source: 'ppa:ua-client/daily'
-package_update: true
-package_upgrade: true
-packages:
-- ubuntu-advantage-tools
+# Disable UA daemon (only needed in GCE)
 bootcmd:
 - sudo systemctl mask ubuntu-advantage.service
 """
@@ -129,58 +124,65 @@ class TestUbuntuAdvantage:
         assert is_attached(client)
 
 
-def install_ua_daily(session_cloud: IntegrationCloud):
-    """Install `ubuntu-advantage-tools` from ppa:ua-client/daily in an
-    Ubuntu Pro image.
-
-    TODO: Remove this after UA releases v28.0.
-    """
+def maybe_install_cloud_init(session_cloud: IntegrationCloud):
     cfg_image_spec = ImageSpecification.from_os_image()
+    source = get_validated_source(session_cloud)
+
+    launch_kwargs = {
+        "image_id": session_cloud.cloud_instance.daily_image(
+            cfg_image_spec.image_id, image_type=ImageType.PRO
+        )
+    }
+
+    if source is CloudInitSource.NONE:
+        LOG.info(
+            "No need to customize cloud-init version. Return without spawning"
+            " an extra instance"
+        )
+        return launch_kwargs
+
+    user_data = (
+        PRO_DAEMON_DISABLED
+        if session_cloud.settings.PLATFORM == "gce"
+        else None
+    )
+
     with session_cloud.launch(
-        user_data=UA_DAILY,
-        launch_kwargs={
-            "image_id": session_cloud.cloud_instance.daily_image(
-                cfg_image_spec.image_id, image_type=ImageType.PRO
-            )
-        },
+        user_data=user_data,
+        launch_kwargs=launch_kwargs,
     ) as client:
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+
         client.execute("sudo pro detach --assume-yes")  # Force detach
         assert not is_attached(
             client
         ), "Test precondition error. Instance is auto-attached."
+
+        LOG.info(
+            "Restore `ubuntu-advantage.service` original status for next boot"
+        )
+        assert client.execute(
+            "sudo systemctl unmask ubuntu-advantage.service"
+        ).ok
+
         source = get_validated_source(session_cloud)
-
-        if source is CloudInitSource.NONE:
-            # Confirm cloud-init now supports auto-attach customization
-            client.write_to_file("/tmp/auto-attach.cfg", ATTACH_FALLBACK)
-            result = client.execute(
-                "cloud-init schema -c /tmp/auto-attach.cfg"
-            )
-            assert result.ok, (
-                "cloud-init in image doesn't support custom auto-attach."
-                " Try CLOUD_INIT_SOURCE=ppa:cloud-init-dev/daily."
-            )
-        else:
-            client.install_new_cloud_init(source)
-
+        client.install_new_cloud_init(source)
         client.destroy()
 
+    return {"image_id": session_cloud.snapshot_id}
 
-@pytest.mark.adhoc
+
 @pytest.mark.azure
 @pytest.mark.ec2
 @pytest.mark.gce
 @pytest.mark.ubuntu
 class TestUbuntuAdvantagePro:
     def test_custom_services(self, session_cloud: IntegrationCloud):
-        install_ua_daily(session_cloud)
+        launch_kwargs = maybe_install_cloud_init(session_cloud)
         with session_cloud.launch(
             user_data=AUTO_ATTACH_CUSTOM_SERVICES,
-            launch_kwargs={
-                "image_id": session_cloud.snapshot_id,
-            },
+            launch_kwargs=launch_kwargs,
         ) as client:
             log = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log)
