@@ -3,23 +3,16 @@
 """Kernel Modules"""
 import copy
 import re
-import sys
 from array import array
 from logging import Logger
 from textwrap import dedent
-from typing import Dict, List, Union
-
-if sys.version_info >= (3, 8):
-    from typing import TypedDict
-else:
-    from typing_extensions import TypedDict
+from typing import Dict, List, TypedDict, Union
 
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import uses_systemd
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = dedent(
@@ -61,26 +54,27 @@ LOG = logging.getLogger(__name__)
 NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
-
-class DefaultConfigType(TypedDict):
-    km_cmd: Dict[str, List[str]]
-    km_files: Dict[str, Dict[str, Union[str, int]]]
-
+DefaultConfigType = TypedDict(
+    "DefaultConfigType",
+    {
+        "km_cmd": Dict[str, List[str]],
+        "km_files": Dict[str, Dict[str, Union[str, int]]],
+    },
+)
 
 DEFAULT_CONFIG: DefaultConfigType = {
     "km_cmd": {
         "update": ["update-initramfs", "-u", "-k", "all"],
         "unload": ["rmmod"],
-        "reload": ["/lib/systemd/systemd-modules-load"],
         "is_loaded": ["lsmod"],
     },
     "km_files": {
         "load": {
-            "path": "/etc/modules-load.d/cloud-init.conf",
+            "path": "/etc/modules-load.d/50-cloud-init.conf",
             "permissions": 0o600,
         },
         "persist": {
-            "path": "/etc/modprobe.d/cloud-init.conf",
+            "path": "/etc/modprobe.d/50-cloud-init.conf",
             "permissions": 0o600,
         },
     },
@@ -262,20 +256,17 @@ def cleanup():
             ) from e
 
 
-def reload_modules():
+def reload_modules(cloud: Cloud):
     """Reload kernel modules
 
     This function reload modules in /etc/modules-load.d/cloud-init.conf
-    with 'systemd-modules-load' executable.
+    with 'systemd-modules-load' service.
 
     @raises RuntimeError
     """
 
-    cmd = copy.copy(DEFAULT_CONFIG["km_cmd"]["reload"])
-    cmd.append(DEFAULT_CONFIG["km_files"]["load"]["path"])
-
     try:
-        out = subp.subp(cmd, capture=True)
+        out = cloud.distro.manage_service("restart", "systemd-modules-load")
         if re.search("Failed", out.stdout.strip()):
             raise Exception(out.stdout.strip())
     except (subp.ProcessExecutionError, Exception) as e:
@@ -369,7 +360,7 @@ def handle(
     LOG.debug("Found kernel_modules section in config")
 
     # check systemd usage
-    if not uses_systemd:
+    if not cloud.distro.uses_systemd():
         LOG.debug(
             "Skipping module named %s, due to " "no systemd installed",
             name,
@@ -405,4 +396,4 @@ def handle(
 
     # reload kernel modules
     log.info("Reloading kernel modules")
-    reload_modules()
+    reload_modules(cloud)

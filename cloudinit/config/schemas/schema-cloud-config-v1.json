@@ -1396,7 +1396,9 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "additionalProperties": false,
             "properties": {
               "name": {
@@ -1441,13 +1443,17 @@
                     "properties": {
                       "pre": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                          "type": "string"
+                        },
                         "uniqueItems": true,
                         "description": "pre-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order before the main module given in the modulename argument."
                       },
                       "post": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                          "type": "string"
+                        },
                         "uniqueItems": true,
                         "description": "post-deps modules are lists of names and/or aliases of other modules that modprobe will attempt to install (or remove) in order after the main module given in the modulename argument."
                       }
