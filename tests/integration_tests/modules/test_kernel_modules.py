@@ -47,13 +47,16 @@ class TestKernelModules:
         (
             # check permissions
             (
-                "stat -c '%U %a' /etc/modules-load.d/cloud-init.conf",
+                "stat -c '%U %a' /etc/modules-load.d/50-cloud-init.conf",
                 r"root 600",
             ),
-            ("stat -c '%U %a' /etc/modprobe.d/cloud-init.conf", r"root 600"),
+            (
+                "stat -c '%U %a' /etc/modprobe.d/50-cloud-init.conf",
+                r"root 600",
+            ),
             # ASCII check
-            ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
-            ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
+            ("file /etc/modules-load.d/50-cloud-init.conf", ASCII_TEXT),
+            ("file /etc/modprobe.d/50-cloud-init.conf", ASCII_TEXT),
             # check loaded modules
             (
                 "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
@@ -61,13 +64,13 @@ class TestKernelModules:
             ),
             # sha256sum check modul
             (
-                "sha256sum </etc/modules-load.d/cloud-init.conf",
+                "sha256sum </etc/modules-load.d/50-cloud-init.conf",
                 "9d14d5d585dd3e5e9a3c414b5b7af7ed"
                 "9d44e7ee3584652fbf388cad455b5053",
             ),
             # sha256sum check modprobe
             (
-                "sha256sum   </etc/modprobe.d/cloud-init.conf",
+                "sha256sum   </etc/modprobe.d/50-cloud-init.conf",
                 "229ccc941ec34fc8c49bf14285ffeb65"
                 "ea2796c4840f9377d6df76bda42c878e",
             ),
@@ -96,13 +99,16 @@ class TestKernelModulesWithoutKmod:
         (
             # check permissions
             (
-                "stat -c '%U %a' /etc/modules-load.d/cloud-init.conf",
+                "stat -c '%U %a' /etc/modules-load.d/50-cloud-init.conf",
                 r"root 600",
             ),
-            ("stat -c '%U %a' /etc/modprobe.d/cloud-init.conf", r"root 600"),
+            (
+                "stat -c '%U %a' /etc/modprobe.d/50-cloud-init.conf",
+                r"root 600",
+            ),
             # ASCII check
-            ("file /etc/modules-load.d/cloud-init.conf", ASCII_TEXT),
-            ("file /etc/modprobe.d/cloud-init.conf", ASCII_TEXT),
+            ("file /etc/modules-load.d/50-cloud-init.conf", ASCII_TEXT),
+            ("file /etc/modprobe.d/50-cloud-init.conf", ASCII_TEXT),
             # check loaded modules
             (
                 "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
@@ -110,13 +116,13 @@ class TestKernelModulesWithoutKmod:
             ),
             # sha256sum check modul
             (
-                "sha256sum </etc/modules-load.d/cloud-init.conf",
+                "sha256sum </etc/modules-load.d/50-cloud-init.conf",
                 "9d14d5d585dd3e5e9a3c414b5b7af7ed"
                 "9d44e7ee3584652fbf388cad455b5053",
             ),
             # sha256sum check modprobe
             (
-                "sha256sum   </etc/modprobe.d/cloud-init.conf",
+                "sha256sum   </etc/modprobe.d/50-cloud-init.conf",
                 "229ccc941ec34fc8c49bf14285ffeb65"
                 "ea2796c4840f9377d6df76bda42c878e",
             ),

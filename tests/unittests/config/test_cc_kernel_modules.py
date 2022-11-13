@@ -98,14 +98,15 @@ class TestKernelModules(CiTestCase):
             str(context_mgr.exception),
         )
 
-    @mock.patch("%s.subp.subp" % MPATH)
-    def test_reload_modules_failed(self, m_subp):
+    def test_reload_modules_failed(self):
         """Errors when reloading modules"""
-        m_subp.side_effect = subp.ProcessExecutionError(
+        distro = mock.MagicMock()  # No errors raised
+        distro.manage_service.side_effect = subp.ProcessExecutionError(
             "Failed to find module 'ip_tables'"
         )
+        mycloud = FakeCloud(distro)
         with self.assertRaises(RuntimeError) as context_mgr:
-            cc_kernel_modules.reload_modules()
+            cc_kernel_modules.reload_modules(mycloud)
         self.assertEqual(
             "Could not load modules with systemd-modules-load:\n"
             "Unexpected error while running command.\n"
