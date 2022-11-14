@@ -66,7 +66,11 @@ html_theme = "furo"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "static/logo.png"
+html_static_path = ["static"]
+html_theme_options = {
+    "light_logo": "logo.png",
+    "dark_logo": "logo-dark-mode.png",
+}
 
 # Make sure the target is unique
 autosectionlabel_prefix_document = True
