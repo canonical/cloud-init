@@ -1,10 +1,6 @@
-# doc8 1.0.0 depends on docutils 0.18.1 or later which added Node.findall()
-doc8==0.11.2
-m2r2
-sphinx==4.3.0
+doc8
 furo
+m2r2
 pyyaml
-sphinx-panels
-
-# Indirect dependencies
-jinja2<3.1.0  # https://github.com/readthedocs/readthedocs.org/issues/9037
+sphinx
+sphinx-design
