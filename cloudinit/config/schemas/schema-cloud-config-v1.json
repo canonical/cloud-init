@@ -1153,7 +1153,7 @@
                       }
                     }
                   ],
-                  "description": "If set to ``true``, a single partition using all the space on the device will be created. If set to ``false``, no partitions will be created. If set to ``remove``, any existing partition table will be purged. Partitions can be specified by providing a list to ``layout``, where each entry in the list is either a size or a list containing a size and the numerical value for a partition type. The size for partitions is specified in **percentage** of disk space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space). Default: ``false``."
+                  "description": "If set to ``true``, a single partition using all the space on the device will be created. If set to ``false``, no partitions will be created. If set to ``remove``, any existing partition table will be purged. Partitions can be specified by providing a list to ``layout``, where each entry in the list is either a size or a list containing a size and the numerical value for a partition type. The size for partitions is specified in **percentage** of disk space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space). The partition type defaults to '83' (Linux partition), for other types of partition, such as Linux swap, the type must be passed as part of a list along with the size. Default: ``false``."
                 },
                 "overwrite": {
                   "type": "boolean",
