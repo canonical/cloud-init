@@ -271,6 +271,8 @@ def test_storage_lvm(client):
 def test_basic_preseed(client):
     preseed_cfg = yaml.safe_load(PRESEED_USER_DATA)["lxd"]["preseed"]
     preseed_cfg = yaml.safe_load(preseed_cfg)
+    cloud_init_log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(cloud_init_log)
     validate_preseed_profiles(client, preseed_cfg)
     validate_preseed_storage_pools(client, preseed_cfg)
     validate_preseed_projects(client, preseed_cfg)
