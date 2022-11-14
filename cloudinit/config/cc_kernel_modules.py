@@ -6,7 +6,7 @@ import re
 from array import array
 from logging import Logger
 from textwrap import dedent
-from typing import Dict, List, TypedDict, Union
+from typing import Dict, List, Union
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -54,13 +54,9 @@ LOG = logging.getLogger(__name__)
 NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
-DefaultConfigType = TypedDict(
-    "DefaultConfigType",
-    {
-        "km_cmd": Dict[str, List[str]],
-        "km_files": Dict[str, Dict[str, Union[str, int]]],
-    },
-)
+DefaultConfigType = Dict[
+    str, Union[Dict[str, List[str]], Dict[str, Dict[str, Union[str, int]]]]
+]
 
 DEFAULT_CONFIG: DefaultConfigType = {
     "km_cmd": {
