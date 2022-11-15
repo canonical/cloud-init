@@ -76,6 +76,6 @@ class TestFreeBSDRoundTrip(CiTestCase):
             "/etc/rc.conf": (
                 "# dummy rc.conf\n"
                 "ifconfig_eno1="
-                "'172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"
+                "'inet 172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"
             ),
         }
