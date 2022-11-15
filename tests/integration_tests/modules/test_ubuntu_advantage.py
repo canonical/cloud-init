@@ -33,9 +33,19 @@ ubuntu_advantage:
   - esm-infra
 """
 
+PRO_AUTO_ATTACH_DISABLED = """\
+#cloud-config
+ubuntu_advantage:
+  features:
+    disable_auto_attach: true
+"""
+
 PRO_DAEMON_DISABLED = """\
 #cloud-config
 # Disable UA daemon (only needed in GCE)
+ubuntu_advantage:
+  features:
+    disable_auto_attach: true
 bootcmd:
 - sudo systemctl mask ubuntu-advantage.service
 """
@@ -100,17 +110,18 @@ def get_services_status(client: IntegrationInstance) -> dict:
 
 @pytest.mark.adhoc
 @pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not CLOUD_INIT_UA_TOKEN, reason="CLOUD_INIT_UA_TOKEN env var not provided"
+)
 class TestUbuntuAdvantage:
     @pytest.mark.user_data(ATTACH_FALLBACK.format(token=CLOUD_INIT_UA_TOKEN))
     def test_valid_token(self, client: IntegrationInstance):
-        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
     def test_idempotency(self, client: IntegrationInstance):
-        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert is_attached(client)
@@ -144,29 +155,37 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
     user_data = (
         PRO_DAEMON_DISABLED
         if session_cloud.settings.PLATFORM == "gce"
-        else None
+        else PRO_AUTO_ATTACH_DISABLED
     )
 
     with session_cloud.launch(
         user_data=user_data,
         launch_kwargs=launch_kwargs,
     ) as client:
-        log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+        # TODO: Re-enable this check after cloud images contain
+        # cloud-init 23.4.
+        # Explanation: We have to include something under
+        # user-data.ubuntu_advantage to skip the automatic auto-attach
+        # (driven by ua-auto-attach.service and/or ubuntu-advantage.service)
+        # while customizing the instance but in cloud-init < 23.4,
+        # user-data.ubuntu_advantage requires a token key.
 
-        client.execute("sudo pro detach --assume-yes")  # Force detach
+        # log = client.read_from_file("/var/log/cloud-init.log")
+        # verify_clean_log(log)
+
         assert not is_attached(
             client
         ), "Test precondition error. Instance is auto-attached."
 
-        LOG.info(
-            "Restore `ubuntu-advantage.service` original status for next boot"
-        )
-        assert client.execute(
-            "sudo systemctl unmask ubuntu-advantage.service"
-        ).ok
+        if session_cloud.settings.PLATFORM == "gce":
+            LOG.info(
+                "Restore `ubuntu-advantage.service` original status for next"
+                " boot"
+            )
+            assert client.execute(
+                "sudo systemctl unmask ubuntu-advantage.service"
+            ).ok
 
-        source = get_validated_source(session_cloud)
         client.install_new_cloud_init(source)
         client.destroy()
 
@@ -179,6 +198,10 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 @pytest.mark.ubuntu
 class TestUbuntuAdvantagePro:
     def test_custom_services(self, session_cloud: IntegrationCloud):
+        release = ImageSpecification.from_os_image().release
+        if release not in {"bionic", "focal", "jammy"}:
+            pytest.skip(f"Cannot run on non LTS release: {release}")
+
         launch_kwargs = maybe_install_cloud_init(session_cloud)
         with session_cloud.launch(
             user_data=AUTO_ATTACH_CUSTOM_SERVICES,
