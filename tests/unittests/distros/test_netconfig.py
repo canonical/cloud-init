@@ -359,7 +359,7 @@ class TestNetCfgDistroFreeBSD(TestNetCfgDistroBase):
         }
         rc_conf_expected = """\
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
@@ -381,7 +381,7 @@ ifconfig_eth1=DHCP
         rc_conf_expected = """\
 ifconfig_vtnet0_name=eth0
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
