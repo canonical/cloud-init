@@ -16,7 +16,7 @@ MPATH = "cloudinit.config.cc_wireguard"
 MIN_KERNEL_VERSION = (5, 6)
 
 
-class FakeCloud(object):
+class FakeCloud:
     def __init__(self, distro):
         self.distro = distro
 

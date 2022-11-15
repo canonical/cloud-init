@@ -263,12 +263,12 @@ class TestMkfsCommandHandling(CiTestCase):
         subp.assert_called_once_with(
             [
                 "/sbin/mkfs.ext4",
-                "/dev/xdb1",
                 "-L",
                 "without_cmd",
                 "-F",
                 "are",
                 "added",
+                "/dev/xdb1",
             ],
             shell=False,
         )
@@ -292,7 +292,7 @@ class TestMkfsCommandHandling(CiTestCase):
             m_which.call_args_list,
         )
         subp.assert_called_once_with(
-            ["/sbin/mkswap", "/dev/xdb1", "-L", "swap", "-f"], shell=False
+            ["/sbin/mkswap", "-L", "swap", "-f", "/dev/xdb1"], shell=False
         )
 
 

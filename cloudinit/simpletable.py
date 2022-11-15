@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class SimpleTable(object):
+class SimpleTable:
     """A minimal implementation of PrettyTable
     for distribution with cloud-init.
     """

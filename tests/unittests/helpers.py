@@ -17,8 +17,7 @@ from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
 
-import httpretty
-import pytest
+import responses
 
 import cloudinit
 from cloudinit import cloud, distros
@@ -374,30 +373,18 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.close()
 
 
-class HttprettyTestCase(CiTestCase):
-    # necessary as http_proxy gets in the way of httpretty
-    # https://github.com/gabrielfalcao/HTTPretty/issues/122
-    # Also make sure that allow_net_connect is set to False.
-    # And make sure reset and enable/disable are done.
-
+class ResponsesTestCase(CiTestCase):
     def setUp(self):
-        self.restore_proxy = os.environ.get("http_proxy")
-        if self.restore_proxy is not None:
-            del os.environ["http_proxy"]
-        super(HttprettyTestCase, self).setUp()
-        httpretty.HTTPretty.allow_net_connect = False
-        httpretty.reset()
-        httpretty.enable()
-        # Stop the logging from HttpPretty so our logs don't get mixed
-        # up with its logs
-        logging.getLogger("httpretty.core").setLevel(logging.CRITICAL)
+        super().setUp()
+        self.responses = responses.RequestsMock(
+            assert_all_requests_are_fired=False
+        )
+        self.responses.start()
 
     def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
-        if self.restore_proxy:
-            os.environ["http_proxy"] = self.restore_proxy
-        super(HttprettyTestCase, self).tearDown()
+        self.responses.stop()
+        self.responses.reset()
+        super().tearDown()
 
 
 class SchemaTestCaseMixin(unittest.TestCase):
@@ -585,10 +572,7 @@ def does_not_raise():
     >>>         assert (0 / example_input) is not None
 
     """
-    try:
-        yield
-    except Exception as ex:
-        raise pytest.fail("DID RAISE {0}".format(ex))
+    yield
 
 
 # vi: ts=4 expandtab

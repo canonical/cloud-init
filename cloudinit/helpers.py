@@ -25,11 +25,11 @@ class LockFailure(Exception):
     pass
 
 
-class DummyLock(object):
+class DummyLock:
     pass
 
 
-class DummySemaphores(object):
+class DummySemaphores:
     def __init__(self):
         pass
 
@@ -47,7 +47,7 @@ class DummySemaphores(object):
         pass
 
 
-class FileLock(object):
+class FileLock:
     def __init__(self, fn):
         self.fn = fn
 
@@ -59,7 +59,7 @@ def canon_sem_name(name):
     return name.replace("-", "_")
 
 
-class FileSemaphores(object):
+class FileSemaphores:
     def __init__(self, sem_path):
         self.sem_path = sem_path
 
@@ -141,7 +141,7 @@ class FileSemaphores(object):
             return os.path.join(sem_path, "%s.%s" % (name, freq))
 
 
-class Runners(object):
+class Runners:
     def __init__(self, paths):
         self.paths = paths
         self.sems = {}
@@ -186,7 +186,7 @@ class Runners(object):
                 return (True, results)
 
 
-class ConfigMerger(object):
+class ConfigMerger:
     def __init__(
         self,
         paths=None,
@@ -292,7 +292,7 @@ class ConfigMerger(object):
         return self._cfg
 
 
-class ContentHandlers(object):
+class ContentHandlers:
     def __init__(self):
         self.registered = {}
         self.initialized = []
@@ -333,33 +333,44 @@ class Paths(persistence.CloudInitPickleMixin):
     def __init__(self, path_cfgs: dict, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir = path_cfgs.get("cloud_dir", "/var/lib/cloud")
-        self.run_dir = path_cfgs.get("run_dir", "/run/cloud-init")
-        self.instance_link = os.path.join(self.cloud_dir, "instance")
-        self.boot_finished = os.path.join(self.instance_link, "boot-finished")
-        self.seed_dir = os.path.join(self.cloud_dir, "seed")
+        self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
+        self.run_dir: str = path_cfgs.get("run_dir", "/run/cloud-init")
+        self.instance_link: str = os.path.join(self.cloud_dir, "instance")
+        self.boot_finished: str = os.path.join(
+            self.instance_link, "boot-finished"
+        )
+        self.seed_dir: str = os.path.join(self.cloud_dir, "seed")
         # This one isn't joined, since it should just be read-only
-        template_dir = path_cfgs.get("templates_dir", "/etc/cloud/templates/")
-        self.template_tpl = os.path.join(template_dir, "%s.tmpl")
+        template_dir: str = path_cfgs.get(
+            "templates_dir", "/etc/cloud/templates/"
+        )
+        self.template_tpl: str = os.path.join(template_dir, "%s.tmpl")
         self.lookups = {
-            "handlers": "handlers",
-            "scripts": "scripts",
-            "vendor_scripts": "scripts/vendor",
-            "sem": "sem",
             "boothooks": "boothooks",
-            "userdata_raw": "user-data.txt",
-            "userdata": "user-data.txt.i",
-            "obj_pkl": "obj.pkl",
             "cloud_config": "cloud-config.txt",
-            "vendor_cloud_config": "vendor-cloud-config.txt",
-            "vendor2_cloud_config": "vendor2-cloud-config.txt",
             "data": "data",
-            "vendordata_raw": "vendor-data.txt",
-            "vendordata2_raw": "vendor-data2.txt",
-            "vendordata": "vendor-data.txt.i",
-            "vendordata2": "vendor-data2.txt.i",
+            "handlers": "handlers",
+            # File in which public available instance meta-data is written
+            # security-sensitive key values are redacted from this
+            # world-readable file
+            "instance_data": "instance-data.json",
+            # security-sensitive key values are present in this root-readable
+            # file
+            "instance_data_sensitive": "instance-data-sensitive.json",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
+            "obj_pkl": "obj.pkl",
+            "scripts": "scripts",
+            "sem": "sem",
+            "userdata": "user-data.txt.i",
+            "userdata_raw": "user-data.txt",
+            "vendordata": "vendor-data.txt.i",
+            "vendordata2": "vendor-data2.txt.i",
+            "vendordata2_raw": "vendor-data2.txt",
+            "vendordata_raw": "vendor-data.txt",
+            "vendor2_cloud_config": "vendor2-cloud-config.txt",
+            "vendor_cloud_config": "vendor-cloud-config.txt",
+            "vendor_scripts": "scripts/vendor",
             "warnings": "warnings",
         }
         # Set when a datasource becomes active
@@ -376,6 +387,12 @@ class Paths(persistence.CloudInitPickleMixin):
             self.run_dir = Paths(
                 path_cfgs=self.cfgs, ds=self.datasource
             ).run_dir
+        if "instance_data" not in self.lookups:
+            self.lookups["instance_data"] = "instance-data.json"
+        if "instance_data_sensitive" not in self.lookups:
+            self.lookups[
+                "instance_data_sensitive"
+            ] = "instance-data-sensitive.json"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
@@ -415,7 +432,7 @@ class Paths(persistence.CloudInitPickleMixin):
         else:
             return ipath
 
-    def _get_path(self, base, name=None):
+    def _get_path(self, base: str, name=None):
         if name is None:
             return base
         return os.path.join(base, self.lookups[name])

@@ -13,6 +13,7 @@ from cloudinit import handlers, helpers, util
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
+    JinjaLoadError,
     JinjaTemplatePartHandler,
     convert_jinja_instance_data,
     render_jinja_payload,
@@ -160,7 +161,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         """If instance-data is absent, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
-        with self.assertRaises(RuntimeError) as context_manager:
+        with self.assertRaises(JinjaLoadError) as context_manager:
             h.handle_part(
                 data="data",
                 ctype="!" + handlers.CONTENT_START,
@@ -187,7 +188,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         util.write_file(instance_json, util.json_dumps({}))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch(self.mpath + "load_file") as m_load:
-            with self.assertRaises(RuntimeError) as context_manager:
+            with self.assertRaises(JinjaLoadError) as context_manager:
                 m_load.side_effect = OSError(errno.EACCES, "Not allowed")
                 h.handle_part(
                     data="data",

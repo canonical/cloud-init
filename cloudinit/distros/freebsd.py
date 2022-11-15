@@ -11,9 +11,8 @@ from io import StringIO
 import cloudinit.distros.bsd
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.distros.networking import FreeBSDNetworking
 from cloudinit.settings import PER_INSTANCE
-
-from .networking import FreeBSDNetworking
 
 LOG = logging.getLogger(__name__)
 
@@ -37,6 +36,27 @@ class Distro(cloudinit.distros.bsd.BSD):
     pkg_cmd_upgrade_prefix = ["pkg", "upgrade"]
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
+
+    def manage_service(self, action: str, service: str):
+        """
+        Perform the requested action on a service. This handles FreeBSD's
+        'service' case. The FreeBSD 'service' is closer in features to
+        'systemctl' than SysV init's 'service', so we override it.
+        May raise ProcessExecutionError
+        """
+        init_cmd = self.init_cmd
+        cmds = {
+            "stop": [service, "stop"],
+            "start": [service, "start"],
+            "enable": [service, "enable"],
+            "disable": [service, "disable"],
+            "restart": [service, "restart"],
+            "reload": [service, "restart"],
+            "try-reload": [service, "restart"],
+            "status": [service, "status"],
+        }
+        cmd = list(init_cmd) + list(cmds[action])
+        return subp.subp(cmd, capture=True)
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
@@ -157,7 +177,8 @@ class Distro(cloudinit.distros.bsd.BSD):
                 )
 
     def _get_pkg_cmd_environ(self):
-        """Return environment vars used in *BSD package_command operations"""
+        """Return environment vars used in FreeBSD package_command
+        operations"""
         e = os.environ.copy()
         e["ASSUME_ALWAYS_YES"] = "YES"
         return e

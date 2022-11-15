@@ -105,7 +105,7 @@ LOG = logging.getLogger(__name__)
 IBM_CONFIG_UUID = "9796-932E"
 
 
-class Platforms(object):
+class Platforms:
     TEMPLATE_LIVE_METADATA = "Template/Live/Metadata"
     TEMPLATE_LIVE_NODATA = "UNABLE TO BE IDENTIFIED."
     TEMPLATE_PROVISIONING_METADATA = "Template/Provisioning/Metadata"

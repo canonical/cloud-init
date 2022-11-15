@@ -1,8 +1,14 @@
+import os
 import re
+from datetime import datetime
 from typing import Iterator
 
 import pytest
 
+from cloudinit.cmd.devel.logs import (
+    INSTALLER_APPORT_FILES,
+    INSTALLER_APPORT_SENSITIVE_FILES,
+)
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
@@ -43,12 +49,62 @@ class TestHonorCloudDir:
         assert f"{NEW_CLOUD_DIR}/instance/user-data.txt" in re.sub(
             r"\s+", "", help_result.stdout
         ), "user-data file not correctly render in collect-logs -h"
+
+        # Touch a couple of subiquity files to assert collected
+        installer_files = (
+            INSTALLER_APPORT_FILES[-1],
+            INSTALLER_APPORT_SENSITIVE_FILES[-1],
+        )
+
+        for apport_file in installer_files:
+            custom_client.execute(
+                f"mkdir -p {os.path.dirname(apport_file.path)}"
+            )
+            custom_client.execute(f"touch {apport_file.path}")
+
         collect_logs_result = custom_client.execute(
             "cloud-init collect-logs --include-userdata"
         )
         assert (
             collect_logs_result.ok
         ), f"collect-logs error: {collect_logs_result.stderr}"
+        found_logs = custom_client.execute(
+            "tar -tf cloud-init.tar.gz"
+        ).stdout.splitlines()
+        dirname = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
+        expected_logs = [
+            f"{dirname}/",
+            f"{dirname}/cloud-init.log",
+            f"{dirname}/cloud-init-output.log",
+            f"{dirname}/dmesg.txt",
+            f"{dirname}/user-data.txt",
+            f"{dirname}/version",
+            f"{dirname}/dpkg-version",
+            f"{dirname}/journal.txt",
+            f"{dirname}/run/",
+            f"{dirname}/run/cloud-init/",
+            f"{dirname}/run/cloud-init/result.json",
+            f"{dirname}/run/cloud-init/.instance-id",
+            f"{dirname}/run/cloud-init/cloud-init-generator.log",
+            f"{dirname}/run/cloud-init/enabled",
+            f"{dirname}/run/cloud-init/cloud-id",
+            f"{dirname}/run/cloud-init/instance-data.json",
+            f"{dirname}/run/cloud-init/instance-data-sensitive.json",
+            f"{dirname}{installer_files[0].path}",
+            f"{dirname}{installer_files[1].path}",
+        ]
+        for log in expected_logs:
+            assert log in found_logs
+        # Assert disabled cloud-init collect-logs grabs /var/lib/cloud/data
+        custom_client.execute("touch /run/cloud-init/disabled")
+        assert custom_client.execute(
+            "cloud-init collect-logs --include-userdata"
+        ).ok
+        found_logs = custom_client.execute(
+            "tar -tf cloud-init.tar.gz"
+        ).stdout.splitlines()
+        dirname = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
+        assert f"{dirname}/new-cloud-dir/data/result.json" in found_logs
 
     # LXD inserts some agent setup code into VMs on Bionic under
     # /var/lib/cloud. The inserted script will cause this test to fail

@@ -9,9 +9,12 @@
 import io
 import os
 from configparser import ConfigParser
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -28,6 +31,7 @@ distros = [
     "cloudlinux",
     "eurolinux",
     "fedora",
+    "mariner",
     "openEuler",
     "openmandriva",
     "photon",
@@ -163,7 +167,9 @@ def _format_repository_config(repo_id, repo_config):
     return "".join(lines)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     repos = cfg.get("yum_repos")
     if not repos:
         log.debug(

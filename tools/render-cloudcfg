@@ -21,6 +21,7 @@ def main():
         "fedora",
         "freebsd",
         "gentoo",
+        "mariner",
         "miraclelinux",
         "netbsd",
         "openbsd",

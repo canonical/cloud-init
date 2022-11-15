@@ -1,8 +1,6 @@
 import os
 import sys
 
-import sphinx_rtd_theme
-
 from cloudinit import version
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -31,8 +29,7 @@ needs_sphinx = "4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "m2r2",
-    "sphinx_rtd_theme",
-    "sphinx_panels",
+    "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
@@ -65,11 +62,15 @@ show_authors = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "static/logo.png"
+html_static_path = ["static"]
+html_theme_options = {
+    "light_logo": "logo.png",
+    "dark_logo": "logo-dark-mode.png",
+}
 
 # Make sure the target is unique
 autosectionlabel_prefix_document = True

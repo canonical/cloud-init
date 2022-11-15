@@ -5,8 +5,8 @@ import logging
 import os
 import re
 
-import httpretty
 import pytest
+import responses
 
 from cloudinit import util
 from cloudinit.config import cc_chef
@@ -17,44 +17,38 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
-    HttprettyTestCase,
+    ResponsesTestCase,
     cloud_init_project_dir,
     mock,
     skipIf,
     skipUnlessJsonSchema,
 )
-from tests.unittests.util import get_cloud
+from tests.unittests.util import MockDistro, get_cloud
 
 LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = cloud_init_project_dir("templates/chef_client.rb.tmpl")
 
-# This is adjusted to use http because using with https causes issue
-# in some openssl/httpretty combinations.
-#   https://github.com/gabrielfalcao/HTTPretty/issues/242
-# We saw issue in opensuse 42.3 with
-#    httpretty=0.8.8-7.1 ndg-httpsclient=0.4.0-3.2 pyOpenSSL=16.0.0-4.1
-OMNIBUS_URL_HTTP = cc_chef.OMNIBUS_URL.replace("https:", "http:")
 
-
-class TestInstallChefOmnibus(HttprettyTestCase):
+class TestInstallChefOmnibus(ResponsesTestCase):
     def setUp(self):
         super(TestInstallChefOmnibus, self).setUp()
         self.new_root = self.tmp_dir()
 
-    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     def test_install_chef_from_omnibus_runs_chef_url_content(self):
         """install_chef_from_omnibus calls subp_blob_in_tempfile."""
         response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200
+        self.responses.add(
+            responses.GET, cc_chef.OMNIBUS_URL, body=response, status=200
         )
         ret = (None, None)  # stdout, stderr but capture=False
+        distro = mock.Mock()
 
         with mock.patch(
             "cloudinit.config.cc_chef.subp_blob_in_tempfile", return_value=ret
         ) as m_subp_blob:
-            cc_chef.install_chef_from_omnibus()
+            cc_chef.install_chef_from_omnibus(distro=distro)
         # admittedly whitebox, but assuming subp_blob_in_tempfile works
         # this should be fine.
         self.assertEqual(
@@ -64,6 +58,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
                     args=[],
                     basename="chef-omnibus-install",
                     capture=False,
+                    distro=distro,
                 )
             ],
             m_subp_blob.call_args_list,
@@ -74,20 +69,21 @@ class TestInstallChefOmnibus(HttprettyTestCase):
     def test_install_chef_from_omnibus_retries_url(self, m_subp_blob, m_rdurl):
         """install_chef_from_omnibus retries OMNIBUS_URL upon failure."""
 
-        class FakeURLResponse(object):
+        class FakeURLResponse:
             contents = '#!/bin/bash\necho "Hi Mom" > {0}/chef.out'.format(
                 self.new_root
             )
 
         m_rdurl.return_value = FakeURLResponse()
 
-        cc_chef.install_chef_from_omnibus()
+        distro = mock.Mock()
+        cc_chef.install_chef_from_omnibus(distro=distro)
         expected_kwargs = {
             "retries": cc_chef.OMNIBUS_URL_RETRIES,
             "url": cc_chef.OMNIBUS_URL,
         }
         self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
-        cc_chef.install_chef_from_omnibus(retries=10)
+        cc_chef.install_chef_from_omnibus(retries=10, distro=distro)
         expected_kwargs = {"retries": 10, "url": cc_chef.OMNIBUS_URL}
         self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
         expected_subp_kwargs = {
@@ -95,21 +91,21 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             "basename": "chef-omnibus-install",
             "blob": m_rdurl.return_value.contents,
             "capture": False,
+            "distro": distro,
         }
         self.assertCountEqual(
             expected_subp_kwargs, m_subp_blob.call_args_list[0][1]
         )
 
-    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     @mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile")
     def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
         """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""
         chef_outfile = self.tmp_path("chef.out", self.new_root)
         response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
-        httpretty.register_uri(
-            httpretty.GET, cc_chef.OMNIBUS_URL, body=response
-        )
-        cc_chef.install_chef_from_omnibus(omnibus_version="2.0")
+        self.responses.add(responses.GET, cc_chef.OMNIBUS_URL, body=response)
+        distro = mock.Mock()
+        cc_chef.install_chef_from_omnibus(distro=distro, omnibus_version="2.0")
 
         called_kwargs = m_subp_blob.call_args_list[0][1]
         expected_kwargs = {
@@ -117,6 +113,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             "basename": "chef-omnibus-install",
             "blob": response,
             "capture": False,
+            "distro": distro,
         }
         self.assertCountEqual(expected_kwargs, called_kwargs)
 
@@ -461,4 +458,33 @@ class TestBootCMDSchema:
             validate_cloudconfig_schema(config, schema, strict=True)
 
 
-# vi: ts=4 expandtab
+class TestHelpers:
+    def test_subp_blob_in_tempfile(self, mocker, tmpdir):
+        mocker.patch(
+            "tests.unittests.util.MockDistro.get_tmp_exec_path",
+            return_value=tmpdir,
+        )
+        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
+        write_file = mocker.patch("cloudinit.util.write_file")
+        m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
+        distro = MockDistro()
+
+        cc_chef.subp_blob_in_tempfile("hi", distro, args=[])
+        assert m_subp.call_args == mock.call(args=[f"{tmpdir}/subp_blob"])
+        assert write_file.call_args[0][1] == "hi"
+
+    def test_subp_blob_in_tempfile_args(self, mocker, tmpdir):
+        mocker.patch(
+            "tests.unittests.util.MockDistro.get_tmp_exec_path",
+            return_value=tmpdir,
+        )
+        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
+        write_file = mocker.patch("cloudinit.util.write_file")
+        m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
+        distro = MockDistro()
+
+        cc_chef.subp_blob_in_tempfile("hi", distro, args=["aaa"])
+        assert m_subp.call_args == mock.call(
+            args=[f"{tmpdir}/subp_blob", "aaa"]
+        )
+        assert write_file.call_args[0][1] == "hi"

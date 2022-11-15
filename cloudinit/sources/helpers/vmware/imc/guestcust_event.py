@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class GuestCustEventEnum(object):
+class GuestCustEventEnum:
     """Specifies different types of Guest Customization Events"""
 
     GUESTCUST_EVENT_CUSTOMIZE_FAILED = 100

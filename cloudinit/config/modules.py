@@ -8,7 +8,7 @@
 
 import copy
 from types import ModuleType
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -80,12 +80,12 @@ def _is_active(module_details: ModuleDetails, cfg: dict) -> bool:
     return True
 
 
-class Modules(object):
+class Modules:
     def __init__(self, init: Init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
-        self._cached_cfg = None
+        self._cached_cfg: Optional[config.Config] = None
         if reporter is None:
             reporter = ReportEventStack(
                 name="module-reporter",
@@ -95,7 +95,7 @@ class Modules(object):
         self.reporter = reporter
 
     @property
-    def cfg(self):
+    def cfg(self) -> config.Config:
         # None check to avoid empty case causing re-reading
         if self._cached_cfg is None:
             merger = ConfigMerger(

@@ -138,7 +138,7 @@ class CommandHandlerMeta(type):
         return super(CommandHandlerMeta, cls).__new__(cls, name, parents, dct)
 
 
-class NetworkState(object):
+class NetworkState:
     def __init__(
         self, network_state: dict, version: int = NETWORK_STATE_VERSION
     ):

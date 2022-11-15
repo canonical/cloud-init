@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class GuestCustStateEnum(object):
+class GuestCustStateEnum:
     """Specifies different states of Guest Customization engine"""
 
     GUESTCUST_STATE_RUNNING = 4

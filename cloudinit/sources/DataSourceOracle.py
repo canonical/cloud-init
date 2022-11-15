@@ -14,6 +14,7 @@ Notes:
 """
 
 import base64
+import ipaddress
 from collections import namedtuple
 from typing import Optional, Tuple
 
@@ -155,6 +156,7 @@ class DataSourceOracle(sources.DataSource):
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
                 "headers": V2_HEADERS,
             },
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(
@@ -286,7 +288,8 @@ class DataSourceOracle(sources.DataSource):
 
         vnics_data = self._vnics_data if set_primary else self._vnics_data[1:]
 
-        for vnic_dict in vnics_data:
+        for index, vnic_dict in enumerate(vnics_data):
+            is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
@@ -295,29 +298,40 @@ class DataSourceOracle(sources.DataSource):
                 )
                 continue
             name = interfaces_by_mac[mac_address]
+            network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
             if self._network_config["version"] == 1:
-                subnet = {
-                    "type": "static",
-                    "address": vnic_dict["privateIp"],
-                }
-                self._network_config["config"].append(
-                    {
-                        "name": name,
-                        "type": "physical",
-                        "mac_address": mac_address,
-                        "mtu": MTU,
-                        "subnets": [subnet],
+                if is_primary:
+                    subnet = {"type": "dhcp"}
+                else:
+                    subnet = {
+                        "type": "static",
+                        "address": (
+                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                        ),
                     }
-                )
-            elif self._network_config["version"] == 2:
-                self._network_config["ethernets"][name] = {
-                    "addresses": [vnic_dict["privateIp"]],
+                interface_config = {
+                    "name": name,
+                    "type": "physical",
+                    "mac_address": mac_address,
                     "mtu": MTU,
-                    "dhcp4": False,
-                    "dhcp6": False,
-                    "match": {"macaddress": mac_address},
+                    "subnets": [subnet],
                 }
+                self._network_config["config"].append(interface_config)
+            elif self._network_config["version"] == 2:
+                # Why does this elif exist???
+                # Are there plans to switch to v2?
+                interface_config = {
+                    "mtu": MTU,
+                    "match": {"macaddress": mac_address},
+                    "dhcp6": False,
+                    "dhcp4": is_primary,
+                }
+                if not is_primary:
+                    interface_config["addresses"] = [
+                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                    ]
+                self._network_config["ethernets"][name] = interface_config
 
 
 def _read_system_uuid() -> Optional[str]:

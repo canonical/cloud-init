@@ -10,7 +10,7 @@ import re
 from io import StringIO
 from urllib.parse import urlparse
 
-import httpretty as hp
+import responses
 
 from cloudinit import helpers, settings, util
 from cloudinit.sources import UNSET, BrokenMetadata
@@ -18,6 +18,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
 from tests.unittests import helpers as test_helpers
+from tests.unittests.helpers import mock
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
@@ -76,8 +77,8 @@ MOCK_PATH = "cloudinit.sources.DataSourceOpenStack."
 
 
 # TODO _register_uris should leverage test_ec2.register_mock_metaserver.
-def _register_uris(version, ec2_files, ec2_meta, os_files):
-    """Registers a set of url patterns into httpretty that will mimic the
+def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
+    """Registers a set of url patterns into responses that will mimic the
     same data returned by the openstack metadata service (and ec2 service)."""
 
     def match_ec2_url(uri, headers):
@@ -118,17 +119,17 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
             return (200, headers, os_files.get(path))
         return (404, headers, "")
 
-    def get_request_callback(method, uri, headers):
-        uri = urlparse(uri)
+    def get_request_callback(request):
+        uri = urlparse(request.url)
         path = uri.path.lstrip("/").split("/")
         if path[0] == "openstack":
-            return match_os_uri(uri, headers)
-        return match_ec2_url(uri, headers)
+            return match_os_uri(uri, request.headers)
+        return match_ec2_url(uri, request.headers)
 
-    hp.register_uri(
-        hp.GET,
+    responses_mock.add_callback(
+        responses.GET,
         re.compile(r"http://169.254.169.254/.*"),
-        body=get_request_callback,
+        callback=get_request_callback,
     )
 
 
@@ -136,7 +137,7 @@ def _read_metadata_service():
     return ds.read_metadata_service(BASE_URL, retries=0, timeout=0.1)
 
 
-class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
+class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
 
     with_logs = True
     VERSION = "latest"
@@ -146,7 +147,13 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.tmp = self.tmp_dir()
 
     def test_successful(self):
-        _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
+        _register_uris(
+            self.VERSION,
+            EC2_FILES,
+            EC2_META,
+            OS_FILES,
+            responses_mock=self.responses,
+        )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
         self.assertEqual(VENDOR_DATA2, f.get("vendordata2"))
@@ -171,7 +178,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         )
 
     def test_no_ec2(self):
-        _register_uris(self.VERSION, {}, {}, OS_FILES)
+        _register_uris(
+            self.VERSION, {}, {}, OS_FILES, responses_mock=self.responses
+        )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
         self.assertEqual(VENDOR_DATA2, f.get("vendordata2"))
@@ -186,7 +195,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files.pop(k, None)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         self.assertRaises(openstack.NonReadable, _read_metadata_service)
 
     def test_bad_uuid(self):
@@ -196,7 +207,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = json.dumps(os_meta)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_userdata_empty(self):
@@ -204,7 +217,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("user_data"):
                 os_files.pop(k, None)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
         self.assertEqual(VENDOR_DATA2, f.get("vendordata2"))
@@ -217,7 +232,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("vendor_data.json"):
                 os_files.pop(k, None)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         f = _read_metadata_service()
         self.assertEqual(CONTENT_0, f["files"]["/etc/foo.cfg"])
         self.assertEqual(CONTENT_1, f["files"]["/etc/bar/bar.cfg"])
@@ -228,7 +245,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("vendor_data2.json"):
                 os_files.pop(k, None)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         f = _read_metadata_service()
         self.assertEqual(CONTENT_0, f["files"]["/etc/foo.cfg"])
         self.assertEqual(CONTENT_1, f["files"]["/etc/bar/bar.cfg"])
@@ -239,7 +258,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("vendor_data.json"):
                 os_files[k] = "{"  # some invalid json
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_vendordata2_invalid(self):
@@ -247,7 +268,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("vendor_data2.json"):
                 os_files[k] = "{"  # some invalid json
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_metadata_invalid(self):
@@ -255,12 +278,20 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = "{"  # some invalid json
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     @test_helpers.mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_datasource(self, m_dhcp):
-        _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
+        _register_uris(
+            self.VERSION,
+            EC2_FILES,
+            EC2_META,
+            OS_FILES,
+            responses_mock=self.responses,
+        )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
         )
@@ -283,16 +314,23 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertIsNone(ds_os.vendordata_raw)
         m_dhcp.assert_not_called()
 
-    @hp.activate
     @test_helpers.mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @test_helpers.mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
     )
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
-        _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
+        _register_uris(
+            self.VERSION,
+            EC2_FILES,
+            EC2_META,
+            OS_FILES,
+            responses_mock=self.responses,
+        )
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         ds_os_local = ds.DataSourceOpenStackLocal(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os_local._fallback_interface = "eth9"  # Monkey patch for dhcp
         m_dhcp.return_value = [
@@ -322,14 +360,16 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
         self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
-        m_dhcp.assert_called_with("eth9", None)
+        m_dhcp.assert_called_with("eth9", None, mock.ANY)
 
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = "{"  # some invalid json
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
         )
@@ -351,7 +391,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files.pop(k)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
         )
@@ -426,7 +468,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = json.dumps(os_meta)
-        _register_uris(self.VERSION, {}, {}, os_files)
+        _register_uris(
+            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+        )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
         )
@@ -442,10 +486,15 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
-    @hp.activate
     def test_wb__crawl_metadata_does_not_persist(self):
         """_crawl_metadata returns current metadata and does not cache."""
-        _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
+        _register_uris(
+            self.VERSION,
+            EC2_FILES,
+            EC2_META,
+            OS_FILES,
+            responses_mock=self.responses,
+        )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
         )
@@ -604,6 +653,26 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    def test_detect_openstack_huaweicloud_chassis_asset_tag(
+        self, m_dmi, m_is_x86
+    ):
+        """Return True on OpenStack reporting Huawei Cloud VM asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_asset_tag_dmi_read(dmi_key):
+            if dmi_key == "system-product-name":
+                return "c7.large.2"  # No match
+            if dmi_key == "chassis-asset-tag":
+                return "HUAWEICLOUD"
+            assert False, "Unexpected dmi read of %s" % dmi_key
+
+        m_dmi.side_effect = fake_asset_tag_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            "Expected detect_openstack == True on Huawei Cloud VM",
+        )
+
+    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_detect_openstack_oraclecloud_chassis_asset_tag(
         self, m_dmi, m_is_x86
     ):
@@ -686,7 +755,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         m_proc_env.assert_called_with(1)
 
 
-class TestMetadataReader(test_helpers.HttprettyTestCase):
+class TestMetadataReader(test_helpers.ResponsesTestCase):
     """Test the MetadataReader."""
 
     burl = "http://169.254.169.254/"
@@ -703,8 +772,11 @@ class TestMetadataReader(test_helpers.HttprettyTestCase):
 
     def register(self, path, body=None, status=200):
         content = body if not isinstance(body, str) else body.encode("utf-8")
-        hp.register_uri(
-            hp.GET, self.burl + "openstack" + path, status=status, body=content
+        self.responses.add(
+            responses.GET,
+            self.burl + "openstack" + path,
+            status=status,
+            body=content,
         )
 
     def register_versions(self, versions):
