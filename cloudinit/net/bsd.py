@@ -83,7 +83,7 @@ class BSDRenderer(renderer.Renderer):
                         "netmask": subnet.get("netmask"),
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
-                
+
                 elif subnet.get("type") == "static6":
                     if not subnet.get("prefix"):
                         LOG.debug(
@@ -104,7 +104,7 @@ class BSDRenderer(renderer.Renderer):
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
                 elif subnet.get("type") == "dhcp" or subnet.get("type") == "dhcp4":
-                    self.interface_configurations[device_name] = "DHCP" 
+                    self.interface_configurations[device_name] = "DHCP"
 
     def _route_entries(self, settings):
         routes = list(settings.iter_routes())
@@ -132,7 +132,7 @@ class BSDRenderer(renderer.Renderer):
                             }
                         )
                 else:
-                    continue 
+                    continue
                 routes += subnet.get("routes", [])
 
         for route in routes:
@@ -223,4 +223,3 @@ class BSDRenderer(renderer.Renderer):
 
     def set_route(self, network, netmask, gateway):
         raise NotImplementedError()
-

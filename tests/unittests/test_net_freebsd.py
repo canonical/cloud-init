@@ -85,7 +85,7 @@ class TestFreeBSDRoundTrip(CiTestCase):
                 "# dummy rc.conf\n"
                 "ifconfig_eno1="
                 "'inet 172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"
-                "ifconfig_eno2="
+                "ifconfig_eno2_ipv6="
                 "'inet6 fd12:3456:789a:1::1/64 mtu 1470'\n"
             ),
         }
