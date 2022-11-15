@@ -181,10 +181,10 @@ Top-level keys:
   'security sensitive'. Only the keys listed here will be redacted from
   instance-data.json for non-root users.
 
-* **merged_cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg`
-  and  `/etc/cloud/cloud-cfg.d`. Values under this key could contain sensitive
-  information such as passwords, so it is included in the **sensitive-keys**
-  list which is only readable by root.
+* **merged_cfg**: Merged cloud-init :ref:`base_config_reference` from
+  `/etc/cloud/cloud.cfg` and  `/etc/cloud/cloud-cfg.d`. Values under this key
+  could contain sensitive information such as passwords, so it is included in
+  the **sensitive-keys** list which is only readable by root.
 
 * **ds**: Datasource-specific metadata crawled for the specific cloud
   platform. It should closely represent the structure of the cloud metadata
@@ -375,7 +375,7 @@ EC2 instance:
    "availability_zone": "us-east-1b",
    "base64_encoded_keys": [],
    "merged_cfg": {
-    "_doc": "Merged cloud-init system config from /etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/",
+    "_doc": "Merged cloud-init base config from /etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/",
     "_log": [
      "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
      "[handler_cloudLogHandler]\nclass=FileHandler\nlevel=DEBUG\nformatter=arg0Formatter\nargs=('/var/log/cloud-init.log',)\n",

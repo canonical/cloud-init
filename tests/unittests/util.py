@@ -23,7 +23,7 @@ def get_cloud(
     cls = distros.fetch(distro) if distro else MockDistro
     mydist = cls(distro, sys_cfg, paths)
     if mocked_distro:
-        mydist = mock.Mock(wraps=mydist)
+        mydist = mock.MagicMock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
         myds.metadata.update(metadata)
@@ -147,6 +147,9 @@ class MockDistro(distros.Distro):
 
     def update_package_sources(self):
         return (True, "yay")
+
+    def do_as(self, command, args=None, **kwargs):
+        return ("stdout", "stderr")
 
 
 TEST_INSTANCE_ID = "i-testing"

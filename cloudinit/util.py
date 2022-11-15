@@ -636,6 +636,7 @@ def _get_variant(info):
             "debian",
             "eurolinux",
             "fedora",
+            "mariner",
             "miraclelinux",
             "openeuler",
             "openmandriva",
@@ -2933,6 +2934,10 @@ def mount_is_read_write(mount_point):
 
 def udevadm_settle(exists=None, timeout=None):
     """Invoke udevadm settle with optional exists and timeout parameters"""
+    if not subp.which("udevadm"):
+        # a distro, such as Alpine, may not have udev installed if
+        # it relies on a udev alternative such as mdev/mdevd.
+        return
     settle_cmd = ["udevadm", "settle"]
     if exists:
         # skip the settle if the requested path already exists
@@ -3004,6 +3009,17 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
             and self.patch == other.patch
             and self.rev == other.rev
         )
+
+    def __iter__(self):
+        """Iterate over the version (drop sentinels)"""
+        for n in (self.major, self.minor, self.patch, self.rev):
+            if n != -1:
+                yield str(n)
+            else:
+                break
+
+    def __str__(self):
+        return ".".join(self)
 
     def _compare_version(self, other) -> int:
         """

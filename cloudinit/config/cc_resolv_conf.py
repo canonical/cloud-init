@@ -55,7 +55,15 @@ meta: MetaSchema = {
     "name": "Resolv Conf",
     "title": "Configure resolv.conf",
     "description": MODULE_DESCRIPTION,
-    "distros": ["alpine", "fedora", "opensuse", "photon", "rhel", "sles"],
+    "distros": [
+        "alpine",
+        "fedora",
+        "mariner",
+        "opensuse",
+        "photon",
+        "rhel",
+        "sles",
+    ],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(

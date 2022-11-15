@@ -29,6 +29,25 @@ class TestManageService(CiTestCase):
         self.dist.manage_service("start", "myssh")
         m_subp.assert_called_with(["service", "myssh", "start"], capture=True)
 
+    @mock.patch.object(MockDistro, "uses_systemd", return_value=False)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_rcservice_initcmd(self, m_subp, m_sysd):
+        dist = _get_distro("alpine")
+        dist.init_cmd = ["rc-service", "--nocolor"]
+        dist.manage_service("start", "myssh")
+        m_subp.assert_called_with(
+            ["rc-service", "--nocolor", "myssh", "start"], capture=True
+        )
+
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_alpine_rcupdate_cmd(self, m_subp):
+        dist = _get_distro("alpine")
+        dist.update_cmd = ["rc-update", "--nocolor"]
+        dist.manage_service("enable", "myssh")
+        m_subp.assert_called_with(
+            ["rc-update", "--nocolor", "add", "myssh"], capture=True
+        )
+
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_rcctl_initcmd(self, m_subp):
         dist = _get_distro("openbsd")
@@ -52,5 +71,11 @@ class TestManageService(CiTestCase):
             ["systemctl", "start", "myssh"], capture=True
         )
 
-
-# vi: ts=4 sw=4 expandtab
+    @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_manage_service_disable_systemctl(self, m_subp, m_sysd):
+        self.dist.init_cmd = ["ignore"]
+        self.dist.manage_service("disable", "myssh")
+        m_subp.assert_called_with(
+            ["systemctl", "disable", "myssh"], capture=True
+        )

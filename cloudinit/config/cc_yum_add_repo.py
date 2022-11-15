@@ -31,6 +31,7 @@ distros = [
     "cloudlinux",
     "eurolinux",
     "fedora",
+    "mariner",
     "openEuler",
     "openmandriva",
     "photon",

@@ -45,7 +45,7 @@ OSFAMILIES = {
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
     "freebsd": ["freebsd", "dragonfly"],
-    "gentoo": ["gentoo"],
+    "gentoo": ["gentoo", "cos"],
     "netbsd": ["netbsd"],
     "openbsd": ["openbsd"],
     "redhat": [
@@ -55,6 +55,7 @@ OSFAMILIES = {
         "cloudlinux",
         "eurolinux",
         "fedora",
+        "mariner",
         "miraclelinux",
         "openEuler",
         "openmandriva",
@@ -80,7 +81,7 @@ LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-
+    pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
@@ -920,6 +921,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": ["stop", service],
                 "start": ["start", service],
                 "enable": ["enable", service],
+                "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
                 "try-reload": ["reload-or-try-restart", service],
@@ -930,6 +932,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": [service, "stop"],
                 "start": [service, "start"],
                 "enable": [service, "start"],
+                "disable": [service, "stop"],
                 "restart": [service, "restart"],
                 "reload": [service, "restart"],
                 "try-reload": [service, "restart"],
@@ -958,6 +961,27 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not util.has_mount_opt(tmp_dir, "noexec"):
             return tmp_dir
         return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
+
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
+        """
+        Perform a command as the requested user. Behaves like subp()
+
+        Note: We pass `PATH` to the user env by using `env`. This could be
+        probably simplified after bionic EOL by using
+        `su --whitelist-environment=PATH ...`, more info on:
+        https://lore.kernel.org/all/20180815110445.4qefy5zx5gfgbqly@ws.net.home/T/
+        """
+        directory = f"cd {cwd} && " if cwd else ""
+        return subp.subp(
+            [
+                "su",
+                "-",
+                user,
+                "-c",
+                directory + "env PATH=$PATH " + " ".join(command),
+            ],
+            **kwargs,
+        )
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

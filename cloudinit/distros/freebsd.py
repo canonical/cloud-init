@@ -49,6 +49,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             "stop": [service, "stop"],
             "start": [service, "start"],
             "enable": [service, "enable"],
+            "disable": [service, "disable"],
             "restart": [service, "restart"],
             "reload": [service, "restart"],
             "try-reload": [service, "restart"],

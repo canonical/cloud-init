@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import json
 import re
 import stat
@@ -60,6 +61,29 @@ LXD_V1_METADATA_NO_NETWORK_CONFIG = {
         "user.user-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
         "user.vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
     },
+}
+
+DEVICES = {
+    "devices": {
+        "some-disk": {
+            "path": "/path/in/container",
+            "source": "/path/on/host",
+            "type": "disk",
+        },
+        "enp1s0": {
+            "ipv4.address": "10.20.30.40",
+            "name": "eth0",
+            "network": "lxdbr0",
+            "type": "nic",
+        },
+        "root": {"path": "/", "pool": "default", "type": "disk"},
+        "enp1s1": {
+            "ipv4.address": "10.20.30.50",
+            "name": "eth1",
+            "network": "lxdbr0",
+            "type": "nic",
+        },
+    }
 }
 
 
@@ -129,8 +153,10 @@ class TestGenerateFallbackNetworkConfig:
     @mock.patch(DS_PATH + "util.system_info")
     @mock.patch(DS_PATH + "subp.subp")
     @mock.patch(DS_PATH + "subp.which")
+    @mock.patch(DS_PATH + "find_fallback_nic")
     def test_net_v2_based_on_network_mode_virt_type_and_uname_machine(
         self,
+        m_fallback,
         m_which,
         m_subp,
         m_system_info,
@@ -139,11 +165,12 @@ class TestGenerateFallbackNetworkConfig:
         expected,
     ):
         """Return network config v2 based on uname -m, systemd-detect-virt."""
+        m_fallback.return_value = None
         if systemd_detect_virt is None:
             m_which.return_value = None
         m_system_info.return_value = {"uname": ["", "", "", "", uname_machine]}
         m_subp.return_value = (systemd_detect_virt, "")
-        assert expected == lxd.generate_fallback_network_config()
+        assert expected == lxd.generate_network_config()
         if systemd_detect_virt is None:
             assert 0 == m_subp.call_count
             assert 0 == m_system_info.call_count
@@ -155,6 +182,122 @@ class TestGenerateFallbackNetworkConfig:
                 assert 0 == m_system_info.call_count
             else:
                 assert 1 == m_system_info.call_count
+
+
+class TestNetworkConfig:
+    @pytest.fixture(autouse=True)
+    def mocks(self, mocker):
+        mocker.patch(f"{DS_PATH}subp.subp", return_value=("whatever", ""))
+
+    def test_provided_network_config(self, lxd_ds, mocker):
+        def _get_data(self):
+            self._crawled_metadata = copy.deepcopy(DEVICES)
+            self._crawled_metadata["network-config"] = "hi"
+
+        mocker.patch.object(
+            lxd.DataSourceLXD,
+            "_get_data",
+            autospec=True,
+            side_effect=_get_data,
+        )
+        assert lxd_ds.network_config == "hi"
+
+    @pytest.mark.parametrize(
+        "devices_to_remove,expected_config",
+        [
+            pytest.param(
+                # When two nics are presented with no passed network-config,
+                # Never configure more than one device.
+                # Always choose lowest sorted device over higher
+                # Always configure with DHCP
+                [],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="multi-device",
+            ),
+            pytest.param(
+                # When one device is presented, use it
+                ["enp1s0"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="no-eth0",
+            ),
+            pytest.param(
+                # When one device is presented, use it
+                ["enp1s1"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="no-eth1",
+            ),
+            pytest.param(
+                # When no devices are presented, generate fallback
+                ["enp1s0", "enp1s1"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="device-list-empty",
+            ),
+        ],
+    )
+    def test_provided_devices(
+        self, devices_to_remove, expected_config, lxd_ds, mocker
+    ):
+        # TODO: The original point of these tests was to ensure that when
+        # presented nics by the LXD devices endpoint, that we setup the correct
+        # device accordingly. Once LXD provides us MAC addresses for these
+        # devices, we can continue this functionality, but these tests have
+        # been modified to ensure that regardless of the number of devices
+        # present, we generate the proper fallback
+        m_fallback = mocker.patch(
+            "cloudinit.sources.DataSourceLXD.find_fallback_nic",
+            return_value=None,
+        )
+        devices = copy.deepcopy(DEVICES)
+        for name in devices_to_remove:
+            del devices["devices"][name]
+
+        def _get_data(self):
+            self._crawled_metadata = devices
+
+        mocker.patch.object(
+            lxd.DataSourceLXD,
+            "_get_data",
+            autospec=True,
+            side_effect=_get_data,
+        )
+        assert lxd_ds.network_config == expected_config
+        assert m_fallback.call_count == 1
 
 
 class TestDataSourceLXD:
@@ -196,9 +339,7 @@ class TestDataSourceLXD:
         """network_config is correctly computed when _network_config is unset
         and _crawled_metadata does not contain network_config.
         """
-        lxd.generate_fallback_network_config = mock.Mock(
-            return_value=NETWORK_V1
-        )
+        lxd.generate_network_config = mock.Mock(return_value=NETWORK_V1)
         assert UNSET == lxd_ds_no_network_config._crawled_metadata
         assert UNSET == lxd_ds_no_network_config._network_config
         assert None is lxd_ds_no_network_config.userdata_raw
@@ -208,7 +349,7 @@ class TestDataSourceLXD:
             LXD_V1_METADATA_NO_NETWORK_CONFIG
             == lxd_ds_no_network_config._crawled_metadata
         )
-        assert 1 == lxd.generate_fallback_network_config.call_count
+        assert 1 == lxd.generate_network_config.call_count
 
 
 class TestIsPlatformViable:
