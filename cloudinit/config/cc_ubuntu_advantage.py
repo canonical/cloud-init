@@ -450,7 +450,7 @@ def _auto_attach(ua_section: dict):
                 " ubuntu_advantage: enable and enable_beta"
             )
     except UserFacingError as ex:
-        msg = f"Error during `full_auto_attach`: {ex}"
+        msg = f"Error during `full_auto_attach`: {ex.msg}"
         LOG.error(msg)
         raise RuntimeError(msg) from ex
 

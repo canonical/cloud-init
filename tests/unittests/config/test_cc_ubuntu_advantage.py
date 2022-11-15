@@ -31,7 +31,8 @@ MPATH = "cloudinit.config.cc_ubuntu_advantage"
 
 
 class FakeUserFacingError(Exception):
-    pass
+    def __init__(self, msg: str):
+        self.msg = msg
 
 
 class FakeAlreadyAttachedError(FakeUserFacingError):
