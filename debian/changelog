@@ -1,4 +1,4 @@
-cloud-init (22.4-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.4-0ubuntu0~22.04.1) jammy; urgency=medium
 
   * d/control: drop python3-httpretty from Build-Depends
   * d/cloud-init.templates: Add NWCS to datasource list
@@ -8,7 +8,7 @@ cloud-init (22.4-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/22.4/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 15 Nov 2022 16:11:10 -0600
+ -- James Falcon <james.falcon@canonical.com>  Tue, 15 Nov 2022 16:13:00 -0600
 
 cloud-init (22.3.4-0ubuntu1~22.04.1) jammy; urgency=medium
 
