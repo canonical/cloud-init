@@ -5,10 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Red Hat Subscription: Register Red Hat Enterprise Linux based system"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -77,7 +80,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     sm = SubscriptionManager(cfg, log=log)
     if not sm.is_configured():
         log.debug("%s: module not configured.", name)
@@ -135,7 +140,7 @@ class SubscriptionError(Exception):
     pass
 
 
-class SubscriptionManager(object):
+class SubscriptionManager:
     valid_rh_keys = [
         "org",
         "activation-key",

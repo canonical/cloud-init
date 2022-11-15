@@ -3,6 +3,7 @@ import datetime
 import logging
 import os.path
 import random
+import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -161,9 +162,17 @@ class IntegrationCloud(ABC):
             "user_data": user_data,
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
+        display_launch_kwargs = deepcopy(launch_kwargs)
+        if display_launch_kwargs.get("user_data") is not None:
+            if "token" in display_launch_kwargs.get("user_data"):
+                display_launch_kwargs["user_data"] = re.sub(
+                    r"token: .*", "token: REDACTED", launch_kwargs["user_data"]
+                )
         log.info(
             "Launching instance with launch_kwargs:\n%s",
-            "\n".join("{}={}".format(*item) for item in launch_kwargs.items()),
+            "\n".join(
+                "{}={}".format(*item) for item in display_launch_kwargs.items()
+            ),
         )
 
         with emit_dots_on_travis():

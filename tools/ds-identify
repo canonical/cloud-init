@@ -127,7 +127,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD"
+LXD NWCS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -736,7 +736,6 @@ probe_floppy() {
     return "${STATE_FLOPPY_PROBED}"
 }
 
-
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
@@ -1135,6 +1134,13 @@ ec2_identify_platform() {
         e24cloud) _RET="E24cloud"; return 0;;
     esac
 
+
+    local product_name="${DI_DMI_PRODUCT_NAME}"
+    if [ "${product_name}" = "3DS Outscale VM" ]  && \
+       [ "${vendor}" = "3DS Outscale" ]; then
+        _RET="Outscale"; return 0
+    fi
+
     # AWS http://docs.aws.amazon.com/AWSEC2/
     #     latest/UserGuide/identify_ec2_instances.html
     local uuid="" hvuuid="${PATH_SYS_HYPERVISOR}/uuid"
@@ -1240,6 +1246,10 @@ dscheck_OpenStack() {
         return ${DS_FOUND}
     fi
 
+    if dmi_chassis_asset_tag_matches "HUAWEICLOUD"; then
+        return ${DS_FOUND}
+    fi
+
     # LP: #1669875 : allow identification of OpenStack by asset tag
     if dmi_chassis_asset_tag_matches "$nova"; then
         return ${DS_FOUND}
@@ -1337,6 +1347,11 @@ dscheck_Scaleway() {
 
 dscheck_Hetzner() {
     dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_NWCS() {
+    dmi_sys_vendor_is NWCS && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 

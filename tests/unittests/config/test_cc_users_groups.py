@@ -98,9 +98,13 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {}
-        cloud = self.tmp_cloud(
-            distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
-        )
+        # patch ifconfig -a
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp", return_value=("", None)
+        ):
+            cloud = self.tmp_cloud(
+                distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
+            )
         cc_users_groups.handle("modulename", cfg, cloud, None, None)
         self.assertCountEqual(
             m_fbsd_user.call_args_list,

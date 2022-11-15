@@ -15,8 +15,7 @@ from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
-
-from .test_azure import construct_ovf_env
+from tests.unittests.sources.test_azure import construct_ovf_env
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>

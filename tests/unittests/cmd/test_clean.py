@@ -29,7 +29,7 @@ def clean_paths(tmpdir):
 
 @pytest.fixture(scope="function")
 def init_class(clean_paths):
-    class FakeInit(object):
+    class FakeInit:
         cfg = {
             "def_log_file": clean_paths.log,
             "output": {"all": f"|tee -a {clean_paths.output_log}"},

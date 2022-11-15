@@ -8,7 +8,7 @@
 import configparser
 import logging
 
-from .config_source import ConfigSource
+from cloudinit.sources.helpers.vmware.imc.config_source import ConfigSource
 
 logger = logging.getLogger(__name__)
 

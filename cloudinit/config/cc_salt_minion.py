@@ -5,9 +5,12 @@
 """Salt Minion: Setup and run salt minion"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import safeyaml, subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, bsd_utils
 from cloudinit.settings import PER_INSTANCE
@@ -67,7 +70,7 @@ __doc__ = get_meta_doc(meta)
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
 
 
-class SaltConstants(object):
+class SaltConstants:
     """
     defines default distribution specific salt variables
     """
@@ -95,7 +98,9 @@ class SaltConstants(object):
         )
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # If there isn't a salt key in the configuration don't do anything
     if "salt_minion" not in cfg:
         log.debug(

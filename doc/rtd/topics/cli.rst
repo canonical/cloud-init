@@ -277,8 +277,9 @@ single
 Attempt to run a single named cloud config module.
 
 * ``--name``: the cloud-config module name to run
-* ``--frequency``: optionally override the declared module frequency
-  with one of (always|once-per-instance|once)
+* ``--frequency``: module frequency for this run.
+  One of (always|once-per-instance|once)
+* ``--report``: enable reporting
 
 The following example re-runs the cc_set_hostname module ignoring the module
 default frequency of once-per-instance:
@@ -303,6 +304,8 @@ non-zero if an error is detected in cloud-init.
 
 * ``--long``: detailed status information
 * ``--wait``: block until cloud-init completes
+* ``--format [yaml|json|tabular]``: machine-readable JSON or YAML detailed
+  output
 
 Below are examples of output when cloud-init is running, showing status and
 the currently running modules, as well as when it is done.
@@ -323,8 +326,19 @@ the currently running modules, as well as when it is done.
 
   $ cloud-init status --long
   status: done
-  time: Wed, 17 Jan 2018 20:41:59 +0000
+  boot_status_code: enabled-by-generator
+  last_update: Tue, 16 Aug 2022 19:12:58 +0000
   detail:
   DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
+
+  $ cloud-init status --format=json
+  {
+   "boot_status_code": "enabled-by-generator",
+   "datasource": "nocloud",
+   "detail": "DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]",
+   "errors": [],
+   "last_update": "Tue, 16 Aug 2022 19:12:58 +0000",
+   "status": "done"
+  }
 
 .. _More details on machine-id: https://www.freedesktop.org/software/systemd/man/machine-id.html

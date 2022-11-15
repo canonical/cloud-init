@@ -1,3 +1,122 @@
+22.4
+ - test: fix pro integration test [Alberto Contreras]
+ - cc_disk_setup: pass options in correct order to utils (#1829)
+   [dermotbradley]
+ - tests: text_lxd basic_preseed verify_clean_log (#1826)
+ - docs: switch sphinx theme to furo (SC-1327) (#1821) [Alberto Contreras]
+ - tests: activate Ubuntu Pro tests (only on Jenkins) (#1777)
+   [Alberto Contreras]
+ - tests: test_lxd assert features.storage.buckets when present (#1827)
+ - tests: replace missed ansible install-method with underscore (#1825)
+ - tests: replace ansible install-method with underscore
+ - ansible: standardize schema keys
+ - ci: run json tool on 22.04 rather than 20.04 (#1823)
+ - Stop using devices endpoint for LXD network config (#1819)
+ - apport: address new curtin log and config locations (#1812)
+ - cc_grub: reword docs for clarity (#1818)
+ - tests: Fix preseed test (#1820)
+ - Auto-format schema (#1810)
+ - Ansible Control Module (#1778)
+ - Fix last reported event possibly not being sent (#1796) (LP: #1993836)
+ - tests: Ignore unsupported lxd project keys (#1817) [Alberto Contreras]
+ - udevadm settle should handle non-udev system gracefully (#1806)
+   [dermotbradley]
+ - add mariner support (#1780) [Minghe Ren]
+ - Net: add BSD ifconfig(8) parser and state class (#1779) [Mina Galić]
+ - adding itjamie to .github-cla-signers [Jamie (Bear) Murphy]
+ - Fix inconsistency between comment and statement (#1809) [Guillaume Gay]
+ - Update .github-cla-signers (#1811) [Guillaume Gay]
+ - alpine.py: Add Alpine-specific manage_service function and update tests
+   (#1804) [dermotbradley]
+ - test: add 3.12-dev to Travis CI (#1798) [Alberto Contreras]
+ - add NWCS datasource (#1793) [shell-skrimp]
+ - Adding myself as CLA signer (#1799) [s-makin]
+ - apport: fix some data collection failures due to symlinks (#1797)
+   [Dan Bungert]
+ - read-version: Make it compatible with bionic (#1795) [Alberto Contreras]
+ - lxd: add support for lxd preseed config(#1789)
+ - Enable hotplug for LXD datasource (#1787)
+ - cli: collect logs and apport subiquity support
+ - add support for Container-Optimized OS (#1748) [vteratipally]
+ - test: temporarily disable failing integration test (#1792)
+ - Fix LXD/nocloud detection on lxd vm tests (#1791)
+ - util: Implement __str__ and __iter__ for Version (#1790)
+ - cc_ua: consume ua json api for enable commands [Alberto Contreras]
+ - Add clarity to cc_final_message docs (#1788)
+ - cc_ntp: add support for BSDs (#1759) [Mina Galić] (LP: #1990041)
+ - make Makefile make agnostic (#1786) [Mina Galić]
+ - Remove hardcoding and unnecessary overrides in Makefile (#1783)
+   [Joseph Mingrone]
+ - Add my username (Jehops) to .github-cla-signers (#1784) [Joseph Mingrone]
+ - Temporarily remove broken test (#1781)
+ - Create reference documentation for base config
+ - cc_ansible: add support for galaxy install (#1736)
+ - distros/manage_services: add support to disable service (#1772)
+   [Mina Galić] (LP: #1991024)
+ - OpenBSD: remove pkg_cmd_environ function (#1773)
+   [Mina Galić] (LP: 1991567)
+ - docs: Correct typo in the FAQ (#1774) [Maximilian Wörner]
+ - tests: Use LXD metadata to determine NoCloud status (#1776)
+ - analyze: use init-local as start of boot record (#1767) [Chris Patterson]
+ - docs: use opensuse for distro name in package doc (#1771)
+ - doc: clarify packages as dev only (#1769) [Alberto Contreras]
+ - Distro manage service: Improve BSD support (#1758)
+   [Mina Galić] (LP: #1990070)
+ - testing: check logs for critical errors (#1765) [Chris Patterson]
+ - cc_ubuntu_advantage: Handle already attached on Pro [Alberto Contreras]
+ - doc: Add configuration explanation (SC-1169)
+ - Fix Oracle DS primary interface when using IMDS (#1757) (LP: #1989686)
+ - style: prefer absolute imports over relative imports [Mina Galić]
+ - tests: Fix ip log during instance destruction (#1755) [Alberto Contreras]
+ - cc_ubuntu_advantage: add ua_config in auto-attach [Alberto Contreras]
+ - apt configure: sources write/append mode (#1738)
+   [Fabian Lichtenegger-Lukas]
+ - networkd: Add test and improve typing. (#1747) [Alberto Contreras]
+ - pycloudlib: bump commit for gce cpu architecture support (#1750)
+ - commit ffcb29bc8315d1e1d6244eeb1cbd8095958f7bad (LP: #1307667)
+ - testing: workaround LXD vendor data (#1740)
+ - support dhcp{4,6}-overrides in networkd renderer (#1710) [Aidan Obley]
+ - tests: Drop httpretty in favor of responses (#1720) [Alberto Contreras]
+ - cc_ubuntu_advantage: Implement custom auto-attach behaviors (#1583)
+   [Alberto Contreras]
+ - Fix Oracle DS not setting subnet when using IMDS (#1735) (LP: #1989686)
+ - testing: focal lxd datasource discovery (#1734)
+ - cc_ubuntu_advantage: Redact token from logs (#1726) [Alberto Contreras]
+ - docs: make sure echo properly evaluates the string (#1733) [Mina Galić]
+ - net: set dhclient lease and pid files (#1715)
+ - cli: status machine-readable output --format yaml/json (#1663)
+   (LP: #1883122)
+ - tests: Simplify does_not_raise (#1731) [Alberto Contreras]
+ - Refactor: Drop inheritance from object (#1728) [Alberto Contreras]
+ - testing: LXD datasource now supported on Focal (#1732)
+ - Allow jinja templating in /etc/cloud (SC-1170) (#1722) (LP: #1913461)
+ - sources/azure: ensure instance id is always correct (#1727)
+   [Chris Patterson]
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - doc: main page Diátaxis rewording (SC-967) (#1701)
+ - ubuntu advantage: improved idempotency, enable list is now strict
+   [Fabian Lichtenegger-Lukas]
+ - test: bump pycloudlib (#1724) [Alberto Contreras]
+ - cloud.cfg.tmpl: make sure "centos" settings are identical to "rhel"
+   (#1639) [Emanuele Giuseppe Esposito]
+ - lxd: fetch 1.0/devices content (#1712) [Alberto Contreras]
+ - Update docs according to ad8f406a (#1719)
+ - testing: Port unittests/analyze to pytest (#1708) [Alberto Contreras]
+ - doc: Fix rtd builds. (#1718) [Alberto Contreras]
+ - testing: fully mock noexec calls (#1717) [Alberto Contreras]
+ - typing: Add types to cc_<module>.handle (#1700) [Alberto Contreras]
+ - Identify 3DS Outscale Datasource as Ec2 (#1686) [Maxime Dufour]
+ - config: enable bootstrapping pip in ansible (#1707)
+ - Fix cc_chef typing issue (#1716)
+ - Refactor instance json files to use Paths (SC-1238) (#1709)
+ - tools: read-version check GITHUB_REF and git branch --show-current
+   (#1677)
+ - net: Ensure a tmp with exec permissions for dhcp (#1690)
+   [Alberto Contreras] (LP: #1962343)
+ - testing: Fix test regression in test_combined (#1713) [Alberto Contreras]
+ - Identify Huawei Cloud as OpenStack (#1689) [huang xinjie]
+ - doc: add reporting suggestion to FAQ (SC-1236) (#1698)
+
 22.3
  - sources: obj.pkl cache should be written anyime get_data is run (#1669)
  - schema: drop release number from version file (#1664)

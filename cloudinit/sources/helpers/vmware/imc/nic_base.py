@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class NicBase(object):
+class NicBase:
     """
     Define what are expected of each nic.
     The following properties should be provided in an implementation class.
@@ -81,7 +81,7 @@ class NicBase(object):
         raise NotImplementedError("Check constraints on properties")
 
 
-class StaticIpv4Base(object):
+class StaticIpv4Base:
     """
     Define what are expected of a static IPv4 setting
     The following properties should be provided in an implementation class.
@@ -112,7 +112,7 @@ class StaticIpv4Base(object):
         raise NotImplementedError("Ipv4 GATEWAY")
 
 
-class StaticIpv6Base(object):
+class StaticIpv6Base:
     """Define what are expected of a static IPv6 setting
     The following properties should be provided in an implementation class.
     """

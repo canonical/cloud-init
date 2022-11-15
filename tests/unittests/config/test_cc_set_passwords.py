@@ -357,7 +357,11 @@ class TestSetPasswordsHandle:
         """BSD don't use chpasswd"""
         mocker.patch(f"{MODPATH}util.is_BSD", return_value=True)
         m_subp = mocker.patch(f"{MODPATH}subp.subp")
-        cloud = get_cloud(distro="freebsd")
+        # patch for ifconfig -a
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+        ):
+            cloud = get_cloud(distro="freebsd")
         cfg = {"chpasswd": user_cfg}
         with mock.patch.object(
             cloud.distro, "uses_systemd", return_value=False

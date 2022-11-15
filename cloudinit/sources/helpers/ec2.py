@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])
 
 
-class MetadataLeafDecoder(object):
+class MetadataLeafDecoder:
     """Decodes a leaf blob into something meaningful."""
 
     def _maybe_json_object(self, text):
@@ -51,7 +51,7 @@ class MetadataLeafDecoder(object):
 
 # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
 #         ec2-instance-metadata.html
-class MetadataMaterializer(object):
+class MetadataMaterializer:
     def __init__(self, blob, base_url, caller, leaf_decoder=None):
         self._blob = blob
         self._md = None
@@ -190,6 +190,7 @@ def _get_instance_metadata(
     headers_cb=None,
     headers_redact=None,
     exception_cb=None,
+    retrieval_exception_ignore_cb=None,
 ):
     md_url = url_helper.combine_url(metadata_address, api_version, tree)
     caller = functools.partial(
@@ -203,7 +204,17 @@ def _get_instance_metadata(
     )
 
     def mcaller(url):
-        return caller(url).contents
+        try:
+            return caller(url).contents
+        except url_helper.UrlError as e:
+            if (
+                not retrieval_exception_ignore_cb
+                or not retrieval_exception_ignore_cb(e)
+            ):
+                raise
+            else:
+                LOG.warning("Skipped retrieval of the content of %s", url)
+                return "(skipped)"
 
     try:
         response = caller(md_url)
@@ -229,6 +240,7 @@ def get_instance_metadata(
     headers_cb=None,
     headers_redact=None,
     exception_cb=None,
+    retrieval_exception_ignore_cb=None,
 ):
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
@@ -243,6 +255,7 @@ def get_instance_metadata(
         headers_redact=headers_redact,
         headers_cb=headers_cb,
         exception_cb=exception_cb,
+        retrieval_exception_ignore_cb=retrieval_exception_ignore_cb,
     )
 
 

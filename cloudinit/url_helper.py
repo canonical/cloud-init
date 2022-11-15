@@ -90,7 +90,7 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
 # Made to have same accessors as UrlResponse so that the
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
-class StringResponse(object):
+class StringResponse:
     def __init__(self, contents, code=200):
         self.code = code
         self.headers = {}
@@ -112,7 +112,7 @@ class FileResponse(StringResponse):
         self.url = path
 
 
-class UrlResponse(object):
+class UrlResponse:
     def __init__(self, response: requests.Response):
         self._response = response
 
@@ -680,7 +680,7 @@ def wait_for_url(
     return False, None
 
 
-class OauthUrlHelper(object):
+class OauthUrlHelper:
     def __init__(
         self,
         consumer_key=None,

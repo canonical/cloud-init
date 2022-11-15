@@ -8,9 +8,12 @@
 
 """Disable EC2 Metadata: Disable AWS EC2 metadata."""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
@@ -37,7 +40,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
         reject_cmd = None

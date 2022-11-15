@@ -68,8 +68,8 @@ sufficient disk by following the example below.
 
     ## 1) create user-data and meta-data files that will be used
     ## to modify image on first boot
-    $ echo "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
-    $ echo "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
+    $ echo -e "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
+    $ echo -e "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
 
     ## 2a) create a disk to attach with some user-data and meta-data
     $ genisoimage  -output seed.iso -volid cidata -joliet -rock user-data meta-data

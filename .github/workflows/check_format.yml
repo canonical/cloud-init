@@ -49,3 +49,16 @@ jobs:
         env:
           TOXENV: tip-${{ matrix.env }}
         run: tox
+  schema-format:
+    strategy:
+      fail-fast: false
+    name: Check json format
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Test format"
+        run: |
+          tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
+          tools/check_json_format.sh cloudinit/config/schemas/versions.schema.cloud-config.json
