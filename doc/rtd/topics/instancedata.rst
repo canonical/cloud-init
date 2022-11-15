@@ -10,68 +10,166 @@ Instance Metadata
 
   kernel-cmdline.rst
 
-What is instance data?
+What is instance-data?
 ========================
 
-Instance data is the collection of all configuration data that cloud-init
-processes to configure the instance. This configuration typically
-comes from any number of sources:
+Each cloud provider presents unique
+configuration metadata to a launched cloud instance. Cloud-init
+crawls this metadata and then caches and exposes this information
+as a standarized and versioned JSON object known as instance-data.
+This instance-data may then be
+queried or later used by cloud-init in templated configuration and scripts.
 
-* cloud-provided metadata services (aka metadata)
-* custom config-drive attached to the instance
-* cloud-config seed files in the booted cloud image or distribution
-* vendordata provided from files or cloud metadata services
-* userdata provided at instance creation
-* :ref:`kernel_cmdline`
+An example of a small subset of instance-data on a launched EC2 instance:
 
-Each cloud provider presents unique configuration metadata in different
-formats to the instance. Cloud-init provides a cache of any crawled metadata
-as well as a versioned set of standardized instance data keys which it makes
-available on all platforms.
+.. code-block:: json
 
-Cloud-init produces a simple json object in
-``/run/cloud-init/instance-data.json`` which represents standardized and
-versioned representation of the metadata it consumes during initial boot. The
-intent is to provide the following benefits to users or scripts on any system
-deployed with cloud-init:
+  {
+    "v1": {
+      "cloud_name": "aws",
+      "distro": "ubuntu",
+      "distro_release": "jammy",
+      "distro_version": "22.04",
+      "instance_id": "i-06b5687b4d7b8595d",
+      "machine": "x86_64",
+      "platform": "ec2",
+      "python_version": "3.10.4",
+      "region": "us-east-2",
+      "variant": "ubuntu"
+    }
+  }
 
-* simple static object to query to obtain a instance's metadata
-* speed: avoid costly network transactions for metadata that is already cached
-  on the filesystem
-* reduce need to recrawl metadata services for static metadata that is already
-  cached
-* leverage cloud-init's best practices for crawling cloud-metadata services
-* avoid rolling unique metadata crawlers on each cloud platform to get
-  metadata configuration values
 
-Cloud-init stores any instance data processed in the following files:
+Discovery
+=========
 
+One way to easily explore what instance-data variables are available on
+your machine is to use the :ref:`cloud-init query<cli_query>` tool.
+Warnings or exceptions will be raised on invalid instance-data keys,
+paths or invalid syntax.
+
+The **query** command also publishes ``userdata`` and ``vendordata`` keys to
+the root user which will contain the decoded user and vendor data provided to
+this instance. Non-root users referencing userdata or vendordata keys will
+see only redacted values.
+
+.. note::
+  To save time designing a user-data template for a specific cloud's
+  instance-data.json, use the 'render' cloud-init command on an
+  instance booted on your favorite cloud. See :ref:`cli_devel` for more
+  information.
+
+Using instance-data
+===================
+
+Instance-data can be used in:
+
+* :ref:`User-data scripts<topics/format:User-Data Script>`
+* :ref:`Cloud-config data<topics/format:Cloud Config Data>`
+* :ref:`Base configuration<configuration>`
+* Command line interface via **cloud-init query** or
+  **cloud-init devel render**
+
+The aforementioned configuration sources support jinja template rendering.
+When the first line of the provided configuration begins with
+**## template: jinja**, cloud-init will use jinja to render that file.
+Any instance-data variables are surfaced as jinja template
+variables.
+
+.. note::
+  Trying to reference jinja variables that don't exist in instance-data
+  will result in warnings in ``/var/log/cloud-init.log`` and the following
+  string in your rendered user-data:
+  ``CI_MISSING_JINJA_VAR/<your_varname>``.
+
+Sensitive data such as user passwords may be contained in
+instance-data. Cloud-init separates this sensitive data such that
+is it only readable by root. In the case that a non-root user attempts
+to read sensitive instance-data, they will receive redacted data or same
+warnings and text that occur if a variable does not exist.
+
+Example Usage
+-------------
+
+Cloud config with instance-data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: yaml
+
+  ## template: jinja
+  #cloud-config
+  runcmd:
+      - echo 'EC2 public hostname allocated to instance: {{
+        ds.meta_data.public_hostname }}' > /tmp/instance_metadata
+      - echo 'EC2 availability zone: {{ v1.availability_zone }}' >>
+        /tmp/instance_metadata
+      - curl -X POST -d '{"hostname": "{{ds.meta_data.public_hostname }}",
+        "availability-zone": "{{ v1.availability_zone }}"}'
+        https://example.com
+
+User-data script with instance-data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: jinja
+
+   ## template: jinja
+   #!/bin/bash
+   {% if v1.region == 'us-east-2' -%}
+   echo 'Installing custom proxies for {{ v1.region }}
+   sudo apt-get install my-xtra-fast-stack
+   {%- endif %}
+   ...
+
+CLI discovery of instance-data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: shell-session
+
+  # List all instance-data keys and values as root user
+  % sudo cloud-init query --all
+  {...}
+
+  # List all top-level instance-data keys available
+  % cloud-init query --list-keys
+
+  # Introspect nested keys on an object
+  % cloud-init query -f "{{ds.keys()}}"
+  dict_keys(['meta_data', '_doc'])
+
+  # Failure to reference valid dot-delimited key path on a known top-level key
+  % cloud-init query v1.not_here
+  ERROR: instance-data 'v1' has no 'not_here'
+
+  # Test expected value using valid instance-data key path
+  % cloud-init query -f "My AMI: {{ds.meta_data.ami_id}}"
+  My AMI: ami-0fecc35d3c8ba8d60
+
+  # The --format command renders jinja templates, this can also be used
+  # to develop and test jinja template constructs
+  % cat > test-templating.yaml <<EOF
+    {% for val in ds.meta_data.keys() %}
+    - {{ val }}
+    {% endfor %}
+    EOF
+  % cloud-init query --format="$( cat test-templating.yaml )"
+  - instance_id
+  - dsmode
+  - local_hostname
+
+Reference
+=========
+
+Storage Locations
+-----------------
 * ``/run/cloud-init/instance-data.json``: world-readable json containing
   standardized keys, sensitive keys redacted
 * ``/run/cloud-init/instance-data-sensitive.json``: root-readable unredacted
   json blob
-* ``/var/lib/cloud/instance/user-data.txt``: root-readable sensitive raw
-  userdata
-* ``/var/lib/cloud/instance/vendor-data.txt``: root-readable sensitive raw
-  vendordata
-
-Cloud-init redacts any security sensitive content from instance-data.json,
-stores ``/run/cloud-init/instance-data.json`` as a world-readable json file.
-Because user-data and vendor-data can contain passwords both of these files
-are readonly for *root* as well. The *root* user can also read
-``/run/cloud-init/instance-data-sensitive.json`` which is all instance data
-from instance-data.json as well as unredacted sensitive content.
-
 
 Format of instance-data.json
-============================
+----------------------------
 
-The instance-data.json and instance-data-sensitive.json files are well-formed
-JSON and record the set of keys and values for any metadata processed by
-cloud-init. Cloud-init standardizes the format for this content so that it
-can be generalized across different cloud platforms.
-
-There are three basic top-level keys:
+Top-level keys:
 
 * **base64_encoded_keys**: A list of forward-slash delimited key paths into
   the instance-data.json object whose value is base64encoded for json
@@ -83,10 +181,10 @@ There are three basic top-level keys:
   'security sensitive'. Only the keys listed here will be redacted from
   instance-data.json for non-root users.
 
-* **merged_cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg`
-  and  `/etc/cloud/cloud-cfg.d`. Values under this key could contain sensitive
-  information such as passwords, so it is included in the **sensitive-keys**
-  list which is only readable by root.
+* **merged_cfg**: Merged cloud-init :ref:`base_config_reference` from
+  `/etc/cloud/cloud.cfg` and  `/etc/cloud/cloud-cfg.d`. Values under this key
+  could contain sensitive information such as passwords, so it is included in
+  the **sensitive-keys** list which is only readable by root.
 
 * **ds**: Datasource-specific metadata crawled for the specific cloud
   platform. It should closely represent the structure of the cloud metadata
@@ -102,6 +200,20 @@ There are three basic top-level keys:
   exist on all cloud platforms. They will also retain their current behavior
   and format and will be carried forward even if cloud-init introduces a new
   version of standardized keys with **v2**.
+
+To cut down on keystrokes on the command line, cloud-init also provides
+top-level key aliases for any standardized ``v#`` keys present. The preceding
+``v1`` is not required of ``v1.var_name`` These aliases will represent the
+value of the highest versioned standard key. For example, ``cloud_name``
+value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
+instance-data.json.
+
+cloud-init also provides jinja-safe key aliases for any instance-data
+keys which contain jinja operator characters such as +, -, ., /, etc. Any
+jinja operator will be replaced with underscores in the jinja-safe key
+alias. This allows for cloud-init templates to use aliased variable
+references which allow for jinja's dot-notation reference such as
+``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
 The standardized keys present:
 
@@ -263,7 +375,7 @@ EC2 instance:
    "availability_zone": "us-east-1b",
    "base64_encoded_keys": [],
    "merged_cfg": {
-    "_doc": "Merged cloud-init system config from /etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/",
+    "_doc": "Merged cloud-init base config from /etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/",
     "_log": [
      "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
      "[handler_cloudLogHandler]\nclass=FileHandler\nlevel=DEBUG\nformatter=arg0Formatter\nargs=('/var/log/cloud-init.log',)\n",
@@ -510,155 +622,3 @@ EC2 instance:
    "variant": "ubuntu",
    "vendordata": ""
   }
-
-
-Using instance-data
-===================
-
-As of cloud-init v. 18.4, any instance-data can be used in:
-
-* User-data scripts
-* Cloud config data
-* Command line interface via **cloud-init query** or
-  **cloud-init devel render**
-
-This means that any variable present in
-``/run/cloud-init/instance-data-sensitive.json`` can be used,
-unless a non-root user is using the command line interface.
-In the non-root user case,
-``/run/cloud-init/instance-data.json`` will be used instead.
-
-Many clouds allow users to provide user-data to an instance at
-the time the instance is launched. Cloud-init supports a number of
-:ref:`user_data_formats`.
-
-Both user-data scripts and **#cloud-config** data support jinja template
-rendering.
-When the first line of the provided user-data begins with,
-**## template: jinja** cloud-init will use jinja to render that file.
-Any instance-data-sensitive.json variables are surfaced as jinja template
-variables because cloud-config modules are run as 'root' user.
-
-.. note::
-  cloud-init also provides jinja-safe key aliases for any instance-data.json
-  keys which contain jinja operator characters such as +, -, ., /, etc. Any
-  jinja operator will be replaced with underscores in the jinja-safe key
-  alias. This allows for cloud-init templates to use aliased variable
-  references which allow for jinja's dot-notation reference such as
-  ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
-
-Below are some other examples of using jinja templates in user-data:
-
-* Cloud config calling home with the ec2 public hostname and availability-zone
-
-.. code-block:: yaml
-
-  ## template: jinja
-  #cloud-config
-  runcmd:
-      - echo 'EC2 public hostname allocated to instance: {{
-        ds.meta_data.public_hostname }}' > /tmp/instance_metadata
-      - echo 'EC2 availability zone: {{ v1.availability_zone }}' >>
-        /tmp/instance_metadata
-      - curl -X POST -d '{"hostname": "{{ds.meta_data.public_hostname }}",
-        "availability-zone": "{{ v1.availability_zone }}"}'
-        https://example.com
-
-* Custom user-data script performing different operations based on region
-
-.. code-block:: jinja
-
-   ## template: jinja
-   #!/bin/bash
-   {% if v1.region == 'us-east-2' -%}
-   echo 'Installing custom proxies for {{ v1.region }}
-   sudo apt-get install my-xtra-fast-stack
-   {%- endif %}
-   ...
-
-One way to easily explore what Jinja variables are available on your machine
-is to use the ``cloud-init query --format`` (-f) commandline option which will
-render any Jinja syntax you use. Warnings or exceptions will be raised on
-invalid instance-data keys, paths or invalid syntax.
-
-.. code-block:: shell-session
-
-  # List all instance-data keys and values as root user
-  % sudo cloud-init query --all
-  {...}
-
-  # Introspect nested keys on an object
-  % cloud-init query -f "{{ds.keys()}}"
-  dict_keys(['meta_data', '_doc'])
-
-  # Test your Jinja rendering syntax on the command-line directly
-
-  # Failure to reference valid top-level instance-data key
-  % cloud-init query -f "{{invalid.instance-data.key}}"
-  WARNING: Ignoring jinja template for query commandline: 'invalid' is undefined
-
-  # Failure to reference valid dot-delimited key path on a known top-level key
-  % cloud-init query -f "{{v1.not_here}}"
-  WARNING: Could not render jinja template variables in file 'query commandline': 'not_here'
-  CI_MISSING_JINJA_VAR/not_here
-
-  # Test expected value using valid instance-data key path
-  % cloud-init query -f "My AMI: {{ds.meta_data.ami_id}}"
-  My AMI: ami-0fecc35d3c8ba8d60
-
-.. note::
-  Trying to reference jinja variables that don't exist in
-  instance-data will result in warnings in ``/var/log/cloud-init.log``
-  and the following string in your rendered user-data:
-  ``CI_MISSING_JINJA_VAR/<your_varname>``.
-
-Cloud-init also surfaces a command line tool **cloud-init query** which can
-assist developers or scripts with obtaining instance metadata easily. See
-:ref:`cli_query` for more information.
-
-To cut down on keystrokes on the command line, cloud-init also provides
-top-level key aliases for any standardized ``v#`` keys present. The preceding
-``v1`` is not required of ``v1.var_name`` These aliases will represent the
-value of the highest versioned standard key. For example, ``cloud_name``
-value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
-instance-data.json.
-The **query** command also publishes ``userdata`` and ``vendordata`` keys to
-the root user which will contain the decoded user and vendor data provided to
-this instance. Non-root users referencing userdata or vendordata keys will
-see only redacted values.
-
-.. code-block:: shell-session
-
- # List all top-level instance-data keys available
- % cloud-init query --list-keys
-
- # Find your EC2 ami-id
- % cloud-init query ds.metadata.ami_id
-
- # Format your cloud_name and region using jinja template syntax
- % cloud-init query --format 'cloud: {{ v1.cloud_name }} myregion: {{
- % v1.region }}'
-
- # Locally test that your template userdata provided to the vm was rendered as
- # intended.
- % cloud-init query --format "$(sudo cloud-init query userdata)"
-
- # The --format command renders jinja templates, this can also be used
- # to develop and test jinja template constructs
- % cat > test-templating.yaml <<EOF
-   {% for val in ds.meta_data.keys() %}
-   - {{ val }}
-   {% endfor %}
-   EOF
- % cloud-init query --format="$( cat test-templating.yaml )"
- - instance_id
- - dsmode
- - local_hostname
-
-.. note::
-  To save time designing a user-data template for a specific cloud's
-  instance-data.json, use the 'render' cloud-init command on an
-  instance booted on your favorite cloud. See :ref:`cli_devel` for more
-  information.
-
-.. vi: textwidth=79

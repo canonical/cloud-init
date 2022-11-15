@@ -20,14 +20,21 @@ from typing import Any, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net, persistence, ssh_util, subp, type_utils, util
+from cloudinit import (
+    net,
+    persistence,
+    ssh_util,
+    subp,
+    temp_utils,
+    type_utils,
+    util,
+)
+from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
-
-from .networking import LinuxNetworking, Networking
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.
@@ -37,8 +44,10 @@ OSFAMILIES = {
     "alpine": ["alpine"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
-    "freebsd": ["freebsd"],
-    "gentoo": ["gentoo"],
+    "freebsd": ["freebsd", "dragonfly"],
+    "gentoo": ["gentoo", "cos"],
+    "netbsd": ["netbsd"],
+    "openbsd": ["openbsd"],
     "redhat": [
         "almalinux",
         "amazon",
@@ -46,6 +55,7 @@ OSFAMILIES = {
         "cloudlinux",
         "eurolinux",
         "fedora",
+        "mariner",
         "miraclelinux",
         "openEuler",
         "openmandriva",
@@ -71,7 +81,7 @@ LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-
+    pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
@@ -89,6 +99,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     _ci_pkl_version = 1
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
+
+    osfamily: str
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -909,6 +921,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": ["stop", service],
                 "start": ["start", service],
                 "enable": ["enable", service],
+                "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
                 "try-reload": ["reload-or-try-restart", service],
@@ -919,6 +932,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": [service, "stop"],
                 "start": [service, "start"],
                 "enable": [service, "start"],
+                "disable": [service, "stop"],
                 "restart": [service, "restart"],
                 "reload": [service, "restart"],
                 "try-reload": [service, "restart"],
@@ -941,6 +955,33 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         else:
             raise NotImplementedError()
+
+    def get_tmp_exec_path(self) -> str:
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        if not util.has_mount_opt(tmp_dir, "noexec"):
+            return tmp_dir
+        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
+
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
+        """
+        Perform a command as the requested user. Behaves like subp()
+
+        Note: We pass `PATH` to the user env by using `env`. This could be
+        probably simplified after bionic EOL by using
+        `su --whitelist-environment=PATH ...`, more info on:
+        https://lore.kernel.org/all/20180815110445.4qefy5zx5gfgbqly@ws.net.home/T/
+        """
+        directory = f"cd {cwd} && " if cwd else ""
+        return subp.subp(
+            [
+                "su",
+                "-",
+                user,
+                "-c",
+                directory + "env PATH=$PATH " + " ".join(command),
+            ],
+            **kwargs,
+        )
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

@@ -1,5 +1,4 @@
 # Needed generally in tests
-httpretty>=0.7.1
 pytest
 pytest-cov
 pytest-mock

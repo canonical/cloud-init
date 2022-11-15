@@ -176,6 +176,12 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
+msgid "NWCS: NWCS"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
 msgid "None: Failsafe datasource"
 msgstr ""
 

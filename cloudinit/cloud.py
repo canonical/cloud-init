@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 # while the stages/other objects can be worked on independently...
 
 
-class Cloud(object):
+class Cloud:
     def __init__(
         self,
         datasource: DataSource,

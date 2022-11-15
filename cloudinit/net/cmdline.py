@@ -15,8 +15,7 @@ import os
 import shlex
 
 from cloudinit import util
-
-from . import get_devicelist, read_sys_net_safe
+from cloudinit.net import get_devicelist, read_sys_net_safe
 
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 

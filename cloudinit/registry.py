@@ -5,7 +5,7 @@
 import copy
 
 
-class DictRegistry(object):
+class DictRegistry:
     """A simple registry for a mapping of objects."""
 
     def __init__(self):

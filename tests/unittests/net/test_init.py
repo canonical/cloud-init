@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
-import httpretty
 import pytest
 import requests
+import responses
 
 import cloudinit.net as net
 from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
-from tests.unittests.helpers import CiTestCase, HttprettyTestCase
+from tests.unittests.helpers import CiTestCase, ResponsesTestCase
 
 
 class TestSysDevPath(CiTestCase):
@@ -1210,7 +1210,7 @@ class TestEphemeralIPV6Network:
             assert expected_setup_calls == m_subp.call_args_list
 
 
-class TestHasURLConnectivity(HttprettyTestCase):
+class TestHasURLConnectivity(ResponsesTestCase):
     def setUp(self):
         super(TestHasURLConnectivity, self).setUp()
         self.url = "http://fake/"
@@ -1225,7 +1225,7 @@ class TestHasURLConnectivity(HttprettyTestCase):
         )
 
     def test_true_on_url_connectivity_success(self):
-        httpretty.register_uri(httpretty.GET, self.url)
+        self.responses.add(responses.GET, self.url)
         self.assertTrue(
             net.has_url_connectivity({"url": self.url}),
             "Expected True on url connect",
@@ -1241,7 +1241,7 @@ class TestHasURLConnectivity(HttprettyTestCase):
         )
 
     def test_true_on_url_connectivity_failure(self):
-        httpretty.register_uri(httpretty.GET, self.url, body={}, status=404)
+        self.responses.add(responses.GET, self.url, body=b"", status=404)
         self.assertFalse(
             net.has_url_connectivity({"url": self.url}),
             "Expected False on url fail",

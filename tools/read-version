@@ -39,20 +39,20 @@ def which(program):
 
 def is_gitdir(path):
     # Return boolean indicating if path is a git tree.
-    git_meta = os.path.join(path, '.git')
+    git_meta = os.path.join(path, ".git")
     if os.path.isdir(git_meta):
         return True
     if os.path.exists(git_meta):
         # in a git worktree, .git is a file with 'gitdir: x'
         with open(git_meta, "rb") as fp:
-            if b'gitdir:' in fp.read():
+            if b"gitdir:" in fp.read():
                 return True
     return False
 
 
-use_long = '--long' in sys.argv or os.environ.get('CI_RV_LONG')
-use_tags = '--tags' in sys.argv or os.environ.get('CI_RV_TAGS')
-output_json = '--json' in sys.argv
+use_long = "--long" in sys.argv or os.environ.get("CI_RV_LONG")
+use_tags = "--tags" in sys.argv or os.environ.get("CI_RV_TAGS")
+output_json = "--json" in sys.argv
 
 src_version = ci_version.version_string()
 version_long = None
@@ -60,32 +60,48 @@ version_long = None
 # If we're performing CI for a new release branch (which our tooling creates
 # with an "upstream/" prefix), then we don't want to enforce strict version
 # matching because we know it will fail.
-is_release_branch_ci = (
+github_ci_release_br = bool(
+    os.environ.get("GITHUB_HEAD_REF", "").startswith(f"upstream/{src_version}")
+)
+travis_ci_release_br = bool(
     os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith("upstream/")
 )
+is_release_branch_ci = bool(github_ci_release_br or travis_ci_release_br)
+
 if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
-    flags = []
-    if use_tags:
-        flags = ['--tags']
-    cmd = ['git', 'describe', '--abbrev=8', '--match=[0-9]*'] + flags
+    # This cmd can be simplified to ["git", "branch", "--show-current"]
+    # after bionic EOL.
+    branch_name = tiny_p(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
+    if branch_name.startswith(f"upstream/{src_version}"):
+        version = src_version
+        version_long = None
+    else:
 
-    try:
-        version = tiny_p(cmd).strip()
-    except RuntimeError:
-        version = None
+        flags = []
+        if use_tags:
+            flags = ["--tags"]
+        cmd = ["git", "describe", "--abbrev=8", "--match=[0-9]*"] + flags
 
-    if version is None or not version.startswith(src_version):
-        sys.stderr.write("git describe version (%s) differs from "
-                         "cloudinit.version (%s)\n" % (version, src_version))
-        sys.stderr.write(
-            "Please get the latest upstream tags.\n"
-            "As an example, this can be done with the following:\n"
-            "$ git remote add upstream https://git.launchpad.net/cloud-init\n"
-            "$ git fetch upstream --tags\n"
-        )
-        sys.exit(1)
+        try:
+            version = tiny_p(cmd).strip()
+        except RuntimeError:
+            version = None
 
-    version_long = tiny_p(cmd + ["--long"]).strip()
+        if version is None or not version.startswith(src_version):
+            sys.stderr.write(
+                f"git describe version ({version}) differs from "
+                f"cloudinit.version ({src_version})\n"
+            )
+            sys.stderr.write(
+                "Please get the latest upstream tags.\n"
+                "As an example, this can be done with the following:\n"
+                "$ git remote add upstream https://git.launchpad.net/"
+                "cloud-init\n"
+                "$ git fetch upstream --tags\n"
+            )
+            sys.exit(1)
+
+        version_long = tiny_p(cmd + ["--long"]).strip()
 else:
     version = src_version
     version_long = None
@@ -105,13 +121,13 @@ if version_long:
     commit = commit[1:]
 
 data = {
-    'release': release,
-    'version': version,
-    'version_long': version_long,
-    'extra': extra,
-    'commit': commit,
-    'distance': distance,
-    'is_release_branch_ci': is_release_branch_ci,
+    "release": release,
+    "version": version,
+    "version_long": version_long,
+    "extra": extra,
+    "commit": commit,
+    "distance": distance,
+    "is_release_branch_ci": is_release_branch_ci,
 }
 
 if output_json:

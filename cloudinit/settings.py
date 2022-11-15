@@ -47,6 +47,7 @@ CFG_BUILTIN = {
         "RbxCloud",
         "UpCloud",
         "VMware",
+        "NWCS",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],

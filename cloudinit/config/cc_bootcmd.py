@@ -10,9 +10,12 @@
 """Bootcmd: run arbitrary commands early in the boot process."""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -60,7 +63,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     if "bootcmd" not in cfg:
         log.debug(

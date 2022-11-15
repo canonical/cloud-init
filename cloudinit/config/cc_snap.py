@@ -6,10 +6,13 @@
 
 import os
 import sys
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
@@ -183,7 +186,9 @@ def run_commands(commands):
         raise RuntimeError(msg)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     cfgin = cfg.get("snap", {})
     if not cfgin:
         LOG.debug(

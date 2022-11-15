@@ -20,6 +20,7 @@ from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
     get_inactive_modules,
+    lxd_has_nocloud,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -217,10 +218,7 @@ class TestCombined:
         parsed_datasource = json.loads(status_file)["v1"]["datasource"]
 
         if client.settings.PLATFORM in ["lxd_container", "lxd_vm"]:
-            if ImageSpecification.from_os_image().release in [
-                "bionic",
-                "focal",
-            ]:
+            if lxd_has_nocloud(client):
                 datasource = "DataSourceNoCloud"
             else:
                 datasource = "DataSourceLXD"
@@ -294,10 +292,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
+        if not lxd_has_nocloud(client):
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -333,10 +328,7 @@ class TestCombined:
         data = json.loads(instance_json_file)
         self._check_common_metadata(data)
         v1_data = data["v1"]
-        if ImageSpecification.from_os_image().release not in [
-            "bionic",
-            "focal",
-        ]:
+        if not lxd_has_nocloud(client):
             cloud_name = "lxd"
             subplatform = "LXD socket API v. 1.0 (/dev/lxd/sock)"
             # instance-id should be a UUID
@@ -347,6 +339,8 @@ class TestCombined:
                     f"LXD instance-id is not a UUID: {v1_data['instance_id']}"
                 ) from e
             assert v1_data["subplatform"] == subplatform
+            assert v1_data["platform"] == "lxd"
+            assert v1_data["cloud_id"] == "lxd"
         else:
             cloud_name = "unknown"
             # Pre-Jammy instance-id and instance.name are synonymous
@@ -358,11 +352,11 @@ class TestCombined:
                     "/dev/sr0" in v1_data["subplatform"],
                 ]
             )
+            assert v1_data["platform"] in ["lxd", "nocloud"]
+            assert v1_data["cloud_id"] in ["lxd", "nocloud"]
         assert v1_data["cloud_name"] == cloud_name
-        assert v1_data["platform"] == "lxd"
-        assert v1_data["cloud_id"] == "lxd"
         assert f"{v1_data['cloud_id']}" == client.read_from_file(
-            "/run/cloud-init/cloud-id-lxd"
+            "/run/cloud-init/cloud-id"
         )
 
         assert v1_data["availability_zone"] is None
@@ -428,5 +422,4 @@ class TestCombinedNoCI:
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
 
-        assert "# ssh-import-id gh:powersj" in ssh_output
         assert "# ssh-import-id lp:smoser" in ssh_output

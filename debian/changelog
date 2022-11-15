@@ -1,3 +1,13 @@
+cloud-init (22.4-0ubuntu1) lunar; urgency=medium
+
+  * d/control: drop python3-httpretty from Build-Depends
+  * d/cloud-init.templates: Add NWCS to datasource list
+  * Upstream snapshot based on 22.4 upstream release. List of changes
+    from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/22.4/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 15 Nov 2022 14:23:44 -0600
+
 cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
@@ -14,7 +24,7 @@ cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) kinetic; urgency=medium
       [Emanuele Giuseppe Esposito]
     + Fix check_format_tip (#1679)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 30 Aug 2022 13:29:28 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 30 Aug 2022 14:28:27 -0600
 
 cloud-init (22.3-3-g9f0efc47-0ubuntu1~22.10.1) kinetic; urgency=medium
 

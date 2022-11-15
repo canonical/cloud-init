@@ -7,8 +7,11 @@
 
 import base64
 import hashlib
+from logging import Logger
 
 from cloudinit import ssh_util, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -112,7 +115,9 @@ def _pprint_key_entries(
         )
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if util.is_true(cfg.get("no_ssh_fingerprints", False)):
         log.debug(
             "Skipping module named %s, logging of SSH fingerprints disabled",

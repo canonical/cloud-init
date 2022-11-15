@@ -370,7 +370,7 @@ class JoyentMetadataTimeoutException(JoyentMetadataFetchException):
     pass
 
 
-class JoyentMetadataClient(object):
+class JoyentMetadataClient:
     """
     A client implementing v2 of the Joyent Metadata Protocol Specification.
 

@@ -66,7 +66,7 @@ DISABLE_USER_OPTS = (
 )
 
 
-class AuthKeyLine(object):
+class AuthKeyLine:
     def __init__(
         self, source, keytype=None, base64=None, comment=None, options=None
     ):
@@ -95,7 +95,7 @@ class AuthKeyLine(object):
             return " ".join(toks)
 
 
-class AuthKeyLineParser(object):
+class AuthKeyLineParser:
     """
     AUTHORIZED_KEYS FILE FORMAT
      AuthorizedKeysFile specifies the file containing public keys for public
@@ -476,7 +476,7 @@ def setup_user_keys(keys, username, options=None):
         util.write_file(auth_key_fn, content, preserve_mode=True)
 
 
-class SshdConfigLine(object):
+class SshdConfigLine:
     def __init__(self, line, k=None, v=None):
         self.line = line
         self._key = k

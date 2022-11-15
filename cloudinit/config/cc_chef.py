@@ -11,10 +11,14 @@
 import itertools
 import json
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import Distro
 from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
@@ -185,7 +189,9 @@ def get_template_params(iid, chef_cfg, log):
     return params
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """Handler method activated by cloud-init."""
 
     # If there isn't a chef key in the configuration don't do anything
@@ -289,32 +295,28 @@ def run_chef(chef_cfg, log):
     subp.subp(cmd, capture=False)
 
 
-def subp_blob_in_tempfile(blob, *args, **kwargs):
+def subp_blob_in_tempfile(blob, distro: Distro, args: list, **kwargs):
     """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
 
     'basename' as a kwarg allows providing the basename for the file.
     The 'args' argument to subp will be updated with the full path to the
     filename as the first argument.
     """
+    args = args.copy()
     basename = kwargs.pop("basename", "subp_blob")
-
-    if len(args) == 0 and "args" not in kwargs:
-        args = [tuple()]
-
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-    with temp_utils.tempdir(needs_exe=True) as tmpd:
+    with temp_utils.tempdir(
+        dir=distro.get_tmp_exec_path(), needs_exe=True
+    ) as tmpd:
         tmpf = os.path.join(tmpd, basename)
-        if "args" in kwargs:
-            kwargs["args"] = [tmpf] + list(kwargs["args"])
-        else:
-            args = list(args)
-            args[0] = [tmpf] + args[0]
-
+        args.insert(0, tmpf)
         util.write_file(tmpf, blob, mode=0o700)
-        return subp.subp(*args, **kwargs)
+        return subp.subp(args=args, **kwargs)
 
 
-def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
+def install_chef_from_omnibus(
+    distro: Distro, url=None, retries=None, omnibus_version=None
+):
     """Install an omnibus unified package from url.
 
     @param url: URL where blob of chef content may be downloaded. Defaults to
@@ -335,11 +337,15 @@ def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
         args = ["-v", omnibus_version]
     content = url_helper.readurl(url=url, retries=retries).contents
     return subp_blob_in_tempfile(
-        blob=content, args=args, basename="chef-omnibus-install", capture=False
+        distro=distro,
+        blob=content,
+        args=args,
+        basename="chef-omnibus-install",
+        capture=False,
     )
 
 
-def install_chef(cloud, chef_cfg, log):
+def install_chef(cloud: Cloud, chef_cfg, log):
     # If chef is not installed, we install chef based on 'install_type'
     install_type = util.get_cfg_option_str(
         chef_cfg, "install_type", "packages"
@@ -361,6 +367,7 @@ def install_chef(cloud, chef_cfg, log):
     elif install_type == "omnibus":
         omnibus_version = util.get_cfg_option_str(chef_cfg, "omnibus_version")
         install_chef_from_omnibus(
+            distro=cloud.distro,
             url=util.get_cfg_option_str(chef_cfg, "omnibus_url"),
             retries=util.get_cfg_option_int(chef_cfg, "omnibus_url_retries"),
             omnibus_version=omnibus_version,

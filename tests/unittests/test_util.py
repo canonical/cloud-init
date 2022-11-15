@@ -25,7 +25,7 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -341,7 +341,34 @@ OS_RELEASE_OPENMANDRIVA = dedent(
 """
 )
 
+OS_RELEASE_COS = dedent(
+    """\
+    NAME="Container-Optimized OS"
+    ID=cos
+    PRETTY_NAME="Container-Optimized OS from Google"
+    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
+    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
+    VERSION=93
+    VERSION_ID=93
+"""
+)
 
+OS_RELEASE_MARINER = dedent(
+    """\
+    NAME="CBL-Mariner"
+    VERSION="2.0.20221004"
+    ID=mariner
+    VERSION_ID=2.0
+    PRETTY_NAME="CBL-Mariner/Linux"
+    ANSI_COLOR="1;34"
+    HOME_URL="https://aka.ms/cbl-mariner"
+    BUG_REPORT_URL="https://aka.ms/cbl-mariner"
+    SUPPORT_URL="https://aka.ms/cbl-mariner"
+"""
+)
+
+
+@pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
     def test_parse_mount_info_no_opts_no_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG)
@@ -355,6 +382,22 @@ class TestUtil:
         result = util.parse_mount_info("/", MOUNT_INFO, LOG, True)
         assert ("/dev/sda1", "btrfs", "/", "ro,relatime") == result
 
+    @pytest.mark.parametrize(
+        "opt, expected_result",
+        [
+            ("rw", True),
+            ("relatime", True),
+            ("idmapped", True),
+            ("noexec", False),
+        ],
+    )
+    @mock.patch(
+        M_PATH + "get_mount_info",
+        return_value=("/dev/sda", "ext4", "/", "rw,relatime,idmapped"),
+    )
+    def test_has_mount_opt(self, m_get_mount_info, opt, expected_result):
+        assert expected_result == util.has_mount_opt("/", opt)
+
     @mock.patch(M_PATH + "get_mount_info")
     def test_mount_is_rw(self, m_mount_info):
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "rw,relatime")
@@ -366,6 +409,59 @@ class TestUtil:
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "ro,relatime")
         is_rw = util.mount_is_read_write("/")
         assert is_rw is False
+
+    def test_read_conf(self, mocker):
+        mocker.patch("cloudinit.util.load_file", return_value='{"a": "b"}')
+        assert util.read_conf("any") == {"a": "b"}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert conf == {"a": "d"}
+        assert (
+            "Applied instance data in 'vars_path' to configuration loaded "
+            "from 'cfg_path'"
+        ) in caplog.text
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"',  # missing }
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Failed loading yaml blob" in caplog.text
+        assert conf == {}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_vars(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"',  # missing }
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Could not apply Jinja template" in caplog.text
+        assert conf == {"a": "{{c}}"}
 
     @mock.patch(
         M_PATH + "read_conf",
@@ -442,7 +538,9 @@ class TestUtil:
         assert not out
         assert not err
         if create_confd:
-            assert [mock.call(confd_fn)] == m_read_confd.call_args_list
+            assert [
+                mock.call(confd_fn, instance_data_file=None)
+            ] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
 
     @pytest.mark.parametrize("custom_cloud_dir", [True, False])
@@ -724,46 +822,60 @@ class TestBlkid(CiTestCase):
         )
 
 
+@mock.patch("cloudinit.subp.which")
 @mock.patch("cloudinit.subp.subp")
 class TestUdevadmSettle(CiTestCase):
-    def test_with_no_params(self, m_subp):
+    def test_with_no_params(self, m_which, m_subp):
         """called with no parameters."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         util.udevadm_settle()
         m_subp.called_once_with(mock.call(["udevadm", "settle"]))
 
-    def test_with_exists_and_not_exists(self, m_subp):
+    def test_udevadm_not_present(self, m_which, m_subp):
+        """where udevadm program does not exist should not invoke subp."""
+        m_which.side_effect = lambda m: m in ("",)
+        util.udevadm_settle()
+        m_subp.called_once_with(["which", "udevadm"])
+
+    def test_with_exists_and_not_exists(self, m_which, m_subp):
         """with exists=file where file does not exist should invoke subp."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.udevadm_settle(exists=mydev)
         m_subp.called_once_with(
             ["udevadm", "settle", "--exit-if-exists=%s" % mydev]
         )
 
-    def test_with_exists_and_file_exists(self, m_subp):
-        """with exists=file where file does exist should not invoke subp."""
+    def test_with_exists_and_file_exists(self, m_which, m_subp):
+        """with exists=file where file does exist should only invoke subp
+        once for 'which' call."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.write_file(mydev, "foo\n")
         util.udevadm_settle(exists=mydev)
-        self.assertIsNone(m_subp.call_args)
+        m_subp.called_once_with(["which", "udevadm"])
 
-    def test_with_timeout_int(self, m_subp):
+    def test_with_timeout_int(self, m_which, m_subp):
         """timeout can be an integer."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = 9
         util.udevadm_settle(timeout=timeout)
         m_subp.called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_timeout_string(self, m_subp):
+    def test_with_timeout_string(self, m_which, m_subp):
         """timeout can be a string."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = "555"
         util.udevadm_settle(timeout=timeout)
-        m_subp.assert_called_once_with(
+        m_subp.called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_exists_and_timeout(self, m_subp):
+    def test_with_exists_and_timeout(self, m_which, m_subp):
         """test call with both exists and timeout."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         timeout = "3"
         util.udevadm_settle(exists=mydev)
@@ -776,7 +888,8 @@ class TestUdevadmSettle(CiTestCase):
             ]
         )
 
-    def test_subp_exception_raises_to_caller(self, m_subp):
+    def test_subp_exception_raises_to_caller(self, m_which, m_subp):
+        m_which.side_effect = lambda m: m in ("udevadm",)
         m_subp.side_effect = subp.ProcessExecutionError("BOOM")
         self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
 
@@ -1055,6 +1168,14 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("photon", "4.0", "VMware Photon OS/Linux"), dist)
 
+    @mock.patch("cloudinit.util.load_file")
+    def test_get_linux_mariner_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on MarinerOS"""
+        m_os_release.return_value = OS_RELEASE_MARINER
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("mariner", "2.0", ""), dist)
+
     @mock.patch(M_PATH + "load_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on OpenMandriva"""
@@ -1062,6 +1183,14 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_cos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on COS"""
+        m_os_release.return_value = OS_RELEASE_COS
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("cos", "93", ""), dist)
 
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)
@@ -1113,6 +1242,7 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("debian",)}, "debian"),
             ({"system": "linux", "dist": ("eurolinux",)}, "eurolinux"),
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
+            ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
@@ -1494,7 +1624,7 @@ class TestRedirectOutputPreexecFn:
         assert 0 == m_setgid.call_count
 
 
-class FakeSelinux(object):
+class FakeSelinux:
     def __init__(self, match_what):
         self.match_what = match_what
         self.restored = []
@@ -2689,6 +2819,20 @@ class TestVersion:
             assert util.Version.from_str(v1) < util.Version.from_str(
                 v2
             ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("version"),
+        (
+            ("3.1.0"),
+            ("3.0.1"),
+            ("3.1"),
+            ("3.1.0.0"),
+            ("3.1.1"),
+        ),
+    )
+    def test_to_version_and_back_to_str(self, version):
+        """Verify __str__, __iter__, and Version.from_str()"""
+        assert version == str(util.Version.from_str(version))
 
     @pytest.mark.parametrize(
         ("str_ver", "cls_ver"),

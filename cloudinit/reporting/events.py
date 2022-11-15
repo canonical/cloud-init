@@ -13,9 +13,11 @@ import os.path
 import time
 from typing import List
 
+from cloudinit.reporting import (
+    available_handlers,
+    instantiated_handler_registry,
+)
 from cloudinit.reporting.handlers import ReportingHandler
-
-from . import available_handlers, instantiated_handler_registry
 
 FINISH_EVENT_TYPE = "finish"
 START_EVENT_TYPE = "start"
@@ -33,7 +35,7 @@ class _nameset(set):
 status = _nameset(("SUCCESS", "WARN", "FAIL"))
 
 
-class ReportingEvent(object):
+class ReportingEvent:
     """Encapsulation of event formatting."""
 
     def __init__(
@@ -155,7 +157,7 @@ def report_start_event(event_name, event_description):
     return report_event(event)
 
 
-class ReportEventStack(object):
+class ReportEventStack:
     """Context Manager for using :py:func:`report_event`
 
     This enables calling :py:func:`report_start_event` and
