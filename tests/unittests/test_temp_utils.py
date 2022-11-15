@@ -48,6 +48,7 @@ class TestTempUtils(CiTestCase):
                 "tempfile.mkdtemp": {"side_effect": fake_mkdtemp},
                 "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
+                "util.has_mount_opt": True,
             },
             mkdtemp,
             needs_exe=True,

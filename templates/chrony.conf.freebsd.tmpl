@@ -1,0 +1,347 @@
+## template:jinja
+#######################################################################
+#
+# This is an example chrony configuration file.  You should copy it to
+# /usr/local/etc/chrony.conf after uncommenting and editing the options that you
+# want to enable.  The more obscure options are not included.  Refer
+# to the documentation for these.
+#
+#######################################################################
+### COMMENTS
+# Any of the following lines are comments (you have a choice of
+# comment start character):
+# a comment
+% a comment
+! a comment
+; a comment
+#
+# Below, the '!' form is used for lines that you might want to
+# uncomment and edit to make your own chrony.conf file.
+#
+#######################################################################
+#######################################################################
+### SPECIFY YOUR NTP SERVERS
+# Most computers using chrony will send measurement requests to one or
+# more 'NTP servers'.  You will probably find that your Internet Service
+# Provider or company have one or more NTP servers that you can specify.
+# Failing that, there are a lot of public NTP servers.  There is a list
+# you can access at http://support.ntp.org/bin/view/Servers/WebHome or
+# you can use servers from the pool.ntp.org project.
+
+{%- if servers %}# servers
+{% endif %}
+{% for server in servers -%}
+server {{server}} iburst
+{% endfor %}
+
+# This is a reasonable default setting to have on in typical cases for
+# a workstation with a full-time internet connection:
+{% if pools %}# pools
+{% endif %}
+{% for pool in pools -%}
+pool {{pool}} iburst
+{% endfor %}
+
+#######################################################################
+### AVOIDING POTENTIALLY BOGUS CHANGES TO YOUR CLOCK
+#
+# To avoid changes being made to your computer's gain/loss compensation
+# when the measurement history is too erratic, you might want to enable
+# one of the following lines.  The first seems good with servers on the
+# Internet, the second seems OK for a LAN environment.
+
+! maxupdateskew 100
+! maxupdateskew 5
+
+# If you want to increase the minimum number of selectable sources
+# required to update the system clock in order to make the
+# synchronisation more reliable, uncomment (and edit) the following
+# line.
+
+! minsources 2
+
+# If your computer has a good stable clock (e.g. it is not a virtual
+# machine), you might also want to reduce the maximum assumed drift
+# (frequency error) of the clock (the value is specified in ppm).
+
+! maxdrift 100
+
+# By default, chronyd allows synchronisation to an unauthenticated NTP
+# source (i.e. specified without the nts and key options) if it agrees with
+# a majority of authenticated NTP sources, or if no authenticated source is
+# specified.  If you don't want chronyd to ever synchronise to an
+# unauthenticated NTP source, uncomment the first from the following lines.
+# If you don't want to synchronise to an unauthenticated NTP source only
+# when an authenticated source is specified, uncomment the second line.
+# If you want chronyd to ignore authentication in the source selection,
+# uncomment the third line.
+
+! authselectmode require
+! authselectmode prefer
+! authselectmode ignore
+
+#######################################################################
+### FILENAMES ETC
+# Chrony likes to keep information about your computer's clock in files.
+# The 'driftfile' stores the computer's clock gain/loss rate in parts
+# per million.  When chronyd starts, the system clock can be tuned
+# immediately so that it doesn't gain or lose any more time.  You
+# generally want this, so it is uncommented.
+
+driftfile /var/db/chrony/drift
+
+# If you want to enable NTP authentication with symmetric keys, you will need
+# to uncomment the following line and edit the file to set up the keys.
+
+! keyfile /usr/local/etc/chrony.keys
+
+# If you specify an NTP server with the nts option to enable authentication
+# with the Network Time Security (NTS) mechanism, or enable server NTS with
+# the ntsservercert and ntsserverkey directives below, the following line will
+# allow the client/server to save the NTS keys and cookies in order to reduce
+# the number of key establishments (NTS-KE sessions).
+
+ntsdumpdir /var/db/chrony
+
+# If chronyd is configured to act as an NTP server and you want to enable NTS
+# for its clients, you will need a TLS certificate and private key.  Uncomment
+# and edit the following lines to specify the locations of the certificate and
+# key.
+
+! ntsservercert /etc/.../foo.example.net.crt
+! ntsserverkey /etc/.../foo.example.net.key
+
+# chronyd can save the measurement history for the servers to files when
+# it exits.  This is useful in 2 situations:
+#
+# 1. If you stop chronyd and restart it with the '-r' option (e.g. after
+# an upgrade), the old measurements will still be relevant when chronyd
+# is restarted.  This will reduce the time needed to get accurate
+# gain/loss measurements.
+#
+# 2. On Linux, if you use the RTC support and start chronyd with
+# '-r -s' on bootup, measurements from the last boot will still be
+# useful (the real time clock is used to 'flywheel' chronyd between
+# boots).
+#
+# Uncomment the following line to use this.
+
+! dumpdir /var/db/chrony
+
+# chronyd writes its process ID to a file.  If you try to start a second
+# copy of chronyd, it will detect that the process named in the file is
+# still running and bail out.  If you want to change the path to the PID
+# file, uncomment this line and edit it.  The default path is shown.
+
+! pidfile /var/run/chrony/chronyd.pid
+
+# If the system timezone database is kept up to date and includes the
+# right/UTC timezone, chronyd can use it to determine the current
+# TAI-UTC offset and when will the next leap second occur.
+
+! leapsectz right/UTC
+
+#######################################################################
+### INITIAL CLOCK CORRECTION
+# This option is useful to quickly correct the clock on start if it's
+# off by a large amount.  The value '1.0' means that if the error is less
+# than 1 second, it will be gradually removed by speeding up or slowing
+# down your computer's clock until it is correct.  If the error is above
+# 1 second, an immediate time jump will be applied to correct it.  The
+# value '3' means the step is allowed only in the first three updates of
+# the clock.  Some software can get upset if the system clock jumps
+# (especially backwards), so be careful!
+
+! makestep 1.0 3
+
+#######################################################################
+### LEAP SECONDS
+# A leap second is an occasional one-second correction of the UTC
+# time scale.  By default, chronyd tells the kernel to insert/delete
+# the leap second, which makes a backward/forward step to correct the
+# clock for it.  As with the makestep directive, this jump can upset
+# some applications.  If you prefer chronyd to make a gradual
+# correction, causing the clock to be off for a longer time, uncomment
+# the following line.
+
+! leapsecmode slew
+
+#######################################################################
+### LOGGING
+# If you want to log information about the time measurements chronyd has
+# gathered, you might want to enable the following lines.  You probably
+# only need this if you really enjoy looking at the logs, you want to
+# produce some graphs of your system's timekeeping performance, or you
+# need help in debugging a problem.
+#
+# If you enable logging, you may want to add an entry to a log rotation
+# utility's configuration (e.g., newsyslog(8)).  'chronyc cyclelogs'
+# should be used to signal chronyd that a log file has been renamed.
+
+! logdir /var/log/chrony
+! log measurements statistics tracking
+
+# If you have real time clock support enabled (see below), you might want
+# this line instead:
+
+! log measurements statistics tracking rtc
+
+#######################################################################
+### ACTING AS AN NTP SERVER
+# You might want the computer to be an NTP server for other computers.
+#
+# By default, chronyd does not allow any clients to access it.  You need
+# to explicitly enable access using 'allow' and 'deny' directives.
+#
+# e.g. to enable client access from the 192.168.*.* class B subnet,
+
+! allow 192.168/16
+
+# .. but disallow the 192.168.100.* subnet of that,
+
+! deny 192.168.100/24
+
+# You can have as many allow and deny directives as you need.  The order
+# is unimportant.
+
+# If you want to present your computer's time for others to synchronise
+# with, even if you don't seem to be synchronised to any NTP servers
+# yourself, enable the following line.  The value 10 may be varied
+# between 1 and 15.  You should avoid small values because you will look
+# like a real NTP server.  The value 10 means that you appear to be 10
+# NTP 'hops' away from an authoritative source (atomic clock, GPS
+# receiver, radio clock etc).
+
+! local stratum 10
+
+# Normally, chronyd will keep track of how many times each client
+# machine accesses it.  The information can be accessed by the 'clients'
+# command of chronyc.  You can disable this facility by uncommenting the
+# following line.  This will save a bit of memory if you have many
+# clients and it will also disable support for the interleaved mode.
+
+! noclientlog
+
+# The clientlog size is limited to 512KB by default.  If you have many
+# clients, you might want to increase the limit.
+
+! clientloglimit 4194304
+
+# By default, chronyd tries to respond to all valid NTP requests from
+# allowed addresses.  If you want to limit the response rate for NTP
+# clients that are sending requests too frequently, uncomment and edit
+# the following line.
+
+! ratelimit interval 3 burst 8
+
+#######################################################################
+### REPORTING BIG CLOCK CHANGES
+# Perhaps you want to know if chronyd suddenly detects any large error
+# in your computer's clock.  This might indicate a fault or a problem
+# with the server(s) you are using, for example.
+#
+# The next option causes a message to be written to syslog when chronyd
+# has to correct an error above 0.5 seconds (you can use any amount you
+# like).
+
+! logchange 0.5
+
+# The next option will send email to the named person when chronyd has
+# to correct an error above 0.5 seconds.  (If you need to send mail to
+# several people, you need to set up a mailing list or sendmail alias
+# for them and use the address of that.)
+
+! mailonchange wibble@foo.example.net 0.5
+
+#######################################################################
+### COMMAND ACCESS
+# The program chronyc is used to show the current operation of chronyd
+# and to change parts of its configuration whilst it is running.
+
+# By default chronyd binds to the loopback interface.  Uncomment the
+# following lines to allow receiving command packets from remote hosts.
+
+! bindcmdaddress 0.0.0.0
+! bindcmdaddress ::
+
+# Normally, chronyd will only allow connections from chronyc on the same
+# machine as itself.  This is for security.  If you have a subnet
+# 192.168.*.* and you want to be able to use chronyc from any machine on
+# it, you could uncomment the following line.  (Edit this to your own
+# situation.)
+
+! cmdallow 192.168/16
+
+# You can add as many 'cmdallow' and 'cmddeny' lines as you like.  The
+# syntax and meaning is the same as for 'allow' and 'deny', except that
+# 'cmdallow' and 'cmddeny' control access to the chronyd's command port.
+
+# Rate limiting can be enabled also for command packets.  (Note,
+# commands from localhost are never limited.)
+
+! cmdratelimit interval -4 burst 16
+
+#######################################################################
+### HARDWARE TIMESTAMPING
+# On Linux, if the network interface controller and its driver support
+# hardware timestamping, it can significantly improve the accuracy of
+# synchronisation. It can be enabled on specified interfaces only, or it
+# can be enabled on all interfaces that support it.
+
+! hwtimestamp eth0
+! hwtimestamp *
+
+#######################################################################
+### REAL TIME CLOCK
+# chronyd can characterise the system's real-time clock.  This is the
+# clock that keeps running when the power is turned off, so that the
+# machine knows the approximate time when it boots again.  The error at
+# a particular epoch and gain/loss rate can be written to a file and
+# used later by chronyd when it is started with the '-s' option.
+#
+# You need to have 'enhanced RTC support' compiled into your Linux
+# kernel.  (Note, these options apply only to Linux.)
+
+! rtcfile /var/db/chrony/rtc
+
+# Your RTC can be set to keep Universal Coordinated Time (UTC) or local
+# time.  (Local time means UTC +/- the effect of your timezone.)  If you
+# use UTC, chronyd will function correctly even if the computer is off
+# at the epoch when you enter or leave summer time (aka daylight saving
+# time).  However, if you dual boot your system with Microsoft Windows,
+# that will work better if your RTC maintains local time.  You take your
+# pick!
+
+! rtconutc
+
+# By default chronyd assumes that the enhanced RTC device is accessed as
+# /dev/rtc.  If it's accessed somewhere else on your system (e.g. you're
+# using devfs), uncomment and edit the following line.
+
+! rtcdevice /dev/misc/rtc
+
+# Alternatively, if not using the -s option, this directive can be used
+# to enable a mode in which the RTC is periodically set to the system
+# time, with no tracking of its drift.
+
+! rtcsync
+
+#######################################################################
+### REAL TIME SCHEDULER
+# This directive tells chronyd to use the real-time FIFO scheduler with the
+# specified priority (which must be between 0 and 100).  This should result
+# in reduced latency.  You don't need it unless you really have a requirement
+# for extreme clock stability.  Works only on Linux.  Note that the "-P"
+# command-line switch will override this.
+
+! sched_priority 1
+
+#######################################################################
+### LOCKING CHRONYD INTO RAM
+# This directive tells chronyd to use the mlockall() syscall to lock itself
+# into RAM so that it will never be paged out.  This should result in reduced
+# latency.  You don't need it unless you really have a requirement
+# for extreme clock stability.  Works only on Linux.  Note that the "-m"
+# command-line switch will also enable this feature.
+
+! lock_all

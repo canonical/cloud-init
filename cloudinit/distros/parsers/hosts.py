@@ -12,7 +12,7 @@ from cloudinit.distros.parsers import chop_comment
 # See: man hosts
 # or https://linux.die.net/man/5/hosts
 # or https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/configtuning-configfiles.html # noqa
-class HostsConf(object):
+class HostsConf:
     def __init__(self, text):
         self._text = text
         self._contents = None

@@ -153,7 +153,7 @@ Things that run here include:
  * user-defined scripts (i.e. shell scripts passed as user-data)
 
 For scripts external to cloud-init looking to wait until cloud-init is
-finished, the ``cloud-init status`` subcommand can help block external
+finished, the ``cloud-init status --wait`` subcommand can help block external
 scripts until cloud-init is done without having to write your own systemd
 units dependency chains. See :ref:`cli_status` for more info.
 

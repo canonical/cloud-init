@@ -1,3 +1,5 @@
+.. _network_config:
+
 *********************
 Network Configuration
 *********************

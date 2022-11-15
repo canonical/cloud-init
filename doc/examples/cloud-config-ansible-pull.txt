@@ -1,5 +1,4 @@
 #cloud-config
-version: v1
 packages_update: true
 packages_upgrade: true
 
@@ -7,10 +6,9 @@ packages_upgrade: true
 # wish to manually install ansible to avoid multiple calls
 # to your package manager
 packages:
-  - ansible
   - git
 ansible:
-  install-method: pip
+  install_method: pip
   pull:
     url: "https://github.com/holmanb/vmboot.git"
-    playbook-name: ubuntu.yml
+    playbook_name: ubuntu.yml

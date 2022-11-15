@@ -1,16 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+from urllib.parse import SplitResult, urlsplit
 
-import httpretty
 import requests
+import responses
 
 from cloudinit import helpers, settings, sources
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
+from tests.unittests.helpers import CiTestCase, ResponsesTestCase, mock
 
 
-class DataResponses(object):
+class DataResponses:
     """
     Possible responses of the API endpoint
     169.254.42.42/user_data/cloud-init and
@@ -20,26 +21,26 @@ class DataResponses(object):
     FAKE_USER_DATA = '#!/bin/bash\necho "user-data"'
 
     @staticmethod
-    def rate_limited(method, uri, headers):
-        return 429, headers, ""
+    def rate_limited(request):
+        return 429, request.headers, ""
 
     @staticmethod
-    def api_error(method, uri, headers):
-        return 500, headers, ""
+    def api_error(request):
+        return 500, request.headers, ""
 
     @classmethod
-    def get_ok(cls, method, uri, headers):
-        return 200, headers, cls.FAKE_USER_DATA
+    def get_ok(cls, request):
+        return 200, request.headers, cls.FAKE_USER_DATA
 
     @staticmethod
-    def empty(method, uri, headers):
+    def empty(request):
         """
         No user data for this server.
         """
-        return 404, headers, ""
+        return 404, request.headers, ""
 
 
-class MetadataResponses(object):
+class MetadataResponses:
     """
     Possible responses of the metadata API.
     """
@@ -63,8 +64,8 @@ class MetadataResponses(object):
     }
 
     @classmethod
-    def get_ok(cls, method, uri, headers):
-        return 200, headers, json.dumps(cls.FAKE_METADATA)
+    def get_ok(cls, response):
+        return 200, response.headers, json.dumps(cls.FAKE_METADATA)
 
 
 class TestOnScaleway(CiTestCase):
@@ -163,23 +164,38 @@ def get_source_address_adapter(*args, **kwargs):
     to bind on ports below 1024.
 
     This function removes the bind on a privileged address, since anyway the
-    HTTP call is mocked by httpretty.
+    HTTP call is mocked by responses.
     """
     kwargs.pop("source_address")
     return requests.adapters.HTTPAdapter(*args, **kwargs)
 
 
-class TestDataSourceScaleway(HttprettyTestCase):
+def _fix_mocking_url(url: str) -> str:
+    # Workaround https://github.com/getsentry/responses/pull/166
+    # This function can be removed when Bionic is EOL
+    split_result = urlsplit(url)
+    return SplitResult(
+        scheme=split_result.scheme,
+        netloc=split_result.netloc,
+        path=split_result.path,
+        query="",  # ignore
+        fragment=split_result.fragment,
+    ).geturl()
+
+
+class TestDataSourceScaleway(ResponsesTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
         )
         super(TestDataSourceScaleway, self).setUp()
 
-        self.metadata_url = DataSourceScaleway.BUILTIN_DS_CONFIG[
-            "metadata_url"
-        ]
+        self.metadata_url = _fix_mocking_url(
+            DataSourceScaleway.BUILTIN_DS_CONFIG["metadata_url"]
+        )
         self.userdata_url = DataSourceScaleway.BUILTIN_DS_CONFIG[
             "userdata_url"
         ]
@@ -212,14 +228,14 @@ class TestDataSourceScaleway(HttprettyTestCase):
         m_get_cmdline.return_value = "scaleway"
 
         # Make user data API return a valid response
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=DataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=DataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.get_ok
         )
         self.datasource.get_data()
 
@@ -343,14 +359,15 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=DataResponses.empty
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
         self.datasource.get_data()
         self.assertIsNone(self.datasource.get_userdata_raw())
@@ -371,21 +388,26 @@ class TestDataSourceScaleway(HttprettyTestCase):
         """
         m_get_cmdline.return_value = "scaleway"
 
-        httpretty.register_uri(
-            httpretty.GET, self.metadata_url, body=MetadataResponses.get_ok
+        self.responses.add_callback(
+            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
         )
-        httpretty.register_uri(
-            httpretty.GET, self.vendordata_url, body=DataResponses.empty
+        self.responses.add_callback(
+            responses.GET, self.vendordata_url, callback=DataResponses.empty
         )
 
-        httpretty.register_uri(
-            httpretty.GET,
-            self.userdata_url,
-            responses=[
-                httpretty.Response(body=DataResponses.rate_limited),
-                httpretty.Response(body=DataResponses.rate_limited),
-                httpretty.Response(body=DataResponses.get_ok),
-            ],
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        call_count = 0
+
+        def _callback(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return DataResponses.rate_limited(request)
+            return DataResponses.get_ok(request)
+
+        self.responses.add_callback(
+            responses.GET, self.userdata_url, callback=_callback
         )
         self.datasource.get_data()
         self.assertEqual(

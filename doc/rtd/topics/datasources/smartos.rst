@@ -125,7 +125,9 @@ are provided by SmartOS:
  * user-data
  * user-script
 
-This list can be changed through system config of variable 'no_base64_decode'.
+This list can be changed through
+:ref:`datasource base configuration<datasource_base_config>` variable
+'no_base64_decode'.
 
 This means that user-script and user-data as well as other values can be
 base64 encoded. Since Cloud-init can only guess as to whether or not something

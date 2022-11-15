@@ -5,7 +5,7 @@ import yaml
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import lxd_has_nocloud, verify_clean_log
 
 
 def _customize_environment(client: IntegrationInstance):
@@ -86,9 +86,13 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "lxd" == v1["platform"]
     assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == v1["subplatform"]
     ds_cfg = json.loads(client.execute("cloud-init query ds").stdout)
-    assert ["_doc", "_metadata_api_version", "config", "meta-data"] == sorted(
-        list(ds_cfg.keys())
-    )
+    assert [
+        "_doc",
+        "_metadata_api_version",
+        "config",
+        "devices",
+        "meta-data",
+    ] == sorted(list(ds_cfg.keys()))
     if (
         client.settings.PLATFORM == "lxd_vm"
         and ImageSpecification.from_os_image().release == "bionic"
@@ -109,11 +113,8 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     )
     assert "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
 
-    # Jammy not longer provides nocloud-net seed files (LP: #1958460)
-    if ImageSpecification.from_os_image().release in [
-        "bionic",
-        "focal",
-    ]:
+    # Some series no longer provide nocloud-net seed files (LP: #1958460)
+    if lxd_has_nocloud(client):
         # Assert NoCloud seed files are still present in non-Jammy images
         # and that NoCloud seed files provide the same content as LXD socket.
         nocloud_metadata = yaml.safe_load(

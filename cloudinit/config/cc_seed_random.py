@@ -11,10 +11,13 @@
 import base64
 import os
 from io import BytesIO
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -107,7 +110,9 @@ def handle_random_seed_command(command, required, env=None):
     subp.subp(command, env=env, capture=False)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     mycfg = cfg.get("random_seed", {})
     seed_path = mycfg.get("file", "/dev/urandom")
     seed_data = mycfg.get("data", b"")

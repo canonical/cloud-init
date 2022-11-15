@@ -10,8 +10,6 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
     EXPERIMENTAL_TEXT,
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
     METADATA_UNKNOWN,
     REDACT_SENSITIVE_VALUE,
     UNSET,
@@ -356,16 +354,17 @@ class TestDataSource(CiTestCase):
     def test_get_data_does_not_write_instance_data_on_failure(self):
         """get_data does not write INSTANCE_JSON_FILE on get_data False."""
         tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            paths,
             get_data_retval=False,
         )
         self.assertFalse(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         self.assertFalse(
-            os.path.exists(json_file), "Found unexpected file %s" % json_file
+            os.path.exists(json_file), f"Found unexpected file {json_file}"
         )
 
     def test_get_data_writes_json_instance_data_on_success(self):
@@ -395,7 +394,7 @@ class TestDataSource(CiTestCase):
                 return_value="canonical_cloud_id",
             ):
                 datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
         content = util.load_file(json_file)
         expected = {
             "base64_encoded_keys": [],
@@ -485,7 +484,7 @@ class TestDataSource(CiTestCase):
         }
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
             datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
         redacted = util.load_json(util.load_file(json_file))
         expected = {
             "base64_encoded_keys": [],
@@ -584,7 +583,9 @@ class TestDataSource(CiTestCase):
                 return_value="canonical-cloud-id",
             ):
                 datasource.get_data()
-        sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
+        sensitive_json_file = Paths({"run_dir": tmp}).get_runpath(
+            "instance_data_sensitive"
+        )
         content = util.load_file(sensitive_json_file)
         expected = {
             "base64_encoded_keys": [],
@@ -649,14 +650,15 @@ class TestDataSource(CiTestCase):
     def test_get_data_handles_redacted_unserializable_content(self):
         """get_data warns unserializable content in INSTANCE_JSON_FILE."""
         tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            paths,
             custom_metadata={"key1": "val1", "key2": {"key2.1": self.paths}},
         )
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         content = util.load_file(json_file)
         expected_metadata = {
             "key1": "val1",
@@ -675,14 +677,15 @@ class TestDataSource(CiTestCase):
         tmp = self.tmp_dir()
         cloud_dir = os.path.join(tmp, "cloud")
         util.ensure_dir(cloud_dir)
+        paths = Paths({"run_dir": tmp, "cloud_dir": cloud_dir})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
+            paths,
         )
         datasource.ec2_metadata = UNSET
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         instance_data = util.load_json(util.load_file(json_file))
         self.assertNotIn("ec2_metadata", instance_data["ds"])
         datasource.ec2_metadata = {"ec2stuff": "is good"}
@@ -733,13 +736,14 @@ class TestDataSource(CiTestCase):
         tmp = self.tmp_dir()
         cloud_dir = os.path.join(tmp, "cloud")
         util.ensure_dir(cloud_dir)
+        paths = Paths({"run_dir": tmp, "cloud_dir": cloud_dir})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
+            paths,
         )
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         instance_data = util.load_json(util.load_file(json_file))
         self.assertNotIn("network_json", instance_data["ds"])
         datasource.network_json = {"network_json": "is good"}
@@ -780,14 +784,15 @@ class TestDataSource(CiTestCase):
     def test_get_data_base64encodes_unserializable_bytes(self):
         """On py3, get_data base64encodes any unserializable content."""
         tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            paths,
             custom_metadata={"key1": "val1", "key2": {"key2.1": b"\x123"}},
         )
         self.assertTrue(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
         self.assertCountEqual(

@@ -10,9 +10,12 @@
 import logging
 import os
 import shlex
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -35,6 +38,11 @@ This module is able to configure simple partition tables and filesystems.
 .. note::
     for more detail about configuration options for disk setup, see the disk
     setup example
+
+.. note::
+    if a swap partition is being created via ``disk_setup`` then a ``fs_entry``
+    entry is also needed in order for mkswap to be run, otherwise when swap
+    activation is later attempted it will fail.
 
 For convenience, aliases can be specified for disks using the
 ``device_aliases`` config key, which takes a dictionary of alias: path
@@ -62,10 +70,15 @@ meta: MetaSchema = {
             """\
             device_aliases:
               my_alias: /dev/sdb
+              swap_disk: /dev/sdc
             disk_setup:
               my_alias:
                 table_type: gpt
                 layout: [50, 50]
+                overwrite: true
+              swap_disk:
+                table_type: gpt
+                layout: [[100, 82]]
                 overwrite: true
             fs_setup:
             - label: fs1
@@ -75,9 +88,13 @@ meta: MetaSchema = {
             - label: fs2
               device: my_alias.2
               filesystem: ext4
+            - label: swap
+              device: swap_disk.1
+              filesystem: swap
             mounts:
             - ["my_alias.1", "/mnt1"]
             - ["my_alias.2", "/mnt2"]
+            - ["swap_disk.1", "none", "swap", "sw", "0", "0"]
             """
         )
     ],
@@ -87,7 +104,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     """
     See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
@@ -1027,6 +1046,7 @@ def mkfs(fs_cfg):
         # Find the mkfs command
         mkfs_cmd = subp.which("mkfs.%s" % fs_type)
         if not mkfs_cmd:
+            # for "mkswap"
             mkfs_cmd = subp.which("mk%s" % fs_type)
 
         if not mkfs_cmd:
@@ -1037,7 +1057,7 @@ def mkfs(fs_cfg):
             )
             return
 
-        fs_cmd = [mkfs_cmd, device]
+        fs_cmd = [mkfs_cmd]
 
         if label:
             fs_cmd.extend(["-L", label])
@@ -1051,6 +1071,8 @@ def mkfs(fs_cfg):
         # Add the extends FS options
         if fs_opts:
             fs_cmd.extend(fs_opts)
+
+        fs_cmd.append(device)
 
     LOG.debug("Creating file system %s on %s", label, device)
     LOG.debug("     Using cmd: %s", str(fs_cmd))

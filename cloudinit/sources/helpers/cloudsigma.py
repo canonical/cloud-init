@@ -33,7 +33,7 @@ if platform.system() == "Windows":
     SERIAL_PORT = "COM2"
 
 
-class Cepko(object):
+class Cepko:
     """
     One instance of that object could be use for one or more
     queries to the serial port.
@@ -58,7 +58,7 @@ class Cepko(object):
         return self.get(key, request_pattern)
 
 
-class CepkoResult(object):
+class CepkoResult:
     """
     CepkoResult executes the request to the virtual serial port as soon
     as the instance is initialized and stores the result in both raw and
