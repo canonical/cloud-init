@@ -21,7 +21,7 @@ ATTACH_FALLBACK = """\
 #cloud-config
 ubuntu_advantage:
   features:
-    disable_auto_attach: True
+    disable_auto_attach: true
   token: {token}
 """
 
@@ -37,7 +37,7 @@ PRO_AUTO_ATTACH_DISABLED = """\
 #cloud-config
 ubuntu_advantage:
   features:
-    disable_auto_attach: True
+    disable_auto_attach: true
 """
 
 PRO_DAEMON_DISABLED = """\
@@ -45,7 +45,7 @@ PRO_DAEMON_DISABLED = """\
 # Disable UA daemon (only needed in GCE)
 ubuntu_advantage:
   features:
-    disable_auto_attach: True
+    disable_auto_attach: true
 bootcmd:
 - sudo systemctl mask ubuntu-advantage.service
 """
@@ -110,17 +110,18 @@ def get_services_status(client: IntegrationInstance) -> dict:
 
 @pytest.mark.adhoc
 @pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not CLOUD_INIT_UA_TOKEN, reason="CLOUD_INIT_UA_TOKEN env var not provided"
+)
 class TestUbuntuAdvantage:
     @pytest.mark.user_data(ATTACH_FALLBACK.format(token=CLOUD_INIT_UA_TOKEN))
     def test_valid_token(self, client: IntegrationInstance):
-        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
     def test_idempotency(self, client: IntegrationInstance):
-        assert CLOUD_INIT_UA_TOKEN, "CLOUD_INIT_UA_TOKEN env var not provided"
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert is_attached(client)
