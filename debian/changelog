@@ -1,3 +1,9 @@
+cloud-init (22.4-0ubuntu2) lunar; urgency=medium
+
+  * d/changelog: account for closed bugs released in 22.4-0ubuntu1
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 15 Nov 2022 16:34:07 -0700
+
 cloud-init (22.4-0ubuntu1) lunar; urgency=medium
 
   * d/control: drop python3-httpretty from Build-Depends
@@ -5,6 +11,9 @@ cloud-init (22.4-0ubuntu1) lunar; urgency=medium
   * Upstream snapshot based on 22.4 upstream release. List of changes
     from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/22.4/ChangeLog
+  * Bugs fixed in this snapshot:
+    (LP: #1962343, #1913461, #1883122, #1989686, #1307667, #1990070, #1991567)
+    (LP: #1991024, #1990041, #1993836)
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 15 Nov 2022 14:23:44 -0600
 
