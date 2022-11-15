@@ -17,17 +17,18 @@ exclude=[]
 module = [
   "apport.*",
   "BaseHTTPServer",
-  "configobj",
   "cloudinit.feature_overrides",
+  "configobj",
   "debconf",
-  "httpretty",
   "httplib",
+  "httpretty",
   "jsonpatch",
   "netifaces",
   "paramiko.*",
   "pycloudlib.*",
   "responses",
   "serial",
-  "tests.integration_tests.user_settings"
+  "tests.integration_tests.user_settings",
+  "uaclient.*"
 ]
 ignore_missing_imports = true

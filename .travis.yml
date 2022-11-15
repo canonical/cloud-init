@@ -133,7 +133,7 @@ matrix:
             TOXENV=lowest-supported
             PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: bionic
-        - python: 3.7
+        - python: 3.10
           env: TOXENV=doc
           install:
             - git fetch --unshallow
@@ -146,6 +146,7 @@ matrix:
             - make check_spelling && tox
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)
+        - python: 3.12-dev
         - python: 3.11-dev
         - python: "3.10"
         - python: 3.9

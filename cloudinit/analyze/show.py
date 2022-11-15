@@ -131,7 +131,7 @@ def total_time_record(total_time):
     return "Total Time: %3.5f seconds\n" % total_time
 
 
-class SystemctlReader(object):
+class SystemctlReader:
     """
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
@@ -309,7 +309,6 @@ def generate_records(
     start_time = None
     total_time = 0.0
     stage_start_time = {}
-    stages_seen = []
     boot_records = []
 
     unprocessed = []
@@ -321,7 +320,7 @@ def generate_records(
             next_evt = None
 
         if event_type(event) == "start":
-            if event.get("name") in stages_seen:
+            if records and event.get("name") == "init-local":
                 records.append(total_time_record(total_time))
                 boot_records.append(records)
                 records = []
@@ -329,7 +328,6 @@ def generate_records(
                 total_time = 0.0
 
             if start_time is None:
-                stages_seen = []
                 start_time = event_datetime(event)
                 stage_start_time[event_parent(event)] = start_time
 
@@ -346,7 +344,6 @@ def generate_records(
                 # This is a parent event
                 records.append("Starting stage: %s" % event.get("name"))
                 unprocessed.append(event)
-                stages_seen.append(event.get("name"))
                 continue
         else:
             prev_evt = unprocessed.pop()

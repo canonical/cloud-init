@@ -47,6 +47,9 @@ Cloud-init config is provided in two places:
 These files can define the modules that run during instance initialization,
 the datasources to evaluate on boot, and other settings.
 
+See the :ref:`configuration sources explanation<configuration>` and
+:ref:`configuration reference<base_config_reference>` for more information.
+
 Where are the data files?
 =========================
 
@@ -160,7 +163,7 @@ To check if cloud-init is running still, run:
 
         $ cloud-init status
 
-To wait for clous-init to complete, run:
+To wait for cloud-init to complete, run:
 
 .. code-block:: shell-session
 
@@ -171,7 +174,7 @@ is not exhaustive, but attempts to enumerate potential causes:
 
 External reasons:
 -----------------
-- failed dependant services in the boot
+- failed dependent services in the boot
 - bugs in the kernel or drivers
 - bugs in external userspace tools that are called by cloud-init
 
@@ -181,6 +184,21 @@ Internal reasons:
   `cloud-init status --wait` will wait forever on itself and never complete)
 - nonstandard configurations that disable timeouts or set extremely high
   values ("never" is used in a loose sense here)
+
+Failing to Complete on Systemd:
+-------------------------------
+
+Cloud-init consists of multiple services on systemd. If a service
+that cloud-init depends on stalls, cloud-init will not continue.
+If reporting a bug related to cloud-init failing to complete on
+systemd, please make sure to include the following logs.
+
+.. code-block:: shell-session
+
+        $ systemd-analyze critical-chain cloud-init.target
+        $ journalctl --boot=-1
+        $ systemctl --failed
+
 
 How can I make a module run on every boot?
 ==========================================

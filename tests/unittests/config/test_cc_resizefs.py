@@ -83,7 +83,7 @@ class TestResizefs(CiTestCase):
     def test_handle_noops_on_disabled(self):
         """The handle function logs when the configuration disables resize."""
         cfg = {"resize_rootfs": False}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
         self.assertIn(
             "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
             self.logs.getvalue(),
@@ -94,7 +94,7 @@ class TestResizefs(CiTestCase):
         """handle warns when get_mount_info sees unknown filesystem for /."""
         m_get_mount_info.return_value = None
         cfg = {"resize_rootfs": True}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
         logs = self.logs.getvalue()
         self.assertNotIn(
             "WARNING: Invalid cloud-config provided:\nresize_rootfs:", logs
@@ -128,7 +128,7 @@ class TestResizefs(CiTestCase):
                 handle,
                 "cc_resizefs",
                 cfg,
-                _cloud=None,
+                cloud=None,
                 log=LOG,
                 args=[],
             )
@@ -183,7 +183,7 @@ class TestResizefs(CiTestCase):
         cfg = {"resize_rootfs": True}
 
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
-            handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+            handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
             ret = dresize.call_args[0][0]
 
         self.assertEqual(("zpool", "online", "-e", "vmzroot", disk), ret)
@@ -217,7 +217,7 @@ class TestResizefs(CiTestCase):
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
             with mock.patch("cloudinit.config.cc_resizefs.os.stat") as m_stat:
                 m_stat.side_effect = fake_stat
-                handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+                handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
 
         self.assertEqual(
             ("zpool", "online", "-e", "zroot", "/dev/" + disk),

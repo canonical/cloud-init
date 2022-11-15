@@ -8,8 +8,11 @@
 """Scripts Per Instance: Run per instance scripts"""
 
 import os
+from logging import Logger
 
 from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -40,7 +43,9 @@ __doc__ = get_meta_doc(meta)
 SCRIPT_SUBDIR = "per-instance"
 
 
-def handle(name, _cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
     runparts_path = os.path.join(cloud.get_cpath(), "scripts", SCRIPT_SUBDIR)

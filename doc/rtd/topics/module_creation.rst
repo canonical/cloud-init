@@ -17,6 +17,7 @@ Example
     from logging import Logger
 
     from cloudinit.cloud import Cloud
+    from cloudinit.config import Config
     from cloudinit.config.schema import MetaSchema, get_meta_doc
     from cloudinit.distros import ALL_DISTROS
     from cloudinit.settings import PER_INSTANCE
@@ -44,7 +45,9 @@ Example
     __doc__ = get_meta_doc(meta)
 
 
-    def handle(name: str, cfg: dict, cloud: Cloud, log: Logger, args: list):
+    def handle(
+        name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+    ) -> None:
         log.debug(f"Hi from module {name}")
 
 
@@ -63,7 +66,9 @@ Guidelines
     instance types.
   * ``log``: A logger object that can be used to log messages.
   * ``args``: An argument list. This is usually empty and is only populated
-    if the module is called independently from the command line.
+    if the module is called independently from the command line or if the
+    module definition in ``/etc/cloud/cloud.cfg[.d]`` has been modified
+    to pass arguments to this module.
 
 * If your module introduces any new cloud-config keys, you must provide a
   schema definition in `cloud-init-schema.json`_.

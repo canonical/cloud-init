@@ -101,7 +101,7 @@ class TestDisabled(unittest.TestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
         self.name = "growpart"
-        self.cloud_init = None
+        self.cloud = None
         self.log = logging.getLogger("TestDisabled")
         self.args = []
 
@@ -114,9 +114,7 @@ class TestDisabled(unittest.TestCase):
         config = {"growpart": {"mode": "off"}}
 
         with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
-            self.handle(
-                self.name, config, self.cloud_init, self.log, self.args
-            )
+            self.handle(self.name, config, self.cloud, self.log, self.args)
             self.assertEqual(mockobj.call_count, 0)
 
 
@@ -125,11 +123,11 @@ class TestConfig(TestCase):
         super(TestConfig, self).setUp()
         self.name = "growpart"
         self.paths = None
-        self.cloud = cloud.Cloud(None, self.paths, None, None, None)
+        self.distro = mock.Mock()
+        self.cloud = cloud.Cloud(None, self.paths, None, self.distro, None)
         self.log = logging.getLogger("TestConfig")
         self.args = []
 
-        self.cloud_init = None
         self.handle = cc_growpart.handle
         self.tmppath = "/tmp/cloudinit-test-file"
         self.tmpdir = os.scandir("/tmp")
@@ -146,9 +144,7 @@ class TestConfig(TestCase):
         ) as mockobj:
 
             config = {"growpart": {"mode": "auto"}}
-            self.handle(
-                self.name, config, self.cloud_init, self.log, self.args
-            )
+            self.handle(self.name, config, self.cloud, self.log, self.args)
 
             mockobj.assert_has_calls(
                 [
@@ -170,7 +166,7 @@ class TestConfig(TestCase):
                 self.handle,
                 self.name,
                 config,
-                self.cloud_init,
+                self.cloud,
                 self.log,
                 self.args,
             )
@@ -184,7 +180,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
@@ -210,7 +206,7 @@ class TestConfig(TestCase):
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
 
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
             partnum = 1
@@ -234,7 +230,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=("", HELP_GPART)
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)
 
             mockobj.assert_has_calls(
@@ -275,9 +271,9 @@ class TestConfig(TestCase):
                 )
             )
 
-            self.handle(self.name, {}, self.cloud_init, self.log, self.args)
+            self.handle(self.name, {}, self.cloud, self.log, self.args)
 
-            factory.assert_called_once_with("auto")
+            factory.assert_called_once_with("auto", self.distro)
             rsdevs.assert_called_once_with(myresizer, ["/"])
 
 
@@ -308,7 +304,7 @@ class TestResize(unittest.TestCase):
         real_stat = os.stat
         resize_calls = []
 
-        class myresizer(object):
+        class myresizer:
             def resize(self, diskdev, partnum, partdev):
                 resize_calls.append((diskdev, partnum, partdev))
                 if partdev == "/dev/YYda2":
@@ -588,7 +584,7 @@ def simple_device_part_info(devpath):
     return x
 
 
-class Bunch(object):
+class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 

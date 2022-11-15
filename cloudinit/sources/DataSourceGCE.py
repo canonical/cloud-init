@@ -27,7 +27,7 @@ HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
 
 
-class GoogleMetadataFetcher(object):
+class GoogleMetadataFetcher:
     def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
         self.num_retries = num_retries
@@ -83,7 +83,10 @@ class DataSourceGCE(sources.DataSource):
         url_params = self.get_url_params()
         network_context = noop()
         if self.perform_dhcp_setup:
-            network_context = EphemeralDHCPv4(self.fallback_interface)
+            network_context = EphemeralDHCPv4(
+                self.fallback_interface,
+                tmp_dir=self.distro.get_tmp_exec_path(),
+            )
         with network_context:
             ret = util.log_time(
                 LOG.debug,

@@ -11,11 +11,10 @@ from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     SYS_CLASS_NET,
     get_devicelist,
+    renderer,
     subnet_is_ipv6,
 )
-
-from . import renderer
-from .network_state import NET_CONFIG_TO_V2, NetworkState
+from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
 
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.

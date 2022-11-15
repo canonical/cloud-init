@@ -86,12 +86,16 @@ class TestLoadPowerState(t_help.TestCase):
         self.assertEqual(cond, True)
 
     def test_freebsd_poweroff_uses_lowercase_p(self):
-        cls = distros.fetch("freebsd")
-        paths = helpers.Paths({})
-        freebsd = cls("freebsd", {}, paths)
-        cfg = {"power_state": {"mode": "poweroff"}}
-        ret = psc.load_power_state(cfg, freebsd)
-        self.assertIn("-p", ret[0])
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp",
+            return_value=("", None),
+        ):
+            cls = distros.fetch("freebsd")
+            paths = helpers.Paths({})
+            freebsd = cls("freebsd", {}, paths)
+            cfg = {"power_state": {"mode": "poweroff"}}
+            ret = psc.load_power_state(cfg, freebsd)
+            self.assertIn("-p", ret[0])
 
     def test_alpine_delay(self):
         # alpine takes delay in seconds.

@@ -6,12 +6,28 @@ import os
 import shutil
 import tempfile
 
+from cloudinit import log as logging
+from cloudinit import util
+
+LOG = logging.getLogger(__name__)
 _TMPDIR = None
 _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
 
 
-def _tempfile_dir_arg(odir=None, needs_exe=False):
+def get_tmp_ancestor(odir=None, needs_exe: bool = False):
+    if odir is not None:
+        return odir
+    if needs_exe:
+        return _EXE_ROOT_TMPDIR
+    if _TMPDIR:
+        return _TMPDIR
+    if os.getuid() == 0:
+        return _ROOT_TMPDIR
+    return os.environ.get("TMPDIR", "/tmp")
+
+
+def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
     """Return the proper 'dir' argument for tempfile functions.
 
     When root, cloud-init will use /run/cloud-init/tmp to avoid
@@ -25,29 +41,23 @@ def _tempfile_dir_arg(odir=None, needs_exe=False):
     @param needs_exe: Boolean specifying whether or not exe permissions are
         needed for tempdir. This is needed because /run is mounted noexec.
     """
-    if odir is not None:
-        return odir
-
-    if needs_exe:
-        tdir = _EXE_ROOT_TMPDIR
-        if not os.path.isdir(tdir):
-            os.makedirs(tdir)
-            os.chmod(tdir, 0o1777)
-        return tdir
-
-    global _TMPDIR
-    if _TMPDIR:
-        return _TMPDIR
-
-    if os.getuid() == 0:
-        tdir = _ROOT_TMPDIR
-    else:
-        tdir = os.environ.get("TMPDIR", "/tmp")
+    tdir = get_tmp_ancestor(odir, needs_exe)
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
         os.chmod(tdir, 0o1777)
 
-    _TMPDIR = tdir
+    if needs_exe:
+        if util.has_mount_opt(tdir, "noexec"):
+            LOG.warning(
+                "Requested temporal dir with exe permission `%s` is"
+                " mounted as noexec",
+                tdir,
+            )
+
+    if odir is None and not needs_exe:
+        global _TMPDIR
+        _TMPDIR = tdir
+
     return tdir
 
 
@@ -93,18 +103,14 @@ def tempdir(rmtree_ignore_errors=False, **kwargs):
         shutil.rmtree(tdir, ignore_errors=rmtree_ignore_errors)
 
 
-def mkdtemp(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg(
-        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
-    )
-    return tempfile.mkdtemp(**kwargs)
+def mkdtemp(dir=None, needs_exe: bool = False, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe)
+    return tempfile.mkdtemp(dir=dir, **kwargs)
 
 
-def mkstemp(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg(
-        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
-    )
-    return tempfile.mkstemp(**kwargs)
+def mkstemp(dir=None, needs_exe: bool = False, **kwargs):
+    dir = _tempfile_dir_arg(dir, needs_exe)
+    return tempfile.mkstemp(dir=dir, **kwargs)
 
 
 # vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+.. _logging:
+
 *******
 Logging
 *******
@@ -98,8 +100,10 @@ the default format string ``%(message)s``::
 For additional information about configuring python's logging module, please
 see the documentation for `python logging config`_.
 
+.. _logging_command_output:
+
 Command Output
---------------
+==============
 Cloud-init can redirect its stdout and stderr based on config given under the
 ``output`` config key. The output of any commands run by cloud-init and any
 user or vendor scripts provided will also be included here. The ``output`` key

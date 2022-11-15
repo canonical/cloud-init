@@ -8,15 +8,18 @@
 """SSH Import ID: Import SSH id"""
 
 import pwd
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["ubuntu", "debian"]
+distros = ["ubuntu", "debian", "cos"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\
@@ -49,7 +52,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     if not is_key_in_nested_dict(cfg, "ssh_import_id"):
         log.debug(

@@ -4,7 +4,7 @@ import functools
 import os
 from unittest import mock
 
-import httpretty
+import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
@@ -49,33 +49,7 @@ DEFAULT_USERDATA = """\
 hostname: localhost"""
 
 
-def register_mock_metaserver(base_url, data):
-    def register_helper(register, base_url, body):
-        if isinstance(body, str):
-            register(base_url, body)
-        elif isinstance(body, list):
-            register(base_url.rstrip("/"), "\n".join(body) + "\n")
-        elif isinstance(body, dict):
-            if not body:
-                register(
-                    base_url.rstrip("/") + "/", "not found", status_code=404
-                )
-            vals = []
-            for k, v in body.items():
-                if isinstance(v, (str, list)):
-                    suffix = k.rstrip("/")
-                else:
-                    suffix = k.rstrip("/") + "/"
-                vals.append(suffix)
-                url = base_url.rstrip("/") + "/" + suffix
-                register_helper(register, url, v)
-            register(base_url, "\n".join(vals) + "\n")
-
-    register = functools.partial(httpretty.register_uri, httpretty.GET)
-    register_helper(register, base_url, data)
-
-
-class TestAliYunDatasource(test_helpers.HttprettyTestCase):
+class TestAliYunDatasource(test_helpers.ResponsesTestCase):
     def setUp(self):
         super(TestAliYunDatasource, self).setUp()
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
@@ -124,10 +98,35 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
             "instance-identity",
         )
 
+    def register_mock_metaserver(self, base_url, data):
+        def register_helper(register, base_url, body):
+            if isinstance(body, str):
+                register(base_url, body)
+            elif isinstance(body, list):
+                register(base_url.rstrip("/"), "\n".join(body) + "\n")
+            elif isinstance(body, dict):
+                if not body:
+                    register(
+                        base_url.rstrip("/") + "/", "not found", status=404
+                    )
+                vals = []
+                for k, v in body.items():
+                    if isinstance(v, (str, list)):
+                        suffix = k.rstrip("/")
+                    else:
+                        suffix = k.rstrip("/") + "/"
+                    vals.append(suffix)
+                    url = base_url.rstrip("/") + "/" + suffix
+                    register_helper(register, url, v)
+                register(base_url, "\n".join(vals) + "\n")
+
+        register = functools.partial(self.responses.add, responses.GET)
+        register_helper(register, base_url, data)
+
     def regist_default_server(self):
-        register_mock_metaserver(self.metadata_url, self.default_metadata)
-        register_mock_metaserver(self.userdata_url, self.default_userdata)
-        register_mock_metaserver(self.identity_url, self.default_identity)
+        self.register_mock_metaserver(self.metadata_url, self.default_metadata)
+        self.register_mock_metaserver(self.userdata_url, self.default_userdata)
+        self.register_mock_metaserver(self.identity_url, self.default_identity)
 
     def _test_get_data(self):
         self.assertEqual(self.ds.metadata, self.default_metadata)
