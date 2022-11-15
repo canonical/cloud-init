@@ -5,8 +5,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from .boot_proto import BootProtoEnum
-from .nic_base import NicBase, StaticIpv4Base, StaticIpv6Base
+from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
+from cloudinit.sources.helpers.vmware.imc.nic_base import (
+    NicBase,
+    StaticIpv4Base,
+    StaticIpv6Base,
+)
 
 
 class Nic(NicBase):

@@ -7,6 +7,7 @@ import logging
 from unittest import mock
 
 import pytest
+import responses
 
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
@@ -274,58 +275,90 @@ class TestNetworkConfigFromOpcImds:
         )
         assert 1 == caplog.text.count(" not found; skipping")
 
-    def test_secondary_nic(self, oracle_ds):
+    @pytest.mark.parametrize(
+        "set_primary",
+        [True, False],
+    )
+    def test_imds_nic_setup_v1(self, set_primary, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
             "version": 1,
             "config": [{"primary": "nic"}],
         }
-        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
-            DS_PATH + ".get_interfaces_by_mac",
-            return_value={mac_addr: nic_name},
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:05:d1:db": "ens3",
+                "00:00:17:02:2b:b1": "ens4",
+            },
         ):
-            oracle_ds._add_network_config_from_opc_imds(set_primary=False)
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
 
-        # The input is mutated
-        assert 2 == len(oracle_ds.network_config["config"])
+        secondary_nic_index = 1
+        nic_cfg = oracle_ds.network_config["config"]
+        if set_primary:
+            primary_cfg = nic_cfg[1]
+            secondary_nic_index += 1
 
-        secondary_nic_cfg = oracle_ds.network_config["config"][1]
-        assert nic_name == secondary_nic_cfg["name"]
-        assert "physical" == secondary_nic_cfg["type"]
-        assert mac_addr == secondary_nic_cfg["mac_address"]
-        assert 9000 == secondary_nic_cfg["mtu"]
+            assert "ens3" == primary_cfg["name"]
+            assert "physical" == primary_cfg["type"]
+            assert "02:00:17:05:d1:db" == primary_cfg["mac_address"]
+            assert 9000 == primary_cfg["mtu"]
+            assert 1 == len(primary_cfg["subnets"])
+            assert "address" not in primary_cfg["subnets"][0]
+            assert "dhcp" == primary_cfg["subnets"][0]["type"]
+        secondary_cfg = nic_cfg[secondary_nic_index]
+        assert "ens4" == secondary_cfg["name"]
+        assert "physical" == secondary_cfg["type"]
+        assert "00:00:17:02:2b:b1" == secondary_cfg["mac_address"]
+        assert 9000 == secondary_cfg["mtu"]
+        assert 1 == len(secondary_cfg["subnets"])
+        assert "10.0.0.231/24" == secondary_cfg["subnets"][0]["address"]
+        assert "static" == secondary_cfg["subnets"][0]["type"]
 
-        assert 1 == len(secondary_nic_cfg["subnets"])
-        subnet_cfg = secondary_nic_cfg["subnets"][0]
-        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231" == subnet_cfg["address"]
-
-    def test_secondary_nic_v2(self, oracle_ds):
+    @pytest.mark.parametrize(
+        "set_primary",
+        [True, False],
+    )
+    def test_secondary_nic_v2(self, set_primary, oracle_ds):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
             "version": 2,
             "ethernets": {"primary": {"nic": {}}},
         }
-        mac_addr, nic_name = MAC_ADDR, "ens3"
         with mock.patch(
-            DS_PATH + ".get_interfaces_by_mac",
-            return_value={mac_addr: nic_name},
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:05:d1:db": "ens3",
+                "00:00:17:02:2b:b1": "ens4",
+            },
         ):
-            oracle_ds._add_network_config_from_opc_imds(set_primary=False)
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
 
-        # The input is mutated
-        assert 2 == len(oracle_ds.network_config["ethernets"])
+        nic_cfg = oracle_ds.network_config["ethernets"]
+        if set_primary:
+            assert "ens3" in nic_cfg
+            primary_cfg = nic_cfg["ens3"]
 
-        secondary_nic_cfg = oracle_ds.network_config["ethernets"]["ens3"]
-        assert secondary_nic_cfg["dhcp4"] is False
-        assert secondary_nic_cfg["dhcp6"] is False
-        assert mac_addr == secondary_nic_cfg["match"]["macaddress"]
-        assert 9000 == secondary_nic_cfg["mtu"]
+            assert primary_cfg["dhcp4"] is True
+            assert primary_cfg["dhcp6"] is False
+            assert "02:00:17:05:d1:db" == primary_cfg["match"]["macaddress"]
+            assert 9000 == primary_cfg["mtu"]
+            assert "addresses" not in primary_cfg
 
-        assert 1 == len(secondary_nic_cfg["addresses"])
-        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
-        assert "10.0.0.231" == secondary_nic_cfg["addresses"][0]
+        assert "ens4" in nic_cfg
+        secondary_cfg = nic_cfg["ens4"]
+        assert secondary_cfg["dhcp4"] is False
+        assert secondary_cfg["dhcp6"] is False
+        assert "00:00:17:02:2b:b1" == secondary_cfg["match"]["macaddress"]
+        assert 9000 == secondary_cfg["mtu"]
+
+        assert 1 == len(secondary_cfg["addresses"])
+        assert "10.0.0.231/24" == secondary_cfg["addresses"][0]
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
@@ -615,41 +648,41 @@ class TestNetworkConfigFiltersNetFailover:
         assert expected_cfg == netcfg
 
 
-def _mock_v2_urls(httpretty):
-    def instance_callback(request, uri, response_headers):
-        print(response_headers)
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_V2_METADATA]
+def _mock_v2_urls(mocked_responses):
+    def instance_callback(response):
+        print(response.url)
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_V2_METADATA]
 
-    def vnics_callback(request, uri, response_headers):
-        assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, response_headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
+    def vnics_callback(response):
+        assert response.headers.get("Authorization") == "Bearer Oracle"
+        return [200, response.headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
 
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
-        body=instance_callback,
+        callback=instance_callback,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add_callback(
+        responses.GET,
         "http://169.254.169.254/opc/v2/vnics/",
-        body=vnics_callback,
+        callback=vnics_callback,
     )
 
 
-def _mock_no_v2_urls(httpretty):
-    httpretty.register_uri(
-        httpretty.GET,
+def _mock_no_v2_urls(mocked_responses):
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v2/instance/",
         status=404,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/instance/",
         body=OPC_V1_METADATA,
     )
-    httpretty.register_uri(
-        httpretty.GET,
+    mocked_responses.add(
+        responses.GET,
         "http://169.254.169.254/opc/v1/vnics/",
         body=OPC_BM_SECONDARY_VNIC_RESPONSE,
     )
@@ -688,9 +721,9 @@ class TestReadOpcMetadata:
         instance_data,
         fetch_vnics,
         vnics_data,
-        httpretty,
+        mocked_responses,
     ):
-        setup_urls(httpretty)
+        setup_urls(mocked_responses)
         metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
 
         assert version == metadata.version
@@ -716,23 +749,48 @@ class TestReadOpcMetadata:
         v1_failure_count,
         expected_body,
         expectation,
-        httpretty,
+        mocked_responses,
     ):
-        v2_responses = [httpretty.Response("", status=404)] * v2_failure_count
-        v2_responses.append(httpretty.Response(OPC_V2_METADATA))
-        v1_responses = [httpretty.Response("", status=404)] * v1_failure_count
-        v1_responses.append(httpretty.Response(OPC_V1_METADATA))
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v2_call_count = 0
 
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v1/instance/",
-            responses=v1_responses,
+        def url_v2_callback(request):
+            nonlocal url_v2_call_count
+            url_v2_call_count += 1
+            if url_v2_call_count <= v2_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v2}",
+                )
+            return 200, request.headers, OPC_V2_METADATA
+
+        url_v2 = "http://169.254.169.254/opc/v2/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v2, callback=url_v2_callback
         )
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v2/instance/",
-            responses=v2_responses,
+
+        # Workaround https://github.com/getsentry/responses/pull/171
+        # This mocking can be unrolled when Bionic is EOL
+        url_v1_call_count = 0
+
+        def url_v1_callback(request):
+            nonlocal url_v1_call_count
+            url_v1_call_count += 1
+            if url_v1_call_count <= v1_failure_count:
+                return (
+                    404,
+                    request.headers,
+                    f"403 Client Error: Forbidden for url: {url_v1}",
+                )
+            return 200, request.headers, OPC_V1_METADATA
+
+        url_v1 = "http://169.254.169.254/opc/v1/instance/"
+        mocked_responses.add_callback(
+            responses.GET, url_v1, callback=url_v1_callback
         )
+
         with expectation:
             assert expected_body == oracle.read_opc_metadata().instance_data
 
@@ -929,6 +987,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
+                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
@@ -971,6 +1030,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
+                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 

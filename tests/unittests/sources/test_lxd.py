@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import json
 import re
 import stat
@@ -13,6 +14,7 @@ import yaml
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.DataSourceLXD import MetaDataKeys
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
@@ -59,6 +61,29 @@ LXD_V1_METADATA_NO_NETWORK_CONFIG = {
         "user.user-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
         "user.vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
     },
+}
+
+DEVICES = {
+    "devices": {
+        "some-disk": {
+            "path": "/path/in/container",
+            "source": "/path/on/host",
+            "type": "disk",
+        },
+        "enp1s0": {
+            "ipv4.address": "10.20.30.40",
+            "name": "eth0",
+            "network": "lxdbr0",
+            "type": "nic",
+        },
+        "root": {"path": "/", "pool": "default", "type": "disk"},
+        "enp1s1": {
+            "ipv4.address": "10.20.30.50",
+            "name": "eth1",
+            "network": "lxdbr0",
+            "type": "nic",
+        },
+    }
 }
 
 
@@ -128,8 +153,10 @@ class TestGenerateFallbackNetworkConfig:
     @mock.patch(DS_PATH + "util.system_info")
     @mock.patch(DS_PATH + "subp.subp")
     @mock.patch(DS_PATH + "subp.which")
+    @mock.patch(DS_PATH + "find_fallback_nic")
     def test_net_v2_based_on_network_mode_virt_type_and_uname_machine(
         self,
+        m_fallback,
         m_which,
         m_subp,
         m_system_info,
@@ -138,11 +165,12 @@ class TestGenerateFallbackNetworkConfig:
         expected,
     ):
         """Return network config v2 based on uname -m, systemd-detect-virt."""
+        m_fallback.return_value = None
         if systemd_detect_virt is None:
             m_which.return_value = None
         m_system_info.return_value = {"uname": ["", "", "", "", uname_machine]}
         m_subp.return_value = (systemd_detect_virt, "")
-        assert expected == lxd.generate_fallback_network_config()
+        assert expected == lxd.generate_network_config()
         if systemd_detect_virt is None:
             assert 0 == m_subp.call_count
             assert 0 == m_system_info.call_count
@@ -154,6 +182,122 @@ class TestGenerateFallbackNetworkConfig:
                 assert 0 == m_system_info.call_count
             else:
                 assert 1 == m_system_info.call_count
+
+
+class TestNetworkConfig:
+    @pytest.fixture(autouse=True)
+    def mocks(self, mocker):
+        mocker.patch(f"{DS_PATH}subp.subp", return_value=("whatever", ""))
+
+    def test_provided_network_config(self, lxd_ds, mocker):
+        def _get_data(self):
+            self._crawled_metadata = copy.deepcopy(DEVICES)
+            self._crawled_metadata["network-config"] = "hi"
+
+        mocker.patch.object(
+            lxd.DataSourceLXD,
+            "_get_data",
+            autospec=True,
+            side_effect=_get_data,
+        )
+        assert lxd_ds.network_config == "hi"
+
+    @pytest.mark.parametrize(
+        "devices_to_remove,expected_config",
+        [
+            pytest.param(
+                # When two nics are presented with no passed network-config,
+                # Never configure more than one device.
+                # Always choose lowest sorted device over higher
+                # Always configure with DHCP
+                [],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="multi-device",
+            ),
+            pytest.param(
+                # When one device is presented, use it
+                ["enp1s0"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="no-eth0",
+            ),
+            pytest.param(
+                # When one device is presented, use it
+                ["enp1s1"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="no-eth1",
+            ),
+            pytest.param(
+                # When no devices are presented, generate fallback
+                ["enp1s0", "enp1s1"],
+                {
+                    "version": 1,
+                    "config": [
+                        {
+                            "name": "eth0",
+                            "subnets": [{"control": "auto", "type": "dhcp"}],
+                            "type": "physical",
+                        }
+                    ],
+                },
+                id="device-list-empty",
+            ),
+        ],
+    )
+    def test_provided_devices(
+        self, devices_to_remove, expected_config, lxd_ds, mocker
+    ):
+        # TODO: The original point of these tests was to ensure that when
+        # presented nics by the LXD devices endpoint, that we setup the correct
+        # device accordingly. Once LXD provides us MAC addresses for these
+        # devices, we can continue this functionality, but these tests have
+        # been modified to ensure that regardless of the number of devices
+        # present, we generate the proper fallback
+        m_fallback = mocker.patch(
+            "cloudinit.sources.DataSourceLXD.find_fallback_nic",
+            return_value=None,
+        )
+        devices = copy.deepcopy(DEVICES)
+        for name in devices_to_remove:
+            del devices["devices"][name]
+
+        def _get_data(self):
+            self._crawled_metadata = devices
+
+        mocker.patch.object(
+            lxd.DataSourceLXD,
+            "_get_data",
+            autospec=True,
+            side_effect=_get_data,
+        )
+        assert lxd_ds.network_config == expected_config
+        assert m_fallback.call_count == 1
 
 
 class TestDataSourceLXD:
@@ -195,9 +339,7 @@ class TestDataSourceLXD:
         """network_config is correctly computed when _network_config is unset
         and _crawled_metadata does not contain network_config.
         """
-        lxd.generate_fallback_network_config = mock.Mock(
-            return_value=NETWORK_V1
-        )
+        lxd.generate_network_config = mock.Mock(return_value=NETWORK_V1)
         assert UNSET == lxd_ds_no_network_config._crawled_metadata
         assert UNSET == lxd_ds_no_network_config._network_config
         assert None is lxd_ds_no_network_config.userdata_raw
@@ -207,7 +349,7 @@ class TestDataSourceLXD:
             LXD_V1_METADATA_NO_NETWORK_CONFIG
             == lxd_ds_no_network_config._crawled_metadata
         )
-        assert 1 == lxd.generate_fallback_network_config.call_count
+        assert 1 == lxd.generate_network_config.call_count
 
 
 class TestIsPlatformViable:
@@ -237,15 +379,16 @@ class TestIsPlatformViable:
 
 class TestReadMetadata:
     @pytest.mark.parametrize(
-        "url_responses,expected,logs",
+        "get_devices,url_responses,expected,logs",
         (
             (  # Assert non-JSON format from config route
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[NOT_JSON",
                 },
                 InvalidMetaDataException(
-                    "Unable to determine cloud-init config from"
+                    "Unable to process LXD config at"
                     " http://lxd/1.0/config. Expected JSON but found:"
                     " [NOT_JSON"
                 ),
@@ -255,6 +398,7 @@ class TestReadMetadata:
                 ],
             ),
             (  # Assert success on just meta-data
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
@@ -269,7 +413,65 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                 ],
             ),
+            (  # Assert success on devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                    "http://lxd/1.0/devices": (
+                        '{"root": {"path": "/", "pool": "default",'
+                        ' "type": "disk"}}'
+                    ),
+                },
+                {
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {},
+                    "meta-data": "local-hostname: md\n",
+                    "devices": {
+                        "root": {
+                            "path": "/",
+                            "pool": "default",
+                            "type": "disk",
+                        }
+                    },
+                },
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
+            (  # Assert 404 on devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                },
+                InvalidMetaDataException(
+                    "Invalid HTTP response [404] from http://lxd/1.0/devices"
+                ),
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
+            (  # Assert non-JSON format from devices
+                True,
+                {
+                    "http://lxd/1.0/meta-data": "local-hostname: md\n",
+                    "http://lxd/1.0/config": "[]",
+                    "http://lxd/1.0/devices": '{"root"',
+                },
+                InvalidMetaDataException(
+                    "Unable to process LXD config at"
+                    ' http://lxd/1.0/devices. Expected JSON but found: {"root"'
+                ),
+                [
+                    "[GET] [HTTP:200] http://lxd/1.0/meta-data",
+                    "[GET] [HTTP:200] http://lxd/1.0/config",
+                ],
+            ),
             (  # Assert 404s for config routes log skipping
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -308,6 +510,7 @@ class TestReadMetadata:
                 ],
             ),
             (  # Assert all CONFIG_KEY_ALIASES promoted to top-level keys
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -348,7 +551,8 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.vendor-data",
                 ],
             ),
-            (  # Assert cloud-init.* config key values prefered over user.*
+            (  # Assert cloud-init.* config key values preferred over user.*
+                False,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": (
@@ -425,7 +629,7 @@ class TestReadMetadata:
     )
     @mock.patch.object(lxd.requests.Session, "get")
     def test_read_metadata_handles_unexpected_content_or_http_status(
-        self, session_get, url_responses, expected, logs, caplog
+        self, m_session_get, get_devices, url_responses, expected, logs, caplog
     ):
         """read_metadata handles valid and invalid content and status codes."""
 
@@ -446,16 +650,48 @@ class TestReadMetadata:
             type(m_resp).text = mock_text
             return m_resp
 
-        session_get.side_effect = fake_get
-
+        m_session_get.side_effect = fake_get
+        metadata_keys = MetaDataKeys.META_DATA | MetaDataKeys.CONFIG
+        if get_devices:
+            metadata_keys |= MetaDataKeys.DEVICES
         if isinstance(expected, Exception):
             with pytest.raises(type(expected), match=re.escape(str(expected))):
-                lxd.read_metadata()
+                lxd.read_metadata(metadata_keys=metadata_keys)
         else:
-            assert expected == lxd.read_metadata()
-        caplogs = caplog.text
+            assert expected == lxd.read_metadata(metadata_keys=metadata_keys)
         for log in logs:
-            assert log in caplogs
+            assert log in caplog.text
+
+    @pytest.mark.parametrize(
+        "metadata_keys, expected_get_urls",
+        [
+            (MetaDataKeys.NONE, []),
+            (MetaDataKeys.META_DATA, ["http://lxd/1.0/meta-data"]),
+            (MetaDataKeys.CONFIG, ["http://lxd/1.0/config"]),
+            (MetaDataKeys.DEVICES, ["http://lxd/1.0/devices"]),
+            (
+                MetaDataKeys.DEVICES | MetaDataKeys.CONFIG,
+                ["http://lxd/1.0/config", "http://lxd/1.0/devices"],
+            ),
+            (
+                MetaDataKeys.ALL,
+                [
+                    "http://lxd/1.0/meta-data",
+                    "http://lxd/1.0/config",
+                    "http://lxd/1.0/devices",
+                ],
+            ),
+        ],
+    )
+    @mock.patch.object(lxd.requests.Session, "get")
+    def test_read_metadata_keys(
+        self, m_session_get, metadata_keys, expected_get_urls
+    ):
+        lxd.read_metadata(metadata_keys=metadata_keys)
+        assert (
+            list(map(mock.call, expected_get_urls))
+            == m_session_get.call_args_list
+        )
 
 
 # vi: ts=4 expandtab

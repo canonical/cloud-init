@@ -5,8 +5,7 @@ from cloudinit import distros, helpers
 from cloudinit import log as logging
 from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
-
-from .networking import BSDNetworking
+from cloudinit.distros.networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
 

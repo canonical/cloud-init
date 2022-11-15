@@ -26,6 +26,7 @@ from cloudinit.atomic_helper import write_json
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
+from cloudinit.helpers import Paths
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
@@ -46,11 +47,6 @@ EXPERIMENTAL_TEXT = (
 )
 
 
-# File in which public available instance meta-data is written
-# security-sensitive key values are redacted from this world-readable file
-INSTANCE_JSON_FILE = "instance-data.json"
-# security-sensitive key values are present in this root-readable file
-INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 
 # Key which can be provide a cloud's official product name to cloud-init
@@ -255,9 +251,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         "security-credentials",
     )
 
+    # True on datasources that may not see hotplugged devices reflected
+    # in the updated metadata
+    skip_hotplug_detect = False
+
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
+    def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -286,6 +286,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, "vendordata2_raw"):
             self.vendordata2_raw = None
+        if not hasattr(self, "skip_hotplug_detect"):
+            self.skip_hotplug_detect = False
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -429,9 +431,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except UnicodeDecodeError as e:
             LOG.warning("Error persisting instance-data.json: %s", str(e))
             return False
-        json_sensitive_file = os.path.join(
-            self.paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-        )
+        json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
         cloud_id = instance_data["v1"].get("cloud_id", "none")
         cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
         util.write_file(f"{cloud_id_file}-{cloud_id}", f"{cloud_id}\n")
@@ -443,7 +443,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if prev_cloud_id_file != cloud_id_file:
             util.del_file(prev_cloud_id_file)
         write_json(json_sensitive_file, processed_data, mode=0o600)
-        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
+        json_file = self.paths.get_runpath("instance_data")
         # World readable
         write_json(json_file, redact_sensitive_keys(processed_data))
         return True

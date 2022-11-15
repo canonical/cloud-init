@@ -6,9 +6,12 @@
 
 """Apt Pipelining: configure apt pipelining."""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -56,7 +59,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     apt_pipe_value = cfg.get("apt_pipelining", "os")
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 

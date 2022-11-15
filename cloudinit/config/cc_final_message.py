@@ -7,9 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Final Message: Output final message when cloud-init has finished"""
 
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import templater, util, version
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
@@ -23,7 +26,12 @@ specified as a jinja template with the following variables set:
     - ``datasource``: cloud-init data source
     - ``uptime``: system uptime
 
-Upon exit, this module writes ``/var/lib/cloud/instance/boot-finished``.
+This message is written to the cloud-init log (usually /var/log/cloud-init.log)
+as well as stderr (which usually redirects to /var/log/cloud-init-output.log).
+
+Upon exit, this module writes the system uptime, timestamp, and cloud-init
+version to ``/var/lib/cloud/instance/boot-finished`` independent of any
+user data specified for this module.
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {
@@ -58,7 +66,9 @@ FINAL_MESSAGE_DEF = (
 )
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     msg_in = ""
     if len(args) != 0:

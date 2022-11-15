@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # vi: ts=4 expandtab
 #
-# Copyright (C) 2021 VMware Inc.
+# Copyright (C) 2021-2022 VMware Inc.
 #
 # Author: Shreenidhi Shedi <yesshedi@gmail.com>
 #
@@ -12,9 +12,8 @@ from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.net import renderer
 from cloudinit.net.network_state import NetworkState
-
-from . import renderer
 
 LOG = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ class Renderer(renderer.Renderer):
             "network_conf_dir", "/etc/systemd/network/"
         )
 
-    def generate_match_section(self, iface, cfg):
+    def generate_match_section(self, iface, cfg: CfgParser):
         sec = "Match"
         match_dict = {
             "name": "Name",
@@ -104,7 +103,7 @@ class Renderer(renderer.Renderer):
 
         return iface["name"]
 
-    def generate_link_section(self, iface, cfg):
+    def generate_link_section(self, iface, cfg: CfgParser):
         sec = "Link"
 
         if not iface:
@@ -113,7 +112,7 @@ class Renderer(renderer.Renderer):
         if "mtu" in iface and iface["mtu"]:
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
 
-    def parse_routes(self, conf, cfg):
+    def parse_routes(self, conf, cfg: CfgParser):
         sec = "Route"
         route_cfg_map = {
             "gateway": "Gateway",
@@ -133,7 +132,7 @@ class Renderer(renderer.Renderer):
                 v += prefix
             cfg.update_section(sec, route_cfg_map[k], v)
 
-    def parse_subnets(self, iface, cfg):
+    def parse_subnets(self, iface, cfg: CfgParser):
         dhcp = "no"
         sec = "Network"
         for e in iface.get("subnets", []):
@@ -175,8 +174,10 @@ class Renderer(renderer.Renderer):
         ):
             cfg.update_section(sec, "IPv6AcceptRA", iface["accept-ra"])
 
+        return dhcp
+
     # This is to accommodate extra keys present in VMware config
-    def dhcp_domain(self, d, cfg):
+    def dhcp_domain(self, d, cfg: CfgParser):
         for item in ["dhcp4domain", "dhcp6domain"]:
             if item not in d:
                 continue
@@ -194,7 +195,7 @@ class Renderer(renderer.Renderer):
                 section = "DHCPv6"
             cfg.update_section(section, "UseDomains", ret)
 
-    def parse_dns(self, iface, cfg, ns):
+    def parse_dns(self, iface, cfg: CfgParser, ns: NetworkState):
         sec = "Network"
 
         dns_cfg_map = {
@@ -215,6 +216,34 @@ class Renderer(renderer.Renderer):
         for k, v in dns_cfg_map.items():
             if k in dns and dns[k]:
                 cfg.update_section(sec, v, " ".join(dns[k]))
+
+    def parse_dhcp_overrides(self, cfg: CfgParser, device, dhcp, version):
+        dhcp_config_maps = {
+            "UseDNS": "use-dns",
+            "UseDomains": "use-domains",
+            "UseHostname": "use-hostname",
+            "UseNTP": "use-ntp",
+        }
+
+        if version == "4":
+            dhcp_config_maps.update(
+                {
+                    "SendHostname": "send-hostname",
+                    "Hostname": "hostname",
+                    "RouteMetric": "route-metric",
+                    "UseMTU": "use-mtu",
+                    "UseRoutes": "use-routes",
+                }
+            )
+
+        if f"dhcp{version}-overrides" in device and dhcp in [
+            "yes",
+            f"ipv{version}",
+        ]:
+            dhcp_overrides = device[f"dhcp{version}-overrides"]
+            for k, v in dhcp_config_maps.items():
+                if v in dhcp_overrides:
+                    cfg.update_section(f"DHCPv{version}", k, dhcp_overrides[v])
 
     def create_network_file(self, link, conf, nwk_dir):
         net_fn_owner = "systemd-network"
@@ -241,14 +270,14 @@ class Renderer(renderer.Renderer):
         for k, v in ret_dict.items():
             self.create_network_file(k, v, network_dir)
 
-    def _render_content(self, ns):
+    def _render_content(self, ns: NetworkState) -> dict:
         ret_dict = {}
         for iface in ns.iter_interfaces():
             cfg = CfgParser()
 
             link = self.generate_match_section(iface, cfg)
             self.generate_link_section(iface, cfg)
-            self.parse_subnets(iface, cfg)
+            dhcp = self.parse_subnets(iface, cfg)
             self.parse_dns(iface, cfg, ns)
 
             for route in ns.iter_routes():
@@ -271,7 +300,25 @@ class Renderer(renderer.Renderer):
                             name = dev_name
                             break
                 if name in ns.config["ethernets"]:
-                    self.dhcp_domain(ns.config["ethernets"][name], cfg)
+                    device = ns.config["ethernets"][name]
+
+                    # dhcp{version}domain are extra keys only present in
+                    # VMware config
+                    self.dhcp_domain(device, cfg)
+                    for version in ["4", "6"]:
+                        if (
+                            f"dhcp{version}domain" in device
+                            and "use-domains"
+                            in device.get(f"dhcp{version}-overrides", {})
+                        ):
+                            exception = (
+                                f"{name} has both dhcp{version}domain"
+                                f" and dhcp{version}-overrides.use-domains"
+                                f" configured. Use one"
+                            )
+                            raise Exception(exception)
+
+                        self.parse_dhcp_overrides(cfg, device, dhcp, version)
 
             ret_dict.update({link: cfg.get_final_conf()})
 
@@ -287,6 +334,6 @@ def available(target=None):
     return True
 
 
-def network_state_to_networkd(ns):
+def network_state_to_networkd(ns: NetworkState):
     renderer = Renderer({})
     return renderer._render_content(ns)

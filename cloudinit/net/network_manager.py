@@ -15,10 +15,8 @@ from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
-from cloudinit.net import is_ipv6_address, subnet_is_ipv6
+from cloudinit.net import is_ipv6_address, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
-
-from . import renderer
 
 NM_RUN_DIR = "/etc/NetworkManager"
 NM_LIB_DIR = "/usr/lib/NetworkManager"

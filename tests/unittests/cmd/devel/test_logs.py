@@ -1,17 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import glob
 import os
 import re
 from datetime import datetime
 from io import StringIO
 
+import pytest
+
 from cloudinit.cmd.devel import logs
-from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.cmd.devel.logs import ApportFile
 from cloudinit.subp import subp
-from cloudinit.util import load_file, write_file
+from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.logs."
+INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 
 
 @mock.patch("cloudinit.cmd.devel.logs.os.getuid")
@@ -81,6 +85,8 @@ class TestCollectLogs:
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
+        mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
+        mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
         logs.collect_logs(output_tarfile, include_userdata=False)
         # unpack the tarfile and check file contents
         subp(["tar", "zxvf", output_tarfile, "-C", str(tmpdir)])
@@ -168,6 +174,8 @@ class TestCollectLogs:
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
+        mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
+        mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
         mocker.patch(M_PATH + "_get_user_data_file", return_value=userdata)
         logs.collect_logs(output_tarfile, include_userdata=True)
         # unpack the tarfile and check file contents
@@ -185,6 +193,95 @@ class TestCollectLogs:
             )
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
+
+
+class TestCollectInstallerLogs:
+    @pytest.mark.parametrize(
+        "include_userdata, apport_files, apport_sensitive_files",
+        (
+            pytest.param(True, [], [], id="no_files_include_userdata"),
+            pytest.param(False, [], [], id="no_files_exclude_userdata"),
+            pytest.param(
+                True,
+                (ApportFile("log1", "Label1"), ApportFile("log2", "Label2")),
+                (
+                    ApportFile("private1", "LabelPrivate1"),
+                    ApportFile("private2", "PrivateLabel2"),
+                ),
+                id="files_and_dirs_include_userdata",
+            ),
+            pytest.param(
+                False,
+                (ApportFile("log1", "Label1"), ApportFile("log2", "Label2")),
+                (
+                    ApportFile("private1", "LabelPrivate1"),
+                    ApportFile("private2", "PrivateLabel2"),
+                ),
+                id="files_and_dirs_exclude_userdata",
+            ),
+        ),
+    )
+    def test_include_installer_logs_when_present(
+        self,
+        include_userdata,
+        apport_files,
+        apport_sensitive_files,
+        tmpdir,
+        mocker,
+    ):
+        src_dir = tmpdir.join("src")
+        ensure_dir(src_dir.strpath)
+        # collect-logs nests full directory path to file in the tarfile
+        destination_dir = tmpdir.join(src_dir)
+
+        # Create tmppath-based userdata_files, installer_logs, installer_dirs
+        expected_files = []
+        # Create last file in list to assert ignoring absent files
+        apport_files = [
+            logs.ApportFile(src_dir.join(apport.path).strpath, apport.label)
+            for apport in apport_files
+        ]
+        if apport_files:
+            write_file(apport_files[-1].path, apport_files[-1].label)
+            expected_files += [
+                destination_dir.join(
+                    os.path.basename(apport_files[-1].path)
+                ).strpath
+            ]
+        apport_sensitive_files = [
+            logs.ApportFile(src_dir.join(apport.path).strpath, apport.label)
+            for apport in apport_sensitive_files
+        ]
+        if apport_sensitive_files:
+            write_file(
+                apport_sensitive_files[-1].path,
+                apport_sensitive_files[-1].label,
+            )
+            if include_userdata:
+                expected_files += [
+                    destination_dir.join(
+                        os.path.basename(apport_sensitive_files[-1].path)
+                    ).strpath
+                ]
+        mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", apport_files)
+        mocker.patch(
+            M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", apport_sensitive_files
+        )
+        logs.collect_installer_logs(
+            log_dir=tmpdir.strpath,
+            include_userdata=include_userdata,
+            verbosity=0,
+        )
+        expect_userdata = bool(include_userdata and apport_sensitive_files)
+        # when subiquity artifacts exist, and userdata set true, expect logs
+        expect_subiquity_logs = any([apport_files, expect_userdata])
+        if expect_subiquity_logs:
+            assert destination_dir.exists(), "Missing subiquity artifact dir"
+            assert sorted(expected_files) == sorted(
+                glob.glob(f"{destination_dir.strpath}/*")
+            )
+        else:
+            assert not destination_dir.exists(), "Unexpected subiquity dir"
 
 
 class TestParser:

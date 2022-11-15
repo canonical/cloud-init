@@ -9,9 +9,12 @@
 """Update Hostname: Update hostname and fqdn"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -79,7 +82,9 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug(
             "Configuration option 'preserve_hostname' is set,"

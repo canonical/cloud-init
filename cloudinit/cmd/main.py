@@ -802,12 +802,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]["errors"])
 
 
-def _maybe_persist_instance_data(init):
+def _maybe_persist_instance_data(init: stages.Init):
     """Write instance-data.json file if absent and datasource is restored."""
-    if init.ds_restored:
-        instance_data_file = os.path.join(
-            init.paths.run_dir, sources.INSTANCE_JSON_FILE
-        )
+    if init.datasource and init.ds_restored:
+        instance_data_file = init.paths.get_runpath("instance_data")
         if not os.path.exists(instance_data_file):
             init.datasource.persist_instance_data(write_cache=False)
 
@@ -919,13 +917,13 @@ def main(sysv_args=None):
         "--name",
         "-n",
         action="store",
-        help="module name to run",
+        help="Module name to run.",
         required=True,
     )
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="Set module frequency.",
+        help="Module frequency for this run.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )
@@ -1092,8 +1090,8 @@ def main(sysv_args=None):
             func=functor,
             args=(name, args),
         )
-        reporting.flush_events()
-        return retval
+    reporting.flush_events()
+    return retval
 
 
 if __name__ == "__main__":

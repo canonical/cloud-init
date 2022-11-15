@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class Ipv4ModeEnum(object):
+class Ipv4ModeEnum:
     """
     The IPv4 configuration mode which directly represents the user's goal.
 

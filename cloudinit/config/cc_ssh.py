@@ -17,6 +17,7 @@ from typing import List, Optional, Sequence
 
 from cloudinit import ssh_util, subp, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -195,7 +196,9 @@ for k in GENERATE_KEY_NAMES:
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
 
-def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):

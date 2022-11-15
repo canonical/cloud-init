@@ -11,9 +11,12 @@ import re
 import time
 
 from cloudinit import subp
-
-from .guestcust_event import GuestCustEventEnum
-from .guestcust_state import GuestCustStateEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_event import (
+    GuestCustEventEnum,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_state import (
+    GuestCustStateEnum,
+)
 
 logger = logging.getLogger(__name__)
 

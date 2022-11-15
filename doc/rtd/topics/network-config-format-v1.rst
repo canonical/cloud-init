@@ -10,7 +10,8 @@ creation (bonds, bridges, vlans) routes and DNS configuration.
 Required elements of a Network Config Version 1 are ``config`` and
 ``version``.
 
-Cloud-init will read this format from system config.
+Cloud-init will read this format from :ref:`base_config_reference`.
+
 For example the following could be present in
 ``/etc/cloud/cloud.cfg.d/custom-networking.cfg``:
 

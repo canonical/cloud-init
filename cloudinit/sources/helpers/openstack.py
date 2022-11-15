@@ -82,7 +82,7 @@ class NonReadable(IOError):
     pass
 
 
-class SourceMixin(object):
+class SourceMixin:
     def _ec2_name_to_device(self, name):
         if not self.ec2_metadata:
             return None

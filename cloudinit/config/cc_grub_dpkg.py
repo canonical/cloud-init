@@ -9,19 +9,21 @@
 """Grub Dpkg: Configure grub debconf installation device"""
 
 import os
+from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import ProcessExecutionError
 
 MODULE_DESCRIPTION = """\
 Configure which device is used as the target for grub installation. This module
-should work correctly by default without any user configuration. It can be
-enabled/disabled using the ``enabled`` config key in the ``grub_dpkg`` config
-dict. The global config key ``grub-dpkg`` is an alias for ``grub_dpkg``. If no
-installation device is specified this module will execute grub-probe to
+can be enabled/disabled using the ``enabled`` config key in the ``grub_dpkg``
+config dict. The global config key ``grub-dpkg`` is an alias for ``grub_dpkg``.
+If no installation device is specified this module will execute grub-probe to
 determine which disk the /boot directory is associated with.
 
 The value which is placed into the debconf database is in the format which the
@@ -115,7 +117,9 @@ def fetch_idevs(log):
     return idevs
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
 
     mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
     if not mycfg:

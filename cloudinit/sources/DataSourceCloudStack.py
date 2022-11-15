@@ -27,7 +27,7 @@ from cloudinit.sources.helpers import ec2
 LOG = logging.getLogger(__name__)
 
 
-class CloudStackPasswordServerClient(object):
+class CloudStackPasswordServerClient:
     """
     Implements password fetching from the CloudStack password server.
 

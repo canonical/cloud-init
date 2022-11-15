@@ -17,6 +17,7 @@ from cloudinit import features
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, Distro, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -190,7 +191,9 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         LOG.debug("Not restarting SSH service: service is stopped.")
 
 
-def handle(_name, cfg: dict, cloud: Cloud, log: Logger, args: list):
+def handle(
+    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+) -> None:
     distro: Distro = cloud.distro
     if args:
         # if run from command line, and give args, wipe the chpasswd['list']

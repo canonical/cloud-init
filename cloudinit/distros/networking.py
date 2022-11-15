@@ -4,6 +4,7 @@ import os
 from typing import List, Optional
 
 from cloudinit import net, subp, util
+from cloudinit.distros.parsers import ifconfig
 
 LOG = logging.getLogger(__name__)
 
@@ -185,17 +186,45 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def __init__(self):
+        self.ifc = ifconfig.Ifconfig()
+        self.ifs = {}
+        self._update_ifs()
+
+    def _update_ifs(self):
+        ifconf = subp.subp(["ifconfig", "-a"])
+        # ``ifconfig -a`` always returns at least ``lo0``.
+        # So this ``if`` is really just to make testing/mocking easier
+        if ifconf[0]:
+            self.ifs = self.ifc.parse(ifconf[0])
+
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
         LOG.debug("Cannot rename network interface.")
 
     def is_physical(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        return self.ifs[devname].is_physical
+
+    def is_bond(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bond
+
+    def is_bridge(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bridge
+
+    def is_vlan(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_vlan
+
+    def is_up(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].up
 
     def settle(self, *, exists=None) -> None:
         """BSD has no equivalent to `udevadm settle`; noop."""
 
     def try_set_link_up(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        """Try setting the link to up explicitly and return if it is up.
+        Not guaranteed to bring the interface up. The caller is expected to
+        add wait times before retrying."""
+        subp.subp(["ifconfig", devname, "up"])
+        return self.is_up(devname)
 
 
 class FreeBSDNetworking(BSDNetworking):
@@ -205,6 +234,30 @@ class FreeBSDNetworking(BSDNetworking):
         #    ifconfig_OLDNAME_name=NEWNAME
         # FreeBSD network script will rename the interface automatically.
         pass
+
+    def is_renamed(self, devname: DeviceName) -> bool:
+        if not self.ifs[devname].is_physical:
+            # Only physical devices can be renamed.
+            # cloned devices can be given any arbitrary name, so it makes no
+            # sense on them anyway
+            return False
+
+        # check that `devinfo -p devname` returns the driver chain:
+        # $ devinfo -p em0
+        # => em0 pci0 pcib0 acpi0 nexus0
+        # if it doesn't, we know something's up:
+        # $ devinfo -p eth0
+        # => devinfo: eth0: Not found
+
+        # we could be catching exit codes here and check if they are 0
+        # (success: not renamed) or 1 (failure: renamed), instead of
+        # ripping thru the stack with an exception.
+        # unfortunately, subp doesn't return exit codes.
+        # so we do the next best thing, and compare the output.
+        _, err = subp.subp(["devinfo", "-p", devname], rcs=[0, 1])
+        if err == "devinfo: {}: Not found\n".format(devname):
+            return True
+        return False
 
 
 class LinuxNetworking(Networking):

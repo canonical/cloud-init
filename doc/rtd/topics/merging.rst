@@ -114,7 +114,7 @@ An example of one of these merging classes is the following:
 
 .. code-block:: python
 
-   class Merger(object):
+   class Merger:
        def __init__(self, merger, opts):
            self._merger = merger
            self._overwrite = 'overwrite' in opts
