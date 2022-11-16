@@ -21,7 +21,7 @@ config:
     mtu: 1470
     name: eno2
     subnets:
-    -   address: fd12:3456:789a:1::1/64 
+    -   address: fd12:3456:789a:1::1/64
         type: static6
     type: physical
 version: 1
