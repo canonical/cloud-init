@@ -70,6 +70,10 @@ Guidelines
     module definition in ``/etc/cloud/cloud.cfg[.d]`` has been modified
     to pass arguments to this module.
 
+* Your module name must be included in `cloud-init-schema.json`_
+  under ``$defs.all_modules``, in order to be accepted as a module key in
+  the :ref:`base config<base_config_reference>`.
+
 * If your module introduces any new cloud-config keys, you must provide a
   schema definition in `cloud-init-schema.json`_.
 * The ``meta`` variable must exist and be of type `MetaSchema`_.
