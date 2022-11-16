@@ -7695,8 +7695,8 @@ class TestGetInterfacesByMac(CiTestCase):
             "bridge1-nic": "aa:aa:aa:aa:aa:03",
             "lo": "00:00:00:00:00:00",
             "greptap0": "00:00:00:00:00:00",
-            "netvsc0-vf": "aa:aa:aa:aa:aa::04",
-            "netvsc0": "aa:aa:aa:aa:aa::04",
+            "netvsc0-vf": "aa:aa:aa:aa:aa:04",
+            "netvsc0": "aa:aa:aa:aa:aa:04",
             "tun0": None,
         },
         "drivers": {
@@ -7771,7 +7771,7 @@ class TestGetInterfacesByMac(CiTestCase):
                 "aa:aa:aa:aa:aa:02": "enp0s2",
                 "aa:aa:aa:aa:aa:03": "bridge1-nic",
                 "00:00:00:00:00:00": "lo",
-                "aa:aa:aa:aa:aa::04": "netvsc0",
+                "aa:aa:aa:aa:aa:04": "netvsc0",
             },
             ret,
         )
