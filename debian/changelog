@@ -17,6 +17,27 @@ cloud-init (22.4-0ubuntu1) lunar; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 15 Nov 2022 14:23:44 -0600
 
+cloud-init (22.3.4-0ubuntu1) kinetic; urgency=medium
+
+  * New upstream bug fix release.
+    + Release 22.3.4 (LP: #1986703)
+    + Fix Oracle DS primary interface when using IMDS (#1757)
+      (LP: #1989686)
+
+ -- Brett Holman <brett.holman@canonical.com>  Fri, 30 Sep 2022 16:07:44 -0600
+
+cloud-init (22.3.3-0ubuntu1~22.10.1) kinetic; urgency=medium
+
+  * New upstream bug fix release.
+    + Release 22.3.3 (LP: #1986703)
+    + Fix Oracle DS not setting subnet when using IMDS (#1735)
+      (LP: #1989686)
+    + azure: define new attribute for pre-22.3 pickles (#1725)
+    + sources/azure: ensure instance id is always correct (#1727)
+      [Chris Patterson]
+
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 19 Sep 2022 13:13:06 -0600
+
 cloud-init (22.3-13-g70ce6442-0ubuntu1~22.10.1) kinetic; urgency=medium
 
   * New upstream snapshot.
