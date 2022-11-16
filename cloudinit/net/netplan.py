@@ -330,11 +330,7 @@ class Renderer(renderer.Renderer):
         for config in network_state.iter_interfaces():
             ifname = config.get("name")
             # filter None (but not False) entries up front
-            ifcfg = dict(
-                (key, value)
-                for (key, value) in config.items()
-                if value is not None
-            )
+            ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
             if_type = ifcfg.get("type")
             if if_type == "physical":

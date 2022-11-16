@@ -6017,8 +6017,8 @@ class TestNetplanNetRendering:
                 """,
                 id="default_generation",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with a physical device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
                 """
                 version: 1
@@ -6053,8 +6053,8 @@ class TestNetplanNetRendering:
                 """,
                 id="physical_gateway46",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with a bond device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
                 """
                 version: 1
@@ -6094,8 +6094,8 @@ class TestNetplanNetRendering:
                 """,
                 id="bond_gateway46",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with a bridge device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
                 """
                 version: 1
@@ -6131,8 +6131,8 @@ class TestNetplanNetRendering:
                 """,
                 id="bridge_gateway46",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with a vlan device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
                 """
                 version: 1
@@ -6167,8 +6167,8 @@ class TestNetplanNetRendering:
                 """,
                 id="vlan_gateway46",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with a nameserver device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
                 """
                 version: 1
@@ -6216,8 +6216,8 @@ class TestNetplanNetRendering:
                 """,
                 id="nameserver_gateway4",
             ),
-            # Asserts a netconf v1 with two gateways does not produce a
-            # deprecated keys, `gateway4` and `gateway6` , in Netplan v2
+            # Asserts a netconf v1 with two subnets with two gateways does
+            # not clash
             pytest.param(
                 """
                 version: 1
@@ -6226,13 +6226,50 @@ class TestNetplanNetRendering:
                     name: interface0
                     mac_address: '00:11:22:33:44:55'
                     subnets:
-                       - type: static
-                         address: 192.168.23.14/24
-                         gateway: 192.168.23.1
-                  - type: route
-                    destination: 192.168.24.0/24
-                    gateway: 192.168.24.1
-                    metric: 3
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 10.184.225.122
+                        routes:
+                          - network: 10.176.0.0
+                            gateway: 10.184.225.121
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      - 10.184.225.122/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.23.1
+                      -   to: 10.176.0.0/24
+                          via: 10.184.225.121
+                      set-name: interface0
+                """,
+                id="two_subnets_old_new_gateway46",
+            ),
+            # Asserts a netconf v1 with one subnet with two gateways does
+            # not clash
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.23.1
+                        routes:
+                          - network: 192.167.225.122
+                            gateway: 192.168.23.1
                 """,
                 """
                 network:
@@ -6246,9 +6283,11 @@ class TestNetplanNetRendering:
                       routes:
                       -   to: default
                           via: 192.168.23.1
+                      -   to: 192.167.225.122/24
+                          via: 192.168.23.1
                       set-name: interface0
                 """,
-                id="route_gateway46",
+                id="one_subnet_old_new_gateway46",
             ),
         ],
     )
