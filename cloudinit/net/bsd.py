@@ -103,7 +103,10 @@ class BSDRenderer(renderer.Renderer):
                         "prefix": subnet.get("prefix"),
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
-                elif subnet.get("type") == "dhcp" or subnet.get("type") == "dhcp4":
+                elif (
+                    subnet.get("type") == "dhcp"
+                    or subnet.get("type") == "dhcp4"
+                ):
                     self.interface_configurations[device_name] = "DHCP"
 
     def _route_entries(self, settings):
@@ -140,7 +143,11 @@ class BSDRenderer(renderer.Renderer):
             if not network:
                 LOG.debug("Skipping a bad route entry")
                 continue
-            netmask = route.get("netmask") if route.get("netmask") else route.get("prefix")
+            netmask = (
+                route.get("netmask")
+                if route.get("netmask")
+                else route.get("prefix")
+            )
             gateway = route.get("gateway")
             self.set_route(network, netmask, gateway)
 
