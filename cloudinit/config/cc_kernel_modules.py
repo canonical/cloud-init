@@ -20,8 +20,8 @@ MODULE_DESCRIPTION = dedent(
 Manages and enhances kernel modules on a systemd based system.
 This module is capable of loading kernel modules at boot as well as
 enhance it with parameters.
-Beside applying settings during runtime it will also persist all 
-settings in ``/etc/modules-load.d`` and ``/etc/modprobe.d``.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+Beside applying settings during runtime it will also persist all
+settings in ``/etc/modules-load.d`` and ``/etc/modprobe.d`.
 """
 )
 
