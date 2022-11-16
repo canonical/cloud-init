@@ -1,3 +1,151 @@
+22.4
+ - test: fix pro integration test [Alberto Contreras]
+ - cc_disk_setup: pass options in correct order to utils (#1829)
+   [dermotbradley]
+ - tests: text_lxd basic_preseed verify_clean_log (#1826)
+ - docs: switch sphinx theme to furo (SC-1327) (#1821) [Alberto Contreras]
+ - tests: activate Ubuntu Pro tests (only on Jenkins) (#1777)
+   [Alberto Contreras]
+ - tests: test_lxd assert features.storage.buckets when present (#1827)
+ - tests: replace missed ansible install-method with underscore (#1825)
+ - tests: replace ansible install-method with underscore
+ - ansible: standardize schema keys
+ - ci: run json tool on 22.04 rather than 20.04 (#1823)
+ - Stop using devices endpoint for LXD network config (#1819)
+ - apport: address new curtin log and config locations (#1812)
+ - cc_grub: reword docs for clarity (#1818)
+ - tests: Fix preseed test (#1820)
+ - Auto-format schema (#1810)
+ - Ansible Control Module (#1778)
+ - Fix last reported event possibly not being sent (#1796) (LP: #1993836)
+ - tests: Ignore unsupported lxd project keys (#1817) [Alberto Contreras]
+ - udevadm settle should handle non-udev system gracefully (#1806)
+   [dermotbradley]
+ - add mariner support (#1780) [Minghe Ren]
+ - Net: add BSD ifconfig(8) parser and state class (#1779) [Mina Galić]
+ - adding itjamie to .github-cla-signers [Jamie (Bear) Murphy]
+ - Fix inconsistency between comment and statement (#1809) [Guillaume Gay]
+ - Update .github-cla-signers (#1811) [Guillaume Gay]
+ - alpine.py: Add Alpine-specific manage_service function and update tests
+   (#1804) [dermotbradley]
+ - test: add 3.12-dev to Travis CI (#1798) [Alberto Contreras]
+ - add NWCS datasource (#1793) [shell-skrimp]
+ - Adding myself as CLA signer (#1799) [s-makin]
+ - apport: fix some data collection failures due to symlinks (#1797)
+   [Dan Bungert]
+ - read-version: Make it compatible with bionic (#1795) [Alberto Contreras]
+ - lxd: add support for lxd preseed config(#1789)
+ - Enable hotplug for LXD datasource (#1787)
+ - cli: collect logs and apport subiquity support
+ - add support for Container-Optimized OS (#1748) [vteratipally]
+ - test: temporarily disable failing integration test (#1792)
+ - Fix LXD/nocloud detection on lxd vm tests (#1791)
+ - util: Implement __str__ and __iter__ for Version (#1790)
+ - cc_ua: consume ua json api for enable commands [Alberto Contreras]
+ - Add clarity to cc_final_message docs (#1788)
+ - cc_ntp: add support for BSDs (#1759) [Mina Galić] (LP: #1990041)
+ - make Makefile make agnostic (#1786) [Mina Galić]
+ - Remove hardcoding and unnecessary overrides in Makefile (#1783)
+   [Joseph Mingrone]
+ - Add my username (Jehops) to .github-cla-signers (#1784) [Joseph Mingrone]
+ - Temporarily remove broken test (#1781)
+ - Create reference documentation for base config
+ - cc_ansible: add support for galaxy install (#1736)
+ - distros/manage_services: add support to disable service (#1772)
+   [Mina Galić] (LP: #1991024)
+ - OpenBSD: remove pkg_cmd_environ function (#1773)
+   [Mina Galić] (LP: 1991567)
+ - docs: Correct typo in the FAQ (#1774) [Maximilian Wörner]
+ - tests: Use LXD metadata to determine NoCloud status (#1776)
+ - analyze: use init-local as start of boot record (#1767) [Chris Patterson]
+ - docs: use opensuse for distro name in package doc (#1771)
+ - doc: clarify packages as dev only (#1769) [Alberto Contreras]
+ - Distro manage service: Improve BSD support (#1758)
+   [Mina Galić] (LP: #1990070)
+ - testing: check logs for critical errors (#1765) [Chris Patterson]
+ - cc_ubuntu_advantage: Handle already attached on Pro [Alberto Contreras]
+ - doc: Add configuration explanation (SC-1169)
+ - Fix Oracle DS primary interface when using IMDS (#1757) (LP: #1989686)
+ - style: prefer absolute imports over relative imports [Mina Galić]
+ - tests: Fix ip log during instance destruction (#1755) [Alberto Contreras]
+ - cc_ubuntu_advantage: add ua_config in auto-attach [Alberto Contreras]
+ - apt configure: sources write/append mode (#1738)
+   [Fabian Lichtenegger-Lukas]
+ - networkd: Add test and improve typing. (#1747) [Alberto Contreras]
+ - pycloudlib: bump commit for gce cpu architecture support (#1750)
+ - commit ffcb29bc8315d1e1d6244eeb1cbd8095958f7bad (LP: #1307667)
+ - testing: workaround LXD vendor data (#1740)
+ - support dhcp{4,6}-overrides in networkd renderer (#1710) [Aidan Obley]
+ - tests: Drop httpretty in favor of responses (#1720) [Alberto Contreras]
+ - cc_ubuntu_advantage: Implement custom auto-attach behaviors (#1583)
+   [Alberto Contreras]
+ - Fix Oracle DS not setting subnet when using IMDS (#1735) (LP: #1989686)
+ - testing: focal lxd datasource discovery (#1734)
+ - cc_ubuntu_advantage: Redact token from logs (#1726) [Alberto Contreras]
+ - docs: make sure echo properly evaluates the string (#1733) [Mina Galić]
+ - net: set dhclient lease and pid files (#1715)
+ - cli: status machine-readable output --format yaml/json (#1663)
+   (LP: #1883122)
+ - tests: Simplify does_not_raise (#1731) [Alberto Contreras]
+ - Refactor: Drop inheritance from object (#1728) [Alberto Contreras]
+ - testing: LXD datasource now supported on Focal (#1732)
+ - Allow jinja templating in /etc/cloud (SC-1170) (#1722) (LP: #1913461)
+ - sources/azure: ensure instance id is always correct (#1727)
+   [Chris Patterson]
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - doc: main page Diátaxis rewording (SC-967) (#1701)
+ - ubuntu advantage: improved idempotency, enable list is now strict
+   [Fabian Lichtenegger-Lukas]
+ - test: bump pycloudlib (#1724) [Alberto Contreras]
+ - cloud.cfg.tmpl: make sure "centos" settings are identical to "rhel"
+   (#1639) [Emanuele Giuseppe Esposito]
+ - lxd: fetch 1.0/devices content (#1712) [Alberto Contreras]
+ - Update docs according to ad8f406a (#1719)
+ - testing: Port unittests/analyze to pytest (#1708) [Alberto Contreras]
+ - doc: Fix rtd builds. (#1718) [Alberto Contreras]
+ - testing: fully mock noexec calls (#1717) [Alberto Contreras]
+ - typing: Add types to cc_<module>.handle (#1700) [Alberto Contreras]
+ - Identify 3DS Outscale Datasource as Ec2 (#1686) [Maxime Dufour]
+ - config: enable bootstrapping pip in ansible (#1707)
+ - Fix cc_chef typing issue (#1716)
+ - Refactor instance json files to use Paths (SC-1238) (#1709)
+ - tools: read-version check GITHUB_REF and git branch --show-current
+   (#1677)
+ - net: Ensure a tmp with exec permissions for dhcp (#1690)
+   [Alberto Contreras] (LP: #1962343)
+ - testing: Fix test regression in test_combined (#1713) [Alberto Contreras]
+ - Identify Huawei Cloud as OpenStack (#1689) [huang xinjie]
+ - doc: add reporting suggestion to FAQ (SC-1236) (#1698)
+
+22.3.4
+ - Fix Oracle DS primary interface when using IMDS (LP: #1989686)
+
+22.3.3
+ - Fix Oracle DS not setting subnet when using IMDS (LP: #1989686)
+
+22.3.2
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - sources/azure: ensure instance id is always correct (#1727)
+
+22.3.1
+ - Fix v2 interface matching when no MAC (LP: #1986551)
+ - test: reduce number of network dependencies in flaky test (#1702)
+ - docs: publish cc_ubuntu_autoinstall docs to rtd (#1696)
+ - net: Fix EphemeraIPNetwork (#1697) [Alberto Contreras]
+ - test: make ansible test work across older versions (#1691)
+ - Networkd multi-address support/fix (#1685) [Teodor Garzdin]
+ - make: drop broken targets (#1688)
+ - net: Passthough v2 netconfigs in netplan systems (#1650)
+   [Alberto Contreras] (LP: #1978543)
+ - NM ipv6 connection does not work on Azure and Openstack (#1616)              
+   [Emanuele Giuseppe Esposito]                                                 
+ - Fix check_format_tip (#1679) [Alberto Contreras]                             
+ - DataSourceVMware: fix var use before init (#1674)                            
+   [Andrew Kutz] (LP: #1987005)                                                 
+ - rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)            
+ - test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo        
+   (#1676) 
+
 22.3
  - sources: obj.pkl cache should be written anyime get_data is run (#1669)
  - schema: drop release number from version file (#1664)
@@ -3015,7 +3163,7 @@
  - support network rendering to sysconfig (for centos and RHEL)
  - write_files: if no permissions are given, just use default without warn.
  - user_data: fix error when user-data is not utf-8 decodable (LP: #1532072)
- - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk] 
+ - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk]
 
 0.7.6:
  - open 0.7.6
@@ -3140,7 +3288,7 @@
    filesystems.  Useful if attached disks are not formatted (LP: #1218506)
  - Fix usage of libselinux-python when selinux is disabled. [Garrett Holmstrom]
  - multi_log: only write to /dev/console if it exists [Garrett Holmstrom]
- - config/cloud.cfg: add 'sudo' to list groups for the default user 
+ - config/cloud.cfg: add 'sudo' to list groups for the default user
    (LP: #1228228)
  - documentation fix for use of 'mkpasswd' [Eric Nordlund]
  - respect /etc/growroot-disabled file (LP: #1234331)
@@ -3206,7 +3354,7 @@
    can be more useful.
 
 0.7.1:
- - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
+ - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6
  - config-drive: map hostname to local-hostname (LP: #1061964)
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
@@ -3255,14 +3403,14 @@
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
- - utilize the 'exception_cb' above to modify the oauth timestamp in 
+ - utilize the 'exception_cb' above to modify the oauth timestamp in
    DataSourceMAAS requests if a 401 or 403 is received. (LP: #978127)
  - catch signals and exit rather than stack tracing
  - if logging fails, enable a fallback logger by patching the logging module
  - do not 'start networking' in cloud-init-nonet, but add
    cloud-init-container job that runs only if in container and emits
    net-device-added (LP: #1031065)
- - search only top level dns for 'instance-data' in 
+ - search only top level dns for 'instance-data' in
    DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
@@ -3300,10 +3448,10 @@
      reduces reuse and limits future functionality, and makes testing harder)
  - removal of global config that defined paths, shared config, now this is
    via objects making unit testing testing and global side-effects a non issue
- - creation of a 'helpers.py' 
-   - this contains an abstraction for the 'lock' like objects that the various 
-     module/handler running stages use to avoid re-running a given 
-     module/handler for a given frequency. this makes it separated from 
+ - creation of a 'helpers.py'
+   - this contains an abstraction for the 'lock' like objects that the various
+     module/handler running stages use to avoid re-running a given
+     module/handler for a given frequency. this makes it separated from
      the actual usage of that object (thus helpful for testing and clear lines
      usage and how the actual job is accomplished)
      - a common 'runner' class is the main entrypoint using these locks to
@@ -3312,11 +3460,11 @@
    - add in a 'paths' object that provides access to the previously global
      and/or config based paths (thus providing a single entrypoint object/type
      that provides path information)
-       - this also adds in the ability to change the path when constructing 
-       that path 'object' and adding in additional config that can be used to 
+       - this also adds in the ability to change the path when constructing
+       that path 'object' and adding in additional config that can be used to
        alter the root paths of 'joins' (useful for testing or possibly useful
        in chroots?)
-        - config options now avaiable that can alter the 'write_root' and the 
+        - config options now avaiable that can alter the 'write_root' and the
          'read_root' when backing code uses the paths join() function
    - add a config parser subclass that will automatically add unknown sections
      and return default values (instead of throwing exceptions for these cases)
@@ -3340,7 +3488,7 @@
    the passed in logger (its still passed in)
    - ensure that all places where exception are caught and where applicable
      that the util logexc() is called, so that no exceptions that may occur
-     are dropped without first being logged (where it makes sense for this 
+     are dropped without first being logged (where it makes sense for this
      to happen)
  - add a 'requires' file that lists cloud-init dependencies
    - applying it in package creation (bdeb and brpm) as well as using it
@@ -3352,12 +3500,12 @@
    subp() utility method, which now has an exception type that will provide
    detailed information on python 2.6 and 2.7
  - forced all code loading, moving, chmod, writing files and other system
-   level actions to go through standard set of util functions, this greatly 
+   level actions to go through standard set of util functions, this greatly
    helps in debugging and determining exactly which system actions cloud-init
    is performing
  - adjust url fetching and url trying to go through a single function that
    reads urls in the new 'url helper' file, this helps in tracing, debugging
-   and knowing which urls are being called and/or posted to from with-in 
+   and knowing which urls are being called and/or posted to from with-in
    cloud-init code
    - add in the sending of a 'User-Agent' header for all urls fetched that
      do not provide there own header mapping, derive this user-agent from
@@ -3367,7 +3515,7 @@
    and defined output that should be easier to parse than a custom format
  - add a set of distro specific classes, that handle distro specific actions
    that modules and or handler code can use as needed, this is organized into
-   a base abstract class with child classes that implement the shared 
+   a base abstract class with child classes that implement the shared
    functionality. config determines exactly which subclass to load, so it can
    be easily extended as needed.
    - current functionality
@@ -3379,16 +3527,16 @@
       - interface up/down activating
    - implemented a debian + ubuntu subclass
    - implemented a redhat + fedora subclass
- - adjust the root 'cloud.cfg' file to now have distrobution/path specific 
+ - adjust the root 'cloud.cfg' file to now have distrobution/path specific
    configuration values in it. these special configs are merged as the normal
    config is, but the system level config is not passed into modules/handlers
    - modules/handlers must go through the path and distro object instead
- - have the cloudstack datasource test the url before calling into boto to 
+ - have the cloudstack datasource test the url before calling into boto to
    avoid the long wait for boto to finish retrying and finally fail when
    the gateway meta-data address is unavailable
  - add a simple mock ec2 meta-data python based http server that can serve a
    very simple set of ec2 meta-data back to callers
-      - useful for testing or for understanding what the ec2 meta-data 
+      - useful for testing or for understanding what the ec2 meta-data
         service can provide in terms of data or functionality
  - for ssh key and authorized key file parsing add in classes and util
    functions that maintain the state of individual lines, allowing for a
@@ -3422,7 +3570,7 @@
    - use 'is None' instead of the frowned upon '== None' which picks up a large
      set of 'true' cases than is typically desired (ie for objects that have
      there own equality)
-   - use context managers on locks, tempdir, chdir, file, selinux, umask, 
+   - use context managers on locks, tempdir, chdir, file, selinux, umask,
      unmounting commands so that these actions do not have to be closed and/or
      cleaned up manually in finally blocks, which is typically not done and
      will eventually be a bug in the future
@@ -3446,7 +3594,7 @@
  - place the rfc 8222 time formatting and uptime repeated pieces of code in the
    util module as a set of function with the name 'time_rfc2822'/'uptime'
  - separate the pylint+pep8 calling from one tool into two indivudal tools so
-   that they can be called independently, add make file sections that can be 
+   that they can be called independently, add make file sections that can be
    used to call these independently
  - remove the support for the old style config that was previously located in
    '/etc/ec2-init/ec2-config.cfg', no longer supported!
@@ -3457,12 +3605,12 @@
  - use the new defaulting config parser (that will not raise errors on sections
    that do not exist or return errors when values are fetched that do not
    exist) in the 'puppet' module
- - for config 'modules' add in the ability for the module to provide a list of 
+ - for config 'modules' add in the ability for the module to provide a list of
    distro names which it is known to work with, if when ran and the distro
    being used name does not match one of those in this list, a warning will be
    written out saying that this module may not work correctly on this
    distrobution
- - for all dynamically imported modules ensure that they are fixed up before 
+ - for all dynamically imported modules ensure that they are fixed up before
    they are used by ensuring that they have certain attributes, if they do not
    have those attributes they will be set to a sensible set of defaults instead
  - adjust all 'config' modules and handlers to use the adjusted util functions
@@ -3490,7 +3638,7 @@
  - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
  - DataSourceEc2: more resilliant to slow metadata service
    - config change: 'retries' dropped, 'max_wait' added, timeout increased
- - close stdin in all cloud-init programs that are launched at boot 
+ - close stdin in all cloud-init programs that are launched at boot
    (LP: #903993)
  - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
  - write full ssh keys to console for easy machine consumption (LP: #893400)
@@ -3502,7 +3650,7 @@
    in the payload parameter. (LP: #874342)
  - add test case framework [Mike Milner] (LP: #890851)
  - fix pylint warnings [Juerg Haefliger] (LP: #914739)
- - add support for adding and deleting CA Certificates [Mike Milner] 
+ - add support for adding and deleting CA Certificates [Mike Milner]
    (LP: #915232)
  - in ci-info lines, use '.' to indicate empty field for easier machine reading
  - support empty lines in "#include" files (LP: #923043)
@@ -3516,17 +3664,17 @@
  - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS)
    (LP: #942061)
  - DataSourceCloudStack: add support for CloudStack datasource [Cosmin Luta]
- - add option 'apt_pipelining' to address issue with S3 mirrors 
+ - add option 'apt_pipelining' to address issue with S3 mirrors
    (LP: #948461) [Ben Howard]
  - warn on non-multipart, non-handled user-data [Martin Packman]
  - run resizefs in the background in order to not block boot (LP: #961226)
  - Fix bug in Chef support where validation_key was present in config, but
    'validation_cert' was not (LP: #960547)
- - Provide user friendly message when an invalid locale is set 
+ - Provide user friendly message when an invalid locale is set
    [Ben Howard] (LP: #859814)
  - Support reading cloud-config from kernel command line parameter and
    populating local file with it, which can then provide data for DataSources
- - improve chef examples for working configurations on 11.10 and 12.04 
+ - improve chef examples for working configurations on 11.10 and 12.04
    [Lorin Hochstein] (LP: #960564)
 
 0.6.2:
@@ -3575,7 +3723,7 @@
    This was done by changing all users of util.subp to have None input unless
    specified
  - Add some debug info to the console when cloud-init runs.
-   This is useful if debugging, IP and route information is printed to the 
+   This is useful if debugging, IP and route information is printed to the
    console.
  - change the mechanism for handling .ssh/authorized_keys, to update entries
    rather than appending.  This ensures that the authorized_keys that are
@@ -3637,7 +3785,7 @@
  - moved upstart/cloud-run-user-script.conf to upstart/cloud-final.conf
  - cloud-final.conf now runs runs cloud-config modules similar
    to cloud-config and cloud-init.
- - LP: #653271 
+ - LP: #653271
    - added writing of "boot-finished" to /var/lib/cloud/instance/boot-finished
      this is the last thing done, indicating cloud-init is finished booting
    - writes message to console with timestamp and uptime
@@ -3660,6 +3808,6 @@
  - add support for reading Rightscale style user data (LP: #668400)
    and acting on it in cloud-config (cc_rightscale_userdata.py)
  - make the message on 'disable_root' more clear (LP: #672417)
- - do not require public key if private is given in ssh cloud-config 
+ - do not require public key if private is given in ssh cloud-config
    (LP: #648905)
 # vi: syntax=text textwidth=79
