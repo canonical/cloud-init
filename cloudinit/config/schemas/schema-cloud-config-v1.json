@@ -27,6 +27,7 @@
         "grub_dpkg",
         "install-hotplug",
         "install_hotplug",
+        "kernel_modules",
         "keyboard",
         "keys-to-console",
         "keys_to_console",
