@@ -102,7 +102,6 @@ Having trouble? We would like to help!
    topics/docs.rst
    topics/testing.rst
    topics/integration_tests.rst
- 
 .. LINKS
 .. _Code of conduct: https://ubuntu.com/community/code-of-conduct
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
