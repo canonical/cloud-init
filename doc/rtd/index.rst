@@ -108,5 +108,5 @@ Having trouble? We would like to help!
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
 .. _Contribute on Github: https://cloudinit.readthedocs.io/en/latest/topics/contributing.html
-.. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-2022-release-schedule/25413
+.. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
 .. _Report bugs on Launchpad: https://bugs.launchpad.net/cloud-init/+filebug
