@@ -4,8 +4,8 @@ cloud-init Documentation
 ########################
 
 Cloud-init is the *industry standard* multi-distribution method for
-cross-platform cloud instance initialization. It is supported across all major 
-public cloud providers, provisioning systems for private cloud infrastructure, 
+cross-platform cloud instance initialization. It is supported across all major
+public cloud providers, provisioning systems for private cloud infrastructure,
 and bare-metal installations.
 
 During boot, cloud-init identifies the cloud it is running on and initializes
@@ -102,7 +102,7 @@ Having trouble? We would like to help!
    topics/docs.rst
    topics/testing.rst
    topics/integration_tests.rst
-   
+ 
 .. LINKS
 .. _Code of conduct: https://ubuntu.com/community/code-of-conduct
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
