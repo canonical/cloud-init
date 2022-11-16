@@ -7,12 +7,89 @@ This datasource is for use with systems running on a VMware platform such as
 vSphere and currently supports the following data transports:
 
 
+* `Guest OS Customization <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-58E346FF-83AE-42B8-BE58-253641D257BC.html>`_
 * `GuestInfo <https://github.com/vmware/govmomi/blob/master/govc/USAGE.md>`_ keys
 
 Configuration
 -------------
 
 The configuration method is dependent upon the transport:
+
+Guest OS Customization
+^^^^^^^^^^^^^^^^^^^^^^
+
+The following configuration can be set for this datasource in cloud-init
+configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
+
+System configuration:
+
+``disable_vmware_customization``:
+true(disable) or false(enable) the vmware traditional Linux guest customization. Traditional Linux guest customization is customizing a Linux virtual machine with a `traditional Linux customization specification <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E>`_. Also set this configuration to false is required to make sure this datasource is found in ds-identify when using guest os customization transport. (default: true)
+
+Datasource configuration:
+
+``allow_raw_data``:
+true(enable) or false(disable) the vmware customization using cloud-init
+metadata and userdata directly. Since vSphere 7.0 Update 3 version, user
+can create a Linux customizatino specification with barely cloud-init
+metadata and userdata and apply this kind specification to a virtual
+machine, this datasource will parse the metadata and userdata and
+configure virtual machine with them. See `Guest Customization Using
+cloud-init <https://developer.vmware.com/docs/17020/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html>`_ (default: true)
+
+``vmware_cust_file_max_wait``:
+The maximum amount of clock time in seconds that should be spent waiting
+for vmware customization files. (default: 15)
+
+Configuration examples:
+
+1. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
+   below content will enable vmware customization, and set the maximum time of
+   waiting for vmware customization file to 10 seconds:
+
+.. code-block:: yaml
+
+   disable_vmware_customization: false
+   datasource:
+     VMware:
+       vmware_cust_file_max_wait: 10
+
+2. Create a file /etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg with
+   below content will enable vmware customization, but only try to apply a
+   traditional Linux guest customization configuration, and set the maximum time of
+   waiting for vmware customization file to 10 seconds:
+
+.. code-block:: yaml
+
+   disable_vmware_customization: false
+   datasource:
+     VMware:
+       allow_raw_data: false
+       vmware_cust_file_max_wait: 10
+
+VMware Tools configuration:
+
+`VMware Tools <https://docs.vmware.com/en/VMware-Tools/index.html>`_ is required for this datasource configuration
+settings as well as vCloud and vSphere admin configuration. User could change
+the VMware Tools configuration options with command:
+
+.. code-block:: shell
+
+    vmware-toolbox-cmd config set <section> <key> <value>
+
+The following VMware Tools configuration option affects this datasource's
+behavior when applying customization configuration with custom script:
+
+``[deploypkg] enable-custom-scripts``:
+
+If this option is absent in VMware Tools configuration, the custom script is
+disabled by default for security reasons. Some VMware products could change
+this default behavior (for example: enabled by default) via customization
+specification settings.
+
+VMware admin can refer to `customization configuration <https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py>`_ and set the customization specification settings.
+
+For more information, see `VMware vSphere Product Documentation <https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E>`_ and specific VMware Tools configuration options.
 
 GuestInfo Keys
 ^^^^^^^^^^^^^^
@@ -45,8 +122,7 @@ All ``guestinfo.*.encoding`` values may be set to ``base64`` or
 Features
 --------
 
-This section reviews several features available in this datasource, regardless
-of how the meta, user, and vendor data was discovered.
+This section reviews several features available in this datasource.
 
 Instance data and lazy networks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -132,8 +208,8 @@ The above command will result in output similar to the below JSON:
    }
 
 
-Redacting sensitive information
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Redacting sensitive information (GuestInfo keys transport only)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes the cloud-init userdata might contain sensitive information, and it
 may be desirable to have the ``guestinfo.userdata`` key (or other guestinfo
@@ -202,11 +278,11 @@ If either of the above values are true, then the datasource will sleep for a
 second, check the network status, and repeat until one or both addresses from
 the specified families are available.
 
-Walkthrough
------------
+Walkthrough of GuestInfo Transport
+---------------------------------------
 
 The following series of steps is a demonstration on how to configure a VM with
-this datasource:
+this datasource using GuestInfo keys transport:
 
 
 #. Create the metadata file for the VM. Save the following YAML to a file named
