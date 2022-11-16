@@ -6,7 +6,7 @@ import re
 from array import array
 from logging import Logger
 from textwrap import dedent
-from typing import Dict, List, Union
+from typing import List
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -54,11 +54,7 @@ LOG = logging.getLogger(__name__)
 NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
-DefaultConfigType = Dict[
-    str, Union[Dict[str, List[str]], Dict[str, Dict[str, Union[str, int]]]]
-]
-
-DEFAULT_CONFIG: DefaultConfigType = {
+DEFAULT_CONFIG: dict = {
     "km_cmd": {
         "update": ["update-initramfs", "-u", "-k", "all"],
         "unload": ["rmmod"],
