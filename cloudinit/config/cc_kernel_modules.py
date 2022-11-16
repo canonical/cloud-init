@@ -17,6 +17,11 @@ from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = dedent(
     """\
+Manages and enhances kernel modules on a systemd based system.
+This module is capable of loading kernel modules at boot as well as
+enhance it with parameters.
+Beside applying settings during runtime it will also persist all 
+settings in ``/etc/modules-load.d`` and ``/etc/modprobe.d``.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 """
 )
 
@@ -25,7 +30,7 @@ DISTROS = ["debian", "ubuntu"]
 meta: MetaSchema = {
     "id": "cc_kernel_modules",
     "name": "Kernel Modules",
-    "title": "Module to load/blacklist/enhance kernel modules",
+    "title": "Manage and enhance kernel modules",
     "description": MODULE_DESCRIPTION,
     "distros": DISTROS,
     "frequency": PER_INSTANCE,
