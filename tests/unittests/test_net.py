@@ -7683,6 +7683,8 @@ class TestGetInterfacesByMac(CiTestCase):
             "bridge1",
             "bond1.101",
             "lo",
+            "netvsc0-vf",
+            "netvsc0",
         ],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
@@ -7693,13 +7695,22 @@ class TestGetInterfacesByMac(CiTestCase):
             "bridge1-nic": "aa:aa:aa:aa:aa:03",
             "lo": "00:00:00:00:00:00",
             "greptap0": "00:00:00:00:00:00",
+            "netvsc0-vf": "aa:aa:aa:aa:aa::04",
+            "netvsc0": "aa:aa:aa:aa:aa::04",
             "tun0": None,
+        },
+        "drivers": {
+            "netvsc0": "hv_netvsc",
+            "netvsc0-vf": "foo",
         },
     }
     data: dict = {}
 
     def _se_get_devicelist(self):
         return list(self.data["devices"])
+
+    def _se_device_driver(self, name):
+        return self.data["drivers"].get(name, None)
 
     def _se_get_interface_mac(self, name):
         return self.data["macs"][name]
@@ -7722,6 +7733,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["devices"] = set(list(self.data["macs"].keys()))
         mocks = (
             "get_devicelist",
+            "device_driver",
             "get_interface_mac",
             "is_bridge",
             "interface_has_own_mac",
@@ -7759,6 +7771,7 @@ class TestGetInterfacesByMac(CiTestCase):
                 "aa:aa:aa:aa:aa:02": "enp0s2",
                 "aa:aa:aa:aa:aa:03": "bridge1-nic",
                 "00:00:00:00:00:00": "lo",
+                "aa:aa:aa:aa:aa::04": "netvsc0",
             },
             ret,
         )

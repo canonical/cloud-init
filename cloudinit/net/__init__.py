@@ -1000,15 +1000,32 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret: dict = {}
+    driver_map: dict = {}
     for name, mac, _driver, _devid in get_interfaces(
         blacklist_drivers=blacklist_drivers
     ):
         if mac in ret:
-            raise RuntimeError(
-                "duplicate mac found! both '%s' and '%s' have mac '%s'"
-                % (name, ret[mac], mac)
-            )
+            raise_error = True
+            # Hyper-V netvsc driver will register a VF with the same mac
+            #
+            # The VF will be enslaved to the master nic shortly after
+            # registration. If cloud-init starts enumerating the interfaces
+            # before the completion of the enslaving process, it will see
+            # two different nics with duplicate mac. Cloud-init should ignore
+            # the slave nic (which does not have hv_netvsc driver).
+            if _driver != driver_map[mac]:
+                if driver_map[mac] == "hv_netvsc":
+                    continue
+                if _driver == "hv_netvsc":
+                    raise_error = False
+
+            if raise_error:
+                raise RuntimeError(
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                    % (name, ret[mac], mac)
+                )
         ret[mac] = name
+        driver_map[mac] = _driver
 
         # Pretend that an Infiniband GUID is an ethernet address for Openstack
         # configuration purposes
