@@ -7685,6 +7685,8 @@ class TestGetInterfacesByMac(CiTestCase):
             "lo",
             "netvsc0-vf",
             "netvsc0",
+            "netvsc1",
+            "netvsc1-vf",
         ],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
@@ -7697,11 +7699,15 @@ class TestGetInterfacesByMac(CiTestCase):
             "greptap0": "00:00:00:00:00:00",
             "netvsc0-vf": "aa:aa:aa:aa:aa:04",
             "netvsc0": "aa:aa:aa:aa:aa:04",
+            "netvsc1-vf": "aa:aa:aa:aa:aa:05",
+            "netvsc1": "aa:aa:aa:aa:aa:05",
             "tun0": None,
         },
         "drivers": {
             "netvsc0": "hv_netvsc",
             "netvsc0-vf": "foo",
+            "netvsc1": "hv_netvsc",
+            "netvsc1-vf": "bar",
         },
     }
     data: dict = {}
@@ -7753,6 +7759,11 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["macs"]["bridge1-nic"] = self.data["macs"]["enp0s1"]
         self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
 
+    def test_raise_exception_on_duplicate_netvsc_macs(self):
+        self._mock_setup()
+        self.data["macs"]["netvsc0"] = self.data["macs"]["netvsc1"]
+        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+
     def test_excludes_any_without_mac_address(self):
         self._mock_setup()
         ret = net.get_interfaces_by_mac()
@@ -7772,6 +7783,7 @@ class TestGetInterfacesByMac(CiTestCase):
                 "aa:aa:aa:aa:aa:03": "bridge1-nic",
                 "00:00:00:00:00:00": "lo",
                 "aa:aa:aa:aa:aa:04": "netvsc0",
+                "aa:aa:aa:aa:aa:05": "netvsc1",
             },
             ret,
         )
