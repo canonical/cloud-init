@@ -83,6 +83,16 @@ NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
 }
 
 
+def warn_deprecated_all_devices(dikt: dict) -> None:
+    """Warn about deprecations of v2 properties for all devices"""
+    if "gateway4" in dikt or "gateway6" in dikt:
+        LOG.warning(
+            "DEPRECATED: The use of `gateway4` and `gateway6` is"
+            " deprecated. For more info check out: "
+            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html"  # noqa: E501
+        )
+
+
 def from_state_file(state_file):
     state = util.read_conf(state_file)
     nsi = NetworkStateInterpreter()
@@ -750,6 +760,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
 
+            warn_deprecated_all_devices(cfg)
+
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
                 phy_cmd.update({"subnets": subnets})
@@ -784,6 +796,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             }
             if "mtu" in cfg:
                 vlan_cmd["mtu"] = cfg["mtu"]
+            warn_deprecated_all_devices(cfg)
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
                 vlan_cmd.update({"subnets": subnets})
@@ -852,6 +865,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             }
             if "mtu" in item_cfg:
                 v1_cmd["mtu"] = item_cfg["mtu"]
+
+            warn_deprecated_all_devices(item_cfg)
             subnets = self._v2_to_v1_ipcfg(item_cfg)
             if len(subnets) > 0:
                 v1_cmd.update({"subnets": subnets})

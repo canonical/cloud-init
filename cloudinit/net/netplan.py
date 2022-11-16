@@ -43,10 +43,10 @@ def _get_params_dict_by_match(config, match):
     )
 
 
-def _extract_addresses(config, entry, ifname, features=None):
+def _extract_addresses(config: dict, entry: dict, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
-       netplan yaml.
+       netplan yaml. (config v1 -> netplan)
 
     An example config dictionary might look like:
 
@@ -81,8 +81,10 @@ def _extract_addresses(config, entry, ifname, features=None):
     """
 
     def _listify(obj, token=" "):
-        "Helper to convert strings to list of strings, handle single string"
-        if not obj or type(obj) not in [str]:
+        """
+        Helper to convert strings to list of strings, handle single string
+        """
+        if not obj or not isinstance(obj, str):
             return obj
         if token in obj:
             return obj.split(token)
@@ -112,12 +114,12 @@ def _extract_addresses(config, entry, ifname, features=None):
             addr = "%s" % subnet.get("address")
             if "prefix" in subnet:
                 addr += "/%d" % subnet.get("prefix")
-            if "gateway" in subnet and subnet.get("gateway"):
-                gateway = subnet.get("gateway")
-                if ":" in gateway:
-                    entry.update({"gateway6": gateway})
-                else:
-                    entry.update({"gateway4": gateway})
+            if subnet.get("gateway"):
+                new_route = {
+                    "via": subnet.get("gateway"),
+                    "to": "default",
+                }
+                routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
             if "dns_search" in subnet:
@@ -302,7 +304,7 @@ class Renderer(renderer.Renderer):
                 "successfully for all devices."
             ) from last_exception
 
-    def _render_content(self, network_state: NetworkState):
+    def _render_content(self, network_state: NetworkState) -> str:
 
         # if content already in netplan format, pass it back
         if network_state.version == 2:
@@ -328,11 +330,7 @@ class Renderer(renderer.Renderer):
         for config in network_state.iter_interfaces():
             ifname = config.get("name")
             # filter None (but not False) entries up front
-            ifcfg = dict(
-                (key, value)
-                for (key, value) in config.items()
-                if value is not None
-            )
+            ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
             if_type = ifcfg.get("type")
             if if_type == "physical":
