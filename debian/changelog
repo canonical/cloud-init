@@ -1,3 +1,12 @@
+cloud-init (22.4-0ubuntu3) lunar; urgency=medium
+
+  * d/changelog: Sync released d/changelog entries
+    - 22.3.4-0ubuntu1 and 22.3.3-0ubuntu1~22.10.1
+  * Changelog: Sync release entries in Changlog:
+    - 22.3.1, 22.3.2, 22.3.3 and 22.3.4
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 15 Nov 2022 19:08:24 -0700
+
 cloud-init (22.4-0ubuntu2) lunar; urgency=medium
 
   * d/changelog: account for closed bugs released in 22.4-0ubuntu1
