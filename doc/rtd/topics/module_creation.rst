@@ -70,12 +70,12 @@ Guidelines
     module definition in ``/etc/cloud/cloud.cfg[.d]`` has been modified
     to pass arguments to this module.
 
-* Your module name must be included in `cloud-init-schema.json`_
+* Your module name must be included in `schema-cloud-config.json`_
   under ``$defs.all_modules``, in order to be accepted as a module key in
   the :ref:`base config<base_config_reference>`.
 
 * If your module introduces any new cloud-config keys, you must provide a
-  schema definition in `cloud-init-schema.json`_.
+  schema definition in `schema-cloud-config.json`_.
 * The ``meta`` variable must exist and be of type `MetaSchema`_.
 
   * ``id``: The module id. In most cases this will be the filename without
@@ -125,7 +125,7 @@ in the ``cloud_final_modules`` section before the ``final-message`` module.
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58
 .. _OSFAMILIES: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/distros/__init__.py#L35
 .. _settings.py: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/settings.py#L66
-.. _cloud-init-schema.json: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/schemas/versions.schema.cloud-config.json
+.. _schema-cloud-config.json: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/schemas/schema-cloud-config-v1.json
 .. _cloud.cfg.tmpl: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl
 .. _cloud_init_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L70
 .. _cloud_config_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L101
