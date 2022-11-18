@@ -35,7 +35,7 @@ date. A 5 year timeline may also be expected for changed keys.
 .. automodule:: cloudinit.config.cc_growpart
 .. automodule:: cloudinit.config.cc_grub_dpkg
 .. automodule:: cloudinit.config.cc_install_hotplug
-.. automodule:: cloudinit.config.cc_kernel_modules    
+.. automodule:: cloudinit.config.cc_kernel_modules
 .. automodule:: cloudinit.config.cc_keyboard
 .. automodule:: cloudinit.config.cc_keys_to_console
 .. automodule:: cloudinit.config.cc_landscape
