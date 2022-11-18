@@ -1608,6 +1608,11 @@ VALID_CFG = {
         "ds": "VMware",
         "mocks": [
             MOCK_VIRT_IS_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 0,
+                "out": "/usr/bin/vmware-rpctool",
+            },
         ],
         "files": {
             # Setup vmware customization enabled
