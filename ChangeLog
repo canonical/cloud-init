@@ -3163,7 +3163,7 @@
  - support network rendering to sysconfig (for centos and RHEL)
  - write_files: if no permissions are given, just use default without warn.
  - user_data: fix error when user-data is not utf-8 decodable (LP: #1532072)
- - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk] 
+ - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk]
 
 0.7.6:
  - open 0.7.6
@@ -3288,7 +3288,7 @@
    filesystems.  Useful if attached disks are not formatted (LP: #1218506)
  - Fix usage of libselinux-python when selinux is disabled. [Garrett Holmstrom]
  - multi_log: only write to /dev/console if it exists [Garrett Holmstrom]
- - config/cloud.cfg: add 'sudo' to list groups for the default user 
+ - config/cloud.cfg: add 'sudo' to list groups for the default user
    (LP: #1228228)
  - documentation fix for use of 'mkpasswd' [Eric Nordlund]
  - respect /etc/growroot-disabled file (LP: #1234331)
@@ -3354,7 +3354,7 @@
    can be more useful.
 
 0.7.1:
- - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
+ - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6
  - config-drive: map hostname to local-hostname (LP: #1061964)
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
@@ -3403,14 +3403,14 @@
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
- - utilize the 'exception_cb' above to modify the oauth timestamp in 
+ - utilize the 'exception_cb' above to modify the oauth timestamp in
    DataSourceMAAS requests if a 401 or 403 is received. (LP: #978127)
  - catch signals and exit rather than stack tracing
  - if logging fails, enable a fallback logger by patching the logging module
  - do not 'start networking' in cloud-init-nonet, but add
    cloud-init-container job that runs only if in container and emits
    net-device-added (LP: #1031065)
- - search only top level dns for 'instance-data' in 
+ - search only top level dns for 'instance-data' in
    DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
@@ -3448,10 +3448,10 @@
      reduces reuse and limits future functionality, and makes testing harder)
  - removal of global config that defined paths, shared config, now this is
    via objects making unit testing testing and global side-effects a non issue
- - creation of a 'helpers.py' 
-   - this contains an abstraction for the 'lock' like objects that the various 
-     module/handler running stages use to avoid re-running a given 
-     module/handler for a given frequency. this makes it separated from 
+ - creation of a 'helpers.py'
+   - this contains an abstraction for the 'lock' like objects that the various
+     module/handler running stages use to avoid re-running a given
+     module/handler for a given frequency. this makes it separated from
      the actual usage of that object (thus helpful for testing and clear lines
      usage and how the actual job is accomplished)
      - a common 'runner' class is the main entrypoint using these locks to
@@ -3460,11 +3460,11 @@
    - add in a 'paths' object that provides access to the previously global
      and/or config based paths (thus providing a single entrypoint object/type
      that provides path information)
-       - this also adds in the ability to change the path when constructing 
-       that path 'object' and adding in additional config that can be used to 
+       - this also adds in the ability to change the path when constructing
+       that path 'object' and adding in additional config that can be used to
        alter the root paths of 'joins' (useful for testing or possibly useful
        in chroots?)
-        - config options now avaiable that can alter the 'write_root' and the 
+        - config options now avaiable that can alter the 'write_root' and the
          'read_root' when backing code uses the paths join() function
    - add a config parser subclass that will automatically add unknown sections
      and return default values (instead of throwing exceptions for these cases)
@@ -3488,7 +3488,7 @@
    the passed in logger (its still passed in)
    - ensure that all places where exception are caught and where applicable
      that the util logexc() is called, so that no exceptions that may occur
-     are dropped without first being logged (where it makes sense for this 
+     are dropped without first being logged (where it makes sense for this
      to happen)
  - add a 'requires' file that lists cloud-init dependencies
    - applying it in package creation (bdeb and brpm) as well as using it
@@ -3500,12 +3500,12 @@
    subp() utility method, which now has an exception type that will provide
    detailed information on python 2.6 and 2.7
  - forced all code loading, moving, chmod, writing files and other system
-   level actions to go through standard set of util functions, this greatly 
+   level actions to go through standard set of util functions, this greatly
    helps in debugging and determining exactly which system actions cloud-init
    is performing
  - adjust url fetching and url trying to go through a single function that
    reads urls in the new 'url helper' file, this helps in tracing, debugging
-   and knowing which urls are being called and/or posted to from with-in 
+   and knowing which urls are being called and/or posted to from with-in
    cloud-init code
    - add in the sending of a 'User-Agent' header for all urls fetched that
      do not provide there own header mapping, derive this user-agent from
@@ -3515,7 +3515,7 @@
    and defined output that should be easier to parse than a custom format
  - add a set of distro specific classes, that handle distro specific actions
    that modules and or handler code can use as needed, this is organized into
-   a base abstract class with child classes that implement the shared 
+   a base abstract class with child classes that implement the shared
    functionality. config determines exactly which subclass to load, so it can
    be easily extended as needed.
    - current functionality
@@ -3527,16 +3527,16 @@
       - interface up/down activating
    - implemented a debian + ubuntu subclass
    - implemented a redhat + fedora subclass
- - adjust the root 'cloud.cfg' file to now have distrobution/path specific 
+ - adjust the root 'cloud.cfg' file to now have distrobution/path specific
    configuration values in it. these special configs are merged as the normal
    config is, but the system level config is not passed into modules/handlers
    - modules/handlers must go through the path and distro object instead
- - have the cloudstack datasource test the url before calling into boto to 
+ - have the cloudstack datasource test the url before calling into boto to
    avoid the long wait for boto to finish retrying and finally fail when
    the gateway meta-data address is unavailable
  - add a simple mock ec2 meta-data python based http server that can serve a
    very simple set of ec2 meta-data back to callers
-      - useful for testing or for understanding what the ec2 meta-data 
+      - useful for testing or for understanding what the ec2 meta-data
         service can provide in terms of data or functionality
  - for ssh key and authorized key file parsing add in classes and util
    functions that maintain the state of individual lines, allowing for a
@@ -3570,7 +3570,7 @@
    - use 'is None' instead of the frowned upon '== None' which picks up a large
      set of 'true' cases than is typically desired (ie for objects that have
      there own equality)
-   - use context managers on locks, tempdir, chdir, file, selinux, umask, 
+   - use context managers on locks, tempdir, chdir, file, selinux, umask,
      unmounting commands so that these actions do not have to be closed and/or
      cleaned up manually in finally blocks, which is typically not done and
      will eventually be a bug in the future
@@ -3594,7 +3594,7 @@
  - place the rfc 8222 time formatting and uptime repeated pieces of code in the
    util module as a set of function with the name 'time_rfc2822'/'uptime'
  - separate the pylint+pep8 calling from one tool into two indivudal tools so
-   that they can be called independently, add make file sections that can be 
+   that they can be called independently, add make file sections that can be
    used to call these independently
  - remove the support for the old style config that was previously located in
    '/etc/ec2-init/ec2-config.cfg', no longer supported!
@@ -3605,12 +3605,12 @@
  - use the new defaulting config parser (that will not raise errors on sections
    that do not exist or return errors when values are fetched that do not
    exist) in the 'puppet' module
- - for config 'modules' add in the ability for the module to provide a list of 
+ - for config 'modules' add in the ability for the module to provide a list of
    distro names which it is known to work with, if when ran and the distro
    being used name does not match one of those in this list, a warning will be
    written out saying that this module may not work correctly on this
    distrobution
- - for all dynamically imported modules ensure that they are fixed up before 
+ - for all dynamically imported modules ensure that they are fixed up before
    they are used by ensuring that they have certain attributes, if they do not
    have those attributes they will be set to a sensible set of defaults instead
  - adjust all 'config' modules and handlers to use the adjusted util functions
@@ -3638,7 +3638,7 @@
  - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
  - DataSourceEc2: more resilliant to slow metadata service
    - config change: 'retries' dropped, 'max_wait' added, timeout increased
- - close stdin in all cloud-init programs that are launched at boot 
+ - close stdin in all cloud-init programs that are launched at boot
    (LP: #903993)
  - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
  - write full ssh keys to console for easy machine consumption (LP: #893400)
@@ -3650,7 +3650,7 @@
    in the payload parameter. (LP: #874342)
  - add test case framework [Mike Milner] (LP: #890851)
  - fix pylint warnings [Juerg Haefliger] (LP: #914739)
- - add support for adding and deleting CA Certificates [Mike Milner] 
+ - add support for adding and deleting CA Certificates [Mike Milner]
    (LP: #915232)
  - in ci-info lines, use '.' to indicate empty field for easier machine reading
  - support empty lines in "#include" files (LP: #923043)
@@ -3664,17 +3664,17 @@
  - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS)
    (LP: #942061)
  - DataSourceCloudStack: add support for CloudStack datasource [Cosmin Luta]
- - add option 'apt_pipelining' to address issue with S3 mirrors 
+ - add option 'apt_pipelining' to address issue with S3 mirrors
    (LP: #948461) [Ben Howard]
  - warn on non-multipart, non-handled user-data [Martin Packman]
  - run resizefs in the background in order to not block boot (LP: #961226)
  - Fix bug in Chef support where validation_key was present in config, but
    'validation_cert' was not (LP: #960547)
- - Provide user friendly message when an invalid locale is set 
+ - Provide user friendly message when an invalid locale is set
    [Ben Howard] (LP: #859814)
  - Support reading cloud-config from kernel command line parameter and
    populating local file with it, which can then provide data for DataSources
- - improve chef examples for working configurations on 11.10 and 12.04 
+ - improve chef examples for working configurations on 11.10 and 12.04
    [Lorin Hochstein] (LP: #960564)
 
 0.6.2:
@@ -3723,7 +3723,7 @@
    This was done by changing all users of util.subp to have None input unless
    specified
  - Add some debug info to the console when cloud-init runs.
-   This is useful if debugging, IP and route information is printed to the 
+   This is useful if debugging, IP and route information is printed to the
    console.
  - change the mechanism for handling .ssh/authorized_keys, to update entries
    rather than appending.  This ensures that the authorized_keys that are
@@ -3785,7 +3785,7 @@
  - moved upstart/cloud-run-user-script.conf to upstart/cloud-final.conf
  - cloud-final.conf now runs runs cloud-config modules similar
    to cloud-config and cloud-init.
- - LP: #653271 
+ - LP: #653271
    - added writing of "boot-finished" to /var/lib/cloud/instance/boot-finished
      this is the last thing done, indicating cloud-init is finished booting
    - writes message to console with timestamp and uptime
@@ -3808,6 +3808,6 @@
  - add support for reading Rightscale style user data (LP: #668400)
    and acting on it in cloud-config (cc_rightscale_userdata.py)
  - make the message on 'disable_root' more clear (LP: #672417)
- - do not require public key if private is given in ssh cloud-config 
+ - do not require public key if private is given in ssh cloud-config
    (LP: #648905)
 # vi: syntax=text textwidth=79
