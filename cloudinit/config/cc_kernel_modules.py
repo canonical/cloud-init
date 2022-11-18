@@ -19,9 +19,9 @@ MODULE_DESCRIPTION = dedent(
     """\
 Manages and enhances kernel modules on a systemd based system.
 This module is capable of loading kernel modules at boot as well as
-enhance it with parameters.
+enhancing it with parameters.
 Beside applying settings during runtime it will also persist all
-settings in ``/etc/modules-load.d`` and ``/etc/modprobe.d`.
+settings in ``/etc/modules-load.d`` and ``/etc/modprobe.d``.
 """
 )
 
@@ -193,11 +193,11 @@ def prepare_module(module_name: str):
 
 
 def enhance_module(module_name: str, persist: dict, unload_modules: list):
-    """Enhances a kernel modules behavior
+    """Enhances a kernel module's behaviour
 
     This function appends specific settings and options
-    for a kernel module, which will be applied when kernel
-    module get's loaded.
+    for a kernel module, which will be applied when the kernel
+    module gets loaded.
 
     @param module_name: string.
     @param persist: Dictionary
@@ -236,7 +236,7 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
 def cleanup():
     """Clean up all kernel specific files
 
-    This function removes all files, which are
+    This function removes all files that are
     responsible for loading and enhancing kernel modules.
 
     @raises RuntimeError when remove operation fails
@@ -256,7 +256,7 @@ def cleanup():
 def reload_modules(cloud: Cloud):
     """Reload kernel modules
 
-    This function reload modules in /etc/modules-load.d/cloud-init.conf
+    This function reloads modules in /etc/modules-load.d/cloud-init.conf
     with 'systemd-modules-load' service.
 
     @raises RuntimeError
