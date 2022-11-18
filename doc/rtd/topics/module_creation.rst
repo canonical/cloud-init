@@ -74,6 +74,8 @@ Guidelines
   under ``$defs.all_modules``, in order to be accepted as a module key in
   the :ref:`base config<base_config_reference>`.
 
+* Add the new module to `Module Reference`_.
+
 * If your module introduces any new cloud-config keys, you must provide a
   schema definition in `schema-cloud-config.json`_.
 * The ``meta`` variable must exist and be of type `MetaSchema`_.
@@ -130,3 +132,4 @@ in the ``cloud_final_modules`` section before the ``final-message`` module.
 .. _cloud_init_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L70
 .. _cloud_config_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L101
 .. _cloud_final_modules: https://github.com/canonical/cloud-init/blob/b4746b6aed7660510071395e70b2d6233fbdc3ab/config/cloud.cfg.tmpl#L144
+.. _Module Reference: https://github.com/canonical/cloud-init/blob/main/doc/rtd/topics/modules.rst
