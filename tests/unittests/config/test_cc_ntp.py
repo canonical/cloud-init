@@ -830,6 +830,17 @@ class TestNTPSchema:
                 "ntp.pools: 123 is not of type 'array'.*"
                 "ntp.servers: 'non-array' is not of type 'array'",
             ),
+            (
+                {
+                    "ntp": {
+                        "peers": [123],
+                        "allow": ["www.example.com", None],
+                    }
+                },
+                "Cloud config schema errors: "
+                "ntp.allow.1: None is not of type 'string',*"
+                ", ntp.peers.0: 123 is not of type 'string'",
+            ),
         ),
     )
     @skipUnlessJsonSchema()
