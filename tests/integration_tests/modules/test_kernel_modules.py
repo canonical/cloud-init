@@ -37,42 +37,49 @@ def load_kernel_modules_lxd(instance: LXDInstance):
     )
 
 
-@pytest.mark.user_data(USER_DATA)
 @pytest.mark.ci
-@pytest.mark.lxd_vm
+@pytest.mark.user_data(USER_DATA)
 @pytest.mark.ubuntu
-class TestKernelModules:
+class BaseTest:
     @pytest.mark.parametrize(
         "cmd,expected_out",
         (
-            # check permissions
-            (
+            pytest.param(
                 "stat -c '%U %a' /etc/modules-load.d/50-cloud-init.conf",
                 r"root 600",
+                id="check-permissions",
             ),
-            (
+            pytest.param(
                 "stat -c '%U %a' /etc/modprobe.d/50-cloud-init.conf",
                 r"root 600",
+                id="check-permissions-2",
             ),
-            # ASCII check
-            ("file /etc/modules-load.d/50-cloud-init.conf", ASCII_TEXT),
-            ("file /etc/modprobe.d/50-cloud-init.conf", ASCII_TEXT),
-            # check loaded modules
-            (
+            pytest.param(
+                "file /etc/modules-load.d/50-cloud-init.conf",
+                ASCII_TEXT,
+                id="ASCII-check",
+            ),
+            pytest.param(
+                "file /etc/modprobe.d/50-cloud-init.conf",
+                ASCII_TEXT,
+                id="ASCII-check-2",
+            ),
+            pytest.param(
                 "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
                 "3",
+                id="check-loaded-modules",
             ),
-            # sha256sum check modul
-            (
+            pytest.param(
                 "sha256sum </etc/modules-load.d/50-cloud-init.conf",
                 "9d14d5d585dd3e5e9a3c414b5b7af7ed"
                 "9d44e7ee3584652fbf388cad455b5053",
+                id="sha256sum-check-modules",
             ),
-            # sha256sum check modprobe
-            (
+            pytest.param(
                 "sha256sum   </etc/modprobe.d/50-cloud-init.conf",
                 "229ccc941ec34fc8c49bf14285ffeb65"
                 "ea2796c4840f9377d6df76bda42c878e",
+                id="sha256sum-check-modprobe",
             ),
         ),
     )
@@ -88,53 +95,12 @@ class TestKernelModules:
         verify_clean_log(log)
 
 
-@pytest.mark.ci
+@pytest.mark.no_container
+class TestKernelModules(BaseTest):
+    pass
+
+
 @pytest.mark.lxd_container
-@pytest.mark.user_data(USER_DATA)
 @pytest.mark.lxd_setup.with_args(load_kernel_modules_lxd)
-@pytest.mark.ubuntu
-class TestKernelModulesWithoutKmod:
-    @pytest.mark.parametrize(
-        "cmd,expected_out",
-        (
-            # check permissions
-            (
-                "stat -c '%U %a' /etc/modules-load.d/50-cloud-init.conf",
-                r"root 600",
-            ),
-            (
-                "stat -c '%U %a' /etc/modprobe.d/50-cloud-init.conf",
-                r"root 600",
-            ),
-            # ASCII check
-            ("file /etc/modules-load.d/50-cloud-init.conf", ASCII_TEXT),
-            ("file /etc/modprobe.d/50-cloud-init.conf", ASCII_TEXT),
-            # check loaded modules
-            (
-                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
-                "3",
-            ),
-            # sha256sum check modul
-            (
-                "sha256sum </etc/modules-load.d/50-cloud-init.conf",
-                "9d14d5d585dd3e5e9a3c414b5b7af7ed"
-                "9d44e7ee3584652fbf388cad455b5053",
-            ),
-            # sha256sum check modprobe
-            (
-                "sha256sum   </etc/modprobe.d/50-cloud-init.conf",
-                "229ccc941ec34fc8c49bf14285ffeb65"
-                "ea2796c4840f9377d6df76bda42c878e",
-            ),
-        ),
-    )
-    def test_kernel_modules(
-        self, cmd, expected_out, class_client: IntegrationInstance
-    ):
-        result = class_client.execute(cmd)
-        assert result.ok
-        assert expected_out in result.stdout
-
-    def test_clean_log(self, class_client: IntegrationInstance):
-        log = class_client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+class TestKernelModulesWithoutKmod(BaseTest):
+    pass
