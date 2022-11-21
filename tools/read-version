@@ -55,13 +55,17 @@ use_tags = "--tags" in sys.argv or os.environ.get("CI_RV_TAGS")
 output_json = "--json" in sys.argv
 
 src_version = ci_version.version_string()
+# upstream/MM.NN.x tracks our patch level releases so ignore trailing '.x'
+major_minor_version = ".".join(src_version.split(".")[:2])
 version_long = ""
 
 # If we're performing CI for a new release branch (which our tooling creates
 # with an "upstream/" prefix), then we don't want to enforce strict version
 # matching because we know it will fail.
 github_ci_release_br = bool(
-    os.environ.get("GITHUB_HEAD_REF", "").startswith(f"upstream/{src_version}")
+    os.environ.get("GITHUB_HEAD_REF", "").startswith(
+        f"upstream/{major_minor_version}"
+    )
 )
 travis_ci_release_br = bool(
     os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith("upstream/")
@@ -72,7 +76,7 @@ if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
     # This cmd can be simplified to ["git", "branch", "--show-current"]
     # after bionic EOL.
     branch_name = tiny_p(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
-    if branch_name.startswith(f"upstream/{src_version}"):
+    if branch_name.startswith(f"upstream/{major_minor_version}"):
         version = src_version
         version_long = ""
     else:
