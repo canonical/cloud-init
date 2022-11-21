@@ -28,7 +28,7 @@ class CfgParser:
                 "DHCPv4": [],
                 "DHCPv6": [],
                 "Address": [],
-                "Route": [],
+                "Route": {},
             }
         )
 
@@ -40,6 +40,18 @@ class CfgParser:
                 self.conf_dict[k] = list(dict.fromkeys(self.conf_dict[k]))
                 self.conf_dict[k].sort()
 
+    def update_route_section(self, sec, rid, key, val):
+        for k in self.conf_dict.keys():
+            if k == sec:
+                if rid not in self.conf_dict[k]:
+                    self.conf_dict[k][rid] = []
+                self.conf_dict[k][rid].append(key + "=" + str(val))
+                # remove duplicates from list
+                self.conf_dict[k][rid] = list(
+                    dict.fromkeys(self.conf_dict[k][rid])
+                )
+                self.conf_dict[k][rid].sort()
+
     def get_final_conf(self):
         contents = ""
         for k, v in sorted(self.conf_dict.items()):
@@ -50,6 +62,12 @@ class CfgParser:
                     contents += "[" + k + "]\n"
                     contents += e + "\n"
                     contents += "\n"
+            elif k == "Route":
+                for n in sorted(v):
+                    contents += "[" + k + "]\n"
+                    for e in sorted(v[n]):
+                        contents += e + "\n"
+                        contents += "\n"
             else:
                 contents += "[" + k + "]\n"
                 for e in sorted(v):
@@ -112,7 +130,7 @@ class Renderer(renderer.Renderer):
         if "mtu" in iface and iface["mtu"]:
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
 
-    def parse_routes(self, conf, cfg: CfgParser):
+    def parse_routes(self, rid, conf, cfg: CfgParser):
         sec = "Route"
         route_cfg_map = {
             "gateway": "Gateway",
@@ -130,11 +148,12 @@ class Renderer(renderer.Renderer):
                 continue
             if k == "network":
                 v += prefix
-            cfg.update_section(sec, route_cfg_map[k], v)
+            cfg.update_route_section(sec, rid, route_cfg_map[k], v)
 
     def parse_subnets(self, iface, cfg: CfgParser):
         dhcp = "no"
         sec = "Network"
+        rid = 0
         for e in iface.get("subnets", []):
             t = e["type"]
             if t == "dhcp4" or t == "dhcp":
@@ -149,7 +168,8 @@ class Renderer(renderer.Renderer):
                     dhcp = "yes"
             if "routes" in e and e["routes"]:
                 for i in e["routes"]:
-                    self.parse_routes(i, cfg)
+                    self.parse_routes(f"r{rid}", i, cfg)
+                    rid = rid + 1
             if "address" in e:
                 subnet_cfg_map = {
                     "address": "Address",
@@ -163,7 +183,10 @@ class Renderer(renderer.Renderer):
                             v += "/" + str(e["prefix"])
                         cfg.update_section("Address", subnet_cfg_map[k], v)
                     elif k == "gateway":
-                        cfg.update_section("Route", subnet_cfg_map[k], v)
+                        cfg.update_route_section(
+                            "Route", f"a{rid}", subnet_cfg_map[k], v
+                        )
+                        rid = rid + 1
                     elif k == "dns_nameservers" or k == "dns_search":
                         cfg.update_section(sec, subnet_cfg_map[k], " ".join(v))
 
@@ -280,8 +303,10 @@ class Renderer(renderer.Renderer):
             dhcp = self.parse_subnets(iface, cfg)
             self.parse_dns(iface, cfg, ns)
 
+            rid = 0
             for route in ns.iter_routes():
-                self.parse_routes(route, cfg)
+                self.parse_routes(f"c{rid}", route, cfg)
+                rid = rid + 1
 
             if ns.version == 2:
                 name: Optional[str] = iface["name"]

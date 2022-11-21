@@ -195,6 +195,8 @@ Domains=rgrunbla.github.beta.tailscale.net
 
 [Route]
 Gateway=10.0.0.1
+
+[Route]
 Gateway=2a01:4f8:10a:19d2::2
 
 """
