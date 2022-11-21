@@ -1,3 +1,9 @@
+22.4.1
+ - net: skip duplicate mac check for netvsc nic and its VF (#1853)
+   [Anh Vo] (LP: #1844191)
+ - ChangeLog: whitespace cleanup (#1850)
+ - changelog: capture 22.3.1-4 releases
+
 22.4
  - test: fix pro integration test [Alberto Contreras]
  - cc_disk_setup: pass options in correct order to utils (#1829)

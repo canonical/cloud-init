@@ -73,7 +73,13 @@ def in_virtualenv():
 def get_version():
     cmd = [sys.executable, "tools/read-version"]
     ver = subprocess.check_output(cmd)
-    return ver.decode("utf-8").strip()
+    version = ver.decode("utf-8").strip()
+    # read-version can spit out something like 22.4-15-g7f97aee24
+    # which is invalid under PEP440. If we replace the first - with a +
+    # that should give us a valid version.
+    if "-" in version:
+        version = version.replace("-", "+", 1)
+    return version
 
 
 def read_requires():
