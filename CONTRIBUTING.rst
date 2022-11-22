@@ -20,7 +20,7 @@ Before any pull request can be accepted, you must do the following:
   to track CLA signatures:
   `tools/.github-cla-signers`_
 * Add or update any :ref:`unit tests<testing>` accordingly
-* Add or update any :ref:`integration tests` (if applicable)
+* Add or update any :ref:`integration_tests` (if applicable)
 * Format code (using black and isort) with `tox -e do_format`
 * Ensure unit tests and linting pass using `tox`_
 * Submit a PR against the `main` branch of the `cloud-init` repository
@@ -76,7 +76,7 @@ Follow these steps to submit your first pull request to cloud-init:
     git remote add upstream git@github.com:canonical/cloud-init.git
     git push origin main
 
-* Read through the cloud-init `Code Review Process`_, so you understand
+* Read through the cloud-init :ref:`Code Review Process<code_review_process>`, so you understand
   how your changes will end up in cloud-init's codebase.
 
 * Submit your first cloud-init pull request, adding your Github username to the
@@ -181,7 +181,7 @@ Do these things for each feature or bug
   - Click 'Create Pull Request`
 
 Then, a cloud-init committer will review your changes and
-follow up in the pull request.  Look at the :ref:`Code Review Process<code-review-process>` doc
+follow up in the pull request.  Look at the :ref:`Code Review Process<code_review_process>` doc
 to understand the following steps.
 
 Feel free to ping and/or join ``#cloud-init`` on Libera irc if you
