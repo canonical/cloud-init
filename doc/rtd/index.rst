@@ -1,6 +1,6 @@
 .. _index:
 
-cloud-init Documentation
+cloud-init documentation
 ########################
 
 Cloud-init is the *industry standard* multi-distribution method for
@@ -28,7 +28,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
 * Read our `Code of conduct`_
 * Ask questions in the ``#cloud-init`` `IRC channel on Libera`_
 * Join the `cloud-init mailing list`_
-* `Contribute on Github`_
+* :ref:`Contribute on Github<contributing>`
 * `Release schedule`_
 
 Having trouble? We would like to help!
@@ -107,6 +107,5 @@ Having trouble? We would like to help!
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
-.. _Contribute on Github: https://cloudinit.readthedocs.io/en/latest/topics/contributing.html
 .. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
 .. _Report bugs on Launchpad: https://bugs.launchpad.net/cloud-init/+filebug

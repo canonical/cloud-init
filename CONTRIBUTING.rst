@@ -1,3 +1,5 @@
+.. _contributing:
+
 Contributing to cloud-init
 **************************
 
@@ -17,14 +19,11 @@ Before any pull request can be accepted, you must do the following:
 * Add your Github username (alphabetically) to the in-repository list that we use
   to track CLA signatures:
   `tools/.github-cla-signers`_
-* Add or update any `unit tests`_ accordingly
-* Add or update any `integration tests`_ (if applicable)
+* Add or update any :ref:`unit tests<testing>` accordingly
+* Add or update any :ref:`integration tests` (if applicable)
 * Format code (using black and isort) with `tox -e do_format`
 * Ensure unit tests and linting pass using `tox`_
 * Submit a PR against the `main` branch of the `cloud-init` repository
-
-.. _unit tests: https://cloudinit.readthedocs.io/en/latest/topics/testing.html
-.. _integration tests: https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
 
 The detailed instructions
 -------------------------
@@ -182,14 +181,13 @@ Do these things for each feature or bug
   - Click 'Create Pull Request`
 
 Then, a cloud-init committer will review your changes and
-follow up in the pull request.  Look at the `Code Review Process`_ doc
+follow up in the pull request.  Look at the :ref:`Code Review Process<code-review-process>` doc
 to understand the following steps.
 
 Feel free to ping and/or join ``#cloud-init`` on Libera irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
-.. _Code Review Process: https://cloudinit.readthedocs.io/en/latest/topics/code_review.html
 
 Design
 ======

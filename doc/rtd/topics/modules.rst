@@ -37,6 +37,9 @@ Module Reference
 .. automodule:: cloudinit.config.cc_rh_subscription
 .. automodule:: cloudinit.config.cc_rightscale_userdata
 .. automodule:: cloudinit.config.cc_rsyslog
+
+.. _mod-runcmd:
+
 .. automodule:: cloudinit.config.cc_runcmd
 .. automodule:: cloudinit.config.cc_salt_minion
 .. automodule:: cloudinit.config.cc_scripts_per_boot

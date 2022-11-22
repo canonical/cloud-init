@@ -1,3 +1,5 @@
+.. _code-review-process:
+
 *******************
 Code Review Process
 *******************

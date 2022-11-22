@@ -48,7 +48,7 @@ following file on your local filesystem at ``/tmp/my-user-data``:
 
 Here we are defining our cloud-init user data in the
 :ref:`cloud-config<topics/format:Cloud Config Data>` format, using the
-`runcmd`_ module to define a command to run. When applied, it
+:ref:`runcmd module <mod-runcmd>` to define a command to run. When applied, it
 should write ``Hello, World!`` to ``/var/tmp/hello-world.txt``.
 
 Launch a container with our user data
@@ -128,8 +128,8 @@ and we can remove the container using:
 What's next?
 ============
 
-In this tutorial, we used the runcmd_ module to execute a shell command.
-The full list of modules available can be found in
+In this tutorial, we used the :ref:`runcmd module <mod-runcmd>` to execute a
+shell command. The full list of modules available can be found in
 :ref:`modules documentation<modules>`.
 Each module contains examples of how to use it.
 
@@ -138,4 +138,3 @@ examples of more common use cases.
 
 .. _LXD: https://linuxcontainers.org/lxd/
 .. _other installation options: https://linuxcontainers.org/lxd/getting-started-cli/#other-installation-options
-.. _runcmd: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#runcmd
