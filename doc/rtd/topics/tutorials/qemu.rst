@@ -40,7 +40,7 @@ Create the following file ``user-data``.
 
     $ cat << EOF > user-data
     #cloud-config
-    password: passw0rd
+    password: password
     chpasswd:
       expire: False
 
@@ -63,7 +63,7 @@ Create the following file on your local filesystem at ``meta-data``.
 Define our vendor data
 ======================
 
-Not necessary, but faster (retry wait time).
+Not necessary, but faster as it avoids retry wait time looking for it.
 
 .. code-block:: sh
 
@@ -100,8 +100,9 @@ instance with our user data:
 Verify that cloud-init ran successfully
 =======================================
 
-After launching the virtual machine, we should be able to connect
-to our instance using the User: ``ubuntu`` and Password: ``passw0rd``
+After launching the virtual machine we should be able to connect to our
+instance using the default distro username. In this case the default username
+is ``ubuntu`` and the password we configured is ``password``
 
 If you can log in using the configured password, it worked!
 
