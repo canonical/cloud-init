@@ -3,4 +3,4 @@ furo
 m2r2
 pyyaml
 sphinx
-sphinx-design
+sphinx_design
