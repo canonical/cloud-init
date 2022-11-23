@@ -1,3 +1,6 @@
+22.4.2
+ - status: handle ds not defined in status.json (#1876) (LP: #1997559)
+
 22.4.1
  - net: skip duplicate mac check for netvsc nic and its VF (#1853)
    [Anh Vo] (LP: #1844191)
