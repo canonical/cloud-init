@@ -45,6 +45,16 @@ STATUS_DETAILS_RUNNING = status.StatusDetails(
 )
 
 
+STATUS_DETAILS_RUNNING_DS_NONE = status.StatusDetails(
+    status.UXAppStatus.RUNNING,
+    status.UXAppBootStatusCode.UNKNOWN,
+    "",
+    [],
+    "",
+    None,
+)
+
+
 @pytest.fixture(autouse=True)
 def setup_mocks(mocker):
     mocker.patch(
@@ -203,6 +213,7 @@ class TestCloudId:
             (STATUS_DETAILS_DISABLED, 2),
             (STATUS_DETAILS_NOT_RUN, 3),
             (STATUS_DETAILS_RUNNING, 0),
+            (STATUS_DETAILS_RUNNING_DS_NONE, 0),
         ),
     )
     @mock.patch(M_PATH + "get_status_details")
