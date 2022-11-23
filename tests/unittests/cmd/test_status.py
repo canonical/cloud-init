@@ -38,6 +38,40 @@ def config(tmpdir):
 class TestStatus:
     maxDiff = None
 
+    @mock.patch(
+        M_PATH + "load_file",
+        return_value=(
+            '{"v1": {"datasource": null, "init": {"errors": [], "finished": '
+            'null, "start": null}, "init-local": {"errors": [], "finished": '
+            'null, "start": 1669231096.9621563}, "modules-config": '
+            '{"errors": [], "finished": null, "start": null},'
+            '"modules-final": {"errors": [], "finished": null, '
+            '"start": null}, "modules-init": {"errors": [], "finished": '
+            'null, "start": null}, "stage": "init-local"} }'
+        ),
+    )
+    @mock.patch(M_PATH + "os.path.exists", return_value=True)
+    @mock.patch(
+        M_PATH + "get_bootstatus",
+        return_value=(
+            status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
+            "Cloud-init enabled by systemd cloud-init-generator",
+        ),
+    )
+    def test_get_status_details_ds_none(
+        self, m_get_boot_status, m_p_exists, m_load_json, tmpdir
+    ):
+        paths = mock.Mock()
+        paths.run_dir = str(tmpdir)
+        assert status.StatusDetails(
+            status.UXAppStatus.RUNNING,
+            status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
+            "Running in stage: init-local",
+            [],
+            "Wed, 23 Nov 2022 19:18:16 +0000",
+            None,  # datasource
+        ) == status.get_status_details(paths)
+
     @pytest.mark.parametrize(
         [
             "ensured_file",
