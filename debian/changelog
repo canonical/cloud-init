@@ -1,4 +1,4 @@
-cloud-init (22.4.2-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (22.4.2-0ubuntu1) lunar; urgency=medium
 
   * Upstream snapshot based on upstream commit 893df0d6.
     - Bugs fixed in this snapshot: (LP: #1997559)
