@@ -46,7 +46,6 @@ lxd:
         ipv4.address: auto
         ipv6.address: auto
       description: ""
-      managed: false
       name: lxdbr0
       type: ""
     storage_pools:
