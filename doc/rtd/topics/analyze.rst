@@ -27,8 +27,8 @@ The analyze command requires one of the four subcommands:
 Availability
 ============
 
-The analyze subcommand is generally available across all distributions, with
-the exception of Gentoo and FreeBSD.
+The ``analyze`` subcommand is generally available across all distributions,
+with the exception of Gentoo and FreeBSD.
 
 Subcommands
 ===========
