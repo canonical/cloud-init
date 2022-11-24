@@ -1,3 +1,10 @@
+cloud-init (22.4.2-0ubuntu1) lunar; urgency=medium
+
+  * Upstream snapshot based on upstream commit 893df0d6.
+    - Bugs fixed in this snapshot: (LP: #1997559)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 24 Nov 2022 08:39:08 +0100
+
 cloud-init (22.4.1-0ubuntu1) lunar; urgency=medium
 
   * Upstream snapshot based on upstream commit c038808e.
