@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+import re
 from collections import namedtuple
 from typing import Optional
 
@@ -180,6 +181,44 @@ def read_dmi_data(key: str) -> Optional[str]:
 
     LOG.debug("did not find either path %s or dmidecode command", DMI_SYS_PATH)
     return None
+
+
+def _get_dmi_keys():
+    """Return a list of valid DMI keys which can be used by sub_dmi_vars"""
+    attr_name = "freebsd" if is_FreeBSD() else "linux"
+    return list(DMIDECODE_TO_KERNEL.keys()) + [
+        getattr(kernelname, attr_name)
+        for kernelname in DMIDECODE_TO_KERNEL.values()
+    ]
+
+
+def sub_dmi_vars(src: str) -> str:
+    """Replace %dmi.VARNAME% with DMI values from either sysfs or kenv."""
+    if "%" not in src:
+        return src
+    matches = re.findall(r"\%dmi\.([-_.\w]+)\%", src)
+    if matches:
+        valid_dmi_keys = _get_dmi_keys()
+        for match in matches:
+            if match not in valid_dmi_keys:
+                LOG.warning(
+                    "Ignoring invalid %%dmi.%s%% in %s. Expected one of: %s.",
+                    match,
+                    src,
+                    valid_dmi_keys,
+                )
+                continue
+            dmi_value = read_dmi_data(match)
+            if not dmi_value:
+                dmi_value = ""
+                LOG.debug(
+                    "Replacing $dmi.%s in '%s' with '%s'.",
+                    match,
+                    src,
+                    dmi_value,
+                )
+            src = src.replace(f"%dmi.{match}%", dmi_value)
+    return src
 
 
 # vi: ts=4 expandtab

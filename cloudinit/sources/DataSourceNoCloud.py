@@ -167,6 +167,9 @@ class DataSourceNoCloud(sources.DataSource):
             if not seedfound:
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
+            # check and replace instances of known dmi.<dmi_keys> such as
+            # chass-board, serial number etc.
+            seedfrom = dmi.sub_dmi_vars(seedfrom)
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise

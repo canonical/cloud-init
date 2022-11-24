@@ -3,6 +3,8 @@ import shutil
 import tempfile
 from unittest import mock
 
+import pytest
+
 from cloudinit import dmi, subp, util
 from tests.unittests import helpers
 
@@ -168,3 +170,45 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         key, val = ("system-product-name", "my_product")
         self._configure_kenv_return(key, val)
         self.assertEqual(dmi.read_dmi_data(key), val)
+
+
+class TestSubDMIVars:
+
+    DMI_SRC = (
+        "dmi.nope%dmi.system-uuid%/%dmi.product_uuid%%dmi.smbios.system.uuid%"
+    )
+
+    @pytest.mark.parametrize(
+        "is_freebsd, src, read_dmi_data_mocks, warning, expected",
+        (
+            pytest.param(
+                False,
+                DMI_SRC,
+                [mock.call("system-uuid"), mock.call("product_uuid")],
+                "Ignoring invalid %dmi.smbios.system.uuid%",
+                "dmi.nope1/2%dmi.smbios.system.uuid%",
+                id="match_dmi_agnostic_and_linux_dmi_keys_warn_on_bsd",
+            ),
+            pytest.param(
+                True,
+                DMI_SRC,
+                [mock.call("system-uuid"), mock.call("smbios.system.uuid")],
+                "Ignoring invalid %dmi.product_uuid%",
+                "dmi.nope1/%dmi.product_uuid%2",
+                id="match_dmi_agnostic_and_freebsd_dmi_keys_warn_on_linux",
+            ),
+        ),
+    )
+    def test_sub_dmi_vars(
+        self, is_freebsd, src, read_dmi_data_mocks, warning, expected, caplog
+    ):
+        with mock.patch.object(dmi, "read_dmi_data") as m_dmi:
+            m_dmi.side_effect = [
+                "1",
+                "2",
+                RuntimeError("Too many read_dmi_data calls"),
+            ]
+            with mock.patch.object(dmi, "is_FreeBSD", return_value=is_freebsd):
+                assert expected == dmi.sub_dmi_vars(src)
+        assert 1 == caplog.text.count(warning)
+        assert m_dmi.call_args_list == read_dmi_data_mocks
