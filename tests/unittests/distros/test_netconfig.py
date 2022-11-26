@@ -363,7 +363,7 @@ class TestNetCfgDistroFreeBSD(TestNetCfgDistroBase):
         }
         rc_conf_expected = """\
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
@@ -378,6 +378,27 @@ ifconfig_eth1=DHCP
         )
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_apply_network_config_freebsd_ipv6_standard(self, ifaces_mac):
+        ifaces_mac.return_value = {
+            "00:15:5d:4c:73:00": "eth0",
+        }
+        rc_conf_expected = """\
+ipv6_defaultrouter=2607:f0d0:1002:0011::1
+ifconfig_eth1=DHCP
+ifconfig_eth0_ipv6='inet6 2607:f0d0:1002:0011::2/64'
+"""
+
+        expected_cfgs = {
+            "/etc/rc.conf": rc_conf_expected,
+            "/etc/resolv.conf": "",
+        }
+        self._apply_and_verify_freebsd(
+            self.distro.apply_network_config,
+            V1_NET_CFG_IPV6,
+            expected_cfgs=expected_cfgs.copy(),
+        )
+
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_ifrename(self, ifaces_mac):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "vtnet0",
@@ -385,7 +406,7 @@ ifconfig_eth1=DHCP
         rc_conf_expected = """\
 ifconfig_vtnet0_name=eth0
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
