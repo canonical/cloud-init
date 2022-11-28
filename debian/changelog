@@ -1,3 +1,12 @@
+cloud-init (22.4.2-0ubuntu0~22.10.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 22.4.2 upstream release. (LP: #1996645)
+    - List of changes from upstream can be found at
+      https://raw.githubusercontent.com/canonical/cloud-init/22.4.2/ChangeLog
+    - Includes (LP: #1997559, #1844191) not present in 22.4.0.
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 28 Nov 2022 10:45:45 -0600
+
 cloud-init (22.4-0ubuntu0~22.10.1) kinetic; urgency=medium
 
   * d/control: drop python3-httpretty from Build-Depends
