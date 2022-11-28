@@ -1,4 +1,4 @@
-cloud-init (22.4.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (22.4.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
   * Upstream snapshot based on 22.4.2 upstream release. (LP: #1996645)
     - List of changes from upstream can be found at
