@@ -15,7 +15,7 @@ Install Qemu
 
     $ sudo apt install qemu-system-x86
 
-See qemu's `install instructions <https://www.qemu.org/download/#linux>`_.
+If you are not using Ubuntu, you can visit Qemu's `install instructions <https://www.qemu.org/download/#linux>`_ for additional information.
 
 Download a Cloud Image
 ======================
@@ -63,7 +63,7 @@ Create the following file on your local filesystem at ``meta-data``.
 Define our vendor data
 ======================
 
-Not necessary, but faster as it avoids retry wait time looking for it.
+Now create the empty file ``vendor-data`` in your temporary directory. This will speed up the retry wait time.
 
 .. code-block:: sh
 
@@ -78,7 +78,7 @@ Start an ad hoc IMDS Server
     $ python3 -m http.server --directory . &
 
 
-Launch a vm with our user data
+Launch a virtual machine (VM) with our user data
 ==============================
 
 Now that we have LXD setup and our user data defined, we can launch an
@@ -118,7 +118,7 @@ Check the cloud-init status:
 Tear down
 =========
 
-Exit the qemu shell using ``ctrl-a x`` (that's ctrl and a
+Exit the Qemu shell using ``ctrl-a x`` (that's ``ctrl`` and ``a``
 simultaneously, followed by ``x``).
 
 If you started the python webserver in the background (using ``&``),
@@ -132,7 +132,7 @@ What's next?
 In this tutorial, we configured the default user's password.
 The full list of modules available can be found in
 :ref:`modules documentation<modules>`.
-Each module contains examples of how to use it.
+The documentation for each module contains examples of how to use it.
 
 You can also head over to the :ref:`examples<yaml_examples>` page for
 examples of more common use cases.
