@@ -110,7 +110,7 @@ Show
 
 The ``show`` action is similar to ``systemd-analyze critical-chain`` which
 prints a list of units, the time they started and how long they took.
-Cloud-init has four :ref:`boot_stages`, and within each stage a number of modules may
+Cloud-init has four :ref:`boot stages<boot_stages>`, and within each stage a number of modules may
 run depending on configuration. ``cloudinit-analyze show`` will, for each boot,
 print this information and a summary of the total time.
 
