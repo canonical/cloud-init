@@ -1,9 +1,9 @@
 .. _analyze:
 
-Analyze
-*******
+Performance
+***********
 
-The analyze subcommand was added to cloud-init in order to help analyze
+The ``analyze`` subcommand was added to cloud-init to help analyze
 cloud-init boot time performance. It is loosely based on systemd-analyze where
 there are four subcommands:
 
@@ -27,8 +27,8 @@ The analyze command requires one of the four subcommands:
 Availability
 ============
 
-The analyze subcommand is generally available across all distributions with the
-exception of Gentoo and FreeBSD.
+The ``analyze`` subcommand is generally available across all distributions,
+with the exception of Gentoo and FreeBSD.
 
 Subcommands
 ===========
@@ -37,7 +37,7 @@ Blame
 -----
 
 The ``blame`` action matches ``systemd-analyze blame`` where it prints, in
-descending order, the units that took the longest to run.  This output is
+descending order, the units that took the longest to run. This output is
 highly useful for examining where cloud-init is spending its time during
 execution.
 
@@ -110,9 +110,9 @@ Show
 
 The ``show`` action is similar to ``systemd-analyze critical-chain`` which
 prints a list of units, the time they started and how long they took.
-Cloud-init has four stages and within each stage a number of modules may run
-depending on configuration. ``cloudinit-analyze show`` will, for each boot,
-print this information and a summary total time, per boot.
+Cloud-init has four :ref:`boot stages<boot_stages>`, and within each stage a number of modules may
+run depending on configuration. ``cloudinit-analyze show`` will, for each boot,
+print this information and a summary of the total time.
 
 The following is an abbreviated example of the show output:
 
