@@ -206,12 +206,12 @@ Since cloud-init ignores top level userdata cloud-config keys, other projects
 such as Juju and subiquity_ autoinstaller use a yaml-formatted config
 that combines cloud-init's userdata cloud-config yaml format with their custom
 yaml keys. These combined yaml configurations may be valid cloud-config files,
-however keys such as autoinstall, preruncmd, and postruncmd are ignored by
-cloud-init. If you are unsure whether cloud-init uses a specific key,
-you may view cloud-init's schema_ or documentation_.
+however keys such as autoinstall, preruncmd, and postruncmd are not used by
+cloud-init to configure anything.
 
 Please direct bugs and questions related to the autoinstaller, Juju, and
 other similar projects to their respective support channels.
+
 
 How can I make a module run on every boot?
 ==========================================
@@ -442,5 +442,3 @@ Whitepapers:
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/
 .. _subiquity: https://ubuntu.com/server/docs/install/autoinstall
-.. _schema: https://github.com/canonical/cloud-init/blob/main/cloudinit/config/schemas/schema-cloud-config-v1.json
-.. _documentation: https://cloudinit.readthedocs.io/en/latest/topics/modules.html
