@@ -303,7 +303,7 @@ def register_mock_metaserver(base_url, data, responses_mock=None):
 
     def myreg(*argc, **kwargs):
         url, body = argc
-        method = responses.PUT if ec2.API_TOKEN_ROUTE in url else responses.GET
+        method = responses.PUT if "latest/api/token" in url else responses.GET
         status = kwargs.get("status", 200)
         return responses_mock.add(method, url, body, status=status)
 
@@ -1178,6 +1178,16 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
         }
         unspecial.update(**kwargs)
         return unspecial
+
+    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
+    def test_identify_aliyun(self, m_collect):
+        """aliyun should be identified if product name equals to
+        Alibaba Cloud ECS
+        """
+        m_collect.return_value = self.collmock(
+            product_name="Alibaba Cloud ECS"
+        )
+        self.assertEqual(ec2.CloudNames.ALIYUN, ec2.identify_platform())
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack(self, m_collect):
