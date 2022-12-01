@@ -12,6 +12,7 @@ Qemu Tutorial
 
 Tutorial overview
 =================
+
 In this tutorial, we will demonstrate launching an Ubuntu virtual machine that
 uses cloud-init to pre-configure the instance during boot.
 
@@ -22,13 +23,15 @@ configurations locally prior to launching in the cloud.
 
 Why Qemu?
 =========
+
 Qemu is a cross-platform emulator capable of running performant virtual
 machines. Qemu is used at the core of a broad range of production operating
 system deployments and open source software projects (including libvirt, LXD,
-and vagrant) and is capable of running Windows, Linux, and Unix-based operating
+and vagrant) and is capable of running Windows, Linux, and Unix guest operating
 systems. While Qemu is flexibile and feature-rich, we are using it because of
 the broad support it has due to its broad adoption and ability to run on
 \*nix-derived operating systems.
+
 
 What is an IMDS?
 ================
@@ -39,6 +42,7 @@ service is used by cloud providers to surface information to a virtual machine.
 This service is used for many different things, and is the primary
 mechanism for some clouds to surface cloud-init configuration data to
 the instance.
+
 
 How does cloud-init use the IMDS?
 =================================
@@ -52,6 +56,7 @@ In this tutorial we emulate this workflow using Qemu and a simple python
 webserver. This workflow may be suitable for developing and testing cloud-init
 configurations prior to cloud deployments.
 
+
 How to use this tutorial
 ========================
 
@@ -59,6 +64,7 @@ In this tutorial each code block is to be copied and pasted directly
 into the terminal then executed. Omit the prompt ``$`` before each command.
 
 Each code block is preceded by a description of what the command does.
+
 
 Install Qemu
 ============
@@ -71,6 +77,7 @@ Install Qemu.
 
 If you are not using Ubuntu, you can visit Qemu's `install instructions`_ for
 additional information.
+
 
 Create a temporary directory
 ============================
@@ -91,6 +98,7 @@ Create a temporary directory and make it your current working directory with
    $ mkdir temp
    $ cd temp
 
+
 Download a cloud image
 ======================
 
@@ -104,6 +112,7 @@ Download the server image using ``wget``.
 .. code-block:: sh
 
     $ wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+
 
 Define our user data
 ====================
@@ -124,6 +133,37 @@ configuration data.
       expire: False
 
     EOF
+
+
+What is user data?
+==================
+
+Before moving forward, let's inspect our user data file.
+
+.. code-block:: sh
+
+   $ cat user-data
+
+You should see the following contents:
+
+.. code-block:: yaml
+
+    #cloud-config
+    password: password
+    chpasswd:
+      expire: False
+
+The first line starts with ``#cloud-config``, which tells cloud-init
+what kind of configuration is contained. The cloud-config config type uses yaml
+format to tell cloud-init how to configure the virtual machine instance.
+Multiple different formats are supported by cloud-init. See the
+:ref:`documentation describing different formats<user_data_formats>`.
+
+The second line, ``password: password``, per :ref:`the docs<mod-users_groups>`,
+sets the default user's password to ``password``.
+
+The third and fourth lines direct cloud-init to set this default password to
+never expire.
 
 Define our meta data
 ====================
@@ -198,7 +238,8 @@ is ``password``.
 
 If you can log in using the configured password, it worked!
 
-If you cloudn't log in, see :ref:`debug information`.
+If you cloudn't log in, see
+:ref:`this page for debug information<debug information>`.
 
 
 Check cloud-init status
