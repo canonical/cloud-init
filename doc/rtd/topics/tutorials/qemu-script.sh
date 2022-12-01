@@ -20,7 +20,7 @@ chpasswd:
 EOF
 
 cat << EOF > meta-data
-instance-id: jammy-01
+instance-id: someid/somehostname
 local-hostname: jammy
 EOF
 
@@ -41,7 +41,7 @@ qemu-system-x86_64                                              \
     -smbios type=1,serial=ds='nocloud-net;s=http://10.0.2.2:8000/'
 
 echo -e "\nTo reuse the image and config files, start the python webserver and "
-echo -e "virtual machine from $(pwd), which contains:\n$(ls -1)"
+echo -e "virtual machine from $(pwd), which contains these files:\n$(ls -1)\n"
 
 # end the python server on exit
 trap "trap - SIGTERM && kill -- -$$" EXIT

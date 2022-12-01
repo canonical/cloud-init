@@ -174,7 +174,7 @@ configuration data.
 .. code-block:: sh
 
     $ cat << EOF > meta-data
-    instance-id: jammy-01
+    instance-id: someid/somehostname
     local-hostname: jammy
 
     EOF
