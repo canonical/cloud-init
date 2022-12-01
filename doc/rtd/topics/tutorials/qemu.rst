@@ -10,15 +10,40 @@ Qemu Tutorial
    qemu-debugging.rst
 
 
-In this tutorial, we will create our first cloud-init user data config and
-deploy it into a Qemu_ virtual machine. We'll be using Qemu for this tutorial
-which is a popular emulator for running virtual machines on Linux. Several
-popular virtual machine tools use Qemu, including Libvirt, LXD, and Vagrant.
+Tutorial overview
+=================
+In this tutorial, we will demonstrate launching an Ubuntu virtual machine that
+uses cloud-init to pre-configure the instance during boot.
+
+The goal of this tutorial is to provide a minimal demonstration of cloud-init
+that users can use as a development environment to test cloud-init
+configurations locally prior to launching in the cloud.
+
+
+Why Qemu?
+=========
+Qemu is a cross-platform emulator capable of running performant virtual
+machines. Qemu is used at the core of a broad range of production operating
+system deployments and open source software projects (including libvirt, LXD,
+and vagrant) and is capable of running Windows, Linux, and Unix-based operating
+systems. While Qemu is flexibile and feature-rich, we are using it because of
+the broad support it has due to its broad adoption and ability to run on
+\*nix-derived operating systems.
 
 What is an IMDS?
 ================
 
-Many cloud providers supply a private http webserver to each operating
+Instance Metadata Service is a service provided by most cloud providers
+as a means of providing information to virtual machine instances. This
+service is used by cloud providers to surface information to a virtual machine.
+This service is used for many different things, and is the primary
+mechanism for some clouds to surface cloud-init configuration data to
+the instance.
+
+How does cloud-init use the IMDS?
+=================================
+
+The IMDS contains a private http webserver to each operating
 system instance launched. During early boot, cloud-init sets up network
 access and queries this webserver to gather configuration data. This allows
 cloud-init to configure your operating system while it boots.
@@ -27,11 +52,11 @@ In this tutorial we emulate this workflow using Qemu and a simple python
 webserver. This workflow may be suitable for developing and testing cloud-init
 configurations prior to cloud deployments.
 
-How to use this tutorial:
-=========================
+How to use this tutorial
+========================
 
 In this tutorial each code block is to be copied and pasted directly
-into the terminal then executed. Omit the prompt `$` before each command.
+into the terminal then executed. Omit the prompt ``$`` before each command.
 
 Each code block is preceded by a description of what the command does.
 
