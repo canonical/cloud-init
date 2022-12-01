@@ -3,6 +3,13 @@
 Qemu Tutorial
 *************
 
+.. toctree::
+   :titlesonly:
+   :hidden:
+
+   qemu-debugging.rst
+
+
 In this tutorial, we will create our first cloud-init user data config and
 deploy it into a Qemu_ virtual machine. We'll be using Qemu for this tutorial
 which is a popular emulator for running virtual machines on Linux. Several
@@ -166,49 +173,20 @@ is ``password``.
 
 If you can log in using the configured password, it worked!
 
-Check the cloud-init status:
+If you cloudn't log in, try this :ref:`debug information`.
+
+
+Check cloud-init status
+=======================
 
 .. code-block:: sh
 
     $ cloud-init status --wait
-    .....
-    cloud-init status: done
 
+If you see ``status: done`` in the output, it succeeded!
 
-Debugging tips
-==============
-
-If you successfully launched the virtual machine, but couldn't log in,
-there are a few places to check to debug your setup.
-
-- The webserver should print out a message for each request it receives.
-  If it didn't print out any messages when the virtual machine booted,
-  then cloud-init was unable to obtain the config. Make sure that the
-  webserver can be locally accessed using ``curl`` or ``wget``.
-
-.. code-block:: sh
-
-   $ curl 0.0.0.0:8000/user-data
-   $ curl 0.0.0.0:8000/meta-data
-   $ curl 0.0.0.0:8000/vendor-data
-
-- When launching Qemu, if the webserver prints out 404 errors, then try to
-  figure out why those files can't be served (did you forget to start the
-  server in the temp directory?)
-  
-
-- When launching Qemu, if the webserver shows that it succeeded in serving
-  ``user-data``, ``meta-data``, and ``vendor-data``, but you cannot log
-  in, then you may have provided incorrect cloud-config files.
-
-
-  If you do not see any new output, then cloud-init didn't discover its
-  datasource correctly.
-
-
-   If you cannot hit these files, figure out why (verify they exist
-   where the python webserver is running, check your local firewall, etc)
-
+If you see a failed status, you'll want to check ``/var/log/cloud-init.log``
+for warning/error messages.
 
 
 Tear down
