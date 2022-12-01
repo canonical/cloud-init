@@ -3,6 +3,9 @@
 Qemu Tutorial Debugging
 ***********************
 
+You may wish to test out the commands in this tutorial as a `script`_
+to check for copy-paste mistakes.
+
 If you successfully launched the virtual machine, but couldn't log in,
 there are a few places to check to debug your setup.
 
@@ -22,6 +25,7 @@ can be locally accessed using ``curl`` or ``wget``.
    $ curl 0.0.0.0:8000/meta-data
    $ curl 0.0.0.0:8000/vendor-data
 
+
 Did the imds webserver serve the files it was expected to serve?
 ================================================================
 
@@ -30,6 +34,7 @@ out why those files can't be served.
 
 Did you forget to start the server in the temp directory?
 
+
 Were the configurations inside of the file correct?
 ===================================================
 When launching Qemu, if the webserver shows that it succeeded in serving
@@ -37,3 +42,5 @@ When launching Qemu, if the webserver shows that it succeeded in serving
 you may have provided incorrect cloud-config files. If you can mount a copy of
 the virtual machine's filesystem locally to inspect the logs, it should be
 possible to get clues about what went wrong.
+
+.. _script: https://cloudinit.readthedocs.io/en/latest/topics/tutorials/qemu-script.sh

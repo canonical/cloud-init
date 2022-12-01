@@ -173,7 +173,7 @@ is ``password``.
 
 If you can log in using the configured password, it worked!
 
-If you cloudn't log in, try this :ref:`debug information`.
+If you cloudn't log in, see :ref:`debug information`.
 
 
 Check cloud-init status
@@ -197,7 +197,6 @@ simultaneously, followed by ``x``).
 
 Stop the python webserver that was started in a different terminal
 (``ctrl-c``).
-
 
 
 What's next?
