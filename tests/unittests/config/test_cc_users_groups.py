@@ -87,7 +87,9 @@ class TestHandleUsersGroups(CiTestCase):
         m_linux_group,
     ):
         """When users in config, create users with freebsd.create_user."""
-        cfg = {"users": ["default", {"name": "me2"}]}  # merged cloud-config
+        cfg = {
+            "users": ["default", {"name": "me2", "uid": 1234}]
+        }  # merged cloud-config
         # System config defines a default user for the distro.
         sys_cfg = {
             "default_user": {
@@ -115,7 +117,7 @@ class TestHandleUsersGroups(CiTestCase):
                     lock_passwd=True,
                     shell="/bin/tcsh",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", uid=1234, default=False),
             ],
         )
         m_fbsd_group.assert_not_called()
