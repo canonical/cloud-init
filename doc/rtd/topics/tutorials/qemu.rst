@@ -13,8 +13,8 @@ Qemu Tutorial
 Tutorial overview
 =================
 
-In this tutorial, we will demonstrate launching an Ubuntu virtual machine that
-uses cloud-init to pre-configure the instance during boot.
+In this tutorial, we will demonstrate launching an Ubuntu cloud image in a
+virtual machine that uses cloud-init to pre-configure the system during boot.
 
 The goal of this tutorial is to provide a minimal demonstration of cloud-init
 that users can use as a development environment to test cloud-init
