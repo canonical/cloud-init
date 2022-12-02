@@ -36,7 +36,7 @@ What is an IMDS?
 
 Instance Metadata Service is a service provided by most cloud providers as a
 means of providing information to virtual machine instances. This service is
-used by cloud providers to surface information to a virtual machine. This
+used by cloud providers to expose information to a virtual machine. This
 service is used for many different things, and is the primary mechanism for
 some clouds to expose cloud-init configuration data to the instance.
 
