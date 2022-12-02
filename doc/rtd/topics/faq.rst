@@ -206,7 +206,7 @@ Since cloud-init ignores top level userdata cloud-config keys, other projects
 such as Juju and subiquity_ autoinstaller use a yaml-formatted config
 that combines cloud-init's userdata cloud-config yaml format with their custom
 yaml keys. These combined yaml configurations may be valid cloud-config files,
-however keys such as autoinstall, preruncmd, and postruncmd are not used by
+however keys such as ``autoinstall``, ``preruncmd``, and ``postruncmd`` are not used by
 cloud-init to configure anything.
 
 Please direct bugs and questions related to the autoinstaller, Juju, and
