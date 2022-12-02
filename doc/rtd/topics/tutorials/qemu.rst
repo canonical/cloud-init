@@ -66,8 +66,6 @@ Each code block is preceded by a description of what the command does.
 Install Qemu
 ============
 
-Install Qemu.
-
 .. code-block:: sh
 
     $ sudo apt install qemu-system-x86
@@ -188,8 +186,8 @@ will speed up the retry wait time.
     $ touch vendor-data
 
 
-Start an ad hoc IMDS Server
-===========================
+Start an ad hoc IMDS webserver
+==============================
 
 In a second terminal, change to your temporary directory and then start the
 python webserver (built-in to python).
@@ -210,7 +208,6 @@ while the operating system boots. This may take a few moments to complete.
 If the output stopped scrolling but you don't see a prompt yet, press ``enter``
 to get to login prompt.
 
-
 .. code-block:: sh
 
     $ qemu-system-x86_64                                            \
@@ -223,6 +220,25 @@ to get to login prompt.
         -hda jammy-server-cloudimg-amd64.img                        \
         -smbios type=1,serial=ds='nocloud-net;s=http://10.0.2.2:8000/'
 
+How is Qemu configured for cloud-init?
+======================================
+
+When launching Qemu, machine configuration is specified on the command
+line. Many things may be configured: memory size, graphical output, networking
+information, hard drives and more.
+
+Examine the last two lines of this command. This one,
+``-hda jammy-server-cloudimg-amd64.img``, tells qemu to use the cloud
+image as a virtual hard drive. This will cause the virtual machine to
+boot Ubuntu which already has cloud-init installed.
+
+The last line tells cloud-init where it can find user-data using the
+:ref:`NoCloud datasource<datasource_nocloud>`. During boot cloud-init checks
+the ``SMBIOS`` serial number for `ds=nocloud-net`. If found, cloud-init will
+use the specified URL to source its userdata config files. In this case we use
+the default gateway of the virtual machine (``10.0.2.2``) and default port
+number of the python webserver (``8000``), so that cloud-init in the virtual
+machine will query the server running on host.
 
 Verify that cloud-init ran successfully
 =======================================
