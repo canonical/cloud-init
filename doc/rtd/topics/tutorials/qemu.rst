@@ -151,16 +151,16 @@ You should see the following contents:
       expire: False
 
 The first line starts with ``#cloud-config``, which tells cloud-init
-what kind of configuration is contained. The cloud-config config type uses YAML
-format to tell cloud-init how to configure the virtual machine instance.
-Multiple different formats are supported by cloud-init. See the
+which type of user-data is in the config. Cloud-config is a YAML-based
+configuration type that tells cloud-init how to configure the virtual machine
+instance. Multiple different format types are supported by cloud-init. See the
 :ref:`documentation describing different formats<user_data_formats>`.
 
 The second line, ``password: password``, per :ref:`the docs<mod-users_groups>`,
 sets the default user's password to ``password``.
 
-The third and fourth lines direct cloud-init to set this default password to
-never expire.
+The third and fourth lines direct cloud-init to not require password reset on
+first login.
 
 Define our meta data
 ====================
