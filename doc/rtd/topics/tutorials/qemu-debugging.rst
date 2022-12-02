@@ -1,6 +1,6 @@
-.. _debug information:
+.. _qemu_debug_info:
 
-Qemu Tutorial Debugging
+Qemu tutorial debugging
 ***********************
 
 You may wish to test out the commands in this tutorial as a `script`_
@@ -11,7 +11,7 @@ there are a few places to check to debug your setup.
 
 To debug, answer the following questions:
 
-Did cloud-init discover the imds webserver?
+Did cloud-init discover the IMDS webserver?
 ===========================================
 
 The webserver should print a message in the terminal for each request it
@@ -26,16 +26,14 @@ can be locally accessed using ``curl`` or ``wget``.
    $ curl 0.0.0.0:8000/vendor-data
 
 
-Did the imds webserver serve the files it was expected to serve?
+Did the IMDS webserver serve the expected files?
 ================================================================
 
-When launching Qemu, if the webserver prints out 404 errors, then try to figure
-out why those files can't be served.
-
-Did you forget to start the server in the temp directory?
+If the webserver prints out 404 errors when launching Qemu, then first check that you started the server in the temp directory. 
 
 
-Were the configurations inside of the file correct?
+
+Were the configurations inside the file correct?
 ===================================================
 When launching Qemu, if the webserver shows that it succeeded in serving
 ``user-data``, ``meta-data``, and ``vendor-data``, but you cannot log in, then

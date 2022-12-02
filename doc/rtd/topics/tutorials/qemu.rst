@@ -10,14 +10,12 @@ Qemu Tutorial
    qemu-debugging.rst
 
 
-Tutorial overview
-=================
 
 In this tutorial, we will demonstrate launching an Ubuntu cloud image in a
 virtual machine that uses cloud-init to pre-configure the system during boot.
 
 The goal of this tutorial is to provide a minimal demonstration of cloud-init
-that users can use as a development environment to test cloud-init
+that you can use as a development environment to test cloud-init
 configurations locally prior to launching in the cloud.
 
 
@@ -210,7 +208,7 @@ Launch the virtual machine. By default, qemu will print to the terminal both
 kernel logs and systemd logs while the operating system boots. This may take a
 few moments to complete.
 
-If the output stopped scrolling but you don't see a prompt yet, type ``enter``
+If the output stopped scrolling but you don't see a prompt yet, press ``enter``
 to get to login prompt.
 
 
@@ -239,7 +237,7 @@ is ``password``.
 If you can log in using the configured password, it worked!
 
 If you cloudn't log in, see
-:ref:`this page for debug information<debug information>`.
+:ref:`this page for debug information<qemu_debug_info>`.
 
 
 Check cloud-init status
