@@ -204,9 +204,9 @@ python webserver (built-in to python).
 Launch a virtual machine with our user data
 ===========================================
 
-Launch the virtual machine. By default, qemu will print to the terminal both
-kernel logs and systemd logs while the operating system boots. This may take a
-few moments to complete.
+Launch the virtual machine. By default, Qemu will print the kernel logs
+and systemd logs to the terminal while the operating system boots. This
+may take a few moments to complete.
 
 If the output stopped scrolling but you don't see a prompt yet, press ``enter``
 to get to login prompt.
