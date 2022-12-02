@@ -29,7 +29,8 @@ can be locally accessed using ``curl`` or ``wget``.
 Did the IMDS webserver serve the expected files?
 ================================================================
 
-If the webserver prints out 404 errors when launching Qemu, then first check that you started the server in the temp directory. 
+If the webserver prints out 404 errors when launching Qemu, then first check
+that you started the server in the temp directory.
 
 
 

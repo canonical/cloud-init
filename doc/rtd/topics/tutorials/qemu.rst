@@ -22,7 +22,7 @@ configurations locally prior to launching in the cloud.
 Why Qemu?
 =========
 
-Qemu is a cross-platform emulator capable of running performant virtual
+Qemu_ is a cross-platform emulator capable of running performant virtual
 machines. Qemu is used at the core of a broad range of production operating
 system deployments and open source software projects (including libvirt, LXD,
 and vagrant) and is capable of running Windows, Linux, and Unix guest operating
@@ -34,21 +34,20 @@ the broad support it has due to its broad adoption and ability to run on
 What is an IMDS?
 ================
 
-Instance Metadata Service is a service provided by most cloud providers
-as a means of providing information to virtual machine instances. This
-service is used by cloud providers to surface information to a virtual machine.
-This service is used for many different things, and is the primary
-mechanism for some clouds to surface cloud-init configuration data to
-the instance.
+Instance Metadata Service is a service provided by most cloud providers as a
+means of providing information to virtual machine instances. This service is
+used by cloud providers to surface information to a virtual machine. This
+service is used for many different things, and is the primary mechanism for
+some clouds to expose cloud-init configuration data to the instance.
 
 
 How does cloud-init use the IMDS?
 =================================
 
-The IMDS contains a private http webserver to each operating
-system instance launched. During early boot, cloud-init sets up network
-access and queries this webserver to gather configuration data. This allows
-cloud-init to configure your operating system while it boots.
+The IMDS uses a private http webserver to provide metadata to each operating
+system instance. During early boot, cloud-init sets up network access and
+queries this webserver to gather configuration data. This allows cloud-init to
+configure your operating system while it boots.
 
 In this tutorial we emulate this workflow using Qemu and a simple python
 webserver. This workflow may be suitable for developing and testing cloud-init
@@ -80,9 +79,9 @@ additional information.
 Create a temporary directory
 ============================
 
-This directory will store our cloud image and configuration files,
-``meta-data`` [add-link], ``vendor-data`` [add-link], and ``user-data``
-[add-link],
+This directory will store our cloud image and configuration files for
+:ref:`user-data<user_data_formats>`, :ref:`meta-data<instance_metadata>`, and
+:ref:`vendor-data<vendordata>`
 
 This tutorial expects that you run all commands from this temporary
 directory. Failure to do so will result in an unconfigured virtual
@@ -152,7 +151,7 @@ You should see the following contents:
       expire: False
 
 The first line starts with ``#cloud-config``, which tells cloud-init
-what kind of configuration is contained. The cloud-config config type uses yaml
+what kind of configuration is contained. The cloud-config config type uses YAML
 format to tell cloud-init how to configure the virtual machine instance.
 Multiple different formats are supported by cloud-init. See the
 :ref:`documentation describing different formats<user_data_formats>`.
