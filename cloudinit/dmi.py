@@ -202,12 +202,12 @@ def sub_dmi_vars(src: str) -> str:
             dmi_value = read_dmi_data(match)
             if not dmi_value:
                 dmi_value = ""
-                LOG.debug(
-                    "Replacing $dmi.%s in '%s' with '%s'.",
-                    match,
-                    src,
-                    dmi_value,
-                )
+            LOG.debug(
+                "Replacing $dmi.%s in '%s' with '%s'.",
+                match,
+                src,
+                dmi_value,
+            )
             src = src.replace(f"%dmi.{match}%", dmi_value)
     return src
 
