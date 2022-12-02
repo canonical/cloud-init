@@ -191,7 +191,7 @@ will speed up the retry wait time.
 Start an ad hoc IMDS Server
 ===========================
 
-In a separate terminal, change to your temporary directory and then start the
+In a second terminal, change to your temporary directory and then start the
 python webserver (built-in to python).
 
 .. code-block:: sh
@@ -203,9 +203,9 @@ python webserver (built-in to python).
 Launch a virtual machine with our user data
 ===========================================
 
-Launch the virtual machine. By default, Qemu will print the kernel logs
-and systemd logs to the terminal while the operating system boots. This
-may take a few moments to complete.
+Switch back to your original terminal so we can launch the virtual machine.
+By default, Qemu will print the kernel logs and systemd logs to the terminal
+while the operating system boots. This may take a few moments to complete.
 
 If the output stopped scrolling but you don't see a prompt yet, press ``enter``
 to get to login prompt.
