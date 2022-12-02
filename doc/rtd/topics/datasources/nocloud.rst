@@ -35,81 +35,43 @@ With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
 with ``http://`` or ``https://`` and end with a trailing ``/``.
 
 Cloud-init performs variable expansion of the seedfrom URL for any DMI kernel
-variables present in ``/sys/class/dmi/id`` or FreeBSD's kenv.
-Your ``seedfrom`` URL can contain variable names of the format `:dmi.varname:`
-to indicate to cloud-init NoCloud datasource that variable expansion to the
-actual value of the DMI system attribute is wanted. The leading and trailing
-colon `:` before and after any `:dmi.<varname>:` are used because other
-metacharacters would hae to be escaped to avoid Grub interpreting those chars.
+variables present in ``/sys/class/dmi/id`` (kenv on FreeBSD).
+Your ``seedfrom`` URL can contain variable names of the format
+``%dmi.varname%`` to indicate to cloud-init NoCloud datasource that dmi.varname
+should be expanded to the actual value of the DMI system attribute is wanted.
+The leading and trailing percent ``%`` in ``%dmi.<varname>%`` are used because
+other metacharacters would have to be escaped to avoid Grub interpreting those
+chars.
 Typically you want to use cloud-init's distro-agnostic alias
 
 .. list-table:: Available DMI variables for expansion in ``seedfrom`` URL
-  :widths: 25 25 50
-  :header-rows: 1
+  :widths: 35 35 30
+  :header-rows: 0
 
-  * - Distro-agnostic DMI string
-    - Linux-specific /sys/class/dmi/id key
-    - FreeBSD-specific kenv key
-  * - dmi.baseboard-asset-tag
-    - dmi.board_asset_tag
-    - dmi.smbios.planar.tag
-  * - dmi.baseboard-manufacturer
-    - dmi.board_vendor
-    - dmi.smbios.planar.maker
-  * - dmi.baseboard-version
-    - dmi.board_version
-    - dmi.smbios.planar.version
-  * - dmi.bios-release-date
-    - dmi.bios_date
-    - dmi.smbios.bios.reldate
-  * - dmi.bios-vendor
-    - dmi.bios_vendor
-    - dmi.smbios.bios.vendor
-  * - dmi.bios-version
-    - dmi.bios_version
-    - dmi.smbios.bios.version
-  * - dmi.chassis-asset-tag
-    - dmi.chassis_asset_tag
-    - dmi.smbios.chassis.tag
-  * - dmi.chassis-manufacturer
-    - dmi.chassis_vendor
-    - dmi.smbios.chassis.maker
-  * - dmi.chassis-serial-number
-    - dmi.chassis_serial
-    - dmi.smbios.chassis.serial
-  * - dmi.chassis-version
-    - dmi.chassis_version
-    - dmi.smbios.chassis.version
-  * - dmi.system-manufacturer
-    - dmi.sys_vendor
-    - dmi.smbios.system.maker
-  * - dmi.system-product-name
-    - dmi.product_name
-    - dmi.smbios.system.product
-  * - dmi.system-serial-number
-    - dmi.product_serial
-    - dmi.smbios.system.serial
-  * - dmi.system-uuid
-    - dmi.product_uuid
-    - dmi.smbios.system.uuid
-  * - dmi.system-version
-    - dmi.product_version
-    - dmi.smbios.system.version
+  * - ``dmi.baseboard-asset-tag``
+    - ``dmi.baseboard-manufacturer``
+    - ``dmi.baseboard-version``
+  * - ``dmi.bios-release-date``
+    - ``dmi.bios-vendor``
+    - ``dmi.bios-version``
+  * - ``dmi.chassis-asset-tag``
+    - ``dmi.chassis-manufacturer``
+    - ``dmi.chassis-serial-number``
+  * - ``dmi.chassis-version``
+    - ``dmi.system-manufacturer``
+    - ``dmi.system-product-name``
+  * - ``dmi.system-serial-number``
+    - ``dmi.system-uuid``
+    - ``dmi.system-version``
 
 
-e.g. you can pass this option to QEMU
+For example, you can pass this option to QEMU
 
 ::
 
   -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/%dmi.chassis-serial-number%/
 
-or append the following GRUB kernel commandline on your Ubuntu Live server/desktop installer
-
-::
-
-  autostart ds=nocloud-net;s=http://10.10.0.1:8000/%dmi.chassis-serial-number%/
-
-to cause NoCloud to fetch the full meta-data for YOUR_SERIAL_NUMBER as seen in `/sys/class/dmi/id/chassis_serial_number` or kenv on FreeBSD from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data
+to cause NoCloud to fetch the full meta-data for YOUR_SERIAL_NUMBER as seen in `/sys/class/dmi/id/chassis_serial_number` (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data
 after the network initialization is complete.
 
 These user-data and meta-data files are expected to be in the following format.

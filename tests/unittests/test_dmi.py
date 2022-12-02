@@ -179,28 +179,34 @@ class TestSubDMIVars:
     )
 
     @pytest.mark.parametrize(
-        "is_freebsd, src, read_dmi_data_mocks, warning, expected",
+        "is_freebsd, src, read_dmi_data_mocks, warnings, expected",
         (
             pytest.param(
                 False,
                 DMI_SRC,
-                [mock.call("system-uuid"), mock.call("product_uuid")],
-                "Ignoring invalid %dmi.smbios.system.uuid%",
-                "dmi.nope1/2%dmi.smbios.system.uuid%",
-                id="match_dmi_agnostic_and_linux_dmi_keys_warn_on_bsd",
+                [mock.call("system-uuid")],
+                [
+                    "Ignoring invalid %dmi.smbios.system.uuid%",
+                    "Ignoring invalid %dmi.product_uuid%",
+                ],
+                "dmi.nope1/%dmi.product_uuid%%dmi.smbios.system.uuid%",
+                id="match_dmi_distro_agnostic_strings_warn_on_unknown",
             ),
             pytest.param(
                 True,
                 DMI_SRC,
-                [mock.call("system-uuid"), mock.call("smbios.system.uuid")],
-                "Ignoring invalid %dmi.product_uuid%",
-                "dmi.nope1/%dmi.product_uuid%2",
-                id="match_dmi_agnostic_and_freebsd_dmi_keys_warn_on_linux",
+                [mock.call("system-uuid")],
+                [
+                    "Ignoring invalid %dmi.smbios.system.uuid%",
+                    "Ignoring invalid %dmi.product_uuid%",
+                ],
+                "dmi.nope1/%dmi.product_uuid%%dmi.smbios.system.uuid%",
+                id="match_dmi_agnostic_and_freebsd_dmi_keys_warn_on_unknown",
             ),
         ),
     )
     def test_sub_dmi_vars(
-        self, is_freebsd, src, read_dmi_data_mocks, warning, expected, caplog
+        self, is_freebsd, src, read_dmi_data_mocks, warnings, expected, caplog
     ):
         with mock.patch.object(dmi, "read_dmi_data") as m_dmi:
             m_dmi.side_effect = [
@@ -210,5 +216,6 @@ class TestSubDMIVars:
             ]
             with mock.patch.object(dmi, "is_FreeBSD", return_value=is_freebsd):
                 assert expected == dmi.sub_dmi_vars(src)
-        assert 1 == caplog.text.count(warning)
+        for warning in warnings:
+            assert 1 == caplog.text.count(warning)
         assert m_dmi.call_args_list == read_dmi_data_mocks

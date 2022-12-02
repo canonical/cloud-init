@@ -183,22 +183,13 @@ def read_dmi_data(key: str) -> Optional[str]:
     return None
 
 
-def _get_dmi_keys():
-    """Return a list of valid DMI keys which can be used by sub_dmi_vars"""
-    attr_name = "freebsd" if is_FreeBSD() else "linux"
-    return list(DMIDECODE_TO_KERNEL.keys()) + [
-        getattr(kernelname, attr_name)
-        for kernelname in DMIDECODE_TO_KERNEL.values()
-    ]
-
-
 def sub_dmi_vars(src: str) -> str:
     """Replace %dmi.VARNAME% with DMI values from either sysfs or kenv."""
     if "%" not in src:
         return src
-    matches = re.findall(r"\%dmi\.([-_.\w]+)\%", src)
+    matches = re.findall(r"\%dmi\.([-.\w]+)\%", src)
+    valid_dmi_keys = DMIDECODE_TO_KERNEL.keys()
     if matches:
-        valid_dmi_keys = _get_dmi_keys()
         for match in matches:
             if match not in valid_dmi_keys:
                 LOG.warning(
