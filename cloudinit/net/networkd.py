@@ -41,6 +41,10 @@ class CfgParser:
                 self.conf_dict[k].sort()
 
     def update_route_section(self, sec, rid, key, val):
+        """
+        For each route section we use rid as a key, this allows us to isolate
+        this route from others on subsequent calls.
+        """
         for k in self.conf_dict.keys():
             if k == sec:
                 if rid not in self.conf_dict[k]:
@@ -131,6 +135,10 @@ class Renderer(renderer.Renderer):
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
 
     def parse_routes(self, rid, conf, cfg: CfgParser):
+        """
+        Parse a route and use rid as a key in order to isolate the route from
+        others in the route dict.
+        """
         sec = "Route"
         route_cfg_map = {
             "gateway": "Gateway",
