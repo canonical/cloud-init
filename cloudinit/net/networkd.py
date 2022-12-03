@@ -176,6 +176,8 @@ class Renderer(renderer.Renderer):
                     dhcp = "yes"
             if "routes" in e and e["routes"]:
                 for i in e["routes"]:
+                    # Use "r" as a dict key prefix for this route to isolate
+                    # it from other sources of routes
                     self.parse_routes(f"r{rid}", i, cfg)
                     rid = rid + 1
             if "address" in e:
@@ -191,6 +193,8 @@ class Renderer(renderer.Renderer):
                             v += "/" + str(e["prefix"])
                         cfg.update_section("Address", subnet_cfg_map[k], v)
                     elif k == "gateway":
+                        # Use "a" as a dict key prefix for this route to
+                        # isolate it from other sources of routes
                         cfg.update_route_section(
                             "Route", f"a{rid}", subnet_cfg_map[k], v
                         )
@@ -313,6 +317,8 @@ class Renderer(renderer.Renderer):
 
             rid = 0
             for route in ns.iter_routes():
+                # Use "c" as a dict key prefix for this route to isolate it
+                # from other sources of routes
                 self.parse_routes(f"c{rid}", route, cfg)
                 rid = rid + 1
 
