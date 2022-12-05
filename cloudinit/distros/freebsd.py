@@ -85,10 +85,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         }
 
         for key, val in kwargs.items():
-            if key in pw_useradd_opts and val and isinstance(val, str):
-                pw_useradd_cmd.extend([pw_useradd_opts[key], val])
-
-            elif key in pw_useradd_opts and val and isinstance(val, int):
+            if key in pw_useradd_opts and val and isinstance(val, (str, int)):
                 pw_useradd_cmd.extend([pw_useradd_opts[key], str(val)])
 
             elif key in pw_useradd_flags and val:
