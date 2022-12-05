@@ -225,6 +225,20 @@ OS_RELEASE_ROCKY_8 = dedent(
 """
 )
 
+OS_RELEASE_ANOLIS_8 = dedent(
+    """\
+    NAME="Anolis OS"
+    VERSION="8.2"
+    ID="anolis"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.2"
+    PLATFORM_ID="platform:an8"
+    PRETTY_NAME="Anolis OS 8.2"
+    ANSI_COLOR="0;31"
+    HOME_URL="https://openanolis.cn/"
+"""
+)
+
 OS_RELEASE_VIRTUOZZO_8 = dedent(
     """\
     NAME="Virtuozzo Linux"
@@ -279,6 +293,7 @@ REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.9 (Minsk)"
 REDHAT_RELEASE_EUROLINUX_8 = "EuroLinux release 8.4 (Vaduz)"
 REDHAT_RELEASE_MIRACLELINUX_8 = "MIRACLE LINUX release 8.4 (Peony)"
 REDHAT_RELEASE_ROCKY_8 = "Rocky Linux release 8.3 (Green Obsidian)"
+REDHAT_RELEASE_ANOLIS_8 = "Anolis OS 8.2"
 REDHAT_RELEASE_VIRTUOZZO_8 = "Virtuozzo Linux release 8"
 REDHAT_RELEASE_CLOUDLINUX_8 = "CloudLinux release 8.4 (Valery Rozhdestvensky)"
 OS_RELEASE_DEBIAN = dedent(
@@ -1081,6 +1096,22 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(("rocky", "8.3", "Green Obsidian"), dist)
 
     @mock.patch(M_PATH + "load_file")
+    def test_get_linux_anolis8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify anolis 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ANOLIS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("anolis", "8.2", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_anolis8_osrelease(self, m_os_release, m_path_exists):
+        """Verify anolis  8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ANOLIS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("anolis", "8.2", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_virtuozzo8_rhrelease(self, m_os_release, m_path_exists):
         """Verify virtuozzo linux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_VIRTUOZZO_8
@@ -1247,6 +1278,7 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
+            ({"system": "linux", "dist": ("anolis",)}, "anolis"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
