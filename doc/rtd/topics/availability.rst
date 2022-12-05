@@ -27,7 +27,7 @@ OpenBSD and DragonFlyBSD:
 - NetBSD
 - OpenBSD
 - Photon OS
-- RHEL/CentOS/AlmaLinux/Rocky Linux/EuroLinux
+- RHEL/CentOS/AlmaLinux/Rocky Linux/EuroLinux/Anolis
 - SLES/openSUSE
 - Ubuntu
 

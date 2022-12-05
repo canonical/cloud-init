@@ -62,6 +62,7 @@ OSFAMILIES = {
         "photon",
         "rhel",
         "rocky",
+        "anolis",
         "virtuozzo",
     ],
     "suse": ["opensuse", "sles"],

@@ -192,7 +192,7 @@ os_info() {
 
 get_os_info() {
     # run inside container, set OS_NAME, OS_VERSION
-    # example OS_NAME are centos, debian, opensuse, rockylinux
+    # example OS_NAME are centos, debian, opensuse, anolis, rockylinux
     [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] && return 0
     if [ -f /etc/os-release ]; then
         OS_NAME=$(sh -c '. /etc/os-release; echo $ID')
@@ -248,7 +248,7 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos|rocky*) yum_install "$@";;
+        centos|anolis|rocky*) yum_install "$@";;
         opensuse) zypper_install "$@";;
         debian|ubuntu) apt_install "$@";;
         *) error "Do not know how to install packages on ${OS_NAME}";
@@ -497,7 +497,7 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky) distflag="--distro=redhat";;
+        centos|anolis|rocky) distflag="--distro=redhat";;
         opensuse) distflag="--distro=suse";;
     esac
 
@@ -506,7 +506,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse|rocky)
+        centos|anolis|opensuse|rocky)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;

@@ -30,6 +30,7 @@ KNOWN_DISTROS = [
     "openmandriva",
     "rhel",
     "rocky",
+    "anolis",
     "suse",
     "virtuozzo",
 ]

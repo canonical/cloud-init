@@ -643,6 +643,7 @@ def _get_variant(info):
             "photon",
             "rhel",
             "rocky",
+            "anolis",
             "suse",
             "virtuozzo",
         ):

@@ -42,6 +42,7 @@ distros = [
     "photon",
     "rhel",
     "rocky",
+    "anolis",
     "sles",
     "ubuntu",
     "virtuozzo",

@@ -4,7 +4,7 @@
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
 {% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
-                             "miraclelinux", "rhel", "rocky", "virtuozzo" ] %}
+                             "miraclelinux", "rhel", "rocky", "anolis", "virtuozzo" ] %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}

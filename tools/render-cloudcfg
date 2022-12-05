@@ -31,6 +31,7 @@ def main():
         "rhel",
         "suse",
         "rocky",
+        "anolis",
         "ubuntu",
         "unknown",
         "virtuozzo",

@@ -37,6 +37,7 @@ distros = [
     "photon",
     "rhel",
     "rocky",
+    "anolis",
     "virtuozzo",
 ]
 
