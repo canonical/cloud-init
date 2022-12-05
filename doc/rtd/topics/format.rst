@@ -54,12 +54,18 @@ Example
 
 .. code-block:: shell-session
 
-  $ cat myscript.sh
+   $ cat myscript.sh
 
-  #!/bin/sh
-  echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
+Example output:
 
-  $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
+.. code-block::
+
+   #!/bin/sh
+   echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
+
+.. code-block:: shell-session
+
+   $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
 
 Kernel Command Line
 ===================
@@ -89,6 +95,11 @@ Supported content-types are listed from the cloud-init subcommand make-mime:
 .. code-block:: shell-session
 
     $ cloud-init devel make-mime --list-types
+
+Example output:
+
+.. code-block::
+
     cloud-boothook
     cloud-config
     cloud-config-archive

@@ -39,11 +39,11 @@ The settings that may be configured are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-   Oracle:
-    configure_secondary_nics: false
+   datasource:
+    Oracle:
+     configure_secondary_nics: false
 
 .. _Oracle Compute Infrastructure: https://cloud.oracle.com/
 .. vi: textwidth=79

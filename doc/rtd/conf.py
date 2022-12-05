@@ -29,6 +29,7 @@ needs_sphinx = "4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "m2r2",
+    "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
@@ -57,6 +58,12 @@ exclude_patterns = []
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
 show_authors = False
+
+# Sphinx-copybutton config options: 1) prompt to be stripped from copied code.
+# 2) Set to copy all lines (not just prompt lines) to ensure multiline snippets
+# can be copied even if they don't contain an EOF line.
+copybutton_prompt_text = "$ "
+copybutton_only_copy_prompt_lines = False
 
 # -- Options for HTML output --------------------------------------------------
 

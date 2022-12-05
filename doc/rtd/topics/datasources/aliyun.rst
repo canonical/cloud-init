@@ -19,13 +19,13 @@ configuration (in ``/etc/cloud/cloud.cfg`` or ``/etc/cloud/cloud.cfg.d/``).
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    AliYun:
-      metadata_urls: ["http://100.100.100.200"]
-      timeout: 50
-      max_wait: 120
+   datasource:
+     AliYun:
+       metadata_urls: ["http://100.100.100.200"]
+       timeout: 50
+       max_wait: 120
 
 Versions
 ^^^^^^^^
@@ -42,37 +42,47 @@ You can list the versions available to your instance with:
 
 .. code-block:: shell-session
 
-    $ curl http://100.100.100.200/
-    2016-01-01
-    latest
+   $ curl http://100.100.100.200/
+
+Example output:
+
+.. code-block::
+
+   2016-01-01
+   latest
 
 Metadata
 ^^^^^^^^
 Instance metadata can be queried at
-``http://100.100.100.200/2016-01-01/meta-data``
+``http://100.100.100.200/2016-01-01/meta-data``:
 
 .. code-block:: shell-session
 
-    $ curl http://100.100.100.200/2016-01-01/meta-data
-    dns-conf/
-    eipv4
-    hostname
-    image-id
-    instance-id
-    instance/
-    mac
-    network-type
-    network/
-    ntp-conf/
-    owner-account-id
-    private-ipv4
-    public-keys/
-    region-id
-    serial-number
-    source-address
-    sub-private-ipv4-list
-    vpc-cidr-block
-    vpc-id
+   $ curl http://100.100.100.200/2016-01-01/meta-data
+
+Example output:
+
+.. code-block::
+
+   dns-conf/
+   eipv4
+   hostname
+   image-id
+   instance-id
+   instance/
+   mac
+   network-type
+   network/
+   ntp-conf/
+   owner-account-id
+   private-ipv4
+   public-keys/
+   region-id
+   serial-number
+   source-address
+   sub-private-ipv4-list
+   vpc-cidr-block
+   vpc-id
 
 Userdata
 ^^^^^^^^
@@ -82,8 +92,13 @@ If no user-data is provided, this will return a 404.
 
 .. code-block:: shell-session
 
-    $ curl http://100.100.100.200/2016-01-01/user-data
-    #!/bin/sh
-    echo "Hello World."
+   $ curl http://100.100.100.200/2016-01-01/user-data
+
+Example output:
+
+.. code-block::
+
+   #!/bin/sh
+   echo "Hello World."
 
 .. vi: textwidth=79

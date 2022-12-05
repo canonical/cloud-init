@@ -109,14 +109,14 @@ The settings that may be configured are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    Ec2:
-      metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
-      max_wait: 120
-      timeout: 50
-      apply_full_imds_network_config: true
+   datasource:
+     Ec2:
+       metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
+       max_wait: 120
+       timeout: 50
+       apply_full_imds_network_config: true
 
 Notes
 -----
