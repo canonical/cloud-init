@@ -260,7 +260,8 @@ class Renderer(renderer.Renderer):
 
         if not header.endswith("\n"):
             header += "\n"
-        util.write_file(fpnplan, header + content)
+
+        util.write_file(fpnplan, header + content, mode=0o600)
 
         if self.clean_default:
             _clean_default(target=target)

@@ -148,6 +148,10 @@ class TestLxdHotplug:
         assert post_netplan == expected_netplan, client.read_from_file(
             "/var/log/cloud-init.log"
         )
+        netplan_perms = client.execute(
+            "stat -c %a /etc/netplan/50-cloud-init.yaml"
+        )
+        assert "600" == netplan_perms.stdout.strip()
         ip_info = json.loads(client.execute("ip --json address"))
         eth2s = [i for i in ip_info if i["ifname"] == "eth2"]
         assert len(eth2s) == 1

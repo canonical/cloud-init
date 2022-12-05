@@ -569,7 +569,7 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            self.assertEqual(0o600, get_mode(cfgpath, tmpd))
 
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
@@ -937,6 +937,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
+        mode = 0o600 if with_netplan else 0o644
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
             print(expected)
@@ -944,7 +945,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            self.assertEqual(mode, get_mode(cfgpath, tmpd))
 
     def netctl_path(self, iface):
         return "/etc/netctl/%s" % iface
