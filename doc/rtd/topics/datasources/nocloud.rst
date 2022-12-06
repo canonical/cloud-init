@@ -37,12 +37,12 @@ with ``http://`` or ``https://`` and end with a trailing ``/``.
 Cloud-init performs variable expansion of the seedfrom URL for any DMI kernel
 variables present in ``/sys/class/dmi/id`` (kenv on FreeBSD).
 Your ``seedfrom`` URL can contain variable names of the format
-``%dmi.varname%`` to indicate to cloud-init NoCloud datasource that dmi.varname
-should be expanded to the value of the DMI system attribute wanted.
-The leading and trailing percent ``%`` in ``%dmi.<varname>%`` are used because
-other metacharacters would have to be escaped to avoid Grub interpreting those
-chars.
-Typically you want to use cloud-init's distro-agnostic alias
+``__dmi.varname__`` to indicate to cloud-init NoCloud datasource that
+dmi.varname should be expanded to the value of the DMI system attribute wanted.
+The leading and trailing double-underscores ``__`` in ``__dmi.<varname>__`` are
+used because they are URL safe characters in case URL parsing touches this
+value as well as 'safe' from any Grub variable expansion performed when
+seedfrom value is provided as appended kernel command line parameters.
 
 .. list-table:: Available DMI variables for expansion in ``seedfrom`` URL
   :widths: 35 35 30
@@ -65,16 +65,17 @@ Typically you want to use cloud-init's distro-agnostic alias
     - ``dmi.system-version``
 
 
-For example, you can pass this option to QEMU
+For example, passing this option to QEMU
 
 ::
 
-  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/%dmi.chassis-serial-number%/
+  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 
-to cause NoCloud to fetch the full meta-data for YOUR_SERIAL_NUMBER as seen in `/sys/class/dmi/id/chassis_serial_number` (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data
+causes NoCloud to fetch the full meta-data from a URL based on YOUR_SERIAL_NUMBER as seen in `/sys/class/dmi/id/chassis_serial_number` (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data
 after the network initialization is complete.
 
-These user-data and meta-data files are expected to be in the following format.
+These user-data and meta-data files are required as separate files at the same
+base URL.
 
 ::
 
@@ -83,10 +84,12 @@ These user-data and meta-data files are expected to be in the following format.
 
 Both files are required to be present for it to be considered a valid seed ISO.
 
-Basically, user-data is simply user-data and meta-data is a YAML formatted file
-representing what you'd find in the EC2 metadata service.
+Basically, user-data is simply :ref:`user data<user_data_formats>` and
+meta-data is a YAML formatted file representing what you'd find in the EC2
+metadata service.
 
-You may also optionally provide a vendor-data file in the following format.
+You may also optionally provide a vendor-data file as a separate file adhering
+to :ref:`user data formats<user_data_formats>` in the same base URL.
 
 ::
 

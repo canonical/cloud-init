@@ -175,7 +175,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
 class TestSubDMIVars:
 
     DMI_SRC = (
-        "dmi.nope%dmi.system-uuid%/%dmi.product_uuid%%dmi.smbios.system.uuid%"
+        "dmi.nope__dmi.system-uuid__/__dmi.uuid____dmi.smbios.system.uuid__"
     )
 
     @pytest.mark.parametrize(
@@ -186,10 +186,10 @@ class TestSubDMIVars:
                 DMI_SRC,
                 [mock.call("system-uuid")],
                 [
-                    "Ignoring invalid %dmi.smbios.system.uuid%",
-                    "Ignoring invalid %dmi.product_uuid%",
+                    "Ignoring invalid __dmi.smbios.system.uuid__",
+                    "Ignoring invalid __dmi.uuid__",
                 ],
-                "dmi.nope1/%dmi.product_uuid%%dmi.smbios.system.uuid%",
+                "dmi.nope1/__dmi.uuid____dmi.smbios.system.uuid__",
                 id="match_dmi_distro_agnostic_strings_warn_on_unknown",
             ),
             pytest.param(
@@ -197,10 +197,10 @@ class TestSubDMIVars:
                 DMI_SRC,
                 [mock.call("system-uuid")],
                 [
-                    "Ignoring invalid %dmi.smbios.system.uuid%",
-                    "Ignoring invalid %dmi.product_uuid%",
+                    "Ignoring invalid __dmi.smbios.system.uuid__",
+                    "Ignoring invalid __dmi.uuid__",
                 ],
-                "dmi.nope1/%dmi.product_uuid%%dmi.smbios.system.uuid%",
+                "dmi.nope1/__dmi.uuid____dmi.smbios.system.uuid__",
                 id="match_dmi_agnostic_and_freebsd_dmi_keys_warn_on_unknown",
             ),
         ),

@@ -184,16 +184,16 @@ def read_dmi_data(key: str) -> Optional[str]:
 
 
 def sub_dmi_vars(src: str) -> str:
-    """Replace %dmi.VARNAME% with DMI values from either sysfs or kenv."""
-    if "%" not in src:
+    """Replace __dmi.VARNAME__ with DMI values from either sysfs or kenv."""
+    if "__" not in src:
         return src
-    matches = re.findall(r"\%dmi\.([-.\w]+)\%", src)
+    matches = re.findall(r"__dmi\.([^_]+)__", src)
     valid_dmi_keys = DMIDECODE_TO_KERNEL.keys()
     if matches:
         for match in matches:
             if match not in valid_dmi_keys:
                 LOG.warning(
-                    "Ignoring invalid %%dmi.%s%% in %s. Expected one of: %s.",
+                    "Ignoring invalid __dmi.%s__ in %s. Expected one of: %s.",
                     match,
                     src,
                     valid_dmi_keys,
@@ -203,12 +203,12 @@ def sub_dmi_vars(src: str) -> str:
             if not dmi_value:
                 dmi_value = ""
             LOG.debug(
-                "Replacing $dmi.%s in '%s' with '%s'.",
+                "Replacing __dmi.%s__ in '%s' with '%s'.",
                 match,
                 src,
                 dmi_value,
             )
-            src = src.replace(f"%dmi.{match}%", dmi_value)
+            src = src.replace(f"__dmi.{match}__", dmi_value)
     return src
 
 
