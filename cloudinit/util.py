@@ -980,10 +980,13 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         vd_url = base % ("vendor-data" + ext)
         md_url = base % ("meta-data" + ext)
     else:
+        # RELEASE_BLOCKER(do not append trailing slash on stable releases)
+        if base[-1] != "/" and parse.urlparse(base).query == "":
+            # Append fwd slash when no query string and no %s
+            base += "/"
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
-
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )

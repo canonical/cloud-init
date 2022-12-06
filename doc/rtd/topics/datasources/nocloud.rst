@@ -38,7 +38,7 @@ Cloud-init performs variable expansion of the seedfrom URL for any DMI kernel
 variables present in ``/sys/class/dmi/id`` (kenv on FreeBSD).
 Your ``seedfrom`` URL can contain variable names of the format
 ``%dmi.varname%`` to indicate to cloud-init NoCloud datasource that dmi.varname
-should be expanded to the actual value of the DMI system attribute is wanted.
+should be expanded to the value of the DMI system attribute wanted.
 The leading and trailing percent ``%`` in ``%dmi.<varname>%`` are used because
 other metacharacters would have to be escaped to avoid Grub interpreting those
 chars.

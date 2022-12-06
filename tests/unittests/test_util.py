@@ -16,8 +16,10 @@ import tempfile
 from collections import deque
 from textwrap import dedent
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
+import responses
 import yaml
 
 from cloudinit import importer, subp, util
@@ -2287,25 +2289,90 @@ class TestMessageFromString(helpers.TestCase):
         self.assertNotIn("\x00", roundtripped)
 
 
-class TestReadSeeded(helpers.TestCase):
-    def setUp(self):
-        super(TestReadSeeded, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
-    def test_unicode_not_messed_up(self):
+class TestReadSeeded:
+    def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
         vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp,
+            tmpdir.strpath,
             {"meta-data": "key1: val1", "user-data": ud, "vendor-data": vd},
         )
-        sdir = self.tmp + os.path.sep
-        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(
+            tmpdir.strpath + os.path.sep
+        )
+        assert found_md == {"key1": "val1"}
+        assert found_ud == ud
+        assert found_vd == vd
 
-        self.assertEqual(found_md, {"key1": "val1"})
-        self.assertEqual(found_ud, ud)
-        self.assertEqual(found_vd, vd)
+    @pytest.mark.parametrize(
+        "base, req_urls",
+        (
+            pytest.param(
+                "http://10.0.0.1/%s?qs=1",
+                [
+                    "http://10.0.0.1/meta-data?qs=1",
+                    "http://10.0.0.1/user-data?qs=1",
+                    "http://10.0.0.1/vendor-data?qs=1",
+                ],
+                id="expand_percent_s_to_data_route",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008/",
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="append_route_suffix_when_forward_slash_present",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008",
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="append_fwd_slash_on_routes_when_absent_and_no_query_str",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008?qs=",
+                [
+                    "https://10.0.0.1:8008/?qs=meta-data",
+                    "https://10.0.0.1:8008/?qs=user-data",
+                    "https://10.0.0.1:8008/?qs=vendor-data",
+                ],
+                id="avoid_trailing_forward_slash_on_routes_with_query_strings",
+            ),
+        ),
+    )
+    @responses.activate
+    def test_handle_http_urls(self, base, req_urls, tmpdir):
+        for md_type in (
+            "meta-data",
+            "user-data",
+            "vendor-data",
+            "network-config",
+        ):
+            if "%s" in base:
+                url = (base % md_type).split("?")[0]
+                responses.add(responses.GET, url, f"{md_type}: 1")
+            elif urlparse(base).query == "" and base[-1] != "/":
+                responses.add(
+                    responses.GET, f"{base}/{md_type}", f"{md_type}: 1"
+                )
+            else:
+                responses.add(
+                    responses.GET, f"{base}{md_type}", f"{md_type}: 1"
+                )
+        (found_md, found_ud, found_vd) = util.read_seeded(base)
+        # Meta-data treated as YAML
+        assert found_md == {"meta-data": 1}
+        # user-data, vendor-data read raw. It could be scripts or other format
+        assert found_ud == b"user-data: 1"
+        assert found_vd == b"vendor-data: 1"
+        calls_made = [call.request.url for call in responses.calls]
+        for req_url in req_urls:
+            assert req_url in calls_made
 
 
 class TestReadSeededWithoutVendorData(helpers.TestCase):
