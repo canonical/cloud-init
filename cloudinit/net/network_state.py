@@ -251,7 +251,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         self,
         version=NETWORK_STATE_VERSION,
         config=None,
-        renderer=None,  # type: Optional[Renderer]
+        renderer: "Optional[Renderer]" = None,
     ):
         self._version = version
         self._config = config

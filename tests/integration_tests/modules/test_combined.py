@@ -154,8 +154,8 @@ class TestCombined:
     def test_snap(self, class_client: IntegrationInstance):
         """Integration test for the snap module.
 
-        This test specifies a command to be executed by the ``snap`` module
-        and then checks that if that command was executed during boot.
+        This test verify that the snap packages specified in the user-data
+        were installed by the ``snap`` module during boot.
         """
         client = class_client
         snap_output = client.execute("snap list")
