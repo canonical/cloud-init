@@ -382,7 +382,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
 
 def validate_cloudconfig_schema(
     config: dict,
-    schema: dict = None,
+    schema: Optional[dict] = None,
     strict: bool = False,
     strict_metaschema: bool = False,
     log_details: bool = True,

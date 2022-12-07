@@ -97,7 +97,7 @@ class IfUpDownActivator(NetworkActivator):
     # E.g., NetworkManager has a ifupdown plugin that requires the name
     # of a specific connection.
     @staticmethod
-    def available(target: str = None) -> bool:
+    def available(target: Optional[str] = None) -> bool:
         """Return true if ifupdown can be used on this system."""
         return eni_available(target=target)
 
