@@ -3,8 +3,8 @@
 Qemu tutorial debugging
 ***********************
 
-You may wish to test out the commands in this tutorial as a `script`_
-to check for copy-paste mistakes.
+You may wish to test out the commands in this tutorial as a
+:download:`script<qemu-script.sh>` to check for copy-paste mistakes.
 
 If you successfully launched the virtual machine, but couldn't log in,
 there are a few places to check to debug your setup.
@@ -32,8 +32,6 @@ Did the IMDS webserver serve the expected files?
 If the webserver prints out 404 errors when launching Qemu, then first check
 that you started the server in the temp directory.
 
-
-
 Were the configurations inside the file correct?
 ===================================================
 When launching Qemu, if the webserver shows that it succeeded in serving
@@ -41,5 +39,3 @@ When launching Qemu, if the webserver shows that it succeeded in serving
 you may have provided incorrect cloud-config files. If you can mount a copy of
 the virtual machine's filesystem locally to inspect the logs, it should be
 possible to get clues about what went wrong.
-
-.. _script: https://cloudinit.readthedocs.io/en/latest/topics/tutorials/qemu-script.sh
