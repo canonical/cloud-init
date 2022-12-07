@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
 from time import sleep, time
-from typing import Callable, List, Optional, ParamSpec, TypeVar, Union
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -51,10 +51,9 @@ DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
 )
 
 T = TypeVar("T")
-P = ParamSpec("P")
 
 
-def azure_ds_telemetry_reporter(func: Callable[P, T]) -> Callable[P, T]:
+def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
     def impl(*args, **kwargs):
         with events.ReportEventStack(
             name=func.__name__,
