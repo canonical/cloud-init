@@ -22,11 +22,11 @@ DEFAULT_REQUIREMENTS = 'requirements.txt'
 
 # Map the appropriate package dir needed for each distro choice
 DISTRO_PKG_TYPE_MAP = {
+    'anolis': 'redhat',
     'centos': 'redhat',
     'eurolinux': 'redhat',
     'miraclelinux': 'redhat',
     'rocky': 'redhat',
-    'anolis': 'redhat',
     'redhat': 'redhat',
     'debian': 'debian',
     'ubuntu': 'debian',

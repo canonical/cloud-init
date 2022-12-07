@@ -192,7 +192,7 @@ os_info() {
 
 get_os_info() {
     # run inside container, set OS_NAME, OS_VERSION
-    # example OS_NAME are centos, debian, opensuse, anolis, rockylinux
+    # example OS_NAME are centos, debian, opensuse, rockylinux
     [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] && return 0
     if [ -f /etc/os-release ]; then
         OS_NAME=$(sh -c '. /etc/os-release; echo $ID')

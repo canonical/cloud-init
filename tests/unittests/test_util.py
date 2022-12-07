@@ -289,11 +289,11 @@ REDHAT_RELEASE_REDHAT_6 = (
 )
 REDHAT_RELEASE_REDHAT_7 = "Red Hat Enterprise Linux Server release 7.5 (Maipo)"
 REDHAT_RELEASE_ALMALINUX_8 = "AlmaLinux release 8.3 (Purple Manul)"
+REDHAT_RELEASE_ANOLIS_8 = "Anolis OS 8.2"
 REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.9 (Minsk)"
 REDHAT_RELEASE_EUROLINUX_8 = "EuroLinux release 8.4 (Vaduz)"
 REDHAT_RELEASE_MIRACLELINUX_8 = "MIRACLE LINUX release 8.4 (Peony)"
 REDHAT_RELEASE_ROCKY_8 = "Rocky Linux release 8.3 (Green Obsidian)"
-REDHAT_RELEASE_ANOLIS_8 = "Anolis OS 8.2"
 REDHAT_RELEASE_VIRTUOZZO_8 = "Virtuozzo Linux release 8"
 REDHAT_RELEASE_CLOUDLINUX_8 = "CloudLinux release 8.4 (Valery Rozhdestvensky)"
 OS_RELEASE_DEBIAN = dedent(
@@ -1267,6 +1267,7 @@ class TestGetVariant:
         [
             ({"system": "Linux", "dist": ("almalinux",)}, "almalinux"),
             ({"system": "linux", "dist": ("alpine",)}, "alpine"),
+            ({"system": "linux", "dist": ("anolis",)}, "anolis"),
             ({"system": "linux", "dist": ("arch",)}, "arch"),
             ({"system": "linux", "dist": ("centos",)}, "centos"),
             ({"system": "linux", "dist": ("cloudlinux",)}, "cloudlinux"),
@@ -1278,7 +1279,6 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
-            ({"system": "linux", "dist": ("anolis",)}, "anolis"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),

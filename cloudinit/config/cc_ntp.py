@@ -26,6 +26,7 @@ NR_POOL_SERVERS = 4
 distros = [
     "almalinux",
     "alpine",
+    "anolis",
     "centos",
     "cloudlinux",
     "cos",
@@ -42,7 +43,6 @@ distros = [
     "photon",
     "rhel",
     "rocky",
-    "anolis",
     "sles",
     "ubuntu",
     "virtuozzo",

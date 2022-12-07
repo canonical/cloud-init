@@ -3,8 +3,8 @@
 # The top level settings are used as module
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
-{% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
-                             "miraclelinux", "rhel", "rocky", "anolis", "virtuozzo" ] %}
+{% set is_rhel = variant in ["almalinux", "anolis", "centos", "cloudlinux", "eurolinux",
+                             "miraclelinux", "rhel", "rocky", "virtuozzo" ] %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}

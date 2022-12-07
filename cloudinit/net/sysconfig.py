@@ -21,6 +21,7 @@ from cloudinit.net.network_state import NetworkState
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
     "almalinux",
+    "anolis",
     "centos",
     "cloudlinux",
     "eurolinux",
@@ -30,7 +31,6 @@ KNOWN_DISTROS = [
     "openmandriva",
     "rhel",
     "rocky",
-    "anolis",
     "suse",
     "virtuozzo",
 ]

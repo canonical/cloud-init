@@ -51,6 +51,7 @@ OSFAMILIES = {
     "redhat": [
         "almalinux",
         "amazon",
+        "anolis",
         "centos",
         "cloudlinux",
         "eurolinux",
@@ -62,7 +63,6 @@ OSFAMILIES = {
         "photon",
         "rhel",
         "rocky",
-        "anolis",
         "virtuozzo",
     ],
     "suse": ["opensuse", "sles"],

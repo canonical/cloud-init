@@ -630,6 +630,7 @@ def _get_variant(info):
         if linux_dist in (
             "almalinux",
             "alpine",
+            "anolis",
             "arch",
             "centos",
             "cloudlinux",
@@ -643,7 +644,6 @@ def _get_variant(info):
             "photon",
             "rhel",
             "rocky",
-            "anolis",
             "suse",
             "virtuozzo",
         ):
