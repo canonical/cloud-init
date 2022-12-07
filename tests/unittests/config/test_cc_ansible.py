@@ -18,7 +18,7 @@ from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 try:
-    import pip as _pip  # type: ignore # noqa: F401
+    import pip as _pip  # noqa: F401
 
     HAS_PIP = True
 except ImportError:

@@ -43,7 +43,7 @@ def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: EventScope = None,
+    scope: Optional[EventScope] = None,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 

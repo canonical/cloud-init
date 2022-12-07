@@ -4,7 +4,7 @@
 """
 import contextlib
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import cloudinit.net as net
 from cloudinit import subp
@@ -35,7 +35,7 @@ class EphemeralIPv4Network:
         prefix_or_mask,
         broadcast,
         router=None,
-        connectivity_url_data: Dict[str, Any] = None,
+        connectivity_url_data: Optional[Dict[str, Any]] = None,
         static_routes=None,
     ):
         """Setup context manager and validate call signature.
@@ -313,7 +313,7 @@ class EphemeralDHCPv4:
     def __init__(
         self,
         iface=None,
-        connectivity_url_data: Dict[str, Any] = None,
+        connectivity_url_data: Optional[Dict[str, Any]] = None,
         dhcp_log_func=None,
         tmp_dir=None,
     ):
