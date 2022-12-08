@@ -1,3 +1,12 @@
+cloud-init (22.4.2-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+
+  * d/compat & d/control: revert bump debhelper-comat to v10. Avoid
+    service restarts across package upgrade (LP: #1999159)
+    - d/compat: replaced with compat level 9
+    - d/control: Build-Depends: revert to debhelper >= 9
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 08 Dec 2022 09:45:11 -0700
+
 cloud-init (22.4.2-0ubuntu0~20.04.1) focal; urgency=medium
 
   * Upstream snapshot based on 22.4.2 upstream release. (LP: #1996645)
