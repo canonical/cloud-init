@@ -1,3 +1,11 @@
+cloud-init (22.4.2-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+
+  * d/control
+    - Build-Depends: revert bump debhelper-compat from v10 to v9
+      (LP: #1999159)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 08 Dec 2022 08:58:10 -0700
+
 cloud-init (22.4.2-0ubuntu0~20.04.1) focal; urgency=medium
 
   * Upstream snapshot based on 22.4.2 upstream release. (LP: #1996645)
