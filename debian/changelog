@@ -1,4 +1,4 @@
-cloud-init (22.4.2-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+cloud-init (22.4.2-0ubuntu0~20.04.2) focal; urgency=medium
 
   * d/compat & d/control: revert bump debhelper-comat to v10. Avoid
     service restarts across package upgrade (LP: #1999159)
