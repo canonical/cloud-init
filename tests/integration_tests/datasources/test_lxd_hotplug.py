@@ -25,6 +25,10 @@ ethernets:
         dhcp4: true
 """
 
+GREP_FEATURES_TMPL = """\
+grep ^{name} /usr/lib/python3/dist-packages/cloudinit/features.py\
+"""
+
 
 @retry()
 def ensure_hotplug_exited(client):
@@ -116,6 +120,7 @@ class TestLxdHotplug:
             top_key = "user"
         else:
             top_key = "cloud-init"
+
         assert subp(
             [
                 "lxc",
@@ -148,10 +153,18 @@ class TestLxdHotplug:
         assert post_netplan == expected_netplan, client.read_from_file(
             "/var/log/cloud-init.log"
         )
-        netplan_perms = client.execute(
+        file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
-        assert "600" == netplan_perms.stdout.strip()
+        assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
+        feature_netplan_root_only = class_client.execute(
+            GREP_FEATURES_TMPL.format(name="NETPLAN_CONFIG_ROOT_READ_ONLY")
+        ).stdout.strip()
+        if "NETPLAN_CONFIG_ROOT_READ_ONLY = True" == feature_netplan_root_only:
+            config_perms = "600"
+        else:
+            config_perms = "644"
+        assert config_perms == file_perms.stdout.strip()
         ip_info = json.loads(client.execute("ip --json address"))
         eth2s = [i for i in ip_info if i["ifname"] == "eth2"]
         assert len(eth2s) == 1

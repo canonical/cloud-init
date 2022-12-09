@@ -73,6 +73,10 @@ ssh_import_id:
 timezone: US/Aleutian
 """
 
+GREP_FEATURES_TMPL = """\
+grep ^{name} /usr/lib/python3/dist-packages/cloudinit/features.py\
+"""
+
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
@@ -82,11 +86,18 @@ class TestCombined:
         """
         Test that netplan config file is generated with proper permissions
         """
-        response = class_client.execute(
+        file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
-        assert response.ok, "Unable to check perms on 50-cloud-init.yaml"
-        assert "600" == response.stdout.strip()
+        assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
+        feature_netplan_root_only = class_client.execute(
+            GREP_FEATURES_TMPL.format(name="NETPLAN_CONFIG_ROOT_READ_ONLY")
+        ).stdout.strip()
+        if "NETPLAN_CONFIG_ROOT_READ_ONLY = True" == feature_netplan_root_only:
+            config_perms = "600"
+        else:
+            config_perms = "644"
+        assert config_perms == file_perms.stdout.strip()
 
     def test_final_message(self, class_client: IntegrationInstance):
         """Test that final_message module works as expected.
