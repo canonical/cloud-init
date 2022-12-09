@@ -1,3 +1,10 @@
+cloud-init (22.4-0ubuntu0~18.04.2) UNRELEASED; urgency=medium
+
+  * d/patches/retain-netplan.patch: netplan-retain-world-readable.patch
+    + Leave 50-cloud-init.yaml permis 644 instead of setting it root read-only
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 08 Dec 2022 22:33:02 -0700
+
 cloud-init (22.4-0ubuntu0~18.04.1) bionic; urgency=medium
 
   * d/control: drop python3-httpretty from Build-Depends
