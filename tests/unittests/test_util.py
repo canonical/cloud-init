@@ -19,10 +19,9 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
-import responses
 import yaml
 
-from cloudinit import importer, subp, util
+from cloudinit import importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -2337,42 +2336,34 @@ class TestReadSeeded:
             pytest.param(
                 "https://10.0.0.1:8008?qs=",
                 [
-                    "https://10.0.0.1:8008/?qs=meta-data",
-                    "https://10.0.0.1:8008/?qs=user-data",
-                    "https://10.0.0.1:8008/?qs=vendor-data",
+                    "https://10.0.0.1:8008?qs=meta-data",
+                    "https://10.0.0.1:8008?qs=user-data",
+                    "https://10.0.0.1:8008?qs=vendor-data",
                 ],
                 id="avoid_trailing_forward_slash_on_routes_with_query_strings",
             ),
         ),
     )
-    @responses.activate
-    def test_handle_http_urls(self, base, req_urls, tmpdir):
-        for md_type in (
-            "meta-data",
-            "user-data",
-            "vendor-data",
-            "network-config",
-        ):
-            if "%s" in base:
-                url = (base % md_type).split("?")[0]
-                responses.add(responses.GET, url, f"{md_type}: 1")
-            elif urlparse(base).query == "" and base[-1] != "/":
-                responses.add(
-                    responses.GET, f"{base}/{md_type}", f"{md_type}: 1"
-                )
-            else:
-                responses.add(
-                    responses.GET, f"{base}{md_type}", f"{md_type}: 1"
-                )
+    @mock.patch(M_PATH + "url_helper.read_file_or_url")
+    def test_handle_http_urls(self, m_read, base, req_urls, tmpdir):
+        def fake_response(url, timeout, retries):
+            path = f"{urlparse(url).path}"
+            if not path:
+                _key, _, md_type = urlparse(url).query.partition("=")
+                path = f"/{md_type}"
+            return url_helper.StringResponse(f"{path}: 1")
+
+        m_read.side_effect = fake_response
+
         (found_md, found_ud, found_vd) = util.read_seeded(base)
         # Meta-data treated as YAML
-        assert found_md == {"meta-data": 1}
+        assert found_md == {"/meta-data": 1}
         # user-data, vendor-data read raw. It could be scripts or other format
-        assert found_ud == b"user-data: 1"
-        assert found_vd == b"vendor-data: 1"
-        calls_made = [call.request.url for call in responses.calls]
-        for req_url in req_urls:
-            assert req_url in calls_made
+        assert found_ud == "/user-data: 1"
+        assert found_vd == "/vendor-data: 1"
+        assert [
+            mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
+        ] == m_read.call_args_list
 
 
 class TestReadSeededWithoutVendorData(helpers.TestCase):
