@@ -1,0 +1,71 @@
+Description: Retain netplan/50-cloud-init.yaml as world-readable 644 
+ Upstream cloud-init sets perms 600 ifor 50-cloud-init.yaml to protect
+ passthrough network v2 config which could contain wifi passwords.
+ Stable releases should not change permissions on this config file.
+Author: chad.smith@canonical.com
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2022-12-08
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: cloud-init/cloudinit/net/netplan.py
+===================================================================
+--- cloud-init.orig/cloudinit/net/netplan.py
++++ cloud-init/cloudinit/net/netplan.py
+@@ -261,7 +261,7 @@ class Renderer(renderer.Renderer):
+         if not header.endswith("\n"):
+             header += "\n"
+ 
+-        util.write_file(fpnplan, header + content, mode=0o600)
++        util.write_file(fpnplan, header + content)
+ 
+         if self.clean_default:
+             _clean_default(target=target)
+Index: cloud-init/tests/integration_tests/datasources/test_lxd_hotplug.py
+===================================================================
+--- cloud-init.orig/tests/integration_tests/datasources/test_lxd_hotplug.py
++++ cloud-init/tests/integration_tests/datasources/test_lxd_hotplug.py
+@@ -151,7 +151,7 @@ class TestLxdHotplug:
+         netplan_perms = client.execute(
+             "stat -c %a /etc/netplan/50-cloud-init.yaml"
+         )
+-        assert "600" == netplan_perms.stdout.strip()
++        assert "644" == netplan_perms.stdout.strip()
+         ip_info = json.loads(client.execute("ip --json address"))
+         eth2s = [i for i in ip_info if i["ifname"] == "eth2"]
+         assert len(eth2s) == 1
+Index: cloud-init/tests/integration_tests/modules/test_combined.py
+===================================================================
+--- cloud-init.orig/tests/integration_tests/modules/test_combined.py
++++ cloud-init/tests/integration_tests/modules/test_combined.py
+@@ -86,7 +86,7 @@ class TestCombined:
+             "stat -c %a /etc/netplan/50-cloud-init.yaml"
+         )
+         assert response.ok, "Unable to check perms on 50-cloud-init.yaml"
+-        assert "600" == response.stdout.strip()
++        assert "644" == response.stdout.strip()
+ 
+     def test_final_message(self, class_client: IntegrationInstance):
+         """Test that final_message module works as expected.
+Index: cloud-init/tests/unittests/distros/test_netconfig.py
+===================================================================
+--- cloud-init.orig/tests/unittests/distros/test_netconfig.py
++++ cloud-init/tests/unittests/distros/test_netconfig.py
+@@ -569,7 +569,7 @@ class TestNetCfgDistroUbuntuNetplan(Test
+             print(results[cfgpath])
+             print("----------")
+             self.assertEqual(expected, results[cfgpath])
+-            self.assertEqual(0o600, get_mode(cfgpath, tmpd))
++            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+ 
+     def netplan_path(self):
+         return "/etc/netplan/50-cloud-init.yaml"
+@@ -937,7 +937,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
+                 apply_fn(config, bringup)
+ 
+         results = dir2dict(tmpd)
+-        mode = 0o600 if with_netplan else 0o644
++        mode = 0o644
+         for cfgpath, expected in expected_cfgs.items():
+             print("----------")
+             print(expected)
