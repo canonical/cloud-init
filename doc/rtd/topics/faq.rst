@@ -151,9 +151,6 @@ provided to the system:
 
     $ cloud-init schema --system --annotate
 
-As launching instances in the cloud can cost money and take a bit longer,
-sometimes it is easier to launch instances locally using Multipass or LXD:
-
 Why did cloud-init never complete?
 ==================================
 
@@ -198,6 +195,22 @@ systemd, please make sure to include the following logs.
         $ systemd-analyze critical-chain cloud-init.target
         $ journalctl --boot=-1
         $ systemctl --failed
+
+
+Autoinstall, Preruncmd, Postruncmd
+==================================
+Since cloud-init ignores top level userdata cloud-config keys, other projects
+such as `Juju <https://ubuntu.com/blog/topics/juju>`_ and subiquity_
+autoinstaller use a YAML-formatted config that combines cloud-init's userdata
+cloud-config YAML format with their custom YAML keys. Since cloud-init ignores
+unused top level keys, these combined YAML configurations may be valid
+cloud-config files, however keys such as ``autoinstall``, ``preruncmd``, and
+``postruncmd`` are not used by cloud-init to configure anything.
+
+Please direct bugs and questions about other projects that use cloud-init to
+their respective support channels. For Subiquity autoinstaller that is via IRC
+#ubuntu-server on Libera or Discourse. For Juju support see their
+`discourse page <https://discourse.charmhub.io>`_.
 
 
 How can I make a module run on every boot?
@@ -428,3 +441,5 @@ Whitepapers:
 .. _cloud-init Summit 2019: https://powersj.io/post/cloud-init-summit19/
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/
+.. _subiquity: https://ubuntu.com/server/docs/install/autoinstall
+.. _juju_project: https://discourse.charmhub.io/t/model-config-cloudinit-userdata/512
