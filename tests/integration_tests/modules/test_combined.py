@@ -77,6 +77,17 @@ timezone: US/Aleutian
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestCombined:
+    @pytest.mark.ubuntu  # Because netplan
+    def test_netplan_permissions(self, class_client: IntegrationInstance):
+        """
+        Test that netplan config file is generated with proper permissions
+        """
+        response = class_client.execute(
+            "stat -c %a /etc/netplan/50-cloud-init.yaml"
+        )
+        assert response.ok, "Unable to check perms on 50-cloud-init.yaml"
+        assert "600" == response.stdout.strip()
+
     def test_final_message(self, class_client: IntegrationInstance):
         """Test that final_message module works as expected.
 
