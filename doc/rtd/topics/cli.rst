@@ -382,7 +382,7 @@ Example output when cloud-init is done:
    detail:
    DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
 
-The detailed output can be shown in machine-readable JSON or YAML with the 
+The detailed output can be shown in machine-readable JSON or YAML with the
 ``format`` option, for example:
 
 .. code-block:: shell-session
