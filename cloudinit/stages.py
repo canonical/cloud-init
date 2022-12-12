@@ -801,7 +801,7 @@ class Init:
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
-    def _get_network_config(self, cfg) -> dict:
+    def _get_network_key_contents(self, cfg) -> dict:
         """
         Network configuration can be passed as a dict under a "network" key, or
         optionally at the top level. In both cases, return the config.
@@ -847,7 +847,7 @@ class Init:
                     cfg_source,
                 )
                 continue
-            ncfg = self._get_network_config(
+            ncfg = self._get_network_key_contents(
                 available_cfgs[cfg_source]
             )
             if net.is_disabled_cfg(ncfg):
