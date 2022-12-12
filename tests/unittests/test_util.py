@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import importer, subp, url_helper, util
+from cloudinit import features, importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -2304,10 +2304,11 @@ class TestReadSeeded:
         assert found_vd == vd
 
     @pytest.mark.parametrize(
-        "base, req_urls",
+        "base, feature_flag, req_urls",
         (
             pytest.param(
                 "http://10.0.0.1/%s?qs=1",
+                True,
                 [
                     "http://10.0.0.1/meta-data?qs=1",
                     "http://10.0.0.1/user-data?qs=1",
@@ -2317,15 +2318,17 @@ class TestReadSeeded:
             ),
             pytest.param(
                 "https://10.0.0.1:8008/",
+                True,
                 [
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
                     "https://10.0.0.1:8008/vendor-data",
                 ],
-                id="append_route_suffix_when_forward_slash_present",
+                id="no_duplicate_forward_slash_when_already_present",
             ),
             pytest.param(
                 "https://10.0.0.1:8008",
+                True,
                 [
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
@@ -2334,7 +2337,18 @@ class TestReadSeeded:
                 id="append_fwd_slash_on_routes_when_absent_and_no_query_str",
             ),
             pytest.param(
+                "https://10.0.0.1:8008",
+                False,
+                [
+                    "https://10.0.0.1:8008meta-data",
+                    "https://10.0.0.1:8008user-data",
+                    "https://10.0.0.1:8008vendor-data",
+                ],
+                id="feature_off_append_fwd_slash_when_absent_and_no_query_str",
+            ),
+            pytest.param(
                 "https://10.0.0.1:8008?qs=",
+                True,
                 [
                     "https://10.0.0.1:8008?qs=meta-data",
                     "https://10.0.0.1:8008?qs=user-data",
@@ -2345,17 +2359,28 @@ class TestReadSeeded:
         ),
     )
     @mock.patch(M_PATH + "url_helper.read_file_or_url")
-    def test_handle_http_urls(self, m_read, base, req_urls, tmpdir):
+    def test_handle_http_urls(
+        self, m_read, base, feature_flag, req_urls, tmpdir
+    ):
         def fake_response(url, timeout, retries):
-            path = f"{urlparse(url).path}"
+            parsed_url = urlparse(url)
+            path = parsed_url.path
             if not path:
-                _key, _, md_type = urlparse(url).query.partition("=")
+                if parsed_url.query:
+                    _key, _, md_type = parsed_url.query.partition("=")
+                else:
+                    _url, _, md_type = parsed_url.netloc.partition("8008")
                 path = f"/{md_type}"
             return url_helper.StringResponse(f"{path}: 1")
 
         m_read.side_effect = fake_response
 
-        (found_md, found_ud, found_vd) = util.read_seeded(base)
+        with mock.patch.object(
+            features,
+            "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH",
+            feature_flag,
+        ):
+            (found_md, found_ud, found_vd) = util.read_seeded(base)
         # Meta-data treated as YAML
         assert found_md == {"/meta-data": 1}
         # user-data, vendor-data read raw. It could be scripts or other format
