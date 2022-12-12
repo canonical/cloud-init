@@ -4,10 +4,14 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.subp import subp
+from cloudinit.util import is_true
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import lxd_has_nocloud
+from tests.integration_tests.util import (
+    get_feature_flag_value,
+    lxd_has_nocloud,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -116,6 +120,7 @@ class TestLxdHotplug:
             top_key = "user"
         else:
             top_key = "cloud-init"
+
         assert subp(
             [
                 "lxc",
@@ -148,10 +153,17 @@ class TestLxdHotplug:
         assert post_netplan == expected_netplan, client.read_from_file(
             "/var/log/cloud-init.log"
         )
-        netplan_perms = client.execute(
+        file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
-        assert "600" == netplan_perms.stdout.strip()
+        assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
+        feature_netplan_root_only = is_true(
+            get_feature_flag_value(
+                class_client, "NETPLAN_CONFIG_ROOT_READ_ONLY"
+            )
+        )
+        config_perms = "600" if feature_netplan_root_only else "644"
+        assert config_perms == file_perms.stdout.strip()
         ip_info = json.loads(client.execute("ip --json address"))
         eth2s = [i for i in ip_info if i["ifname"] == "eth2"]
         assert len(eth2s) == 1

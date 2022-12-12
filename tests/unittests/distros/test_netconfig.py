@@ -7,7 +7,15 @@ from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
-from cloudinit import distros, helpers, safeyaml, settings, subp, util
+from cloudinit import (
+    distros,
+    features,
+    helpers,
+    safeyaml,
+    settings,
+    subp,
+    util,
+)
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import (
@@ -562,6 +570,8 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
                     apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
+
+        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
             print(expected)
@@ -569,7 +579,7 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o600, get_mode(cfgpath, tmpd))
+            self.assertEqual(mode, get_mode(cfgpath, tmpd))
 
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
@@ -608,6 +618,21 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             V2_NET_CFG,
             expected_cfgs=expected_cfgs.copy(),
         )
+
+    def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
+        """Kinetic and earlier have 50-cloud-init.yaml world-readable"""
+        expected_cfgs = {
+            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
+        }
+        # ub_distro.apply_network_config(V2_NET_CFG, False)
+        with mock.patch.object(
+            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        ):
+            self._apply_and_verify_netplan(
+                self.distro.apply_network_config,
+                V2_NET_CFG,
+                expected_cfgs=expected_cfgs.copy(),
+            )
 
     def test_apply_network_config_v2_full_passthrough_ub(self):
         expected_cfgs = {

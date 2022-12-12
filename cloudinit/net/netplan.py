@@ -5,6 +5,7 @@ import os
 import textwrap
 from typing import Optional, cast
 
+from cloudinit import features
 from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
 from cloudinit.net import (
@@ -261,7 +262,8 @@ class Renderer(renderer.Renderer):
         if not header.endswith("\n"):
             header += "\n"
 
-        util.write_file(fpnplan, header + content, mode=0o600)
+        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+        util.write_file(fpnplan, header + content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
