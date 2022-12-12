@@ -847,9 +847,7 @@ class Init:
                     cfg_source,
                 )
                 continue
-            ncfg = self._get_network_key_contents(
-                available_cfgs[cfg_source]
-            )
+            ncfg = self._get_network_key_contents(available_cfgs[cfg_source])
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)
