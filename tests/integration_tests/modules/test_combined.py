@@ -15,10 +15,12 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
+from cloudinit.util import is_true
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
     verify_clean_log,
@@ -73,10 +75,6 @@ ssh_import_id:
 timezone: US/Aleutian
 """
 
-GREP_FEATURES_TMPL = """\
-grep ^{name} /usr/lib/python3/dist-packages/cloudinit/features.py\
-"""
-
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
@@ -90,13 +88,12 @@ class TestCombined:
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
         assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
-        feature_netplan_root_only = class_client.execute(
-            GREP_FEATURES_TMPL.format(name="NETPLAN_CONFIG_ROOT_READ_ONLY")
-        ).stdout.strip()
-        if "NETPLAN_CONFIG_ROOT_READ_ONLY = True" == feature_netplan_root_only:
-            config_perms = "600"
-        else:
-            config_perms = "644"
+        feature_netplan_root_only = is_true(
+            get_feature_flag_value(
+                class_client, "NETPLAN_CONFIG_ROOT_READ_ONLY"
+            )
+        )
+        config_perms = "600" if feature_netplan_root_only else "644"
         assert config_perms == file_perms.stdout.strip()
 
     def test_final_message(self, class_client: IntegrationInstance):

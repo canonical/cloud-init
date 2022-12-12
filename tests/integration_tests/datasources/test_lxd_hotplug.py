@@ -4,10 +4,14 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.subp import subp
+from cloudinit.util import is_true
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import lxd_has_nocloud
+from tests.integration_tests.util import (
+    get_feature_flag_value,
+    lxd_has_nocloud,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -23,10 +27,6 @@ ethernets:
         dhcp4: true
     eth2:
         dhcp4: true
-"""
-
-GREP_FEATURES_TMPL = """\
-grep ^{name} /usr/lib/python3/dist-packages/cloudinit/features.py\
 """
 
 
@@ -157,13 +157,12 @@ class TestLxdHotplug:
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
         assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
-        feature_netplan_root_only = class_client.execute(
-            GREP_FEATURES_TMPL.format(name="NETPLAN_CONFIG_ROOT_READ_ONLY")
-        ).stdout.strip()
-        if "NETPLAN_CONFIG_ROOT_READ_ONLY = True" == feature_netplan_root_only:
-            config_perms = "600"
-        else:
-            config_perms = "644"
+        feature_netplan_root_only = is_true(
+            get_feature_flag_value(
+                class_client, "NETPLAN_CONFIG_ROOT_READ_ONLY"
+            )
+        )
+        config_perms = "600" if feature_netplan_root_only else "644"
         assert config_perms == file_perms.stdout.strip()
         ip_info = json.loads(client.execute("ip --json address"))
         eth2s = [i for i in ip_info if i["ifname"] == "eth2"]
