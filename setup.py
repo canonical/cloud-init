@@ -25,7 +25,7 @@ from setuptools.command.install import install
 try:
     from setuptools.errors import DistutilsError
 except ImportError:
-    from distutils.errors import DistutilsArgError as DistutilsError
+    from setuptools.errors import BaseError as DistutilsError
 # pylint: enable=W0402
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
