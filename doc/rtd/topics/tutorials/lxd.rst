@@ -92,8 +92,7 @@ Which provides the following output:
 
 .. code-block::
 
-    .....
-    cloud-init status: done
+    status: done
 
 We can now verify that cloud-init received the expected user data:
 
