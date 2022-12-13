@@ -58,12 +58,12 @@ The settings available are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-   datasource:
-     Exoscale:
-       metadata_url: "http://169.254.169.254"
-       api_version: "1.0"
-       password_server_port: 8080
-       timeout: 10
-       retries: 6
+    datasource:
+      Exoscale:
+        metadata_url: "http://169.254.169.254"
+        api_version: "1.0"
+        password_server_port: 8080
+        timeout: 10
+        retries: 6

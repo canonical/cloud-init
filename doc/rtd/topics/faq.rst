@@ -93,6 +93,11 @@ To find what datasource is getting used run the `cloud-id` command:
 .. code-block:: shell-session
 
     $ cloud-id
+
+Which will tell you which datasource is being used, for example:
+
+.. code-block::
+
     nocloud
 
 If the cloud-id is not what is expected, then running the `ds-identify`
@@ -119,10 +124,10 @@ cloud-init:
 
 .. code-block:: shell-session
 
-  $ sudo DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
-  $ sudo cloud-init clean --logs
-  $ sudo cloud-init init --local
-  $ sudo cloud-init init
+   $ sudo DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+   $ sudo cloud-init clean --logs
+   $ sudo cloud-init init --local
+   $ sudo cloud-init init
 
 .. warning::
 

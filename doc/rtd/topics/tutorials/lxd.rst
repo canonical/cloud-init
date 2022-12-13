@@ -21,7 +21,7 @@ testing and iterating on our user data definition.
 Setup LXD
 =========
 
-Skip this section if you already have LXD_ setup.
+Skip this section if you already have LXD_ set up.
 
 Install LXD
 -----------
@@ -46,7 +46,7 @@ be changed at a later time if needed.
 Define our user data
 ====================
 
-Now that LXD is setup, we can define our user data. Create the
+Now that LXD is set up, we can define our user data. Create the
 following file on your local filesystem at ``/tmp/my-user-data``:
 
 .. code-block:: yaml
@@ -87,15 +87,23 @@ successfully:
 .. code-block:: shell-session
 
     $ cloud-init status --wait
-    .....
-    cloud-init status: done
-    $
+
+Which provides the following output:
+
+.. code-block::
+
+    status: done
 
 We can now verify that cloud-init received the expected user data:
 
 .. code-block:: shell-session
 
     $ cloud-init query userdata
+
+Which should print the following to the terminal window:
+
+.. code-block::
+
     #cloud-config
     runcmd:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
@@ -105,16 +113,24 @@ We can also assert the user data we provided is a valid cloud-config:
 .. code-block:: shell-session
 
     $ cloud-init schema --system --annotate
+
+Which should print the following:
+
+.. code-block::
+
     Valid cloud-config: system userdata
-    $
 
 Finally, verify that our user data was applied successfully:
 
 .. code-block:: shell-session
 
     $ cat /var/tmp/hello-world.txt
+
+Which should then print:
+
+.. code-block::
+
     Hello, World!
-    $
 
 We can see that cloud-init has consumed our user data successfully!
 

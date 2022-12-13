@@ -129,31 +129,31 @@ See an example below.  Note specifically that this file does not
 have a top level ``network`` key as it is already assumed to
 be network configuration based on the filename.
 
-.. code:: yaml
+.. code-block:: yaml
 
-  version: 1
-  config:
-     - type: physical
-       name: interface0
-       mac_address: "52:54:00:12:34:00"
-       subnets:
-          - type: static
-            address: 192.168.1.10
-            netmask: 255.255.255.0
-            gateway: 192.168.1.254
+   version: 1
+   config:
+      - type: physical
+        name: interface0
+        mac_address: "52:54:00:12:34:00"
+        subnets:
+           - type: static
+             address: 192.168.1.10
+             netmask: 255.255.255.0
+             gateway: 192.168.1.254
 
 
-.. code:: yaml
+.. code-block:: yaml
 
-  version: 2
-  ethernets:
-    interface0:
-      match:
-        macaddress: "52:54:00:12:34:00"
-      set-name: interface0
-      addresses:
-        - 192.168.1.10/255.255.255.0
-      gateway4: 192.168.1.254
+   version: 2
+   ethernets:
+     interface0:
+       match:
+         macaddress: "52:54:00:12:34:00"
+       set-name: interface0
+       addresses:
+         - 192.168.1.10/255.255.255.0
+       gateway4: 192.168.1.254
 
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660

@@ -17,17 +17,22 @@ To aid in debugging, please collect the necessary logs. To do so, run the
 
 .. code-block:: shell-session
 
-  $ sudo cloud-init collect-logs
-  Wrote /home/ubuntu/cloud-init.tar.gz
+   $ sudo cloud-init collect-logs
+
+Example output:
+
+.. code-block::
+
+   Wrote /home/ubuntu/cloud-init.tar.gz
 
 If your version of cloud-init does not have the  `collect-logs` subcommand,
 then please manually collect the base log files by doing the following:
 
 .. code-block:: shell-session
 
-  $ sudo dmesg > dmesg.txt
-  $ sudo journalctl -o short-precise > journal.txt
-  $ sudo tar -cvf cloud-init.tar dmesg.txt journal.txt /run/cloud-init \
+   $ sudo dmesg > dmesg.txt
+   $ sudo journalctl -o short-precise > journal.txt
+   $ sudo tar -cvf cloud-init.tar dmesg.txt journal.txt /run/cloud-init \
       /var/log/cloud-init.log /var/log/cloud-init-output.log
 
 Report Upstream Bug
@@ -63,7 +68,7 @@ Launchpad:
 
 .. code-block:: shell-session
 
-  $ ubuntu-bug cloud-init
+   $ ubuntu-bug cloud-init
 
 If that does not work or is not an option, please collect the logs using the
 commands in the above Collect Logs section and then report the bug on the

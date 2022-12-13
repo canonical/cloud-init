@@ -41,7 +41,7 @@ These get fetched from the datasource and are defined at instance launch.
 Network Configuration
 =====================
 Network configuration happens independently from other cloud-init
-configuration. See :ref:`network configuration documentation<default_behavior>`
+configuration. See :ref:`network configuration documentation<network_config>`
 for more information.
 
 Specifying Configuration

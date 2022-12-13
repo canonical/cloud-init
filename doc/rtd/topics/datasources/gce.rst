@@ -30,12 +30,12 @@ The settings that may be configured are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    GCE:
-      retries: 5
-      sec_between_retries: 1
+   datasource:
+     GCE:
+       retries: 5
+       sec_between_retries: 1
 
 .. _GCE metadata docs: https://cloud.google.com/compute/docs/storing-retrieving-metadata
 
