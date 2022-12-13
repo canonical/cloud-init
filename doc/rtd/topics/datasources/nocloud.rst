@@ -39,10 +39,6 @@ variables present in ``/sys/class/dmi/id`` (kenv on FreeBSD).
 Your ``seedfrom`` URL can contain variable names of the format
 ``__dmi.varname__`` to indicate to cloud-init NoCloud datasource that
 dmi.varname should be expanded to the value of the DMI system attribute wanted.
-The leading and trailing double-underscores ``__`` in ``__dmi.<varname>__`` are
-used because they are URL safe characters in case URL parsing touches this
-value as well as 'safe' from any Grub variable expansion performed when
-seedfrom value is provided as appended kernel command line parameters.
 
 .. list-table:: Available DMI variables for expansion in ``seedfrom`` URL
   :widths: 35 35 30
