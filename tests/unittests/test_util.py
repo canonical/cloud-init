@@ -2636,6 +2636,19 @@ class TestGetProcEnv(helpers.TestCase):
                 assert ppid == util.get_proc_ppid("mocked")
 
 
+class TestHuman2Bytes:
+    """test util.human2bytes() function"""
+
+    def test_human2bytes(self):
+        assert util.human2bytes("0.5G") == 536870912
+        assert util.human2bytes("100B") == 100
+        assert util.human2bytes("100MB") == 104857600
+
+        for test_i in ["-100MB", "100b", "100mB"]:
+            with pytest.raises(ValueError):
+                util.human2bytes(test_i)
+
+
 class TestKernelVersion:
     """test kernel version function"""
 
