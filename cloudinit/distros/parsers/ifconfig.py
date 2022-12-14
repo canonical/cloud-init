@@ -6,6 +6,7 @@
 
 import copy
 import re
+from collections import defaultdict
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 from typing import Dict, Optional, Tuple
@@ -87,10 +88,10 @@ class Ifconfig:
     """
 
     def __init__(self):
-        self._ifs = {}
+        self._ifs = defaultdict(list)
 
     @lru_cache()
-    def parse(self, text: str) -> Dict[str, Ifstate]:
+    def parse(self, text: str) -> defaultdict[(str, Ifstate)]:
         """
         Parse the ``ifconfig -a`` output ``text``, into a dict of ``Ifstate``
         objects, referenced by ``name`` *and* by ``mac`` address.
@@ -119,7 +120,7 @@ class Ifconfig:
                     curif = curif[:-1]
                 dev = Ifstate(curif)
                 dev.index = ifindex
-                self._ifs[curif] = dev
+                self._ifs.append([curif, dev])
 
             toks = line.lower().strip().split()
 
@@ -157,10 +158,10 @@ class Ifconfig:
             if toks[0] == "ether":
                 dev.mac = toks[1]
                 dev.macs.append(toks[1])
-                self._ifs[toks[1]] = dev
+                self._ifs.append([toks[1], dev])
             if toks[0] == "hwaddr":
                 dev.macs.append(toks[1])
-                self._ifs[toks[1]] = dev
+                self._ifs.append([toks[1], dev])
 
             if toks[0] == "groups:":
                 dev.groups += toks[1:]
@@ -203,9 +204,9 @@ class Ifconfig:
         }
 
     def ifs_by_mac(self):
-        return {
-            k: v for (k, v) in self._ifs.items() if re.fullmatch(MAC_RE, k)
-        }
+        return defaultdict(
+            [k, v] for (k, v) in self._ifs.items() if re.fullmatch(MAC_RE, k)
+        )
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None
