@@ -120,7 +120,7 @@ class Ifconfig:
                     curif = curif[:-1]
                 dev = Ifstate(curif)
                 dev.index = ifindex
-                self._ifs.append([curif, dev])
+                self._ifs[curif].append(dev)
 
             toks = line.lower().strip().split()
 
@@ -158,10 +158,10 @@ class Ifconfig:
             if toks[0] == "ether":
                 dev.mac = toks[1]
                 dev.macs.append(toks[1])
-                self._ifs.append([toks[1], dev])
+                self._ifs[toks[1]].append(dev)
             if toks[0] == "hwaddr":
                 dev.macs.append(toks[1])
-                self._ifs.append([toks[1], dev])
+                self._ifs[toks[1]].append(dev)
 
             if toks[0] == "groups:":
                 dev.groups += toks[1:]
