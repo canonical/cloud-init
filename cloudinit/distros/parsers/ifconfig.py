@@ -9,7 +9,7 @@ import re
 from collections import defaultdict
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from cloudinit import log as logging
 
@@ -88,10 +88,11 @@ class Ifconfig:
     """
 
     def __init__(self):
-        self._ifs = defaultdict(list)
+        self._ifs_by_name = {}
+        self._ifs_by_mac = {}
 
     @lru_cache()
-    def parse(self, text: str) -> defaultdict[(str, Ifstate)]:
+    def parse(self, text: str) -> Dict[str, Union[Ifstate, List[Ifstate]]]:
         """
         Parse the ``ifconfig -a`` output ``text``, into a dict of ``Ifstate``
         objects, referenced by ``name`` *and* by ``mac`` address.
@@ -105,6 +106,7 @@ class Ifconfig:
         @returns: A dict of ``Ifstate``s, referenced by ``name`` and ``mac``
         """
         ifindex = 0
+        ifs_by_mac = defaultdict(list)
         for line in text.splitlines():
             if len(line) == 0:
                 continue
@@ -120,7 +122,7 @@ class Ifconfig:
                     curif = curif[:-1]
                 dev = Ifstate(curif)
                 dev.index = ifindex
-                self._ifs[curif].append(dev)
+                self._ifs_by_name[curif] = dev
 
             toks = line.lower().strip().split()
 
@@ -158,10 +160,10 @@ class Ifconfig:
             if toks[0] == "ether":
                 dev.mac = toks[1]
                 dev.macs.append(toks[1])
-                self._ifs[toks[1]].append(dev)
+                ifs_by_mac[toks[1]].append(dev)
             if toks[0] == "hwaddr":
                 dev.macs.append(toks[1])
-                self._ifs[toks[1]].append(dev)
+                ifs_by_mac[toks[1]].append(dev)
 
             if toks[0] == "groups:":
                 dev.groups += toks[1:]
@@ -196,17 +198,14 @@ class Ifconfig:
                     if toks[i] == "interface:":
                         dev.vlan["link"] = toks[i + 1]
 
-        return self._ifs
+        self._ifs_by_mac = dict(ifs_by_mac)
+        return {**self._ifs_by_name, **self._ifs_by_mac}
 
     def ifs_by_name(self):
-        return {
-            k: v for (k, v) in self._ifs.items() if not re.fullmatch(MAC_RE, k)
-        }
+        return self._ifs_by_name
 
     def ifs_by_mac(self):
-        return defaultdict(
-            [k, v] for (k, v) in self._ifs.items() if re.fullmatch(MAC_RE, k)
-        )
+        return self._ifs_by_mac
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None
