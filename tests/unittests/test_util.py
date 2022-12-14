@@ -2648,6 +2648,11 @@ class TestHuman2Bytes:
             with pytest.raises(ValueError):
                 util.human2bytes(test_i)
 
+    def test_ibibytes2bytes(self):
+
+        assert util.human2bytes("0.5GiB") == 536870912
+        assert util.human2bytes("100MiB") == 104857600
+
 
 class TestKernelVersion:
     """test kernel version function"""

@@ -2765,7 +2765,9 @@ def human2bytes(size):
     .5G => 536870912
     """
     size_in = size
-    if size.endswith("B"):
+    if size.endswith("iB"):
+        size = size[:-2]
+    elif size.endswith("B"):
         size = size[:-1]
 
     mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}
