@@ -90,7 +90,16 @@ if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
             branch_name,
         ] + flags
 
-        version = tiny_p(cmd).strip()
+        try:
+            version = tiny_p(cmd).strip()
+            version_long = tiny_p(cmd + ["--long"]).strip()
+        except subprocess.CalledProcessError as e:
+            if "No tags can describe" in e.stderr:
+                print(f"{cmd} found no tags. Using cloudinit.verison.py ")
+                version = src_version
+                version_long = ""
+            else:
+                raise
         version_long = tiny_p(cmd + ["--long"]).strip()
 else:
     version = src_version
