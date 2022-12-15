@@ -38,7 +38,7 @@ from functools import lru_cache, total_ordering
 from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
-from cloudinit import importer
+from cloudinit import features, importer
 from cloudinit import log as logging
 from cloudinit import (
     mergers,
@@ -976,14 +976,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.find("%s") >= 0:
-        ud_url = base % ("user-data" + ext)
-        vd_url = base % ("vendor-data" + ext)
-        md_url = base % ("meta-data" + ext)
+        ud_url = base.replace("%s", "user-data" + ext)
+        vd_url = base.replace("%s", "vendor-data" + ext)
+        md_url = base.replace("%s", "meta-data" + ext)
     else:
+        if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
+            if base[-1] != "/" and parse.urlparse(base).query == "":
+                # Append fwd slash when no query string and no %s
+                base += "/"
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
-
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )

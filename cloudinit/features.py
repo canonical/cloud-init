@@ -69,6 +69,17 @@ world-readable. Prior to 23.1, netplan configuration is world-readable.
 (This flag can be removed after Jammy is no longer supported.)
 """
 
+
+NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH = True
+"""
+Append a forward slash '/' if NoCloud seedurl does not end with either
+a querystring or forward slash. Prior to 23.1, nocloud seedurl would be used
+unaltered, appending meta-data, user-data and vendor-data to without URL path
+separators.
+
+(This flag can be removed when Jammy is no longer supported.)
+"""
+
 try:
     # pylint: disable=wildcard-import
     from cloudinit.feature_overrides import *  # noqa
