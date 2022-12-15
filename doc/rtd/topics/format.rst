@@ -44,22 +44,24 @@ Typically used by those who just want to execute a shell script.
 Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
 archive.
 
-.. note::
-   New in cloud-init v. 18.4: User-data scripts can also render cloud instance
-   metadata variables using jinja templating. See
-   :ref:`instance_metadata` for more information.
+User-data scripts can optionally render cloud instance metadata variables using
+jinja templating. See :ref:`instance_metadata` for more information.
 
-Example
--------
+Example Script
+--------------
+
+Create a script file ``myscript.sh`` that contains the following:
+
+.. code-block::
+
+   #!/bin/sh
+   echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
+
+Now run:
 
 .. code-block:: shell-session
 
-  $ cat myscript.sh
-
-  #!/bin/sh
-  echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
-
-  $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
+   $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
 
 Kernel Command Line
 ===================
@@ -89,6 +91,11 @@ Supported content-types are listed from the cloud-init subcommand make-mime:
 .. code-block:: shell-session
 
     $ cloud-init devel make-mime --list-types
+
+Example output:
+
+.. code-block::
+
     cloud-boothook
     cloud-config
     cloud-config-archive

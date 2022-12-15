@@ -52,14 +52,14 @@ merged into the 'datasource: Azure' entry.
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    Azure:
-      apply_network_config: true
-      data_dir: /var/lib/waagent
-      disk_aliases:
-        ephemeral0: /dev/disk/cloud/azure_resource
+   datasource:
+     Azure:
+       apply_network_config: true
+       data_dir: /var/lib/waagent
+       disk_aliases:
+         ephemeral0: /dev/disk/cloud/azure_resource
 
 
 Userdata
@@ -75,30 +75,30 @@ In the example below, user-data provided is 'this is my userdata'
 
 Example:
 
-.. sourcecode:: xml
+.. code-block:: xml
 
- <wa:ProvisioningSection>
-  <wa:Version>1.0</wa:Version>
-  <LinuxProvisioningConfigurationSet
-     xmlns="http://schemas.microsoft.com/windowsazure"
-     xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-   <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
-   <HostName>myHost</HostName>
-   <UserName>myuser</UserName>
-   <UserPassword/>
-   <CustomData>dGhpcyBpcyBteSB1c2VyZGF0YQ===</CustomData>
-   <dscfg>eyJhZ2VudF9jb21tYW5kIjogWyJzdGFydCIsICJ3YWxpbnV4YWdlbnQiXX0=</dscfg>
-   <DisableSshPasswordAuthentication>true</DisableSshPasswordAuthentication>
-   <SSH>
-    <PublicKeys>
-     <PublicKey>
-      <Fingerprint>6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7</Fingerprint>
-      <Path>this-value-unused</Path>
-     </PublicKey>
-    </PublicKeys>
-   </SSH>
-   </LinuxProvisioningConfigurationSet>
- </wa:ProvisioningSection>
+   <wa:ProvisioningSection>
+    <wa:Version>1.0</wa:Version>
+    <LinuxProvisioningConfigurationSet
+       xmlns="http://schemas.microsoft.com/windowsazure"
+       xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+     <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
+     <HostName>myHost</HostName>
+     <UserName>myuser</UserName>
+     <UserPassword/>
+     <CustomData>dGhpcyBpcyBteSB1c2VyZGF0YQ===</CustomData>
+     <dscfg>eyJhZ2VudF9jb21tYW5kIjogWyJzdGFydCIsICJ3YWxpbnV4YWdlbnQiXX0=</dscfg>
+     <DisableSshPasswordAuthentication>true</DisableSshPasswordAuthentication>
+     <SSH>
+      <PublicKeys>
+       <PublicKey>
+        <Fingerprint>6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7</Fingerprint>
+        <Path>this-value-unused</Path>
+       </PublicKey>
+      </PublicKeys>
+     </SSH>
+     </LinuxProvisioningConfigurationSet>
+   </wa:ProvisioningSection>
 
 hostname
 --------

@@ -59,15 +59,15 @@ Note: LXD version 4.22 introduced a new scope of config keys prefaced by
 
 By default, network configuration from this datasource will be:
 
-.. code:: yaml
+.. code-block:: yaml
 
-  version: 1
-  config:
-      - type: physical
-        name: eth0
-        subnets:
-            - type: dhcp
-              control: auto
+   version: 1
+   config:
+       - type: physical
+         name: eth0
+         subnets:
+             - type: dhcp
+               control: auto
 
 This datasource is intended to replace :ref:`datasource_nocloud`
 datasource for LXD instances with a more direct support for LXD APIs instead

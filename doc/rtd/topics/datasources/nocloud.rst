@@ -32,18 +32,46 @@ The permitted keys are:
 
 With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
 ``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
-with ``http://`` or ``https://``.
+with ``http://`` or ``https://`` and end with a trailing ``/``.
 
-e.g. you can pass this option to QEMU:
+Cloud-init performs variable expansion of the seedfrom URL for any DMI kernel
+variables present in ``/sys/class/dmi/id`` (kenv on FreeBSD).
+Your ``seedfrom`` URL can contain variable names of the format
+``__dmi.varname__`` to indicate to cloud-init NoCloud datasource that
+dmi.varname should be expanded to the value of the DMI system attribute wanted.
+
+.. list-table:: Available DMI variables for expansion in ``seedfrom`` URL
+  :widths: 35 35 30
+  :header-rows: 0
+
+  * - ``dmi.baseboard-asset-tag``
+    - ``dmi.baseboard-manufacturer``
+    - ``dmi.baseboard-version``
+  * - ``dmi.bios-release-date``
+    - ``dmi.bios-vendor``
+    - ``dmi.bios-version``
+  * - ``dmi.chassis-asset-tag``
+    - ``dmi.chassis-manufacturer``
+    - ``dmi.chassis-serial-number``
+  * - ``dmi.chassis-version``
+    - ``dmi.system-manufacturer``
+    - ``dmi.system-product-name``
+  * - ``dmi.system-serial-number``
+    - ``dmi.system-uuid``
+    - ``dmi.system-version``
+
+
+For example, passing this option to QEMU
 
 ::
 
-  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/
+  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 
-to cause NoCloud to fetch the full meta-data from http://10.10.0.1:8000/meta-data
+causes NoCloud to fetch the full meta-data from a URL based on YOUR_SERIAL_NUMBER as seen in `/sys/class/dmi/id/chassis_serial_number` (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data
 after the network initialization is complete.
 
-These user-data and meta-data files are expected to be in the following format.
+These user-data and meta-data files are required as separate files at the same
+base URL.
 
 ::
 
@@ -52,10 +80,12 @@ These user-data and meta-data files are expected to be in the following format.
 
 Both files are required to be present for it to be considered a valid seed ISO.
 
-Basically, user-data is simply user-data and meta-data is a YAML formatted file
-representing what you'd find in the EC2 metadata service.
+Basically, user-data is simply :ref:`user data<user_data_formats>` and
+meta-data is a YAML formatted file representing what you'd find in the EC2
+metadata service.
 
-You may also optionally provide a vendor-data file in the following format.
+You may also optionally provide a vendor-data file as a separate file adhering
+to :ref:`user data formats<user_data_formats>` in the same base URL.
 
 ::
 
@@ -129,31 +159,31 @@ See an example below.  Note specifically that this file does not
 have a top level ``network`` key as it is already assumed to
 be network configuration based on the filename.
 
-.. code:: yaml
+.. code-block:: yaml
 
-  version: 1
-  config:
-     - type: physical
-       name: interface0
-       mac_address: "52:54:00:12:34:00"
-       subnets:
-          - type: static
-            address: 192.168.1.10
-            netmask: 255.255.255.0
-            gateway: 192.168.1.254
+   version: 1
+   config:
+      - type: physical
+        name: interface0
+        mac_address: "52:54:00:12:34:00"
+        subnets:
+           - type: static
+             address: 192.168.1.10
+             netmask: 255.255.255.0
+             gateway: 192.168.1.254
 
 
-.. code:: yaml
+.. code-block:: yaml
 
-  version: 2
-  ethernets:
-    interface0:
-      match:
-        macaddress: "52:54:00:12:34:00"
-      set-name: interface0
-      addresses:
-        - 192.168.1.10/255.255.255.0
-      gateway4: 192.168.1.254
+   version: 2
+   ethernets:
+     interface0:
+       match:
+         macaddress: "52:54:00:12:34:00"
+       set-name: interface0
+       addresses:
+         - 192.168.1.10/255.255.255.0
+       gateway4: 192.168.1.254
 
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660

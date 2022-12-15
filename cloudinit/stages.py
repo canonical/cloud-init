@@ -43,7 +43,7 @@ def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: EventScope = None,
+    scope: Optional[EventScope] = None,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -801,11 +801,10 @@ class Init:
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
-    def _remove_top_level_network_key(self, cfg):
-        """If network-config contains top level 'network' key, then remove it.
-
-        Some providers of network configuration skip the top-level network
-        key, so ensure both methods works.
+    def _get_network_key_contents(self, cfg) -> dict:
+        """
+        Network configuration can be passed as a dict under a "network" key, or
+        optionally at the top level. In both cases, return the config.
         """
         if cfg and "network" in cfg:
             return cfg["network"]
@@ -848,9 +847,7 @@ class Init:
                     cfg_source,
                 )
                 continue
-            ncfg = self._remove_top_level_network_key(
-                available_cfgs[cfg_source]
-            )
+            ncfg = self._get_network_key_contents(available_cfgs[cfg_source])
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)

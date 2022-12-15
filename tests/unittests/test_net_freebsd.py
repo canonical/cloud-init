@@ -16,6 +16,14 @@ config:
     -   address: 172.20.80.129/25
         type: static
     type: physical
+-   id: eno2
+    mac_address: 08:94:ef:51:ae:e1
+    mtu: 1470
+    name: eno2
+    subnets:
+    -   address: fd12:3456:789a:1::1/64
+        type: static6
+    type: physical
 version: 1
 """
 
@@ -76,6 +84,8 @@ class TestFreeBSDRoundTrip(CiTestCase):
             "/etc/rc.conf": (
                 "# dummy rc.conf\n"
                 "ifconfig_eno1="
-                "'172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"
+                "'inet 172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"
+                "ifconfig_eno2_ipv6="
+                "'inet6 fd12:3456:789a:1::1/64 mtu 1470'\n"
             ),
         }

@@ -70,37 +70,37 @@ Disabling user-script
 Cloud-init uses the per-boot script functionality to handle the execution
 of the user-script.  If you want to prevent this use a cloud-config of:
 
-.. code:: yaml
+.. code-block:: yaml
 
-  #cloud-config
-  cloud_final_modules:
-   - scripts-per-once
-   - scripts-per-instance
-   - scripts-user
-   - ssh-authkey-fingerprints
-   - keys-to-console
-   - phone-home
-   - final-message
-   - power-state-change
+   #cloud-config
+   cloud_final_modules:
+    - scripts-per-once
+    - scripts-per-instance
+    - scripts-user
+    - ssh-authkey-fingerprints
+    - keys-to-console
+    - phone-home
+    - final-message
+    - power-state-change
 
 Alternatively you can use the json patch method
 
-.. code:: yaml
+.. code-block:: yaml
 
-  #cloud-config-jsonp
-  [
-       { "op": "replace",
-         "path": "/cloud_final_modules",
-         "value": ["scripts-per-once",
-                   "scripts-per-instance",
-                   "scripts-user",
-                   "ssh-authkey-fingerprints",
-                   "keys-to-console",
-                   "phone-home",
-                   "final-message",
-                   "power-state-change"]
-       }
-  ]
+   #cloud-config-jsonp
+   [
+        { "op": "replace",
+          "path": "/cloud_final_modules",
+          "value": ["scripts-per-once",
+                    "scripts-per-instance",
+                    "scripts-user",
+                    "ssh-authkey-fingerprints",
+                    "keys-to-console",
+                    "phone-home",
+                    "final-message",
+                    "power-state-change"]
+        }
+   ]
 
 The default cloud-config includes "script-per-boot". Cloud-init will still
 ingest and write the user-data but will not execute it, when you disable
