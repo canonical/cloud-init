@@ -48,15 +48,15 @@ The settings that may be configured are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    OpenStack:
-      metadata_urls: ["http://169.254.169.254"]
-      max_wait: -1
-      timeout: 10
-      retries: 5
-      apply_network_config: True
+   datasource:
+     OpenStack:
+       metadata_urls: ["http://169.254.169.254"]
+       max_wait: -1
+       timeout: 10
+       retries: 5
+       apply_network_config: True
 
 
 Vendor Data
@@ -74,9 +74,9 @@ data should work for vendor data.
 For example, configuring the following as vendor data in OpenStack would
 upgrade packages and install ``htop`` on all instances:
 
-.. sourcecode:: json
+.. code-block:: json
 
-  {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
+   {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
 
 For more general information about how cloud-init handles vendor data,
 including how it can be disabled by users on instances, see

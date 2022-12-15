@@ -375,7 +375,7 @@ def _run_func_with_delay(
     addr: str,
     timeout: int,
     event: threading.Event,
-    delay: float = None,
+    delay: Optional[float] = None,
 ) -> Any:
     """Execute func with optional delay"""
     if delay:
@@ -476,11 +476,11 @@ def wait_for_url(
     max_wait=None,
     timeout=None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
-    headers_cb: Callable = None,
+    headers_cb: Optional[Callable] = None,
     headers_redact=None,
     sleep_time: int = 1,
-    exception_cb: Callable = None,
-    sleep_time_cb: Callable[[Any, int], int] = None,
+    exception_cb: Optional[Callable] = None,
+    sleep_time_cb: Optional[Callable[[Any, int], int]] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,

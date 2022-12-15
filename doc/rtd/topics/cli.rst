@@ -8,8 +8,13 @@ option. This can be used against cloud-init itself or any of its subcommands.
 
 .. code-block:: shell-session
 
-  $ cloud-init --help
-    usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
+   $ cloud-init --help
+
+Example output:
+
+.. code-block::
+
+   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
                                                                {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
@@ -133,9 +138,14 @@ this document.
 
 .. code-block:: shell-session
 
-  $ cloud-init features
-  NETWORK_CONFIG_V1
-  NETWORK_CONFIG_V2
+   $ cloud-init features
+
+Example output:
+
+.. code-block::
+
+   NETWORK_CONFIG_V1
+   NETWORK_CONFIG_V2
 
 
 .. _cli_init:
@@ -199,6 +209,11 @@ aliases:
 .. code-block:: shell-session
 
     $ cloud-init query --list-keys
+
+Example output:
+
+.. code-block::
+
     _beta_keys
     availability_zone
     base64_encoded_keys
@@ -215,35 +230,57 @@ aliases:
     v1
     vendordata
 
-Below demonstrates how to query standardized metadata from clouds:
+Here are a few examples of how to query standardized metadata from clouds:
 
 .. code-block:: shell-session
 
-  % cloud-init query v1.cloud_name
-  aws  # or openstack, azure, gce etc.
+   $ cloud-init query v1.cloud_name
 
-  # Any standardized instance-data under a <v#> key is aliased as a top-level key for convenience.
-  % cloud-init query cloud_name
-  aws  # or openstack, azure, gce etc.
+Example output:
 
-  # Query datasource-specific metadata on EC2
-  % cloud-init query ds.meta_data.public_ipv4
+.. code-block::
+
+   aws  # or openstack, azure, gce etc.
+
+Any standardized instance-data under a <v#> key is aliased as a top-level key
+for convenience:
+
+.. code-block:: shell-session
+
+   $ cloud-init query cloud_name
+
+Example output:
+
+.. code-block::
+
+   aws  # or openstack, azure, gce etc.
+
+One can also query datasource-specific metadata on EC2, e.g.:
+
+.. code-block:: shell-session
+
+   $ cloud-init query ds.meta_data.public_ipv4
+
 
 .. note::
 
-  The standardized instance data keys under **v#** are guaranteed not to change
-  behavior or format. If using top-level convenience aliases for any
-  standardized instance data keys, the most value (highest **v#**) of that key
-  name is what is reported as the top-level value. So these aliases act as a
-  'latest'.
+   The standardized instance data keys under **v#** are guaranteed not to change
+   behavior or format. If using top-level convenience aliases for any
+   standardized instance data keys, the most value (highest **v#**) of that key
+   name is what is reported as the top-level value. So these aliases act as a
+   'latest'.
 
-This data can then be formatted to generate custom strings or data:
+This data can then be formatted to generate custom strings or data. For
+example, we can generate a custom hostname fqdn based on instance-id, cloud and
+region:
 
 .. code-block:: shell-session
 
-  # Generate a custom hostname fqdn based on instance-id, cloud and region
-  % cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
-  custom-i-0e91f69987f37ec74.us-east-2.aws.com
+   $ cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
+
+.. code-block::
+
+   custom-i-0e91f69987f37ec74.us-east-2.aws.com
 
 
 .. _cli_schema:
@@ -266,7 +303,7 @@ errors on stdout.
 
 .. code-block:: shell-session
 
-  $ cloud-init schema -c ./config.yml --annotate
+   $ cloud-init schema -c ./config.yml --annotate
 
 
 .. _cli_single:
@@ -286,12 +323,12 @@ default frequency of once-per-instance:
 
 .. code-block:: shell-session
 
-  $ cloud-init single --name set_hostname --frequency always
+   $ cloud-init single --name set_hostname --frequency always
 
 .. note::
 
-  Mileage may vary trying to re-run each cloud-config module, as
-  some are not idempotent.
+   Mileage may vary trying to re-run each cloud-config module, as
+   some are not idempotent.
 
 
 .. _cli_status:
@@ -307,38 +344,62 @@ non-zero if an error is detected in cloud-init.
 * ``--format [yaml|json|tabular]``: machine-readable JSON or YAML detailed
   output
 
-Below are examples of output when cloud-init is running, showing status and
-the currently running modules, as well as when it is done.
+The ``status`` command can be used simply as follows:
 
 .. code-block:: shell-session
 
-  $ cloud-init status
-  status: running
+   $ cloud-init status
 
-  $ cloud-init status --long
-  status: running
-  time: Fri, 26 Jan 2018 21:39:43 +0000
-  detail:
-  Running in stage: init-local
+Which shows whether cloud-init is currently running, done, disabled, or in
+error, as in this example output:
 
-  $ cloud-init status
-  status: done
+.. code-block::
 
-  $ cloud-init status --long
-  status: done
-  boot_status_code: enabled-by-generator
-  last_update: Tue, 16 Aug 2022 19:12:58 +0000
-  detail:
-  DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
+   status: running
 
-  $ cloud-init status --format=json
-  {
-   "boot_status_code": "enabled-by-generator",
-   "datasource": "nocloud",
-   "detail": "DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]",
-   "errors": [],
-   "last_update": "Tue, 16 Aug 2022 19:12:58 +0000",
-   "status": "done"
-  }
+The ``--long`` option, shown below, provides a more verbose output.
+
+.. code-block:: shell-session
+
+   $ cloud-init status --long
+
+Example output when cloud-init is running:
+
+.. code-block::
+
+   status: running
+   time: Fri, 26 Jan 2018 21:39:43 +0000
+   detail:
+   Running in stage: init-local
+
+Example output when cloud-init is done:
+
+.. code-block::
+
+   status: done
+   boot_status_code: enabled-by-generator
+   last_update: Tue, 16 Aug 2022 19:12:58 +0000
+   detail:
+   DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
+
+The detailed output can be shown in machine-readable JSON or YAML with the
+``format`` option, for example:
+
+.. code-block:: shell-session
+
+   $ cloud-init status --format=json
+
+Which would produce the following example output:
+
+.. code-block::
+
+   {
+    "boot_status_code": "enabled-by-generator",
+    "datasource": "nocloud",
+    "detail": "DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]",
+    "errors": [],
+    "last_update": "Tue, 16 Aug 2022 19:12:58 +0000",
+    "status": "done"
+   }
 
 .. _More details on machine-id: https://www.freedesktop.org/software/systemd/man/machine-id.html

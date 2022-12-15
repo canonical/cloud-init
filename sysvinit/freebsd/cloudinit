@@ -21,7 +21,7 @@ cloudinit_start()
 	${command} init
 }
 
-load_rc_config $name
+load_rc_config 'cloudinit'
 
 : ${cloudinit_enable="NO"}
 

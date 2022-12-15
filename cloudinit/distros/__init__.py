@@ -57,7 +57,6 @@ OSFAMILIES = {
         "fedora",
         "mariner",
         "miraclelinux",
-        "openEuler",
         "openmandriva",
         "photon",
         "rhel",
@@ -65,6 +64,7 @@ OSFAMILIES = {
         "virtuozzo",
     ],
     "suse": ["opensuse", "sles"],
+    "openEuler": ["openEuler"],
 }
 
 LOG = logging.getLogger(__name__)

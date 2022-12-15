@@ -34,7 +34,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
 Having trouble? We would like to help!
 **************************************
 
-- Check out the :ref:`lxd_tutorial` if you're new to cloud-init
+- Check out the :ref:`tutorial_lxd` if you're new to cloud-init
 - Try the :ref:`FAQ` for answers to some common questions
 - You can also search the cloud-init `mailing list archive`_
 - Find a bug? `Report bugs on Launchpad`_
@@ -44,7 +44,7 @@ Having trouble? We would like to help!
    :titlesonly:
    :caption: Getting Started
 
-   topics/tutorial.rst
+   topics/tutorials/lxd.rst
    topics/availability.rst
    topics/boot.rst
    topics/cli.rst

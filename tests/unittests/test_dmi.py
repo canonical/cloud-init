@@ -3,6 +3,8 @@ import shutil
 import tempfile
 from unittest import mock
 
+import pytest
+
 from cloudinit import dmi, subp, util
 from tests.unittests import helpers
 
@@ -168,3 +170,52 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         key, val = ("system-product-name", "my_product")
         self._configure_kenv_return(key, val)
         self.assertEqual(dmi.read_dmi_data(key), val)
+
+
+class TestSubDMIVars:
+
+    DMI_SRC = (
+        "dmi.nope__dmi.system-uuid__/__dmi.uuid____dmi.smbios.system.uuid__"
+    )
+
+    @pytest.mark.parametrize(
+        "is_freebsd, src, read_dmi_data_mocks, warnings, expected",
+        (
+            pytest.param(
+                False,
+                DMI_SRC,
+                [mock.call("system-uuid")],
+                [
+                    "Ignoring invalid __dmi.smbios.system.uuid__",
+                    "Ignoring invalid __dmi.uuid__",
+                ],
+                "dmi.nope1/__dmi.uuid____dmi.smbios.system.uuid__",
+                id="match_dmi_distro_agnostic_strings_warn_on_unknown",
+            ),
+            pytest.param(
+                True,
+                DMI_SRC,
+                [mock.call("system-uuid")],
+                [
+                    "Ignoring invalid __dmi.smbios.system.uuid__",
+                    "Ignoring invalid __dmi.uuid__",
+                ],
+                "dmi.nope1/__dmi.uuid____dmi.smbios.system.uuid__",
+                id="match_dmi_agnostic_and_freebsd_dmi_keys_warn_on_unknown",
+            ),
+        ),
+    )
+    def test_sub_dmi_vars(
+        self, is_freebsd, src, read_dmi_data_mocks, warnings, expected, caplog
+    ):
+        with mock.patch.object(dmi, "read_dmi_data") as m_dmi:
+            m_dmi.side_effect = [
+                "1",
+                "2",
+                RuntimeError("Too many read_dmi_data calls"),
+            ]
+            with mock.patch.object(dmi, "is_FreeBSD", return_value=is_freebsd):
+                assert expected == dmi.sub_dmi_vars(src)
+        for warning in warnings:
+            assert 1 == caplog.text.count(warning)
+        assert m_dmi.call_args_list == read_dmi_data_mocks

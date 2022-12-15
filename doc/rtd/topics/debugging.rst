@@ -27,6 +27,11 @@ subcommands default to reading /var/log/cloud-init.log.
 .. code-block:: shell-session
 
     $ cloud-init analyze show -i my-cloud-init.log
+
+Example output:
+
+.. code-block:: shell-session
+
     -- Boot Record 01 --
     The total time elapsed since completing an event is printed after the "@"
     character.
@@ -45,6 +50,11 @@ subcommands default to reading /var/log/cloud-init.log.
 .. code-block:: shell-session
 
     $ cloud-init analyze dump -i my-cloud-init.log
+
+Example output:
+
+.. code-block::
+
     [
      {
       "description": "running config modules",
@@ -61,6 +71,11 @@ subcommands default to reading /var/log/cloud-init.log.
 .. code-block:: shell-session
 
     $ cloud-init analyze blame -i my-cloud-init.log
+
+Example output:
+
+.. code-block::
+
     -- Boot Record 11 --
          00.01300s (modules-final/config-scripts-per-boot)
          00.00400s (modules-final/config-final-message)
@@ -73,6 +88,11 @@ subcommands default to reading /var/log/cloud-init.log.
 .. code-block:: shell-session
 
     $ cloud-init analyze boot
+
+Example output:
+
+.. code-block::
+
     -- Most Recent Boot Record --
         Kernel Started at: 2019-06-13 15:59:55.809385
         Kernel ended boot at: 2019-06-13 16:00:00.944740
@@ -155,10 +175,15 @@ commandline:
 
 .. code-block:: shell-session
 
-  $ sudo cloud-init single --name cc_ssh --frequency always
-  ...
-  Generating public/private ed25519 key pair
-  ...
+   $ sudo cloud-init single --name cc_ssh --frequency always
+
+Example output:
+
+.. code-block::
+
+   ...
+   Generating public/private ed25519 key pair
+   ...
 
 Inspect cloud-init.log for output of what operations were performed as a
 result.
@@ -203,22 +228,23 @@ from **-proposed**
     hostname: SRU-worked-{{v1.cloud_name}}
 
 2. Wait for current cloud-init to complete, replace `<YOUR_VM_IP>` with the IP
-   address of the VM that you launched in step 1:
+   address of the VM that you launched in step 1. Be sure to make a note of the
+   datasource cloud-init detected in --long output. You will need this during
+   step 5, where you will use it to confirm the same datasource is
+   detected after the upgrade:
 
 .. code-block:: bash
 
     CI_VM_IP=<YOUR_VM_IP>
-    # Make note of the datasource cloud-init detected in --long output.
-    # In step 5, you will use this to confirm the same datasource is detected after upgrade.
-    ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
+    $ ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
 
 3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed**
-   cloud-init:
+   cloud-init. To do this, create the following bash script, which will
+   add the -proposed pocket to APT's sources and install cloud-init
+   from that pocket:
 
 .. code-block:: bash
 
-    # Create a script that will add the -proposed pocket to APT's sources
-    # and install cloud-init from that pocket
     cat > setup_proposed.sh <<EOF
     #/bin/bash
     mirror=http://archive.ubuntu.com/ubuntu
@@ -228,30 +254,39 @@ from **-proposed**
     apt-get install -qy cloud-init
     EOF
 
-    scp setup_proposed.sh ubuntu@$CI_VM_IP:.
-    ssh ubuntu@$CI_VM_IP -- sudo bash setup_proposed.sh
+.. code-block:: shell-session
+
+    $ scp setup_proposed.sh ubuntu@$CI_VM_IP:.
+    $ ssh ubuntu@$CI_VM_IP -- sudo bash setup_proposed.sh
 
 4. Change hostname, clean cloud-init's state, and reboot to run cloud-init
    from scratch:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
-    ssh ubuntu@$CI_VM_IP -- sudo hostname something-else
-    ssh ubuntu@$CI_VM_IP -- sudo cloud-init clean --logs --reboot
+    $ ssh ubuntu@$CI_VM_IP -- sudo hostname something-else
+    $ ssh ubuntu@$CI_VM_IP -- sudo cloud-init clean --logs --reboot
 
-5. Validate **-proposed** cloud-init came up without error
+5. Validate **-proposed** cloud-init came up without error. First, we block
+   until cloud-init completes and verify from --long that the datasource is
+   the same as the one picked up from step 1. Errors will show up in --long:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
-    # Block until cloud-init completes and verify from --long the datasource
-    # from step 1. Errors would show up in --long
+   $ ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
 
-    ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
-    # Make sure hostname was set properly to SRU-worked-<cloud name>
-    ssh ubuntu@$CI_VM_IP -- hostname
-    # Check for any errors or warnings in cloud-init logs.
-    # (This should produce no output if successful.)
-    ssh ubuntu@$CI_VM_IP -- grep Trace "/var/log/cloud-init*"
+Make sure the hostname was set properly to SRU-worked-<cloud name>:
+
+.. code-block:: shell-session
+
+   $ ssh ubuntu@$CI_VM_IP -- hostname
+
+Then, check for any errors or warnings in cloud-init logs. If successful,
+this will produce no output:
+
+.. code-block:: shell-session
+
+   $ ssh ubuntu@$CI_VM_IP -- grep Trace "/var/log/cloud-init*"
 
 6. If you encounter an error during SRU testing:
 

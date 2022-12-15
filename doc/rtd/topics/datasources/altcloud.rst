@@ -20,13 +20,13 @@ The format of the Custom Properties entry must be:
 
 For example to pass a simple bash script:
 
-.. sourcecode:: sh
+.. code-block:: sh
 
-    % cat simple_script.bash
+    $ cat simple_script.bash
     #!/bin/bash
     echo "Hello Joe!" >> /tmp/JJV_Joe_out.txt
 
-    % base64 < simple_script.bash
+    $ base64 < simple_script.bash
     IyEvYmluL2Jhc2gKZWNobyAiSGVsbG8gSm9lISIgPj4gL3RtcC9KSlZfSm9lX291dC50eHQK
 
 To pass this example script to cloud-init running in a  `RHEVm`_ v3.0 VM
@@ -61,26 +61,26 @@ For example, to pass the same ``simple_script.bash`` to vSphere:
 Create the ISO
 ^^^^^^^^^^^^^^
 
-.. sourcecode:: sh
+.. code-block:: sh
 
-    % mkdir my-iso
+    $ mkdir my-iso
 
 NOTE: The file name on the ISO must be: ``user-data.txt``
 
-.. sourcecode:: sh
+.. code-block:: sh
 
-    % cp simple_script.bash my-iso/user-data.txt
-    % genisoimage -o user-data.iso -r my-iso
+    $ cp simple_script.bash my-iso/user-data.txt
+    $ genisoimage -o user-data.iso -r my-iso
 
 Verify the ISO
 ^^^^^^^^^^^^^^
 
-.. sourcecode:: sh
+.. code-block:: sh
 
-    % sudo mkdir /media/vsphere_iso
-    % sudo mount -o loop user-data.iso /media/vsphere_iso
-    % cat /media/vsphere_iso/user-data.txt
-    % sudo umount /media/vsphere_iso
+    $ sudo mkdir /media/vsphere_iso
+    $ sudo mount -o loop user-data.iso /media/vsphere_iso
+    $ cat /media/vsphere_iso/user-data.txt
+    $ sudo umount /media/vsphere_iso
 
 Then, launch the `vSphere`_ VM the ISO user-data.iso attached as a CDROM.
 

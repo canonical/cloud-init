@@ -4,16 +4,6 @@
 Network Configuration
 *********************
 
-- Default Behavior
-- Disabling Network Configuration
-- Fallback Networking
-- Network Configuration Sources
-- Network Configuration Outputs
-- Network Output Policy
-- Network Configuration Tools
-- Examples
-
-.. _default_behavior:
 
 Default Behavior
 ================
@@ -40,9 +30,9 @@ network interface.
 
 .. note::
 
-  The network-config value is expected to be a Base64 encoded YAML string in
-  :ref:`network_config_v1` or :ref:`network_config_v2` format. Optionally it
-  can be compressed with ``gzip`` prior to Base64 encoding.
+   The network-config value is expected to be a Base64 encoded YAML string in
+   :ref:`network_config_v1` or :ref:`network_config_v2` format. Optionally it
+   can be compressed with ``gzip`` prior to Base64 encoding.
 
 
 Disabling Network Configuration
@@ -176,11 +166,11 @@ The following Datasources optionally provide network configuration:
 For more information on network configuration formats
 
 .. toctree::
-  :maxdepth: 1
+   :maxdepth: 1
 
-  network-config-format-eni.rst
-  network-config-format-v1.rst
-  network-config-format-v2.rst
+   network-config-format-eni.rst
+   network-config-format-v1.rst
+   network-config-format-v2.rst
 
 
 Network Configuration Outputs
@@ -292,26 +282,31 @@ Example output converting V2 to sysconfig:
 
 .. code-block:: shell-session
 
-  % tools/net-convert.py --network-data v2.yaml --kind yaml \
+   $ tools/net-convert.py --network-data v2.yaml --kind yaml \
       --output-kind sysconfig -d target
-  % cat target/etc/sysconfig/network-scripts/ifcfg-eth*
-  # Created by cloud-init on instance boot automatically, do not edit.
-  #
-  BOOTPROTO=static
-  DEVICE=eth7
-  IPADDR=192.168.1.5/255.255.255.0
-  NM_CONTROLLED=no
-  ONBOOT=yes
-  TYPE=Ethernet
-  USERCTL=no
-  # Created by cloud-init on instance boot automatically, do not edit.
-  #
-  BOOTPROTO=dhcp
-  DEVICE=eth9
-  NM_CONTROLLED=no
-  ONBOOT=yes
-  TYPE=Ethernet
-  USERCTL=no
+   $ cat target/etc/sysconfig/network-scripts/ifcfg-eth*
+
+Example output:
+
+.. code-block::
+
+   # Created by cloud-init on instance boot automatically, do not edit.
+   #
+   BOOTPROTO=static
+   DEVICE=eth7
+   IPADDR=192.168.1.5/255.255.255.0
+   NM_CONTROLLED=no
+   ONBOOT=yes
+   TYPE=Ethernet
+   USERCTL=no
+   # Created by cloud-init on instance boot automatically, do not edit.
+   #
+   BOOTPROTO=dhcp
+   DEVICE=eth9
+   NM_CONTROLLED=no
+   ONBOOT=yes
+   TYPE=Ethernet
+   USERCTL=no
 
 
 .. _Cloud-init: https://launchpad.net/cloud-init

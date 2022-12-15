@@ -14,7 +14,7 @@ URLs to access user-data and meta-data from the Virtual Machine.
 router that points to the next UserData server (which is usually also
 the virtual router).
 
-.. code:: bash
+.. code-block:: bash
 
     http://data-server./latest/user-data
     http://data-server./latest/meta-data
@@ -40,12 +40,12 @@ The settings that may be configured are:
 
 An example configuration with the default values is provided below:
 
-.. sourcecode:: yaml
+.. code-block:: yaml
 
-  datasource:
-    CloudStack:
-      max_wait: 120
-      timeout: 50
+   datasource:
+     CloudStack:
+       max_wait: 120
+       timeout: 50
 
 
 .. _Apache CloudStack: http://cloudstack.apache.org/

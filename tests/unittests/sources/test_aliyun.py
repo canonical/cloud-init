@@ -98,6 +98,15 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             "instance-identity",
         )
 
+    @property
+    def token_url(self):
+        return os.path.join(
+            self.metadata_address,
+            "latest",
+            "api",
+            "token",
+        )
+
     def register_mock_metaserver(self, base_url, data):
         def register_helper(register, base_url, body):
             if isinstance(body, str):
@@ -127,6 +136,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         self.register_mock_metaserver(self.metadata_url, self.default_metadata)
         self.register_mock_metaserver(self.userdata_url, self.default_userdata)
         self.register_mock_metaserver(self.identity_url, self.default_identity)
+        self.responses.add(responses.PUT, self.token_url, "API-TOKEN")
 
     def _test_get_data(self):
         self.assertEqual(self.ds.metadata, self.default_metadata)

@@ -38,7 +38,7 @@ from functools import lru_cache, total_ordering
 from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
-from cloudinit import importer
+from cloudinit import features, importer
 from cloudinit import log as logging
 from cloudinit import (
     mergers,
@@ -976,14 +976,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.find("%s") >= 0:
-        ud_url = base % ("user-data" + ext)
-        vd_url = base % ("vendor-data" + ext)
-        md_url = base % ("meta-data" + ext)
+        ud_url = base.replace("%s", "user-data" + ext)
+        vd_url = base.replace("%s", "vendor-data" + ext)
+        md_url = base.replace("%s", "meta-data" + ext)
     else:
+        if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
+            if base[-1] != "/" and parse.urlparse(base).query == "":
+                # Append fwd slash when no query string and no %s
+                base += "/"
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
-
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )
@@ -2761,11 +2764,25 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
 
 def human2bytes(size):
     """Convert human string or integer to size in bytes
+
+    In the original implementation, SI prefixes parse to IEC values
+    (1KB=1024B). Later, support for parsing IEC prefixes was added,
+    also parsing to IEC values (1KiB=1024B). To maintain backwards
+    compatibility for the long-used implementation, no fix is provided for SI
+    prefixes (to make 1KB=1000B may now violate user expectations).
+
+    Future prospective callers of this function should consider implementing a
+    new function with more standard expectations (1KB=1000B and 1KiB=1024B)
+
+    Examples:
     10M => 10485760
-    .5G => 536870912
+    10MB => 10485760
+    10MiB => 10485760
     """
     size_in = size
-    if size.endswith("B"):
+    if size.endswith("iB"):
+        size = size[:-2]
+    elif size.endswith("B"):
         size = size[:-1]
 
     mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}

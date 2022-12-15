@@ -40,7 +40,7 @@ For example the following could be present in
     ethernets: []
 
 It may also be provided in other locations including the
-:ref:`datasource_nocloud`, see :ref:`default_behavior` for other places.
+:ref:`datasource_nocloud`, see :ref:`network_config` for other places.
 
 Supported device ``types`` values are as follows:
 

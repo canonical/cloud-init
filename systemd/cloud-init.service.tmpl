@@ -16,6 +16,7 @@ After=networking.service
                   "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "virtuozzo"] %}
 After=network.service
 After=NetworkManager.service
+After=NetworkManager-wait-online.service
 {% endif %}
 {% if variant in ["suse"] %}
 After=wicked.service

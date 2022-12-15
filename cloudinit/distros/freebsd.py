@@ -76,6 +76,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             "groups": "-G",
             "shell": "-s",
             "inactive": "-E",
+            "uid": "-u",
         }
         pw_useradd_flags = {
             "no_user_group": "--no-user-group",
@@ -84,8 +85,8 @@ class Distro(cloudinit.distros.bsd.BSD):
         }
 
         for key, val in kwargs.items():
-            if key in pw_useradd_opts and val and isinstance(val, str):
-                pw_useradd_cmd.extend([pw_useradd_opts[key], val])
+            if key in pw_useradd_opts and val and isinstance(val, (str, int)):
+                pw_useradd_cmd.extend([pw_useradd_opts[key], str(val)])
 
             elif key in pw_useradd_flags and val:
                 pw_useradd_cmd.append(pw_useradd_flags[key])
