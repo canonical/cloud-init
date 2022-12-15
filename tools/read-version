@@ -100,7 +100,6 @@ if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
                 version_long = ""
             else:
                 raise
-        version_long = tiny_p(cmd + ["--long"]).strip()
 else:
     version = src_version
     version_long = ""
