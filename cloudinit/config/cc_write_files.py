@@ -38,7 +38,7 @@ meta: MetaSchema = {
 
     .. note::
         If multiline data is provided, care should be taken to ensure that it
-        follows yaml formatting standards. to specify binary data, use the yaml
+        follows yaml formatting standards. To specify binary data, use the yaml
         option ``!!binary``
 
     .. note::
