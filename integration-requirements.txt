@@ -2,5 +2,5 @@
 # https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
 #
 # TODO: Provisional pycloudlib version, bump to version in /main:
-pycloudlib @ git+https://github.com/canonical/pycloudlib.git@25f001f5eef0507cc278db4f6d9c106bf1ce8445
+pycloudlib @ git+https://github.com/aciba90/pycloudlib.git@a73a51213d6d4491714945cb78faa7f442b7faa0
 pytest
