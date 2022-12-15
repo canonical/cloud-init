@@ -157,6 +157,23 @@ def disable_subp_usage(request, fixture_utils):
         yield
 
 
+@pytest.fixture(autouse=True)
+def disable_dns_lookup(request):
+    if "allow_dns_lookup" in request.keywords:
+        yield
+        return
+
+    def side_effect(args, *other_args, **kwargs):
+        raise AssertionError("Unexpectedly used util.is_resolvable")
+
+    with mock.patch(
+        "cloudinit.util.is_resolvable",
+        side_effect=side_effect,
+        autospec=True
+    ):
+        yield
+
+
 @pytest.fixture(scope="session")
 def fixture_utils():
     """Return a namespace containing fixture utility functions.
