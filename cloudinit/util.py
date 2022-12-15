@@ -2761,11 +2761,25 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
 
 def human2bytes(size):
     """Convert human string or integer to size in bytes
+
+    In the original implementation, SI prefixes parse to IEC values
+    (1KB=1024B). Later, support for parsing IEC prefixes was added,
+    also parsing to IEC values (1KiB=1024B). To maintain backwards
+    compatibility for the long-used implementation, no fix is provided for SI
+    prefixes (to make 1KB=1000B may now violate user expectations).
+
+    Future prospective callers of this function should consider implementing a
+    new function with more standard expectations (1KB=1000B and 1KiB=1024B)
+
+    Examples:
     10M => 10485760
-    .5G => 536870912
+    10MB => 10485760
+    10MiB => 10485760
     """
     size_in = size
-    if size.endswith("B"):
+    if size.endswith("iB"):
+        size = size[:-2]
+    elif size.endswith("B"):
         size = size[:-1]
 
     mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}
