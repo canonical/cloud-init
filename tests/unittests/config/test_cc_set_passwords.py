@@ -102,7 +102,7 @@ class TestHandleSSHPwauth:
         cloud = get_cloud("ubuntu")
         upname = f"{MODPATH}update_ssh_config"
         optname = "PasswordAuthentication"
-        for n, value in enumerate(util.FALSE_STRINGS + util.TRUE_STRINGS, 1):
+        for _, value in enumerate(util.FALSE_STRINGS + util.TRUE_STRINGS, 1):
             optval = "yes" if value in util.TRUE_STRINGS else "no"
             with mock.patch(upname, return_value=False) as m_update:
                 setpass.handle_ssh_pwauth(value, cloud.distro)
