@@ -1,0 +1,7 @@
+# cloud-init.target should not be considered as unusual
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target cloud-init.target [lib/systemd/system/cloud-config.service]
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target cloud-init.target [lib/systemd/system/cloud-final.service]
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target cloud-init.target [lib/systemd/system/cloud-init-local.service]
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target cloud-init.target [lib/systemd/system/cloud-init.service]
+
+cloud-init binary: package-supports-alternative-init-but-no-init.d-script

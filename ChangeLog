@@ -553,7 +553,7 @@
    (#1277)
  - sources/azure: ensure retries on IMDS request failure (#1271)
    [Chris Patterson]
- - sources/azure: removed unused savable PPS paths (#1268) [Chris Patterson]
+ - sources/azure: removed unused saveable PPS paths (#1268) [Chris Patterson]
  - integration tests: fix Azure failures (#1269)
 
 22.1
