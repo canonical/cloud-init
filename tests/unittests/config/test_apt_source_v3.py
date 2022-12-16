@@ -13,6 +13,7 @@ import socket
 import tempfile
 from unittest import TestCase, mock
 from unittest.mock import call
+
 import pytest
 
 from cloudinit import gpg, subp, util

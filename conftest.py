@@ -167,9 +167,7 @@ def disable_dns_lookup(request):
         raise AssertionError("Unexpectedly used util.is_resolvable")
 
     with mock.patch(
-        "cloudinit.util.is_resolvable",
-        side_effect=side_effect,
-        autospec=True
+        "cloudinit.util.is_resolvable", side_effect=side_effect, autospec=True
     ):
         yield
 
