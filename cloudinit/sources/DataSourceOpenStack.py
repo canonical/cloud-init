@@ -150,8 +150,17 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
+        is_virtual_machine = openstack.is_virtual_machine()
+
+        LOG.debug(
+            "OpenStack is running on %s.",
+            "virtual machine" if is_virtual_machine else "bare metal",
+        )
+        skip_detect = self.ds_cfg.get(
+            "skip_detect_openstack", not is_virtual_machine
+        )
+
         oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
-        skip_detect = self.ds_cfg.get("skip_detect_openstack", False)
         if not skip_detect and not detect_openstack(
             accept_oracle=not oracle_considered
         ):
