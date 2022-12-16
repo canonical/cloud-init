@@ -151,7 +151,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             format is invalid or disabled.
         """
         oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
-        if not detect_openstack(accept_oracle=not oracle_considered):
+        skip_detect = self.ds_cfg.get("skip_detect_openstack", False)
+        if not skip_detect and not detect_openstack(accept_oracle=not oracle_considered):
+            LOG.debug("Not running on OpenStack")
             return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
