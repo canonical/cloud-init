@@ -42,6 +42,9 @@ class TestIfconfigParserFreeBSD(TestCase):
         """
         assert that we can have duplicate macs, and that it's not an accident
         """
+        self.ifs_txt = readResource(
+            "netinfo/freebsd-duplicate-macs-ifconfig-output"
+        )
         ifc = Ifconfig()
         ifc.parse(self.ifs_txt)
         ifs_by_mac = ifc.ifs_by_mac()
