@@ -5,6 +5,7 @@ import json
 import threading
 from unittest import mock
 
+import pytest
 import requests
 import responses
 
@@ -221,6 +222,12 @@ TAGS_METADATA_2021_03_23: dict = {
         }
     },
 }
+
+
+@pytest.fixture(autouse=True)
+def disable_is_resolvable():
+    with mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable"):
+        yield
 
 
 def _register_ssh_keys(rfunc, base_url, keys_data):

@@ -13,6 +13,7 @@ import socket
 import tempfile
 from unittest import TestCase, mock
 from unittest.mock import call
+import pytest
 
 from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
@@ -955,6 +956,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(mirrors["PRIMARY"], pmir)
         self.assertEqual(mirrors["SECURITY"], smir)
 
+    @pytest.mark.allow_dns_lookup
     def test_apt_v3_url_resolvable(self):
         """test_apt_v3_url_resolvable - Test resolving urls"""
 
