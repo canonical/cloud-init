@@ -152,7 +152,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         """
         oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
         skip_detect = self.ds_cfg.get("skip_detect_openstack", False)
-        if not skip_detect and not detect_openstack(accept_oracle=not oracle_considered):
+        if not skip_detect and not detect_openstack(
+            accept_oracle=not oracle_considered
+        ):
             LOG.debug("Not running on OpenStack")
             return False
 
