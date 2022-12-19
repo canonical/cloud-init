@@ -505,6 +505,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             bond_if["bond-master"] = command.get("name")
             # copy in bond config into slave
             for param, val in command.get("params").items():
+                if param == 'mac_address':
+                    continue
                 bond_if.update({param: val})
             self._network_state["interfaces"].update({ifname: bond_if})
 
