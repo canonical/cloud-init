@@ -160,6 +160,7 @@ cloud_config_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - byobu
 {% endif %}
+ - http_scripts
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
