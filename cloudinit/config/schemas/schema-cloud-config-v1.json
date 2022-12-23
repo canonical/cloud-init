@@ -25,6 +25,8 @@
         "growpart",
         "grub-dpkg",
         "grub_dpkg",
+        "http-scripts",
+        "http_scripts",
         "install-hotplug",
         "install_hotplug",
         "keyboard",
@@ -1346,6 +1348,31 @@
           "type": "object",
           "description": "Use ``grub_dpkg`` instead",
           "deprecated": true
+        }
+      }
+    },
+    "cc_http_scripts": {
+      "type": "object",
+      "properties": {
+        "http_scripts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "environments": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
     },
