@@ -143,6 +143,13 @@ Create partitions and filesystems
    :language: yaml
    :linenos:
 
+Run scripts fetched by http
+===========================
+
+.. literalinclude:: ../../examples/cloud-config-http-scripts.txt
+   :language: yaml
+   :linenos:
+
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
 .. _ansible: https://docs.ansible.com/ansible/latest/

@@ -1,0 +1,7 @@
+#cloud-config
+
+http_scripts:
+  - url: http://example.com/install.sh
+    environments:
+      ENV1: value1
+      ENV2: value2
