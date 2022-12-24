@@ -1356,8 +1356,10 @@
       "properties": {
         "http_scripts": {
           "type": "array",
+          "additionalProperties": false,
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": [
               "url"
             ],
@@ -1371,7 +1373,8 @@
                   "type": "string"
                 }
               }
-            }
+            },
+            "minItems": 1
           }
         }
       }
@@ -3462,6 +3465,9 @@
     },
     {
       "$ref": "#/$defs/cc_grub_dpkg"
+    },
+    {
+      "$ref": "#/$defs/cc_http_scripts"
     },
     {
       "$ref": "#/$defs/cc_install_hotplug"

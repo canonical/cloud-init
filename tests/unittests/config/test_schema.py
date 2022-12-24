@@ -181,6 +181,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_final_message"},
             {"$ref": "#/$defs/cc_growpart"},
             {"$ref": "#/$defs/cc_grub_dpkg"},
+            {"$ref": "#/$defs/cc_http_scripts"},
             {"$ref": "#/$defs/cc_install_hotplug"},
             {"$ref": "#/$defs/cc_keyboard"},
             {"$ref": "#/$defs/cc_keys_to_console"},
