@@ -3,10 +3,11 @@ import subprocess
 import sys
 import urllib.request
 from logging import Logger, getLogger
-from subprocess import PIPE
+from subprocess import PIPE, STDOUT, CalledProcessError
 from textwrap import dedent
 from typing import List
 
+from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -60,20 +61,13 @@ def handle(
             ["/bin/sh"],
             input=script,
             stdout=PIPE,
-            stderr=PIPE,
+            stderr=STDOUT,
             env=environments,
-            check=False,
+            check=True,
         )
-
-        if p.returncode == 0:
-            LOG.debug("succeeded %s", url)
-        else:
-            LOG.debug("failed %s, return %d", url, p.returncode)
 
         if p.stdout:
             sys.stdout.write(f"{p.stdout!r}")
-        if p.stderr:
-            sys.stderr.write(f"{p.stderr!r}")
 
 
 def fetch_script(url: str) -> bytes:
