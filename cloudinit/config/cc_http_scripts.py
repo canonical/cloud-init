@@ -1,4 +1,5 @@
 """HttpScripts Module: Run scripts fetched by http"""
+import traceback
 import subprocess
 import sys
 import urllib.request
@@ -63,11 +64,15 @@ def handle(
             stdout=PIPE,
             stderr=STDOUT,
             env=environments,
-            check=True,
+            check=False,
         )
-
         if p.stdout:
-            sys.stdout.write(f"{p.stdout!r}")
+            sys.stdout.write(p.stdout.decode("utf-8"))
+
+        try:
+            p.check_returncode()
+        except:
+            LOG.exception("url: %s", url)
 
 
 def fetch_script(url: str) -> bytes:
