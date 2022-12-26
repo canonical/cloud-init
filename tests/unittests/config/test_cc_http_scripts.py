@@ -21,15 +21,31 @@ class TestHandle:
     """Tests cc_http_scripts.handle()"""
 
     @pytest.mark.parametrize(
-        "script, want, is_exception",
+        "script, environments, want, is_exception",
         [
-            (dedent(
-                """\
-                #!/bin/sh
-                echo "hello world"
-                """
-            ),
+            (
+                dedent(
+                    """\
+                    #!/bin/sh
+                    echo "hello world"
+                    """
+                ),
+                {},
                 "hello world\n",
+                False,
+            ),
+            (
+                dedent(
+                    """\
+                    #!/bin/sh
+                    printenv | egrep "CC_HTTP_SCRIPTS_ENV(1|2)"
+                    """
+                ),
+                {
+                    "CC_HTTP_SCRIPTS_ENV1": "value1",
+                    "CC_HTTP_SCRIPTS_ENV2": "value2",
+                },
+                "CC_HTTP_SCRIPTS_ENV1=value1\nCC_HTTP_SCRIPTS_ENV2=value2\n",
                 False,
             ),
             (
@@ -39,6 +55,7 @@ class TestHandle:
                     exit 1
                     """
                 ),
+                {},
                 "",
                 True,
             ),
@@ -50,6 +67,7 @@ class TestHandle:
                     exit 1
                     """
                 ),
+                {},
                 "invalid\n",
                 True,
             ),
@@ -62,12 +80,16 @@ class TestHandle:
         m_LOG,
         m_fetch_script,
         script,
+        environments,
         want,
         is_exception,
         capfd,
     ):
         m_fetch_script.return_value = script.encode("utf-8")
-        cfg = {"http_scripts": [{"url": "http://example.com"}]}
+        cfg = {"http_scripts": [{
+            "url": "http://example.com",
+            "environments": environments,
+        }]}
 
         handle(mock.Mock(), cfg, mock.Mock(), mock.Mock(), mock.Mock())
         output, _ = capfd.readouterr()
