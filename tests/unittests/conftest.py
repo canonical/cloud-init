@@ -2,9 +2,9 @@ import builtins
 import glob
 import os
 from pathlib import Path
+from unittest import mock
 
 import pytest
-from unittest import mock
 
 from cloudinit import atomic_helper, util
 from tests.unittests.helpers import retarget_many_wrapper
