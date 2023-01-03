@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import pytest
+from unittest import mock
 
 from cloudinit import atomic_helper, util
 from tests.unittests.helpers import retarget_many_wrapper
@@ -56,6 +57,21 @@ def fake_filesystem(mocker, tmpdir):
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
             mocker.patch.object(mod, f, trap_func)
+
+
+@pytest.fixture(autouse=True)
+def disable_dns_lookup(request):
+    if "allow_dns_lookup" in request.keywords:
+        yield
+        return
+
+    def side_effect(args, *other_args, **kwargs):
+        raise AssertionError("Unexpectedly used util.is_resolvable")
+
+    with mock.patch(
+        "cloudinit.util.is_resolvable", side_effect=side_effect, autospec=True
+    ):
+        yield
 
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
