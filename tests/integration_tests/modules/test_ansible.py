@@ -12,8 +12,8 @@ REPO_D = "/root/playbooks"
 USER_DATA = """\
 #cloud-config
 version: v1
-packages_update: true
-packages_upgrade: true
+package_update: true
+package_upgrade: true
 packages:
   - git
   - python3-pip
@@ -114,8 +114,8 @@ ANSIBLE_CONTROL = """\
 # This example installs a playbook repository from a remote private repository
 # and then runs two of the plays.
 
-packages_update: true
-packages_upgrade: true
+package_update: true
+package_upgrade: true
 packages:
   - git
   - python3-pip
