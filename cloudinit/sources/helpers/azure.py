@@ -1053,10 +1053,9 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(endpoint: str, description: Optional[str] = None):
+def report_failure_to_fabric(endpoint: str):
     shim = WALinuxAgentShim(endpoint=endpoint)
-    if not description:
-        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:

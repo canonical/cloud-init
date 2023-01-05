@@ -1317,7 +1317,7 @@ scbus-1 on xpt0 bus 0
             self.assertEqual(1, m_crawl_metadata.call_count)
             self.assertFalse(ret)
 
-    def test_crawl_metadata_exception_should_report_failure_with_msg(self):
+    def test_crawl_metadata_exception_should_report_failure(self):
         data = {}
         dsrc = self._get_ds(data)
         with mock.patch.object(
@@ -1328,9 +1328,7 @@ scbus-1 on xpt0 bus 0
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
             self.assertEqual(1, m_crawl_metadata.call_count)
-            m_report_failure.assert_called_once_with(
-                description=dsaz.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            m_report_failure.assert_called_once_with()
 
     def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
         data = {}
@@ -2065,28 +2063,15 @@ scbus-1 on xpt0 bus 0
             self.assertFalse(dsrc._report_failure())
             self.assertEqual(2, self.m_report_failure_to_fabric.call_count)
 
-    def test_dsaz_report_failure_description_msg(self):
-        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
-
-        with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
-            # mock crawl metadata failure to cause report failure
-            m_crawl_metadata.side_effect = Exception
-
-            test_msg = "Test report failure description message"
-            self.assertTrue(dsrc._report_failure(description=test_msg))
-            self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="168.63.129.16", description=test_msg
-            )
-
-    def test_dsaz_report_failure_no_description_msg(self):
+    def test_dsaz_report_failure(self):
         dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
 
-            self.assertTrue(dsrc._report_failure())  # no description msg
+            self.assertTrue(dsrc._report_failure())
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="168.63.129.16", description=None
+                endpoint="168.63.129.16"
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
@@ -2104,7 +2089,7 @@ scbus-1 on xpt0 bus 0
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="test-ep", description=mock.ANY
+                endpoint="test-ep"
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
@@ -2126,7 +2111,7 @@ scbus-1 on xpt0 bus 0
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="1.2.3.4", description=mock.ANY
+                endpoint="1.2.3.4"
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):

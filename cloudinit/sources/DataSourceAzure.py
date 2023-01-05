@@ -31,7 +31,6 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
-    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
     BrokenAzureDataSource,
     ChassisAssetTag,
@@ -752,9 +751,7 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(
                 "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
             )
-            self._report_failure(
-                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            self._report_failure()
             return False
         finally:
             self._teardown_ephemeral_networking()
@@ -1384,7 +1381,7 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description: Optional[str] = None) -> bool:
+    def _report_failure(self) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
@@ -1397,10 +1394,7 @@ class DataSourceAzure(sources.DataSource):
                     "to report failure to Azure",
                     logger_func=LOG.debug,
                 )
-                report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint,
-                    description=description,
-                )
+                report_failure_to_fabric(endpoint=self._wireserver_endpoint)
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1420,9 +1414,7 @@ class DataSourceAzure(sources.DataSource):
             except NoDHCPLeaseError:
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
-            report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, description=description
-            )
+            report_failure_to_fabric(endpoint=self._wireserver_endpoint)
             return True
         except Exception as e:
             report_diagnostic_event(
