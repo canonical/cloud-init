@@ -80,6 +80,10 @@ meta: MetaSchema = {
                 table_type: gpt
                 layout: [[100, 82]]
                 overwrite: true
+              /dev/sdd:
+                table_type: mbr
+                layout: true
+                overwrite: true
             fs_setup:
             - label: fs1
               filesystem: ext4
@@ -91,10 +95,14 @@ meta: MetaSchema = {
             - label: swap
               device: swap_disk.1
               filesystem: swap
+            - label: fs3
+              device: /dev/sdd1
+              filesystem: ext4
             mounts:
             - ["my_alias.1", "/mnt1"]
             - ["my_alias.2", "/mnt2"]
             - ["swap_disk.1", "none", "swap", "sw", "0", "0"]
+            - ["/dev/sdd1", "/mnt3"]
             """
         )
     ],
@@ -605,8 +613,8 @@ def get_partition_mbr_layout(size, layout):
     """
 
     if not isinstance(layout, list) and isinstance(layout, bool):
-        # Create a single partition
-        return "0,"
+        # Create a single partition, default to Linux
+        return ",,83"
 
     if (len(layout) == 0 and isinstance(layout, list)) or not isinstance(
         layout, list
@@ -741,7 +749,7 @@ def exec_mkpart_mbr(device, layout):
     types, i.e. gpt
     """
     # Create the partitions
-    prt_cmd = [SFDISK_CMD, "--Linux", "--unit=S", "--force", device]
+    prt_cmd = [SFDISK_CMD, "--force", device]
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
@@ -968,7 +976,7 @@ def mkfs(fs_cfg):
         odevice = device
         LOG.debug("Identifying device to create %s filesytem on", label)
 
-        # any mean pick the first match on the device with matching fs_type
+        # 'any' means pick the first match on the device with matching fs_type
         label_match = True
         if partition.lower() == "any":
             label_match = False
