@@ -19,12 +19,13 @@ Contributing
    code_review.rst
    dir_layout.rst
 
-Debugging
-=========
+Debugging and reporting
+=======================
 
 .. toctree::
    :maxdepth: 1
 
+   ../howto/bugs.rst
    security.rst
    analyze.rst
    logging.rst
