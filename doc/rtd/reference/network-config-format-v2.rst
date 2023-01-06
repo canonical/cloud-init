@@ -443,7 +443,7 @@ possible values are ``always``, ``better``, and ``failure``.
 ``learn-packet-interval: <(scalar)>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Specify the interval between sending learning packets to each slave.
+Specify the interval between sending Learning packets to each slave.
 The value range is between ``1`` and ``0x7fffffff``. The default
 value is ``1``. This option only affects ``balance-tlb`` and
 ``balance-alb`` modes.
@@ -489,8 +489,8 @@ higher priority will be elected as the root bridge.
 ``forward-delay: <(scalar)>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Specify the period of time the bridge will remain in `Listening` and
-`Learning` states before getting to the `Forwarding` state. This value
+Specify the period of time the bridge will remain in Listening and
+Learning states before getting to the Forwarding state. This value
 should be set in seconds for the ``systemd`` backend, and in milliseconds
 for the ``NetworkManager`` backend.
 
