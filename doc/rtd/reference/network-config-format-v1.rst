@@ -70,10 +70,8 @@ devices possess. Specifying a MAC Address is optional.
 Letters must be lowercase.
 
 .. note::
-   MAC addresses must be strings. Since MAC addresses, which consist of only
-   the digits 0-9 (i.e., no hex a-f), can be interpreted as a base 60 integer
-   per the `YAML 1.1 spec`_ it is best practice to "quote" all MAC addresses
-   to ensure they are parsed as strings regardless of value.
+   It is best practice to "quote" all MAC addresses, since an unquoted MAC
+   address might be incorrectly interpreted as an integer in `YAML`_.
 
 .. note::
    ``Cloud-init`` will handle the persistent mapping between a device's
@@ -106,15 +104,15 @@ Physical example
        # Second nic with Jumbo frames
        - type: physical
          name: jumbo0
-         mac_address: aa:11:22:33:44:55
+         mac_address: 'aa:11:22:33:44:55'
          mtu: 9000
        # 10G pair
        - type: physical
          name: gbe0
-         mac_address: cd:11:22:33:44:00
+         mac_address: 'cd:11:22:33:44:00'
        - type: physical
          name: gbe1
-         mac_address: cd:11:22:33:44:02
+         mac_address: 'cd:11:22:33:44:02'
 
 Bond
 ----
@@ -139,10 +137,8 @@ not present, then the bond will use one of the MAC Address values from one of
 the bond interfaces.
 
 .. note::
-   MAC addresses must be strings. Since MAC addresses, which consist of only
-   the digits 0-9 (i.e., no hex a-f), can be interpreted as a base 60 integer
-   per the `YAML 1.1 spec`_ it is best practice to "quote" all MAC addresses
-   to ensure they are parsed as strings regardless of value.
+   It is best practice to "quote" all MAC addresses, since an unquoted MAC
+   address might be incorrectly interpreted as an integer in `YAML`_.
 
 ``bond_interfaces: <List of network device names>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -221,10 +217,10 @@ Bond example
       # 10G pair
       - type: physical
         name: gbe0
-        mac_address: cd:11:22:33:44:00
+        mac_address: 'cd:11:22:33:44:00'
       - type: physical
         name: gbe1
-        mac_address: cd:11:22:33:44:02
+        mac_address: 'cd:11:22:33:44:02'
       - type: bond
         name: bond0
         bond_interfaces:
@@ -276,7 +272,7 @@ Bridge example
       # Second nic with Jumbo frames
       - type: physical
         name: jumbo0
-        mac_address: aa:11:22:33:44:55
+        mac_address: 'aa:11:22:33:44:55'
         mtu: 9000
       - type: bridge
         name: br0
@@ -331,7 +327,7 @@ VLAN example
        # Physical interfaces.
        - type: physical
          name: eth0
-         mac_address: c0:d6:9f:2c:e8:80
+         mac_address: 'c0:d6:9f:2c:e8:80'
        # VLAN interface.
        - type: vlan
          name: eth0.101
@@ -552,10 +548,10 @@ Bonded VLAN example
        # 10G pair
        - type: physical
          name: gbe0
-         mac_address: cd:11:22:33:44:00
+         mac_address: 'cd:11:22:33:44:00'
        - type: physical
          name: gbe1
-         mac_address: cd:11:22:33:44:02
+         mac_address: 'cd:11:22:33:44:02'
        # Bond.
        - type: bond
          name: bond0
@@ -582,7 +578,7 @@ Multiple VLAN example
      version: 1
      config:
      - id: eth0
-       mac_address: d4:be:d9:a8:49:13
+       mac_address: 'd4:be:d9:a8:49:13'
        mtu: 1500
        name: eth0
        subnets:
@@ -593,7 +589,7 @@ Multiple VLAN example
          type: static
        type: physical
      - id: eth1
-       mac_address: d4:be:d9:a8:49:15
+       mac_address: 'd4:be:d9:a8:49:15'
        mtu: 1500
        name: eth1
        subnets:
@@ -648,4 +644,4 @@ Multiple VLAN example
 
 .. _SLAAC: https://tools.ietf.org/html/rfc4862
 
-.. _YAML 1.1 spec: https://yaml.org/type/int.html
+.. _YAML: https://yaml.org/type/int.html

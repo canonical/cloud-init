@@ -93,7 +93,7 @@ configuration via the ``cloud-init.network-config`` (or
 Example
 -------
 
-For example, given an LXD instance named ``my-lxd`` with hotplug enabled and
+Given an LXD instance named ``my-lxd`` with hotplug enabled and
 an LXD bridge named ``my-bridge``, the following will allow for additional
 DHCP configuration of ``eth1``:
 

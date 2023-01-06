@@ -112,18 +112,28 @@ Do **NOT** rely on the output of these commands as they can and will change.
 
 Current subcommands:
 
-* :command:`net-convert`: Manually use ``cloud-init``'s network format
-  conversion. Useful for testing configuration or testing changes to the
-  network conversion logic itself.
-* :command:`render`: Use ``cloud-init``'s jinja template render to process
-  **#cloud-config** or **custom-scripts**, injecting any variables from
-  :file:`/run/cloud-init/instance-data.json`. It accepts a user data file
-  containing the jinja template header ``## template: jinja`` and renders
-  that content with any :file:`instance-data.json` variables present.
-* :command:`hotplug-hook`: respond to newly added system devices by retrieving
-  updated system metadata and bringing up/down the corresponding device.
-  This command is intended to be called via a ``systemd`` service and is
-  not considered user-accessible except for debugging purposes.
+:command:`net-convert`
+----------------------
+
+Manually use ``cloud-init``'s network format conversion. Useful for testing
+configuration or testing changes to the network conversion logic itself.
+
+:command:`render`
+-----------------
+
+Use ``cloud-init``'s jinja template render to process **#cloud-config** or
+**custom-scripts**, injecting any variables from
+:file:`/run/cloud-init/instance-data.json`. It accepts a user data file
+containing the jinja template header ``## template: jinja`` and renders that
+content with any :file:`instance-data.json` variables present.
+
+:command:`hotplug-hook`
+-----------------------
+
+Respond to newly added system devices by retrieving updated system metadata
+and bringing up/down the corresponding device. This command is intended to be
+called via a ``systemd`` service and is not considered user-accessible except
+for debugging purposes.
 
 .. _cli_features:
 

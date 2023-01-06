@@ -30,8 +30,8 @@ Where are the logs?
   ``cloud-init`` did or did not run.
 
 Be aware that each time a system boots, new logs are appended to the files in
-:file:`/var/log`. Therefore, the files may have more than one boots' worth of
-information present.
+:file:`/var/log`. Therefore, the files may have information present from more
+than one boot.
 
 When reviewing these logs look for any errors or Python tracebacks to check
 for any errors.

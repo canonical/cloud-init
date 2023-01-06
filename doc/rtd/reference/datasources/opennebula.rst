@@ -25,8 +25,8 @@ Datasource accepts the following configuration options: ::
       values: local, net, disabled
       default: net
 
-These specify whether the datasource will be processed in "local"
-(pre-networking) stage, "net" (post-networking) stage or be "disabled".
+These specify whether the datasource will be processed in ``local``
+(pre-networking) stage, ``net`` (post-networking) stage or be ``disabled``.
 
 ::
 
@@ -54,8 +54,8 @@ The following variables were found in various places and in revisions of
 the OpenNebula documentation. Where multiple similar variables are
 specified, only the one found first is taken.
 
-* ``DSMODE``: Datasource mode configuration override. Values are: local, net,
-  disabled.
+* ``DSMODE``: Datasource mode configuration override. Values are: ``local``,
+  ``net``, ``disabled``.
 
 ::
 
@@ -90,7 +90,7 @@ Instance hostname.
     ETH0_IP
 
 If no hostname has been specified, ``cloud-init`` will try to create a
-hostname from the instance's IP address in ``'local'`` dsmode. In ``'net'``
+hostname from the instance's IP address in ``local`` dsmode. In ``net``
 dsmode, ``cloud-init`` tries to resolve one of its IP addresses to get
 the hostname.
 
@@ -112,7 +112,7 @@ Example configuration
 =====================
 
 This example ``cloud-init`` configuration (:file:`cloud.cfg`) enables
-OpenNebula datasource only in ``'net'`` mode.
+OpenNebula datasource only in ``net`` mode.
 
 ::
 

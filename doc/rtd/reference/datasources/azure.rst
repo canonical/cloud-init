@@ -6,7 +6,7 @@ Azure
 This datasource finds metadata and user data from the Azure cloud platform.
 
 The Azure cloud platform provides initial data to an instance via an attached
-CD formatted in UDF. This CD contains a :file:`'ovf-env.xml'` file that
+CD formatted in UDF. This CD contains a :file:`ovf-env.xml` file that
 provides some information. Additional information is obtained via interaction
 with the "endpoint".
 
@@ -40,7 +40,7 @@ The settings that may be configured are:
 
   Boolean set to True to use network configuration described by Azure's IMDS
   endpoint instead of fallback network config of DHCP on eth0. Default is
-  True. For Ubuntu 16.04 or earlier, default is False.
+  True.
 * :command:`data_dir`
 
   Path used to read metadata files and write crawled data.
@@ -107,7 +107,7 @@ Example:
      </LinuxProvisioningConfigurationSet>
    </wa:ProvisioningSection>
 
-hostname
+HostName
 ========
 
 When the user launches an instance, they provide a hostname for that instance.

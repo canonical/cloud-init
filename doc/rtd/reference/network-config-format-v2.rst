@@ -129,13 +129,11 @@ Example: ::
 
   # fixed MAC address
   match:
-    macaddress: 11:22:33:aa:bb:ff
+    macaddress: "11:22:33:aa:bb:ff"
 
 .. note::
-   MAC addresses must be strings. As MAC addresses consist only of the digits
-   0-9 (i.e., no hex a-f), they can be interpreted as a base 60 integer per
-   the `YAML 1.1 spec`_, so it is best practice to "quote" all MAC addresses
-   to ensure they are parsed as strings regardless of value.
+   It is best practice to "quote" all MAC addresses, since an unquoted MAC
+   address might be incorrectly interpreted as an integer in `YAML`_.
 
 ``driver: <(scalar)>``
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -618,6 +616,6 @@ This is a complex example which shows most available features: ::
         dhcp4: yes
 
 .. _Netplan: https://netplan.io
-.. _YAML 1.1 spec: https://yaml.org/type/int.html
+.. _YAML: https://yaml.org/type/int.html
 .. _Netplan#default-routes: https://netplan.io/reference#default-routes
 .. _Netplan#dhcp-overrides: https://netplan.io/reference#dhcp-overrides

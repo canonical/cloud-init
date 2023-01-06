@@ -30,8 +30,6 @@ The following configuration can be set for the datasource in system
 configuration (in :file:`/etc/cloud/cloud.cfg` or
 :file:`/etc/cloud/cloud.cfg.d/`).
 
-The settings that may be configured are:
-
 ``configure_secondary_nics``
 ----------------------------
 
