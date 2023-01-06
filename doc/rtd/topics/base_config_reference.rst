@@ -216,6 +216,11 @@ Format is a dict with ``enabled`` and ``prefix`` keys:
 * **enabled**: Boolean indicating whether to enable or disable the vendor_data
 * **prefix**: A path to prepend to any vendor_data provided script
 
+**warn_on_duplicate_mac**: When set true, allows cloud-init to continue
+running if it discovers multiple interfaces with the same network MAC address.
+Standard cloud-init behavior is to exit with an exception when multiple
+interfaces have the same MAC address.
+
 Example
 =======
 

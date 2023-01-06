@@ -37,6 +37,7 @@ from cloudinit.sources import NetworkConfigSource
 LOG = logging.getLogger(__name__)
 
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
+_base_config = None
 
 
 def update_event_enabled(
@@ -958,7 +959,10 @@ def read_runtime_config():
 
 
 def fetch_base_config(*, instance_data_file=None) -> dict:
-    return util.mergemanydict(
+    global _base_config
+    if _base_config is not None:
+        return _base_config
+    _base_config = util.mergemanydict(
         [
             # builtin config, hardcoded in settings.py.
             util.get_builtin_cfg(),
@@ -973,3 +977,4 @@ def fetch_base_config(*, instance_data_file=None) -> dict:
         ],
         reverse=True,
     )
+    return _base_config

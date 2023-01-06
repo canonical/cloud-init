@@ -999,17 +999,21 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
+    from cloudinit.stages import fetch_base_config
+
     ret: dict = {}
     driver_map: dict = {}
+    warn_on_duplicate_mac = util.get_cfg_option_bool(
+        fetch_base_config(), "warn_on_duplicate_mac", False
+    )
     for name, mac, driver, _devid in get_interfaces(
         blacklist_drivers=blacklist_drivers
     ):
         if mac in ret:
-            raise_duplicate_mac_error = True
-            msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
-                name,
-                ret[mac],
-                mac,
+            raise_on_duplicate_mac = not warn_on_duplicate_mac
+            msg = (
+                f"duplicate mac found! both '{name}' and "
+                f"'{ret[mac]}' have mac '{mac}'."
             )
             # Hyper-V netvsc driver will register a VF with the same mac
             #
@@ -1020,22 +1024,24 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             # the slave nic (which does not have hv_netvsc driver).
             if driver != driver_map[mac]:
                 if driver_map[mac] == "hv_netvsc":
-                    LOG.warning(
-                        msg + " Ignoring '%s' due to driver '%s' and "
-                        "'%s' having driver hv_netvsc."
-                        % (name, driver, ret[mac])
+                    msg += (
+                        f" Ignoring '{name}' due to driver '{driver}' and "
+                        f"'{ret[mac]}' having driver hv_netvsc."
                     )
                     continue
                 if driver == "hv_netvsc":
-                    raise_duplicate_mac_error = False
-                    LOG.warning(
-                        msg + " Ignoring '%s' due to driver '%s' and "
-                        "'%s' having driver hv_netvsc."
-                        % (ret[mac], driver_map[mac], name)
+                    raise_on_duplicate_mac = False
+                    msg += (
+                        f" Ignoring '{ret[mac]}' due to driver "
+                        f"'{driver_map[mac]}' and '{name}' having driver "
+                        "hv_netvsc."
                     )
 
-            if raise_duplicate_mac_error:
+            if raise_on_duplicate_mac:
                 raise RuntimeError(msg)
+            if warn_on_duplicate_mac:
+                msg += " warn_on_duplicate_mac is set true."
+            LOG.warning(msg)
 
         ret[mac] = name
         driver_map[mac] = driver
