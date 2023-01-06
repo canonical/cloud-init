@@ -12,6 +12,9 @@ After=systemd-networkd-wait-online.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=networking.service
 {% endif %}
+{% if variant == "ubuntu" %}
+After=dbus.socket
+{% endif %}
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
                   "miraclelinux", "openEuler", "openmandriva", "rhel", "rocky", "virtuozzo"] %}
 After=network.service
