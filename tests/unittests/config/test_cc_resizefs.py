@@ -444,10 +444,12 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     @mock.patch("cloudinit.util.mount_is_read_write")
     @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
-    def test_resize_btrfs_mount_is_ro(self, m_is_dir, m_is_rw):
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_ro(self, m_subp, m_is_dir, m_is_rw):
         """Do not resize / directly if it is read-only. (LP: #1734787)."""
         m_is_rw.return_value = False
         m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v4.19 \n", "")
         self.assertEqual(
             ("btrfs", "filesystem", "resize", "max", "//.snapshots"),
             _resize_btrfs("/", "/dev/sda1"),
@@ -455,12 +457,29 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     @mock.patch("cloudinit.util.mount_is_read_write")
     @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
-    def test_resize_btrfs_mount_is_rw(self, m_is_dir, m_is_rw):
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_rw(self, m_subp, m_is_dir, m_is_rw):
         """Do not resize / directly if it is read-only. (LP: #1734787)."""
         m_is_rw.return_value = True
         m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v4.19 \n", "")
         self.assertEqual(
             ("btrfs", "filesystem", "resize", "max", "/"),
+            _resize_btrfs("/", "/dev/sda1"),
+        )
+
+    @mock.patch("cloudinit.util.mount_is_read_write")
+    @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_rw_has_queue(
+        self, m_subp, m_is_dir, m_is_rw
+    ):
+        """Queue the resize request if btrfs >= 5.10"""
+        m_is_rw.return_value = True
+        m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v5.10 \n", "")
+        self.assertEqual(
+            ("btrfs", "filesystem", "resize", "--enqueue", "max", "/"),
             _resize_btrfs("/", "/dev/sda1"),
         )
 
