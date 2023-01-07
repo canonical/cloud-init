@@ -172,11 +172,6 @@ def prepare_module(module_name: str):
     @raises: RuntimeError when write operation fails.
     """
 
-    LOG.info(
-        "Writing %s file for loading kernel modules on boot",
-        DEFAULT_CONFIG["km_files"]["load"].get("path"),
-    )
-
     try:
         LOG.debug("Appending kernel module %s", module_name)
         util.write_file(
@@ -242,6 +237,7 @@ def cleanup():
     @raises RuntimeError when remove operation fails
     """
 
+    LOG.debug("Cleaning up kernel modules")
     for action in sorted(DEFAULT_CONFIG["km_files"].keys()):
         file_path = DEFAULT_CONFIG["km_files"][action]["path"]
         LOG.debug("Removing file %s", file_path)
@@ -256,7 +252,7 @@ def cleanup():
 def reload_modules(cloud: Cloud):
     """Reload kernel modules
 
-    This function reloads modules in /etc/modules-load.d/cloud-init.conf
+    This function reloads modules in /etc/modules-load.d/50-cloud-init.conf
     with 'systemd-modules-load' service.
 
     @raises RuntimeError
@@ -328,6 +324,7 @@ def update_initial_ramdisk():
 
     @raises RuntimeError
     """
+    LOG.debug("Update initramfs")
     try:
         subp.subp(DEFAULT_CONFIG["km_cmd"]["update"])
     except subp.ProcessExecutionError as e:
@@ -354,8 +351,6 @@ def handle(
         )
         return
 
-    LOG.debug("Found kernel_modules section in config")
-
     # check systemd usage
     if not cloud.distro.uses_systemd():
         LOG.debug(
@@ -365,7 +360,6 @@ def handle(
         return
 
     # cleanup
-    LOG.info("Cleaning up kernel modules")
     cleanup()
 
     # iterate over modules
@@ -384,7 +378,6 @@ def handle(
             enhance_module(module["name"], module["persist"], unload_modules)
 
     # rebuild initial ramdisk
-    log.info("Update initramfs")
     update_initial_ramdisk()
 
     # Unload modules (blacklisted or 'load' is false)
