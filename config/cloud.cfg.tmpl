@@ -166,13 +166,11 @@ cloud_config_modules:
 # The modules that run in the 'final' stage
 cloud_final_modules:
  - package-update-upgrade-install
-{% if variant in ["ubuntu", "debian"] %}
- - kernel_modules
-{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
  - landscape
  - lxd
+ - kernel_modules
 {% endif %}
 {% if variant in ["ubuntu", "unknown"] %}
  - ubuntu-drivers
