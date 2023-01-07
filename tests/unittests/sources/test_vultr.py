@@ -53,7 +53,7 @@ VULTR_V1_1 = {
         }
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": "US",
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "raid1-script": "",
@@ -126,7 +126,7 @@ VULTR_V1_2 = {
         },
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": "US",
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "user-data": [],
