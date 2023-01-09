@@ -164,7 +164,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if not skip_detect and not detect_openstack(
             accept_oracle=not oracle_considered
         ):
-            LOG.debug("Not running on OpenStack")
+            LOG.debug("OpenStack datasource Not running on OpenStack")
             return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.

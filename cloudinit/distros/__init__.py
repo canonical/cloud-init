@@ -986,15 +986,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @property
     def is_virtual(self) -> bool:
-        """Detect if is running as a virtual machine or bare metal. If fails, it returns True to avoid breaking changes.
+        """Detect if is running as a virtual machine or bare metal.
+        If fails, it returns True to avoid breaking changes.
 
         Returns True if any devices failed to come up, otherwise False.
         """
         if not uses_systemd():
-            # For non systemd systems the method should be implemented in the distro class.
-            LOG.debug(
-                "Detected non systemd distro, it's recommended to implement is_virtual on the distro class."
-            )
+            # For non systemd systems the method should be
+            # implemented in the distro class.
+            LOG.debug("is_virtual should be implemented on distro class")
             return True
 
         try:
