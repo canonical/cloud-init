@@ -1,0 +1,49 @@
+Description: Retain world-readable /etc/netplan/50-cloud-init.yaml
+ To avoid change in behavior stable releases wil not adopt root read-only
+ /etc/netplan/50-cloud-init.yaml. which is present in Lunar and newer.
+Author: chad.smith@canonical.com
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2023-01-09
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: cloud-init/cloudinit/features.py
+===================================================================
+--- cloud-init.orig/cloudinit/features.py
++++ cloud-init/cloudinit/features.py
+@@ -59,7 +59,7 @@ only non-hashed passwords were expired.
+ (This flag can be removed after Jammy is no longer supported.)
+ """
+ 
+-NETPLAN_CONFIG_ROOT_READ_ONLY = True
++NETPLAN_CONFIG_ROOT_READ_ONLY = False
+ """
+ If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
+ be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
+Index: cloud-init/tests/unittests/distros/test_netconfig.py
+===================================================================
+--- cloud-init.orig/tests/unittests/distros/test_netconfig.py
++++ cloud-init/tests/unittests/distros/test_netconfig.py
+@@ -1039,12 +1039,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
+         with mock.patch(
+             "cloudinit.net.netplan.get_devicelist", return_value=[]
+         ):
+-            self._apply_and_verify(
+-                self.distro.apply_network_config,
+-                V1_NET_CFG,
+-                expected_cfgs=expected_cfgs.copy(),
+-                with_netplan=True,
+-            )
++            with mock.patch.object(
++                features, "NETPLAN_CONFIG_ROOT_READ_ONLY"
++            ) as netplan_readonly:
++                netplan_readonly = True
++                self._apply_and_verify(
++                    self.distro.apply_network_config,
++                    V1_NET_CFG,
++                    expected_cfgs=expected_cfgs.copy(),
++                    with_netplan=True,
++                )
+ 
+ 
+ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
