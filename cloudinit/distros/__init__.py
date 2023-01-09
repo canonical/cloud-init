@@ -989,7 +989,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Detect if is running as a virtual machine or bare metal.
         If fails, it returns True to avoid breaking changes.
 
-        Returns True if any devices failed to come up, otherwise False.
+        Returns True if it's running on a virtual machine. False means bare metal.
         """
         if not uses_systemd():
             # For non systemd systems the method should be
