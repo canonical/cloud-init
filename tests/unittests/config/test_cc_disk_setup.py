@@ -102,7 +102,7 @@ class TestGetMbrHddSize(TestCase):
 class TestGetPartitionMbrLayout(TestCase):
     def test_single_partition_using_boolean(self):
         self.assertEqual(
-            "0,", cc_disk_setup.get_partition_mbr_layout(1000, True)
+            ",,83", cc_disk_setup.get_partition_mbr_layout(1000, True)
         )
 
     def test_single_partition_using_list(self):
