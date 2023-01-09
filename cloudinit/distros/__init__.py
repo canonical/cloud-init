@@ -1003,6 +1003,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 stdin=None,
                 shell=True,
                 capture_output=True,
+                check=False,
                 text=True,
             )
 
