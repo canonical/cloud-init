@@ -1,1 +1,2 @@
 expire-on-hashed-users.patch
+retain-netplan-world-readable.patch
