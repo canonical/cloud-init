@@ -14,6 +14,7 @@ import os
 import re
 import stat
 import string
+import subprocess
 import urllib.parse
 from io import StringIO
 from typing import Any, Mapping, MutableMapping, Optional, Type
@@ -982,6 +983,39 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ],
             **kwargs,
         )
+
+    @property
+    def is_virtual(self) -> bool:
+        """Detect if is running as a virtual machine or bare metal. If fails, it returns True to avoid breaking changes.
+
+        Returns True if any devices failed to come up, otherwise False.
+        """
+        if not uses_systemd():
+            # For non systemd systems the method should be implemented in the distro class.
+            LOG.debug(
+                "Detected non systemd distro, it's recommended to implement is_virtual on the distro class."
+            )
+            return True
+
+        try:
+            proc = subprocess.run(
+                "systemd-detect-virt",
+                stdin=None,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+
+            if proc.returncode == 1 and proc.stdout.strip() == "none":
+                return False
+
+            return True
+        except subprocess.SubprocessError as e:
+            LOG.warning(
+                "Failed to detect virtualization with systemd-detect-virt: %s",
+                e,
+            )
+            return True
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

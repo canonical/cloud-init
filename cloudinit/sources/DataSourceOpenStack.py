@@ -150,7 +150,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        is_virtual_machine = openstack.is_virtual_machine()
+        is_virtual_machine = self.distro.is_virtual
 
         LOG.debug(
             "OpenStack is running on %s.",

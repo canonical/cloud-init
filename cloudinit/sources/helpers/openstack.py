@@ -10,7 +10,6 @@ import abc
 import base64
 import copy
 import functools
-import subprocess
 import os
 
 from cloudinit import log as logging
@@ -757,28 +756,6 @@ def convert_net_json(network_json=None, known_macs=None):
         config.append(cfg)
 
     return {"version": 1, "config": config}
-
-
-# Returns false if CloudInit does not run on a virtual machine.
-# It tries to detect if the system runs as a virtual machine with
-# using "systemd-detect-virt". If the check fails, we fall back to True.
-def is_virtual_machine():
-    try:
-        proc = subprocess.run(
-            "systemd-detect-virt",
-            stdin=None,
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
-
-        if proc.returncode == 1 and proc.stdout.strip() == "none":
-            return False
-
-        return True
-    except subprocess.SubprocessError as e:
-        LOG.warning("Failed to detect virtualization: %s", e)
-        return True
 
 
 # vi: ts=4 expandtab
