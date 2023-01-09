@@ -17,6 +17,11 @@ from tests.unittests.util import get_cloud
 
 MODPATH = "cloudinit.config.cc_set_passwords."
 LOG = logging.getLogger(__name__)
+SYSTEMD_CHECK_CALL = mock.call(
+    "systemctl show --property ActiveState --value ssh"
+)
+SYSTEMD_RESTART_CALL = mock.call(["systemctl", "restart", "ssh"], capture=True)
+SERVICE_RESTART_CALL = mock.call(["service", "ssh", "restart"], capture=True)
 
 
 @pytest.fixture(autouse=True)
@@ -26,52 +31,23 @@ def common_fixtures(mocker):
 
 
 class TestHandleSSHPwauth:
-    @pytest.mark.parametrize(
-        "uses_systemd,cmd",
-        (
-            (True, ["systemctl", "status", "ssh"]),
-            (False, ["service", "ssh", "status"]),
-        ),
-    )
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_unknown_value_logs_warning(
-        self, m_subp, uses_systemd, cmd, caplog
-    ):
+    def test_unknown_value_logs_warning(self, m_subp, caplog):
         cloud = get_cloud("ubuntu")
-        with mock.patch.object(
-            cloud.distro, "uses_systemd", return_value=uses_systemd
-        ):
-            setpass.handle_ssh_pwauth("floo", cloud.distro)
+        setpass.handle_ssh_pwauth("floo", cloud.distro)
         assert "Unrecognized value: ssh_pwauth=floo" in caplog.text
-        assert [mock.call(cmd, capture=True)] == m_subp.call_args_list
+        assert SYSTEMD_CHECK_CALL not in m_subp.call_args_list
+        assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
+        assert SERVICE_RESTART_CALL not in m_subp.call_args_list
 
     @pytest.mark.parametrize(
-        "uses_systemd,ssh_updated,cmd,expected_log",
+        "uses_systemd,ssh_updated,systemd_state",
         (
-            (
-                True,
-                True,
-                ["systemctl", "restart", "ssh"],
-                "Restarted the SSH daemon.",
-            ),
-            (
-                True,
-                False,
-                ["systemctl", "status", "ssh"],
-                "No need to restart SSH",
-            ),
-            (
-                False,
-                True,
-                ["service", "ssh", "restart"],
-                "Restarted the SSH daemon.",
-            ),
-            (
-                False,
-                False,
-                ["service", "ssh", "status"],
-                "No need to restart SSH",
-            ),
+            (True, True, "activating"),
+            (True, True, "inactive"),
+            (True, False, None),
+            (False, True, None),
+            (False, False, None),
         ),
     )
     @mock.patch(f"{MODPATH}update_ssh_config")
@@ -82,23 +58,31 @@ class TestHandleSSHPwauth:
         update_ssh_config,
         uses_systemd,
         ssh_updated,
-        cmd,
-        expected_log,
+        systemd_state,
         caplog,
     ):
         update_ssh_config.return_value = ssh_updated
+        m_subp.return_value = subp.SubpResult(systemd_state, "")
         cloud = get_cloud("ubuntu")
         with mock.patch.object(
             cloud.distro, "uses_systemd", return_value=uses_systemd
         ):
             setpass.handle_ssh_pwauth(True, cloud.distro)
-        if ssh_updated:
-            m_subp.assert_called_with(cmd, capture=True)
+
+        if not ssh_updated:
+            assert "No need to restart SSH" in caplog.text
+            assert m_subp.call_args_list == []
+        elif uses_systemd:
+            assert SYSTEMD_CHECK_CALL in m_subp.call_args_list
+            assert SERVICE_RESTART_CALL not in m_subp.call_args_list
+            if systemd_state == "activating":
+                assert SYSTEMD_RESTART_CALL in m_subp.call_args_list
+            else:
+                assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
         else:
-            assert [mock.call(cmd, capture=True)] == m_subp.call_args_list
-        assert expected_log in "\n".join(
-            r.msg for r in caplog.records if r.levelname == "DEBUG"
-        )
+            assert SERVICE_RESTART_CALL in m_subp.call_args_list
+            assert SYSTEMD_CHECK_CALL not in m_subp.call_args_list
+            assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
 
     @mock.patch(f"{MODPATH}update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
@@ -107,9 +91,9 @@ class TestHandleSSHPwauth:
         update_ssh_config.assert_not_called()
         cloud = get_cloud("ubuntu")
         setpass.handle_ssh_pwauth("unchanged", cloud.distro)
-        assert [
-            mock.call(["systemctl", "status", "ssh"], capture=True)
-        ] == m_subp.call_args_list
+        assert SYSTEMD_CHECK_CALL not in m_subp.call_args_list
+        assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
+        assert SERVICE_RESTART_CALL not in m_subp.call_args_list
 
     @pytest.mark.allow_subp_for("systemctl")
     @mock.patch("cloudinit.distros.subp.subp")
@@ -118,135 +102,13 @@ class TestHandleSSHPwauth:
         cloud = get_cloud("ubuntu")
         upname = f"{MODPATH}update_ssh_config"
         optname = "PasswordAuthentication"
-        for n, value in enumerate(util.FALSE_STRINGS + util.TRUE_STRINGS, 1):
+        for _, value in enumerate(util.FALSE_STRINGS + util.TRUE_STRINGS, 1):
             optval = "yes" if value in util.TRUE_STRINGS else "no"
             with mock.patch(upname, return_value=False) as m_update:
                 setpass.handle_ssh_pwauth(value, cloud.distro)
                 assert (
                     mock.call({optname: optval}) == m_update.call_args_list[-1]
                 )
-                assert m_subp.call_count == n
-
-    @pytest.mark.parametrize(
-        [
-            "uses_systemd",
-            "raised_error",
-            "warning_log",
-            "debug_logs",
-            "update_ssh_call_count",
-        ],
-        (
-            (
-                True,
-                subp.ProcessExecutionError(
-                    stderr="Service is not running.", exit_code=3
-                ),
-                None,
-                [
-                    "Writing config 'ssh_pwauth: True'. SSH service"
-                    " 'ssh' will not be restarted because it is stopped.",
-                    "Not restarting SSH service: service is stopped.",
-                ],
-                1,
-            ),
-            (
-                True,
-                subp.ProcessExecutionError(
-                    stderr="Service is not installed.", exit_code=4
-                ),
-                "Ignoring config 'ssh_pwauth: True'. SSH service 'ssh' is"
-                " not installed.",
-                [],
-                0,
-            ),
-            (
-                True,
-                subp.ProcessExecutionError(
-                    stderr="Service is not available.", exit_code=2
-                ),
-                "Ignoring config 'ssh_pwauth: True'. SSH service 'ssh'"
-                " is not available. Error: ",
-                [],
-                0,
-            ),
-            (
-                False,
-                subp.ProcessExecutionError(
-                    stderr="Service is not available.", exit_code=25
-                ),
-                None,
-                [
-                    "Writing config 'ssh_pwauth: True'. SSH service"
-                    " 'ssh' will not be restarted because it is not running"
-                    " or not available.",
-                    "Not restarting SSH service: service is stopped.",
-                ],
-                1,
-            ),
-            (
-                False,
-                subp.ProcessExecutionError(
-                    stderr="Service is not available.", exit_code=3
-                ),
-                None,
-                [
-                    "Writing config 'ssh_pwauth: True'. SSH service"
-                    " 'ssh' will not be restarted because it is not running"
-                    " or not available.",
-                    "Not restarting SSH service: service is stopped.",
-                ],
-                1,
-            ),
-            (
-                False,
-                subp.ProcessExecutionError(
-                    stderr="Service is not available.", exit_code=4
-                ),
-                None,
-                [
-                    "Writing config 'ssh_pwauth: True'. SSH service"
-                    " 'ssh' will not be restarted because it is not running"
-                    " or not available.",
-                    "Not restarting SSH service: service is stopped.",
-                ],
-                1,
-            ),
-        ),
-    )
-    @mock.patch(f"{MODPATH}update_ssh_config", return_value=True)
-    @mock.patch("cloudinit.distros.subp.subp")
-    def test_no_restart_when_service_is_not_running(
-        self,
-        m_subp,
-        m_update_ssh_config,
-        uses_systemd,
-        raised_error,
-        warning_log,
-        debug_logs,
-        update_ssh_call_count,
-        caplog,
-    ):
-        """Write config but don't restart SSH service when not running."""
-        cloud = get_cloud("ubuntu")
-        cloud.distro.manage_service = mock.Mock(side_effect=raised_error)
-        cloud.distro.uses_systemd = mock.Mock(return_value=uses_systemd)
-
-        setpass.handle_ssh_pwauth(True, cloud.distro)
-        logs_by_level = {logging.WARNING: [], logging.DEBUG: []}
-        for _, level, msg in caplog.record_tuples:
-            logs_by_level[level].append(msg)
-        if warning_log:
-            assert warning_log in "\n".join(
-                logs_by_level[logging.WARNING]
-            ), logs_by_level
-        for debug_log in debug_logs:
-            assert debug_log in logs_by_level[logging.DEBUG]
-        assert [
-            mock.call("status", "ssh")
-        ] == cloud.distro.manage_service.call_args_list
-        assert m_update_ssh_config.call_count == update_ssh_call_count
-        assert m_subp.call_count == 0
-        assert cloud.distro.uses_systemd.call_count == 1
 
 
 def get_chpasswd_calls(cfg, cloud, log):
@@ -275,9 +137,9 @@ class TestSetPasswordsHandle:
             "Leaving SSH config 'PasswordAuthentication' unchanged. "
             "ssh_pwauth=None"
         ) in caplog.text
-        assert [
-            mock.call(["systemctl", "status", "ssh"], capture=True)
-        ] == m_subp.call_args_list
+        assert SYSTEMD_CHECK_CALL not in m_subp.call_args_list
+        assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
+        assert SERVICE_RESTART_CALL not in m_subp.call_args_list
 
     @mock.patch(f"{MODPATH}subp.subp")
     def test_handle_on_chpasswd_list_parses_common_hashes(
@@ -380,7 +242,6 @@ class TestSetPasswordsHandle:
             ),
             mock.call(["pw", "usermod", "ubuntu", "-p", "01-Jan-1970"]),
             mock.call(["pw", "usermod", "sadegh", "-p", "01-Jan-1970"]),
-            mock.call(["service", "sshd", "status"], capture=True),
         ] == m_subp.call_args_list
 
     @pytest.mark.parametrize(
@@ -576,11 +437,6 @@ class TestSetPasswordsHandle:
         def_1 = get_chpasswd_calls(list_def, cloud, LOG)
         def_2 = get_chpasswd_calls(users_def, cloud, LOG)
         assert def_1 == def_2
-        assert def_1[-1] == mock.call(
-            ["systemctl", "status", "ssh"], capture=True
-        )
-        for val in def_1:
-            assert val
 
 
 expire_cases = [
