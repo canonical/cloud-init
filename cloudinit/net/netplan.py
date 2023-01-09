@@ -263,7 +263,9 @@ class Renderer(renderer.Renderer):
             header += "\n"
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        util.write_file(fpnplan, header + content, mode=mode)
+        util.write_file(
+            fpnplan, header + content, mode=mode, preserve_mode=True
+        )
 
         if self.clean_default:
             _clean_default(target=target)

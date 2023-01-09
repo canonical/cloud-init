@@ -555,7 +555,12 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         self.devlist = ["eth0", "lo"]
 
     def _apply_and_verify_netplan(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self,
+        apply_fn,
+        config,
+        expected_cfgs=None,
+        bringup=False,
+        previous_files=(),
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
@@ -567,10 +572,11 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
                 return_value=self.devlist,
             ):
                 with self.reRooted(tmpd) as tmpd:
+                    for previous_path, content, mode in previous_files:
+                        util.write_file(previous_path, content, mode=mode)
                     apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
-
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
@@ -617,6 +623,20 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             self.distro.apply_network_config,
             V2_NET_CFG,
             expected_cfgs=expected_cfgs.copy(),
+        )
+
+    def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
+        """Custom permissions on existing netplan config is kept on rewrite."""
+        expected_cfgs = {
+            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
+        }
+        # ub_distro.apply_network_config(V2_NET_CFG, False)
+        tmpd = None
+        self._apply_and_verify_netplan(
+            self.distro.apply_network_config,
+            V2_NET_CFG,
+            expected_cfgs=expected_cfgs.copy(),
+            previous_files=(("/etc/netplan/50-cloud-init.yaml", "a", 0o640),),
         )
 
     def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
