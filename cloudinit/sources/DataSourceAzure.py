@@ -22,7 +22,6 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
@@ -32,7 +31,6 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
-    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
     BrokenAzureDataSource,
     ChassisAssetTag,
@@ -206,6 +204,33 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
         for n in net.get_interfaces()
         if n[2] == "hv_netvsc"
     ]
+
+
+@azure_ds_telemetry_reporter
+def determine_device_driver_for_mac(mac: str) -> Optional[str]:
+    """Determine the device driver to match on, if any."""
+    drivers = [
+        i[2]
+        for i in net.get_interfaces(blacklist_drivers=BLACKLIST_DRIVERS)
+        if mac == normalize_mac_address(i[1])
+    ]
+    if "hv_netvsc" in drivers:
+        return "hv_netvsc"
+
+    if len(drivers) == 1:
+        report_diagnostic_event(
+            "Assuming driver for interface with mac=%s drivers=%r"
+            % (mac, drivers),
+            logger_func=LOG.debug,
+        )
+        return drivers[0]
+
+    report_diagnostic_event(
+        "Unable to specify driver for interface with mac=%s drivers=%r"
+        % (mac, drivers),
+        logger_func=LOG.warning,
+    )
+    return None
 
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
@@ -726,9 +751,7 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(
                 "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
             )
-            self._report_failure(
-                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            self._report_failure()
             return False
         finally:
             self._teardown_ephemeral_networking()
@@ -1358,7 +1381,7 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description: Optional[str] = None) -> bool:
+    def _report_failure(self) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
@@ -1371,10 +1394,7 @@ class DataSourceAzure(sources.DataSource):
                     "to report failure to Azure",
                     logger_func=LOG.debug,
                 )
-                report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint,
-                    description=description,
-                )
+                report_failure_to_fabric(endpoint=self._wireserver_endpoint)
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1394,9 +1414,7 @@ class DataSourceAzure(sources.DataSource):
             except NoDHCPLeaseError:
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
-            report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, description=description
-            )
+            report_failure_to_fabric(endpoint=self._wireserver_endpoint)
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -2046,11 +2064,8 @@ def generate_network_config_from_instance_network_metadata(
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
-            # With netvsc, we can get two interfaces that
-            # share the same MAC, so we need to make sure
-            # our match condition also contains the driver
-            driver = device_driver(nicname)
-            if driver and driver == "hv_netvsc":
+            driver = determine_device_driver_for_mac(mac)
+            if driver:
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
             continue

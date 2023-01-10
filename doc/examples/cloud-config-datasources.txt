@@ -31,7 +31,7 @@ datasource:
     # default seedfrom is None
     # if found, then it should contain a url with:
     #    <url>/user-data and <url>/meta-data
-    # seedfrom: http://my.example.com/i-abcde
+    # seedfrom: http://my.example.com/i-abcde/
     seedfrom: None
 
     # fs_label: the label on filesystems to be searched for NoCloud source

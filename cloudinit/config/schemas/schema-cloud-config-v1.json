@@ -1180,7 +1180,7 @@
               },
               "device": {
                 "type": "string",
-                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<device name>.<partition number>`` format, the value of ``partition`` will be overwritten."
+                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<alias name>.<partition number>`` format, the value of ``partition`` will be overwritten."
               },
               "partition": {
                 "type": [
@@ -1197,7 +1197,7 @@
                     ]
                   }
                 ],
-                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
+                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``filesystem`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any filesystem that matches ``filesystem`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
               },
               "overwrite": {
                 "type": "boolean",
@@ -1764,7 +1764,7 @@
               "description": "Path to the swap file to create"
             },
             "size": {
-              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T.",
+              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T. **WARNING: Attempts to use IEC prefixes in your configuration prior to cloud-init version 23.1 will result in unexpected behavior. SI prefixes names (KB, MB) are required on pre-23.1 cloud-init, however IEC values are used. In summary, assume 1KB == 1024B, not 1000B**",
               "oneOf": [
                 {
                   "enum": [
@@ -2519,7 +2519,7 @@
               "deprecated": true
             }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
         },
         "chpasswd": {
           "type": "object",

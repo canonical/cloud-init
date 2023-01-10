@@ -6289,6 +6289,44 @@ class TestNetplanNetRendering:
                 """,
                 id="one_subnet_old_new_gateway46",
             ),
+            # Assert gateways outside of the subnet's network are added with
+            # the on-link flag
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.255.1
+                      - type: static
+                        address: 2001:cafe::/64
+                        gateway: 2001:ffff::1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      - 2001:cafe::/64
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.255.1
+                          on-link: true
+                      -   to: default
+                          via: 2001:ffff::1
+                          on-link: true
+                      set-name: interface0
+                """,
+                id="onlink_gateways",
+            ),
         ],
     )
     @mock.patch(

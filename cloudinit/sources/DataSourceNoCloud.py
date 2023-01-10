@@ -156,7 +156,7 @@ class DataSourceNoCloud(sources.DataSource):
         # The special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
-        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg
+        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg/
         if "seedfrom" in mydata["meta-data"]:
             seedfrom = mydata["meta-data"]["seedfrom"]
             seedfound = False
@@ -167,6 +167,9 @@ class DataSourceNoCloud(sources.DataSource):
             if not seedfound:
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
+            # check and replace instances of known dmi.<dmi_keys> such as
+            # chassis-serial-number or baseboard-product-name
+            seedfrom = dmi.sub_dmi_vars(seedfrom)
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise

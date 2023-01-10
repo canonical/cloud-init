@@ -1396,34 +1396,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric(
-            endpoint="test_endpoint", description="TestDesc"
-        )
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description="TestDesc"
-        )
-
-    def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
+    def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
         azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
-        # default err message description should be shown to the user
-        # if no description is passed in
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
-        )
-
-    def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric(
-            endpoint="test_endpoint", description=""
-        )
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
