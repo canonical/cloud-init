@@ -260,7 +260,7 @@ system_info:
      name: ec2-user
      lock_passwd: True
      gecos: EC2 Default User
-{% elif variant in ["rhel", "centos"] %}
+{% elif is_rhel and variant != "eurolinux" %}
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User
