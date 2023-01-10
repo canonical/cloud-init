@@ -31,30 +31,61 @@ The permitted keys are:
 
 With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
 ``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
-with ``http://`` or ``https://``.
+with ``http://`` or ``https://`` and end with a trailing ``/``.
+
+Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
+kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).
+Your ``seedfrom`` URL can contain variable names of the format
+``__dmi.varname__`` to indicate to the ``cloud-init`` NoCloud datasource that
+``dmi.varname`` should be expanded to the value of the DMI system attribute
+wanted.
+
+.. list-table:: Available DMI variables for expansion in ``seedfrom`` URL
+  :widths: 35 35 30
+  :header-rows: 0
+
+  * - ``dmi.baseboard-asset-tag``
+    - ``dmi.baseboard-manufacturer``
+    - ``dmi.baseboard-version``
+  * - ``dmi.bios-release-date``
+    - ``dmi.bios-vendor``
+    - ``dmi.bios-version``
+  * - ``dmi.chassis-asset-tag``
+    - ``dmi.chassis-manufacturer``
+    - ``dmi.chassis-serial-number``
+  * - ``dmi.chassis-version``
+    - ``dmi.system-manufacturer``
+    - ``dmi.system-product-name``
+  * - ``dmi.system-serial-number``
+    - ``dmi.system-uuid``
+    - ``dmi.system-version``
 
 For example, you can pass this option to QEMU: ::
 
-  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/
+  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 
-This will cause NoCloud to fetch the full metadata from
-http://10.10.0.1:8000/meta-data after the network initialisation is complete.
+This will cause NoCloud to fetch the full metadata from a URL based on
+YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`
+(kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data after
+the network initialisation is complete.
 
 File formats
 ============
 
-These user data and metadata files are expected to be in the following
-format: ::
+These user data and metadata files are required as separate files at the
+same base URL: ::
 
   /user-data
   /meta-data
 
 Both files must be present for it to be considered a valid seed ISO.
 
-Basically, ``user-data`` is simply user data and ``meta-data`` is a
-YAML-formatted file representing what you'd find in the EC2 metadata service.
+Basically, ``user-data`` is simply :ref:`user data<user_data_formats>` and
+``meta-data`` is a YAML-formatted file representing what you'd find in the EC2
+metadata service.
 
-You may also optionally provide a vendor data file in the following format: ::
+You may also optionally provide a vendor data file adhering to
+:ref:`user data formats<user_data_formats>` at the same base URL: ::
 
   /vendor-data
 
