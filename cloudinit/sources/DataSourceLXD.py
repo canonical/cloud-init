@@ -277,6 +277,14 @@ def _get_json_response(
     session: requests.Session, url: str, do_raise: bool = True
 ):
     url_response = _do_request(session, url, do_raise)
+    if not url_response.ok:
+        LOG.debug(
+            "Skipping %s on [HTTP:%d]:%s",
+            url,
+            url_response.status_code,
+            url_response.text,
+        )
+        return {}
     try:
         return url_response.json()
     except JSONDecodeError as exc:
@@ -386,7 +394,9 @@ class _MetaDataReader:
                 md.update(self._process_config(session))
             if MetaDataKeys.DEVICES in metadata_keys:
                 url = url_helper.combine_url(self._version_url, "devices")
-                md["devices"] = _get_json_response(session, url)
+                devices = _get_json_response(session, url, do_raise=False)
+                if devices:
+                    md["devices"] = devices
             return md
 
 
