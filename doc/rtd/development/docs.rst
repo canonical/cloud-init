@@ -77,7 +77,7 @@ referenced by other pages. For example for the FAQ page this would be:
 
 When the reference is used in a document, the displayed text will be that of
 the next heading immediately following the label (so, FAQ in this example),
-unless specifically overriden.
+unless specifically overridden.
 
 If you use labels within a page to refer, for example, to a subsection, use a
 label that follows the format: ``[pagelabel]-[Section]`` e.g., for this
