@@ -303,7 +303,8 @@ Validate cloud-config files using jsonschema.
 * :command:`-c CONFIG_FILE, --config-file CONFIG_FILE`: Path of the
   cloud-config YAML file to validate.
 * :command:`--system`: Validate the system cloud-config user data.
-* :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`: Print schema module
+* :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`: 
+  Print schema module
   docs. Choices are: "all" or "space-delimited" ``cc_names``.
 * :command:`--annotate`: Annotate existing cloud-config file with errors.
 
