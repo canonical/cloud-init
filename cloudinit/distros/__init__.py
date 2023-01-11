@@ -14,7 +14,6 @@ import os
 import re
 import stat
 import string
-import subprocess
 import urllib.parse
 from io import StringIO
 from typing import Any, Mapping, MutableMapping, Optional, Type
@@ -985,7 +984,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
     @property
-    def is_virtual(self) -> bool:
+    def is_virtual(self) -> Optional[bool]:
         """Detect if running on a virtual machine or bare metal.
 
         If the detection fails, it returns None.
@@ -994,23 +993,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # For non systemd systems the method should be
             # implemented in the distro class.
             LOG.debug("is_virtual should be implemented on distro class")
-            return True
+            return None
 
         try:
-            proc = subprocess.run(
-                "systemd-detect-virt",
-                stdin=None,
-                shell=True,
-                capture_output=True,
-                check=False,
-                text=True,
+            (out, _) = subp.subp(
+                ["systemd-detect-virt"], shell=True, capture=True, rcs=[0, 1]
             )
-
-            if proc.returncode == 1 and proc.stdout.strip() == "none":
+            if out.strip() == "none":
                 return False
 
             return True
-        except subprocess.SubprocessError as e:
+        except subp.ProcessExecutionError as e:
             LOG.warning(
                 "Failed to detect virtualization with systemd-detect-virt: %s",
                 e,
