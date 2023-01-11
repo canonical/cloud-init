@@ -63,6 +63,16 @@ def flushLoggers(root):
     flushLoggers(root.parent)
 
 
+def defineDeprecationLogger(lvl=25):
+    logging.addLevelName(lvl, "DEPRECATED")
+
+    def deprecated(self, message, *args, **kwargs):
+        if self.isEnabledFor(lvl):
+            self._log(lvl, message, args, **kwargs)
+
+    logging.Logger.deprecated = deprecated
+
+
 def setupLogging(cfg=None):
     # See if the config provides any logging conf...
     if not cfg:
@@ -83,6 +93,7 @@ def setupLogging(cfg=None):
                 log_cfgs.append("\n".join(cfg_str))
             else:
                 log_cfgs.append(str(a_cfg))
+    defineDeprecationLogger()
 
     # See if any of them actually load...
     am_tried = 0

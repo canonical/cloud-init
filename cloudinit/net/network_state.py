@@ -86,10 +86,11 @@ NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
 def warn_deprecated_all_devices(dikt: dict) -> None:
     """Warn about deprecations of v2 properties for all devices"""
     if "gateway4" in dikt or "gateway6" in dikt:
-        LOG.warning(
-            "DEPRECATED: The use of `gateway4` and `gateway6` is"
-            " deprecated. For more info check out: "
-            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html"  # noqa: E501
+        util.deprecate(
+            deprecated="The use of `gateway4` and `gateway6`",
+            deprecated_version="22.4",
+            extra_message="For more info check out: "
+            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html",  # noqa: E501
         )
 
 

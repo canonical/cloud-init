@@ -549,12 +549,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'groups' config value of"
-                    " type dict which is deprecated and will be removed in a"
-                    " future version of cloud-init. Use a comma-delimited"
-                    " string or array instead: group1,group2.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The user {name} has a 'groups' config value "
+                    "of type dict",
+                    deprecated_version="22.3",
+                    extra_message="Use a comma-delimited string or "
+                    "array instead: group1,group2.",
                 )
 
             # remove any white spaces in group names, most likely
@@ -682,11 +682,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'sudo' config value of"
-                    " 'false' which will be dropped after April 2027."
-                    " Use 'null' instead.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The value of 'false' in user {name}'s "
+                    "'sudo' config",
+                    deprecated_version="22.3",
+                    extra_message="Use 'null' instead.",
                 )
 
         # Import SSH keys

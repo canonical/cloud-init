@@ -57,3 +57,11 @@ class TestCloudInitLogger(CiTestCase):
         self.assertLess(parsed_dt, utc_after)
         self.assertLess(utc_before, utc_after)
         self.assertGreater(utc_after, parsed_dt)
+
+
+def test_deprecated_log_level(caplog):
+    ci_logging.setupLogging()
+    log = ci_logging.getLogger()
+    log.deprecated("deprecated message")
+    assert "DEPRECATED" == caplog.records[0].levelname
+    assert "deprecated message" in caplog.text
