@@ -992,7 +992,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not uses_systemd():
             # For non systemd systems the method should be
             # implemented in the distro class.
-            LOG.debug("is_virtual should be implemented on distro class")
+            LOG.warning("is_virtual should be implemented on distro class")
             return None
 
         try:
