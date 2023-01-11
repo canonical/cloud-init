@@ -986,10 +986,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @property
     def is_virtual(self) -> bool:
-        """Detect if is running as a virtual machine or bare metal.
-        If fails, it returns True to avoid breaking changes.
+        """Detect if running on a virtual machine or bare metal.
 
-        Returns True if it's running on a virtual machine. False means bare metal.
+        If the detection fails, it returns None.
         """
         if not uses_systemd():
             # For non systemd systems the method should be
@@ -1016,7 +1015,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "Failed to detect virtualization with systemd-detect-virt: %s",
                 e,
             )
-            return True
+            return None
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
