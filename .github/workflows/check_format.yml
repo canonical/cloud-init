@@ -79,7 +79,7 @@ jobs:
       - name: "Install Python 3.10"
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.10.8'
       - name: "Install dependencies"
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
