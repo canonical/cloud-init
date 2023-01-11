@@ -77,11 +77,15 @@ jobs:
           git fetch --unshallow
           git remote add upstream https://git.launchpad.net/cloud-init
 
-      - name: "1. Install dependencies 2. Spellcheck 3. Build docs"
-        env:
-          TOXENV: doc
+      - name: "Install dependencies"
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox lintian
+      - name: "Spellcheck"
+        run: |
           make check_spelling
+      - name: "Build docs"
+        env:
+          TOXENV: doc
+        run: |
           tox
