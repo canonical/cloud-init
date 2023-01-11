@@ -11,13 +11,13 @@
 
 import copy
 from contextlib import suppress
-from typing import List
+from typing import Iterable, List
 
 from cloudinit import subp
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
 
 
-def get_available_apt_packages(pkglist) -> List[str]:
+def get_available_apt_packages(pkglist: Iterable[str]) -> List[str]:
     apt_packages = []
     for pkg in pkglist:
         output: str = subp.subp(
@@ -28,7 +28,10 @@ def get_available_apt_packages(pkglist) -> List[str]:
     return apt_packages
 
 
-def get_available_snap_packages(pkglist) -> List[str]:
+def get_available_snap_packages(pkglist: Iterable[str]) -> List[str]:
+    if not subp.which("snap"):
+        return []
+
     snap_packages = []
     for pkg in pkglist:
         with suppress(subp.ProcessExecutionError):
@@ -64,11 +67,11 @@ class Distro(debian.Distro):
             self._preferred_ntp_clients = copy.deepcopy(PREFERRED_NTP_CLIENTS)
         return self._preferred_ntp_clients
 
-    def install_snap_packages(self, pkglist):
+    def install_snap_packages(self, pkglist: Iterable[str]):
         for pkg in pkglist:
             subp.subp(["snap", "install", pkg])
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: Iterable[str]):
         """Install packages from either apt or snap.
 
         We prefer apt here as to not unexpectedly install a snap when
@@ -76,18 +79,13 @@ class Distro(debian.Distro):
         in a snap install needing to wait for an apt update. If you know your
         package is a snap, call "install_snap_packages" directly.
         """
-        if not subp.which("snap"):
-            return super().install_packages(pkglist)
-
         # We need to update sources before checking apt cache
         super().update_package_sources()
 
         apt_packages = get_available_apt_packages(pkglist)
-        remaining_packages = [p for p in pkglist if p not in apt_packages]
+        remaining_packages = set(pkglist) - set(apt_packages)
         snap_packages = get_available_snap_packages(remaining_packages)
-        remaining_packages = [
-            p for p in remaining_packages if p not in snap_packages
-        ]
+        remaining_packages = set(remaining_packages) - set(snap_packages)
         if remaining_packages:
             raise ValueError(
                 f"Could not find package(s) {remaining_packages} "
