@@ -43,7 +43,6 @@ env:
 matrix:
     fast_finish: true
     include:
-        - python: 3.6
         - name: "Integration Tests"
           if: NOT branch =~ /^ubuntu\//
           env: {}
@@ -136,10 +135,5 @@ matrix:
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)
         - python: 3.12-dev
-        - python: 3.11
-        - python: "3.10"
-        - python: 3.9
-        - python: 3.8
-        - python: 3.7
     allow_failures:
         - python: 3.12-dev
