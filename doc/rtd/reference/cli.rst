@@ -74,9 +74,11 @@ first boot.
 * :command:`--logs`: Optionally remove all ``cloud-init`` log files in
   :file:`/var/log/`.
 * :command:`--reboot`: Reboot the system after removing artifacts.
-* :command:`--machine-id`: Remove :file:`/etc/machine-id` on this image. Best
-  practice when cloning a golden image, to ensure that the next boot of that
-  image auto-generates a unique machine ID. `More details on machine-id`_.
+* :command:`--machine-id`: Set :file:`/etc/machine-id` to ``uninitialized\n``
+  on this image for systemd environemnts. On distributions without systemd,
+  remove the file. Best practice when cloning a golden image, to ensure the
+  next boot of that image auto-generates a unique machine ID.
+  `More details on machine-id`_.
 
 .. _cli_collect_logs:
 
