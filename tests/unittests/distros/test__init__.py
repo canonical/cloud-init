@@ -275,6 +275,45 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
                 d.is_virtual, "Reflect unknown state on ProcessExecutionError"
             )
 
+    def test_virtualization_on_freebsd(self):
+        # This test function is a crime.
+        # We're using the fact that is_container() and virtual() are @lru_cache
+        # this way, we can nest the various mocks to subp.subp to target the
+        # correct function's subp call.
+
+        cls = distros.fetch("freebsd")
+        with mock.patch(
+            "cloudinit.distros.subp.subp", return_value=("", None)
+        ):
+            d = cls("freebsd", {}, None)
+        # This mock is called by `sysctl -n security.jail.jailed`
+        with mock.patch(
+            "cloudinit.distros.subp.subp",
+            side_effect=[("0\n", None), ("literaly any truthy value", None)],
+        ):
+            self.assertFalse(d.is_container())
+            d.is_container.cache_clear()
+            self.assertTrue(d.is_container())
+            d.is_container.cache_clear()
+
+        # This mock is called by `sysctl -n kern.vm_guest`
+        with mock.patch(
+            "cloudinit.distros.subp.subp",
+            side_effect=[
+                ("0\n", None), ("hv\n", None),
+                ("0\n", None), ("none\n", None),
+                ("0\n", None), ("hv\n", None),
+            ],
+        ):
+            self.assertEqual(d.virtual(), "microsoft")
+            d.is_container.cache_clear()
+            d.virtual.cache_clear()
+            self.assertEqual(d.virtual(), "none")
+            d.is_container.cache_clear()
+            d.virtual.cache_clear()
+
+            self.assertTrue(d.is_virtual)
+
 
 class TestGetPackageMirrors:
     def return_first(self, mlist):
