@@ -424,6 +424,23 @@ class TestCombined:
         assert v1_data["instance_id"] == client.instance.instance_id
         assert v1_data["local_hostname"] == client.instance.name
 
+    @pytest.mark.lxd_container
+    @pytest.mark.azure
+    @pytest.mark.gce
+    @pytest.mark.ec2
+    def test_instance_cloud_id_across_reboot_ec2(
+        self, class_client: IntegrationInstance
+    ):
+        client = class_client
+        platform = client.settings.PLATFORM
+        cloud_id_alias = {"ec2": "aws", "lxd_container": "lxd"}
+        cloud_file = f"cloud-id-{cloud_id_alias.get(platform, platform)}"
+        assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
+        assert client.execute("test -f /run/cloud-init/cloud-id").ok
+        client.restart()
+        assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
+        assert client.execute("test -f /run/cloud-init/cloud-id").ok
+
 
 @pytest.mark.user_data(USER_DATA)
 class TestCombinedNoCI:
