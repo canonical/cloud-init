@@ -43,7 +43,6 @@ env:
 matrix:
     fast_finish: true
     include:
-        - python: 3.6
         - name: "Integration Tests"
           if: NOT branch =~ /^ubuntu\//
           env: {}
