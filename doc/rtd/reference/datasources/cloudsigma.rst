@@ -36,4 +36,4 @@ the value. If this field does not exist, the default value is "net".
 .. _CloudSigma: http://cloudsigma.com/
 .. _server context: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 .. _meta field: http://cloudsigma-docs.readthedocs.org/en/latest/meta.html
-.. _config formats: http://cloudinit.readthedocs.org/en/latest/topics/format.html
+.. _config formats: https://cloudinit.readthedocs.io/en/latest/explanation/format.html
