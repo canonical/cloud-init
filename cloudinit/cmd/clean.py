@@ -59,7 +59,7 @@ def get_parser(parser=None):
         help=(
             "Set /etc/machine-id to 'uninitialized\n' for golden image"
             "creation. On next boot, systemd generates a new machine-id."
-            " Remove /etc/machine-id on non-systemd environments like FreeBSD."
+            " Remove /etc/machine-id on non-systemd environments."
         ),
     )
     parser.add_argument(

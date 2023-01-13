@@ -75,7 +75,7 @@ first boot.
   :file:`/var/log/`.
 * :command:`--reboot`: Reboot the system after removing artifacts.
 * :command:`--machine-id`: Set :file:`/etc/machine-id` to ``uninitialized\n``
-  on this image for systemd environemnts. On distributions without systemd,
+  on this image for systemd environments. On distributions without systemd,
   remove the file. Best practice when cloning a golden image, to ensure the
   next boot of that image auto-generates a unique machine ID.
   `More details on machine-id`_.
