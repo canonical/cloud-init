@@ -30,6 +30,9 @@ VULTR_V1_1 = {
         },
     },
     "hostname": "CLOUDINIT_1",
+    "local-hostname": "CLOUDINIT_1",
+    "instance-v2-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
+    "instance-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
     "instanceid": "42506325",
     "interfaces": [
         {
@@ -50,7 +53,7 @@ VULTR_V1_1 = {
         }
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": {"regioncode": "EWR"},
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "raid1-script": "",
@@ -85,7 +88,9 @@ VULTR_V1_2 = {
         },
     },
     "hostname": "CLOUDINIT_2",
+    "local-hostname": "CLOUDINIT_2",
     "instance-v2-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
+    "instance-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
     "instanceid": "42872224",
     "interfaces": [
         {
@@ -121,7 +126,7 @@ VULTR_V1_2 = {
         },
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": {"regioncode": "EWR"},
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "user-data": [],

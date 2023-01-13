@@ -22,7 +22,6 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
@@ -32,7 +31,6 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
-    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
     BrokenAzureDataSource,
     ChassisAssetTag,
@@ -206,6 +204,33 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
         for n in net.get_interfaces()
         if n[2] == "hv_netvsc"
     ]
+
+
+@azure_ds_telemetry_reporter
+def determine_device_driver_for_mac(mac: str) -> Optional[str]:
+    """Determine the device driver to match on, if any."""
+    drivers = [
+        i[2]
+        for i in net.get_interfaces(blacklist_drivers=BLACKLIST_DRIVERS)
+        if mac == normalize_mac_address(i[1])
+    ]
+    if "hv_netvsc" in drivers:
+        return "hv_netvsc"
+
+    if len(drivers) == 1:
+        report_diagnostic_event(
+            "Assuming driver for interface with mac=%s drivers=%r"
+            % (mac, drivers),
+            logger_func=LOG.debug,
+        )
+        return drivers[0]
+
+    report_diagnostic_event(
+        "Unable to specify driver for interface with mac=%s drivers=%r"
+        % (mac, drivers),
+        logger_func=LOG.warning,
+    )
+    return None
 
 
 def execute_or_debug(cmd, fail_ret=None) -> str:
@@ -502,11 +527,10 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        ovf_is_accessible = False
-        metadata_source = None
-        md = {}
+        ovf_source = None
+        md = {"local-hostname": ""}
+        cfg = {"system_info": {"default_user": {"name": ""}}}
         userdata_raw = ""
-        cfg = {}
         files = {}
 
         for src in list_possible_azure_ds(self.seed_dir, ddir):
@@ -524,8 +548,12 @@ class DataSourceAzure(sources.DataSource):
                     self._iso_dev = src
                 else:
                     md, userdata_raw, cfg, files = load_azure_ds_dir(src)
-                ovf_is_accessible = True
-                metadata_source = src
+
+                ovf_source = src
+                report_diagnostic_event(
+                    "Found provisioning metadata in %s" % ovf_source,
+                    logger_func=LOG.debug,
+                )
                 break
             except NonAzureDataSource:
                 report_diagnostic_event(
@@ -537,26 +565,25 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(
                     "%s was not mountable" % src, logger_func=LOG.debug
                 )
-                md = {"local-hostname": ""}
-                cfg = {"system_info": {"default_user": {"name": ""}}}
-                metadata_source = "IMDS"
                 continue
             except BrokenAzureDataSource as exc:
                 msg = "BrokenAzureDataSource: %s" % exc
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-
-        report_diagnostic_event(
-            "Found provisioning metadata in %s" % metadata_source,
-            logger_func=LOG.debug,
-        )
+        else:
+            msg = (
+                "Unable to find provisioning media, falling back to IMDS "
+                "metadata. Be aware that IMDS metadata does not support "
+                "admin passwords or custom-data (user-data only)."
+            )
+            report_diagnostic_event(msg, logger_func=LOG.warning)
 
         # If we read OVF from attached media, we are provisioning.  If OVF
         # is not found, we are probably provisioning on a system which does
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
+        requires_imds_metadata = bool(self._iso_dev) or ovf_source is None
         timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -568,7 +595,7 @@ class DataSourceAzure(sources.DataSource):
         else:
             imds_md = {}
 
-        if not imds_md and not ovf_is_accessible:
+        if not imds_md and ovf_source is None:
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
@@ -594,7 +621,7 @@ class DataSourceAzure(sources.DataSource):
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = metadata_source
+        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -621,7 +648,7 @@ class DataSourceAzure(sources.DataSource):
                 "disable_password"
             ] = imds_disable_password
 
-        if metadata_source == "IMDS" and not crawled_data["files"]:
+        if self.seed == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
                     username=imds_username,  # pyright: ignore
@@ -650,17 +677,7 @@ class DataSourceAzure(sources.DataSource):
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
 
-        if not metadata_source:
-            msg = "No Azure metadata found"
-            report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg)
-        else:
-            report_diagnostic_event(
-                "found datasource in %s" % metadata_source,
-                logger_func=LOG.debug,
-            )
-
-        if metadata_source == ddir:
+        if ovf_source == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug
             )
@@ -726,9 +743,7 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(
                 "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
             )
-            self._report_failure(
-                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            self._report_failure()
             return False
         finally:
             self._teardown_ephemeral_networking()
@@ -1358,7 +1373,7 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description: Optional[str] = None) -> bool:
+    def _report_failure(self) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
@@ -1371,10 +1386,7 @@ class DataSourceAzure(sources.DataSource):
                     "to report failure to Azure",
                     logger_func=LOG.debug,
                 )
-                report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint,
-                    description=description,
-                )
+                report_failure_to_fabric(endpoint=self._wireserver_endpoint)
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1394,9 +1406,7 @@ class DataSourceAzure(sources.DataSource):
             except NoDHCPLeaseError:
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
-            report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, description=description
-            )
+            report_failure_to_fabric(endpoint=self._wireserver_endpoint)
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -2046,11 +2056,8 @@ def generate_network_config_from_instance_network_metadata(
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
-            # With netvsc, we can get two interfaces that
-            # share the same MAC, so we need to make sure
-            # our match condition also contains the driver
-            driver = device_driver(nicname)
-            if driver and driver == "hv_netvsc":
+            driver = determine_device_driver_for_mac(mac)
+            if driver:
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
             continue

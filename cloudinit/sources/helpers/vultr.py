@@ -37,7 +37,9 @@ def get_metadata(url, timeout, retries, sec_between, agent, tmp_dir=None):
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
-                return json.loads(v1)
+                metadata = json.loads(v1)
+                refactor_metadata(metadata)
+                return metadata
         except (
             NoDHCPLeaseError,
             subp.ProcessExecutionError,
@@ -47,6 +49,16 @@ def get_metadata(url, timeout, retries, sec_between, agent, tmp_dir=None):
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
     raise exception
+
+
+# Refactor metadata into acceptable format
+def refactor_metadata(metadata):
+    metadata["instance-id"] = metadata["instance-v2-id"]
+    metadata["local-hostname"] = metadata["hostname"]
+    region = metadata["region"]["regioncode"]
+    if "countrycode" in metadata["region"]:
+        region = metadata["region"]["countrycode"]
+    metadata["region"] = region.lower()
 
 
 # Get interface list, sort, and clean

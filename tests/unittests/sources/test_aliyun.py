@@ -161,8 +161,9 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             self.default_metadata["hostname"], self.ds.get_hostname().hostname
         )
 
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
-    def test_with_mock_server(self, m_is_aliyun):
+    def test_with_mock_server(self, m_is_aliyun, m_resolv):
         m_is_aliyun.return_value = True
         self.regist_default_server()
         ret = self.ds.get_data()

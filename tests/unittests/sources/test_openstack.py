@@ -10,6 +10,7 @@ import re
 from io import StringIO
 from urllib.parse import urlparse
 
+import pytest
 import responses
 
 from cloudinit import helpers, settings, util
@@ -74,6 +75,12 @@ EC2_VERSIONS = [
 ]
 
 MOCK_PATH = "cloudinit.sources.DataSourceOpenStack."
+
+
+@pytest.fixture(autouse=True)
+def mock_is_resolvable():
+    with mock.patch(f"{MOCK_PATH}util.is_resolvable"):
+        yield
 
 
 # TODO _register_uris should leverage test_ec2.register_mock_metaserver.
