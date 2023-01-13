@@ -13,7 +13,7 @@ import yaml
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
-from tests.integration_tests.util import get_console_log
+from tests.integration_tests.util import get_console_log, verify_clean_log
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -190,6 +190,16 @@ class Mixin:
         sshd_config = class_client.read_from_file(sshd_file_target)
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
+
+    @pytest.mark.ubuntu
+    def test_check_ssh_service(self, class_client):
+        """Ensure we check the sshd status because we modified the config"""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        assert (
+            "'systemctl', 'show', '--property', 'ActiveState', "
+            "'--value', 'ssh'" in log
+        )
+        verify_clean_log(log)
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
