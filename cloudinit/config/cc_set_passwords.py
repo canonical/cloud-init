@@ -145,7 +145,14 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
 
     if distro.uses_systemd():
         state = subp.subp(
-            f"systemctl show --property ActiveState --value {service}"
+            [
+                "systemctl",
+                "show",
+                "--property",
+                "ActiveState",
+                "--value",
+                service,
+            ]
         ).stdout
         if state.lower() in ["active", "activating", "reloading"]:
             distro.manage_service("restart", service)

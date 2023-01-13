@@ -18,7 +18,7 @@ from tests.unittests.util import get_cloud
 MODPATH = "cloudinit.config.cc_set_passwords."
 LOG = logging.getLogger(__name__)
 SYSTEMD_CHECK_CALL = mock.call(
-    "systemctl show --property ActiveState --value ssh"
+    ["systemctl", "show", "--property", "ActiveState", "--value", "ssh"]
 )
 SYSTEMD_RESTART_CALL = mock.call(["systemctl", "restart", "ssh"], capture=True)
 SERVICE_RESTART_CALL = mock.call(["service", "ssh", "restart"], capture=True)
