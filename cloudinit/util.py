@@ -639,11 +639,13 @@ def _get_variant(info):
             "mariner",
             "miraclelinux",
             "openeuler",
+            "opencloudos",
             "openmandriva",
             "photon",
             "rhel",
             "rocky",
             "suse",
+            "tencentos",
             "virtuozzo",
         ):
             variant = linux_dist

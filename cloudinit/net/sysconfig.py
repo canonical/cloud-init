@@ -27,10 +27,12 @@ KNOWN_DISTROS = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "OpenCloudOS",
     "openmandriva",
     "rhel",
     "rocky",
     "suse",
+    "TencentOS",
     "virtuozzo",
 ]
 
