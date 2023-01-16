@@ -10,7 +10,7 @@ from tests.integration_tests.util import verify_clean_log
 # This instrumentation allows the test to run self-contained
 # without network access or external git repos.
 
-proxy_name = 'squid.internal'
+proxy_name = 'squid.internal:3128'
 try:
     socket.gethostbyname(proxy_name)
     if os.environ["PATH"].startswith("/jenkins"):
