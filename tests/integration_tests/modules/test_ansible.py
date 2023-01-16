@@ -1,4 +1,6 @@
 import pytest
+import socket
+import os
 
 from tests.integration_tests.util import verify_clean_log
 
@@ -7,6 +9,20 @@ from tests.integration_tests.util import verify_clean_log
 # with the running web service and git repo configured.
 # This instrumentation allows the test to run self-contained
 # without network access or external git repos.
+
+proxy_name = 'squid.internal'
+try:
+    socket.gethostbyname(proxy_name)
+    if os.environ["PATH"].startswith("/jenkins"):
+        proxy = f"""
+    proxy:
+      https_proxy: {proxy_name}
+    """
+    else:
+        proxy = ""
+except socket.error:
+    proxy = ""
+
 
 REPO_D = "/root/playbooks"
 USER_DATA = """\
@@ -88,15 +104,15 @@ INSTALL_METHOD = """
 ansible:
   ansible_config: /etc/ansible/ansible.cfg
   install_method: {method}
-  package_name: {package}
-  galaxy:
+  package_name: {package}""" + """
+  galaxy:{}
     actions:
      - ["ansible-galaxy", "collection", "install", "community.grafana"]
   pull:
     url: "http://0.0.0.0:8000/"
     playbook_name: ubuntu.yml
     full: true
-"""
+""".format(proxy)
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
 git config --global user.name auto                            &&\
@@ -155,7 +171,7 @@ ansible:
   install_method: pip
   package_name: ansible
   run_user: ansible
-  galaxy:
+  galaxy:{}
     actions:
       - ["ansible-galaxy", "collection", "install", "community.general"]
 
@@ -254,7 +270,7 @@ write_files:
 # [1] https://github.com/canonical/pycloudlib/issues/220
 runcmd:
   - [ip, link, delete, lxdbr0]
-"""
+""".format(proxy)
 
 
 def _test_ansible_pull_from_local_server(my_client):

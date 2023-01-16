@@ -599,6 +599,17 @@
                       "pattern": "^.*$"
                     }
                   }
+                },
+                "proxy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^.+$": {
+                      "label": "<environment variable>",
+                      "type": "string",
+                      "description": "Proxy environment variable"
+                    }
+                  }
                 }
               }
             },

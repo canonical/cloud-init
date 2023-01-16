@@ -92,13 +92,14 @@ class AnsiblePull(abc.ABC):
         if not self.is_installed():
             raise ValueError("command: ansible is not installed")
 
-    def do_as(self, command: list, **kwargs):
+    def do_as(self, command: list, env={}, **kwargs):
         if not self.run_user:
-            return self.subp(command, **kwargs)
-        return self.distro.do_as(command, self.run_user, **kwargs)
+            return self.subp(command, env=env, **kwargs)
+        return self.distro.do_as(
+            command, self.run_user, env=dict(self.env, **env), **kwargs)
 
-    def subp(self, command, **kwargs):
-        return subp(command, env=self.env, **kwargs)
+    def subp(self, command, env={}, **kwargs):
+        return subp(command, env=dict(self.env, **env), **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):
@@ -257,11 +258,12 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
 
 def ansible_galaxy(cfg: dict, ansible: AnsiblePull):
     actions = cfg.get("actions", [])
+    proxy = cfg.get("proxy", {})
 
     if not actions:
         LOG.warning("Invalid config: %s", cfg)
     for command in actions:
-        ansible.do_as(command)
+        ansible.do_as(command, env=proxy)
 
 
 def ansible_controller(cfg: dict, ansible: AnsiblePull):
