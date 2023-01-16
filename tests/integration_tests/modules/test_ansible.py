@@ -1,6 +1,7 @@
-import pytest
-import socket
 import os
+import socket
+
+import pytest
 
 from tests.integration_tests.util import verify_clean_log
 
@@ -10,7 +11,7 @@ from tests.integration_tests.util import verify_clean_log
 # This instrumentation allows the test to run self-contained
 # without network access or external git repos.
 
-proxy_name = 'squid.internal:3128'
+proxy_name = "squid.internal:3128"
 try:
     socket.gethostbyname(proxy_name)
     if os.environ["PATH"].startswith("/jenkins"):
@@ -112,7 +113,9 @@ ansible:
     url: "http://0.0.0.0:8000/"
     playbook_name: ubuntu.yml
     full: true
-""".format(proxy)
+""".format(
+    proxy
+)
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
 git config --global user.name auto                            &&\
@@ -270,7 +273,9 @@ write_files:
 # [1] https://github.com/canonical/pycloudlib/issues/220
 runcmd:
   - [ip, link, delete, lxdbr0]
-""".format(proxy)
+""".format(
+    proxy
+)
 
 
 def _test_ansible_pull_from_local_server(my_client):

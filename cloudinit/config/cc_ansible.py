@@ -96,7 +96,8 @@ class AnsiblePull(abc.ABC):
         if not self.run_user:
             return self.subp(command, env=env, **kwargs)
         return self.distro.do_as(
-            command, self.run_user, env=dict(self.env, **env), **kwargs)
+            command, self.run_user, env=dict(self.env, **env), **kwargs
+        )
 
     def subp(self, command, env={}, **kwargs):
         return subp(command, env=dict(self.env, **env), **kwargs)
