@@ -418,5 +418,5 @@ class IbmCloud(IntegrationCloud):
     def _get_cloud_instance(self) -> IBM:
         # Note: IBM image names starting with `ibm` are reserved.
         return IBM(
-            tag="cloud-init-integration-test-ibm",
+            tag="integration-test-ibm",
         )
