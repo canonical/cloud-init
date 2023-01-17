@@ -13,7 +13,7 @@ from tests.integration_tests.util import verify_clean_log
 
 proxy_name = "squid.internal:3128"
 try:
-    socket.gethostbyname(proxy_name)
+    socket.gethostbyname(proxy_name.split(':')[0])
     if os.environ["PWD"].startswith("/jenkins"):
         proxy = f"""
     proxy:
