@@ -92,15 +92,17 @@ class AnsiblePull(abc.ABC):
         if not self.is_installed():
             raise ValueError("command: ansible is not installed")
 
-    def do_as(self, command: list, env={}, **kwargs):
+    def do_as(self, command: list, env=None, **kwargs):
         if not self.run_user:
             return self.subp(command, env=env, **kwargs)
+        env = dict(self.env, **env) if env else self.env
         return self.distro.do_as(
             command, self.run_user, env=dict(self.env, **env), **kwargs
         )
 
-    def subp(self, command, env={}, **kwargs):
-        return subp(command, env=dict(self.env, **env), **kwargs)
+    def subp(self, command, env=None, **kwargs):
+        env = dict(self.env, **env) if env else self.env
+        return subp(command, env=env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):

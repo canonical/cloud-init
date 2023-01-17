@@ -13,7 +13,7 @@ from tests.integration_tests.util import verify_clean_log
 
 proxy_name = "squid.internal:3128"
 try:
-    socket.gethostbyname(proxy_name.split(':')[0])
+    socket.gethostbyname(proxy_name.split(":")[0])
     if os.getcwd().startswith("/jenkins"):
         proxy = f"""
     proxy:
@@ -101,12 +101,15 @@ runcmd:
   - [systemctl, enable, repo_waiter.service]
 """
 
-INSTALL_METHOD = """
+INSTALL_METHOD = (
+    """
 ansible:
   ansible_config: /etc/ansible/ansible.cfg
   install_method: {method}
   package_name: {package}
-  galaxy:""" + proxy + """
+  galaxy:"""
+    + proxy
+    + """
     actions:
      - ["ansible-galaxy", "collection", "install", "community.grafana"]
   pull:
@@ -114,6 +117,7 @@ ansible:
     playbook_name: ubuntu.yml
     full: true
 """
+)
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
 git config --global user.name auto                            &&\
@@ -124,7 +128,8 @@ git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml &&\
 git commit -m auto                                            &&\
 (cd {REPO_D}/.git; git update-server-info)"
 
-ANSIBLE_CONTROL = """\
+ANSIBLE_CONTROL = (
+    """\
 #cloud-config
 #
 # Demonstrate setting up an ansible controller host on boot.
@@ -172,7 +177,9 @@ ansible:
   install_method: pip
   package_name: ansible
   run_user: ansible
-  galaxy:""" + proxy + """
+  galaxy:"""
+    + proxy
+    + """
     actions:
       - ["ansible-galaxy", "collection", "install", "community.general"]
 
@@ -272,6 +279,7 @@ write_files:
 runcmd:
   - [ip, link, delete, lxdbr0]
 """
+)
 
 
 def _test_ansible_pull_from_local_server(my_client):
