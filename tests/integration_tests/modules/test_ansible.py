@@ -14,7 +14,7 @@ from tests.integration_tests.util import verify_clean_log
 proxy_name = "squid.internal:3128"
 try:
     socket.gethostbyname(proxy_name.split(':')[0])
-    if os.environ["PWD"].startswith("/jenkins"):
+    if os.getcwd().startswith("/jenkins"):
         proxy = f"""
     proxy:
       https_proxy: {proxy_name}
@@ -105,17 +105,15 @@ INSTALL_METHOD = """
 ansible:
   ansible_config: /etc/ansible/ansible.cfg
   install_method: {method}
-  package_name: {package}""" + """
-  galaxy:{}
+  package_name: {package}
+  galaxy:""" + proxy + """
     actions:
      - ["ansible-galaxy", "collection", "install", "community.grafana"]
   pull:
     url: "http://0.0.0.0:8000/"
     playbook_name: ubuntu.yml
     full: true
-""".format(
-    proxy
-)
+"""
 
 SETUP_REPO = f"cd {REPO_D}                                    &&\
 git config --global user.name auto                            &&\
@@ -174,7 +172,7 @@ ansible:
   install_method: pip
   package_name: ansible
   run_user: ansible
-  galaxy:{}
+  galaxy:""" + proxy + """
     actions:
       - ["ansible-galaxy", "collection", "install", "community.general"]
 
@@ -273,9 +271,7 @@ write_files:
 # [1] https://github.com/canonical/pycloudlib/issues/220
 runcmd:
   - [ip, link, delete, lxdbr0]
-""".format(
-    proxy
-)
+"""
 
 
 def _test_ansible_pull_from_local_server(my_client):
