@@ -79,7 +79,10 @@ IMDS_RETRY_CODES = (
 imds_readurl_exception_callback = functools.partial(
     retry_on_url_exc,
     retry_codes=IMDS_RETRY_CODES,
-    retry_instances=(requests.Timeout,),
+    retry_instances=(
+        requests.ConnectionError,
+        requests.Timeout,
+    ),
 )
 
 
