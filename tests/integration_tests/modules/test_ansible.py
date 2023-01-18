@@ -14,7 +14,7 @@ from tests.integration_tests.util import verify_clean_log
 proxy_name = "squid.internal:3128"
 try:
     socket.gethostbyname(proxy_name.split(":")[0])
-    if os.getcwd().startswith("/jenkins"):
+    if os.environ.get("JENKINS_HOME"):
         proxy = f"""
     proxy:
       https_proxy: {proxy_name}
