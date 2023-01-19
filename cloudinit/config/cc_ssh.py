@@ -187,7 +187,7 @@ for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update(
         {
             f"{k}_private": (KEY_FILE_TPL % k, 0o600),
-            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o600),
+            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o644),
             f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o600),
         }
     )
@@ -278,7 +278,7 @@ def handle(
                     if gid != -1:
                         # perform same "sanitize permissions" as sshd-keygen
                         os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, 0o640)
+                        os.chmod(keyfile, 0o600)
                         os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
