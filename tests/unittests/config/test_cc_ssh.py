@@ -330,17 +330,17 @@ class TestHandleSsh:
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key".format(key_type),
                         private_value,
-                        384,
+                        0o600,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key.pub".format(key_type),
                         public_value,
-                        384,
+                        0o644,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key-cert.pub".format(key_type),
                         cert_value,
-                        384,
+                        0o600,
                     ),
                     mock.call(
                         sshd_conf_fname,
