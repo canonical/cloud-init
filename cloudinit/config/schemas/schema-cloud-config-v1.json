@@ -174,6 +174,7 @@
                   "label": "<group_name>",
                   "description": "When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to",
                   "deprecated": true,
+                  "deprecated_version": "23.1",
                   "type": [
                     "null"
                   ],
@@ -197,9 +198,11 @@
         },
         "lock-passwd": {
           "default": true,
-          "description": "Dropped after April 2027. Use ``lock_passwd``. Default: ``true``",
           "type": "boolean",
-          "deprecated": true
+          "description": "Default: ``true``",
+          "deprecated": true,
+          "deprecated_version": "22.3",
+          "deprecated_description": "Use ``lock_passwd`` instead."
         },
         "lock_passwd": {
           "default": true,
@@ -292,8 +295,9 @@
             },
             {
               "type": "boolean",
-              "deprecated": true,
-              "description": "The value ``false`` will be dropped after April 2027. Use ``null`` or no ``sudo`` key instead."
+              "changed": true,
+              "changed_version": "22.2",
+              "changed_description": "The value ``false`` is deprecated for this key, use ``null`` instead."
             }
           ]
         },
@@ -305,8 +309,9 @@
             },
             {
               "type": "string",
-              "description": "The use of ``string`` type will be dropped after April 2027. Use an ``integer`` instead.",
-              "deprecated": true
+              "changed": true,
+              "changed_description": "The use of ``string`` type is deprecated. Use an ``integer`` instead.",
+              "changed_version": "22.3"
             }
           ]
         }
@@ -361,10 +366,11 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "description": "Dropped after April 2027. Use ``remove_defaults``.",
           "type": "boolean",
           "default": false,
-          "deprecated": true
+          "deprecated": true,
+          "deprecated_version": "22.3",
+          "deprecated_description": "Use ``remove_defaults`` instead."
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: false",
@@ -920,7 +926,8 @@
             },
             {
               "deprecated": true,
-              "description": "Dropped after April 2027. Use ``ca_certs``."
+              "deprecated_version": "22.3",
+              "deprecated_description": "Use ``ca_certs`` instead."
             }
           ]
         }
@@ -1294,8 +1301,9 @@
                   "enum": [
                     false
                   ],
-                  "description": "Specifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead.",
-                  "deprecated": true
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use ``off`` instead."
                 }
               ]
             },
@@ -1342,8 +1350,9 @@
                 },
                 {
                   "type": "string",
-                  "description": "Use a boolean value instead.",
-                  "deprecated": true
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Use a boolean value instead."
                 }
               ]
             }
@@ -1351,8 +1360,9 @@
         },
         "grub-dpkg": {
           "type": "object",
-          "description": "Use ``grub_dpkg`` instead",
-          "deprecated": true
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``grub_dpkg`` instead."
         }
       }
     },
@@ -1918,20 +1928,26 @@
         "apt_update": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_update``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_update`` instead."
         },
         "apt_upgrade": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_upgrade``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_upgrade`` instead."
         },
         "apt_reboot_if_required": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_reboot_if_required`` instead."
         }
       }
     },
@@ -2005,8 +2021,9 @@
                 {
                   "type": "string",
                   "pattern": "^\\+?[0-9]+$",
-                  "deprecated": true,
-                  "description": "Use of string for this value will be dropped after April 2027. Use ``now`` or integer type."
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Use of type string for this value is deprecated. Use ``now`` or integer type."
                 },
                 {
                   "enum": [
@@ -2424,8 +2441,9 @@
                 },
                 {
                   "type": "string",
-                  "description": "Use of string for this value is DEPRECATED. Use a boolean value instead.",
-                  "deprecated": true
+                  "deprecated": true,
+                  "deprecated_version": "22.3",
+                  "deprecated_description": "Use of type string for this value is deprecated. Use a boolean instead."
                 }
               ]
             },
@@ -2522,8 +2540,9 @@
             },
             {
               "type": "string",
-              "description": "Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
-              "deprecated": true
+              "changed": true,
+              "changed_version": "22.3",
+              "changed_description": "Use of non-boolean values for this field is deprecated."
             }
           ],
           "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
@@ -2602,8 +2621,9 @@
                 }
               ],
               "minItems": 1,
-              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\nUse of a multiline string for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
-              "deprecated": true
+              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\n",
+              "deprecated": true,
+              "deprecated_version": "22.2"
             }
           }
         },
@@ -2966,8 +2986,9 @@
               "enum": [
                 "template"
               ],
-              "description": "Value ``template`` will be dropped after April 2027. Use ``true`` instead.",
-              "deprecated": true
+              "changed_description": "Use of ``template`` is deprecated, use ``true`` instead.",
+              "changed": true,
+              "changed_version": "22.3"
             }
           ]
         },

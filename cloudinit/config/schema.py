@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
-
 import argparse
 import json
 import logging
 import os
+import pdb
 import re
 import sys
 import textwrap
@@ -162,10 +162,35 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecation_msg(description: Optional[str] = None) -> str:
-    if description:
-        return f"{DEPRECATED_PREFIX}{description}"
-    return DEPRECATED_PREFIX.replace(":", ".").strip()
+def _add_deprecated_changed_or_new_msg(config: dict, annotate=False) -> str:
+    """combine description with new/changed/deprecated message
+
+    deprecated/changed/new keys require a _version key (this is verified
+    in a unittest), a _description key is optional
+    """
+
+    def format_message(key: str):
+        if not config.get(f"{key}"):
+            return ""
+        deprecated_description = config.get(f"{key}_description", "")
+        version = config.get(
+            f"{key}_version",
+            f"<missing {key}_version key, please file a bug report>",
+        )
+        msg = f"{key.capitalize()} in version {version}. {deprecated_description}"
+        if annotate:
+            return f" {msg}"
+
+        # italicised RST should not have whitespace between astrisk and text
+        return f"\n\n*{msg.strip()}*"
+
+    description = config.get("description", "")
+
+    # build a deprecation/new/changed string, if required
+    changed_new_deprecated = "".join(
+        map(format_message, ["changed", "new", "deprecated"])
+    )
+    return f"{description}{changed_new_deprecated}".rstrip()
 
 
 def _validator_deprecated(
@@ -181,8 +206,7 @@ def _validator_deprecated(
     otherwise the instance is consider faulty.
     """
     if deprecated:
-        description = schema.get("description")
-        msg = _add_deprecation_msg(description)
+        msg = _add_deprecated_changed_or_new_msg(schema, annotate=True)
         yield error_type(msg)
 
 
@@ -314,6 +338,7 @@ def get_jsonschema_validator():
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
     validators[DEPRECATED_KEY] = _validator_deprecated
+    validators["changed"] = _validator_deprecated
     validators["oneOf"] = _oneOf
     validators["anyOf"] = _anyOf
 
@@ -843,32 +868,36 @@ def _get_property_description(prop_config: dict) -> str:
     Order and deprecated property description after active descriptions.
     Add a trailing stop "." to any description not ending with ":".
     """
-    prop_descr = prop_config.get("description", "")
+
+    def assign_descriptions(
+        config: dict, descriptions: list, deprecated_descriptions: list
+    ):
+        if any(
+            [
+                config.get("deprecated_version"),
+                config.get("changed_version"),
+                config.get("new_version"),
+            ]
+        ):
+            deprecated_descriptions.append(
+                _add_deprecated_changed_or_new_msg(config)
+            )
+        elif config.get("description"):
+            descriptions.append(_add_deprecated_changed_or_new_msg(config))
+
     oneOf = prop_config.get("oneOf", {})
     anyOf = prop_config.get("anyOf", {})
     descriptions = []
     deprecated_descriptions = []
-    if prop_descr:
-        prop_descr = prop_descr.rstrip(".")
-        if not prop_config.get(DEPRECATED_KEY):
-            descriptions.append(prop_descr)
-        else:
-            deprecated_descriptions.append(_add_deprecation_msg(prop_descr))
+
+    assign_descriptions(prop_config, descriptions, deprecated_descriptions)
     for sub_item in chain(oneOf, anyOf):
-        if not sub_item.get("description"):
-            continue
-        if not sub_item.get(DEPRECATED_KEY):
-            descriptions.append(sub_item["description"].rstrip("."))
-        else:
-            deprecated_descriptions.append(
-                f"{DEPRECATED_PREFIX}{sub_item['description'].rstrip('.')}"
-            )
+        assign_descriptions(sub_item, descriptions, deprecated_descriptions)
+
     # order deprecated descrs last
     description = ". ".join(chain(descriptions, deprecated_descriptions))
     if description:
         description = f" {description}"
-        if description[-1] != ":":
-            description += "."
     return description
 
 

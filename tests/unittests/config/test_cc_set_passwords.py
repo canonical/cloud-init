@@ -565,10 +565,7 @@ class TestSetPasswordsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
-                        " non-boolean values for this field is DEPRECATED and"
-                        " will result in an error in a future version of"
-                        " cloud-init."
+                        "Cloud config schema deprecations: ssh_pwauth:  Changed in version 22.3. Use of non-boolean values for this field is deprecated."
                     ),
                 ),
             ),
@@ -577,16 +574,15 @@ class TestSetPasswordsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "deprecations: ssh_pwauth: DEPRECATED. Use of"
-                        " non-boolean values for this field is DEPRECATED and"
-                        " will result in an error in a future version of"
-                        " cloud-init."
+                        "Cloud config schema deprecations: ssh_pwauth:  Changed in version 22.3. Use of non-boolean values for this field is deprecated."
                     ),
                 ),
             ),
             (
                 {"chpasswd": {"list": "blah"}},
-                pytest.raises(SchemaValidationError, match="DEPRECATED"),
+                pytest.raises(
+                    SchemaValidationError, match="Deprecated in version"
+                ),
             ),
             # Valid combinations
             (
@@ -699,7 +695,9 @@ class TestSetPasswordsSchema:
             # Test regex
             (
                 {"chpasswd": {"list": ["user:pass"]}},
-                pytest.raises(SchemaValidationError, match="DEPRECATED"),
+                pytest.raises(
+                    SchemaValidationError, match="Deprecated in version"
+                ),
             ),
             # Test valid
             ({"password": "pass"}, does_not_raise()),
