@@ -340,7 +340,7 @@ class TestHandleSsh:
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key-cert.pub".format(key_type),
                         cert_value,
-                        0o600,
+                        0o644,
                     ),
                     mock.call(
                         sshd_conf_fname,

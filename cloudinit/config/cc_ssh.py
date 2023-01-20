@@ -188,7 +188,7 @@ for k in GENERATE_KEY_NAMES:
         {
             f"{k}_private": (KEY_FILE_TPL % k, 0o600),
             f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o644),
-            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o600),
+            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o644),
         }
     )
     PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
