@@ -265,7 +265,7 @@ Example output:
    usage: cloudinit/cmd/main.py devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
                                                   {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
                                                   [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager}
-   
+
    options:
      -h, --help            show this help message and exit
      -p PATH, --network-data PATH
