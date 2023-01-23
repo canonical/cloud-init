@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from typing import Optional
-
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
