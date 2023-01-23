@@ -5225,7 +5225,7 @@ USERCTL=no
                 # Created by cloud-init on instance boot automatically, do not edit.
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
-                ::0/64 via 2a00:1730:fff9:100::1  dev eth0
+                ::0/0 via 2a00:1730:fff9:100::1  dev eth0
                 """  # noqa: E501
             ),
         }
