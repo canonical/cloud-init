@@ -225,7 +225,8 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
         with mock.patch(
-                "cloudinit.distros.subp.subp", return_value=("something that is not none", None)
+            "cloudinit.distros.subp.subp",
+            return_value=("something that is not none", None),
         ):
             self.assertTrue(d.is_virtual)
 
@@ -233,23 +234,32 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
         with mock.patch(
-                "cloudinit.distros.subp.subp", return_value=("none", None)
+            "cloudinit.distros.subp.subp", return_value=("none", None)
         ):
             self.assertFalse(d.is_virtual)
 
     def test_virtualization_unknown(self):
         from cloudinit.subp import ProcessExecutionError
+
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
         with mock.patch(
-                "cloudinit.distros.subp.which", return_value=None,
+            "cloudinit.distros.subp.which",
+            return_value=None,
         ):
-            self.assertIsNone(d.is_virtual, "Reflect unknown state when detection binary cannot be found")
+            self.assertIsNone(
+                d.is_virtual,
+                "Reflect unknown state when detection"
+                " binary cannot be found",
+            )
 
         with mock.patch(
-                "cloudinit.distros.subp.subp", side_effect=ProcessExecutionError(),
+            "cloudinit.distros.subp.subp",
+            side_effect=ProcessExecutionError(),
         ):
-            self.assertIsNone(d.is_virtual, "Reflect unknown state on ProcessExecutionError")
+            self.assertIsNone(
+                d.is_virtual, "Reflect unknown state on ProcessExecutionError"
+            )
 
 
 class TestGetPackageMirrors:
