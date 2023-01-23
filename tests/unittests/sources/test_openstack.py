@@ -14,6 +14,7 @@ import pytest
 import responses
 
 from cloudinit import helpers, settings, util
+from cloudinit.distros import Distro
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
@@ -299,8 +300,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             OS_FILES,
             responses_mock=self.responses,
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
         mock_path = MOCK_PATH + "detect_openstack"
@@ -377,8 +380,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
         mock_path = MOCK_PATH + "detect_openstack"
@@ -401,8 +406,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
@@ -478,8 +485,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
