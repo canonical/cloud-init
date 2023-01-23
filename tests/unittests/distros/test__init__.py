@@ -228,7 +228,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
     @mock.patch(
         "cloudinit.distros.subp.subp",
     )
-    def test_virtualization_detected(self, m_uses_systemd, m_which, m_subp):
+    def test_virtualization_detected(self, m_subp, m_which, m_uses_systemd):
         m_uses_systemd.return_value = True
         m_which.return_value = "/usr/bin/systemd-detect-virt"
         m_subp.return_value = ("kvm", None)
@@ -241,7 +241,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
     @mock.patch(
         "cloudinit.distros.subp.subp",
     )
-    def test_virtualization_not_detected(self, m_uses_systemd, m_subp):
+    def test_virtualization_not_detected(self, m_subp, m_uses_systemd):
         m_uses_systemd.return_value = True
         m_subp.return_value = ("none", None)
 
