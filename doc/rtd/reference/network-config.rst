@@ -246,39 +246,46 @@ supplying an updated configuration in cloud-config. ::
 Network configuration tools
 ===========================
 
-``Cloud-init`` contains one tool used to test input/output conversion between
+``Cloud-init`` contains a command used to test input/output conversion between
 formats. The :file:`tools/net-convert.py` in the ``cloud-init`` source
-repository is helpful in examining expected output for a given input format.
+repository is helpful in examining expected output for a given input
+format. If running these commands from the cloud-init source directory,
+make sure to set the correct path ``PYTHON_PATH=.``
 
 CLI Interface:
 
 .. code-block:: shell-session
 
-   $ tools/net-convert.py --help
+   $ cloud-init devel net-convert --help
 
 Example output:
 
 .. code-block::
 
-   usage: net-convert.py [-h] --network-data PATH --kind
-                         {eni,network_data.json,yaml} -d PATH [-m name,mac]
-                         --output-kind {eni,netplan,sysconfig}
+   usage: cloudinit/cmd/main.py devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
+                                                  {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+                                                  [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager}
 
-   optional arguments:
+   options:
      -h, --help            show this help message and exit
-     --network-data PATH, -p PATH
-     --kind {eni,network_data.json,yaml}, -k {eni,network_data.json,yaml}
+     -p PATH, --network-data PATH
+                           The network configuration to read
+     -k {eni,network_data.json,yaml,azure-imds,vmware-imc}, --kind {eni,network_data.json,yaml,azure-imds,vmware-imc}
+                           The format of the given network config
      -d PATH, --directory PATH
                            directory to place output in
+     -D {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}, --distro {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
      -m name,mac, --mac name,mac
                            interface name to mac mapping
-     --output-kind {eni,netplan,sysconfig}, -ok {eni,netplan,sysconfig}
+     --debug               enable debug logging to stderr.
+     -O {eni,netplan,networkd,sysconfig,network-manager}, --output-kind {eni,netplan,networkd,sysconfig,network-manager}
+                           The network config format to emit
 
 Example of converting V2 to sysconfig:
 
 .. code-block:: shell-session
 
-   $ tools/net-convert.py --network-data v2.yaml --kind yaml \
+   $ cloud-init devel net-convert --network-data v2.yaml --kind yaml \
       --output-kind sysconfig -d target
    $ cat target/etc/sysconfig/network-scripts/ifcfg-eth*
 
