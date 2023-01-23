@@ -221,6 +221,36 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"]
         )
 
+    def test_virtualization_detected(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        with mock.patch(
+                "cloudinit.distros.subp.subp", return_value=("something that is not none", None)
+        ):
+            self.assertTrue(d.is_virtual)
+
+    def test_virtualization_not_detected(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        with mock.patch(
+                "cloudinit.distros.subp.subp", return_value=("none", None)
+        ):
+            self.assertFalse(d.is_virtual)
+
+    def test_virtualization_unknown(self):
+        from cloudinit.subp import ProcessExecutionError
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        with mock.patch(
+                "cloudinit.distros.subp.which", return_value=None,
+        ):
+            self.assertIsNone(d.is_virtual, "Reflect unknown state when detection binary cannot be found")
+
+        with mock.patch(
+                "cloudinit.distros.subp.subp", side_effect=ProcessExecutionError(),
+        ):
+            self.assertIsNone(d.is_virtual, "Reflect unknown state on ProcessExecutionError")
+
 
 class TestGetPackageMirrors:
     def return_first(self, mlist):
