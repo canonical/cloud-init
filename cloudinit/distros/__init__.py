@@ -998,13 +998,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         try:
             detect_virt_path = subp.which("systemd-detect-virt")
             if detect_virt_path:
-                (out, _) = subp.subp(
+                out, _ = subp.subp(
                     [detect_virt_path], capture=True, rcs=[0, 1]
                 )
-                if out.strip() == "none":
-                    return False
-                else:
-                    return True
+
+                return not out.strip() == "none"
             else:
                 err_msg = "detection binary not found"
         except subp.ProcessExecutionError as e:

@@ -150,19 +150,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        is_bare_metal = self.distro.is_virtual is False
-
-        LOG.debug(
-            "OpenStack is running on %s.",
-            "bare metal" if is_bare_metal else "virtual machine",
-        )
-        skip_detect = self.ds_cfg.get("skip_detect_openstack", is_bare_metal)
-
         oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
-        if not skip_detect and not detect_openstack(
-            accept_oracle=not oracle_considered
-        ):
-            LOG.debug("OpenStack datasource Not running on OpenStack")
+        if not self.detect_openstack(accept_oracle=not oracle_considered):
+            LOG.debug("OpenStack datasource not running on OpenStack")
             return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
@@ -258,6 +248,25 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             raise sources.InvalidMetaDataException(msg) from e
         return result
 
+    def detect_openstack(self, accept_oracle=False):
+        """Return True when a potential OpenStack platform is detected."""
+        if not util.is_x86():
+            # Non-Intel cpus don't properly report dmi product names
+            return True
+
+        product_name = dmi.read_dmi_data("system-product-name")
+        if product_name in VALID_DMI_PRODUCT_NAMES:
+            return True
+        elif dmi.read_dmi_data("chassis-asset-tag") in VALID_DMI_ASSET_TAGS:
+            return True
+        elif accept_oracle and oracle._is_platform_viable():
+            return True
+        elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
+            return True
+        elif not self.distro.is_virtual:
+            return True
+        return False
+
 
 class DataSourceOpenStackLocal(DataSourceOpenStack):
     """Run in init-local using a dhcp discovery prior to metadata crawl.
@@ -276,22 +285,6 @@ def read_metadata_service(base_url, ssl_details=None, timeout=5, retries=5):
         base_url, ssl_details=ssl_details, timeout=timeout, retries=retries
     )
     return reader.read_v2()
-
-
-def detect_openstack(accept_oracle=False):
-    """Return True when a potential OpenStack platform is detected."""
-    if not util.is_x86():
-        return True  # Non-Intel cpus don't properly report dmi product names
-    product_name = dmi.read_dmi_data("system-product-name")
-    if product_name in VALID_DMI_PRODUCT_NAMES:
-        return True
-    elif dmi.read_dmi_data("chassis-asset-tag") in VALID_DMI_ASSET_TAGS:
-        return True
-    elif accept_oracle and oracle._is_platform_viable():
-        return True
-    elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
-        return True
-    return False
 
 
 # Used to match classes to dependencies

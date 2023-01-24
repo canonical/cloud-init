@@ -17,10 +17,6 @@ datasource:
      - http://instance-data:8773
 
   OpenStack:
-    # Skipping internal data source detection for OpenStack. Might be used if running
-    # on a Bare Metal machine (Ironic) with OpenStack metadata service.
-    skip_detect_openstack: false
-
     # The default list of metadata services to check for OpenStack.
     metadata_urls:
      - http://169.254.169.254
