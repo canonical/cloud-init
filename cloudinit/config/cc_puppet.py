@@ -25,6 +25,7 @@ from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
+PREFERRED_PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
 
 MODULE_DESCRIPTION = """\
 This module handles puppet installation and configuration. If the ``puppet``
@@ -118,26 +119,27 @@ class PuppetConstants:
         self.csr_attributes_path = csr_attributes_path
 
 
-def _autostart_puppet(log):
+def _autostart_puppet(log, cloud: Cloud, service_name: str):
     # Set puppet to automatically start
-    if os.path.exists("/etc/default/puppet"):
+    if os.path.exists(f"/etc/default/{service_name}"):
         subp.subp(
             [
                 "sed",
                 "-i",
                 "-e",
                 "s/^START=.*/START=yes/",
-                "/etc/default/puppet",
+                f"/etc/default/{service_name}",
             ],
             capture=False,
         )
     elif subp.which("systemctl"):
-        subp.subp(["systemctl", "enable", "puppet.service"], capture=False)
+        cloud.distro.manage_service("enable", f"{service_name}.service")
     elif os.path.exists("/sbin/chkconfig"):
-        subp.subp(["/sbin/chkconfig", "puppet", "on"], capture=False)
+        subp.subp(["/sbin/chkconfig", service_name, "on"], capture=False)
     else:
         log.warning(
-            "Sorry we do not know how to enable puppet services on this system"
+            f"Sorry we do not know how to enable {service_name} services on \
+              this system"
         )
 
 
@@ -221,11 +223,12 @@ def handle(
     else:  # default to 'packages'
         puppet_user = "puppet"
         puppet_bin = "puppet"
-        puppet_package = "puppet"
+        puppet_package = None  # changes with distro
 
     package_name = util.get_cfg_option_str(
         puppet_cfg, "package_name", puppet_package
     )
+    service_names = ["puppet-agent"]
     if not install and version:
         log.warning(
             "Puppet install set to false but version supplied, doing nothing."
@@ -238,7 +241,24 @@ def handle(
         )
 
         if install_type == "packages":
-            cloud.distro.install_packages((package_name, version))
+            if package_name is None:  # conf has no package_name
+                try:
+                    log.debug("Trying to install puppet-agent")
+                    cloud.distro.install_packages(
+                        (PREFERRED_PUPPET_PACKAGE_NAMES[0], version)
+                    )
+                    service_names = ["puppet-agent"]
+                except subp.ProcessExecutionError:
+                    log.debug("Trying to install puppet")
+                    cloud.distro.install_packages(
+                        (PREFERRED_PUPPET_PACKAGE_NAMES[1], version)
+                    )
+                    service_names = ["puppet"]
+            else:
+                cloud.distro.install_packages((package_name, version))
+                # install both services to find the correct one
+                service_names = ["puppet-agent", "puppet"]
+
         elif install_type == "aio":
             install_puppet_aio(
                 cloud.distro, aio_install_url, version, collection, cleanup
@@ -318,7 +338,12 @@ def handle(
 
     # Set it up so it autostarts
     if start_puppetd:
-        _autostart_puppet(log)
+        for service_name in service_names:
+            try:
+                _autostart_puppet(log, cloud, service_name)
+                break
+            except subp.ProcessExecutionError:
+                log.debug(f"Could not auto enable {service_name}")
 
     # Run the agent if needed
     if run:
@@ -344,7 +369,12 @@ def handle(
 
     if start_puppetd:
         # Start puppetd
-        subp.subp(["service", "puppet", "start"], capture=False)
+        for service_name in service_names:
+            try:
+                cloud.distro.manage_service("start", service_name)
+                break
+            except subp.ProcessExecutionError:
+                log.debug(f"Could not auto start {service_name}")
 
 
 # vi: ts=4 expandtab

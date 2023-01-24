@@ -12,6 +12,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
@@ -29,6 +30,10 @@ def fake_tempdir(mocker, tmpdir):
 @mock.patch("cloudinit.config.cc_puppet.subp.subp")
 @mock.patch("cloudinit.config.cc_puppet.os")
 class TestAutostartPuppet(CiTestCase):
+    def setUp(self):
+        super(TestAutostartPuppet, self).setUp()
+        self.cloud = get_cloud()
+
     def test_wb_autostart_puppet_updates_puppet_default(
         self, m_os, m_subp, m_subpw
     ):
@@ -38,8 +43,8 @@ class TestAutostartPuppet(CiTestCase):
             return path == "/etc/default/puppet"
 
         m_os.path.exists.side_effect = _fake_exists
-        cc_puppet._autostart_puppet(LOG)
-        self.assertEqual(
+        cc_puppet._autostart_puppet(LOG, self.cloud, "puppet")
+        self.assertIn(
             [
                 mock.call(
                     [
@@ -55,6 +60,32 @@ class TestAutostartPuppet(CiTestCase):
             m_subp.call_args_list,
         )
 
+    def test_wb_autostart_puppet_updates_puppet_agent_default(
+        self, m_os, m_subp, m_subpw
+    ):
+        """Update /etc/default/puppet to autostart if it exists."""
+
+        def _fake_exists(path):
+            return path == "/etc/default/puppet-agent"
+
+        m_os.path.exists.side_effect = _fake_exists
+        cc_puppet._autostart_puppet(LOG, self.cloud, "puppet-agent")
+        self.assertIn(
+            [
+                mock.call(
+                    [
+                        "sed",
+                        "-i",
+                        "-e",
+                        "s/^START=.*/START=yes/",
+                        "/etc/default/puppet-agent",
+                    ],
+                    capture=False,
+                )
+            ],
+            m_subp.call_args_list,
+        )
+
     def test_wb_autostart_pupppet_enables_puppet_systemctl(
         self, m_os, m_subp, m_subpw
     ):
@@ -62,11 +93,15 @@ class TestAutostartPuppet(CiTestCase):
 
         m_os.path.exists.return_value = False
         m_subpw.return_value = "/usr/bin/systemctl"
-        cc_puppet._autostart_puppet(LOG)
-        expected_calls = [
-            mock.call(["systemctl", "enable", "puppet.service"], capture=False)
-        ]
-        self.assertEqual(expected_calls, m_subp.call_args_list)
+        for service_name in cc_puppet.PREFERRED_PUPPET_PACKAGE_NAMES:
+            cc_puppet._autostart_puppet(LOG, self.cloud, service_name)
+            expected_calls = [
+                mock.call(
+                    ["systemctl", "enable", f"{service_name}.service"],
+                    capture=True,
+                )
+            ]
+            self.assertIn(expected_calls, m_subp.call_args_list)
 
     def test_wb_autostart_pupppet_enables_puppet_chkconfig(
         self, m_os, m_subp, m_subpw
@@ -78,11 +113,14 @@ class TestAutostartPuppet(CiTestCase):
 
         m_subpw.return_value = None
         m_os.path.exists.side_effect = _fake_exists
-        cc_puppet._autostart_puppet(LOG)
-        expected_calls = [
-            mock.call(["/sbin/chkconfig", "puppet", "on"], capture=False)
-        ]
-        self.assertEqual(expected_calls, m_subp.call_args_list)
+        for service_name in cc_puppet.PREFERRED_PUPPET_PACKAGE_NAMES:
+            cc_puppet._autostart_puppet(LOG, self.cloud, service_name)
+            expected_calls = [
+                mock.call(
+                    ["/sbin/chkconfig", service_name, "on"], capture=False
+                )
+            ]
+            self.assertIn(expected_calls, m_subp.call_args_list)
 
 
 @mock.patch("cloudinit.config.cc_puppet._autostart_puppet")
@@ -113,7 +151,7 @@ class TestPuppetHandle(CiTestCase):
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         self.assertEqual(1, m_auto.call_count)
         self.assertIn(
-            [mock.call(["service", "puppet", "start"], capture=False)],
+            [mock.call(["systemctl", "start", "puppet-agent"], capture=True)],
             m_subp.call_args_list,
         )
 
@@ -125,7 +163,7 @@ class TestPuppetHandle(CiTestCase):
         cfg = {"puppet": {}}
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         self.assertEqual(
-            [mock.call(("puppet", None))],
+            [mock.call(("puppet-agent", None))],
             self.cloud.distro.install_packages.call_args_list,
         )
 
@@ -136,8 +174,8 @@ class TestPuppetHandle(CiTestCase):
         self.cloud.distro = mock.MagicMock()
         cfg = {"puppet": {"install": True}}
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
-        self.assertEqual(
-            [mock.call(("puppet", None))],
+        self.assertIn(
+            [mock.call(("puppet-agent", None))],
             self.cloud.distro.install_packages.call_args_list,
         )
 
@@ -246,7 +284,7 @@ class TestPuppetHandle(CiTestCase):
         cfg = {"puppet": {"version": "3.8"}}
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         self.assertEqual(
-            [mock.call(("puppet", "3.8"))],
+            [mock.call(("puppet-agent", "3.8"))],
             self.cloud.distro.install_packages.call_args_list,
         )
 
@@ -340,7 +378,7 @@ class TestPuppetHandle(CiTestCase):
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         self.assertEqual(1, m_auto.call_count)
         self.assertIn(
-            [mock.call(["service", "puppet", "start"], capture=False)],
+            [mock.call(["systemctl", "start", "puppet-agent"], capture=True)],
             m_subp.call_args_list,
         )
 
@@ -352,7 +390,7 @@ class TestPuppetHandle(CiTestCase):
         cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
         self.assertEqual(0, m_auto.call_count)
         self.assertNotIn(
-            [mock.call(["service", "puppet", "start"], capture=False)],
+            [mock.call(["systemctl", "start", "puppet-agent"], capture=False)],
             m_subp.call_args_list,
         )
 
@@ -403,6 +441,56 @@ class TestPuppetHandle(CiTestCase):
             ],
             m_subp.call_args_list,
         )
+
+    @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
+    def test_puppet_falls_back_to_older_name(self, m_subp, m_auto):
+        cfg = {"puppet": {}}
+        with mock.patch(
+            "tests.unittests.util.MockDistro.install_packages"
+        ) as install_pkg:
+            # puppet-agent not installed, but puppet is
+            install_pkg.side_effect = (ProcessExecutionError, 0)
+
+            cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
+            self.assertIn(
+                [mock.call(["systemctl", "start", "puppet"], capture=True)],
+                m_subp.call_args_list,
+            )
+
+    @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
+    def test_puppet_with_conf_package_name_fails(self, m_subp, m_auto):
+        cfg = {"puppet": {"package_name": "puppet"}}
+        with mock.patch(
+            "tests.unittests.util.MockDistro.install_packages"
+        ) as install_pkg:
+            # puppet-agent not installed, but puppet is
+            install_pkg.side_effect = (ProcessExecutionError, 0)
+            with pytest.raises(ProcessExecutionError):
+                cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
+            self.assertEqual(0, m_auto.call_count)
+            self.assertNotIn(
+                [
+                    mock.call(
+                        ["systemctl", "start", "puppet-agent"], capture=True
+                    )
+                ],
+                m_subp.call_args_list,
+            )
+
+    @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
+    def test_puppet_with_conf_package_name_success(self, m_subp, m_auto):
+        cfg = {"puppet": {"package_name": "puppet"}}
+        m_auto.side_effect = (ProcessExecutionError, 0)
+        cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
+        self.assertEqual(2, m_auto.call_count)
+        self.assertIn(
+            [mock.call(["systemctl", "start", "puppet-agent"], capture=True)],
+            m_subp.call_args_list,
+        )
+        m_auto.reset_mock()
+        m_auto.side_effect = (0, ProcessExecutionError)
+        cc_puppet.handle("notimportant", cfg, self.cloud, LOG, None)
+        self.assertEqual(1, m_auto.call_count)
 
 
 URL_MOCK = mock.Mock()
