@@ -20,12 +20,11 @@ jobs:
   package-build:
     runs-on: ubuntu-22.04
     steps:
-      - name: "Checkout #1"
+      - name: "Checkout"
         uses: actions/checkout@v3.0.0
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -54,12 +53,11 @@ jobs:
     needs: package-build
     runs-on: ubuntu-22.04
     steps:
-      - name: "Checkout #1"
+      - name: "Checkout"
         uses: actions/checkout@v3.0.0
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
       - name: Retrieve cloud-init package
         uses: actions/download-artifact@v3.0.2
         with:
