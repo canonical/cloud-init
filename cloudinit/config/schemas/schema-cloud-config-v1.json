@@ -3122,7 +3122,7 @@
               "owner": {
                 "type": "string",
                 "default": "root:root",
-                "description": "Optional owner:group to chown on the file. Default: ``root:root``"
+                "description": "Optional owner:group to chown on the file and new directories. Default: ``root:root``"
               },
               "permissions": {
                 "type": "string",

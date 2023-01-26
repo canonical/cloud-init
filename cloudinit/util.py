@@ -1595,7 +1595,7 @@ def chownbyid(fname, uid=None, gid=None):
     os.chown(fname, uid, gid)
 
 
-def chownbyname(fname, user=None, group=None):
+def chownbyname(fname, user=None, group=None, recursive=False):
     uid = -1
     gid = -1
     try:
@@ -1606,6 +1606,10 @@ def chownbyname(fname, user=None, group=None):
     except KeyError as e:
         raise OSError("Unknown user or group: %s" % (e)) from e
     chownbyid(fname, uid, gid)
+    if recursive and os.path.isdir(fname):
+        for root, dirs, _ in os.walk(fname):
+            for d in dirs:
+                chownbyid(os.path.join(root, d), uid, gid)
 
 
 # Always returns well formated values
@@ -1787,12 +1791,30 @@ def json_dumps(data):
     )
 
 
-def ensure_dir(path, mode=None):
+def get_non_exist_parent_dir(path):
+    """Get non exist parent dir."""
+    p_path = os.path.dirname(path)
+    # Check if parent directory of path is root
+    if p_path == os.path.dirname(p_path):
+        return path
+    else:
+        if os.path.isdir(p_path):
+            return path
+        else:
+            return get_non_exist_parent_dir(p_path)
+
+
+def ensure_dir(path, mode=None, user=None, group=None):
     if not os.path.isdir(path):
+        # Get non existed parent dir first before they are created.
+        non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
+        # Change the ownership
+        if user or group:
+            chownbyname(non_existed_parent_dir, user, group, recursive=True)
     else:
         # Just adjust the mode
         chmod(path, mode)
@@ -2129,6 +2151,8 @@ def write_file(
     preserve_mode=False,
     *,
     ensure_dir_exists=True,
+    user=None,
+    group=None,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2143,6 +2167,8 @@ def write_file(
     @param ensure_dir_exists: If True (the default), ensure that the directory
                               containing `filename` exists before writing to
                               the file.
+    @param user: The user to set on the file.
+    @param group: The group to set on the file.
     """
 
     if preserve_mode:
@@ -2152,7 +2178,7 @@ def write_file(
             pass
 
     if ensure_dir_exists:
-        ensure_dir(os.path.dirname(filename))
+        ensure_dir(os.path.dirname(filename), user=user, group=group)
     if "b" in omode.lower():
         content = encode_text(content)
         write_type = "bytes"
