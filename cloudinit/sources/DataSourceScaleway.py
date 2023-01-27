@@ -421,7 +421,7 @@ class DataSourceScaleway(sources.DataSource):
         for tag in self.metadata.get("tags", []):
             if not tag.startswith(akeypre):
                 continue
-            ssh_keys.append(tag[:plen].replace("_", " "))
+            ssh_keys.append(tag[plen:].replace("_", " "))
 
         return ssh_keys
 
