@@ -25,7 +25,7 @@ from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
-PREFERRED_PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
+PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
 
 MODULE_DESCRIPTION = """\
 This module handles puppet installation and configuration. If the ``puppet``
@@ -119,27 +119,21 @@ class PuppetConstants:
         self.csr_attributes_path = csr_attributes_path
 
 
-def _autostart_puppet(log, cloud: Cloud, service_name: str):
-    # Set puppet to automatically start
-    if os.path.exists(f"/etc/default/{service_name}"):
-        subp.subp(
-            [
-                "sed",
-                "-i",
-                "-e",
-                "s/^START=.*/START=yes/",
-                f"/etc/default/{service_name}",
-            ],
-            capture=False,
-        )
-    elif subp.which("systemctl"):
-        cloud.distro.manage_service("enable", f"{service_name}.service")
-    elif os.path.exists("/sbin/chkconfig"):
-        subp.subp(["/sbin/chkconfig", service_name, "on"], capture=False)
-    else:
+def _manage_puppet_services(log, cloud: Cloud, action: str):
+    """Attempts to perform action on one of the puppet services"""
+    service_managed: str = ""
+    for puppet_name in PUPPET_PACKAGE_NAMES:
+        try:
+            cloud.distro.manage_service(action, f"{puppet_name}.service")
+            service_managed = puppet_name
+            break
+        except subp.ProcessExecutionError:
+            pass
+    if not service_managed:
         log.warning(
-            f"Sorry we do not know how to enable {service_name} services on \
-              this system"
+            "Could not '%s' any of the following services: %s",
+            action,
+            ", ".join(PUPPET_PACKAGE_NAMES),
         )
 
 
@@ -228,7 +222,6 @@ def handle(
     package_name = util.get_cfg_option_str(
         puppet_cfg, "package_name", puppet_package
     )
-    service_names = ["puppet-agent"]
     if not install and version:
         log.warning(
             "Puppet install set to false but version supplied, doing nothing."
@@ -241,23 +234,21 @@ def handle(
         )
 
         if install_type == "packages":
-            if package_name is None:  # conf has no package_name
-                try:
-                    log.debug("Trying to install puppet-agent")
-                    cloud.distro.install_packages(
-                        (PREFERRED_PUPPET_PACKAGE_NAMES[0], version)
+            if package_name is None:  # conf has no package_nam
+                for puppet_name in PUPPET_PACKAGE_NAMES:
+                    try:
+                        cloud.distro.install_packages((puppet_name, version))
+                        package_name = puppet_name
+                        break
+                    except subp.ProcessExecutionError:
+                        pass
+                if not package_name:
+                    log.warning(
+                        "No installable puppet package in any of: %s",
+                        ", ".join(PUPPET_PACKAGE_NAMES),
                     )
-                    service_names = ["puppet-agent"]
-                except subp.ProcessExecutionError:
-                    log.debug("Trying to install puppet")
-                    cloud.distro.install_packages(
-                        (PREFERRED_PUPPET_PACKAGE_NAMES[1], version)
-                    )
-                    service_names = ["puppet"]
             else:
                 cloud.distro.install_packages((package_name, version))
-                # install both services to find the correct one
-                service_names = ["puppet-agent", "puppet"]
 
         elif install_type == "aio":
             install_puppet_aio(
@@ -336,14 +327,9 @@ def handle(
             yaml.dump(puppet_cfg["csr_attributes"], default_flow_style=False),
         )
 
-    # Set it up so it autostarts
     if start_puppetd:
-        for service_name in service_names:
-            try:
-                _autostart_puppet(log, cloud, service_name)
-                break
-            except subp.ProcessExecutionError:
-                log.debug(f"Could not auto enable {service_name}")
+        # Enables the services
+        _manage_puppet_services(log, cloud, "enable")
 
     # Run the agent if needed
     if run:
@@ -369,12 +355,7 @@ def handle(
 
     if start_puppetd:
         # Start puppetd
-        for service_name in service_names:
-            try:
-                cloud.distro.manage_service("start", service_name)
-                break
-            except subp.ProcessExecutionError:
-                log.debug(f"Could not auto start {service_name}")
+        _manage_puppet_services(log, cloud, "start")
 
 
 # vi: ts=4 expandtab
