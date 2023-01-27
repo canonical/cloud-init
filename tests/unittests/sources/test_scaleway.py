@@ -331,9 +331,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
             self.datasource.get_instance_id(),
             MetadataResponses.FAKE_METADATA["id"],
         )
+        ssh_keys = self.datasource.get_public_ssh_keys()
+        ssh_keys.sort()
         self.assertEqual(
-            self.datasource.get_public_ssh_keys().sort(),
+            ssh_keys,
             [
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
             ],
@@ -395,9 +398,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
             self.datasource.get_instance_id(),
             MetadataResponses.FAKE_METADATA["id"],
         )
+        ssh_keys = self.datasource.get_public_ssh_keys()
+        ssh_keys.sort()
         self.assertEqual(
-            self.datasource.get_public_ssh_keys().sort(),
+            ssh_keys,
             [
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
             ],
@@ -620,11 +626,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
             "AUTHORIZED_KEY=ssh-rsa_AAAAB3NzaC1yc2EAAAADAQABCCCCC",
         ]
         self.datasource.metadata["ssh_public_keys"] = []
+        ssh_keys = self.datasource.get_public_ssh_keys()
+        ssh_keys.sort()
         self.assertEqual(
-            self.datasource.get_public_ssh_keys().sort(),
+            ssh_keys,
             [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
             ],
         )
 
@@ -644,11 +652,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 "fingerprint": "2048 06:ff:...  login2 (RSA)",
             },
         ]
+        ssh_keys = self.datasource.get_public_ssh_keys()
+        ssh_keys.sort()
         self.assertEqual(
-            self.datasource.get_public_ssh_keys().sort(),
+            ssh_keys,
             [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
             ],
         )
 
@@ -671,9 +681,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 "fingerprint": "2048 06:ff:...  login2 (RSA)",
             },
         ]
+        ssh_keys = self.datasource.get_public_ssh_keys()
+        ssh_keys.sort()
         self.assertEqual(
-            self.datasource.get_public_ssh_keys().sort(),
+            ssh_keys,
             [
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
             ],
