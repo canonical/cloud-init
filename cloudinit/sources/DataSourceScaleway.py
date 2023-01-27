@@ -9,8 +9,10 @@ import json
 import os
 import socket
 import time
+from urllib.parse import urlparse
 
 import requests
+from requests.exceptions import ConnectionError
 
 # Note: `urllib3` is transitively installed by `requests`
 from urllib3.connection import HTTPConnection
@@ -21,20 +23,16 @@ from cloudinit import log as logging
 from cloudinit import net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
-from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
 from cloudinit.sources import DataSourceHostname
+from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
 
-DS_BASE_URL = "http://169.254.42.42"
+DS_BASE_URLS = ["http://169.254.42.42", "http://[fd00:42::42]"]
 
-BUILTIN_DS_CONFIG = {
-    "metadata_url": DS_BASE_URL + "/conf?format=json",
-    "userdata_url": DS_BASE_URL + "/user_data/cloud-init",
-    "vendordata_url": DS_BASE_URL + "/vendor_data/cloud-init",
-}
-
-DEF_MD_RETRIES = 5
+DEF_MD_RETRIES = 3
+DEF_MD_ALIVE = 2
 DEF_MD_TIMEOUT = 10
 
 
@@ -117,9 +115,20 @@ def query_data_api(api_type, api_address, retries, timeout):
                 "Trying to get %s data (bind on port %d)...", api_type, port
             )
             requests_session = requests.Session()
+            # Adapt Session.mount to IPv4/IPv6 context
+            localhost = "0.0.0.0"
+            try:
+                url_address = urlparse(api_address).netloc
+                address = url_address
+                if url_address[0] == "[":
+                    address = url_address[1:-1]
+                if net.is_ipv6_address(address):
+                    localhost = "0::"
+            except ValueError:
+                pass
             requests_session.mount(
                 "http://",
-                SourceAddressAdapter(source_address=("0.0.0.0", port)),
+                SourceAddressAdapter(source_address=(localhost, port)),
             )
             data = query_data_api_once(
                 api_address, timeout=timeout, requests_session=requests_session
@@ -154,30 +163,64 @@ class DataSourceScaleway(sources.DataSource):
         self.ds_cfg = util.mergemanydict(
             [
                 util.get_cfg_by_path(sys_cfg, ["datasource", "Scaleway"], {}),
-                BUILTIN_DS_CONFIG,
             ]
         )
 
-        self.metadata_address = self.ds_cfg["metadata_url"]
-        self.userdata_address = self.ds_cfg["userdata_url"]
-        self.vendordata_address = self.ds_cfg["vendordata_url"]
-
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
+        self.alive = int(self.ds_cfg.get("alive", DEF_MD_ALIVE))
         self._fallback_interface = None
         self._network_config = sources.UNSET
+        self.metadata_urls = DS_BASE_URLS
+        self.userdata_url = None
+        self.vendordata_url = None
+        self.ephemeral_fixed_address = None
+        self.has_ipv4 = True
+        if "metadata_urls" in self.ds_cfg.keys():
+            # Merge and deduplicate lists
+            self.metadata_urls = list(
+                set(self.metadata_urls) | set(self.ds_cfg["metadata_urls"])
+            )
+
+    def _set_metadata_url(self, urls):
+        """
+        Define metadata_url based upon api-metadata URL availability.
+        """
+
+        for url in urls:
+            resp = None
+            for _ in range(0, self.retries):
+                try:
+                    LOG.debug("Trying to reach %s", url)
+                    resp = requests.get(
+                        url + "/conf?format=json",
+                        timeout=self.alive,
+                    )
+                except ConnectionError:
+                    continue
+                break
+            if not resp:
+                continue
+            if resp.status_code == 200:
+                LOG.debug("%s is reachable", url)
+                self.metadata_url = f"{url}/conf?format=json"
+                self.userdata_url = f"{url}/user_data/cloud-init"
+                self.vendordata_url = f"{url}/vendor_data/cloud-init"
+                return
+        LOG.debug("Unable to reach api-metadata at %s", urls)
+        raise ConnectionError
 
     def _crawl_metadata(self):
         resp = url_helper.readurl(
-            self.metadata_address, timeout=self.timeout, retries=self.retries
+            self.metadata_url, timeout=self.timeout, retries=self.retries
         )
         self.metadata = json.loads(util.decode_binary(resp.contents))
 
         self.userdata_raw = query_data_api(
-            "user-data", self.userdata_address, self.retries, self.timeout
+            "user-data", self.userdata_url, self.retries, self.timeout
         )
         self.vendordata_raw = query_data_api(
-            "vendor-data", self.vendordata_address, self.retries, self.timeout
+            "vendor-data", self.vendordata_url, self.retries, self.timeout
         )
 
     @staticmethod
@@ -201,20 +244,90 @@ class DataSourceScaleway(sources.DataSource):
         if "scaleway" in cmdline:
             return True
 
+    def _set_urls_on_ip_version(self, proto, urls):
+
+        if proto not in ["ipv4", "ipv6"]:
+            LOG.debug("Invalid IP version : %s", proto)
+            return []
+
+        filtered_urls = []
+        for url in urls:
+            # Numeric IPs
+            address = urlparse(url).netloc
+            if address[0] == "[":
+                address = address[1:-1]
+            addr_proto = socket.getaddrinfo(
+                address, None, proto=socket.IPPROTO_TCP
+            )[0][0]
+            if addr_proto == socket.AF_INET and proto == "ipv4":
+                filtered_urls += [url]
+                continue
+            elif addr_proto == socket.AF_INET6 and proto == "ipv6":
+                filtered_urls += [url]
+                continue
+
+        return filtered_urls
+
     def _get_data(self):
 
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
-        try:
-            with EphemeralDHCPv4(self._fallback_interface):
-                util.log_time(
-                    logfunc=LOG.debug,
-                    msg="Crawl of metadata service",
-                    func=self._crawl_metadata,
-                )
-        except (NoDHCPLeaseError) as e:
-            util.logexc(LOG, str(e))
-            return False
+        if self.has_ipv4:
+            try:
+                # DHCPv4 waits for timeout defined in /etc/dhcp/dhclient.conf
+                # before giving up. Lower it in config file and try it first as
+                # it will only reach timeout on VMs with only IPv6 addresses.
+                with EphemeralDHCPv4(
+                    self._fallback_interface,
+                    # tmp_dir=self.distro.get_tmp_exec_path(),
+                ) as ipv4:
+                    ipv4_urls = self._set_urls_on_ip_version(
+                        "ipv4", self.metadata_urls
+                    )
+                    util.log_time(
+                        logfunc=LOG.debug,
+                        msg="Set api-metadata URL depending on "
+                        "IPv4 availability",
+                        func=self._set_metadata_url,
+                        args=(ipv4_urls,),
+                    )
+                    util.log_time(
+                        logfunc=LOG.debug,
+                        msg="Crawl of metadata service",
+                        func=self._crawl_metadata,
+                    )
+                    self.ephemeral_fixed_address = ipv4["fixed-address"]
+                    self.metadata["net_in_use"] = "ipv4"
+            except (
+                NoDHCPLeaseError,
+                ConnectionError,
+                ProcessExecutionError,
+            ) as e:
+                util.logexc(LOG, str(e))
+                self.has_ipv4 = False
+        if not self.has_ipv4:
+            try:
+                with EphemeralIPv6Network(
+                    self._fallback_interface,
+                ):
+                    ipv6_urls = self._set_urls_on_ip_version(
+                        "ipv6", self.metadata_urls
+                    )
+                    util.log_time(
+                        logfunc=LOG.debug,
+                        msg="Set api-metadata URL depending on "
+                        "IPv6 availability",
+                        func=self._set_metadata_url,
+                        args=(ipv6_urls,),
+                    )
+                    util.log_time(
+                        logfunc=LOG.debug,
+                        msg="Crawl of metadata service",
+                        func=self._crawl_metadata,
+                    )
+                    self.metadata["net_in_use"] = "ipv6"
+            except (ConnectionError):
+                return False
         return True
 
     @property
@@ -236,25 +349,61 @@ class DataSourceScaleway(sources.DataSource):
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
 
-        netcfg = {"type": "physical", "name": "%s" % self._fallback_interface}
-        subnets = [{"type": "dhcp4"}]
-        if self.metadata["ipv6"]:
-            subnets += [
-                {
-                    "type": "static",
-                    "address": "%s" % self.metadata["ipv6"]["address"],
-                    "netmask": "%s" % self.metadata["ipv6"]["netmask"],
-                    "routes": [
-                        {
-                            "network": "::",
-                            "prefix": "0",
-                            "gateway": "%s" % self.metadata["ipv6"]["gateway"],
-                        }
-                    ],
-                }
-            ]
-        netcfg["subnets"] = subnets
-        self._network_config = {"version": 1, "config": [netcfg]}
+        if self.metadata["private_ip"] is None:
+            # New method of network configuration
+
+            netcfg = {}
+            ip_cfg = {}
+            for ip in self.metadata["public_ips"]:
+                # Use DHCP for primary address
+                if ip["address"] == self.ephemeral_fixed_address:
+                    ip_cfg["dhcp4"] = True
+                    # Force addition of a route to the metadata API
+                    ip_cfg["routes"] = [
+                        {"to": "169.254.42.42/32", "via": "62.210.0.1"}
+                    ]
+                else:
+                    if "addresses" in ip_cfg.keys():
+                        ip_cfg["addresses"] += (
+                            f'{ip["address"]}/{ip["netmask"]}',
+                        )
+                    else:
+                        ip_cfg["addresses"] = (
+                            f'{ip["address"]}/{ip["netmask"]}',
+                        )
+                    if ip["family"] == "inet6":
+                        route = {"via": ip["gateway"], "to": "::/0"}
+                        if "routes" in ip_cfg.keys():
+                            ip_cfg["routes"] += [route]
+                        else:
+                            ip_cfg["routes"] = [route]
+            netcfg[self._fallback_interface] = ip_cfg
+            self._network_config = {"version": 2, "ethernets": netcfg}
+        else:
+            netcfg = {
+                "type": "physical",
+                "name": "%s" % self._fallback_interface,
+            }
+            subnets = [{"type": "dhcp4"}]
+            if self.metadata["ipv6"]:
+                subnets += [
+                    {
+                        "type": "static",
+                        "address": "%s" % self.metadata["ipv6"]["address"],
+                        "netmask": "%s" % self.metadata["ipv6"]["netmask"],
+                        "routes": [
+                            {
+                                "network": "::",
+                                "prefix": "0",
+                                "gateway": "%s"
+                                % self.metadata["ipv6"]["gateway"],
+                            }
+                        ],
+                    }
+                ]
+            netcfg["subnets"] = subnets
+            self._network_config = {"version": 1, "config": [netcfg]}
+        LOG.debug("network_config : %s", self._network_config)
         return self._network_config
 
     @property
