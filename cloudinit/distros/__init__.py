@@ -63,7 +63,15 @@ OSFAMILIES = {
         "rocky",
         "virtuozzo",
     ],
-    "suse": ["opensuse", "sles"],
+    "suse": [
+        "opensuse",
+        "opensuse-leap",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
+        "sle_hpc",
+        "sle-micro",
+        "sles",
+    ],
     "openEuler": ["openEuler"],
 }
 

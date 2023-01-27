@@ -30,6 +30,12 @@ DISTRO_PKG_TYPE_MAP = {
     'debian': 'debian',
     'ubuntu': 'debian',
     'opensuse': 'suse',
+    'opensuse-leap': 'suse',
+    'opensuse-microos': 'suse',
+    'opensuse-tumbleweed': 'suse',
+    'sle_hpc': 'suse',
+    'sle-micro': 'suse',
+    'sles': 'suse',
     'suse': 'suse'
 }
 
