@@ -26,8 +26,6 @@ Debugging and reporting
    :maxdepth: 1
 
    ../howto/bugs.rst
-   security.rst
-   analyze.rst
    logging.rst
    debugging.rst
 
