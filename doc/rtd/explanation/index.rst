@@ -16,5 +16,5 @@ knowledge and become better at using and configuring ``cloud-init``.
    events.rst
    instancedata.rst
    vendordata.rst
-   security-home.rst
-   ../development/analyze.rst
+   security.rst
+   analyze.rst
