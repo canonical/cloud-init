@@ -301,6 +301,9 @@ def test_ansible_pull_distro(client):
 
 @pytest.mark.user_data(ANSIBLE_CONTROL)
 @pytest.mark.lxd_vm
+# Not bionic because test uses pip install and version in pip is removing
+# support for python version in bionic
+@pytest.mark.not_bionic
 def test_ansible_controller(client):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
