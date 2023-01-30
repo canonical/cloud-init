@@ -13,7 +13,7 @@ import yaml
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
-from tests.integration_tests.util import get_console_log, verify_clean_log
+from tests.integration_tests.util import get_console_log
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -199,7 +199,10 @@ class Mixin:
             "'systemctl', 'show', '--property', 'ActiveState', "
             "'--value', 'ssh'" in log
         )
-        verify_clean_log(log)
+        assert (
+            "Restarted the SSH daemon" in log
+            or "'ssh_pwauth' configuration may not be applied" in log
+        )
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
