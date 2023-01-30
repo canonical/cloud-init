@@ -7,4 +7,3 @@ class Distro(rhel.Distro):
     def __init__(self, name, cfg, paths):
         super(Distro, self).__init__(name, cfg, paths)
         self.osfamily = "OpenCloudOS"
-        
