@@ -263,9 +263,12 @@ class Renderer(renderer.Renderer):
             header += "\n"
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        util.write_file(
-            fpnplan, header + content, mode=mode, preserve_mode=True
-        )
+        if os.path.exists(fpnplan):
+            current_mode = util.get_permissions(fpnplan)
+            if current_mode & mode == current_mode:
+                # preserve mode if existing perms are more strict than default
+                mode = current_mode
+        util.write_file(fpnplan, header + content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)

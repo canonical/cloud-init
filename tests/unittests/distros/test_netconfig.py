@@ -577,8 +577,7 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
                     apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
-        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        for cfgpath, expected in expected_cfgs.items():
+        for cfgpath, expected, mode in expected_cfgs:
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
@@ -591,59 +590,66 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         return "/etc/netplan/50-cloud-init.yaml"
 
     def test_apply_network_config_v1_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
 
         # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_IPV6_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
+        )
 
         # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG_IPV6,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v2_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
         # ub_distro.apply_network_config(V2_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
-        """Custom permissions on existing netplan config is kept on rewrite."""
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
+        """Custom permissions on existing netplan is kept when more strict."""
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
+        )
         # ub_distro.apply_network_config(V2_NET_CFG, False)
         tmpd = None
-        self._apply_and_verify_netplan(
-            self.distro.apply_network_config,
-            V2_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
-            previous_files=(("/etc/netplan/50-cloud-init.yaml", "a", 0o640),),
-        )
+        with mock.patch.object(
+            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        ):
+            # When NETPLAN_CONFIG_ROOT_READ_ONLY is False default perms are 644
+            # we keep 640 because it's more strict.
+            self._apply_and_verify_netplan(
+                self.distro.apply_network_config,
+                V2_NET_CFG,
+                expected_cfgs=expected_cfgs,
+                previous_files=(
+                    ("/etc/netplan/50-cloud-init.yaml", "a", 0o640),
+                ),
+            )
 
     def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
         """Kinetic and earlier have 50-cloud-init.yaml world-readable"""
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o644),
+        )
         # ub_distro.apply_network_config(V2_NET_CFG, False)
         with mock.patch.object(
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
@@ -651,18 +657,18 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             self._apply_and_verify_netplan(
                 self.distro.apply_network_config,
                 V2_NET_CFG,
-                expected_cfgs=expected_cfgs.copy(),
+                expected_cfgs=expected_cfgs,
             )
 
     def test_apply_network_config_v2_full_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_PASSTHROUGH_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
+        )
         # ub_distro.apply_network_config(V2_PASSTHROUGH_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_PASSTHROUGH_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
         self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
         self.assertIn(
