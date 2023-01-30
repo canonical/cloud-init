@@ -12,6 +12,7 @@ import os
 import sys
 
 from cloudinit import settings
+from cloudinit.distros import uses_systemd
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
@@ -20,6 +21,7 @@ from cloudinit.util import (
     error,
     get_config_logfiles,
     is_link,
+    write_file,
 )
 
 ETC_MACHINE_ID = "/etc/machine-id"
@@ -55,8 +57,9 @@ def get_parser(parser=None):
         action="store_true",
         default=False,
         help=(
-            "Remove /etc/machine-id for golden image creation."
-            " Next boot generates a new machine-id."
+            "Set /etc/machine-id to 'uninitialized\n' for golden image"
+            "creation. On next boot, systemd generates a new machine-id."
+            " Remove /etc/machine-id on non-systemd environments."
         ),
     )
     parser.add_argument(
@@ -120,7 +123,12 @@ def handle_clean_args(name, args):
     """Handle calls to 'cloud-init clean' as a subcommand."""
     exit_code = remove_artifacts(args.remove_logs, args.remove_seed)
     if args.machine_id:
-        del_file(ETC_MACHINE_ID)
+        if uses_systemd():
+            # Systemd v237 and later will create a new machine-id on next boot
+            write_file(ETC_MACHINE_ID, "uninitialized\n", mode=0o444)
+        else:
+            # Non-systemd like FreeBSD regen machine-id when file is absent
+            del_file(ETC_MACHINE_ID)
     if exit_code == 0 and args.reboot:
         cmd = ["shutdown", "-r", "now"]
         try:

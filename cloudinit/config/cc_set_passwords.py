@@ -153,7 +153,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
                 "--value",
                 service,
             ]
-        ).stdout
+        ).stdout.strip()
         if state.lower() in ["active", "activating", "reloading"]:
             distro.manage_service("restart", service)
             LOG.debug("Restarted the SSH daemon.")

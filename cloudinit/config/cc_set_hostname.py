@@ -107,7 +107,7 @@ def handle(
     # distro._read_hostname implementation so we only validate  one artifact.
     prev_fn = os.path.join(cloud.get_cpath("data"), "set-hostname")
     prev_hostname = {}
-    if os.path.exists(prev_fn):
+    if os.path.exists(prev_fn) and os.stat(prev_fn).st_size > 0:
         prev_hostname = util.load_json(util.load_file(prev_fn))
     hostname_changed = hostname != prev_hostname.get(
         "hostname"

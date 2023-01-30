@@ -132,6 +132,7 @@ class Distro(distros.Distro):
             return util.load_file(filename).strip()
         elif self.uses_systemd():
             (out, _err) = subp.subp(["hostname"])
+            out = out.strip()
             if len(out):
                 return out
             else:

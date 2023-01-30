@@ -238,12 +238,22 @@ class TestClean:
         assert 0 == retcode
         assert [(["shutdown", "-r", "now"], False)] == called_cmds
 
-    @pytest.mark.parametrize("machine_id", (True, False))
+    @pytest.mark.parametrize(
+        "machine_id,systemd_val",
+        (
+            pytest.param(True, True, id="machine_id_on_systemd_uninitialized"),
+            pytest.param(
+                True, False, id="machine_id_non_systemd_removes_file"
+            ),
+            pytest.param(False, False, id="no_machine_id_param_file_remains"),
+        ),
+    )
+    @mock.patch("cloudinit.cmd.clean.uses_systemd")
     def test_handle_clean_args_removed_machine_id(
-        self, machine_id, clean_paths, init_class
+        self, uses_systemd, machine_id, systemd_val, clean_paths, init_class
     ):
         """handle_clean_args removes /etc/machine-id when arg is True."""
-
+        uses_systemd.return_value = systemd_val
         myargs = namedtuple(
             "MyArgs", "remove_logs remove_seed reboot machine_id"
         )
@@ -271,7 +281,13 @@ class TestClean:
                     args=cmdargs,
                 )
         assert 0 == retcode
-        assert machine_id_path.exists() is bool(not machine_id)
+        if systemd_val:
+            if machine_id:
+                assert "uninitialized\n" == machine_id_path.read()
+            else:
+                assert "SOME-AMAZN-MACHINE-ID" == machine_id_path.read()
+        else:
+            assert machine_id_path.exists() is bool(not machine_id)
 
     def test_status_main(self, clean_paths, init_class):
         """clean.main can be run as a standalone script."""
