@@ -284,10 +284,9 @@ def add_interface_names(netcfg):
         if not interface_name:
             raise RuntimeError(
                 "Interface: %s could not be found on the system"
-                % interface["mac"]
+                % interface["mac_address"]
             )
         interface["name"] = interface_name
-
     return netcfg
 
 
