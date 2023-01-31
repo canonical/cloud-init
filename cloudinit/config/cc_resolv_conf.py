@@ -32,7 +32,7 @@ this module. Many distros have moved away from manually editing ``resolv.conf``
 so please verify that this is the preferred nameserver management method for
 your distro before using this module.
 
-Note that using :ref:`network_config` is preferred to this module, when
+Note that using :ref:`network_config` is preferred, rather than using this module, when
 possible.
 
 This module is intended to manage resolv.conf in environments where early
