@@ -146,6 +146,42 @@ VULTR_V1_2 = {
 
 SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
 
+CLOUD_INTERFACES = {
+    "version": 1,
+    "config": [
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
+        {
+            "type": "physical",
+            "mac_address": "56:00:03:1b:4e:ca",
+            "accept-ra": 1,
+            "subnets": [
+                {"type": "dhcp", "control": "auto"},
+                {"type": "ipv6_slaac", "control": "auto"},
+                {
+                    "type": "static6",
+                    "control": "auto",
+                    "address": "2002:19f0:5:28a7::/64",
+                },
+            ],
+        },
+        {
+            "type": "physical",
+            "mac_address": "5a:00:03:1b:4e:ca",
+            "subnets": [
+                {
+                    "type": "static",
+                    "control": "auto",
+                    "address": "10.1.112.3",
+                    "netmask": "255.255.240.0",
+                }
+            ],
+        },
+    ],
+}
+
 INTERFACES = ["lo", "dummy0", "eth1", "eth0", "eth2"]
 
 ORDERED_INTERFACES = ["eth0", "eth1", "eth2"]
@@ -302,6 +338,14 @@ class TestDataSourceVultr(CiTestCase):
         # Test network config generation
         self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
 
+        # Test network config generation with new format
+        VULTR_V1_2["cloud_interfaces"] = CLOUD_INTERFACES
+        source = DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+        )
+        self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
+        del VULTR_V1_2["cloud_interfaces"]
+
     # Test network config generation
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_network_config(self, mock_netmap):
@@ -328,6 +372,17 @@ class TestDataSourceVultr(CiTestCase):
         expected = EXPECTED_VULTR_NETWORK_2.copy()
         expected["config"].pop(2)
         self.assertEqual(expected, vultr.generate_network_config(interf))
+
+    # Test cloud_interfaces configuration
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_cloud_interfaces_config(self, mock_netmap):
+        mock_netmap.return_value = INTERFACE_MAP
+        interf = CLOUD_INTERFACES.copy()
+
+        # Test configuring
+        self.assertEqual(
+            EXPECTED_VULTR_NETWORK_2, vultr.add_interface_names(interf)
+        )
 
     # Override ephemeral for proper unit testing
     def ephemeral_init(

@@ -280,7 +280,7 @@ def add_interface_names(netcfg):
     for interface in netcfg["config"]:
         if interface["type"] != "physical":
             continue
-        interface_name = get_interface_name(interface["mac"])
+        interface_name = get_interface_name(interface["mac_address"])
         if not interface_name:
             raise RuntimeError(
                 "Interface: %s could not be found on the system"
