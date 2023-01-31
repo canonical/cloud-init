@@ -1034,6 +1034,16 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
                         % (ret[mac], driver_map[mac], name)
                     )
 
+            # This is intended to be a short-term fix of LP: #1997922
+            # Long term, we should better handle configuration of virtual
+            # devices where duplicate MACs are expected early in boot if
+            # cloud-init happens to enumerate network interfaces before drivers
+            # have fully initialized the leader/subordinate relationships for
+            # those devices or switches.
+            if driver == "mscc_felix" or driver == "fsl_enetc":
+                raise_duplicate_mac_error = False
+                continue
+
             if raise_duplicate_mac_error:
                 raise RuntimeError(msg)
 

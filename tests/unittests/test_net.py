@@ -8220,6 +8220,19 @@ class TestGetInterfacesByMac(CiTestCase):
         }
         self.assertEqual(expected, result)
 
+    def test_duplicate_ignored_macs(self):
+        # LP: #199792
+        self._data = copy.deepcopy(self._data)
+        self._data["macs"]["swp0"] = "9a:57:7d:78:47:c0"
+        self._data["macs"]["swp1"] = "9a:57:7d:78:47:c0"
+        self._data["own_macs"].append("swp0")
+        self._data["own_macs"].append("swp1")
+        self._data["drivers"]["swp0"] = "mscc_felix"
+        self._data["drivers"]["swp1"] = "mscc_felix"
+        self._mock_setup()
+        net.get_interfaces_by_mac()
+        # If the previous statement didn't Traceback, then test passed
+
 
 class TestInterfacesSorting(CiTestCase):
     def test_natural_order(self):
