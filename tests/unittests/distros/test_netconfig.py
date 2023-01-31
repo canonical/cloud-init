@@ -485,7 +485,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
@@ -529,7 +528,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_eni(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -594,7 +592,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
         )
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -606,7 +603,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
         )
 
-        # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG_IPV6,
@@ -617,7 +613,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
         )
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_NET_CFG,
@@ -629,7 +624,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
         )
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
         tmpd = None
         with mock.patch.object(
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
@@ -650,7 +644,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o644),
         )
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
         with mock.patch.object(
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
         ):
@@ -664,7 +657,6 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         expected_cfgs = (
             (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
         )
-        # ub_distro.apply_network_config(V2_PASSTHROUGH_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_PASSTHROUGH_NET_CFG,
@@ -1034,7 +1026,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             ),
         }
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(
             self.distro.apply_network_config,
             V1_NET_CFG,
