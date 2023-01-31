@@ -42,7 +42,7 @@ where configuration management such as puppet or chef own DNS configuration.
 When using a :ref:`datasource_config_drive` and a RHEL-like system,
 resolv.conf will also be managed automatically due to the available
 information provided for DNS servers in the :ref:`network_config_v2` format.
-For those that with to have different settings, use this module.
+For those that wish to have different settings, use this module.
 
 In order for the ``resolv_conf`` section to be applied, ``manage_resolv_conf``
 must be set ``true``.
