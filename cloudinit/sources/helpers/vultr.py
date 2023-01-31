@@ -287,7 +287,6 @@ def add_interface_names(netcfg):
                 % interface["mac_address"]
             )
         interface["name"] = interface_name
-    return netcfg
 
 
 # vi: ts=4 expandtab
