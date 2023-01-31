@@ -18,7 +18,6 @@ from tests.integration_tests.clouds import (
     Ec2Cloud,
     GceCloud,
     IbmCloud,
-    ImageSpecification,
     IntegrationCloud,
     LxdContainerCloud,
     LxdVmCloud,
@@ -30,6 +29,7 @@ from tests.integration_tests.instances import (
     CloudInitSource,
     IntegrationInstance,
 )
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
@@ -74,7 +74,7 @@ def pytest_runtest_setup(item):
     if supported_platforms and current_platform not in supported_platforms:
         pytest.skip(unsupported_message)
 
-    image = ImageSpecification.from_os_image()
+    image = CURRENT_RELEASE
     current_os = image.os
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
@@ -82,7 +82,7 @@ def pytest_runtest_setup(item):
     if "unstable" in test_marks and not integration_settings.RUN_UNSTABLE:
         pytest.skip("Test marked unstable. Manually remove mark to run it")
 
-    current_release = image.release
+    current_release = CURRENT_RELEASE.series
     if "not_{}".format(current_release) in test_marks:
         pytest.skip("Cannot run on release {}".format(current_release))
 

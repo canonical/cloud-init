@@ -28,6 +28,7 @@ import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import emit_dots_on_travis
 
 log = logging.getLogger("integration_testing")
@@ -127,12 +128,9 @@ class IntegrationCloud(ABC):
         raise NotImplementedError
 
     def _get_initial_image(self, **kwargs) -> str:
-        image = ImageSpecification.from_os_image()
-        try:
-            return self.cloud_instance.daily_image(image.image_id, **kwargs)
-        except (ValueError, IndexError) as ex:
-            log.debug("Exception while executing `daily_image`: %s", ex)
-            return image.image_id
+        return CURRENT_RELEASE.image_id or self.cloud_instance.daily_image(
+            CURRENT_RELEASE.series, **kwargs
+        )
 
     def _perform_launch(self, launch_kwargs, **kwargs) -> BaseInstance:
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
@@ -398,17 +396,16 @@ class OpenstackCloud(IntegrationCloud):
         )
 
     def _get_initial_image(self, **kwargs):
-        image = ImageSpecification.from_os_image()
         try:
-            UUID(image.image_id)
+            UUID(CURRENT_RELEASE.image_id)
         except ValueError as e:
             raise RuntimeError(
                 "When using Openstack, `OS_IMAGE` MUST be specified with "
                 "a 36-character UUID image ID. Passing in a release name is "
                 "not valid here.\n"
-                "OS image id: {}".format(image.image_id)
+                "OS image id: {}".format(CURRENT_RELEASE.image_id)
             ) from e
-        return image.image_id
+        return CURRENT_RELEASE.image_id
 
 
 class IbmCloud(IntegrationCloud):
