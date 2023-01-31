@@ -30,7 +30,7 @@ Unless manually editing :file:`/etc/resolv.conf` is the correct way to manage
 nameserver information on your operating system, you do not want to use
 this module. Many distros have moved away from manually editing ``resolv.conf``
 so please verify that this is the preferred nameserver management method for
-your distro :file:`/etc/resolv.conf` before using this module.
+your distro before using this module.
 
 Note that using :ref:`network_config` is preferred to this module, when
 possible.
