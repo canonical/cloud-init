@@ -26,12 +26,18 @@ RESOLVE_CONFIG_TEMPLATE_MAP = {
 }
 
 MODULE_DESCRIPTION = """\
+Unless manually editing :file:`/etc/resolv.conf` is the correct way to manage
+nameserver information on your operating system, you do not want to use
+this module. Many distros have moved away from manually editing ``resolv.conf``
+so please verify that this is the preferred nameserver management method for
+your distro :file:`/etc/resolv.conf` before using this module.
+
+Note that using :ref:`network_config` is preferred to this module, when
+possible.
+
 This module is intended to manage resolv.conf in environments where early
 configuration of resolv.conf is necessary for further bootstrapping and/or
 where configuration management such as puppet or chef own DNS configuration.
-As Debian/Ubuntu will, by default, utilize resolvconf, and similarly Red Hat
-will use sysconfig, this module is likely to be of little use unless those
-are configured correctly.
 
 When using a :ref:`datasource_config_drive` and a RHEL-like system,
 resolv.conf will also be managed automatically due to the available
@@ -44,10 +50,6 @@ must be set ``true``.
 .. note::
     For Red Hat with sysconfig, be sure to set PEERDNS=no for all DHCP
     enabled NICs.
-
-.. note::
-    And, in Ubuntu/Debian it is recommended that DNS be configured via the
-    standard /etc/network/interfaces configuration file.
 """
 
 meta: MetaSchema = {

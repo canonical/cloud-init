@@ -126,6 +126,10 @@ The following datasources optionally provide network configuration:
 
   - `DigitalOcean JSON metadata`_
 
+- :ref:`datasource_lxd`
+
+  - `LXD`_
+
 - :ref:`datasource_nocloud`
 
   - :ref:`network_config_v1`
@@ -313,6 +317,7 @@ Example output:
 
 
 .. _Cloud-init: https://launchpad.net/cloud-init
+.. _LXD: https://linuxcontainers.org/lxd/docs/master/cloud-init/#custom-network-configuration
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
 .. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
