@@ -34,6 +34,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     dir2dict,
+    does_not_raise,
     mock,
     populate_dir,
 )
@@ -8008,6 +8009,7 @@ class TestInterfaceHasOwnMac(CiTestCase):
     mock.Mock(return_value=False),
 )
 class TestGetInterfacesByMac(CiTestCase):
+    with_logs = True
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -8230,8 +8232,12 @@ class TestGetInterfacesByMac(CiTestCase):
         self._data["drivers"]["swp0"] = "mscc_felix"
         self._data["drivers"]["swp1"] = "mscc_felix"
         self._mock_setup()
-        net.get_interfaces_by_mac()
-        # If the previous statement didn't Traceback, then test passed
+        with does_not_raise():
+            net.get_interfaces_by_mac()
+        assert (
+            "Ignoring duplicate macs from 'swp0' and 'swp1' due to "
+            "driver 'mscc_felix'."
+        ) in self.logs.getvalue()
 
 
 class TestInterfacesSorting(CiTestCase):
