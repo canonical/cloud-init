@@ -1043,8 +1043,10 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             if driver == "mscc_felix" or driver == "fsl_enetc":
                 LOG.debug(
                     "Ignoring duplicate macs from '%s' and '%s' due to "
-                    "driver '%s'."
-                    % (name, ret[mac], driver)
+                    "driver '%s'.",
+                    name,
+                    ret[mac],
+                    driver,
                 )
                 continue
 
