@@ -8234,10 +8234,11 @@ class TestGetInterfacesByMac(CiTestCase):
         self._mock_setup()
         with does_not_raise():
             net.get_interfaces_by_mac()
-        assert (
-            "Ignoring duplicate macs from 'swp0' and 'swp1' due to "
+        pattern = (
+            "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
             "driver 'mscc_felix'."
-        ) in self.logs.getvalue()
+        )
+        assert re.search(pattern, self.logs.getvalue())
 
 
 class TestInterfacesSorting(CiTestCase):
