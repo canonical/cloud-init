@@ -622,20 +622,20 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
     def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
         """Custom permissions on existing netplan is kept when more strict."""
         expected_cfgs = (
-            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o1640),
         )
-        tmpd = None
         with mock.patch.object(
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
         ):
             # When NETPLAN_CONFIG_ROOT_READ_ONLY is False default perms are 644
-            # we keep 640 because it's more strict.
+            # we keep 1640 because it's more strict.
+            # 1640 is used to assert sticky bit preserved across write
             self._apply_and_verify_netplan(
                 self.distro.apply_network_config,
                 V2_NET_CFG,
                 expected_cfgs=expected_cfgs,
                 previous_files=(
-                    ("/etc/netplan/50-cloud-init.yaml", "a", 0o640),
+                    ("/etc/netplan/50-cloud-init.yaml", "a", 0o1640),
                 ),
             )
 
@@ -1315,7 +1315,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
-    return os.stat(subp.target_path(target, path)).st_mode & 0o777
+    return os.stat(subp.target_path(target, path)).st_mode & 0o7777
 
 
 # vi: ts=4 expandtab
