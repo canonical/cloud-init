@@ -428,7 +428,7 @@ class TestCombined:
     @pytest.mark.azure
     @pytest.mark.gce
     @pytest.mark.ec2
-    def test_instance_cloud_id_across_reboot_ec2(
+    def test_instance_cloud_id_across_reboot(
         self, class_client: IntegrationInstance
     ):
         client = class_client
