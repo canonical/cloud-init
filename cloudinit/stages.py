@@ -853,7 +853,7 @@ class Init:
                 return (None, cfg_source)
             if ncfg:
                 return (ncfg, cfg_source)
-        if not self.cfg["network"]:
+        if not self.cfg.get("network", True):
             LOG.warning("Empty network config found")
         return (
             self.distro.generate_fallback_config(),

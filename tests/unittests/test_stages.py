@@ -358,9 +358,7 @@ class TestInit:
 
     @mock.patch(M_PATH + "cmdline.read_initramfs_config", return_value={})
     @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config", return_value={})
-    def test_warn_on_empty_network(
-        self, m_cmdline, m_initramfs, caplog
-    ):
+    def test_warn_on_empty_network(self, m_cmdline, m_initramfs, caplog):
         """funky whitespace can lead to a network key that is None, which then
         causes fallback. Test warning log on empty network key.
         """
@@ -371,9 +369,7 @@ class TestInit:
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": None,
         }
-        self.init.datasource = FakeDataSource(
-            network_config={"network": None}
-        )
+        self.init.datasource = FakeDataSource(network_config={"network": None})
 
         self.init.distro.generate_fallback_config = lambda: {}
 
