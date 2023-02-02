@@ -1041,7 +1041,6 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             # have fully initialized the leader/subordinate relationships for
             # those devices or switches.
             if driver == "mscc_felix" or driver == "fsl_enetc":
-                print("about to debug...")
                 LOG.debug(
                     "Ignoring duplicate macs from '%s' and '%s' due to "
                     "driver '%s'.",
@@ -1049,7 +1048,6 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
                     ret[mac],
                     driver,
                 )
-                print("wtf...")
                 continue
 
             if raise_duplicate_mac_error:
