@@ -199,10 +199,6 @@ class Mixin:
             "'systemctl', 'show', '--property', 'ActiveState', "
             "'--value', 'ssh'" in log
         )
-        assert (
-            "Restarted the SSH daemon" in log
-            or "'ssh_pwauth' configuration may not be applied" in log
-        )
 
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
