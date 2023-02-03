@@ -5,3 +5,4 @@ pyyaml
 sphinx
 sphinx-design
 sphinx-copybutton
+sphinx-notfound-page
