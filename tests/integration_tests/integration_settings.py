@@ -21,6 +21,7 @@ RUN_UNSTABLE = False
 #  azure
 #  ec2
 #  gce
+#  ibm
 #  oci
 #  openstack
 PLATFORM = "lxd_container"

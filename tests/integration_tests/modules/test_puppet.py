@@ -17,7 +17,12 @@ def test_puppet_service(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
-    assert client.execute("systemctl is-active puppet").ok
+    puppet_ok = client.execute("systemctl is-active puppet.service").ok
+    puppet_agent_ok = client.execute(
+        "systemctl is-active puppet-agent.service"
+    ).ok
+    assert True in [puppet_ok, puppet_agent_ok]
+    assert False in [puppet_ok, puppet_agent_ok]
     assert "Running command ['puppet', 'agent'" not in log
 
 

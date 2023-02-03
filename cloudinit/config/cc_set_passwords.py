@@ -108,6 +108,18 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
     )
 
 
+def _restart_ssh_daemon(distro, service):
+    try:
+        distro.manage_service("restart", service)
+        LOG.debug("Restarted the SSH daemon.")
+    except subp.ProcessExecutionError as e:
+        LOG.warning(
+            "'ssh_pwauth' configuration may not be applied. Cloud-init was "
+            "unable to restart SSH daemon due to error: '%s'",
+            e,
+        )
+
+
 def handle_ssh_pwauth(pw_auth, distro: Distro):
     """Apply sshd PasswordAuthentication changes.
 
@@ -145,23 +157,19 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
 
     if distro.uses_systemd():
         state = subp.subp(
-            f"systemctl show --property ActiveState --value {service}"
-        ).stdout
+            [
+                "systemctl",
+                "show",
+                "--property",
+                "ActiveState",
+                "--value",
+                service,
+            ]
+        ).stdout.strip()
         if state.lower() in ["active", "activating", "reloading"]:
-            distro.manage_service("restart", service)
-            LOG.debug("Restarted the SSH daemon.")
-        else:
-            LOG.debug("Not restarting SSH service: service is stopped.")
+            _restart_ssh_daemon(distro, service)
     else:
-        try:
-            distro.manage_service("restart", service)
-            LOG.debug("Restarted the SSH daemon.")
-        except subp.ProcessExecutionError:
-            util.logexc(
-                LOG,
-                "Cloud-init was unable to restart SSH daemon. "
-                "'ssh_pwauth' configuration may not be applied.",
-            )
+        _restart_ssh_daemon(distro, service)
 
 
 def handle(

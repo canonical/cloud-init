@@ -276,17 +276,17 @@ def generate_interface_additional_addresses(interface, netcfg):
 
 
 # Make required adjustments to the network configs provided
-def add_interface_names(interfaces):
-    for interface in interfaces:
-        interface_name = get_interface_name(interface["mac"])
+def add_interface_names(netcfg):
+    for interface in netcfg["config"]:
+        if interface["type"] != "physical":
+            continue
+        interface_name = get_interface_name(interface["mac_address"])
         if not interface_name:
             raise RuntimeError(
                 "Interface: %s could not be found on the system"
-                % interface["mac"]
+                % interface["mac_address"]
             )
         interface["name"] = interface_name
-
-    return interfaces
 
 
 # vi: ts=4 expandtab

@@ -37,17 +37,21 @@ that can be integrated with your cloud.
 
        Step-by-step guides covering key operations and common tasks
 
-   .. grid-item-card:: **Explanation**
-       :link: explanation/index
-       :link-type: doc
-
-       Discussion and clarification of key topics
+.. grid:: 1 1 2 2
+   :gutter: 3
+   :reverse:
 
    .. grid-item-card:: **Reference**
        :link: reference/index
        :link-type: doc
 
        Technical information - specifications, APIs, architecture
+
+   .. grid-item-card:: **Explanation**
+       :link: explanation/index
+       :link-type: doc
+
+       Discussion and clarification of key topics
 
 -----
 

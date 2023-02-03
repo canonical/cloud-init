@@ -21,8 +21,8 @@ Providing user data
 You can provide user data to the VM using the dedicated `meta field`_ in the
 `server context`_ ``cloudinit-user-data``. By default, *cloud-config* format
 is expected there, and the ``#cloud-config`` header can be omitted. However,
-since this is a raw-text field you could provide any of the valid `config
-formats`_.
+since this is a raw-text field you could provide any of the valid :ref:`config
+formats<user_data_formats>`.
 
 You have the option to encode your user data using Base64. In order to do that
 you have to add the ``cloudinit-user-data`` field to the ``base64_fields``.
@@ -36,4 +36,3 @@ the value. If this field does not exist, the default value is "net".
 .. _CloudSigma: http://cloudsigma.com/
 .. _server context: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 .. _meta field: http://cloudsigma-docs.readthedocs.org/en/latest/meta.html
-.. _config formats: http://cloudinit.readthedocs.org/en/latest/topics/format.html
