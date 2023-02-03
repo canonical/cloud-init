@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "2022, Canonical Ltd."
+copyright = "Canonical Ltd."
 
 # -- General configuration ----------------------------------------------------
 
@@ -29,6 +29,7 @@ needs_sphinx = "4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "m2r2",
+    "notfound.extension",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
@@ -82,3 +83,10 @@ html_theme_options = {
 # Make sure the target is unique
 autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 2
+
+# Sphinx-copybutton config options:
+notfound_urls_prefix = '/'
+notfound_context = {
+    "title": "Page not found",
+    "body": "<h1>Page not found</h1><p>Sorry we missed you! Our docs have had a remodel and some deprecated links have changed.</p><p>We are also now hosted at: <a href='https://canonical-cloud-init.readthedocs-hosted.com'>https://canonical-cloud-init.readthedocs-hosted.com</a></p>"
+}
