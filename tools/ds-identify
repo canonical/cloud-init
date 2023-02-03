@@ -1262,9 +1262,9 @@ dscheck_OpenStack() {
         *) return ${DS_MAYBE};;
     esac
 
-    # If we are on bare metal, then we maybe are maybe on a
+    # If we are on bare metal, then we maybe are on a
     # bare metal Ironic environment.
-    if [ "$(ps --no-headers -o comm 1)" = "systemd" ] &&
+    if [ -d /run/systemd ] &&
         [ "$(systemd-detect-virt)" = "none" ]; then
         return ${DS_MAYBE}
     fi
