@@ -73,7 +73,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         return mstr
 
-    def wait_for_metadata_service(self):
+    def wait_for_metadata_service(self, max_wait=None, timeout=None):
         urls = self.ds_cfg.get("metadata_urls", DEF_MD_URLS)
         filtered = [x for x in urls if util.is_resolvable_url(x)]
         if set(filtered) != set(urls):
@@ -90,16 +90,23 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         md_urls = []
         url2base = {}
         for url in urls:
+            # Wait for a specific openstack metadata url
             md_url = url_helper.combine_url(url, "openstack")
             md_urls.append(md_url)
             url2base[md_url] = url
 
         url_params = self.get_url_params()
+        if max_wait is None:
+            max_wait = url_params.max_wait_seconds
+
+        if timeout is None:
+            timeout = url_params.timeout_seconds
+
         start_time = time.time()
         avail_url, _response = url_helper.wait_for_url(
             urls=md_urls,
-            max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds,
+            max_wait=max_wait,
+            timeout=timeout,
             connect_synchronously=False,
         )
         if avail_url:
@@ -151,9 +158,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             format is invalid or disabled.
         """
         oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
-        if not self.detect_openstack(accept_oracle=not oracle_considered):
-            LOG.debug("OpenStack datasource not running on OpenStack")
-            return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
@@ -161,6 +165,15 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                     self.fallback_interface,
                     tmp_dir=self.distro.get_tmp_exec_path(),
                 ):
+                    if not self.detect_openstack(
+                        accept_oracle=not oracle_considered
+                    ):
+                        LOG.debug(
+                            "OpenStack datasource not running"
+                            " on OpenStack (dhcp)"
+                        )
+                        return False
+
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",
@@ -170,6 +183,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                 util.logexc(LOG, str(e))
                 return False
         else:
+            if not self.detect_openstack(accept_oracle=not oracle_considered):
+                LOG.debug(
+                    "OpenStack datasource not running"
+                    " on OpenStack (non-dhcp)"
+                )
+                return False
+
             try:
                 results = self._crawl_metadata()
             except sources.InvalidMetaDataException as e:
@@ -263,7 +283,12 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             return True
         elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
             return True
-        elif not self.distro.is_virtual:
+        # On bare metal hardware, the product name is not set like
+        # in a virtual OpenStack vm. We check if the system is virtual
+        # and if the openstack specific metadata service has been found.
+        elif not self.distro.is_virtual and self.wait_for_metadata_service(
+            max_wait=15, timeout=5
+        ):
             return True
         return False
 
