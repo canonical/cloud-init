@@ -435,12 +435,15 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cloud_id = instance_data["v1"].get("cloud_id", "none")
         cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
         util.write_file(f"{cloud_id_file}-{cloud_id}", f"{cloud_id}\n")
+        # cloud-id not found, then no previous cloud-id fle
+        prev_cloud_id_file = None
+        new_cloud_id_file = f"{cloud_id_file}-{cloud_id}"
+        # cloud-id found, then the prev cloud-id file is source of symlink
         if os.path.exists(cloud_id_file):
             prev_cloud_id_file = os.path.realpath(cloud_id_file)
-        else:
-            prev_cloud_id_file = cloud_id_file
-        util.sym_link(f"{cloud_id_file}-{cloud_id}", cloud_id_file, force=True)
-        if prev_cloud_id_file != cloud_id_file:
+
+        util.sym_link(new_cloud_id_file, cloud_id_file, force=True)
+        if prev_cloud_id_file and prev_cloud_id_file != new_cloud_id_file:
             util.del_file(prev_cloud_id_file)
         write_json(json_sensitive_file, processed_data, mode=0o600)
         json_file = self.paths.get_runpath("instance_data")
