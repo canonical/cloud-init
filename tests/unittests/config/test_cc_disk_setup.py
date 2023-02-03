@@ -321,5 +321,25 @@ class TestDebugSchema:
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, schema, strict=True)
 
-
-# vi: ts=4 expandtab
+    @pytest.mark.parametrize(
+        "config",
+        (
+            (
+                {
+                    "disk_setup": {
+                        "/dev/disk/by-id/google-home": {
+                            "table_type": "gpt",
+                            "layout": [
+                                [100, "933AC7E1-2EB4-4F13-B844-0E14E2AEF915"]
+                            ],
+                        }
+                    }
+                }
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_valid_schema(self, config):
+        """Assert expected schema validation and no error messages."""
+        schema = get_schema()
+        validate_cloudconfig_schema(config, schema, strict=True)

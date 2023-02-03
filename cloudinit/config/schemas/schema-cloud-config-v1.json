@@ -1144,7 +1144,14 @@
                           {
                             "type": "array",
                             "items": {
-                              "type": "integer"
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "string"
+                                }
+                              ]
                             },
                             "minItems": 2,
                             "maxItems": 2
