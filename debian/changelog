@@ -1,3 +1,14 @@
+cloud-init (22.4.2-0ubuntu3) lunar; urgency=medium
+
+  * Upstream snapshot based on upstream/main at bdc7b040.
+    - Bugs fixed in this snapshot: (LP: #2001737, #1998526, #2000596)
+      (LP: #1851438)
+  * Upstream snapshot based on upstream/main at 3b8b4692.
+    - Bugs fixed in this snapshot: (LP: #1998998, #1997922, #2002969)
+      (LP: #2003562, #1999680)
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 03 Feb 2023 15:36:12 -0600
+
 cloud-init (22.4.2-0ubuntu2) lunar; urgency=medium
 
   * Upstream snapshot based on upstream/main at 040090a3.
