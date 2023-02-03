@@ -601,12 +601,35 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         """Return True if the distro is non-virtual."""
         m_is_x86.return_value = True
 
-        fake_ds = self._fake_ds()
-        fake_ds.distro.is_virtual = False
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = False
 
-        self.assertTrue(
-            fake_ds.detect_openstack(), "Expected detect_openstack == True"
+        fake_ds = self._fake_ds()
+        fake_ds.distro = distro
+
+        self.assertFalse(
+            fake_ds.distro.is_virtual,
+            "Expected distro.is_virtual == False",
         )
+
+        with test_helpers.mock.patch.object(
+            fake_ds, "wait_for_metadata_service"
+        ) as m_wait_for_metadata_service:
+            m_wait_for_metadata_service.return_value = True
+
+            self.assertTrue(
+                fake_ds.wait_for_metadata_service(),
+                "Expected wait_for_metadata_service == True",
+            )
+
+            self.assertTrue(
+                fake_ds.detect_openstack(), "Expected detect_openstack == True"
+            )
+
+            self.assertTrue(
+                m_wait_for_metadata_service.called,
+                "Expected wait_for_metadata_service to be called",
+            )
 
     @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
