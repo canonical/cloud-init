@@ -265,8 +265,7 @@ class Renderer(renderer.Renderer):
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
         if os.path.exists(fpnplan):
             current_mode = util.get_permissions(fpnplan)
-            current_suid_sticky_bits = current_mode & 0o7000
-            if current_mode & mode | current_suid_sticky_bits == current_mode:
+            if current_mode & mode == current_mode:
                 # preserve mode if existing perms are more strict than default
                 mode = current_mode
         util.write_file(fpnplan, header + content, mode=mode)
