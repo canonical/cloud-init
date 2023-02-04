@@ -31,7 +31,8 @@ options will be resolved by the way the zypp.conf INI file is parsed.
 The ``repos`` key may be used to add repositories to the system. Beyond the
 required ``id`` and ``baseurl`` attributions, no validation is performed
 on the ``repos`` entries. It is assumed the user is familiar with the
-zypper repository file format.
+zypper repository file format. This configuration is also applicable for
+systems with transactional-updates.
 """
 meta: MetaSchema = {
     "id": "cc_zypper_add_repo",

@@ -8,10 +8,16 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers, subp, util
+import os
+
+from cloudinit import distros, helpers
+from cloudinit import log as logging
+from cloudinit import subp, util
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
+
+LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
@@ -44,6 +50,8 @@ class Distro(distros.Distro):
         distros.Distro.__init__(self, name, cfg, paths)
         self._runner = helpers.Runners(paths)
         self.osfamily = "suse"
+        self.update_method = None
+        self.read_only_root = False
         cfg["ssh_svcname"] = "sshd"
         if self.uses_systemd():
             self.init_cmd = ["systemctl"]
@@ -66,15 +74,72 @@ class Distro(distros.Distro):
         )
 
     def package_command(self, command, args=None, pkgs=None):
+        pckg_op = command
         if pkgs is None:
             pkgs = []
 
+        if self.update_method is None:
+            result = util.get_mount_info("/")
+            fs_type = ""
+            if result:
+                (devpth, fs_type, mount_point) = result
+                # Check if the file system is read only
+                mounts = util.load_file("/proc/mounts").split("\n")
+                for mount in mounts:
+                    if mount.startswith(devpth):
+                        mount_info = mount.split()
+                        if mount_info[1] != mount_point:
+                            continue
+                        if mount_info[3].startswith("ro"):
+                            self.read_only_root = True
+                        else:
+                            self.read_only_root = False
+                        break
+                if fs_type.lower() == "btrfs" and os.path.exists(
+                    "/usr/sbin/transactional-update"
+                ):
+                    self.update_method = "transactional"
+                else:
+                    self.update_method = "zypper"
+            else:
+                LOG.info(
+                    "Could not determine filesystem type of '/' using zypper"
+                )
+                self.update_method = "zypper"
+
+        if self.read_only_root and not self.update_method == "transactional":
+            LOG.error(
+                "Package operation requested but read only root "
+                "without btrfs and transactional-updata"
+            )
+            return
+
         # No user interaction possible, enable non-interactive mode
-        cmd = ["zypper", "--non-interactive"]
+        if self.update_method == "zypper":
+            cmd = ["zypper", "--non-interactive"]
+        else:
+            cmd = [
+                "transactional-update",
+                "--non-interactive",
+                "--drop-if-no-change",
+                "pkg",
+            ]
 
         # Command is the operation, such as install
-        if command == "upgrade":
+        if pckg_op == "upgrade":
             command = "update"
+        if self.update_method == "transactional" and not pkgs:
+            command = "up"
+            cmd = [
+                "transactional-update",
+                "--non-interactive",
+                "--drop-if-no-change",
+            ]
+        # Repo refresh only modifies data in the read-write path,
+        # always uses zypper
+        if pckg_op == "refresh":
+            command = "refresh"
+            cmd = ["zypper", "--non-interactive"]
         cmd.append(command)
 
         # args are the arguments to the command, not global options
@@ -88,6 +153,11 @@ class Distro(distros.Distro):
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
+
+        if self.update_method == "transactional":
+            LOG.info(
+                "To use/activate the installed packages reboot the system"
+            )
 
     def set_timezone(self, tz):
         tz_file = self._find_tz_file(tz)
