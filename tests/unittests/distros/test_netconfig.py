@@ -1315,6 +1315,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
+    # Mask upper st_mode bits like S_IFREG bit preserve sticky and isuid/osgid
     return os.stat(subp.target_path(target, path)).st_mode & 0o7777
 
 
