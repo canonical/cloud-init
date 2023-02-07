@@ -1,6 +1,8 @@
 import abc
 import logging
 import os
+import re
+from functools import lru_cache
 from typing import List, Optional
 
 from cloudinit import net, subp, util
@@ -59,12 +61,33 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_devicelist()
 
     def get_ib_hwaddrs_by_interface(self) -> dict:
-        return net.get_ib_hwaddrs_by_interface()
+        """Build a dictionary mapping Infiniband interface names to their
+        hardware address."""
+        ret = {}
+        for name, _, _, _ in self.get_interfaces():
+            ib_mac = self.get_ib_interface_hwaddr(name, False)
+            if ib_mac is not None and ib_mac in ret:
+                raise RuntimeError(
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                    % (name, ret[ib_mac], ib_mac)
+                )
+            ret[name] = ib_mac
+        return ret
 
     def get_ib_interface_hwaddr(
         self, devname: DeviceName, ethernet_format: bool
     ):
-        return net.get_ib_interface_hwaddr(devname, ethernet_format)
+        """Returns the string value of an Infiniband interface's hardware
+        address. If ethernet_format is True, an Ethernet MAC-style 6 byte
+        representation of the address will be returned.
+        """
+        # Type 32 is Infiniband.
+        if net.read_sys_net_safe(devname, "type") == "32":
+            mac = self.get_interface_mac(devname)
+            if mac and ethernet_format:
+                # Use bytes 13-15 and 18-20 of the hardware address.
+                mac = mac[36:-14] + mac[51:]
+            return mac
 
     def get_interface_mac(self, devname: DeviceName):
         return net.get_interface_mac(devname)
@@ -259,6 +282,63 @@ class FreeBSDNetworking(BSDNetworking):
         if err == "devinfo: {}: Not found\n".format(devname):
             return True
         return False
+
+    def get_ib_interface_hwaddr(
+        self, devname: DeviceName, ethernet_format: bool
+    ):
+        """Returns the string value of an Infiniband interface's hardware
+        address. If ethernet_format is True, an Ethernet MAC-style 6 byte
+        representation of the address will be returned.
+        """
+        # Type 32 is Infiniband.
+        ib = self.get_ib_interfaces()
+        if devname in ib:
+            mac = self.get_interface_mac(devname)
+            if mac and ethernet_format:
+                # Use bytes 13-15 and 18-20 of the hardware address.
+                mac = mac[36:-14] + mac[51:]
+            return mac
+
+    def get_ib_hwaddrs_by_interface(self) -> dict:
+        """Build a dictionary mapping Infiniband interface names to their
+        hardware address."""
+        ret = {}
+        for dev, guid in self.get_ib_interfaces():
+            ib_mac = self.get_ib_interface_hwaddr(dev, False)
+            if ib_mac is not None and ib_mac in ret:
+                raise RuntimeError(
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
+                    % (dev, ret[ib_mac], ib_mac)
+                )
+            ret[dev] = ib_mac
+        return ret
+
+    @lru_cache()
+    def get_ib_interfaces(self) -> dict:
+        """Build a dictionary mapping Infiniband interface names to their
+        hardware address."""
+        try:
+            out, _ = subp.subp(["ibv_devices"])
+        except subp.ProcessExecutionError:
+            return {}
+
+        # The format from ibv_devices starts as follows:
+        #
+        # printf("    %-16s\t   node GUID\n", "device");
+        # printf("    %-16s\t----------------\n", "------");
+        #
+        # that's the part we need to skip, and then this is the part we need to
+        # parse:
+        #
+        # printf("    %-16s\t%016llx\n",
+        #       ibv_get_device_name(dev_list[i]),
+        #       (unsigned long long)
+        #       be64toh(ibv_get_device_guid(dev_list[i])));
+
+        for num, line in enumerate(out.split("\n")):
+            if num < 2 or re.fullmatch(r"""\s*""", line):
+                continue
+            device, guid = line.split()
 
 
 class LinuxNetworking(Networking):

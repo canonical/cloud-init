@@ -700,7 +700,7 @@ def _get_current_rename_info(check_downable=True):
          }}
     """
     cur_info = {}
-    for (name, mac, driver, device_id) in get_interfaces():
+    for name, mac, driver, device_id in get_interfaces():
         cur_info[name] = {
             "downable": None,
             "device_id": device_id,
@@ -733,7 +733,6 @@ def _get_current_rename_info(check_downable=True):
 def _rename_interfaces(
     renames, strict_present=True, strict_busy=True, current_info=None
 ):
-
     if not len(renames):
         LOG.debug("no interfaces to rename")
         return
@@ -899,20 +898,6 @@ def get_interface_mac(ifname):
     return read_sys_net_safe(ifname, path)
 
 
-def get_ib_interface_hwaddr(ifname, ethernet_format):
-    """Returns the string value of an Infiniband interface's hardware
-    address. If ethernet_format is True, an Ethernet MAC-style 6 byte
-    representation of the address will be returned.
-    """
-    # Type 32 is Infiniband.
-    if read_sys_net_safe(ifname, "type") == "32":
-        mac = get_interface_mac(ifname)
-        if mac and ethernet_format:
-            # Use bytes 13-15 and 18-20 of the hardware address.
-            mac = mac[36:-14] + mac[51:]
-        return mac
-
-
 def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
     if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return get_interfaces_by_mac_on_freebsd(
@@ -1065,7 +1050,6 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
         # TODO: move this format to openstack
         ib_mac = get_ib_interface_hwaddr(name, True)
         if ib_mac:
-
             # If an Ethernet mac address happens to collide with a few bits in
             # an IB GUID, prefer the ethernet address.
             #
@@ -1138,22 +1122,6 @@ def get_interfaces(blacklist_drivers=None) -> list:
         if driver in blacklist_drivers:
             continue
         ret.append((name, mac, driver, device_devid(name)))
-    return ret
-
-
-def get_ib_hwaddrs_by_interface():
-    """Build a dictionary mapping Infiniband interface names to their hardware
-    address."""
-    ret = {}
-    for name, _, _, _ in get_interfaces():
-        ib_mac = get_ib_interface_hwaddr(name, False)
-        if ib_mac:
-            if ib_mac in ret:
-                raise RuntimeError(
-                    "duplicate mac found! both '%s' and '%s' have mac '%s'"
-                    % (name, ret[ib_mac], ib_mac)
-                )
-            ret[name] = ib_mac
     return ret
 
 
