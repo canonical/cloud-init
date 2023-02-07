@@ -79,6 +79,8 @@ html_theme_options = {
     "dark_logo": "logo-dark-mode.png",
 }
 
+html_extra_path = ["googleaf254801a5285c31.html"]
+
 # Make sure the target is unique
 autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 2
