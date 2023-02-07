@@ -1264,9 +1264,9 @@ dscheck_OpenStack() {
 
     # If we are on bare metal, then we maybe are on a
     # bare metal Ironic environment.
-    if [ -d /run/systemd ] &&
-        [ "$(systemd-detect-virt)" = "none" ]; then
-        return ${DS_MAYBE}
+    detect_virt
+    if [ "${_RET}" = "none" ]; then
+      return ${DS_MAYBE}
     fi
 
     return ${DS_NOT_FOUND}
