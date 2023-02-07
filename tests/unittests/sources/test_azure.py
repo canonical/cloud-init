@@ -3966,6 +3966,7 @@ class TestIMDS:
             fake_http_error_for_code(410),
             fake_http_error_for_code(429),
             fake_http_error_for_code(500),
+            requests.ConnectionError("Fake connection error"),
             requests.Timeout("Fake connection timeout"),
         ],
     )
@@ -4007,6 +4008,7 @@ class TestIMDS:
             fake_http_error_for_code(410),
             fake_http_error_for_code(429),
             fake_http_error_for_code(500),
+            requests.ConnectionError("Fake connection error"),
             requests.Timeout("Fake connection timeout"),
         ],
     )
@@ -4049,7 +4051,6 @@ class TestIMDS:
         [
             fake_http_error_for_code(403),
             fake_http_error_for_code(501),
-            requests.ConnectionError("Fake Network Unreachable"),
         ],
     )
     def test_will_not_retry_errors(

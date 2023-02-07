@@ -35,7 +35,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["alpine", "amazon", "fedora", "openEuler", "openmandriva"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "fedora", "openEuler", "openmandriva", "photon"] or is_rhel %}
 {% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
@@ -44,10 +44,12 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
 {% endif %}
+{% if variant not in ["photon"] %}
 resize_rootfs_tmp: /dev
 ssh_pwauth:   false
-
 {% endif %}
+{% endif %}
+
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 

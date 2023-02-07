@@ -440,18 +440,22 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                 ],
             ),
-            (  # Assert 404 on devices
+            (  # Assert 404 on devices logs about skipping
                 True,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
+                    # No devices URL response, so 404 raised
                 },
-                InvalidMetaDataException(
-                    "Invalid HTTP response [404] from http://lxd/1.0/devices"
-                ),
+                {
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {},
+                    "meta-data": "local-hostname: md\n",
+                },
                 [
                     "[GET] [HTTP:200] http://lxd/1.0/meta-data",
                     "[GET] [HTTP:200] http://lxd/1.0/config",
+                    "Skipping http://lxd/1.0/devices on [HTTP:404]",
                 ],
             ),
             (  # Assert non-JSON format from devices

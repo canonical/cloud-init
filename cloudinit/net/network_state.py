@@ -989,7 +989,7 @@ def _normalize_net_keys(network, address_keys=()):
 
     @returns: A dict containing normalized prefix and matching addr_key.
     """
-    net = dict((k, v) for k, v in network.items() if v)
+    net = {k: v for k, v in network.items() if v or v == 0}
     addr_key = None
     for key in address_keys:
         if net.get(key):

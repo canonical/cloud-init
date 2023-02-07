@@ -716,9 +716,13 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
         ):
             datasource.get_data()
-        self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
-        # A symlink with the generic /run/cloud-init/cloud-id link is present
-        self.assertTrue(util.is_link(cloud_id_link))
+            self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
+            # A symlink with the generic /run/cloud-init/cloud-id
+            # link is present
+            self.assertTrue(util.is_link(cloud_id_link))
+            datasource.persist_instance_data()
+            # cloud-id<cloud-type> not deleted: no cloud-id change
+            self.assertTrue(os.path.exists(cloud_id_file))
         # When cloud-id changes, symlink and content change
         with mock.patch(
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud2"

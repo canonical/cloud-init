@@ -1,4 +1,4 @@
-# Security Policy
+# Security policy
 
 The following documents the upstream cloud-init security policy.
 
@@ -30,7 +30,7 @@ removal from the list for the company or individual involved.
 If the reported bug is deemed a real security issue a CVE is assigned by
 the Canonical Security Team as CVE Numbering Authority (CNA).
 
-If it is deemed a regular, non-security, issue, the reporter will be asked to
+If it is deemed a regular, non-security issue, the reporter will be asked to
 follow typical bug reporting procedures.
 
 In addition to the disclosure timeline, the core Canonical cloud-init team

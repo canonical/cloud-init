@@ -108,6 +108,18 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
     )
 
 
+def _restart_ssh_daemon(distro, service):
+    try:
+        distro.manage_service("restart", service)
+        LOG.debug("Restarted the SSH daemon.")
+    except subp.ProcessExecutionError as e:
+        LOG.warning(
+            "'ssh_pwauth' configuration may not be applied. Cloud-init was "
+            "unable to restart SSH daemon due to error: '%s'",
+            e,
+        )
+
+
 def handle_ssh_pwauth(pw_auth, distro: Distro):
     """Apply sshd PasswordAuthentication changes.
 
@@ -117,47 +129,6 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
 
     @return: None"""
     service = distro.get_option("ssh_svcname", "ssh")
-    restart_ssh = True
-    try:
-        distro.manage_service("status", service)
-    except subp.ProcessExecutionError as e:
-        uses_systemd = distro.uses_systemd()
-        if not uses_systemd:
-            LOG.debug(
-                "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
-                " will not be restarted because it is not running or not"
-                " available.",
-                pw_auth,
-                service,
-            )
-            restart_ssh = False
-        elif e.exit_code == 3:
-            # Service is not running. Write ssh config.
-            LOG.debug(
-                "Writing config 'ssh_pwauth: %s'. SSH service '%s'"
-                " will not be restarted because it is stopped.",
-                pw_auth,
-                service,
-            )
-            restart_ssh = False
-        elif e.exit_code == 4:
-            # Service status is unknown
-            LOG.warning(
-                "Ignoring config 'ssh_pwauth: %s'."
-                " SSH service '%s' is not installed.",
-                pw_auth,
-                service,
-            )
-            return
-        else:
-            LOG.warning(
-                "Ignoring config 'ssh_pwauth: %s'."
-                " SSH service '%s' is not available. Error: %s.",
-                pw_auth,
-                service,
-                e,
-            )
-            return
 
     cfg_name = "PasswordAuthentication"
 
@@ -184,11 +155,21 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         LOG.debug("No need to restart SSH service, %s not updated.", cfg_name)
         return
 
-    if restart_ssh:
-        distro.manage_service("restart", service)
-        LOG.debug("Restarted the SSH daemon.")
+    if distro.uses_systemd():
+        state = subp.subp(
+            [
+                "systemctl",
+                "show",
+                "--property",
+                "ActiveState",
+                "--value",
+                service,
+            ]
+        ).stdout.strip()
+        if state.lower() in ["active", "activating", "reloading"]:
+            _restart_ssh_daemon(distro, service)
     else:
-        LOG.debug("Not restarting SSH service: service is stopped.")
+        _restart_ssh_daemon(distro, service)
 
 
 def handle(

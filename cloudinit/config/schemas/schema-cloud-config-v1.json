@@ -1144,7 +1144,14 @@
                           {
                             "type": "array",
                             "items": {
-                              "type": "integer"
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "string"
+                                }
+                              ]
                             },
                             "minItems": 2,
                             "maxItems": 2
@@ -2519,7 +2526,7 @@
               "deprecated": true
             }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
         },
         "chpasswd": {
           "type": "object",

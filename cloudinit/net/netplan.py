@@ -1,6 +1,7 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import ipaddress
 import os
 import textwrap
 from typing import Optional, cast
@@ -120,6 +121,28 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                     "via": subnet.get("gateway"),
                     "to": "default",
                 }
+                try:
+                    subnet_gateway = ipaddress.ip_address(subnet["gateway"])
+                    subnet_network = ipaddress.ip_network(addr, strict=False)
+                    # If the gateway is not contained within the subnet's
+                    # network, mark it as on-link so that it can still be
+                    # reached.
+                    if subnet_gateway not in subnet_network:
+                        LOG.debug(
+                            "Gateway %s is not contained within subnet %s,"
+                            " adding on-link flag",
+                            subnet["gateway"],
+                            addr,
+                        )
+                        new_route["on-link"] = True
+                except ValueError as e:
+                    LOG.warning(
+                        "Failed to check whether gateway %s"
+                        " is contained within subnet %s: %s",
+                        subnet["gateway"],
+                        addr,
+                        e,
+                    )
                 routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
@@ -263,6 +286,11 @@ class Renderer(renderer.Renderer):
             header += "\n"
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+        if os.path.exists(fpnplan):
+            current_mode = util.get_permissions(fpnplan)
+            if current_mode & mode == current_mode:
+                # preserve mode if existing perms are more strict than default
+                mode = current_mode
         util.write_file(fpnplan, header + content, mode=mode)
 
         if self.clean_default:

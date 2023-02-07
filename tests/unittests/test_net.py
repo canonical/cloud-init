@@ -34,6 +34,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     dir2dict,
+    does_not_raise,
     mock,
     populate_dir,
 )
@@ -5225,7 +5226,7 @@ USERCTL=no
                 # Created by cloud-init on instance boot automatically, do not edit.
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
-                ::0/64 via 2a00:1730:fff9:100::1  dev eth0
+                ::0/0 via 2a00:1730:fff9:100::1  dev eth0
                 """  # noqa: E501
             ),
         }
@@ -6288,6 +6289,44 @@ class TestNetplanNetRendering:
                       set-name: interface0
                 """,
                 id="one_subnet_old_new_gateway46",
+            ),
+            # Assert gateways outside of the subnet's network are added with
+            # the on-link flag
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.255.1
+                      - type: static
+                        address: 2001:cafe::/64
+                        gateway: 2001:ffff::1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      - 2001:cafe::/64
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.255.1
+                          on-link: true
+                      -   to: default
+                          via: 2001:ffff::1
+                          on-link: true
+                      set-name: interface0
+                """,
+                id="onlink_gateways",
             ),
         ],
     )
@@ -7970,6 +8009,7 @@ class TestInterfaceHasOwnMac(CiTestCase):
     mock.Mock(return_value=False),
 )
 class TestGetInterfacesByMac(CiTestCase):
+    with_logs = True
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -8181,6 +8221,24 @@ class TestGetInterfacesByMac(CiTestCase):
             ib_addr: "ib0",
         }
         self.assertEqual(expected, result)
+
+    def test_duplicate_ignored_macs(self):
+        # LP: #199792
+        self._data = copy.deepcopy(self._data)
+        self._data["macs"]["swp0"] = "9a:57:7d:78:47:c0"
+        self._data["macs"]["swp1"] = "9a:57:7d:78:47:c0"
+        self._data["own_macs"].append("swp0")
+        self._data["own_macs"].append("swp1")
+        self._data["drivers"]["swp0"] = "mscc_felix"
+        self._data["drivers"]["swp1"] = "mscc_felix"
+        self._mock_setup()
+        with does_not_raise():
+            net.get_interfaces_by_mac()
+        pattern = (
+            "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
+            "driver 'mscc_felix'."
+        )
+        assert re.search(pattern, self.logs.getvalue())
 
 
 class TestInterfacesSorting(CiTestCase):

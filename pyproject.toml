@@ -21,7 +21,6 @@ module = [
   "configobj",
   "debconf",
   "httplib",
-  "httpretty",
   "jsonpatch",
   "netifaces",
   "paramiko.*",
