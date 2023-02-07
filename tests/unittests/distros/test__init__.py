@@ -221,6 +221,60 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"]
         )
 
+    @mock.patch("cloudinit.distros.uses_systemd")
+    @mock.patch(
+        "cloudinit.distros.subp.which",
+    )
+    @mock.patch(
+        "cloudinit.distros.subp.subp",
+    )
+    def test_virtualization_detected(self, m_subp, m_which, m_uses_systemd):
+        m_uses_systemd.return_value = True
+        m_which.return_value = "/usr/bin/systemd-detect-virt"
+        m_subp.return_value = ("kvm", None)
+
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.assertTrue(d.is_virtual)
+
+    @mock.patch("cloudinit.distros.uses_systemd")
+    @mock.patch(
+        "cloudinit.distros.subp.subp",
+    )
+    def test_virtualization_not_detected(self, m_subp, m_uses_systemd):
+        m_uses_systemd.return_value = True
+        m_subp.return_value = ("none", None)
+
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.assertFalse(d.is_virtual)
+
+    @mock.patch("cloudinit.distros.uses_systemd")
+    def test_virtualization_unknown(self, m_uses_systemd):
+        m_uses_systemd.return_value = True
+
+        from cloudinit.subp import ProcessExecutionError
+
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        with mock.patch(
+            "cloudinit.distros.subp.which",
+            return_value=None,
+        ):
+            self.assertIsNone(
+                d.is_virtual,
+                "Reflect unknown state when detection"
+                " binary cannot be found",
+            )
+
+        with mock.patch(
+            "cloudinit.distros.subp.subp",
+            side_effect=ProcessExecutionError(),
+        ):
+            self.assertIsNone(
+                d.is_virtual, "Reflect unknown state on ProcessExecutionError"
+            )
+
 
 class TestGetPackageMirrors:
     def return_first(self, mlist):
