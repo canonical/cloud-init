@@ -2,7 +2,18 @@
 
 Package builders under this folder are development only templates. Do not rely on them.
 
-Downstream packaging resources:
+## Build/Install
+
+Cloud-init's build/install procedure is not OS/Distro independent as cloud-init
+is tightly couple to OS implementation details, as for example,
+the init units' definitions, see [systemd/](systemd/) and [sysvinit/](sysvinit/).
+
+For users interested into trying out cloud-init, a pre-built image is the easiest option.
+
+For users interested into packaging cloud-init, see the reference implementations under this folder
+and official packages in the following section.
+
+## Downstream packaging resources
 
 * [arch](https://archlinux.org/packages/community/any/cloud-init/)
 * [alpine](https://pkgs.alpinelinux.org/packages?name=cloud-init)
