@@ -10,7 +10,7 @@ the init units' definitions, see [systemd/](systemd/) and [sysvinit/](sysvinit/)
 
 For users interested into trying out cloud-init, a pre-built image is the easiest option.
 
-For users interested into packaging cloud-init, see the reference implementations under this folder
+For users interested in packaging cloud-init, see the reference implementations under this folder
 and official packages in the following section.
 
 ## Downstream packaging resources
