@@ -11,7 +11,6 @@ import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
-from functools import partial
 from itertools import chain
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
@@ -29,7 +28,6 @@ except ImportError:
     ValidationError = Exception  # type: ignore
 
 
-error = partial(error, sys_exit=True)
 LOG = logging.getLogger(__name__)
 
 VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
@@ -424,10 +422,14 @@ def validate_cloudconfig_schema(
 
     errors: SchemaProblems = []
     deprecations: SchemaProblems = []
-    for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
-        path = ".".join([str(p) for p in error.path])
-        problem = (SchemaProblem(path, error.message),)
-        if isinstance(error, SchemaDeprecationError):  # pylint: disable=W1116
+    for schema_error in sorted(
+        validator.iter_errors(config), key=lambda e: e.path
+    ):
+        path = ".".join([str(p) for p in schema_error.path])
+        problem = (SchemaProblem(path, schema_error.message),)
+        if isinstance(
+            schema_error, SchemaDeprecationError
+        ):  # pylint: disable=W1116
             deprecations += problem
         else:
             errors += problem
@@ -610,23 +612,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
     """
-    if config_path is None:
-        # Use system's raw userdata path
-        if os.getuid() != 0:
-            raise RuntimeError(
-                "Unable to read system userdata as non-root user."
-                " Try using sudo"
-            )
-        init = Init(ds_deps=[])
-        init.fetch(existing="trust")
-        init.consume_data()
-        content = load_file(init.paths.get_ipath("cloud_config"), decode=False)
-    else:
-        if not os.path.exists(config_path):
-            raise RuntimeError(
-                "Configfile {0} does not exist".format(config_path)
-            )
-        content = load_file(config_path, decode=False)
+    content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
         errors = [
             SchemaProblem(
@@ -693,7 +679,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
                     schema_deprecations=e.schema_deprecations,
                 )
             )
-        else:
+        elif e.schema_deprecations:
             message = _format_schema_problems(
                 e.schema_deprecations,
                 prefix="Cloud config schema deprecations: ",
@@ -1063,7 +1049,8 @@ def load_doc(requested_modules: list) -> str:
             "Invalid --docs value {}. Must be one of: {}".format(
                 list(invalid_docs),
                 ", ".join(all_modules),
-            )
+            ),
+            sys_exit=True,
         )
     for mod_name in all_modules:
         if "all" in requested_modules or mod_name in requested_modules:
@@ -1164,28 +1151,80 @@ def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
     exclusive_args = [args.config_file, args.docs, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
-        error("Expected one of --config-file, --system or --docs arguments")
+        error(
+            "Expected one of --config-file, --system or --docs arguments",
+            sys_exit=True,
+        )
     if args.annotate and args.docs:
-        error("Invalid flag combination. Cannot use --annotate with --docs")
+        error(
+            "Invalid flag combination. Cannot use --annotate with --docs",
+            sys_exit=True,
+        )
     full_schema = get_schema()
-    if args.config_file or args.system:
-        try:
-            validate_cloudconfig_file(
-                args.config_file, full_schema, args.annotate
+    if args.docs:
+        print(load_doc(args.docs))
+        return
+    if args.config_file:
+        config_files = (("user-data", args.config_file),)
+    elif args.system:
+        if os.getuid() != 0:
+            error(
+                "Unable to read system userdata or vendordata as non-root"
+                " user. Try using sudo.",
+                sys_exit=True,
             )
+        init = Init(ds_deps=[])
+        init.fetch(existing="trust")
+        userdata_file = init.paths.get_ipath("cloud_config")
+        config_files = (("user-data", userdata_file),)
+        vendor_config_files = (
+            ("vendor-data", init.paths.get_ipath("vendor_cloud_config")),
+            ("vendor2-data", init.paths.get_ipath("vendor2_cloud_config")),
+        )
+        for cfg_type, vendor_file in vendor_config_files:
+            if os.path.exists(vendor_file):
+                config_files += ((cfg_type, vendor_file),)
+    if not os.path.exists(config_files[0][1]):
+        error(
+            f"Config file {config_files[0][1]} does not exist",
+            fmt="Error: {}",
+            sys_exit=True,
+        )
+
+    nested_output_prefix = ""
+    multi_config_output = bool(len(config_files) > 1)
+    if multi_config_output:
+        print(
+            "Found cloud-config data types: %s"
+            % ", ".join(cfg_type for cfg_type, _ in config_files)
+        )
+        nested_output_prefix = "  "
+
+    error_types = []
+    for idx, (cfg_type, cfg_file) in enumerate(config_files, 1):
+        if multi_config_output:
+            print(f"\n{idx}. {cfg_type} at {cfg_file}:")
+        try:
+            validate_cloudconfig_file(cfg_file, full_schema, args.annotate)
         except SchemaValidationError as e:
             if not args.annotate:
-                error(str(e))
+                print(f"{nested_output_prefix}Invalid cloud-config {cfg_file}")
+                error(
+                    str(e),
+                    fmt=nested_output_prefix + "Error: {}\n",
+                )
+                error_types.append(cfg_type)
         except RuntimeError as e:
-            error(str(e))
+            print(f"{nested_output_prefix}Invalid cloud-config {cfg_type}")
+            error(str(e), fmt=nested_output_prefix + "Error: {}\n")
+            error_types.append(cfg_type)
         else:
-            if args.config_file is None:
-                cfg_name = "system userdata"
-            else:
-                cfg_name = args.config_file
-            print("Valid cloud-config:", cfg_name)
-    elif args.docs:
-        print(load_doc(args.docs))
+            print(f"{nested_output_prefix}Valid cloud-config: {cfg_type}")
+    if error_types:
+        error(
+            ", ".join(error_type for error_type in error_types),
+            fmt="Error: Invalid cloud-config schema: {}\n",
+        )
 
 
 def main():

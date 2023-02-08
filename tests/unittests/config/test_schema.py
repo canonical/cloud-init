@@ -17,7 +17,6 @@ from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
 import pytest
-import responses
 
 from cloudinit import stages
 from cloudinit.config.schema import (
@@ -282,7 +281,7 @@ class TestValidateCloudConfigSchema:
         ((None, 1), ({"properties": {"p1": {"type": "string"}}}, 0)),
     )
     @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.schema.get_schema")
+    @mock.patch(M_PATH + "get_schema")
     def test_validateconfig_schema_use_full_schema_when_no_schema_param(
         self, get_schema, schema, call_count
     ):
@@ -638,14 +637,6 @@ class TestValidateCloudConfigFile:
     """Tests for validate_cloudconfig_file."""
 
     @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_error_on_absent_file(self, annotate):
-        """On absent config_path, validate_cloudconfig_file errors."""
-        with pytest.raises(
-            RuntimeError, match="Configfile /not/here does not exist"
-        ):
-            validate_cloudconfig_file("/not/here", {}, annotate)
-
-    @pytest.mark.parametrize("annotate", (True, False))
     def test_validateconfig_file_error_on_invalid_header(
         self, annotate, tmpdir
     ):
@@ -708,59 +699,10 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
 
     @skipUnlessJsonSchema()
-    @responses.activate
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_validateconfig_file_include_validates_schema(
-        self, m_getuid, m_sleep, annotate, mocker
-    ):
-        """validate_cloudconfig_file raises errors on invalid schema
-        when user-data uses `#include`."""
-        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        included_data = "#cloud-config\np1: -1"
-        included_url = "http://asdf/user-data"
-        blob = f"#include {included_url}"
-        responses.add(responses.GET, included_url, included_data)
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-
-        error_msg = (
-            "Cloud config schema errors: p1: -1 is not of type 'string'"
-        )
-        with pytest.raises(SchemaValidationError, match=error_msg):
-            validate_cloudconfig_file(None, schema, annotate)
-
-    @skipUnlessJsonSchema()
-    @responses.activate
-    @pytest.mark.parametrize("annotate", (True, False))
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_validateconfig_file_include_success(
-        self, m_getuid, m_sleep, annotate, mocker
-    ):
-        """validate_cloudconfig_file raises errors on invalid schema
-        when user-data uses `#include`."""
-        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        included_data = "#cloud-config\np1: asdf"
-        included_url = "http://asdf/user-data"
-        blob = f"#include {included_url}"
-        responses.add(responses.GET, included_url, included_data)
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-
-        validate_cloudconfig_file(None, schema, annotate)
-
-    @skipUnlessJsonSchema()
-    @pytest.mark.parametrize("annotate", (True, False))
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_validateconfig_file_no_cloud_cfg(
-        self, m_getuid, m_sleep, annotate, capsys, mocker
+        self, m_sleep, annotate, capsys, mocker
     ):
         """validate_cloudconfig_file does noop with empty user-data."""
         schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
@@ -769,15 +711,18 @@ class TestValidateCloudConfigFile:
         ci = stages.Init()
         ci.datasource = FakeDataSource(blob)
         mocker.patch(M_PATH + "Init", return_value=ci)
+        cloud_config_file = ci.paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"")
 
         with pytest.raises(
             SchemaValidationError,
             match=re.escape(
-                "Cloud config schema errors: format-l1.c1: File None needs"
-                ' to begin with "#cloud-config"'
+                "Cloud config schema errors: format-l1.c1:"
+                f" File {cloud_config_file} needs to begin with"
+                ' "#cloud-config"'
             ),
         ):
-            validate_cloudconfig_file(None, schema, annotate)
+            validate_cloudconfig_file(cloud_config_file, schema, annotate)
 
 
 class TestSchemaDocMarkdown:
@@ -1582,7 +1527,7 @@ class TestMain:
                 main()
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
-        assert "Error:\nConfigfile NOT_A_FILE does not exist\n" == err
+        assert "Error: Config file NOT_A_FILE does not exist\n" == err
 
     def test_main_invalid_flag_combo(self, capsys):
         """Main exits non-zero when invalid flag combo used."""
@@ -1614,24 +1559,48 @@ class TestMain:
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: {0}\n".format(myyaml) == out
+        assert "Valid cloud-config: user-data\n" == out
 
     @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_main_validates_system_userdata(
-        self, m_getuid, capsys, mocker, paths
+    def test_main_validates_system_userdata_and_vendordata(
+        self, _getuid, capsys, mocker, paths
     ):
         """When --system is provided, main validates system userdata."""
         m_init = mocker.patch(M_PATH + "Init")
         m_init.return_value.paths.get_ipath = paths.get_ipath_cur
         cloud_config_file = paths.get_ipath_cur("cloud_config")
         write_file(cloud_config_file, b"#cloud-config\nntp:")
+        vd_file = paths.get_ipath_cur("vendor_cloud_config")
+        write_file(vd_file, b"#cloud-config\nssh_import_id: [me]")
+        vd2_file = paths.get_ipath_cur("vendor2_cloud_config")
+        write_file(vd2_file, b"#cloud-config\nssh_pw_auth: true")
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
+            main()
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: system userdata\n" == out
 
-    @mock.patch("cloudinit.config.schema.os.getuid", return_value=1000)
+        expected = dedent(
+            """\
+        Found cloud-config data types: user-data, vendor-data, vendor2-data
+
+        1. user-data at {ud_file}:
+          Valid cloud-config: user-data
+
+        2. vendor-data at {vd_file}:
+          Valid cloud-config: vendor-data
+
+        3. vendor2-data at {vd2_file}:
+          Valid cloud-config: vendor2-data
+        """
+        )
+        assert (
+            expected.format(
+                ud_file=cloud_config_file, vd_file=vd_file, vd2_file=vd2_file
+            )
+            == out
+        )
+
+    @mock.patch(M_PATH + "os.getuid", return_value=1000)
     def test_main_system_userdata_requires_root(self, m_getuid, capsys, paths):
         """Non-root user can't use --system param"""
         myargs = ["mycmd", "--system"]
@@ -1641,8 +1610,8 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         expected = (
-            "Error:\nUnable to read system userdata as non-root user. "
-            "Try using sudo\n"
+            "Error:\nUnable to read system userdata or vendordata as non-root"
+            " user. Try using sudo.\n"
         )
         assert expected == err
 
@@ -1794,7 +1763,7 @@ class TestHandleSchemaArgs:
                     # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
-                    Valid cloud-config: {}
+                    Valid cloud-config: user-data
                     """  # noqa: E501
                 ),
             ),
@@ -1806,7 +1775,7 @@ class TestHandleSchemaArgs:
 apt_reboot_if_required: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
 apt_update: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``, \
 apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    Valid cloud-config: {}
+                    Valid cloud-config: user-data
                     """  # noqa: E501
                 ),
             ),
@@ -1837,6 +1806,6 @@ apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Defa
         )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
-        assert expected_output.format(user_data_fn) == out
+        assert expected_output.format(cfg_file=user_data_fn) == out
         assert not err
         assert "deprec" not in caplog.text
