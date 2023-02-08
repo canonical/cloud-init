@@ -24,7 +24,84 @@ Index: cloud-init/tests/unittests/distros/test_netconfig.py
 ===================================================================
 --- cloud-init.orig/tests/unittests/distros/test_netconfig.py
 +++ cloud-init/tests/unittests/distros/test_netconfig.py
-@@ -1039,12 +1039,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
+@@ -592,32 +592,41 @@ class TestNetCfgDistroUbuntuNetplan(Test
+             (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
+         )
+ 
+-        self._apply_and_verify_netplan(
+-            self.distro.apply_network_config,
+-            V1_NET_CFG,
+-            expected_cfgs=expected_cfgs,
+-        )
++        with mock.patch.object(
++            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", True
++        ):
++            self._apply_and_verify_netplan(
++                self.distro.apply_network_config,
++                V1_NET_CFG,
++                expected_cfgs=expected_cfgs,
++            )
+ 
+     def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
+         expected_cfgs = (
+             (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
+         )
+ 
+-        self._apply_and_verify_netplan(
+-            self.distro.apply_network_config,
+-            V1_NET_CFG_IPV6,
+-            expected_cfgs=expected_cfgs,
+-        )
++        with mock.patch.object(
++            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", True
++        ):
++            self._apply_and_verify_netplan(
++                self.distro.apply_network_config,
++                V1_NET_CFG_IPV6,
++                expected_cfgs=expected_cfgs,
++            )
+ 
+     def test_apply_network_config_v2_passthrough_ub(self):
+         expected_cfgs = (
+             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
+         )
+-        self._apply_and_verify_netplan(
+-            self.distro.apply_network_config,
+-            V2_NET_CFG,
+-            expected_cfgs=expected_cfgs,
+-        )
++        with mock.patch.object(
++            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", True
++        ):
++            self._apply_and_verify_netplan(
++                self.distro.apply_network_config,
++                V2_NET_CFG,
++                expected_cfgs=expected_cfgs,
++            )
+ 
+     def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
+         """Custom permissions on existing netplan is kept when more strict."""
+@@ -657,11 +666,14 @@ class TestNetCfgDistroUbuntuNetplan(Test
+         expected_cfgs = (
+             (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
+         )
+-        self._apply_and_verify_netplan(
+-            self.distro.apply_network_config,
+-            V2_PASSTHROUGH_NET_CFG,
+-            expected_cfgs=expected_cfgs,
+-        )
++        with mock.patch.object(
++            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", True
++        ):
++            self._apply_and_verify_netplan(
++                self.distro.apply_network_config,
++                V2_PASSTHROUGH_NET_CFG,
++                expected_cfgs=expected_cfgs,
++            )
+         self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
+         self.assertIn(
+             "Selected renderer 'netplan' from priority list: ['netplan']",
+@@ -1056,12 +1068,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
          with mock.patch(
              "cloudinit.net.netplan.get_devicelist", return_value=[]
          ):
