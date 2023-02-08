@@ -85,7 +85,6 @@ autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 2
 
 # Sphinx-copybutton config options:
-notfound_urls_prefix = "/"
 notfound_body = (
     "<h1>Page not found</h1><p>Sorry we missed you! Our docs have had a"
     " remodel and some deprecated links have changed.</p><p>"
