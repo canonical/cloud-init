@@ -8,7 +8,7 @@ Cloud-init's build/install procedure is not OS/Distro independent as cloud-init
 is tightly couple to OS implementation details, as for example,
 the init units' definitions, see [systemd/](systemd/) and [sysvinit/](sysvinit/).
 
-For users interested into trying out cloud-init, a pre-built image is the easiest option.
+For users interested in trying out cloud-init, a pre-built image is the easiest option.
 
 For users interested in packaging cloud-init, see the reference implementations under this folder
 and official packages in the following section.
