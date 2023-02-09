@@ -32,6 +32,7 @@ class Ifstate:
         self.inet = {}
         self.inet6 = {}
         self.up = False
+        self.infiniband = False
         self.options = []
         self.nd6 = []
         self.flags = []
@@ -160,6 +161,11 @@ class Ifconfig:
             if toks[0] == "hwaddr":
                 dev.macs.append(toks[1])
                 ifs_by_mac[toks[1]].append(dev)
+            if toks[0] == "lladdr":
+                if len(toks[1].split(".")) == 20:
+                    dev.infiniband = True
+                dev.macs.append(toks[1])
+                ifs_by_mac[toks[1]].append(dev)
 
             if toks[0] == "groups:":
                 dev.groups += toks[1:]
@@ -199,6 +205,13 @@ class Ifconfig:
 
     def ifs_by_mac(self):
         return self._ifs_by_mac
+
+    def get_ib_interfaces(self):
+        return {
+            k: v
+            for (k, v) in self._ifs_by_name.items()
+            if v.infiniband is True
+        }
 
     def _parse_inet(self, toks: list) -> Tuple[str, dict]:
         broadcast = None

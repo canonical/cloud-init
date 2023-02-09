@@ -33,6 +33,21 @@ class TestIfconfigParserFreeBSD(TestCase):
         ifs = Ifconfig().parse(self.ifs_txt)
         assert ifs["vnet0:11"].description == "'associated with jail: webirc'"
 
+    def test_infiniband(self):
+        """assert ib0 is infiniband and has GUID as MAC"""
+        ifs = Ifconfig().parse(self.ifs_txt)
+        assert ifs["ib0"].infiniband is True
+        assert (
+            ifs["ib0"].macs[0]
+            == "0.0.1.5.fe.80.0.0.0.0.0.0.b8.59.9f.3.0.ec.56.cc"
+        )
+
+    def test_get_ib_interfaces(self):
+        """assert that Ifconfig.get_ib_interfaces returns ib0 and ib1"""
+        ifc = Ifconfig()
+        ifc.parse(self.ifs_txt)
+        assert list(ifc.get_ib_interfaces().keys()) == ["ib0", "ib1"]
+
     def test_vtnet_options(self):
         """assert vtnet has TXCSUM"""
         ifs = Ifconfig().parse(self.ifs_txt)
