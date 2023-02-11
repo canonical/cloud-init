@@ -1,4 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 import pytest
 
 from cloudinit import subp
@@ -8,27 +10,15 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 NL = "\n"
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_kernel_modules"
 
 
-class FakeCloud:
-    def __init__(self, distro):
-        self.distro = distro
-
-
-class TestKernelModules(CiTestCase):
-
-    with_logs = True
-    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
-
-    def setUp(self):
-        super(TestKernelModules, self).setUp()
-        self.tmp = self.tmp_dir()
-
+class TestKernelModules:
     def test_suppl_schema_error_on_missing_keys(self):
         """ValueError raised reporting any missing required keys"""
         cfg = {}
@@ -36,7 +26,7 @@ class TestKernelModules(CiTestCase):
             f"Invalid kernel_modules configuration:{NL}"
             "Missing required kernel_modules keys: name"
         )
-        with self.assertRaisesRegex(ValueError, match):
+        with pytest.raises(ValueError, match=match):
             cc_kernel_modules.supplemental_schema_validation(cfg)
 
     def test_suppl_schema_error(self):
@@ -61,24 +51,23 @@ class TestKernelModules(CiTestCase):
             "Expected an array for kernel_modules:persist:softdep:pre. "
             "Found not-an-array.",
         ]
-        with self.assertRaises(ValueError) as context_mgr:
+        with pytest.raises(ValueError) as context_mgr:
             cc_kernel_modules.supplemental_schema_validation(cfg)
-        error_msg = str(context_mgr.exception)
+        error_msg = str(context_mgr.value)
         for error in errors:
-            self.assertIn(error, error_msg)
+            assert error in error_msg
 
     def test_prepare_module_failed(self):
         """Errors when trying to prepare modules"""
         module_name = "wireguard"
 
-        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
-        with self.assertRaises(RuntimeError) as context_mgr:
+        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG
+        with pytest.raises(RuntimeError) as context_mgr:
             cc_kernel_modules.prepare_module(module_name)
-        self.assertIn(
+        assert (
             "Failure appending kernel module 'wireguard' to file "
-            f"{CFG_FILES['load']['path']}:\n",
-            str(context_mgr.exception),
-        )
+            f"{CFG_FILES['load']['path']}:\n"
+        ) in str(context_mgr.value)
 
     def test_enhance_module_failed(self):
         """Errors when trying to enhance modules"""
@@ -87,34 +76,33 @@ class TestKernelModules(CiTestCase):
             "alias": "wireguard-alias",
             "install": "/usr/sbin/modprobe zfs",
         }
-        unload_modules = []
-
-        with self.assertRaises(RuntimeError) as context_mgr:
+        match = "Failure enhancing kernel module 'wireguard':\n"
+        with pytest.raises(RuntimeError, match=match):
             cc_kernel_modules.enhance_module(
-                module_name, persist, unload_modules
+                module_name=module_name, persist=persist, unload_modules=[]
             )
-        self.assertIn(
-            "Failure enhancing kernel module 'wireguard':\n",
-            str(context_mgr.exception),
-        )
 
     def test_reload_modules_failed(self):
         """Errors when reloading modules"""
-        distro = mock.MagicMock()  # No errors raised
-        distro.manage_service.side_effect = subp.ProcessExecutionError(
-            "Failed to find module 'ip_tables'"
-        )
-        mycloud = FakeCloud(distro)
-        with self.assertRaises(RuntimeError) as context_mgr:
-            cc_kernel_modules.reload_modules(mycloud)
-        self.assertEqual(
+        # distro = mock.MagicMock()  # No errors raised
+        # distro.manage_service.side_effect = subp.ProcessExecutionError(
+        #   "Failed to find module 'ip_tables'"
+        # )
+        mycloud = get_cloud()
+        match = (
             "Could not load modules with systemd-modules-load:\n"
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
             "Stdout: Failed to find module 'ip_tables'\n"
-            "Stderr: -",
-            str(context_mgr.exception),
+            "Stderr: -"
         )
+        with mock.patch.object(mycloud.distro, "manage_service") as manage_svc:
+            manage_svc.side_effect = subp.ProcessExecutionError(
+                "Failed to find module 'ip_tables'"
+            )
+
+            with pytest.raises(RuntimeError, match=match):
+                cc_kernel_modules.reload_modules(mycloud)
 
     @mock.patch("%s.subp.subp" % MPATH)
     def test_update_initial_ramdisk_failed(self, m_subp):
@@ -124,15 +112,15 @@ class TestKernelModules(CiTestCase):
             "update-initramfs: execution error"
         )
 
-        with self.assertRaises(RuntimeError) as context_mgr:
-            cc_kernel_modules.update_initial_ramdisk()
-        self.assertIn(
+        match = (
             "Failed to update initial ramdisk:\n"
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
-            "Stdout: update-initramfs: execution error\nStderr: -",
-            str(context_mgr.exception),
+            "Stdout: update-initramfs: execution error\nStderr: -"
         )
+        mycloud = get_cloud()
+        with pytest.raises(RuntimeError, match=match):
+            cc_kernel_modules.update_initial_ramdisk(mycloud)
 
     @mock.patch("cloudinit.util.del_file")
     def test_cleanup_failed(self, m_wr):
@@ -140,30 +128,30 @@ class TestKernelModules(CiTestCase):
 
         m_wr.side_effect = Exception("file write exception")
 
-        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG["km_files"]
-        with self.assertRaises(RuntimeError) as context_mgr:
+        CFG_FILES = cc_kernel_modules.DEFAULT_CONFIG
+        error_msg = f"Could not delete file {CFG_FILES['load']['path']}:\n"
+        with pytest.raises(RuntimeError, match=error_msg):
             cc_kernel_modules.cleanup()
-        self.assertIn(
-            f"Could not delete file {CFG_FILES['load']['path']}:\n",
-            str(context_mgr.exception),
-        )
 
-    @mock.patch("%s.subp.subp" % MPATH)
-    @mock.patch("%s.is_loaded" % MPATH)
-    def test_unload_failed(self, m_subp, m_is_loaded):
+    def test_wb_unload_failed(self):
         """Errors when unloading kernel modules"""
 
-        m_subp.side_effect = subp.ProcessExecutionError("unload exception")
-        m_is_loaded.return_value = True
+        mycloud = get_cloud()
 
-        unload_modules = ["wireguard"]
+        def fake_manage_kernel_module(action, module=""):
+            if action == "list":
+                return ("kvm\nwireguard", "")
+            else:
+                raise subp.ProcessExecutionError("unload exception")
 
-        with self.assertRaises(RuntimeError) as context_mgr:
-            cc_kernel_modules.unload(unload_modules)
-        self.assertIn(
-            "Could not unload kernel module wireguard:\n",
-            str(context_mgr.exception),
-        )
+        match = "Could not unload kernel module wireguard:\n"
+        with mock.patch.object(
+            mycloud.distro,
+            "manage_kernel_module",
+            side_effect=fake_manage_kernel_module,
+        ):
+            with pytest.raises(RuntimeError, match=match):
+                cc_kernel_modules.unload(cloud=mycloud, modules=["wireguard"])
 
 
 class TestKernelModulesSchema:

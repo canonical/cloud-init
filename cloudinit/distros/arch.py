@@ -18,6 +18,7 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     init_cmd = ["systemctl"]  # init scripts
+    update_initramfs_cmd = []  # TODO(define mkinicpio support)
     renderer_configs = {
         "netplan": {
             "netplan_path": CLOUDINIT_NETPLAN_FILE,

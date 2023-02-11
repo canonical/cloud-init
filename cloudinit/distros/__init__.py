@@ -134,7 +134,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
-    init_cmd = ["service"]  # systemctl, service etc
+    init_cmd: List[str] = ["service"]  # systemctl, service etc
+
+    kernel_module_cmd_map: Mapping[str, str] = {
+        "list": ["lsmod"],
+        "load": ["insmod"],
+        "unload": ["rmmod"],
+    }
+    update_initramfs_cmd: List[str] = ["update-initramfs", "-u", "-k", "all"]
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking

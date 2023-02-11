@@ -30,6 +30,7 @@ class Distro(distros.Distro):
     keymap_path = "/usr/share/bkeymaps/"
     locale_conf_fn = "/etc/profile.d/50-cloud-init-locale.sh"
     network_conf_fn = "/etc/network/interfaces"
+    update_initramfs_cmd = []  # TODO(define initramfs support)
     renderer_configs = {
         "eni": {"eni_path": network_conf_fn, "eni_header": NETWORK_FILE_HEADER}
     }

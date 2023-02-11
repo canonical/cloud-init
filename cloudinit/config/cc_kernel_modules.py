@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Kernel Modules"""
-import copy
 import re
 from array import array
 from logging import Logger
@@ -17,7 +16,7 @@ from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = dedent(
     """\
-Manages and enhances kernel modules on a systemd based system.
+Manages and enhances kernel modules on a systemd-based system.
 This module is capable of loading kernel modules at boot as well as
 enhancing it with parameters.
 Beside applying settings during runtime it will also persist all
@@ -60,20 +59,13 @@ NL = "\n"
 REQUIRED_KERNEL_MODULES_KEYS = frozenset(["name"])
 
 DEFAULT_CONFIG: dict = {
-    "km_cmd": {
-        "update": ["update-initramfs", "-u", "-k", "all"],
-        "unload": ["rmmod"],
-        "is_loaded": ["lsmod"],
+    "load": {
+        "path": "/etc/modules-load.d/50-cloud-init.conf",
+        "permissions": 0o600,
     },
-    "km_files": {
-        "load": {
-            "path": "/etc/modules-load.d/50-cloud-init.conf",
-            "permissions": 0o600,
-        },
-        "persist": {
-            "path": "/etc/modprobe.d/50-cloud-init.conf",
-            "permissions": 0o600,
-        },
+    "persist": {
+        "path": "/etc/modprobe.d/50-cloud-init.conf",
+        "permissions": 0o600,
     },
 }
 
@@ -110,14 +102,24 @@ def persist_schema_validation(persist: dict) -> List[str]:
                     f"persist:{key}. Found {value}."
                 )
         elif key == "softdep":
-            for sdkey, sdvalue in sorted(persist[key].items()):
-                if sdkey in ("pre", "post"):
-                    if not isinstance(sdvalue, array):
+            for sdkey, sdvalues in sorted(persist[key].items()):
+                if sdkey not in ("pre", "post"):
+                    errors.append(
+                        "Unexpected key kernel_modules:persist:{sdkey}."
+                        " Should be one of: pre, post"
+                    )
+                else:
+                    if not isinstance(sdvalues, array):
                         errors.append(
-                            "Expected an array for kernel_modules:persist:"
-                            f"softdep:{sdkey}. Found {sdvalue}."
+                            "Expected an array for"
+                            f" kernel_modules:persist:softdep:{sdkey}."
+                            f" Found {sdvalues}."
                         )
-
+                    for sditem in sdvalues:
+                        if not isinstance(sditem, str):
+                            "Expected array of strings for"
+                            f" kernel_modules:persist:softdep:{sdkey}."
+                            " Found {sditem}."
     return errors
 
 
@@ -175,15 +177,15 @@ def prepare_module(module_name: str):
     try:
         LOG.debug("Appending kernel module %s", module_name)
         util.write_file(
-            DEFAULT_CONFIG["km_files"]["load"]["path"],
+            DEFAULT_CONFIG["load"]["path"],
             module_name + NL,
-            DEFAULT_CONFIG["km_files"]["load"]["permissions"],
+            DEFAULT_CONFIG["load"]["permissions"],
             omode="a",
         )
     except Exception as e:
         raise RuntimeError(
             f"Failure appending kernel module '{module_name}' to file "
-            f'{DEFAULT_CONFIG["km_files"]["load"]["path"]}:{NL}{str(e)}'
+            f'{DEFAULT_CONFIG["load"]["path"]}:{NL}{str(e)}'
         ) from e
 
 
@@ -217,9 +219,9 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
 
         try:
             util.write_file(
-                DEFAULT_CONFIG["km_files"]["persist"]["path"],
+                DEFAULT_CONFIG["persist"]["path"],
                 entry + NL,
-                DEFAULT_CONFIG["km_files"]["persist"]["permissions"],
+                DEFAULT_CONFIG["persist"]["permissions"],
                 omode="a",
             )
         except Exception as e:
@@ -238,8 +240,8 @@ def cleanup():
     """
 
     LOG.debug("Cleaning up kernel modules")
-    for action in sorted(DEFAULT_CONFIG["km_files"].keys()):
-        file_path = DEFAULT_CONFIG["km_files"][action]["path"]
+    for action in sorted(DEFAULT_CONFIG.keys()):
+        file_path = DEFAULT_CONFIG[action]["path"]
         LOG.debug("Removing file %s", file_path)
         try:
             util.del_file(file_path)
@@ -257,43 +259,20 @@ def reload_modules(cloud: Cloud):
 
     @raises RuntimeError
     """
-
+    LOG.debug("Reloading kernel modules")
     try:
-        out = cloud.distro.manage_service("restart", "systemd-modules-load")
-        if re.search("Failed", out.stdout.strip()):
-            raise Exception(out.stdout.strip())
+        (out, _err) = cloud.distro.manage_service(
+            "restart", "systemd-modules-load"
+        )
+        if re.search("Failed", out):
+            raise RuntimeError(out.stdout.strip())
     except (subp.ProcessExecutionError, Exception) as e:
         raise RuntimeError(
             f"Could not load modules with systemd-modules-load:{NL}{str(e)}"
         ) from e
 
 
-def is_loaded(module_name: str) -> bool:
-    """
-    Checks if a kernel module is already loaded
-
-    @param module_name: name of kernel module
-
-    @return bool
-    """
-    loaded = False
-    try:
-        out = subp.subp(
-            DEFAULT_CONFIG["km_cmd"]["is_loaded"], capture=True, shell=True
-        )
-        if re.search("^" + module_name, out.stdout.strip()):
-            LOG.debug("Kernel module %s is loaded", module_name)
-            loaded = True
-    except subp.ProcessExecutionError as e:
-        util.logexc(
-            LOG,
-            f"Could not determine status of module {module_name}:{NL}{str(e)}",
-        )
-
-    return loaded
-
-
-def unload(modules: list):
+def unload(cloud: Cloud, modules: list):
     """Unloads a list of kernel module
 
     This function unloads a list of kernel modules.
@@ -303,30 +282,34 @@ def unload(modules: list):
 
     @raises RuntimeError
     """
-
-    cmd = copy.copy(DEFAULT_CONFIG["km_cmd"]["unload"])
+    (out, _err) = cloud.distro.manage_kernel_module("list")
+    loaded_modules = out.splitlines()
     for module in set(modules):
-        cmd.append(module)
-        try:
-            if is_loaded(module):
-                LOG.debug("Unloading kernel module %s", module)
-                subp.subp(cmd)
-        except subp.ProcessExecutionError as e:
-            raise RuntimeError(
-                f"Could not unload kernel module {module}:{NL}{str(e)}"
-            ) from e
+        if module in loaded_modules:
+            try:
+                cloud.distro.manage_kernel_module("unload", module)
+            except subp.ProcessExecutionError as e:
+                raise RuntimeError(
+                    f"Could not unload kernel module {module}:{NL}{str(e)}"
+                ) from e
 
 
-def update_initial_ramdisk():
+def update_initial_ramdisk(cloud: Cloud):
     """Update initramfs for all installed kernels
 
-    @param distro_cfg: Distro config
+    :param distro_cfg: Distro config
 
-    @raises RuntimeError
+    :raises: RuntimeError on command failure to update initramfs
+             NotImplementedError on lack of distro support
     """
-    LOG.debug("Update initramfs")
+    if not cloud.distro.update_initramfs_cmd:
+        raise NotImplementedError(
+            "Unable to update initramfs for %s. Kernel module changes will not"
+            " persist across reboot",
+            cloud.distro.name,
+        )
     try:
-        subp.subp(DEFAULT_CONFIG["km_cmd"]["update"])
+        subp.subp(cloud.distro.update_initramfs_cmd)
     except subp.ProcessExecutionError as e:
         raise RuntimeError(
             f"Failed to update initial ramdisk:{NL}{str(e)}"
@@ -378,12 +361,10 @@ def handle(
             enhance_module(module["name"], module["persist"], unload_modules)
 
     # rebuild initial ramdisk
-    update_initial_ramdisk()
+    update_initial_ramdisk(cloud)
 
     # Unload modules (blacklisted or 'load' is false)
-    log.info("Unloading kernel modules")
-    unload(unload_modules)
+    unload(cloud, unload_modules)
 
     # reload kernel modules
-    log.info("Reloading kernel modules")
     reload_modules(cloud)

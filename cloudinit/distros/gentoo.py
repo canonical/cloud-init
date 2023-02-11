@@ -19,6 +19,13 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     hostname_conf_fn = "/etc/conf.d/hostname"
+    init_cmd = ["rc-service"]  # init scripts
+    kernel_module_cmd_map = {
+        "list": ["lsmod"],
+        "load": ["modprobe"],
+        "unload": ["modprobe", "-r"],
+    }
+    update_initramfs = ["update-initramfs", "-u", "-k", "all"]
     default_locale = "en_US.UTF-8"
 
     # C.UTF8 makes sense to generate, but is not selected
