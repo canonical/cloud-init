@@ -19,6 +19,10 @@ class Distro(distros.Distro):
     network_conf_dir = "/etc/systemd/network/"
     systemd_locale_conf_fn = "/etc/locale.conf"
     resolve_conf_fn = "/etc/systemd/resolved.conf"
+    kernel_module_cmd_map = {
+        "list": ["lsmod"],  # TODO(sort load and unload for kernel modules)
+    }
+    update_initramfs_cmd = []
 
     renderer_configs = {
         "networkd": {

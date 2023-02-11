@@ -20,6 +20,9 @@ class BSD(distros.Distro):
     # poweroff.
     shutdown_options_map = {"halt": "-H", "poweroff": "-p", "reboot": "-r"}
 
+    kernel_module_cmd_map = {}  # TODO(define modunload/modload/modstat)
+    update_initramfs_cmd = []  # TODO(define initramfs support)
+
     # Set in BSD distro subclasses
     group_add_cmd_prefix: List[str] = []
     pkg_cmd_install_prefix: List[str] = []

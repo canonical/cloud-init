@@ -36,6 +36,8 @@ class Distro(distros.Distro):
     network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+
+    update_initramfs_cmd = []  # TODO(dracut support to regen initramfs)
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network",

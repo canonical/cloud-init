@@ -25,6 +25,7 @@ class Distro(distros.Distro):
     systemd_hostname_conf_fn = "/etc/hostname"
     systemd_locale_conf_fn = "/etc/locale.conf"
     tz_local_fn = "/etc/localtime"
+    update_initramfs = []  # TODO(dracut support to regen initramfs)
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network/config",

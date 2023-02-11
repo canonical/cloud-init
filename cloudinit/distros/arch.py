@@ -22,6 +22,7 @@ class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
     init_cmd = ["systemctl"]  # init scripts
+    update_initramfs_cmd = []  # TODO(define mkinicpio support)
     renderer_configs = {
         "netplan": {
             "netplan_path": "/etc/netplan/50-cloud-init.yaml",

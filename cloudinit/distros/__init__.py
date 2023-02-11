@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, MutableMapping, Optional, Type
+from typing import Any, List, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -88,7 +88,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
-    init_cmd = ["service"]  # systemctl, service etc
+    init_cmd: List[str] = ["service"]  # systemctl, service etc
+
+    kernel_module_cmd_map: Mapping[str, str] = {
+        "list": ["lsmod"],
+        "load": ["insmod"],
+        "unload": ["rmmod"],
+    }
+    update_initramfs_cmd: List[str] = ["update-initramfs", "-u", "-k", "all"]
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
@@ -906,6 +913,33 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if message:
             args.append(message)
         return args
+
+    def manage_kernel_module(
+        self, action: str, kernel_module: Optional[str] = None
+    ):
+        """
+        Perform the requested load, unload, persist for a kernel module.
+
+        :param action: String of operation to perform, one of the following:
+            - load: load the kernel module in the running environment
+            - unload: remove kernel module from the running environment
+            - list: List all loaded kernel modules
+
+        :raises: NotImplementedError on distros without specific support
+                 ProcessExecutionError on failure on non-zero exit for command
+        """
+        if action not in self.kernel_module_cmd_map:
+            raise NotImplementedError(
+                f"Unable to %s kernel module {action} on {kernel_module}."
+                f" Not implemented for distro {self.name}."
+            )
+        cmd = self.kernel_module_cmd_map[action]
+        if action != "list":
+            cmd += kernel_module
+            LOG.debug(
+                "%sing kernel module %s", action, kernel_module.capitalize()
+            )
+        return subp.subp(cmd, capture=True)
 
     def manage_service(self, action: str, service: str):
         """

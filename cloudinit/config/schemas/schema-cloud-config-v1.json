@@ -3526,10 +3526,10 @@
       "$ref": "#/$defs/cc_install_hotplug"
     },
     {
-      "$ref": "#/$defs/cc_keyboard"
+      "$ref": "#/$defs/cc_kernel_modules"
     },
     {
-      "$ref": "#/$defs/cc_kernel_modules"
+      "$ref": "#/$defs/cc_keyboard"
     },
     {
       "$ref": "#/$defs/cc_keys_to_console"
