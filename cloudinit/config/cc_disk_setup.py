@@ -657,7 +657,7 @@ def get_partition_gpt_layout(size, layout):
 def purge_disk_ptable(device):
     # wipe the first and last megabyte of a disk (or file)
     # gpt stores partition table both at front and at end.
-    null = "\0"
+    null = b"\0"
     start_len = 1024 * 1024
     end_len = 1024 * 1024
     with open(device, "rb+") as fp:

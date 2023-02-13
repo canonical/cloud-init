@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import random
+import tempfile
 
 import pytest
 
@@ -200,6 +201,23 @@ class TestUpdateFsSetupDevices(TestCase):
         )
 
 
+class TestPurgeDisk(TestCase):
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.read_parttbl", return_value=None
+    )
+    def test_purge_disk_ptable(self, *args):
+        pseudo_device = tempfile.NamedTemporaryFile()
+
+        cc_disk_setup.purge_disk_ptable(pseudo_device.name)
+
+        with pseudo_device as f:
+            actual = f.read()
+
+        expected = b"\0" * (1024 * 1024)
+
+        self.assertEqual(expected, actual)
+
+
 @mock.patch(
     "cloudinit.config.cc_disk_setup.assert_and_settle_device",
     return_value=None,
@@ -211,7 +229,6 @@ class TestUpdateFsSetupDevices(TestCase):
 @mock.patch("cloudinit.config.cc_disk_setup.device_type", return_value=None)
 @mock.patch("cloudinit.config.cc_disk_setup.subp.subp", return_value=("", ""))
 class TestMkfsCommandHandling(CiTestCase):
-
     with_logs = True
 
     def test_with_cmd(self, subp, *args):
