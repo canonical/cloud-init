@@ -162,12 +162,13 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecated_changed_or_new_msg(config: dict, annotate=False) -> str:
+def _add_deprecated_changed_or_new_msg(config: dict, annotate=False, key_type=None) -> str:
     """combine description with new/changed/deprecated message
 
     deprecated/changed/new keys require a _version key (this is verified
     in a unittest), a _description key is optional
     """
+    keys = key_type if key_type else ["changed", "new", "deprecated"]
 
     def format_message(key: str):
         if not config.get(f"{key}"):
@@ -188,16 +189,17 @@ def _add_deprecated_changed_or_new_msg(config: dict, annotate=False) -> str:
 
     # build a deprecation/new/changed string, if required
     changed_new_deprecated = "".join(
-        map(format_message, ["changed", "new", "deprecated"])
+        map(format_message, keys)
     )
     return f"{description}{changed_new_deprecated}".rstrip()
 
 
-def _validator_deprecated(
+def _validator(
     _validator,
     deprecated: bool,
     _instance,
     schema: dict,
+    key_type: str,
     error_type: Type[Exception] = SchemaDeprecationError,
 ):
     """Jsonschema validator for `deprecated` items.
@@ -206,9 +208,11 @@ def _validator_deprecated(
     otherwise the instance is consider faulty.
     """
     if deprecated:
-        msg = _add_deprecated_changed_or_new_msg(schema, annotate=True)
+        msg = _add_deprecated_changed_or_new_msg(schema, annotate=True, key_type=[key_type])
         yield error_type(msg)
 
+_validator_deprecated = partial(_validator, key_type="deprecated")
+_validator_changed = partial(_validator, key_type="changed")
 
 def _anyOf(
     validator,
@@ -338,7 +342,7 @@ def get_jsonschema_validator():
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
     validators[DEPRECATED_KEY] = _validator_deprecated
-    validators["changed"] = _validator_deprecated
+    validators["changed"] = _validator_changed
     validators["oneOf"] = _oneOf
     validators["anyOf"] = _anyOf
 
