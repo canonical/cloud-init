@@ -1893,7 +1893,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
 ``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
  apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
 ``package_upgrade`` instead.\
-                    Valid cloud-config: {}
+                    Valid cloud-config: user-data
                     """  # noqa: E501
                 ),
             ),
