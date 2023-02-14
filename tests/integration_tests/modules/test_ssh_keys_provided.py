@@ -70,6 +70,7 @@ ssh_keys:
     1M6G15dqjQ2XkNVOEnb5AAAAD3Jvb3RAeGVuaWFsLWx4ZAECAwQFBg==
     -----END OPENSSH PRIVATE KEY-----
   ed25519_public: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6G15dqjQ2XkNVOEnb5 root@xenial-lxd
+  ed25519_certificate: ssh-ed25519-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIAGbMtat76PmaoqQ7B2lDvhnzE47psvMvmnPhz6f423ZAAAAINudAZSu4vjZpVWzId5pXmZg1M6G15dqjQ2XkNVOEnb5AAAAAAAAAAAAAAACAAAAA2x4ZAAAAAAAAAAAY+0LHAAAAABlzO1rAAAAAAAAAAAAAAAAAAABFwAAAAdzc2gtcnNhAAAAAwEAAQAAAQEAtPx6PqN3iSEsnTtibyIEy52Tra8T5fn0ryXyg46Di2NBwdnjo8trNv9jenfV/UhmePl58lXjT43wV8OCMl6KsYXyBdegM35NNtono4I4mLLKFMR99TOtDn6iYcaNenVhF3ZCj9Z2nNOlTrdc0uchHqKMrxLjCRCUrL91Uf+xioTF901YRM+ZqC5lT92yAL76F4qPF+Lq1QtUfNfUIwwvOp5ccDZLPxij0YvyBzubYye9hJHuyjbJv78R4JHV+L2WhzSoX3W/6WrxVzeXqFGqH894ccOaC/7tnqSP6V8lIQ6fE2+cDurJcpM3CJRgkndGHjtU55Y71YkcdLksSMvezQAAARQAAAAMcnNhLXNoYTItNTEyAAABAC8VDdaBkdt9jRW2Wh7A54rtbWyoafEtA8rud9UHgq3fSLFvWMBBe19/MJZXs+xWkdvSuG49ZeaEWi7ZO3SQaUbmXp2L5CH6TNnok3yo5QL2h01gP6+ydn98cA8lktvZt/+ihSqXpeSAg6S755W0zqlaeT5iyopSmNt4/wLh8FvgXR+TrAEe2EEXcPcLEXrBrPkjoLZ8j/pzLFJHHmlme/JcHPGMB7ksGG9nKr6ZViB3VPshdxP4iqpORv4Ro+UBUaS1AoHe0mZsccr7gKg7Xe6lhqHT2Fwlkk9B1zsWWUTjWU4TeG9FrJCjSAGCHLdHUszhCOsQHOOf9aR2095mbI8= root@xenial-lxd
   ecdsa_private: |
     -----BEGIN EC PRIVATE KEY-----
     MHcCAQEEIDuK+QFc1wmyJY8uDqQVa1qHte30Rk/fdLxGIBkwJAyOoAoGCCqGSM49
@@ -138,7 +139,11 @@ class TestSshKeysProvided:
         assert expected_out in out
 
     @pytest.mark.parametrize(
-        "expected_out", ("HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub")
+        "expected_out",
+        (
+            "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
+            "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub",
+        ),
     )
     def test_sshd_config(self, expected_out, class_client):
         if ImageSpecification.from_os_image().release in {"bionic"}:

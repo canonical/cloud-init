@@ -8,6 +8,7 @@
 
 import os
 import pwd
+from typing import List, Sequence, Tuple
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -499,18 +500,18 @@ class SshdConfigLine:
             return v
 
 
-def parse_ssh_config(fname):
+def parse_ssh_config(fname) -> List[SshdConfigLine]:
     if not os.path.isfile(fname):
         return []
     return parse_ssh_config_lines(util.load_file(fname).splitlines())
 
 
-def parse_ssh_config_lines(lines):
+def parse_ssh_config_lines(lines) -> List[SshdConfigLine]:
     # See: man sshd_config
     # The file contains keyword-argument pairs, one per line.
     # Lines starting with '#' and empty lines are interpreted as comments.
     # Note: key-words are case-insensitive and arguments are case-sensitive
-    ret = []
+    ret: List[SshdConfigLine] = []
     for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
@@ -554,11 +555,7 @@ def _includes_dconf(fname: str) -> bool:
     return False
 
 
-def update_ssh_config(updates, fname=DEF_SSHD_CFG):
-    """Read fname, and update if changes are necessary.
-
-    @param updates: dictionary of desired values {Option: value}
-    @return: boolean indicating if an update was done."""
+def _ensure_cloud_init_ssh_config_file(fname):
     if _includes_dconf(fname):
         if not os.path.isdir(f"{fname}.d"):
             util.ensure_dir(f"{fname}.d", mode=0o755)
@@ -566,12 +563,21 @@ def update_ssh_config(updates, fname=DEF_SSHD_CFG):
         if not os.path.isfile(fname):
             # Ensure root read-only:
             util.ensure_file(fname, 0o600)
+    return fname
+
+
+def update_ssh_config(updates, fname=DEF_SSHD_CFG):
+    """Read fname, and update if changes are necessary.
+
+    @param updates: dictionary of desired values {Option: value}
+    @return: boolean indicating if an update was done."""
+    fname = _ensure_cloud_init_ssh_config_file(fname)
     lines = parse_ssh_config(fname)
     changed = update_ssh_config_lines(lines=lines, updates=updates)
     if changed:
         util.write_file(
             fname,
-            "\n".join([str(line) for line in lines]) + "\n",
+            "\n".join(map(str, lines)) + "\n",
             preserve_mode=True,
         )
     return len(changed) != 0
@@ -621,6 +627,19 @@ def update_ssh_config_lines(lines, updates):
                 "line %d: option %s added with %s", len(lines), key, value
             )
     return changed
+
+
+def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
+    if not lines:
+        return
+    fname = _ensure_cloud_init_ssh_config_file(fname)
+    content = (f"{k} {v}" for k, v in lines)
+    util.write_file(
+        fname,
+        "\n".join(content) + "\n",
+        omode="ab",
+        preserve_mode=True,
+    )
 
 
 # vi: ts=4 expandtab
