@@ -10,6 +10,7 @@ import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
+from functools import partial
 from itertools import chain
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
 
@@ -162,7 +163,7 @@ def is_schema_byte_string(checker, instance):
 
 
 def _add_deprecated_changed_or_new_msg(
-    config: dict, annotate=False, key_type=None
+    config: dict, annotate=False, filter_key=None
 ) -> str:
     """combine description with new/changed/deprecated message
 
@@ -186,7 +187,9 @@ def _add_deprecated_changed_or_new_msg(
         return f"\n\n*{msg.strip()}*"
 
     # define print order
-    filter_keys = key_type if key_type else ["deprecated", "changed", "new"]
+    filter_keys = (
+        filter_key if filter_key else ["deprecated", "changed", "new"]
+    )
 
     # build a deprecation/new/changed string
     changed_new_deprecated = "".join(map(format_message, filter_keys))
@@ -199,7 +202,7 @@ def _validator(
     deprecated: bool,
     _instance,
     schema: dict,
-    key_type: str,
+    filter_key: str,
     error_type: Type[Exception] = SchemaDeprecationError,
 ):
     """Jsonschema validator for `deprecated` items.
@@ -209,13 +212,13 @@ def _validator(
     """
     if deprecated:
         msg = _add_deprecated_changed_or_new_msg(
-            schema, annotate=True, key_type=[key_type]
+            schema, annotate=True, filter_key=[filter_key]
         )
         yield error_type(msg)
 
 
-_validator_deprecated = partial(_validator, key_type="deprecated")
-_validator_changed = partial(_validator, key_type="changed")
+_validator_deprecated = partial(_validator, filter_key="deprecated")
+_validator_changed = partial(_validator, filter_key="changed")
 
 
 def _anyOf(
