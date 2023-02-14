@@ -4,7 +4,6 @@ import argparse
 import json
 import logging
 import os
-import pdb
 import re
 import sys
 import textwrap
@@ -162,37 +161,36 @@ def is_schema_byte_string(checker, instance):
     ) or isinstance(instance, (bytes,))
 
 
-def _add_deprecated_changed_or_new_msg(config: dict, annotate=False, key_type=None) -> str:
+def _add_deprecated_changed_or_new_msg(
+    config: dict, annotate=False, key_type=None
+) -> str:
     """combine description with new/changed/deprecated message
 
     deprecated/changed/new keys require a _version key (this is verified
     in a unittest), a _description key is optional
     """
 
-    # set the print order of keys, optionally pass in filter (for logs and annotation)
-    filter_keys = key_type if key_type else ["deprecated", "changed", "new"]
-
     def format_message(key: str):
         if not config.get(f"{key}"):
             return ""
-        deprecated_description = config.get(f"{key}_description", "")
-        version = config.get(
+        key_description = config.get(f"{key}_description", "")
+        v = config.get(
             f"{key}_version",
             f"<missing {key}_version key, please file a bug report>",
         )
-        msg = f"{key.capitalize()} in version {version}. {deprecated_description}"
+        msg = f"{key.capitalize()} in version {v}. {key_description}"
         if annotate:
             return f" {msg}"
 
-        # italicised RST should not have whitespace between astrisk and text
+        # italicised RST - no whitespace between astrisk and text
         return f"\n\n*{msg.strip()}*"
 
-    description = config.get("description", "")
+    # define print order
+    filter_keys = key_type if key_type else ["deprecated", "changed", "new"]
 
-    # build a deprecation/new/changed string, if required
-    changed_new_deprecated = "".join(
-        map(format_message, filter_keys)
-    )
+    # build a deprecation/new/changed string
+    changed_new_deprecated = "".join(map(format_message, filter_keys))
+    description = config.get("description", "")
     return f"{description}{changed_new_deprecated}".rstrip()
 
 
@@ -210,11 +208,15 @@ def _validator(
     otherwise the instance is consider faulty.
     """
     if deprecated:
-        msg = _add_deprecated_changed_or_new_msg(schema, annotate=True, key_type=[key_type])
+        msg = _add_deprecated_changed_or_new_msg(
+            schema, annotate=True, key_type=[key_type]
+        )
         yield error_type(msg)
+
 
 _validator_deprecated = partial(_validator, key_type="deprecated")
 _validator_changed = partial(_validator, key_type="changed")
+
 
 def _anyOf(
     validator,
@@ -893,8 +895,8 @@ def _get_property_description(prop_config: dict) -> str:
 
     oneOf = prop_config.get("oneOf", {})
     anyOf = prop_config.get("anyOf", {})
-    descriptions = []
-    deprecated_descriptions = []
+    descriptions: list = []
+    deprecated_descriptions: list = []
 
     assign_descriptions(prop_config, descriptions, deprecated_descriptions)
     for sub_item in chain(oneOf, anyOf):

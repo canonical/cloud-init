@@ -87,7 +87,10 @@ class TestUpdateEtcHosts:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: manage_etc_hosts:  Changed in version 22.3. Use of ``template`` is deprecated, use ``true`` instead."
+                        "Cloud config schema deprecations: "
+                        "manage_etc_hosts:  Changed in version 22.3. "
+                        "Use of ``template`` is deprecated, use "
+                        "``true`` instead."
                     ),
                 ),
             ),

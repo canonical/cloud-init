@@ -206,7 +206,10 @@ class TestGrubDpkgSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: grub_dpkg.grub-pc/install_devices_empty:  Changed in version 22.3. Use a boolean value instead."
+                        "Cloud config schema deprecations: "
+                        "grub_dpkg.grub-pc/install_devices_empty:  "
+                        "Changed in version 22.3. Use a boolean value "
+                        "instead."
                     ),
                 ),
                 False,
@@ -232,7 +235,9 @@ class TestGrubDpkgSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: grub-dpkg:  Deprecated in version 22.2. Use ``grub_dpkg`` instead."
+                        "Cloud config schema deprecations: grub-dpkg:"
+                        "  Deprecated in version 22.2. Use "
+                        "``grub_dpkg`` instead."
                     ),
                 ),
                 False,

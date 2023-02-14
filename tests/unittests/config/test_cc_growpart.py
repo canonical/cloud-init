@@ -599,7 +599,10 @@ class TestGrowpartSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: growpart.mode:  Changed in version 22.3. Specifying a boolean ``false`` value for ``mode`` is deprecated. Use ``off`` instead."
+                        "Cloud config schema deprecations: "
+                        "growpart.mode:  Changed in version 22.3. "
+                        "Specifying a boolean ``false`` value for "
+                        "``mode`` is deprecated. Use ``off`` instead."
                     ),
                 ),
             ),

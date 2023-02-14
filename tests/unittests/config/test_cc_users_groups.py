@@ -365,7 +365,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: users.0.lock-passwd: Default: ``true`` Deprecated in version 22.3. Use ``lock_passwd`` instead."
+                        "Cloud config schema deprecations: "
+                        "users.0.lock-passwd: Default: ``true`` "
+                        "Deprecated in version 22.3. Use "
+                        "``lock_passwd`` instead."
                     ),
                 ),
                 False,
@@ -385,7 +388,14 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: users.0.groups.adm: When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to Deprecated in version 23.1., users.0.groups.sudo: When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to Deprecated in version 23.1."
+                        "Cloud config schema deprecations: "
+                        "users.0.groups.adm: When providing an object "
+                        "for users.groups the ``<group_name>`` keys "
+                        "are the groups to add this user to Deprecated"
+                        " in version 23.1., users.0.groups.sudo: When "
+                        "providing an object for users.groups the "
+                        "``<group_name>`` keys are the groups to add "
+                        "this user to Deprecated in version 23.1."
                     ),
                 ),
                 False,
@@ -435,7 +445,11 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: user.groups.sbuild: When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to Deprecated in version 23.1."
+                        "Cloud config schema deprecations: "
+                        "user.groups.sbuild: When providing an object "
+                        "for users.groups the ``<group_name>`` keys "
+                        "are the groups to add this user to Deprecated"
+                        " in version 23.1."
                     ),
                 ),
                 False,
@@ -445,7 +459,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: user.sudo:  Changed in version 22.2. The value ``false`` is deprecated for this key, use ``null`` instead."
+                        "Cloud config schema deprecations: user.sudo:"
+                        "  Changed in version 22.2. The value "
+                        "``false`` is deprecated for this key, use "
+                        "``null`` instead."
                     ),
                 ),
                 False,
@@ -460,7 +477,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: users.0.uid:  Changed in version 22.3. The use of ``string`` type is deprecated. Use an ``integer`` instead."
+                        "Cloud config schema deprecations: "
+                        "users.0.uid:  Changed in version 22.3. The "
+                        "use of ``string`` type is deprecated. Use "
+                        "an ``integer`` instead."
                     ),
                 ),
                 False,

@@ -149,7 +149,9 @@ class TestVersionedSchemas:
 
 class TestCheckSchema(unittest.TestCase):
     def test_schema_bools_have_dates(self):
-        """ensure that new/changed/deprecated keys have an associated version key"""
+        """ensure that new/changed/deprecated keys have an associated
+        version key
+        """
 
         def check_deprecation_keys(schema, search_key):
             if search_key in schema:
@@ -458,7 +460,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> Deprecated in version 22.1.",
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -478,7 +481,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> Deprecated in version 22.1.",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -498,7 +502,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> Deprecated in version 22.1. <dep desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1. <dep desc>",
             ),
             (
                 {
@@ -518,7 +523,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> Deprecated in version 22.1.",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -533,7 +539,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> Deprecated in version 22.1.",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -569,7 +576,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> Deprecated in version 32.3.",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 32.3.",
             ),
             (
                 {
@@ -593,7 +601,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx:  Deprecated in version 27.2.",
+                "Deprecated cloud-config provided:\nx:  Deprecated in "
+                "version 27.2.",
             ),
             (
                 {
@@ -608,7 +617,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> Deprecated in version 27.2.",
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 27.2.",
             ),
             pytest.param(
                 {
@@ -625,7 +635,9 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b:  Deprecated in version 27.2.\na-b:  Changed in version 22.2. Drop ballast.",
+                "Deprecated cloud-config provided:\na-b:  Deprecated "
+                "in version 27.2.\na-b:  Changed in version 22.2. "
+                "Drop ballast.",
                 id="deprecated_pattern_property_without_description",
             ),
         ],
@@ -1275,7 +1287,9 @@ class TestSchemaDocMarkdown:
                         }
                     }
                 },
-                """**prop1:** (string/integer) <description>\n\n    *Deprecated in version <missing deprecated_version key, please file a bug report>.*""",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1293,7 +1307,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                """**prop1:** (string/integer) <description>\n\n    *Deprecated in version 2.*\n\n    *Changed in version 1.*\n\n    *New in version 1.*""",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2.*\n\n    *Changed in version"
+                " 1.*\n\n    *New in version 1.*",
             ),
             (
                 {
@@ -1314,7 +1330,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                """**prop1:** (string/integer) <description>\n\n    *Deprecated in version 2. dep*\n\n    *Changed in version 1. chg*\n\n    *New in version 1. new*""",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2. dep*\n\n    *Changed in "
+                "version 1. chg*\n\n    *New in version 1. new*",
             ),
             (
                 {
@@ -1332,7 +1350,9 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                """**prop1:** (string/integer) <description>\n\n    *Deprecated in version <missing deprecated_version key, please file a bug report>.*""",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1352,7 +1372,9 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                """**prop1:** (string/integer) <description>\n\n    *Deprecated in version <missing deprecated_version key, please file a bug report>.*""",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1370,7 +1392,10 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                """**prop1:** (UNDEFINED) <description>. <deprecated_description>.\n\n    *Deprecated in version <missing deprecated_version key, please file a bug report>.*""",
+                "**prop1:** (UNDEFINED) <description>. "
+                "<deprecated_description>.\n\n    *Deprecated in "
+                "version <missing deprecated_version key, please "
+                "file a bug report>.*",
             ),
             (
                 {
@@ -1391,7 +1416,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                """**prop1:** (number) <deprecated_description>.\n\n    *Deprecated in version <missing deprecated_version key, please file a bug report>.*""",
+                "**prop1:** (number) <deprecated_description>.\n\n"
+                "    *Deprecated in version <missing "
+                "deprecated_version key, please file a bug report>.*",
             ),
             (
                 {
@@ -1414,7 +1441,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                """**prop1:** (``none``/``unchanged``/``os``) <description>. <deprecated_description>\n\n    *Deprecated in version 22.1.*""",
+                "**prop1:** (``none``/``unchanged``/``os``) "
+                "<description>. <deprecated_description>\n\n    "
+                "*Deprecated in version 22.1.*",
             ),
             (
                 {
@@ -1435,7 +1464,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer/``none``/``unchanged``/``os``) <description_1>. <description>_2\n",
+                "**prop1:** (string/integer/``none``/"
+                "``unchanged``/``os``) <description_1>. "
+                "<description>_2\n",
             ),
             (
                 {
@@ -1860,8 +1891,8 @@ class TestHandleSchemaArgs:
 apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
  Use ``package_reboot_if_required`` instead., apt_update: Default: \
 ``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
- apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use 
-``package_upgrade`` instead.
+ apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
+``package_upgrade`` instead.\
                     Valid cloud-config: {}
                     """  # noqa: E501
                 ),

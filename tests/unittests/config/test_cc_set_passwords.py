@@ -565,7 +565,9 @@ class TestSetPasswordsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: ssh_pwauth:  Changed in version 22.3. Use of non-boolean values for this field is deprecated."
+                        "Cloud config schema deprecations: ssh_pwauth:"
+                        "  Changed in version 22.3. Use of non-boolean"
+                        " values for this field is deprecated."
                     ),
                 ),
             ),
@@ -574,7 +576,9 @@ class TestSetPasswordsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: ssh_pwauth:  Changed in version 22.3. Use of non-boolean values for this field is deprecated."
+                        "Cloud config schema deprecations: ssh_pwauth:"
+                        "  Changed in version 22.3. Use of non-boolean"
+                        " values for this field is deprecated."
                     ),
                 ),
             ),
