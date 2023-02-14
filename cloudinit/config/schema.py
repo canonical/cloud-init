@@ -168,7 +168,9 @@ def _add_deprecated_changed_or_new_msg(config: dict, annotate=False, key_type=No
     deprecated/changed/new keys require a _version key (this is verified
     in a unittest), a _description key is optional
     """
-    keys = key_type if key_type else ["changed", "new", "deprecated"]
+
+    # set the print order of keys, optionally pass in filter (for logs and annotation)
+    filter_keys = key_type if key_type else ["deprecated", "changed", "new"]
 
     def format_message(key: str):
         if not config.get(f"{key}"):
@@ -189,7 +191,7 @@ def _add_deprecated_changed_or_new_msg(config: dict, annotate=False, key_type=No
 
     # build a deprecation/new/changed string, if required
     changed_new_deprecated = "".join(
-        map(format_message, keys)
+        map(format_message, filter_keys)
     )
     return f"{description}{changed_new_deprecated}".rstrip()
 
