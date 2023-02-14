@@ -3,7 +3,7 @@
 Module reference
 ****************
 
-Deprecation Schedule and Versions
+Deprecation schedule and versions
 =================================
 Keys may be documented as ``deprecated``, ``new``, or ``changed``.
 This allows cloud-init to evolve as requirements change, and to adopt
