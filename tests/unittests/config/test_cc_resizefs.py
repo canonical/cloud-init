@@ -280,7 +280,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "overlayroot",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -310,7 +309,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
                 maybe_get_writable_device_path,
                 "/dev/root",
                 info,
-                LOG,
             )
         self.assertIsNone(devpath)
         logs = self.logs.getvalue()
@@ -325,7 +323,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/I/dont/exist",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -343,7 +340,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/I/dont/exist",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -367,7 +363,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
                 maybe_get_writable_device_path,
                 "/dev/I/dont/exist",
                 info,
-                LOG,
             )
         self.assertEqual(
             "Something unexpected", str(context_manager.exception)
@@ -385,7 +380,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             fake_devpath,
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -407,7 +401,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             fake_devpath,
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -437,7 +430,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/root",
             info,
-            LOG,
         )
         self.assertEqual("/dev/disk/by-uuid/my-uuid", devpath)
         self.assertIn(
@@ -494,7 +486,7 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
     ):
         freebsd.return_value = True
         info = "dev=gpt/system mnt_point=/ path=/"
-        devpth = maybe_get_writable_device_path("gpt/system", info, LOG)
+        devpth = maybe_get_writable_device_path("gpt/system", info)
         self.assertEqual("gpt/system", devpth)
 
 

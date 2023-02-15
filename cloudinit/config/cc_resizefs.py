@@ -148,7 +148,7 @@ def can_skip_resize(fs_type, resize_what, devpth):
     return False
 
 
-def maybe_get_writable_device_path(devpath, info, log):
+def maybe_get_writable_device_path(devpath, info):
     """Return updated devpath if the devpath is a writable block device.
 
     @param devpath: Requested path to the root device we want to resize.
@@ -168,25 +168,25 @@ def maybe_get_writable_device_path(devpath, info, log):
     ):
         devpath = util.rootdev_from_cmdline(util.get_cmdline())
         if devpath is None:
-            log.warning("Unable to find device '/dev/root'")
+            LOG.warning("Unable to find device '/dev/root'")
             return None
-        log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
+        LOG.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
     if devpath == "overlayroot":
-        log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
+        LOG.debug("Not attempting to resize devpath '%s': %s", devpath, info)
         return None
 
     # FreeBSD zpool can also just use gpt/<label>
     # with that in mind we can not do an os.stat on "gpt/whatever"
     # therefore return the devpath already here.
     if devpath.startswith("gpt/"):
-        log.debug("We have a gpt label - just go ahead")
+        LOG.debug("We have a gpt label - just go ahead")
         return devpath
     # Alternatively, our device could simply be a name as returned by gpart,
     # such as da0p3
     if not devpath.startswith("/dev/") and not os.path.exists(devpath):
         fulldevpath = "/dev/" + devpath.lstrip("/")
-        log.debug(
+        LOG.debug(
             "'%s' doesn't appear to be a valid device path. Trying '%s'",
             devpath,
             fulldevpath,
@@ -197,13 +197,13 @@ def maybe_get_writable_device_path(devpath, info, log):
         statret = os.stat(devpath)
     except OSError as exc:
         if container and exc.errno == errno.ENOENT:
-            log.debug(
+            LOG.debug(
                 "Device '%s' did not exist in container. cannot resize: %s",
                 devpath,
                 info,
             )
         elif exc.errno == errno.ENOENT:
-            log.warning(
+            LOG.warning(
                 "Device '%s' did not exist. cannot resize: %s", devpath, info
             )
         else:
@@ -212,14 +212,13 @@ def maybe_get_writable_device_path(devpath, info, log):
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
-            log.debug(
-                "device '%s' not a block device in container."
-                " cannot resize: %s" % (devpath, info)
+            LOG.debug(
+                f"device '{devpath}' not a block device in container."
+                f" cannot resize: {info}"
             )
         else:
-            log.warning(
-                "device '%s' not a block device. cannot resize: %s"
-                % (devpath, info)
+            LOG.warning(
+                f"device '{devpath}' not a block device. cannot resize: {info}"
             )
         return None
     return devpath  # The writable block devpath
@@ -258,7 +257,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     LOG.debug(f"resize_info: {info}")
 
-    devpth = maybe_get_writable_device_path(devpth, info, LOG)
+    devpth = maybe_get_writable_device_path(devpth, info)
     if not devpth:
         return  # devpath was not a writable block device
 

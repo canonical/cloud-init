@@ -7,6 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+from inspect import signature
 from types import ModuleType
 from typing import Dict, List, NamedTuple, Optional
 
@@ -227,7 +228,6 @@ class Modules:
                     "Running module %s (%s) with frequency %s", name, mod, freq
                 )
 
-                func_args = [name, self.cfg, cc, args]
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created
@@ -237,8 +237,18 @@ class Modules:
                 myrep = ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter
                 )
+                func_args = {
+                    "name": name,
+                    "cfg": self.cfg,
+                    "cloud": cc,
+                    "args": args,
+                }
 
                 with myrep:
+                    func_signature = signature(mod.handle)
+                    func_params = func_signature.parameters
+                    if len(func_params) == 5:
+                        func_args.update({"log": LOG})
                     ran, _r = cc.run(
                         run_name, mod.handle, func_args, freq=freq
                     )
