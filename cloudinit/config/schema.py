@@ -884,11 +884,10 @@ def _get_property_description(prop_config: dict) -> str:
         config: dict, descriptions: list, deprecated_descriptions: list
     ):
         if any(
-            [
-                config.get("deprecated_version"),
-                config.get("changed_version"),
-                config.get("new_version"),
-            ]
+            map(
+                config.get,
+                ("deprecated_version", "changed_version", "new_version"),
+            )
         ):
             deprecated_descriptions.append(
                 _add_deprecated_changed_or_new_msg(config)
