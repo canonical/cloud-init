@@ -5,7 +5,6 @@
 """CA Certs: Add ca certificates."""
 
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -231,9 +230,7 @@ def remove_default_ca_certs(distro_cfg):
     util.delete_dir_contents(distro_cfg["ca_cert_local_path"])
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle ca_cert sections in cloud-config file.
 

@@ -821,7 +821,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set-hostname", init.cfg, cloud, LOG, None)
+            cc_set_hostname.handle("set-hostname", init.cfg, cloud, None)
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"

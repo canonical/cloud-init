@@ -7,7 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Final Message: Output final message when cloud-init has finished"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, util, version
@@ -56,6 +56,7 @@ meta: MetaSchema = {
     "activate_by_schema_keys": [],
 }
 
+LOG = logging.getLogger(__name__)
 __doc__ = get_meta_doc(meta)
 
 # Jinja formated default message
@@ -66,9 +67,7 @@ FINAL_MESSAGE_DEF = (
 )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     msg_in = ""
     if len(args) != 0:
@@ -95,20 +94,20 @@ def handle(
             "%s\n" % (templater.render_string(msg_in, subs)),
             console=False,
             stderr=True,
-            log=log,
+            log=LOG,
         )
     except Exception:
-        util.logexc(log, "Failed to render final message template")
+        util.logexc(LOG, "Failed to render final message template")
 
     boot_fin_fn = cloud.paths.boot_finished
     try:
         contents = "%s - %s - v. %s\n" % (uptime, ts, cver)
         util.write_file(boot_fin_fn, contents, ensure_dir_exists=False)
     except Exception:
-        util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
+        util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
 
     if cloud.datasource.is_disconnected:
-        log.warning("Used fallback datasource")
+        LOG.warning("Used fallback datasource")
 
 
 # vi: ts=4 expandtab

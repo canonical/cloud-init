@@ -7,8 +7,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Set Hostname: Set hostname and FQDN"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
@@ -69,6 +69,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 class SetHostnameError(Exception):
@@ -79,11 +80,9 @@ class SetHostnameError(Exception):
     """
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug(
+        LOG.debug(
             "Configuration option 'preserve_hostname' is set,"
             " not setting the hostname in module %s",
             name,
@@ -113,18 +112,18 @@ def handle(
         "hostname"
     ) or fqdn != prev_hostname.get("fqdn")
     if not hostname_changed:
-        log.debug("No hostname changes. Skipping set-hostname")
+        LOG.debug("No hostname changes. Skipping set-hostname")
         return
     if is_default and hostname == "localhost":
         # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
-        log.debug("Hostname is localhost. Let other services handle this.")
+        LOG.debug("Hostname is localhost. Let other services handle this.")
         return
-    log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
+    LOG.debug("Setting the hostname to %s (%s)", fqdn, hostname)
     try:
         cloud.distro.set_hostname(hostname, fqdn)
     except Exception as e:
         msg = "Failed to set the hostname to %s (%s)" % (fqdn, hostname)
-        util.logexc(log, msg)
+        util.logexc(LOG, msg)
         raise SetHostnameError("%s: %s" % (msg, e)) from e
     write_json(prev_fn, {"hostname": hostname, "fqdn": fqdn})
 

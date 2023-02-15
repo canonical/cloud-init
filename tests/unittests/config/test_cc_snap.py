@@ -329,7 +329,7 @@ class TestHandle:
         cfg = {
             "snap": {"assertions": [SYSTEM_USER_ASSERTION, ACCOUNT_ASSERTION]}
         }
-        handle("snap", cfg=cfg, cloud=fake_cloud, log=mock.Mock(), args=None)
+        handle("snap", cfg=cfg, cloud=fake_cloud, args=None)
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
         assert util.load_file(compare_file) == util.load_file(assert_file)

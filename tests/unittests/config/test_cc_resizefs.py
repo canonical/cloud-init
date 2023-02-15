@@ -83,37 +83,42 @@ class TestResizefs(CiTestCase):
     def test_handle_noops_on_disabled(self):
         """The handle function logs when the configuration disables resize."""
         cfg = {"resize_rootfs": False}
-        handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, args=[])
         self.assertIn(
             "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
             self.logs.getvalue(),
         )
 
     @mock.patch("cloudinit.config.cc_resizefs.util.get_mount_info")
-    def test_handle_warns_on_unknown_mount_info(self, m_get_mount_info):
+    @mock.patch("cloudinit.config.cc_resizefs.LOG")
+    def test_handle_warns_on_unknown_mount_info(self, m_log, m_get_mount_info):
         """handle warns when get_mount_info sees unknown filesystem for /."""
         m_get_mount_info.return_value = None
         cfg = {"resize_rootfs": True}
-        handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, args=[])
         logs = self.logs.getvalue()
         self.assertNotIn(
             "WARNING: Invalid cloud-config provided:\nresize_rootfs:", logs
         )
-        self.assertIn(
-            "WARNING: Could not determine filesystem type of /\n", logs
+        self.assertEqual(
+            ("Could not determine filesystem type of %s", "/"),
+            m_log.warning.call_args[0],
         )
         self.assertEqual(
-            [mock.call("/", LOG)], m_get_mount_info.call_args_list
+            [mock.call("/", m_log)], m_get_mount_info.call_args_list
         )
 
-    def test_handle_warns_on_undiscoverable_root_path_in_commandline(self):
+    @mock.patch("cloudinit.config.cc_resizefs.LOG")
+    def test_handle_warns_on_undiscoverable_root_path_in_commandline(
+        self, m_log
+    ):
         """handle noops when the root path is not found on the commandline."""
         cfg = {"resize_rootfs": True}
         exists_mock_path = "cloudinit.config.cc_resizefs.os.path.exists"
 
         def fake_mount_info(path, log):
             self.assertEqual("/", path)
-            self.assertEqual(LOG, log)
+            self.assertEqual(m_log, log)
             return ("/dev/root", "ext4", "/")
 
         with mock.patch(exists_mock_path) as m_exists:
@@ -129,11 +134,11 @@ class TestResizefs(CiTestCase):
                 "cc_resizefs",
                 cfg,
                 cloud=None,
-                log=LOG,
                 args=[],
             )
-        logs = self.logs.getvalue()
-        self.assertIn("WARNING: Unable to find device '/dev/root'", logs)
+        self.assertIn(
+            "Unable to find device '/dev/root'", m_log.warning.call_args[0]
+        )
 
     def test_resize_zfs_cmd_return(self):
         zpool = "zroot"
@@ -183,8 +188,8 @@ class TestResizefs(CiTestCase):
         cfg = {"resize_rootfs": True}
 
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
-            handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
-            ret = dresize.call_args[0][0]
+            handle("cc_resizefs", cfg, cloud=None, args=[])
+            ret = dresize.call_args[0]
 
         self.assertEqual(("zpool", "online", "-e", "vmzroot", disk), ret)
 
@@ -217,11 +222,10 @@ class TestResizefs(CiTestCase):
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
             with mock.patch("cloudinit.config.cc_resizefs.os.stat") as m_stat:
                 m_stat.side_effect = fake_stat
-                handle("cc_resizefs", cfg, cloud=None, log=LOG, args=[])
-
+                handle("cc_resizefs", cfg, cloud=None, args=[])
         self.assertEqual(
             ("zpool", "online", "-e", "zroot", "/dev/" + disk),
-            dresize.call_args[0][0],
+            dresize.call_args[0],
         )
 
 

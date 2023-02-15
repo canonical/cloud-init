@@ -8,10 +8,10 @@
 
 """Puppet: Install, configure and start puppet"""
 
+import logging
 import os
 import socket
 from io import StringIO
-from logging import Logger
 from textwrap import dedent
 
 import yaml
@@ -107,10 +107,15 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
+
 
 class PuppetConstants:
     def __init__(
-        self, puppet_conf_file, puppet_ssl_dir, csr_attributes_path, log
+        self,
+        puppet_conf_file,
+        puppet_ssl_dir,
+        csr_attributes_path,
     ):
         self.conf_path = puppet_conf_file
         self.ssl_dir = puppet_ssl_dir
@@ -119,7 +124,7 @@ class PuppetConstants:
         self.csr_attributes_path = csr_attributes_path
 
 
-def _manage_puppet_services(log, cloud: Cloud, action: str):
+def _manage_puppet_services(cloud: Cloud, action: str):
     """Attempts to perform action on one of the puppet services"""
     service_managed: str = ""
     for puppet_name in PUPPET_PACKAGE_NAMES:
@@ -130,7 +135,7 @@ def _manage_puppet_services(log, cloud: Cloud, action: str):
         except subp.ProcessExecutionError:
             pass
     if not service_managed:
-        log.warning(
+        LOG.warning(
             "Could not '%s' any of the following services: %s",
             action,
             ", ".join(PUPPET_PACKAGE_NAMES),
@@ -182,12 +187,10 @@ def install_puppet_aio(
         return subp.subp([tmpf] + args, capture=False)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there isn't a puppet key in the configuration don't do anything
     if "puppet" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'puppet' configuration found", name
         )
         return
@@ -223,11 +226,11 @@ def handle(
         puppet_cfg, "package_name", puppet_package
     )
     if not install and version:
-        log.warning(
+        LOG.warning(
             "Puppet install set to false but version supplied, doing nothing."
         )
     elif install:
-        log.debug(
+        LOG.debug(
             "Attempting to install puppet %s from %s",
             version if version else "latest",
             install_type,
@@ -243,7 +246,7 @@ def handle(
                     except subp.ProcessExecutionError:
                         pass
                 if not package_name:
-                    log.warning(
+                    LOG.warning(
                         "No installable puppet package in any of: %s",
                         ", ".join(PUPPET_PACKAGE_NAMES),
                     )
@@ -255,7 +258,7 @@ def handle(
                 cloud.distro, aio_install_url, version, collection, cleanup
             )
         else:
-            log.warning("Unknown puppet install type '%s'", install_type)
+            LOG.warning("Unknown puppet install type '%s'", install_type)
             run = False
 
     conf_file = util.get_cfg_option_str(
@@ -270,7 +273,7 @@ def handle(
         get_config_value(puppet_bin, "csr_attributes"),
     )
 
-    p_constants = PuppetConstants(conf_file, ssl_dir, csr_attributes_path, log)
+    p_constants = PuppetConstants(conf_file, ssl_dir, csr_attributes_path)
 
     # ... and then update the puppet configuration
     if "conf" in puppet_cfg:
@@ -329,11 +332,11 @@ def handle(
 
     if start_puppetd:
         # Enables the services
-        _manage_puppet_services(log, cloud, "enable")
+        _manage_puppet_services(cloud, "enable")
 
     # Run the agent if needed
     if run:
-        log.debug("Running puppet-agent")
+        LOG.debug("Running puppet-agent")
         cmd = [puppet_bin, "agent"]
         if "exec_args" in puppet_cfg:
             cmd_args = puppet_cfg["exec_args"]
@@ -342,7 +345,7 @@ def handle(
             elif isinstance(cmd_args, str):
                 cmd.extend(cmd_args.split())
             else:
-                log.warning(
+                LOG.warning(
                     "Unknown type %s provided for puppet"
                     " 'exec_args' expected list, tuple,"
                     " or string",
@@ -355,7 +358,7 @@ def handle(
 
     if start_puppetd:
         # Start puppetd
-        _manage_puppet_services(log, cloud, "start")
+        _manage_puppet_services(cloud, "start")
 
 
 # vi: ts=4 expandtab

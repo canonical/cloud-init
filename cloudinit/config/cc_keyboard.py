@@ -6,7 +6,6 @@
 
 """keyboard: set keyboard layout"""
 
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import distros
@@ -60,9 +59,7 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "keyboard" not in cfg:
         LOG.debug(
             "Skipping module named %s, no 'keyboard' section found", name

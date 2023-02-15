@@ -162,7 +162,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         os.makedirs("%s/etc/zypp/repos.d" % root_d)
         helpers.populate_dir(root_d, {self.zypp_conf: "# Zypp config\n"})
         self.reRoot(root_d)
-        cc_zypper_add_repo.handle("zypper_add_repo", cfg, None, LOG, [])
+        cc_zypper_add_repo.handle("zypper_add_repo", cfg, None, [])
         cfg_out = os.path.join(root_d, self.zypp_conf)
         contents = util.load_file(cfg_out)
         expected = [

@@ -1,4 +1,3 @@
-import logging
 from functools import partial
 from itertools import count
 from unittest import mock
@@ -14,8 +13,7 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-LOG = logging.getLogger("TestNoConfig")
-phone_home = partial(handle, name="test", cloud=get_cloud(), log=LOG, args=[])
+phone_home = partial(handle, name="test", cloud=get_cloud(), args=[])
 
 
 @pytest.fixture(autouse=True)

@@ -3,7 +3,6 @@
 """ test_apt_custom_sources_list
 Test templating of custom sources list
 """
-import logging
 import os
 import shutil
 import tempfile
@@ -16,8 +15,6 @@ from cloudinit.config import cc_apt_configure
 from cloudinit.distros.debian import Distro
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
-
-LOG = logging.getLogger(__name__)
 
 TARGET = "/"
 
@@ -129,7 +126,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             mock_shouldcfg = stack.enter_context(
                 mock.patch(cfg_func, return_value=(cfg_on_empty, "test"))
             )
-            cc_apt_configure.handle("test", cfg, mycloud, LOG, None)
+            cc_apt_configure.handle("test", cfg, mycloud, None)
 
             return mock_writefile, mock_loadfile, mock_isfile, mock_shouldcfg
 
@@ -185,7 +182,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             with mock.patch.object(
                 util, "system_is_snappy", return_value=True
             ) as mock_issnappy:
-                cc_apt_configure.handle("test", cfg, mycloud, LOG, None)
+                cc_apt_configure.handle("test", cfg, mycloud, None)
 
         self.assertEqual(0, mock_writefile.call_count)
         self.assertEqual(1, mock_issnappy.call_count)
@@ -233,9 +230,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 with mock.patch.object(
                     Distro, "get_primary_arch", return_value="amd64"
                 ):
-                    cc_apt_configure.handle(
-                        "notimportant", cfg, mycloud, LOG, None
-                    )
+                    cc_apt_configure.handle("notimportant", cfg, mycloud, None)
 
         calls = [
             call(

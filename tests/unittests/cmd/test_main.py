@@ -112,7 +112,7 @@ class TestMain(FilesystemMockingTestCase):
             subcommand="init",
         )
 
-        def set_hostname(name, cfg, cloud, log, args):
+        def set_hostname(name, cfg, cloud, args):
             self.assertEqual("set-hostname", name)
             updated_cfg = copy.deepcopy(self.cfg)
             updated_cfg.update(
@@ -132,7 +132,6 @@ class TestMain(FilesystemMockingTestCase):
             updated_cfg.pop("system_info")
 
             self.assertEqual(updated_cfg, cfg)
-            self.assertEqual(main.LOG, log)
             self.assertIsNone(args)
 
         (_item1, item2) = wrap_and_call(

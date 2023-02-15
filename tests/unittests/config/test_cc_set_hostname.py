@@ -45,7 +45,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file("/etc/hostname")
         self.assertEqual("blah.yahoo.com", contents.strip())
 
@@ -61,7 +61,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file("/etc/sysconfig/network", decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah"}, dict(n_cfg))
@@ -74,7 +74,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file("/etc/sysconfig/network", decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah.blah.blah.yahoo.com"}, dict(n_cfg))
@@ -89,7 +89,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file("/etc/hostname")
         self.assertEqual("blah", contents.strip())
 
@@ -103,7 +103,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file(distro.hostname_conf_fn)
         self.assertEqual("blah", contents.strip())
 
@@ -126,7 +126,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         paths = helpers.Paths({"cloud_dir": self.tmp})
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         for c in [cfg1, cfg2]:
-            cc_set_hostname.handle("cc_set_hostname", c, cc, LOG, [])
+            cc_set_hostname.handle("cc_set_hostname", c, cc, [])
             print("\n", m_subp.call_args_list)
             if c["prefer_fqdn_over_hostname"]:
                 assert [
@@ -164,19 +164,19 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle(
-            "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, LOG, []
+            "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, []
         )
         contents = util.load_file("/etc/hostname")
         self.assertEqual("hostname1", contents.strip())
         cc_set_hostname.handle(
-            "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, LOG, []
+            "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, []
         )
         self.assertIn(
             "DEBUG: No hostname changes. Skipping set-hostname\n",
             self.logs.getvalue(),
         )
         cc_set_hostname.handle(
-            "cc_set_hostname", {"hostname": "hostname2.me.com"}, cc, LOG, []
+            "cc_set_hostname", {"hostname": "hostname2.me.com"}, cc, []
         )
         contents = util.load_file("/etc/hostname")
         self.assertEqual("hostname2", contents.strip())
@@ -198,7 +198,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
 
         util.write_file("/etc/hostname", "")
-        cc_set_hostname.handle("cc_set_hostname", {}, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", {}, cc, [])
         contents = util.load_file("/etc/hostname")
         self.assertEqual("", contents.strip())
 
@@ -216,7 +216,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         # user-provided localhost should not be ignored
         util.write_file("/etc/hostname", "")
         cc_set_hostname.handle(
-            "cc_set_hostname", {"hostname": "localhost"}, cc, LOG, []
+            "cc_set_hostname", {"hostname": "localhost"}, cc, []
         )
         contents = util.load_file("/etc/hostname")
         self.assertEqual("localhost", contents.strip())
@@ -235,7 +235,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         with self.assertRaises(cc_set_hostname.SetHostnameError) as ctx_mgr:
             cc_set_hostname.handle(
-                "somename", {"hostname": "hostname1.me.com"}, cc, LOG, []
+                "somename", {"hostname": "hostname1.me.com"}, cc, []
             )
         self.assertEqual(
             "Failed to set the hostname to hostname1.me.com (hostname1):"
@@ -255,7 +255,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         prev_fn = Path(cc.get_cpath("data")) / "set-hostname"
         prev_fn.touch()
-        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         contents = util.load_file("/etc/hostname")
         self.assertEqual("blah", contents.strip())
 

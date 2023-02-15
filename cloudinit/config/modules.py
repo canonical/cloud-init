@@ -227,11 +227,7 @@ class Modules:
                     "Running module %s (%s) with frequency %s", name, mod, freq
                 )
 
-                # Use the configs logger and not our own
-                # TODO(harlowja): possibly check the module
-                # for having a LOG attr and just give it back
-                # its own logger?
-                func_args = [name, self.cfg, cc, LOG, args]
+                func_args = [name, self.cfg, cc, args]
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created

@@ -8,7 +8,6 @@
 """Set Passwords: Set user passwords and enable/disable SSH password auth"""
 
 import re
-from logging import Logger
 from string import ascii_letters, digits
 from textwrap import dedent
 from typing import List
@@ -172,9 +171,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         _restart_ssh_daemon(distro, service)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     distro: Distro = cloud.distro
     if args:
         # if run from command line, and give args, wipe the chpasswd['list']
@@ -198,7 +195,7 @@ def handle(
                 extra_message="Use 'users' instead.",
             )
             if isinstance(chfg["list"], list):
-                log.debug("Handling input for chpasswd as list.")
+                LOG.debug("Handling input for chpasswd as list.")
                 plist = util.get_cfg_option_list(chfg, "list", plist)
             else:
                 util.deprecate(
@@ -206,7 +203,7 @@ def handle(
                     deprecated_version="22.2",
                     extra_message="Use string type instead.",
                 )
-                log.debug("Handling input for chpasswd as multiline string.")
+                LOG.debug("Handling input for chpasswd as multiline string.")
                 multiline = util.get_cfg_option_str(chfg, "list")
                 if multiline:
                     plist = multiline.splitlines()
@@ -219,7 +216,7 @@ def handle(
         if user:
             plist = ["%s:%s" % (user, password)]
         else:
-            log.warning("No default or defined user to change password for.")
+            LOG.warning("No default or defined user to change password for.")
 
     errors = []
     if plist or users_list:
@@ -259,22 +256,22 @@ def handle(
                 users.append(u)
         if users:
             try:
-                log.debug("Changing password for %s:", users)
+                LOG.debug("Changing password for %s:", users)
                 distro.chpasswd(plist_in, hashed=False)
             except Exception as e:
                 errors.append(e)
                 util.logexc(
-                    log, "Failed to set passwords with chpasswd for %s", users
+                    LOG, "Failed to set passwords with chpasswd for %s", users
                 )
 
         if hashed_users:
             try:
-                log.debug("Setting hashed password for %s:", hashed_users)
+                LOG.debug("Setting hashed password for %s:", hashed_users)
                 distro.chpasswd(hashed_plist_in, hashed=True)
             except Exception as e:
                 errors.append(e)
                 util.logexc(
-                    log,
+                    LOG,
                     "Failed to set hashed passwords with chpasswd for %s",
                     hashed_users,
                 )
@@ -299,14 +296,14 @@ def handle(
                     expired_users.append(u)
                 except Exception as e:
                     errors.append(e)
-                    util.logexc(log, "Failed to set 'expire' for %s", u)
+                    util.logexc(LOG, "Failed to set 'expire' for %s", u)
             if expired_users:
-                log.debug("Expired passwords for: %s users", expired_users)
+                LOG.debug("Expired passwords for: %s users", expired_users)
 
     handle_ssh_pwauth(cfg.get("ssh_pwauth"), distro)
 
     if len(errors):
-        log.debug("%s errors occurred, re-raising the last one", len(errors))
+        LOG.debug("%s errors occurred, re-raising the last one", len(errors))
         raise errors[-1]
 
 
