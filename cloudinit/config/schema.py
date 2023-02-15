@@ -1231,6 +1231,7 @@ def handle_schema_args(name, args):
         error(
             ", ".join(error_type for error_type in error_types),
             fmt="Error: Invalid cloud-config schema: {}\n",
+            sys_exit=True,
         )
 
 
