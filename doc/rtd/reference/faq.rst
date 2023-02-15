@@ -156,7 +156,7 @@ To ensure that the keys and values in your user data are correct, you may run:
 
     $ cloud-init schema --system --annotate
 
-or to test yaml in a file:
+or to test YAML in a file:
 
 .. code-block:: shell-session
 
