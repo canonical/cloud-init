@@ -1559,7 +1559,7 @@ class TestMain:
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: user-data\n" == out
+        assert f"Valid cloud-config: {myyaml}\n" == out
 
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_main_validates_system_userdata_and_vendordata(
@@ -1763,7 +1763,7 @@ class TestHandleSchemaArgs:
                     # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
 
 
-                    Valid cloud-config: user-data
+                    Valid cloud-config: {cfg_file}
                     """  # noqa: E501
                 ),
             ),
@@ -1775,7 +1775,7 @@ class TestHandleSchemaArgs:
 apt_reboot_if_required: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
 apt_update: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``, \
 apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    Valid cloud-config: user-data
+                    Valid cloud-config: {cfg_file}
                     """  # noqa: E501
                 ),
             ),

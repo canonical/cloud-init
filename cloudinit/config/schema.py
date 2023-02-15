@@ -1166,7 +1166,7 @@ def handle_schema_args(name, args):
         return
     if args.config_file:
         config_files = (("user-data", args.config_file),)
-    elif args.system:
+    else:
         if os.getuid() != 0:
             error(
                 "Unable to read system userdata or vendordata as non-root"
@@ -1176,13 +1176,19 @@ def handle_schema_args(name, args):
         init = Init(ds_deps=[])
         init.fetch(existing="trust")
         userdata_file = init.paths.get_ipath("cloud_config")
+        if not userdata_file:
+            error(
+                "Unable to obtain user data file. No instance data available",
+                sys_exit=True,
+            )
+            return  # Helps typing
         config_files = (("user-data", userdata_file),)
         vendor_config_files = (
             ("vendor-data", init.paths.get_ipath("vendor_cloud_config")),
             ("vendor2-data", init.paths.get_ipath("vendor2_cloud_config")),
         )
         for cfg_type, vendor_file in vendor_config_files:
-            if os.path.exists(vendor_file):
+            if vendor_file and os.path.exists(vendor_file):
                 config_files += ((cfg_type, vendor_file),)
     if not os.path.exists(config_files[0][1]):
         error(
@@ -1219,11 +1225,13 @@ def handle_schema_args(name, args):
             error(str(e), fmt=nested_output_prefix + "Error: {}\n")
             error_types.append(cfg_type)
         else:
-            print(f"{nested_output_prefix}Valid cloud-config: {cfg_type}")
+            cfg = cfg_file if args.config_file else cfg_type
+            print(f"{nested_output_prefix}Valid cloud-config: {cfg}")
     if error_types:
         error(
             ", ".join(error_type for error_type in error_types),
             fmt="Error: Invalid cloud-config schema: {}\n",
+            sys_exit=True,
         )
 
 
