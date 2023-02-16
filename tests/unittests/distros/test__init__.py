@@ -276,10 +276,11 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             )
 
     def test_virtualization_on_freebsd(self):
-        # This test function is a crime.
-        # We're using the fact that is_container() and virtual() are @lru_cache
-        # this way, we can nest the various mocks to subp.subp to target the
-        # correct function's subp call.
+        # This test function is a bit unusual:
+        # We need to first mock away the `ifconfig -a` subp call
+        # Then, we can use side-effects to get the results of two subp calls
+        # needed for is_container()/virtual() which is_virtual depends on.
+        # We also have to clear cache between each of those assertions.
 
         cls = distros.fetch("freebsd")
         with mock.patch(
