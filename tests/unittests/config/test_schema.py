@@ -1893,7 +1893,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
 ``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
  apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
 ``package_upgrade`` instead.\
-                    Valid cloud-config: user-data
+                    Valid cloud-config: {cfg_file}
                     """  # noqa: E501
                 ),
             ),
@@ -1924,6 +1924,6 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
         )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
-        assert expected_output.format(user_data_fn).split() == out.split()
+        assert expected_output.format(cfg_file=user_data_fn).split() == out.split()
         assert not err
         assert "deprec" not in caplog.text
