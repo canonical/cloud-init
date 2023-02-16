@@ -1924,6 +1924,9 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
         )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
-        assert expected_output.format(cfg_file=user_data_fn).split() == out.split()
+        assert (
+            expected_output.format(cfg_file=user_data_fn).split()
+            == out.split()
+        )
         assert not err
         assert "deprec" not in caplog.text
