@@ -299,11 +299,13 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         # This mock is called by `sysctl -n kern.vm_guest`
         with mock.patch(
             "cloudinit.distros.subp.subp",
+            # fmt: off
             side_effect=[
-                ("0\n", None), ("hv\n", None),
-                ("0\n", None), ("none\n", None),
-                ("0\n", None), ("hv\n", None),
+                ("0\n", None), ("hv\n", None),  # virtual
+                ("0\n", None), ("none\n", None),  # physical
+                ("0\n", None), ("hv\n", None)  # virtual
             ],
+            # fmt: on
         ):
             self.assertEqual(d.virtual(), "microsoft")
             d.is_container.cache_clear()
