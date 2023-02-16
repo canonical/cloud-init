@@ -138,17 +138,15 @@ class TestSshKeysProvided:
         out = class_client.read_from_file(config_path).strip()
         assert expected_out in out
 
-    @pytest.mark.parametrize(
-        "expected_out",
-        (
+    def test_sshd_config(self, class_client):
+        expected_certs = (
             "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
             "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub",
-        ),
-    )
-    def test_sshd_config(self, expected_out, class_client):
+        )
         if ImageSpecification.from_os_image().release in {"bionic"}:
             sshd_config_path = "/etc/ssh/sshd_config"
         else:
             sshd_config_path = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
         sshd_config = class_client.read_from_file(sshd_config_path).strip()
-        assert expected_out in sshd_config
+        for expected_cert in expected_certs:
+            assert expected_cert in sshd_config
