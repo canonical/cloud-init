@@ -403,7 +403,6 @@ def _should_auto_attach(ua_section: dict) -> bool:
             msg="Checking if the instance can be attached to Ubuntu Pro",
             func=should_auto_attach,
         )
-        result = should_auto_attach()
     except UserFacingError as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
