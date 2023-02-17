@@ -250,7 +250,9 @@ class TestCLI:
                     "cloudlinux, cos, debian, eurolinux, fedora, freebsd, "
                     "mariner, miraclelinux, "
                     "openbsd, openEuler, openmandriva, "
-                    "opensuse, photon, rhel, rocky, sles, ubuntu, virtuozzo",
+                    "opensuse, opensuse-microos, opensuse-tumbleweed, "
+                    "opensuse-leap, photon, rhel, rocky, sle_hpc, "
+                    "sle-micro, sles, ubuntu, virtuozzo",
                     "**Config schema**:\n    **resize_rootfs:** "
                     "(``true``/``false``/``noblock``)",
                     "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",
