@@ -24,7 +24,7 @@ Usage: ${0##*/} [ options ] [images:]image-ref
     To see images available, run 'lxc image list images:'
     Example input:
        centos/7
-       opensuse/42.3
+       opensuse/15.4
        debian/10
 
     options:
@@ -249,7 +249,7 @@ install_packages() {
     get_os_info || return
     case "$OS_NAME" in
         centos|rocky*) yum_install "$@";;
-        opensuse) zypper_install "$@";;
+        opensuse*) zypper_install "$@";;
         debian|ubuntu) apt_install "$@";;
         *) error "Do not know how to install packages on ${OS_NAME}";
            return 1;;
@@ -497,8 +497,8 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky) distflag="--distro=redhat";;
-        opensuse) distflag="--distro=suse";;
+        centos|rocky*) distflag="--distro=redhat";;
+        opensuse*) distflag="--distro=suse";;
     esac
 
     case "$OS_NAME" in
@@ -506,7 +506,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse|rocky)
+        centos|opensuse*|rocky*)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;

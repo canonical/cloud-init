@@ -18,7 +18,16 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
-distros = ["opensuse", "sles"]
+distros = [
+    "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+]
+
 MODULE_DESCRIPTION = """\
 Zypper behavior can be configured using the ``config`` key, which will modify
 ``/etc/zypp/zypp.conf``. The configuration writer will only append the

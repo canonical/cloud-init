@@ -54,3 +54,7 @@ features or to verify bug fixes.
 For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+archive/ubuntu/daily)
 
 For CentOS, see the [COPR build repos](https://copr.fedorainfracloud.org/coprs/g/cloud-init/cloud-init-dev/)
+
+## Build / packaging
+
+To see reference build/packaging implementations, refer to [packages](packages).

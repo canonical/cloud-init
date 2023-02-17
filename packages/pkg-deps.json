@@ -58,12 +58,14 @@
    },
    "suse" : {
       "renames" : {
+         "jinja2" : "python3-Jinja2",
+         "pyyaml" : "python3-PyYAML"
       },
       "build-requires" : [
          "fdupes",
          "filesystem",
-         "python-devel",
-         "python-setuptools"
+         "python3-devel",
+         "python3-setuptools"
       ],
       "requires" : [
          "iproute2",

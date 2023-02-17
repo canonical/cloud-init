@@ -485,7 +485,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
@@ -529,7 +528,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_eni(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -555,7 +553,12 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         self.devlist = ["eth0", "lo"]
 
     def _apply_and_verify_netplan(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self,
+        apply_fn,
+        config,
+        expected_cfgs=None,
+        bringup=False,
+        previous_files=(),
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
@@ -567,12 +570,12 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
                 return_value=self.devlist,
             ):
                 with self.reRooted(tmpd) as tmpd:
+                    for previous_path, content, mode in previous_files:
+                        util.write_file(previous_path, content, mode=mode)
                     apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
-
-        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        for cfgpath, expected in expected_cfgs.items():
+        for cfgpath, expected, mode in expected_cfgs:
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
@@ -585,64 +588,79 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         return "/etc/netplan/50-cloud-init.yaml"
 
     def test_apply_network_config_v1_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_IPV6_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
+        )
 
-        # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG_IPV6,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v2_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
+
+    def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
+        """Custom permissions on existing netplan is kept when more strict."""
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
+        )
+        with mock.patch.object(
+            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        ):
+            # When NETPLAN_CONFIG_ROOT_READ_ONLY is False default perms are 644
+            # we keep 640 because it's more strict.
+            # 1640 is used to assert sticky bit preserved across write
+            self._apply_and_verify_netplan(
+                self.distro.apply_network_config,
+                V2_NET_CFG,
+                expected_cfgs=expected_cfgs,
+                previous_files=(
+                    ("/etc/netplan/50-cloud-init.yaml", "a", 0o640),
+                ),
+            )
 
     def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
         """Kinetic and earlier have 50-cloud-init.yaml world-readable"""
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o644),
+        )
         with mock.patch.object(
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
         ):
             self._apply_and_verify_netplan(
                 self.distro.apply_network_config,
                 V2_NET_CFG,
-                expected_cfgs=expected_cfgs.copy(),
+                expected_cfgs=expected_cfgs,
             )
 
     def test_apply_network_config_v2_full_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_PASSTHROUGH_NET_CFG_OUTPUT,
-        }
-        # ub_distro.apply_network_config(V2_PASSTHROUGH_NET_CFG, False)
+        expected_cfgs = (
+            (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
+        )
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_PASSTHROUGH_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
         self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
         self.assertIn(
@@ -1008,7 +1026,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             ),
         }
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -1298,6 +1315,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
+    # Mask upper st_mode bits like S_IFREG bit preserve sticky and isuid/osgid
     return os.stat(subp.target_path(target, path)).st_mode & 0o777
 
 

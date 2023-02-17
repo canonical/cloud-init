@@ -88,6 +88,9 @@ Follow these steps to submit your first pull request to ``cloud-init``:
 
   * Note that ``.github-cla-signers`` is sorted alphabetically.
 
+  * You may use ``tools/check-cla-signers`` to sort ``.github-cla-signers``
+    or check that it is sorted.
+
   * If you already have a change that you want to submit, you can
     also include the change to ``tools/.github-cla-signers`` in that
     pull request, there is no need for two separate PRs.

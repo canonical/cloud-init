@@ -34,6 +34,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     dir2dict,
+    does_not_raise,
     mock,
     populate_dir,
 )
@@ -8008,6 +8009,7 @@ class TestInterfaceHasOwnMac(CiTestCase):
     mock.Mock(return_value=False),
 )
 class TestGetInterfacesByMac(CiTestCase):
+    with_logs = True
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -8219,6 +8221,24 @@ class TestGetInterfacesByMac(CiTestCase):
             ib_addr: "ib0",
         }
         self.assertEqual(expected, result)
+
+    def test_duplicate_ignored_macs(self):
+        # LP: #199792
+        self._data = copy.deepcopy(self._data)
+        self._data["macs"]["swp0"] = "9a:57:7d:78:47:c0"
+        self._data["macs"]["swp1"] = "9a:57:7d:78:47:c0"
+        self._data["own_macs"].append("swp0")
+        self._data["own_macs"].append("swp1")
+        self._data["drivers"]["swp0"] = "mscc_felix"
+        self._data["drivers"]["swp1"] = "mscc_felix"
+        self._mock_setup()
+        with does_not_raise():
+            net.get_interfaces_by_mac()
+        pattern = (
+            "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
+            "driver 'mscc_felix'."
+        )
+        assert re.search(pattern, self.logs.getvalue())
 
 
 class TestInterfacesSorting(CiTestCase):

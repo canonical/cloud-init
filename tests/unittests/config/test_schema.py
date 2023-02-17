@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+import unittest
 from collections import namedtuple
 from copy import deepcopy
 from pathlib import Path
@@ -17,7 +18,6 @@ from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
 import pytest
-import responses
 
 from cloudinit import stages
 from cloudinit.config.schema import (
@@ -145,6 +145,54 @@ class TestVersionedSchemas:
             validate_cloudconfig_schema(
                 schema, schema=version_schema, strict=True
             )
+
+
+class TestCheckSchema(unittest.TestCase):
+    def test_schema_bools_have_dates(self):
+        """ensure that new/changed/deprecated keys have an associated
+        version key
+        """
+
+        def check_deprecation_keys(schema, search_key):
+            if search_key in schema:
+                assert f"{search_key}_version" in schema
+            for sub_item in schema.values():
+                if isinstance(sub_item, dict):
+                    check_deprecation_keys(sub_item, search_key)
+            return True
+
+        # ensure that check_deprecation_keys works as expected
+        assert check_deprecation_keys(
+            {"changed": True, "changed_version": "22.3"}, "changed"
+        )
+        assert check_deprecation_keys(
+            {"properties": {"deprecated": True, "deprecated_version": "22.3"}},
+            "deprecated",
+        )
+        assert check_deprecation_keys(
+            {
+                "properties": {
+                    "properties": {"new": True, "new_version": "22.3"}
+                }
+            },
+            "new",
+        )
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys({"changed": True}, "changed")
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys(
+                {"properties": {"deprecated": True}}, "deprecated"
+            )
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys(
+                {"properties": {"properties": {"new": True}}}, "new"
+            )
+
+        # test the in-repo schema
+        schema = get_schema()
+        assert check_deprecation_keys(schema, "new")
+        assert check_deprecation_keys(schema, "changed")
+        assert check_deprecation_keys(schema, "deprecated")
 
 
 class TestGetSchema:
@@ -282,7 +330,7 @@ class TestValidateCloudConfigSchema:
         ((None, 1), ({"properties": {"p1": {"type": "string"}}}, 0)),
     )
     @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.schema.get_schema")
+    @mock.patch(M_PATH + "get_schema")
     def test_validateconfig_schema_use_full_schema_when_no_schema_param(
         self, get_schema, schema, call_count
     ):
@@ -403,13 +451,17 @@ class TestValidateCloudConfigSchema:
                         "a-b": {
                             "type": "string",
                             "deprecated": True,
+                            "deprecated_version": "22.1",
+                            "new": True,
+                            "new_version": "22.1",
                             "description": "<desc>",
                         },
                         "a_b": {"type": "string", "description": "noop"},
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -421,6 +473,7 @@ class TestValidateCloudConfigSchema:
                                 {
                                     "type": "string",
                                     "deprecated": True,
+                                    "deprecated_version": "22.1",
                                     "description": "<desc>",
                                 },
                             ]
@@ -428,7 +481,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -439,6 +493,8 @@ class TestValidateCloudConfigSchema:
                                 {"type": "string", "description": "noop"},
                                 {
                                     "deprecated": True,
+                                    "deprecated_version": "22.1",
+                                    "deprecated_description": "<dep desc>",
                                     "description": "<desc>",
                                 },
                             ]
@@ -446,7 +502,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1. <dep desc>",
             ),
             (
                 {
@@ -458,6 +515,7 @@ class TestValidateCloudConfigSchema:
                                 {
                                     "type": "string",
                                     "deprecated": True,
+                                    "deprecated_version": "22.1",
                                     "description": "<desc>",
                                 },
                             ]
@@ -465,7 +523,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -474,12 +533,14 @@ class TestValidateCloudConfigSchema:
                         "x": {
                             "type": "string",
                             "deprecated": True,
+                            "deprecated_version": "22.1",
                             "description": "<desc>",
                         },
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
             ),
             (
                 {
@@ -501,6 +562,7 @@ class TestValidateCloudConfigSchema:
                     "$defs": {
                         "my_ref": {
                             "deprecated": True,
+                            "deprecated_version": "32.3",
                             "description": "<desc>",
                         }
                     },
@@ -514,7 +576,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 32.3.",
             ),
             (
                 {
@@ -522,6 +585,7 @@ class TestValidateCloudConfigSchema:
                     "$defs": {
                         "my_ref": {
                             "deprecated": True,
+                            "deprecated_version": "27.2",
                         }
                     },
                     "properties": {
@@ -537,7 +601,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: DEPRECATED.",
+                "Deprecated cloud-config provided:\nx:  Deprecated in "
+                "version 27.2.",
             ),
             (
                 {
@@ -546,12 +611,14 @@ class TestValidateCloudConfigSchema:
                         "^.+$": {
                             "minItems": 1,
                             "deprecated": True,
+                            "deprecated_version": "27.2",
                             "description": "<desc>",
                         }
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED: <desc>",
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 27.2.",
             ),
             pytest.param(
                 {
@@ -560,11 +627,17 @@ class TestValidateCloudConfigSchema:
                         "^.+$": {
                             "minItems": 1,
                             "deprecated": True,
+                            "deprecated_version": "27.2",
+                            "changed": True,
+                            "changed_version": "22.2",
+                            "changed_description": "Drop ballast.",
                         }
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: DEPRECATED.",
+                "Deprecated cloud-config provided:\na-b:  Deprecated "
+                "in version 27.2.\na-b:  Changed in version 22.2. "
+                "Drop ballast.",
                 id="deprecated_pattern_property_without_description",
             ),
         ],
@@ -638,14 +711,6 @@ class TestValidateCloudConfigFile:
     """Tests for validate_cloudconfig_file."""
 
     @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_error_on_absent_file(self, annotate):
-        """On absent config_path, validate_cloudconfig_file errors."""
-        with pytest.raises(
-            RuntimeError, match="Configfile /not/here does not exist"
-        ):
-            validate_cloudconfig_file("/not/here", {}, annotate)
-
-    @pytest.mark.parametrize("annotate", (True, False))
     def test_validateconfig_file_error_on_invalid_header(
         self, annotate, tmpdir
     ):
@@ -708,59 +773,10 @@ class TestValidateCloudConfigFile:
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
 
     @skipUnlessJsonSchema()
-    @responses.activate
     @pytest.mark.parametrize("annotate", (True, False))
     @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_validateconfig_file_include_validates_schema(
-        self, m_getuid, m_sleep, annotate, mocker
-    ):
-        """validate_cloudconfig_file raises errors on invalid schema
-        when user-data uses `#include`."""
-        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        included_data = "#cloud-config\np1: -1"
-        included_url = "http://asdf/user-data"
-        blob = f"#include {included_url}"
-        responses.add(responses.GET, included_url, included_data)
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-
-        error_msg = (
-            "Cloud config schema errors: p1: -1 is not of type 'string'"
-        )
-        with pytest.raises(SchemaValidationError, match=error_msg):
-            validate_cloudconfig_file(None, schema, annotate)
-
-    @skipUnlessJsonSchema()
-    @responses.activate
-    @pytest.mark.parametrize("annotate", (True, False))
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_validateconfig_file_include_success(
-        self, m_getuid, m_sleep, annotate, mocker
-    ):
-        """validate_cloudconfig_file raises errors on invalid schema
-        when user-data uses `#include`."""
-        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        included_data = "#cloud-config\np1: asdf"
-        included_url = "http://asdf/user-data"
-        blob = f"#include {included_url}"
-        responses.add(responses.GET, included_url, included_data)
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-
-        validate_cloudconfig_file(None, schema, annotate)
-
-    @skipUnlessJsonSchema()
-    @pytest.mark.parametrize("annotate", (True, False))
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_validateconfig_file_no_cloud_cfg(
-        self, m_getuid, m_sleep, annotate, capsys, mocker
+        self, m_sleep, annotate, capsys, mocker
     ):
         """validate_cloudconfig_file does noop with empty user-data."""
         schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
@@ -769,15 +785,18 @@ class TestValidateCloudConfigFile:
         ci = stages.Init()
         ci.datasource = FakeDataSource(blob)
         mocker.patch(M_PATH + "Init", return_value=ci)
+        cloud_config_file = ci.paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"")
 
         with pytest.raises(
             SchemaValidationError,
             match=re.escape(
-                "Cloud config schema errors: format-l1.c1: File None needs"
-                ' to begin with "#cloud-config"'
+                "Cloud config schema errors: format-l1.c1:"
+                f" File {cloud_config_file} needs to begin with"
+                ' "#cloud-config"'
             ),
         ):
-            validate_cloudconfig_file(None, schema, annotate)
+            validate_cloudconfig_file(cloud_config_file, schema, annotate)
 
 
 class TestSchemaDocMarkdown:
@@ -847,7 +866,7 @@ class TestSchemaDocMarkdown:
             **Supported distros:** debian, rhel
 
             **Config schema**:
-                **prop1:** (array of integer) prop-description.
+                **prop1:** (array of integer) prop-description
 
             **Examples**::
 
@@ -867,12 +886,12 @@ class TestSchemaDocMarkdown:
                 "properties": {
                     "prop1": {
                         "type": "array",
-                        "description": "prop-description",
+                        "description": "prop-description.",
                         "items": {"type": "string"},
                     },
                     "prop2": {
                         "type": "boolean",
-                        "description": "prop2-description",
+                        "description": "prop2-description.",
                     },
                 },
             }
@@ -947,7 +966,7 @@ class TestSchemaDocMarkdown:
                     "patternProperties": {
                         "^.+$": {
                             "label": "<opaque_label>",
-                            "description": "List of cool strings",
+                            "description": "List of cool strings.",
                             "type": "array",
                             "items": {"type": "string"},
                             "minItems": 1,
@@ -1101,7 +1120,7 @@ class TestSchemaDocMarkdown:
                 "properties": {
                     "prop1": {
                         "type": "array",
-                        "description": "prop-description",
+                        "description": "prop-description.",
                         "items": {"type": "integer"},
                     }
                 },
@@ -1157,7 +1176,7 @@ class TestSchemaDocMarkdown:
                         - option2
                         - option3
 
-                The default value is option1.
+                The default value is option1
 
         """
             )
@@ -1268,7 +1287,9 @@ class TestSchemaDocMarkdown:
                         }
                     }
                 },
-                "**prop1:** (string/integer) DEPRECATED: <description>",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1278,10 +1299,40 @@ class TestSchemaDocMarkdown:
                             "type": ["string", "integer"],
                             "description": "<description>",
                             "deprecated": True,
+                            "deprecated_version": "2",
+                            "changed": True,
+                            "changed_version": "1",
+                            "new": True,
+                            "new_version": "1",
                         },
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED: <description>",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2.*\n\n    *Changed in version"
+                " 1.*\n\n    *New in version 1.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "description": "<description>",
+                            "deprecated": True,
+                            "deprecated_version": "2",
+                            "deprecated_description": "dep",
+                            "changed": True,
+                            "changed_version": "1",
+                            "changed_description": "chg",
+                            "new": True,
+                            "new_version": "1",
+                            "new_description": "new",
+                        },
+                    },
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2. dep*\n\n    *Changed in "
+                "version 1. chg*\n\n    *New in version 1. new*",
             ),
             (
                 {
@@ -1299,7 +1350,9 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED: <description>",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1319,7 +1372,9 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) DEPRECATED: <description>",
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
             ),
             (
                 {
@@ -1330,14 +1385,17 @@ class TestSchemaDocMarkdown:
                             "anyOf": [
                                 {
                                     "type": ["string", "integer"],
-                                    "description": "<deprecated_description>",
+                                    "description": "<deprecated_description>.",
                                     "deprecated": True,
                                 },
                             ],
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED) <description>. DEPRECATED: <deprecat",
+                "**prop1:** (UNDEFINED) <description>. "
+                "<deprecated_description>.\n\n    *Deprecated in "
+                "version <missing deprecated_version key, please "
+                "file a bug report>.*",
             ),
             (
                 {
@@ -1347,7 +1405,7 @@ class TestSchemaDocMarkdown:
                             "anyOf": [
                                 {
                                     "type": ["string", "integer"],
-                                    "description": "<deprecated_description>",
+                                    "description": "<deprecated_description>.",
                                     "deprecated": True,
                                 },
                                 {
@@ -1358,8 +1416,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (number) <description>. DEPRECATED:"
-                " <deprecated_description>",
+                "**prop1:** (number) <deprecated_description>.\n\n"
+                "    *Deprecated in version <missing "
+                "deprecated_version key, please file a bug report>.*",
             ),
             (
                 {
@@ -1371,6 +1430,7 @@ class TestSchemaDocMarkdown:
                                     "type": ["string", "integer"],
                                     "description": "<deprecated_description>",
                                     "deprecated": True,
+                                    "deprecated_version": "22.1",
                                 },
                                 {
                                     "type": "string",
@@ -1381,8 +1441,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (``none``/``unchanged``/``os``) <description>."
-                " DEPRECATED: <deprecated_description>.",
+                "**prop1:** (``none``/``unchanged``/``os``) "
+                "<description>. <deprecated_description>\n\n    "
+                "*Deprecated in version 22.1.*",
             ),
             (
                 {
@@ -1403,8 +1464,9 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer/``none``/``unchanged``/``os``)"
-                " <description_1>. <description>_2.\n",
+                "**prop1:** (string/integer/``none``/"
+                "``unchanged``/``os``) <description_1>. "
+                "<description>_2\n",
             ),
             (
                 {
@@ -1425,7 +1487,7 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (array of object) <desc_1>.\n",
+                "**prop1:** (array of object) <desc_1>\n",
             ),
         ],
     )
@@ -1582,7 +1644,7 @@ class TestMain:
                 main()
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
-        assert "Error:\nConfigfile NOT_A_FILE does not exist\n" == err
+        assert "Error: Config file NOT_A_FILE does not exist\n" == err
 
     def test_main_invalid_flag_combo(self, capsys):
         """Main exits non-zero when invalid flag combo used."""
@@ -1614,24 +1676,48 @@ class TestMain:
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: {0}\n".format(myyaml) == out
+        assert f"Valid cloud-config: {myyaml}\n" == out
 
     @mock.patch(M_PATH + "os.getuid", return_value=0)
-    def test_main_validates_system_userdata(
-        self, m_getuid, capsys, mocker, paths
+    def test_main_validates_system_userdata_and_vendordata(
+        self, _getuid, capsys, mocker, paths
     ):
         """When --system is provided, main validates system userdata."""
         m_init = mocker.patch(M_PATH + "Init")
         m_init.return_value.paths.get_ipath = paths.get_ipath_cur
         cloud_config_file = paths.get_ipath_cur("cloud_config")
         write_file(cloud_config_file, b"#cloud-config\nntp:")
+        vd_file = paths.get_ipath_cur("vendor_cloud_config")
+        write_file(vd_file, b"#cloud-config\nssh_import_id: [me]")
+        vd2_file = paths.get_ipath_cur("vendor2_cloud_config")
+        write_file(vd2_file, b"#cloud-config\nssh_pw_auth: true")
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
+            main()
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: system userdata\n" == out
 
-    @mock.patch("cloudinit.config.schema.os.getuid", return_value=1000)
+        expected = dedent(
+            """\
+        Found cloud-config data types: user-data, vendor-data, vendor2-data
+
+        1. user-data at {ud_file}:
+          Valid cloud-config: user-data
+
+        2. vendor-data at {vd_file}:
+          Valid cloud-config: vendor-data
+
+        3. vendor2-data at {vd2_file}:
+          Valid cloud-config: vendor2-data
+        """
+        )
+        assert (
+            expected.format(
+                ud_file=cloud_config_file, vd_file=vd_file, vd2_file=vd2_file
+            )
+            == out
+        )
+
+    @mock.patch(M_PATH + "os.getuid", return_value=1000)
     def test_main_system_userdata_requires_root(self, m_getuid, capsys, paths):
         """Non-root user can't use --system param"""
         myargs = ["mycmd", "--system"]
@@ -1641,8 +1727,8 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         expected = (
-            "Error:\nUnable to read system userdata as non-root user. "
-            "Try using sudo\n"
+            "Error:\nUnable to read system userdata or vendordata as non-root"
+            " user. Try using sudo.\n"
         )
         assert expected == err
 
@@ -1784,17 +1870,16 @@ class TestHandleSchemaArgs:
                     #cloud-config
                     packages:
                     - htop
-                    apt_update: true		# D1
-                    apt_upgrade: true		# D2
-                    apt_reboot_if_required: true		# D3
+                    apt_update: true                # D1
+                    apt_upgrade: true               # D2
+                    apt_reboot_if_required: true            # D3
 
                     # Deprecations: -------------
-                    # D1: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``
-                    # D2: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    # D3: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``
+                    # D1: Default: ``false``. Deprecated in version 22.2. Use ``package_update`` instead.
+                    # D2: Default: ``false``. Deprecated in version 22.2. Use ``package_upgrade`` instead.
+                    # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
 
-
-                    Valid cloud-config: {}
+                    Valid cloud-config: {cfg_file}
                     """  # noqa: E501
                 ),
             ),
@@ -1803,10 +1888,12 @@ class TestHandleSchemaArgs:
                 dedent(
                     """\
                     Cloud config schema deprecations: \
-apt_reboot_if_required: DEPRECATED: Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``, \
-apt_update: DEPRECATED: Dropped after April 2027. Use ``package_update``. Default: ``false``, \
-apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Default: ``false``
-                    Valid cloud-config: {}
+apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
+ Use ``package_reboot_if_required`` instead., apt_update: Default: \
+``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
+ apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
+``package_upgrade`` instead.\
+                    Valid cloud-config: {cfg_file}
                     """  # noqa: E501
                 ),
             ),
@@ -1837,6 +1924,9 @@ apt_upgrade: DEPRECATED: Dropped after April 2027. Use ``package_upgrade``. Defa
         )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
-        assert expected_output.format(user_data_fn) == out
+        assert (
+            expected_output.format(cfg_file=user_data_fn).split()
+            == out.split()
+        )
         assert not err
         assert "deprec" not in caplog.text

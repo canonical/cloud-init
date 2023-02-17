@@ -655,10 +655,12 @@ def _get_variant(info):
             variant = "rhel"
         elif linux_dist in (
             "opensuse",
-            "opensuse-tumbleweed",
             "opensuse-leap",
-            "sles",
+            "opensuse-microos",
+            "opensuse-tumbleweed",
             "sle_hpc",
+            "sle-micro",
+            "sles",
         ):
             variant = "suse"
         else:

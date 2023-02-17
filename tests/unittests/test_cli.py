@@ -253,6 +253,7 @@ class TestCLI:
                     "opensuse, opensuse-microos, opensuse-tumbleweed, "
                     "opensuse-leap, photon, rhel, rocky, sle_hpc, "
                     "sle-micro, sles, TencentOS, ubuntu, virtuozzo",
+
                     "**Config schema**:\n    **resize_rootfs:** "
                     "(``true``/``false``/``noblock``)",
                     "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",

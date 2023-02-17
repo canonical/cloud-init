@@ -211,6 +211,7 @@ def handle(
 
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
+        cert_config = []
         for (key, val) in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
                 if pattern_unsupported_config_keys.match(key):
@@ -224,8 +225,10 @@ def handle(
             util.write_file(tgt_fn, val, tgt_perms)
             # set server to present the most recently identified certificate
             if "_certificate" in key:
-                cert_config = {"HostCertificate": tgt_fn}
-                ssh_util.update_ssh_config(cert_config)
+                cert_config.append(("HostCertificate", str(tgt_fn)))
+
+        if cert_config:
+            ssh_util.append_ssh_config(cert_config)
 
         for private_type, public_type in PRIV_TO_PUB.items():
             if (

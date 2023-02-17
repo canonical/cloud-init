@@ -3,7 +3,6 @@
 import copy
 import crypt
 import json
-import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
@@ -11,13 +10,13 @@ from pathlib import Path
 
 import pytest
 import requests
-import responses
 
 from cloudinit import distros, helpers, subp, url_helper
 from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.azure import imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -27,11 +26,9 @@ from cloudinit.util import (
     load_json,
     write_file,
 )
-from cloudinit.version import version_string as vs
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
-    ResponsesTestCase,
     mock,
     populate_dir,
     resourceLocation,
@@ -205,19 +202,13 @@ def mock_os_path_isfile():
 
 @pytest.fixture
 def mock_readurl():
-    with mock.patch(MOCKPATH + "readurl", autospec=True) as m:
+    with mock.patch(MOCKPATH + "imds.readurl", autospec=True) as m:
         yield m
 
 
 @pytest.fixture
 def mock_report_diagnostic_event():
     with mock.patch(MOCKPATH + "report_diagnostic_event") as m:
-        yield m
-
-
-@pytest.fixture
-def mock_requests_session_request():
-    with mock.patch("requests.Session.request", autospec=True) as m:
         yield m
 
 
@@ -233,12 +224,6 @@ def mock_sleep():
 @pytest.fixture
 def mock_subp_subp():
     with mock.patch(MOCKPATH + "subp.subp", side_effect=[]) as m:
-        yield m
-
-
-@pytest.fixture
-def mock_url_helper_time_sleep():
-    with mock.patch("cloudinit.url_helper.time.sleep", autospec=True) as m:
         yield m
 
 
@@ -852,176 +837,6 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
 
-class TestGetMetadataFromIMDS(ResponsesTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestGetMetadataFromIMDS, self).setUp()
-        self.network_md_url = "{}/instance?api-version=2019-06-01".format(
-            dsaz.IMDS_URL
-        )
-
-    @mock.patch(MOCKPATH + "readurl", autospec=True)
-    def test_get_metadata_uses_instance_url(self, m_readurl):
-        """Make sure readurl is called with the correct url when accessing
-        metadata"""
-        m_readurl.return_value = url_helper.StringResponse(
-            json.dumps(IMDS_NETWORK_METADATA).encode("utf-8")
-        )
-
-        dsaz.get_metadata_from_imds(retries=3, md_type=dsaz.MetadataType.ALL)
-        m_readurl.assert_called_with(
-            "http://169.254.169.254/metadata/instance?api-version=2019-06-01",
-            exception_cb=mock.ANY,
-            headers=mock.ANY,
-            retries=mock.ANY,
-            timeout=mock.ANY,
-            infinite=False,
-        )
-
-    @mock.patch(MOCKPATH + "readurl", autospec=True)
-    def test_get_network_metadata_uses_network_url(self, m_readurl):
-        """Make sure readurl is called with the correct url when accessing
-        network metadata"""
-        m_readurl.return_value = url_helper.StringResponse(
-            json.dumps(IMDS_NETWORK_METADATA).encode("utf-8")
-        )
-
-        dsaz.get_metadata_from_imds(
-            retries=3, md_type=dsaz.MetadataType.NETWORK
-        )
-        m_readurl.assert_called_with(
-            "http://169.254.169.254/metadata/instance/network?api-version="
-            "2019-06-01",
-            exception_cb=mock.ANY,
-            headers=mock.ANY,
-            retries=mock.ANY,
-            timeout=mock.ANY,
-            infinite=False,
-        )
-
-    @mock.patch(MOCKPATH + "readurl", autospec=True)
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
-    def test_get_default_metadata_uses_instance_url(self, m_dhcp, m_readurl):
-        """Make sure readurl is called with the correct url when accessing
-        metadata"""
-        m_readurl.return_value = url_helper.StringResponse(
-            json.dumps(IMDS_NETWORK_METADATA).encode("utf-8")
-        )
-
-        dsaz.get_metadata_from_imds(retries=3)
-        m_readurl.assert_called_with(
-            "http://169.254.169.254/metadata/instance?api-version=2019-06-01",
-            exception_cb=mock.ANY,
-            headers=mock.ANY,
-            retries=mock.ANY,
-            timeout=mock.ANY,
-            infinite=False,
-        )
-
-    @mock.patch(MOCKPATH + "readurl", autospec=True)
-    def test_get_metadata_uses_extended_url(self, m_readurl):
-        """Make sure readurl is called with the correct url when accessing
-        metadata"""
-        m_readurl.return_value = url_helper.StringResponse(
-            json.dumps(IMDS_NETWORK_METADATA).encode("utf-8")
-        )
-
-        dsaz.get_metadata_from_imds(
-            retries=3,
-            md_type=dsaz.MetadataType.ALL,
-            api_version="2021-08-01",
-        )
-        m_readurl.assert_called_with(
-            "http://169.254.169.254/metadata/instance?api-version="
-            "2021-08-01&extended=true",
-            exception_cb=mock.ANY,
-            headers=mock.ANY,
-            retries=mock.ANY,
-            timeout=mock.ANY,
-            infinite=False,
-        )
-
-    @mock.patch(MOCKPATH + "readurl", autospec=True)
-    def test_get_metadata_performs_dhcp_when_network_is_down(self, m_readurl):
-        """Perform DHCP setup when nic is not up."""
-        m_readurl.return_value = url_helper.StringResponse(
-            json.dumps(NETWORK_METADATA).encode("utf-8")
-        )
-
-        self.assertEqual(
-            NETWORK_METADATA, dsaz.get_metadata_from_imds(retries=2)
-        )
-
-        self.assertIn(
-            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
-            self.logs.getvalue(),
-        )
-
-        m_readurl.assert_called_with(
-            self.network_md_url,
-            exception_cb=mock.ANY,
-            headers={"Metadata": "true"},
-            retries=2,
-            timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
-            infinite=False,
-        )
-
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    def test_get_metadata_from_imds_empty_when_no_imds_present(self, m_sleep):
-        """Return empty dict when IMDS network metadata is absent."""
-        # Workaround https://github.com/getsentry/responses/pull/166
-        # url path can be reverted to "/instance?api-version=2019-12-01"
-        response = requests.Response()
-        response.status_code = 404
-        self.responses.add(
-            responses.GET,
-            dsaz.IMDS_URL + "/instance",
-            body=requests.HTTPError("...", response=response),
-            status=404,
-        )
-
-        self.assertEqual(
-            {},
-            dsaz.get_metadata_from_imds(retries=2, api_version="2019-12-01"),
-        )
-
-        self.assertEqual([mock.call(1), mock.call(1)], m_sleep.call_args_list)
-        self.assertIn(
-            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
-            self.logs.getvalue(),
-        )
-
-    @mock.patch("requests.Session.request")
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    def test_get_metadata_from_imds_retries_on_timeout(
-        self, m_sleep, m_request
-    ):
-        """Retry IMDS network metadata on timeout errors."""
-
-        self.attempt = 0
-        m_request.side_effect = requests.Timeout("Fake Connection Timeout")
-
-        def retry_callback(request, uri, headers):
-            self.attempt += 1
-            raise requests.Timeout("Fake connection timeout")
-
-        self.responses.add(
-            responses.GET,
-            dsaz.IMDS_URL + "instance?api-version=2017-12-01",
-            body=retry_callback,
-        )
-
-        self.assertEqual({}, dsaz.get_metadata_from_imds(retries=3))
-
-        self.assertEqual([mock.call(1)] * 3, m_sleep.call_args_list)
-        self.assertIn(
-            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
-            self.logs.getvalue(),
-        )
-
-
 class TestAzureDataSource(CiTestCase):
 
     with_logs = True
@@ -1053,10 +868,10 @@ class TestAzureDataSource(CiTestCase):
         self.m_dhcp.return_value.lease = {}
         self.m_dhcp.return_value.iface = "eth4"
 
-        self.m_get_metadata_from_imds = self.patches.enter_context(
+        self.m_fetch = self.patches.enter_context(
             mock.patch.object(
-                dsaz,
-                "get_metadata_from_imds",
+                dsaz.imds,
+                "fetch_metadata_with_api_fallback",
                 mock.MagicMock(return_value=NETWORK_METADATA),
             )
         )
@@ -1369,7 +1184,7 @@ scbus-1 on xpt0 bus 0
             data, write_ovf_to_data_dir=True, write_ovf_to_seed_dir=False
         )
 
-        self.m_get_metadata_from_imds.return_value = {}
+        self.m_fetch.return_value = {}
         with mock.patch(MOCKPATH + "util.mount_cb") as m_mount_cb:
             m_mount_cb.side_effect = [
                 MountFailedError("fail"),
@@ -1506,7 +1321,7 @@ scbus-1 on xpt0 bus 0
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
         dsrc = self._get_ds(data)
         dsrc.crawl_metadata()
-        self.assertEqual(1, self.m_get_metadata_from_imds.call_count)
+        self.assertEqual(1, self.m_fetch.call_count)
 
     @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
     @mock.patch(
@@ -1523,7 +1338,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
-        self.assertEqual(2, self.m_get_metadata_from_imds.call_count)
+        self.assertEqual(2, self.m_fetch.call_count)
 
     @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
     @mock.patch(
@@ -1574,9 +1389,11 @@ scbus-1 on xpt0 bus 0
         "cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready",
         return_value=True,
     )
-    @mock.patch("cloudinit.sources.DataSourceAzure.readurl")
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.imds.fetch_reprovision_data"
+    )
     def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
-        self, m_readurl, m_report_ready, m_media_switch, m_write
+        self, m_fetch_reprovision_data, m_report_ready, m_media_switch, m_write
     ):
         """If reprovisioning, report ready using the obtained lease"""
         ovfenv = construct_ovf_env(preprovisioned_vm=True)
@@ -1595,8 +1412,8 @@ scbus-1 on xpt0 bus 0
         m_media_switch.return_value = None
 
         reprovision_ovfenv = construct_ovf_env()
-        m_readurl.return_value = url_helper.StringResponse(
-            reprovision_ovfenv.encode("utf-8")
+        m_fetch_reprovision_data.return_value = reprovision_ovfenv.encode(
+            "utf-8"
         )
 
         dsrc.crawl_metadata()
@@ -1678,7 +1495,7 @@ scbus-1 on xpt0 bus 0
         third_intf["ipv4"]["ipAddress"][0]["privateIpAddress"] = "10.0.2.6"
         imds_data["network"]["interface"].append(third_intf)
 
-        self.m_get_metadata_from_imds.return_value = imds_data
+        self.m_fetch.return_value = imds_data
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
@@ -1704,7 +1521,7 @@ scbus-1 on xpt0 bus 0
         }
         imds_data = copy.deepcopy(NETWORK_METADATA)
         imds_data["network"]["interface"].append(SECONDARY_INTERFACE_NO_IP)
-        self.m_get_metadata_from_imds.return_value = imds_data
+        self.m_fetch.return_value = imds_data
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
@@ -2261,13 +2078,12 @@ scbus-1 on xpt0 bus 0
     @mock.patch(
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
     )
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
     def test_get_public_ssh_keys_with_no_openssh_format(
-        self, m_get_metadata_from_imds, m_parse_certificates
+        self, m_parse_certificates
     ):
         imds_data = copy.deepcopy(NETWORK_METADATA)
         imds_data["compute"]["publicKeys"][0]["keyData"] = "no-openssh-format"
-        m_get_metadata_from_imds.return_value = imds_data
+        self.m_fetch.return_value = imds_data
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2280,9 +2096,8 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(ssh_keys, [])
         self.assertEqual(m_parse_certificates.call_count, 0)
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_get_public_ssh_keys_without_imds(self, m_get_metadata_from_imds):
-        m_get_metadata_from_imds.return_value = dict()
+    def test_get_public_ssh_keys_without_imds(self):
+        self.m_fetch.return_value = dict()
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2295,67 +2110,7 @@ scbus-1 on xpt0 bus 0
         ssh_keys = dsrc.get_public_ssh_keys()
         self.assertEqual(ssh_keys, ["key2"])
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_imds_api_version_wanted_nonexistent(
-        self, m_get_metadata_from_imds
-    ):
-        def get_metadata_from_imds_side_eff(*args, **kwargs):
-            if kwargs["api_version"] == dsaz.IMDS_VER_WANT:
-                raise url_helper.UrlError("No IMDS version", code=400)
-            return NETWORK_METADATA
-
-        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_eff
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        data = {
-            "ovfcontent": construct_ovf_env(),
-            "sys_cfg": sys_cfg,
-        }
-        dsrc = self._get_ds(data)
-        dsrc.get_data()
-        self.assertIsNotNone(dsrc.metadata)
-
-        assert m_get_metadata_from_imds.mock_calls == [
-            mock.call(
-                retries=10,
-                md_type=dsaz.MetadataType.ALL,
-                api_version="2021-08-01",
-                exc_cb=mock.ANY,
-                infinite=False,
-            ),
-            mock.call(
-                retries=10,
-                md_type=dsaz.MetadataType.ALL,
-                api_version="2019-06-01",
-                exc_cb=mock.ANY,
-                infinite=False,
-            ),
-        ]
-
-    @mock.patch(
-        MOCKPATH + "get_metadata_from_imds", return_value=NETWORK_METADATA
-    )
-    def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
-        data = {
-            "ovfcontent": construct_ovf_env(),
-            "sys_cfg": sys_cfg,
-        }
-        dsrc = self._get_ds(data)
-        dsrc.get_data()
-        self.assertIsNotNone(dsrc.metadata)
-
-        assert m_get_metadata_from_imds.mock_calls == [
-            mock.call(
-                retries=10,
-                md_type=dsaz.MetadataType.ALL,
-                api_version="2021-08-01",
-                exc_cb=mock.ANY,
-                infinite=False,
-            )
-        ]
-
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_hostname_from_imds(self, m_get_metadata_from_imds):
+    def test_hostname_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2367,13 +2122,12 @@ scbus-1 on xpt0 bus 0
             computerName="hostname1",
             disablePasswordAuthentication="true",
         )
-        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        self.m_fetch.return_value = imds_data_with_os_profile
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(dsrc.metadata["local-hostname"], "hostname1")
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_username_from_imds(self, m_get_metadata_from_imds):
+    def test_username_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2385,15 +2139,14 @@ scbus-1 on xpt0 bus 0
             computerName="hostname1",
             disablePasswordAuthentication="true",
         )
-        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        self.m_fetch.return_value = imds_data_with_os_profile
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(
             dsrc.cfg["system_info"]["default_user"]["name"], "username1"
         )
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_disable_password_from_imds(self, m_get_metadata_from_imds):
+    def test_disable_password_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2405,13 +2158,12 @@ scbus-1 on xpt0 bus 0
             computerName="hostname1",
             disablePasswordAuthentication="true",
         )
-        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        self.m_fetch.return_value = imds_data_with_os_profile
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertTrue(dsrc.metadata["disable_password"])
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_userdata_from_imds(self, m_get_metadata_from_imds):
+    def test_userdata_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2425,16 +2177,13 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="true",
         )
         imds_data["compute"]["userData"] = b64e(userdata)
-        m_get_metadata_from_imds.return_value = imds_data
+        self.m_fetch.return_value = imds_data
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, userdata.encode("utf-8"))
 
-    @mock.patch(MOCKPATH + "get_metadata_from_imds")
-    def test_userdata_from_imds_with_customdata_from_OVF(
-        self, m_get_metadata_from_imds
-    ):
+    def test_userdata_from_imds_with_customdata_from_OVF(self):
         userdataOVF = "userdataOVF"
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -2450,7 +2199,7 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="true",
         )
         imds_data["compute"]["userData"] = b64e(userdataImds)
-        m_get_metadata_from_imds.return_value = imds_data
+        self.m_fetch.return_value = imds_data
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
@@ -3046,7 +2795,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
     @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up")
     @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch(MOCKPATH + "DataSourceAzure.get_imds_data_with_api_fallback")
+    @mock.patch(MOCKPATH + "imds.fetch_metadata_with_api_fallback")
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     @mock.patch("os.path.isfile")
@@ -3226,7 +2975,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
-@mock.patch("requests.Session.request")
+@mock.patch(MOCKPATH + "imds.fetch_reprovision_data")
 @mock.patch(MOCKPATH + "DataSourceAzure._report_ready", return_value=True)
 class TestPreprovisioningPollIMDS(CiTestCase):
     def setUp(self):
@@ -3240,13 +2989,17 @@ class TestPreprovisioningPollIMDS(CiTestCase):
     def test_poll_imds_re_dhcp_on_timeout(
         self,
         m_report_ready,
-        m_request,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
         m_fallback,
     ):
         """The poll_imds will retry DHCP on IMDS timeout."""
+        m_fetch_reprovisiondata.side_effect = [
+            url_helper.UrlError(requests.Timeout("Fake connection timeout")),
+            b"ovf data",
+        ]
         report_file = self.tmp_path("report_marker", self.tmp)
         lease = {
             "interface": "eth9",
@@ -3260,23 +3013,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
 
-        self.tries = 0
-
-        def fake_timeout_once(**kwargs):
-            self.tries += 1
-            if self.tries == 1:
-                raise requests.Timeout("Fake connection timeout")
-            elif self.tries in (2, 3):
-                response = requests.Response()
-                response.status_code = 404 if self.tries == 2 else 410
-                raise requests.exceptions.HTTPError(
-                    "fake {}".format(response.status_code), response=response
-                )
-            # Third try should succeed and stop retries or redhcp
-            return mock.MagicMock(status_code=200, text="good", content="good")
-
-        m_request.side_effect = fake_timeout_once
-
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
@@ -3286,14 +3022,14 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         assert m_report_ready.mock_calls == [mock.call()]
 
         self.assertEqual(3, m_dhcp.call_count, "Expected 3 DHCP calls")
-        self.assertEqual(4, self.tries, "Expected 4 total reads from IMDS")
+        assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
     def test_poll_imds_skips_dhcp_if_ctx_present(
         self,
         m_isfile,
         report_ready_func,
-        fake_resp,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
@@ -3322,7 +3058,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_ephemeral_dhcpv4,
         m_isfile,
         report_ready_func,
-        m_request,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
@@ -3333,17 +3069,15 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         polling for reprovisiondata. Note that if this ctx is set when
         _poll_imds is called, then it is not expected to be waiting for
         media_disconnect_connect either."""
-
-        tries = 0
-
-        def fake_timeout_once(**kwargs):
-            nonlocal tries
-            tries += 1
-            if tries == 1:
-                raise requests.Timeout("Fake connection timeout")
-            return mock.MagicMock(status_code=200, text="good", content="good")
-
-        m_request.side_effect = fake_timeout_once
+        m_fetch_reprovisiondata.side_effect = [
+            url_helper.UrlError(
+                requests.ConnectionError(
+                    "Failed to establish a new connection: "
+                    "[Errno 101] Network is unreachable"
+                )
+            ),
+            b"ovf data",
+        ]
         report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         distro = mock.MagicMock()
@@ -3358,12 +3092,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             self.assertEqual(1, m_dhcp_ctx.clean_network.call_count)
         self.assertEqual(1, m_ephemeral_dhcpv4.call_count)
         self.assertEqual(0, m_media_switch.call_count)
-        self.assertEqual(2, m_request.call_count)
+        self.assertEqual(2, m_fetch_reprovisiondata.call_count)
 
     def test_does_not_poll_imds_report_ready_when_marker_file_exists(
         self,
         m_report_ready,
-        m_request,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
@@ -3390,10 +3124,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 0)
 
+    @mock.patch(MOCKPATH + "imds.fetch_metadata_with_api_fallback")
     def test_poll_imds_report_ready_success_writes_marker_file(
         self,
+        m_fetch,
         m_report_ready,
-        m_request,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
@@ -3426,7 +3162,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
     def test_poll_imds_report_ready_failure_raises_exc_and_doesnt_write_marker(
         self,
         m_report_ready,
-        m_request,
+        m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
         m_net,
@@ -3466,7 +3202,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 )
 @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network", autospec=True)
 @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
-@mock.patch("requests.Session.request")
+@mock.patch(
+    MOCKPATH + "imds.fetch_reprovision_data", side_effect=[b"ovf data"]
+)
 class TestAzureDataSourcePreprovisioning(CiTestCase):
     def setUp(self):
         super(TestAzureDataSourcePreprovisioning, self).setUp()
@@ -3476,7 +3214,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
     def test_poll_imds_returns_ovf_env(
-        self, m_request, m_dhcp, m_net, m_media_switch
+        self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
     ):
         """The _poll_imds method should return the ovf_env.xml."""
         m_media_switch.return_value = None
@@ -3488,30 +3226,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 "subnet-mask": "255.255.255.0",
             }
         ]
-        url = "http://{0}/metadata/reprovisiondata?api-version=2019-06-01"
-        host = "169.254.169.254"
-        full_url = url.format(host)
-        m_request.return_value = mock.MagicMock(
-            status_code=200, text="ovf", content="ovf"
-        )
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(
-            m_request.call_args_list,
-            [
-                mock.call(
-                    allow_redirects=True,
-                    headers={
-                        "Metadata": "true",
-                        "User-Agent": "Cloud-Init/%s" % vs(),
-                    },
-                    method="GET",
-                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
-                    url=full_url,
-                    stream=False,
-                )
-            ],
-        )
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
@@ -3524,7 +3240,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_net.call_count, 2)
 
     def test__reprovision_calls__poll_imds(
-        self, m_request, m_dhcp, m_net, m_media_switch
+        self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
     ):
         """The _reprovision method should call poll IMDS."""
         m_media_switch.return_value = None
@@ -3537,33 +3253,14 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 "unknown-245": "624c3620",
             }
         ]
-        url = "http://{0}/metadata/reprovisiondata?api-version=2019-06-01"
-        host = "169.254.169.254"
-        full_url = url.format(host)
         hostname = "myhost"
         username = "myuser"
         content = construct_ovf_env(username=username, hostname=hostname)
-        m_request.return_value = mock.MagicMock(
-            status_code=200, text=content, content=content
-        )
+        m_fetch_reprovisiondata.side_effect = [content]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md["local-hostname"], hostname)
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
-        self.assertIn(
-            mock.call(
-                allow_redirects=True,
-                headers={
-                    "Metadata": "true",
-                    "User-Agent": "Cloud-Init/%s" % vs(),
-                },
-                method="GET",
-                timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
-                url=full_url,
-                stream=False,
-            ),
-            m_request.call_args_list,
-        )
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
@@ -3908,187 +3605,6 @@ def fake_http_error_for_code(status_code: int):
     )
 
 
-@pytest.mark.parametrize(
-    "md_type,expected_url",
-    [
-        (
-            dsaz.MetadataType.ALL,
-            "http://169.254.169.254/metadata/instance?"
-            "api-version=2021-08-01&extended=true",
-        ),
-        (
-            dsaz.MetadataType.NETWORK,
-            "http://169.254.169.254/metadata/instance/network?"
-            "api-version=2021-08-01",
-        ),
-        (
-            dsaz.MetadataType.REPROVISION_DATA,
-            "http://169.254.169.254/metadata/reprovisiondata?"
-            "api-version=2021-08-01",
-        ),
-    ],
-)
-class TestIMDS:
-    def test_basic_scenarios(
-        self, azure_ds, caplog, mock_readurl, md_type, expected_url
-    ):
-        fake_md = {"foo": {"bar": []}}
-        mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(fake_md).encode()),
-        ]
-
-        md = azure_ds.get_imds_data_with_api_fallback(
-            retries=5,
-            md_type=md_type,
-        )
-
-        assert md == fake_md
-        assert mock_readurl.mock_calls == [
-            mock.call(
-                expected_url,
-                timeout=2,
-                headers={"Metadata": "true"},
-                retries=5,
-                exception_cb=dsaz.imds_readurl_exception_callback,
-                infinite=False,
-            ),
-        ]
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == []
-
-    @pytest.mark.parametrize(
-        "error",
-        [
-            fake_http_error_for_code(404),
-            fake_http_error_for_code(410),
-            fake_http_error_for_code(429),
-            fake_http_error_for_code(500),
-            requests.ConnectionError("Fake connection error"),
-            requests.Timeout("Fake connection timeout"),
-        ],
-    )
-    def test_will_retry_errors(
-        self,
-        azure_ds,
-        caplog,
-        md_type,
-        expected_url,
-        mock_requests_session_request,
-        mock_url_helper_time_sleep,
-        error,
-    ):
-        fake_md = {"foo": {"bar": []}}
-        mock_requests_session_request.side_effect = [
-            error,
-            mock.Mock(content=json.dumps(fake_md)),
-        ]
-
-        md = azure_ds.get_imds_data_with_api_fallback(
-            retries=5,
-            md_type=md_type,
-        )
-
-        assert md == fake_md
-        assert len(mock_requests_session_request.mock_calls) == 2
-        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == []
-
-    @pytest.mark.parametrize("retries", [0, 1, 5, 10])
-    @pytest.mark.parametrize(
-        "error",
-        [
-            fake_http_error_for_code(404),
-            fake_http_error_for_code(410),
-            fake_http_error_for_code(429),
-            fake_http_error_for_code(500),
-            requests.ConnectionError("Fake connection error"),
-            requests.Timeout("Fake connection timeout"),
-        ],
-    )
-    def test_retry_until_failure(
-        self,
-        azure_ds,
-        caplog,
-        md_type,
-        expected_url,
-        mock_requests_session_request,
-        mock_url_helper_time_sleep,
-        error,
-        retries,
-    ):
-        mock_requests_session_request.side_effect = [error] * (retries + 1)
-
-        assert (
-            azure_ds.get_imds_data_with_api_fallback(
-                retries=retries,
-                md_type=md_type,
-            )
-            == {}
-        )
-
-        assert len(mock_requests_session_request.mock_calls) == (retries + 1)
-        assert (
-            mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * retries
-        )
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == [
-            "Ignoring IMDS instance metadata. "
-            "Get metadata from IMDS failed: %s" % error
-        ]
-
-    @pytest.mark.parametrize(
-        "error",
-        [
-            fake_http_error_for_code(403),
-            fake_http_error_for_code(501),
-        ],
-    )
-    def test_will_not_retry_errors(
-        self,
-        azure_ds,
-        caplog,
-        md_type,
-        expected_url,
-        mock_requests_session_request,
-        mock_url_helper_time_sleep,
-        error,
-    ):
-        fake_md = {"foo": {"bar": []}}
-        mock_requests_session_request.side_effect = [
-            error,
-            mock.Mock(content=json.dumps(fake_md)),
-        ]
-
-        assert (
-            azure_ds.get_imds_data_with_api_fallback(
-                retries=5,
-                md_type=md_type,
-            )
-            == {}
-        )
-
-        assert len(mock_requests_session_request.mock_calls) == 1
-        assert mock_url_helper_time_sleep.mock_calls == []
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == [
-            "Ignoring IMDS instance metadata. "
-            "Get metadata from IMDS failed: %s" % error
-        ]
-
-
 class TestInstanceId:
     def test_metadata(self, azure_ds, mock_dmi_read_dmi_data):
         azure_ds.metadata = {"instance-id": "test-id"}
@@ -4193,8 +3709,9 @@ class TestProvisioning:
                 timeout=2,
                 headers={"Metadata": "true"},
                 retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
+                exception_cb=imds._readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
             ),
         ]
 
@@ -4252,29 +3769,31 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
-                timeout=2,
-                headers={"Metadata": "true"},
                 exception_cb=mock.ANY,
-                infinite=True,
+                headers={"Metadata": "true"},
                 log_req_resp=False,
+                infinite=True,
+                timeout=2,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
         ]
 
@@ -4355,38 +3874,41 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
-            ),
-            mock.call(
-                "http://169.254.169.254/metadata/instance/network?"
-                "api-version=2021-08-01",
+                log_req_resp=True,
+                retries=10,
                 timeout=2,
-                headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=mock.ANY,
-                infinite=True,
-            ),
-            mock.call(
-                "http://169.254.169.254/metadata/reprovisiondata?"
-                "api-version=2019-06-01",
-                timeout=2,
-                headers={"Metadata": "true"},
-                exception_cb=mock.ANY,
-                infinite=True,
-                log_req_resp=False,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                log_req_resp=False,
+                infinite=True,
+                timeout=2,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=imds._readurl_exception_callback,
+                headers={"Metadata": "true"},
+                infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
         ]
 
@@ -4503,38 +4025,41 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
-            ),
-            mock.call(
-                "http://169.254.169.254/metadata/instance/network?"
-                "api-version=2021-08-01",
+                log_req_resp=True,
+                retries=10,
                 timeout=2,
-                headers={"Metadata": "true"},
-                retries=0,
-                exception_cb=mock.ANY,
-                infinite=True,
-            ),
-            mock.call(
-                "http://169.254.169.254/metadata/reprovisiondata?"
-                "api-version=2019-06-01",
-                timeout=2,
-                headers={"Metadata": "true"},
-                exception_cb=mock.ANY,
-                infinite=True,
-                log_req_resp=False,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                infinite=True,
+                log_req_resp=False,
+                timeout=2,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=imds._readurl_exception_callback,
+                headers={"Metadata": "true"},
+                infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
         ]
 
@@ -4609,29 +4134,31 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
-                timeout=2,
-                headers={"Metadata": "true"},
                 exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=False,
+                timeout=2,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
             ),
         ]
 
@@ -4688,12 +4215,13 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                exception_cb=imds._readurl_exception_callback,
                 headers={"Metadata": "true"},
-                retries=10,
-                exception_cb=dsaz.imds_readurl_exception_callback,
                 infinite=False,
-            )
+                log_req_resp=True,
+                retries=10,
+                timeout=2,
+            ),
         ]
 
         assert self.mock_subp_subp.mock_calls == []
