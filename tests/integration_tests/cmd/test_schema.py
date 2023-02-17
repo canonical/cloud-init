@@ -37,9 +37,18 @@ class TestSchemaDeprecations:
         ), "`schema` cmd must return 0 even with deprecated configs"
         assert not result.stderr
         assert "Cloud config schema deprecations:" in result.stdout
-        assert "apt_update: Default: ``false``. Deprecated in version" in result.stdout
-        assert "apt_upgrade: Default: ``false``. Deprecated in version" in result.stdout
-        assert "apt_reboot_if_required: Default: ``false``. Deprecated in version" in result.stdout
+        assert (
+            "apt_update: Default: ``false``. Deprecated in version"
+            in result.stdout
+        )
+        assert (
+            "apt_upgrade: Default: ``false``. Deprecated in version"
+            in result.stdout
+        )
+        assert (
+            "apt_reboot_if_required: Default: ``false``. Deprecated in version"
+            in result.stdout
+        )
 
         annotated_result = class_client.execute(
             f"cloud-init schema --annotate --config-file {user_data_fn}"
