@@ -34,11 +34,11 @@ distros = [
     "mariner",
     "openEuler",
     "OpenCloudOS",
-    "TencentOS",
     "openmandriva",
     "photon",
     "rhel",
     "rocky",
+    "TencentOS",
     "virtuozzo",
 ]
 
