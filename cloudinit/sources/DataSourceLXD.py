@@ -11,6 +11,7 @@ Notes:
 import os
 import socket
 import stat
+import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Union, cast
@@ -299,7 +300,17 @@ def _get_json_response(
 def _do_request(
     session: requests.Session, url: str, do_raise: bool = True
 ) -> requests.Response:
-    response = session.get(url)
+    for _ in range(30):
+        response = session.get(url)
+        if 500 == response.status_code:
+            # retry every 0.1 seconds for 3 seconds in the case of 500 error
+            # tis evil, but it also works around a bug
+            time.sleep(0.1)
+            LOG.warning(
+                "[GET] [HTTP:%d] %s, retrying", response.status_code, url
+            )
+        else:
+            break
     LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
     if do_raise and not response.ok:
         raise sources.InvalidMetaDataException(
