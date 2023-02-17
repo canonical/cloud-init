@@ -1134,9 +1134,13 @@ class TestShouldAutoAttach:
         )
         if expected_result is None:  # UA API does respond
             assert should_auto_attach_value == _should_auto_attach(ua_section)
+            assert (
+                "Checking if the instance can be attached to Ubuntu Pro took"
+                in caplog.text
+            )
         else:  # cloud-init does respond
             assert expected_result == _should_auto_attach(ua_section)
-        assert not caplog.text
+            assert not caplog.text
 
 
 class TestAutoAttach:
@@ -1165,7 +1169,7 @@ class TestAutoAttach:
             "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
         ] = mock.Mock()
         _auto_attach(self.ua_section)
-        assert not caplog.text
+        assert "Attaching to Ubuntu Pro took" in caplog.text
 
 
 class TestAttach:
