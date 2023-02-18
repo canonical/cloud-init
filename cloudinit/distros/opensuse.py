@@ -74,39 +74,10 @@ class Distro(distros.Distro):
         )
 
     def package_command(self, command, args=None, pkgs=None):
-        pckg_op = command
         if pkgs is None:
             pkgs = []
 
-        if self.update_method is None:
-            result = util.get_mount_info("/")
-            fs_type = ""
-            if result:
-                (devpth, fs_type, mount_point) = result
-                # Check if the file system is read only
-                mounts = util.load_file("/proc/mounts").split("\n")
-                for mount in mounts:
-                    if mount.startswith(devpth):
-                        mount_info = mount.split()
-                        if mount_info[1] != mount_point:
-                            continue
-                        if mount_info[3].startswith("ro"):
-                            self.read_only_root = True
-                        else:
-                            self.read_only_root = False
-                        break
-                if fs_type.lower() == "btrfs" and os.path.exists(
-                    "/usr/sbin/transactional-update"
-                ):
-                    self.update_method = "transactional"
-                else:
-                    self.update_method = "zypper"
-            else:
-                LOG.info(
-                    "Could not determine filesystem type of '/' using zypper"
-                )
-                self.update_method = "zypper"
-
+        self._set_update_method()
         if self.read_only_root and not self.update_method == "transactional":
             LOG.error(
                 "Package operation requested but read only root "
@@ -126,9 +97,13 @@ class Distro(distros.Distro):
             ]
 
         # Command is the operation, such as install
-        if pckg_op == "upgrade":
+        if command == "upgrade":
             command = "update"
-        if self.update_method == "transactional" and not pkgs:
+        if (
+            not pkgs
+            and self.update_method == "transactional"
+            and command == "update"
+        ):
             command = "up"
             cmd = [
                 "transactional-update",
@@ -137,8 +112,8 @@ class Distro(distros.Distro):
             ]
         # Repo refresh only modifies data in the read-write path,
         # always uses zypper
-        if pckg_op == "refresh":
-            command = "refresh"
+        if command == "refresh":
+            # Repo refresh is a zypper only option, ignore the t-u setting
             cmd = ["zypper", "--non-interactive"]
         cmd.append(command)
 
@@ -216,6 +191,34 @@ class Distro(distros.Distro):
         else:
             host_fn = self.hostname_conf_fn
         return (host_fn, self._read_hostname(host_fn))
+
+    def _set_update_method(self):
+        """Decide if we want to use transactional-update or zypper"""
+        if self.update_method is None:
+            result = util.get_mount_info("/")
+            fs_type = ""
+            if result:
+                (devpth, fs_type, mount_point) = result
+                # Check if the file system is read only
+                mounts = util.load_file("/proc/mounts").split("\n")
+                for mount in mounts:
+                    if mount.startswith(devpth):
+                        mount_info = mount.split()
+                        if mount_info[1] != mount_point:
+                            continue
+                        self.read_only_root = mount_info[3].startswith("ro")
+                        break
+                if fs_type.lower() == "btrfs" and os.path.exists(
+                    "/usr/sbin/transactional-update"
+                ):
+                    self.update_method = "transactional"
+                else:
+                    self.update_method = "zypper"
+            else:
+                LOG.info(
+                    "Could not determine filesystem type of '/' using zypper"
+                )
+                self.update_method = "zypper"
 
     def _write_hostname(self, hostname, filename):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
