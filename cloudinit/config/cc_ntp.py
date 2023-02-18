@@ -37,6 +37,7 @@ distros = [
     "miraclelinux",
     "openbsd",
     "openEuler",
+    "OpenCloudOS",
     "openmandriva",
     "opensuse",
     "opensuse-microos",
@@ -48,6 +49,7 @@ distros = [
     "sle_hpc",
     "sle-micro",
     "sles",
+    "TencentOS",
     "ubuntu",
     "virtuozzo",
 ]

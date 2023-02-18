@@ -73,6 +73,7 @@ OSFAMILIES = {
         "sles",
     ],
     "openEuler": ["openEuler"],
+    "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
 }
 
 LOG = logging.getLogger(__name__)
