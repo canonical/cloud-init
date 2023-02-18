@@ -731,8 +731,12 @@ class TestReadMetadata:
                     ]
                 )
             )
-            lxd._do_request(m, "http://agua/")
+            resp = lxd._do_request(m, "http://agua/")
 
             # assert that 30 iterations or the first 200 code is the final
             # attempt, whichever comes first
             assert min(len(return_codes), 30) == m.get.call_count
+            if len(return_codes) < 31:
+                assert 200 == resp.status_code
+            else:
+                assert 500 == resp.status_code
