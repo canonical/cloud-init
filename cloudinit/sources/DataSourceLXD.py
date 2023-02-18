@@ -300,7 +300,7 @@ def _get_json_response(
 def _do_request(
     session: requests.Session, url: str, do_raise: bool = True
 ) -> requests.Response:
-    for retries in range(29, 0, -1):
+    for retries in range(30, 0, -1):
         response = session.get(url)
         if 500 == response.status_code:
             # retry every 0.1 seconds for 3 seconds in the case of 500 error

@@ -697,5 +697,41 @@ class TestReadMetadata:
             == m_session_get.call_args_list
         )
 
+    @mock.patch.object(lxd.requests.Session, "get")
+    @mock.patch.object(lxd.time, "sleep")
+    def test_socket_retry(self, m_session_get, m_sleep):
+        """validate socket retry logic"""
 
-# vi: ts=4 expandtab
+        def generate_return_codes():
+            """
+            [200]
+            [500, 200]
+            [500, 500, 200]
+            [500, 500, ..., 200]
+            """
+            five_hundreds = []
+
+            # generate a couple of longer ones to assert timeout condition
+            for i in range(33):
+                five_hundreds.append(500)
+                yield [*five_hundreds, 200]
+
+        for return_codes in generate_return_codes():
+            m = mock.Mock(
+                get=mock.Mock(
+                    side_effect=[
+                        mock.MagicMock(
+                            ok=mock.PropertyMock(return_value=True),
+                            status_code=code,
+                            text=mock.PropertyMock(
+                                return_value="properly formatted http response"
+                            ),
+                        )
+                        for code in return_codes
+                    ]
+                )
+            )
+            lxd._do_request(m, "http://agua/")
+
+            # assert that the first 200 code is the final retry
+            assert min(len(return_codes), 30) == m.get.call_count
