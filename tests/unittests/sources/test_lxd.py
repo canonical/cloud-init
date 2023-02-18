@@ -712,7 +712,7 @@ class TestReadMetadata:
             five_hundreds = []
 
             # generate a couple of longer ones to assert timeout condition
-            for i in range(33):
+            for _ in range(33):
                 five_hundreds.append(500)
                 yield [*five_hundreds, 200]
 
