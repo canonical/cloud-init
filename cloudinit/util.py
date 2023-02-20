@@ -35,6 +35,7 @@ from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
+from pathlib import Path
 from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
@@ -1792,7 +1793,11 @@ def json_dumps(data):
 
 
 def get_non_exist_parent_dir(path):
-    """Get non exist parent dir."""
+    """Get the last directory in a path that does not exist.
+
+    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    return /usr
+    """
     p_path = os.path.dirname(path)
     # Check if parent directory of path is root
     if p_path == os.path.dirname(p_path):
@@ -1814,7 +1819,14 @@ def ensure_dir(path, mode=None, user=None, group=None):
         chmod(path, mode)
         # Change the ownership
         if user or group:
-            chownbyname(non_existed_parent_dir, user, group, recursive=True)
+            chownbyname(non_existed_parent_dir, user, group)
+            # if path=/usr/a/b/c and non_existed_parent_dir=/usr,
+            # then sub_relative_dir=PosixPath('a/b/c')
+            sub_relative_dir = Path(path.split(non_existed_parent_dir)[1][1:])
+            sub_path = Path(non_existed_parent_dir)
+            for part in sub_relative_dir.parts:
+                sub_path = sub_path.joinpath(part)
+                chownbyname(sub_path, user, group)
     else:
         # Just adjust the mode
         chmod(path, mode)
