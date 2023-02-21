@@ -4,6 +4,7 @@
 
 """Cloud-init apport interface"""
 
+import json
 import os
 
 from cloudinit.cmd.devel import read_cfg_paths
@@ -72,6 +73,15 @@ def _get_user_data_file() -> str:
     return paths.get_ipath_cur("userdata_raw")
 
 
+def _get_instance_data() -> dict:
+    paths = read_cfg_paths()
+    try:
+        with open(paths.get_runpath("instance_data")) as file:
+            return json.load(file)
+    except IOError:
+        return {}
+
+
 def attach_cloud_init_logs(report, ui=None):
     """Attach cloud-init logs and tarfile from 'cloud-init collect-logs'."""
     attach_root_command_outputs(
@@ -101,8 +111,16 @@ def attach_hwinfo(report, ui=None):
 
 
 def attach_cloud_info(report, ui=None):
-    """Prompt for cloud details if available."""
-    if ui:
+    """Prompt for cloud details if instance-data unavailable.
+
+    When we have valid _get_instance_data, apport/generic-hooks/cloud_init.py
+    provides CloudName, CloudID, CloudPlatform and CloudSubPlatform.
+
+    In absence of instance-data.json, prompt for the cloud below.
+    """
+
+    if ui and not _get_instance_data():
+        # No valid /run/cloud/instance-data.json on system. Prompt for cloud.
         prompt = "Is this machine running in a cloud environment?"
         response = ui.yesno(prompt)
         if response is None:
