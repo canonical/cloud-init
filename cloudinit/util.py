@@ -1596,7 +1596,7 @@ def chownbyid(fname, uid=None, gid=None):
     os.chown(fname, uid, gid)
 
 
-def chownbyname(fname, user=None, group=None, recursive=False):
+def chownbyname(fname, user=None, group=None):
     uid = -1
     gid = -1
     try:
@@ -1607,10 +1607,6 @@ def chownbyname(fname, user=None, group=None, recursive=False):
     except KeyError as e:
         raise OSError("Unknown user or group: %s" % (e)) from e
     chownbyid(fname, uid, gid)
-    if recursive and os.path.isdir(fname):
-        for root, dirs, _ in os.walk(fname):
-            for d in dirs:
-                chownbyid(os.path.join(root, d), uid, gid)
 
 
 # Always returns well formated values
@@ -1796,7 +1792,7 @@ def get_non_exist_parent_dir(path):
     """Get the last directory in a path that does not exist.
 
     Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
-    return /usr
+    return /usr/a
     """
     p_path = os.path.dirname(path)
     # Check if parent directory of path is root
