@@ -182,7 +182,9 @@ def write_files(name, files, owner: str):
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
-        util.write_file(path, contents, omode=omode, mode=perms)
+        util.write_file(
+            path, contents, omode=omode, mode=perms, user=u, group=g
+        )
         util.chownbyname(path, u, g)
 
 

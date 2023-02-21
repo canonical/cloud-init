@@ -35,6 +35,7 @@ from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
+from pathlib import Path
 from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
@@ -1791,12 +1792,41 @@ def json_dumps(data):
     )
 
 
-def ensure_dir(path, mode=None):
+def get_non_exist_parent_dir(path):
+    """Get the last directory in a path that does not exist.
+
+    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    return /usr/a
+    """
+    p_path = os.path.dirname(path)
+    # Check if parent directory of path is root
+    if p_path == os.path.dirname(p_path):
+        return path
+    else:
+        if os.path.isdir(p_path):
+            return path
+        else:
+            return get_non_exist_parent_dir(p_path)
+
+
+def ensure_dir(path, mode=None, user=None, group=None):
     if not os.path.isdir(path):
+        # Get non existed parent dir first before they are created.
+        non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
+        # Change the ownership
+        if user or group:
+            chownbyname(non_existed_parent_dir, user, group)
+            # if path=/usr/a/b/c and non_existed_parent_dir=/usr,
+            # then sub_relative_dir=PosixPath('a/b/c')
+            sub_relative_dir = Path(path.split(non_existed_parent_dir)[1][1:])
+            sub_path = Path(non_existed_parent_dir)
+            for part in sub_relative_dir.parts:
+                sub_path = sub_path.joinpath(part)
+                chownbyname(sub_path, user, group)
     else:
         # Just adjust the mode
         chmod(path, mode)
@@ -2133,6 +2163,8 @@ def write_file(
     preserve_mode=False,
     *,
     ensure_dir_exists=True,
+    user=None,
+    group=None,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2147,6 +2179,8 @@ def write_file(
     @param ensure_dir_exists: If True (the default), ensure that the directory
                               containing `filename` exists before writing to
                               the file.
+    @param user: The user to set on the file.
+    @param group: The group to set on the file.
     """
 
     if preserve_mode:
@@ -2156,7 +2190,7 @@ def write_file(
             pass
 
     if ensure_dir_exists:
-        ensure_dir(os.path.dirname(filename))
+        ensure_dir(os.path.dirname(filename), user=user, group=group)
     if "b" in omode.lower():
         content = encode_text(content)
         write_type = "bytes"

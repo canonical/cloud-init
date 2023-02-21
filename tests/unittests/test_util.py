@@ -14,6 +14,7 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 from urllib.parse import urlparse
@@ -1754,6 +1755,25 @@ class TestWriteFile(helpers.TestCase):
 
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
+
+    def test_dir_ownership(self):
+        """Verifiy that directories is created with appropriate ownership."""
+        dirname = os.path.join(self.tmp, "subdir", "subdir2")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+        user = "foo"
+        group = "foo"
+
+        with mock.patch.object(
+            util, "chownbyname", return_value=None
+        ) as mockobj:
+            util.write_file(path, contents, user=user, group=group)
+
+        calls = [
+            mock.call(os.path.join(self.tmp, "subdir"), user, group),
+            mock.call(Path(dirname), user, group),
+        ]
+        mockobj.assert_has_calls(calls, any_order=False)
 
     def test_dir_is_not_created_if_ensure_dir_false(self):
         """Verify directories are not created if ensure_dir_exists is False."""
