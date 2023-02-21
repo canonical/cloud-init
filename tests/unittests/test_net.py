@@ -13,7 +13,7 @@ from typing import Optional
 import pytest
 from yaml.serializer import Serializer
 
-from cloudinit import distros, net
+from cloudinit import distros, log, net
 from cloudinit import safeyaml as yaml
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
@@ -5230,6 +5230,7 @@ USERCTL=no
                 """  # noqa: E501
             ),
         }
+        log.setupLogging()
 
         found = self._render_and_read(network_config=v2_data)
         self._compare_files_to_expected(expected, found)

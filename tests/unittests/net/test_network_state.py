@@ -216,28 +216,28 @@ class TestNetworkStateParseConfigV2:
         """
         log.setupLogging()
 
-        with mock.patch.object(util, "DEPRECATION_LOG", new=set()):
-            ncfg = safeyaml.load(
-                cfg.format(
-                    gateway4="gateway4: 10.54.0.1",
-                    gateway6="gateway6: 2a00:1730:fff9:100::1",
-                )
+        util.deprecate._log = set()
+        ncfg = safeyaml.load(
+            cfg.format(
+                gateway4="gateway4: 10.54.0.1",
+                gateway6="gateway6: 2a00:1730:fff9:100::1",
             )
-            nsi = network_state.NetworkStateInterpreter(
-                version=ncfg["version"],
-                config=ncfg,
-                renderer=mock.MagicMock(spec=renderer_cls),
-            )
-            nsi.parse_config(skip_broken=False)
-            assert ncfg == nsi.as_dict()["config"]
+        )
+        nsi = network_state.NetworkStateInterpreter(
+            version=ncfg["version"],
+            config=ncfg,
+            renderer=mock.MagicMock(spec=renderer_cls),
+        )
+        nsi.parse_config(skip_broken=False)
+        assert ncfg == nsi.as_dict()["config"]
 
-            if renderer_cls != NetplanRenderer:
-                count = 1  # Only one deprecation
-            else:
-                count = 0  # No deprecation as we passthrough
-            assert count == caplog.text.count(
-                "The use of `gateway4` and `gateway6`"
-            )
+        if renderer_cls != NetplanRenderer:
+            count = 1  # Only one deprecation
+        else:
+            count = 0  # No deprecation as we passthrough
+        assert count == caplog.text.count(
+            "The use of `gateway4` and `gateway6`"
+        )
 
 
 class TestNetworkStateParseNameservers:
