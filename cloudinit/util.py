@@ -3111,7 +3111,7 @@ def deprecate(
     logged.
 
     @param deprecated: Noun to be deprecated. Write this as the start
-        of a sentance, with no period. Version and extra message will
+        of a sentence, with no period. Version and extra message will
         be appended.
     @param deprecated_version: The version in which the thing was
         deprecated
@@ -3138,7 +3138,10 @@ def deprecate(
             f"{deprecated_version} and scheduled to be removed in "
             f"{version_removed}. {message}"
         ).rstrip()
-        LOG.deprecated(deprecate_msg)
+        if hasattr(LOG, "deprecated"):
+            LOG.deprecated(deprecate_msg)
+        else:
+            LOG.warning(deprecate_msg)
 
 
 def deprecate_call(
