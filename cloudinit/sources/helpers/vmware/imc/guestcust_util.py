@@ -1,5 +1,5 @@
 # Copyright (C) 2016 Canonical Ltd.
-# Copyright (C) 2016-2022 VMware Inc.
+# Copyright (C) 2016-2023 VMware Inc.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
 #         Pengpeng Sun <pegnpengs@vmware.com>
@@ -11,7 +11,7 @@ import os
 import re
 import time
 
-from cloudinit import subp, util
+from cloudinit import safeyaml, subp, util
 
 from .config import Config
 from .config_custom_script import (
@@ -264,6 +264,17 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
                 cust_cfg,
             )
             return (None, None, None)
+
+        try:
+            logger.debug("Safeyaml loads md tocheck if it's valid")
+            md = safeyaml.load(md)
+        except safeyaml.YAMLError as e:
+            set_cust_error_status(
+                "Error parsing the cloud-init meta data",
+                str(e),
+                GuestCustErrorEnum.GUESTCUST_ERROR_WRONG_META_FORMAT,
+                cust_cfg,
+            )
 
         ud_file = cust_cfg.user_data_name
         if ud_file:
@@ -520,6 +531,14 @@ def do_pre_custom_script(cust_cfg, custom_script, cust_cfg_dir):
             cust_cfg,
         )
         return False
+    except Exception as e:
+        set_cust_error_status(
+            "Error executing pre-customization script",
+            str(e),
+            GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
     return True
 
 
@@ -528,6 +547,14 @@ def do_post_custom_script(cust_cfg, custom_script, cust_cfg_dir, ccScriptsDir):
         postcust = PostCustomScript(custom_script, cust_cfg_dir, ccScriptsDir)
         postcust.execute()
     except CustomScriptNotFound as e:
+        set_cust_error_status(
+            "Error executing post-customization script",
+            str(e),
+            GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+            cust_cfg,
+        )
+        return False
+    except Exception as e:
         set_cust_error_status(
             "Error executing post-customization script",
             str(e),
