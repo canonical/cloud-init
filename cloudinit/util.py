@@ -3126,13 +3126,13 @@ def deprecate(
     Note: uses keyword-only arguments to improve legibility
     """
     if not hasattr(deprecate, "_log"):
-        deprecate._log = set()
+        deprecate._log = set()  # type: ignore
     message = extra_message or ""
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
     version_removed = Version(version.major + schedule, version.minor)
-    if dedup not in deprecate._log:
-        deprecate._log.add(dedup)
+    if dedup not in deprecate._log:  # type: ignore
+        deprecate._log.add(dedup)  # type: ignore
         deprecate_msg = (
             f"{deprecated} is deprecated in "
             f"{deprecated_version} and scheduled to be removed in "

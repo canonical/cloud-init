@@ -216,7 +216,7 @@ class TestNetworkStateParseConfigV2:
         """
         log.setupLogging()
 
-        util.deprecate._log = set()
+        util.deprecate._log = set()  # type: ignore
         ncfg = safeyaml.load(
             cfg.format(
                 gateway4="gateway4: 10.54.0.1",
