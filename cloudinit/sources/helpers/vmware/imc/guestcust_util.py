@@ -266,7 +266,7 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
             return (None, None, None)
 
         try:
-            logger.debug("Safeyaml loads md tocheck if it's valid")
+            logger.debug("Validating if meta data is valid or not")
             md = safeyaml.load(md)
         except safeyaml.YAMLError as e:
             set_cust_error_status(
