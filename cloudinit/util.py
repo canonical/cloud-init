@@ -55,7 +55,6 @@ from cloudinit.settings import CFG_BUILTIN
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
-DEPRECATION_LOG = set()
 
 # Helps cleanup filenames to ensure they aren't FS incompatible
 FN_REPLACEMENTS = {
@@ -3126,18 +3125,20 @@ def deprecate(
 
     Note: uses keyword-only arguments to improve legibility
     """
+    if not hasattr(deprecate, "_log"):
+        deprecate._log = set()
     message = extra_message or ""
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
     version_removed = Version(version.major + schedule, version.minor)
-    if dedup not in DEPRECATION_LOG:
-        DEPRECATION_LOG.add(dedup)
-        deprecate = (
+    if dedup not in deprecate._log:
+        deprecate._log.add(dedup)
+        deprecate_msg = (
             f"{deprecated} is deprecated in "
             f"{deprecated_version} and scheduled to be removed in "
             f"{version_removed}. {message}"
         ).rstrip()
-        LOG.deprecated(deprecate)
+        LOG.deprecated(deprecate_msg)
 
 
 def deprecate_call(
