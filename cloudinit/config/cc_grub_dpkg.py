@@ -61,7 +61,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def fetch_idevs(mount_point: str, log: Logger):
+def fetch_idevs(log: Logger):
     """
     Fetches the /dev/disk/by-id device grub is installed to.
     Falls back to plain disk name if no by-id entry is present.
@@ -69,10 +69,18 @@ def fetch_idevs(mount_point: str, log: Logger):
     disk = ""
     devices = []
 
+    # BIOS mode systems use /boot and the disk path,
+    # EFI mode systems use /boot/efi and the partition path.
+    probe_target = "disk"
+    probe_mount = "/boot"
+    if is_efi_booted(log):
+        probe_target = "device"
+        probe_mount = "/boot/efi"
+
     try:
         # get the root disk where the /boot directory resides.
         disk = subp.subp(
-            ["grub-probe", "-t", "disk", mount_point], capture=True
+            ["grub-probe", "-t", probe_target, probe_mount], capture=True
         )[0].strip()
     except ProcessExecutionError as e:
         # grub-common may not be installed, especially on containers
@@ -161,48 +169,22 @@ def handle(
         )
 
 
-def get_debconf_owner(log: Logger) -> Optional[str]:
-    if not is_efi_booted(log):
-        return "grub-pc"
-
-    valid_efi_owners = ["grub-efi-amd64", "grub-efi-arm64", "grub-efi-ia32"]
-
-    try:
-        (output, _) = subp.subp(["debconf-show", "--listowners"])
-        for line in output.splitlines():
-            if line.strip() in valid_efi_owners:
-                return line.strip()
-    except Exception as e:
-        util.logexc(
-            log, "Failed to run debconf-set-selections for grub-dpkg: %s", e
-        )
-    return None
-
-
 # Returns the debconf config for grub-pc or grub-efi depending on the
 # system's boot mode.
 def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
     if is_efi_booted(log):
-        owner = get_debconf_owner(log)
-        if owner is None:
-            return None
-
         idevs = util.get_cfg_option_str(
             mycfg, "grub-efi/install_devices", None
         )
 
         if idevs is None:
-            idevs = fetch_idevs("/boot/efi", log)
+            idevs = fetch_idevs(log)
 
-        return (
-            "%s grub-efi/install_devices string %s\n"
-            "grub-pc grub-efi/install_devices string %s\n"
-            % (owner, idevs, idevs)
-        )
+        return "grub-pc grub-efi/install_devices string %s\n" % idevs
     else:
         idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
         if idevs is None:
-            idevs = fetch_idevs("/boot", log)
+            idevs = fetch_idevs(log)
 
         idevs_empty = mycfg.get("grub-pc/install_devices_empty")
         if idevs_empty is None:
