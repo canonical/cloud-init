@@ -123,7 +123,8 @@ class TestHandle:
     """Tests cc_grub_dpkg.handle()"""
 
     @pytest.mark.parametrize(
-        "cfg_idevs,cfg_idevs_empty,fetch_idevs_output,expected_log_output,debconf_efi_owner",
+        "cfg_idevs,cfg_idevs_empty,fetch_idevs_output,"
+        "expected_log_output,debconf_efi_owner",
         [
             (
                 # No configuration
@@ -132,7 +133,8 @@ class TestHandle:
                 "/dev/disk/by-id/nvme-Company_hash000",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/disk/by-id/nvme-Company_hash000\n",
+                    "'grub-pc grub-pc/install_devices string "
+                    "/dev/disk/by-id/nvme-Company_hash000\n",
                     "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
                 "",
@@ -193,7 +195,8 @@ class TestHandle:
                 "/dev/nvme0n1",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'grub-efi-amd64 grub-efi/install_devices string /dev/nvme0n1\n'",
+                    "'grub-efi-amd64 grub-efi/install_devices string "
+                    "/dev/nvme0n1\n'",
                 ),
                 "grub-efi-amd64",
             ),

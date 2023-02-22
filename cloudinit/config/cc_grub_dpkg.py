@@ -182,7 +182,7 @@ def get_debconf_owner(log: Logger) -> Optional[str]:
 
 # Returns the debconf config for grub-pc or grub-efi depending on the
 # system's boot mode.
-def get_debconf_config(mycfg: object, log: Logger) -> Optional[str]:
+def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
     if is_efi_booted(log):
         owner = get_debconf_owner(log)
         if owner is None:
