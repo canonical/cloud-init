@@ -194,7 +194,11 @@ def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
         if idevs is None:
             idevs = fetch_idevs("/boot/efi", log)
 
-        return "%s grub-efi/install_devices string %s\n" % (owner, idevs)
+        return (
+            "%s grub-efi/install_devices string %s\n"
+            "grub-pc grub-efi/install_devices string %s\n"
+            % (owner, idevs, idevs)
+        )
     else:
         idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
         if idevs is None:

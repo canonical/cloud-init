@@ -190,13 +190,13 @@ class TestHandle:
             ),
             (
                 # uefi active, idevs set
-                "/dev/nvme0n1",
+                "/dev/sda1",
                 False,
-                "/dev/nvme0n1",
+                "/dev/sda1",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'grub-efi-amd64 grub-efi/install_devices string "
-                    "/dev/nvme0n1\n'",
+                    "'grub-efi-amd64 grub-efi/install_devices string /dev/sda1\n",
+                    "grub-pc grub-efi/install_devices string /dev/sda1\n'",
                 ),
                 "grub-efi-amd64",
             ),
