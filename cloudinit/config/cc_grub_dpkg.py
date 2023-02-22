@@ -124,7 +124,6 @@ def fetch_idevs(mount_point: str, log: Logger):
 # Check if the system is booted in EFI mode.
 def is_efi_booted(log: Logger) -> bool:
     try:
-        """Returns True if the system is booted in EFI mode."""
         return os.path.exists("/sys/firmware/efi")
     except OSError as e:
         log.error("Failed to determine if system is booted in EFI mode: %s", e)
