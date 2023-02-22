@@ -97,12 +97,12 @@ class TestFetchIdevs:
                     "/dev/disk/by-id/scsi-3500a075116e6875a "
                     "/dev/disk/by-id/scsi-SATA_Crucial_CT525MX3_171816E6875A "
                     "/dev/disk/by-id/scsi-0ATA_Crucial_CT525MX3_171816E6875A "
-                    "/dev/disk/by-id/scsi-1ATA_Crucial_CT525MX300SSD1_171816E6875A "
                     "/dev/disk/by-path/pci-0000:00:17.0-ata-1 "
                     "/dev/disk/by-id/wwn-0x500a075116e6875a "
                     "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A"
                 ),
-                "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A-part1",
+                "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A-"
+                "part1",
                 True,
             ),
         ],
