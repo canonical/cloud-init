@@ -111,13 +111,13 @@ def check_condition(cond):
         proc.communicate()
         ret = proc.returncode
         if ret == 0:
-            LOG.debug(f"{pre}exited 0. condition met.")
+            LOG.debug("%sexited 0. condition met.", pre)
             return True
         elif ret == 1:
-            LOG.debug(f"{pre}exited 1. condition not met.")
+            LOG.debug("%sexited 1. condition not met.", pre)
             return False
         else:
-            LOG.warning(f"{pre}unexpected exit {ret}. do not apply change.")
+            LOG.warning("%sunexpected exit %s. do not apply change.", pre, ret)
             return False
     except Exception as e:
         LOG.warning("%sUnexpected error: %s", pre, e)
@@ -131,7 +131,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             LOG.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
-        LOG.warning(f"{str(e)} Not performing power state change!")
+        LOG.warning("%s Not performing power state change!", str(e))
         return
 
     if condition is False:

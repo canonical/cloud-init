@@ -248,6 +248,10 @@ class Modules:
                     func_signature = signature(mod.handle)
                     func_params = func_signature.parameters
                     if len(func_params) == 5:
+                        LOG.warning(
+                            "DEPRECATED: The use of modules with a `log` "
+                            "parameter is depecrated"
+                        )
                         func_args.update({"log": LOG})
                     ran, _r = cc.run(
                         run_name, mod.handle, func_args, freq=freq

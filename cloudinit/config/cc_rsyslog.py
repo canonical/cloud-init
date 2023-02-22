@@ -333,7 +333,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
     except subp.ProcessExecutionError as e:
         restarted = False
-        LOG.warning(f"Failed to reload syslog {str(e)}")
+        LOG.warning("Failed to reload syslog %s", str(e))
 
     if restarted:
         # This only needs to run if we *actually* restarted

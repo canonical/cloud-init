@@ -568,7 +568,7 @@ def resize_devices(resizer, devices):
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "growpart" not in cfg:
         LOG.debug(
-            f"No 'growpart' entry in cfg.  Using default: {DEFAULT_CONFIG}"
+            "No 'growpart' entry in cfg.  Using default: %s", DEFAULT_CONFIG
         )
         cfg["growpart"] = DEFAULT_CONFIG
 
@@ -585,7 +585,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 deprecated_version="22.2",
                 extra_message="Use 'off' instead.",
             )
-        LOG.debug(f"growpart disabled: mode={mode}")
+        LOG.debug("growpart disabled: mode=%s", mode)
         return
 
     if util.is_false(mycfg.get("ignore_growroot_disabled", False)):
@@ -602,7 +602,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
         resizer = resizer_factory(mode, cloud.distro)
     except (ValueError, TypeError) as e:
-        LOG.debug(f"growpart unable to find resizer for '{mode}': {e}")
+        LOG.debug("growpart unable to find resizer for '%s': %s", mode, e)
         if mode != "auto":
             raise e
         return
@@ -615,9 +615,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     )
     for (entry, action, msg) in resized:
         if action == RESIZE.CHANGED:
-            LOG.info(f"{entry}' resized: {msg}")
+            LOG.info("'%s' resized: %s", entry, msg)
         else:
-            LOG.debug(f"'{entry}' {action}: {msg}")
+            LOG.debug("'%s' %s: %s", entry, action, msg)
 
 
 RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))

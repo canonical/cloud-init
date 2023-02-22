@@ -128,7 +128,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
-                LOG.warning(f"Invalid disk definition for {disk}")
+                LOG.warning("Invalid disk definition for %s", disk)
                 continue
 
             try:
@@ -148,7 +148,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         update_fs_setup_devices(fs_setup, alias_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
-                LOG.warning(f"Invalid file system definition: {definition}")
+                LOG.warning("Invalid file system definition: %s", definition)
                 continue
 
             try:

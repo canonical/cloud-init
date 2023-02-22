@@ -157,10 +157,9 @@ class TestHandle:
                 None,
                 "/dev/disk/by-id/nvme-Company_hash000",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string "
-                    "/dev/disk/by-id/nvme-Company_hash000\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s','%s'",
+                    "/dev/disk/by-id/nvme-Company_hash000",
+                    "false",
                 ),
                 False,
             ),
@@ -170,9 +169,9 @@ class TestHandle:
                 None,
                 "/dev/sda",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/sda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s','%s'",
+                    "/dev/sda",
+                    "false",
                 ),
                 False,
             ),
@@ -182,9 +181,9 @@ class TestHandle:
                 "true",
                 "/dev/xvda",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/xvda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
+                    "Setting grub debconf-set-selections with '%s','%s'",
+                    "/dev/xvda",
+                    "true",
                 ),
                 False,
             ),
@@ -194,9 +193,9 @@ class TestHandle:
                 False,
                 "/dev/disk/by-id/company-user-1",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/vda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s','%s'",
+                    "/dev/vda",
+                    "false",
                 ),
                 False,
             ),
@@ -207,9 +206,9 @@ class TestHandle:
                 True,
                 "",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/nvme0n1\n",
-                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
+                    "Setting grub debconf-set-selections with '%s','%s'",
+                    "/dev/nvme0n1",
+                    "true",
                 ),
                 False,
             ),
@@ -253,7 +252,8 @@ class TestHandle:
         if cfg_idevs_empty is not None:
             cfg["grub_dpkg"]["grub-pc/install_devices_empty"] = cfg_idevs_empty
         handle(mock.Mock(), cfg, mock.Mock(), mock.Mock())
-        m_log.debug.assert_called_with("".join(expected_log_output))
+        print(m_log.debug.call_args_list)
+        m_log.debug.assert_called_with(*expected_log_output)
 
 
 class TestGrubDpkgSchema:

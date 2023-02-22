@@ -464,10 +464,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            LOG.debug(f"changed {start} => {sanitized}")
+            LOG.debug("changed %s => %s", start, sanitized)
 
         if sanitized is None:
-            LOG.debug(f"Ignoring nonexistent named mount {start}")
+            LOG.debug("Ignoring nonexistent named mount %s", start)
             continue
         elif sanitized in fstab_devs:
             LOG.info(
@@ -511,7 +511,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            LOG.debug(f"changed default device {start} => {sanitized}")
+            LOG.debug("changed default device %s => %s", start, sanitized)
 
         if sanitized is None:
             LOG.debug("Ignoring nonexistent default named mount %s", start)

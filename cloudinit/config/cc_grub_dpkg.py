@@ -174,7 +174,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     )
 
     LOG.debug(
-        f"Setting grub debconf-set-selections with '{idevs}','{idevs_empty}'"
+        "Setting grub debconf-set-selections with '%s','%s'",
+        idevs,
+        idevs_empty,
     )
 
     try:

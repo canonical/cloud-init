@@ -213,12 +213,16 @@ def maybe_get_writable_device_path(devpath, info):
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
             LOG.debug(
-                f"device '{devpath}' not a block device in container."
-                f" cannot resize: {info}"
+                "device '%s' not a block device in container."
+                " cannot resize: %s",
+                devpath,
+                info,
             )
         else:
             LOG.warning(
-                f"device '{devpath}' not a block device. cannot resize: {info}"
+                "device '%s' not a block device. cannot resize: %s",
+                devpath,
+                info,
             )
         return None
     return devpath  # The writable block devpath
@@ -255,7 +259,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         resize_what = zpool
 
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
-    LOG.debug(f"resize_info: {info}")
+    LOG.debug("resize_info: %s", info)
 
     devpth = maybe_get_writable_device_path(devpth, info)
     if not devpth:

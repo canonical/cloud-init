@@ -291,7 +291,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
             # Update debconf database
             try:
-                LOG.debug(f"Setting lxd debconf via {dconf_comm}")
+                LOG.debug("Setting lxd debconf via %s", dconf_comm)
                 data = (
                     "\n".join(
                         ["set %s %s" % (k, v) for k, v in debconf.items()]

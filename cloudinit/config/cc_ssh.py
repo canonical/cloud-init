@@ -245,7 +245,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     subp.subp(cmd, capture=False)
                 LOG.debug(
-                    f"Generated a key for {public_file} from {private_file}"
+                    "Generated a key for %s from %s", public_file, private_file
                 )
             except Exception:
                 util.logexc(
