@@ -1,3 +1,11 @@
+cloud-init (22.4.2-0ubuntu4) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 242f6bc4.
+    - Bugs fixed in this snapshot: (LP: #1990513, #1999164, #1931174)
+      (LP: #1815990)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 22 Feb 2023 18:01:41 +0100
+
 cloud-init (22.4.2-0ubuntu3) lunar; urgency=medium
 
   * Upstream snapshot based on upstream/main at bdc7b040.
