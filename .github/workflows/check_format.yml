@@ -62,3 +62,41 @@ jobs:
         run: |
           tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
           tools/check_json_format.sh cloudinit/config/schemas/versions.schema.cloud-config.json
+
+  doc:
+    strategy:
+      fail-fast: false
+    name: Check docs
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Checkout #2 (for tools/read-version)"
+        run: |
+          git fetch --unshallow
+          git remote add upstream https://git.launchpad.net/cloud-init
+      - name: "Install Python 3.10"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.8'
+      - name: "Install dependencies"
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox lintian
+      - name: "Spellcheck"
+        run: |
+          make check_spelling
+      - name: "Build docs"
+        env:
+          TOXENV: doc
+        run: |
+          tox
+
+  check-cla-signers:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3.0.0
+
+      - name: Check CLA signers file
+        run: tools/check-cla-signers

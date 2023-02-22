@@ -41,7 +41,7 @@ def test_valid_userdata(client: IntegrationInstance):
     """
     result = client.execute("cloud-init schema --system")
     assert result.ok
-    assert "Valid cloud-config: system userdata" == result.stdout.strip()
+    assert "Valid cloud-config: user-data" in result.stdout.strip()
     result = client.execute("cloud-init status --long")
     if not result.ok:
         raise AssertionError(

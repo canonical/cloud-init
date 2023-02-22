@@ -19,9 +19,10 @@ class TestScriptsVendorSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "deprecations: vendor_data.enabled: DEPRECATED."
-                        " Use of string for this value is DEPRECATED."
-                        " Use a boolean value instead."
+                        "Cloud config schema deprecations: "
+                        "vendor_data.enabled:  Deprecated in version "
+                        "22.3. Use of type string for this value is "
+                        "deprecated. Use a boolean instead."
                     ),
                 ),
             ),

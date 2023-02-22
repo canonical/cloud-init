@@ -10,9 +10,11 @@ import re
 from io import StringIO
 from urllib.parse import urlparse
 
+import pytest
 import responses
 
 from cloudinit import helpers, settings, util
+from cloudinit.distros import Distro
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
@@ -74,6 +76,12 @@ EC2_VERSIONS = [
 ]
 
 MOCK_PATH = "cloudinit.sources.DataSourceOpenStack."
+
+
+@pytest.fixture(autouse=True)
+def mock_is_resolvable():
+    with mock.patch(f"{MOCK_PATH}util.is_resolvable"):
+        yield
 
 
 # TODO _register_uris should leverage test_ec2.register_mock_metaserver.
@@ -292,15 +300,13 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             OS_FILES,
             responses_mock=self.responses,
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = False
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        mock_path = MOCK_PATH + "detect_openstack"
-        with test_helpers.mock.patch(mock_path) as m_detect_os:
-            m_detect_os.return_value = True
-            found = ds_os.get_data()
-        self.assertTrue(found)
+        self.assertTrue(ds_os.get_data())
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
         md.pop("instance-id", None)
@@ -344,8 +350,9 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         ]
 
         self.assertIsNone(ds_os_local.version)
-        mock_path = MOCK_PATH + "detect_openstack"
-        with test_helpers.mock.patch(mock_path) as m_detect_os:
+        with test_helpers.mock.patch.object(
+            ds_os_local, "detect_openstack"
+        ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os_local.get_data()
         self.assertTrue(found)
@@ -370,12 +377,15 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        mock_path = MOCK_PATH + "detect_openstack"
-        with test_helpers.mock.patch(mock_path) as m_detect_os:
+        with test_helpers.mock.patch.object(
+            ds_os, "detect_openstack"
+        ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -394,19 +404,17 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        mock_path = MOCK_PATH + "detect_openstack"
-        with test_helpers.mock.patch(mock_path) as m_detect_os:
-            m_detect_os.return_value = True
-            found = ds_os.get_data()
-        self.assertFalse(found)
+        self.assertFalse(ds_os.get_data())
         self.assertIsNone(ds_os.version)
 
     def test_network_config_disabled_by_datasource_config(self):
@@ -471,16 +479,19 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        mock_path = MOCK_PATH + "detect_openstack"
-        with test_helpers.mock.patch(mock_path) as m_detect_os:
+        with test_helpers.mock.patch.object(
+            ds_os, "detect_openstack"
+        ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -568,12 +579,57 @@ class TestVendorDataLoading(test_helpers.TestCase):
 
 @test_helpers.mock.patch(MOCK_PATH + "util.is_x86")
 class TestDetectOpenStack(test_helpers.CiTestCase):
+    def setUp(self):
+        self.tmp = self.tmp_dir()
+
+    def _fake_ds(self) -> ds.DataSourceOpenStack:
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = True
+        return ds.DataSourceOpenStack(
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+        )
+
     def test_detect_openstack_non_intel_x86(self, m_is_x86):
         """Return True on non-intel platforms because dmi isn't conclusive."""
         m_is_x86.return_value = False
         self.assertTrue(
-            ds.detect_openstack(), "Expected detect_openstack == True"
+            self._fake_ds().detect_openstack(),
+            "Expected detect_openstack == True",
         )
+
+    def test_detect_openstack_bare_metal(self, m_is_x86):
+        """Return True if the distro is non-virtual."""
+        m_is_x86.return_value = True
+
+        distro = mock.MagicMock(spec=Distro)
+        distro.is_virtual = False
+
+        fake_ds = self._fake_ds()
+        fake_ds.distro = distro
+
+        self.assertFalse(
+            fake_ds.distro.is_virtual,
+            "Expected distro.is_virtual == False",
+        )
+
+        with test_helpers.mock.patch.object(
+            fake_ds, "wait_for_metadata_service"
+        ) as m_wait_for_metadata_service:
+            m_wait_for_metadata_service.return_value = True
+
+            self.assertTrue(
+                fake_ds.wait_for_metadata_service(),
+                "Expected wait_for_metadata_service == True",
+            )
+
+            self.assertTrue(
+                fake_ds.detect_openstack(), "Expected detect_openstack == True"
+            )
+
+            self.assertTrue(
+                m_wait_for_metadata_service.called,
+                "Expected wait_for_metadata_service to be called",
+            )
 
     @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
@@ -594,7 +650,8 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertFalse(
-            ds.detect_openstack(), "Expected detect_openstack == False on EC2"
+            self._fake_ds().detect_openstack(),
+            "Expected detect_openstack == False on EC2",
         )
         m_proc_env.assert_called_with(1)
 
@@ -609,7 +666,8 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         for product_name in openstack_product_names:
             m_dmi.return_value = product_name
             self.assertTrue(
-                ds.detect_openstack(), "Failed to detect_openstack"
+                self._fake_ds().detect_openstack(),
+                "Failed to detect_openstack",
             )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
@@ -628,7 +686,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            self._fake_ds().detect_openstack(),
             "Expected detect_openstack == True on OpenTelekomCloud",
         )
 
@@ -648,7 +706,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            self._fake_ds().detect_openstack(),
             "Expected detect_openstack == True on SAP CCloud VM",
         )
 
@@ -668,7 +726,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_asset_tag_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            self._fake_ds().detect_openstack(),
             "Expected detect_openstack == True on Huawei Cloud VM",
         )
 
@@ -688,11 +746,11 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(accept_oracle=True),
+            self._fake_ds().detect_openstack(accept_oracle=True),
             "Expected detect_openstack == True on OracleCloud.com",
         )
         self.assertFalse(
-            ds.detect_openstack(accept_oracle=False),
+            self._fake_ds().detect_openstack(accept_oracle=False),
             "Expected detect_openstack == False.",
         )
 
@@ -711,7 +769,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            self._fake_ds().detect_openstack(),
             "Expected detect_openstack == True on Generic OpenStack Platform",
         )
 
@@ -749,7 +807,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            self._fake_ds().detect_openstack(),
             "Expected detect_openstack == True on OpenTelekomCloud",
         )
         m_proc_env.assert_called_with(1)

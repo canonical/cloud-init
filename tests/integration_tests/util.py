@@ -172,3 +172,13 @@ def lxd_has_nocloud(client: IntegrationInstance) -> bool:
         ["lxc", "config", "metadata", "show", client.instance.name]
     )
     return "/var/lib/cloud/seed/nocloud" in lxd_image_metadata.stdout
+
+
+def get_feature_flag_value(client: IntegrationInstance, key):
+    value = client.execute(
+        'python3 -c "from cloudinit import features; '
+        f'print(features.{key})"'
+    ).strip()
+    if "NameError" in value:
+        raise NameError(f"name '{key}' is not defined")
+    return value

@@ -2,8 +2,42 @@
 
 import os
 
+from cloudinit.distros.freebsd import Distro, FreeBSDNetworking
 from cloudinit.util import find_freebsd_part, get_path_dev_freebsd
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, mock
+
+M_PATH = "cloudinit.distros.freebsd."
+
+
+class TestFreeBSD:
+    @mock.patch(M_PATH + "subp.subp")
+    def test_add_user(self, m_subp, mocker):
+        mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
+        distro = _get_distro("freebsd")
+        distro.add_user("me2", uid=1234, default=False)
+        assert [
+            mock.call(
+                [
+                    "pw",
+                    "useradd",
+                    "-n",
+                    "me2",
+                    "-u",
+                    "1234",
+                    "-d/usr/home/me2",
+                    "-m",
+                ],
+                logstring=[
+                    "pw",
+                    "useradd",
+                    "-n",
+                    "me2",
+                    "-d/usr/home/me2",
+                    "-m",
+                ],
+            )
+        ] == m_subp.call_args_list
 
 
 class TestDeviceLookUp(CiTestCase):

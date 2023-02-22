@@ -376,11 +376,14 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.logs.getvalue(),
         )
 
+    @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery_warns_invalid_pid(self, m_wait, m_subp, m_kill):
+    def test_dhcp_discovery_warns_invalid_pid(
+        self, m_wait, m_subp, m_kill, m_remove
+    ):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
 
         Lease processing still occurs and no proc kill is attempted.
@@ -422,12 +425,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         m_kill.assert_not_called()
 
+    @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     def test_dhcp_discovery_waits_on_lease_and_pid(
-        self, m_subp, m_wait, m_kill, m_getppid
+        self, m_subp, m_wait, m_kill, m_getppid, m_remove
     ):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
         m_subp.return_value = ("", "")
@@ -446,11 +450,12 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         m_kill.assert_not_called()
 
+    @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery(self, m_wait, m_subp, m_kill, m_getppid):
+    def test_dhcp_discovery(self, m_wait, m_subp, m_kill, m_getppid, m_remove):
         """dhcp_discovery brings up the interface and runs dhclient.
 
         It also returns the parsed dhcp.leases file.
@@ -508,11 +513,14 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
 
+    @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.wait_for_files")
-    def test_dhcp_output_error_stream(self, m_wait, m_subp, m_kill, m_getppid):
+    def test_dhcp_output_error_stream(
+        self, m_wait, m_subp, m_kill, m_getppid, m_remove
+    ):
         """ "dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
         dhclient_err = "FAKE DHCLIENT ERROR"

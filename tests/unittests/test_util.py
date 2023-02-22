@@ -14,13 +14,15 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from pathlib import Path
 from textwrap import dedent
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 import yaml
 
-from cloudinit import importer, subp, util
+from cloudinit import features, importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -265,6 +267,36 @@ OS_RELEASE_OPENEULER_20 = dedent(
     VERSION_ID="20.03"
     PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
     ANSI_COLOR="0;31"
+"""
+)
+
+OS_RELEASE_OPENCLOUDOS_8 = dedent(
+    """\
+    NAME="OpenCloudOS"
+    VERSION="8.6"
+    ID="OpenCloudOS"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.6"
+    PLATFORM_ID="platform:oc8"
+    PRETTY_NAME="OpenCloudOS 8.6"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:opencloudos:opencloudos:8"
+    HOME_URL="https://www.opencloudos.org/"
+    BUG_REPORT_URL="https://bugs.opencloudos.tech/"
+"""
+)
+
+OS_RELEASE_TENCENTOS_3 = dedent(
+    """\
+    NAME="TencentOS"
+    VERSION="3.1"
+    ID="TencentOS"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="3.1"
+    PLATFORM_ID="platform:el3"
+    PRETTY_NAME="TencentOS 3.1"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:tencentos:tencentos:3"
 """
 )
 
@@ -1129,6 +1161,22 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(("openEuler", "20.03", "LTS-SP2"), dist)
 
     @mock.patch(M_PATH + "load_file")
+    def test_get_linux_opencloudos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on OpenCloudOS."""
+        m_os_release.return_value = OS_RELEASE_OPENCLOUDOS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("OpenCloudOS", "8.6", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_tencentos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on TencentOS."""
+        m_os_release.return_value = OS_RELEASE_TENCENTOS_3
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("TencentOS", "3.1", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -1244,10 +1292,12 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
             ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
+            ({"system": "linux", "dist": ("OpenCloudOS",)}, "opencloudos"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
+            ({"system": "linux", "dist": ("TencentOS",)}, "tencentos"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
             ({"system": "linux", "dist": ("linuxmint",)}, "ubuntu"),
@@ -1705,6 +1755,25 @@ class TestWriteFile(helpers.TestCase):
 
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
+
+    def test_dir_ownership(self):
+        """Verifiy that directories is created with appropriate ownership."""
+        dirname = os.path.join(self.tmp, "subdir", "subdir2")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+        user = "foo"
+        group = "foo"
+
+        with mock.patch.object(
+            util, "chownbyname", return_value=None
+        ) as mockobj:
+            util.write_file(path, contents, user=user, group=group)
+
+        calls = [
+            mock.call(os.path.join(self.tmp, "subdir"), user, group),
+            mock.call(Path(dirname), user, group),
+        ]
+        mockobj.assert_has_calls(calls, any_order=False)
 
     def test_dir_is_not_created_if_ensure_dir_false(self):
         """Verify directories are not created if ensure_dir_exists is False."""
@@ -2287,25 +2356,107 @@ class TestMessageFromString(helpers.TestCase):
         self.assertNotIn("\x00", roundtripped)
 
 
-class TestReadSeeded(helpers.TestCase):
-    def setUp(self):
-        super(TestReadSeeded, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
-    def test_unicode_not_messed_up(self):
+class TestReadSeeded:
+    def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
         vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp,
+            tmpdir.strpath,
             {"meta-data": "key1: val1", "user-data": ud, "vendor-data": vd},
         )
-        sdir = self.tmp + os.path.sep
-        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(
+            tmpdir.strpath + os.path.sep
+        )
+        assert found_md == {"key1": "val1"}
+        assert found_ud == ud
+        assert found_vd == vd
 
-        self.assertEqual(found_md, {"key1": "val1"})
-        self.assertEqual(found_ud, ud)
-        self.assertEqual(found_vd, vd)
+    @pytest.mark.parametrize(
+        "base, feature_flag, req_urls",
+        (
+            pytest.param(
+                "http://10.0.0.1/%s?qs=1",
+                True,
+                [
+                    "http://10.0.0.1/meta-data?qs=1",
+                    "http://10.0.0.1/user-data?qs=1",
+                    "http://10.0.0.1/vendor-data?qs=1",
+                ],
+                id="expand_percent_s_to_data_route",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008/",
+                True,
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="no_duplicate_forward_slash_when_already_present",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008",
+                True,
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="append_fwd_slash_on_routes_when_absent_and_no_query_str",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008",
+                False,
+                [
+                    "https://10.0.0.1:8008meta-data",
+                    "https://10.0.0.1:8008user-data",
+                    "https://10.0.0.1:8008vendor-data",
+                ],
+                id="feature_off_append_fwd_slash_when_absent_and_no_query_str",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008?qs=",
+                True,
+                [
+                    "https://10.0.0.1:8008?qs=meta-data",
+                    "https://10.0.0.1:8008?qs=user-data",
+                    "https://10.0.0.1:8008?qs=vendor-data",
+                ],
+                id="avoid_trailing_forward_slash_on_routes_with_query_strings",
+            ),
+        ),
+    )
+    @mock.patch(M_PATH + "url_helper.read_file_or_url")
+    def test_handle_http_urls(
+        self, m_read, base, feature_flag, req_urls, tmpdir
+    ):
+        def fake_response(url, timeout, retries):
+            parsed_url = urlparse(url)
+            path = parsed_url.path
+            if not path:
+                if parsed_url.query:
+                    _key, _, md_type = parsed_url.query.partition("=")
+                else:
+                    _url, _, md_type = parsed_url.netloc.partition("8008")
+                path = f"/{md_type}"
+            return url_helper.StringResponse(f"{path}: 1")
+
+        m_read.side_effect = fake_response
+
+        with mock.patch.object(
+            features,
+            "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH",
+            feature_flag,
+        ):
+            (found_md, found_ud, found_vd) = util.read_seeded(base)
+        # Meta-data treated as YAML
+        assert found_md == {"/meta-data": 1}
+        # user-data, vendor-data read raw. It could be scripts or other format
+        assert found_ud == "/user-data: 1"
+        assert found_vd == "/vendor-data: 1"
+        assert [
+            mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
+        ] == m_read.call_args_list
 
 
 class TestReadSeededWithoutVendorData(helpers.TestCase):
@@ -2634,6 +2785,24 @@ class TestGetProcEnv(helpers.TestCase):
                 "cloudinit.util.load_file", return_value=proc_data
             ):
                 assert ppid == util.get_proc_ppid("mocked")
+
+
+class TestHuman2Bytes:
+    """test util.human2bytes() function"""
+
+    def test_human2bytes(self):
+        assert util.human2bytes("0.5G") == 536870912
+        assert util.human2bytes("100B") == 100
+        assert util.human2bytes("100MB") == 104857600
+
+        for test_i in ["-100MB", "100b", "100mB"]:
+            with pytest.raises(ValueError):
+                util.human2bytes(test_i)
+
+    def test_ibibytes2bytes(self):
+
+        assert util.human2bytes("0.5GiB") == 536870912
+        assert util.human2bytes("100MiB") == 104857600
 
 
 class TestKernelVersion:

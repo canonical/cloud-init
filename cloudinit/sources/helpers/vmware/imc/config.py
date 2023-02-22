@@ -29,6 +29,7 @@ class Config:
     DEFAULT_RUN_POST_SCRIPT = "MISC|DEFAULT-RUN-POST-CUST-SCRIPT"
     CLOUDINIT_META_DATA = "CLOUDINIT|METADATA"
     CLOUDINIT_USER_DATA = "CLOUDINIT|USERDATA"
+    CLOUDINIT_INSTANCE_ID = "CLOUDINIT|INSTANCE-ID"
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -141,6 +142,11 @@ class Config:
     def user_data_name(self):
         """Return the name of cloud-init user data."""
         return self._configFile.get(Config.CLOUDINIT_USER_DATA, None)
+
+    @property
+    def instance_id(self):
+        """Return instance id"""
+        return self._configFile.get(Config.CLOUDINIT_INSTANCE_ID, None)
 
 
 # vi: ts=4 expandtab
