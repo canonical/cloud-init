@@ -146,7 +146,7 @@ class TestHandle:
 
     @pytest.mark.parametrize(
         "cfg_idevs,cfg_idevs_empty,fetch_idevs_output,"
-        "expected_log_output,debconf_efi_owner",
+        "expected_log_output,is_uefi",
         [
             (
                 # No configuration
@@ -159,7 +159,7 @@ class TestHandle:
                     "/dev/disk/by-id/nvme-Company_hash000\n",
                     "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
-                "",
+                False,
             ),
             (
                 # idevs set, idevs_empty unset
@@ -171,7 +171,7 @@ class TestHandle:
                     "'grub-pc grub-pc/install_devices string /dev/sda\n",
                     "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
-                "",
+                False,
             ),
             (
                 # idevs unset, idevs_empty set
@@ -183,7 +183,7 @@ class TestHandle:
                     "'grub-pc grub-pc/install_devices string /dev/xvda\n",
                     "grub-pc grub-pc/install_devices_empty boolean true\n'",
                 ),
-                "",
+                False,
             ),
             (
                 # idevs set, idevs_empty set
@@ -195,7 +195,7 @@ class TestHandle:
                     "'grub-pc grub-pc/install_devices string /dev/vda\n",
                     "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
-                "",
+                False,
             ),
             (
                 # idevs set, idevs_empty set
@@ -208,7 +208,7 @@ class TestHandle:
                     "'grub-pc grub-pc/install_devices string /dev/nvme0n1\n",
                     "grub-pc grub-pc/install_devices_empty boolean true\n'",
                 ),
-                "",
+                False,
             ),
             (
                 # uefi active, idevs set
@@ -219,7 +219,7 @@ class TestHandle:
                     "Setting grub debconf-set-selections with ",
                     "'grub-pc grub-efi/install_devices string /dev/sda1\n'",
                 ),
-                "grub-efi-amd64",
+                True,
             ),
         ],
     )
@@ -237,10 +237,10 @@ class TestHandle:
         cfg_idevs_empty,
         fetch_idevs_output,
         expected_log_output,
-        debconf_efi_owner,
+        is_uefi,
     ):
         """Test setting of correct debconf database entries"""
-        m_is_efi_booted.return_value = debconf_efi_owner != ""
+        m_is_efi_booted.return_value = is_uefi
         m_fetch_idevs.return_value = fetch_idevs_output
         log = mock.Mock(spec=Logger)
         cfg = {"grub_dpkg": {}}
