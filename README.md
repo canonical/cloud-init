@@ -39,7 +39,7 @@ get in contact with that distribution and send them our way!
 
 | Supported OSes                                                                                                                                                                                                                                                                                                                                                                      | Supported Public Clouds | Supported Private Clouds |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| --- | --- |
-| Alpine Linux<br />Arch Linux<br />Container-Optimized OS<br />Debian<br />DragonFlyBSD<br />Fedora<br />FreeBSD<br />Gentoo Linux<br />NetBSD<br />OpenBSD<br />openEuler<br />OpenMandriva<br />RHEL/CentOS/AlmaLinux/Rocky/PhotonOS/Virtuozzo/EuroLinux/CloudLinux/MIRACLE LINUX/MarinerOS<br />SLES/openSUSE<br />Ubuntu<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /> | Amazon Web Services<br />Microsoft Azure<br />Google Cloud Platform<br />Oracle Cloud Infrastructure<br />Softlayer<br />Rackspace Public Cloud<br />IBM Cloud<br />DigitalOcean<br />Bigstep<br />Hetzner<br />Joyent<br />CloudSigma<br />Alibaba Cloud<br />Huawei Cloud<br />OVH<br />OpenNebula<br />Exoscale<br />Scaleway<br />CloudStack<br />AltCloud<br />SmartOS<br />HyperOne<br />Vultr<br />Rootbox<br /> | Bare metal installs<br />OpenStack<br />LXD<br />KVM<br />Metal-as-a-Service (MAAS)<br />VMware<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />|
+| Alpine Linux<br />Arch Linux<br />Container-Optimized OS<br />Debian<br />DragonFlyBSD<br />Fedora<br />FreeBSD<br />Gentoo Linux<br />NetBSD<br />OpenBSD<br />openEuler<br />OpenCloudOS<br />OpenMandriva<br />RHEL/CentOS/AlmaLinux/Rocky/PhotonOS/Virtuozzo/EuroLinux/CloudLinux/MIRACLE LINUX/MarinerOS<br />SLES/openSUSE<br />TencentOS<br />Ubuntu<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /> | Amazon Web Services<br />Microsoft Azure<br />Google Cloud Platform<br />Oracle Cloud Infrastructure<br />Softlayer<br />Rackspace Public Cloud<br />IBM Cloud<br />DigitalOcean<br />Bigstep<br />Hetzner<br />Joyent<br />CloudSigma<br />Alibaba Cloud<br />Huawei Cloud<br />OVH<br />OpenNebula<br />Exoscale<br />Scaleway<br />CloudStack<br />AltCloud<br />SmartOS<br />HyperOne<br />Vultr<br />Rootbox<br /> | Bare metal installs<br />OpenStack<br />LXD<br />KVM<br />Metal-as-a-Service (MAAS)<br />VMware<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />|
 
 ## To start developing cloud-init
 
@@ -54,3 +54,7 @@ features or to verify bug fixes.
 For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+archive/ubuntu/daily)
 
 For CentOS, see the [COPR build repos](https://copr.fedorainfracloud.org/coprs/g/cloud-init/cloud-init-dev/)
+
+## Build / packaging
+
+To see reference build/packaging implementations, refer to [packages](packages).

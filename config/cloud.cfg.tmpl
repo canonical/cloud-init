@@ -35,7 +35,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["alpine", "amazon", "fedora", "openEuler", "openmandriva", "photon"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "fedora", "openEuler", "OpenCloudOS", "openmandriva", "photon", "TencentOS"] or is_rhel %}
 {% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
@@ -200,8 +200,8 @@ cloud_final_modules:
 system_info:
    # This will affect which distro class gets used
 {% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "freebsd",
-                  "gentoo", "netbsd", "mariner", "openbsd", "openEuler",
-                  "openmandriva", "photon", "suse", "ubuntu"] or is_rhel %}
+                  "gentoo", "netbsd", "mariner", "openbsd", "openEuler", "OpenCloudOS",
+                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu"] or is_rhel %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -255,7 +255,7 @@ system_info:
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
 {% elif variant in ["alpine", "amazon", "arch", "fedora",
-                    "gentoo", "openEuler", "openmandriva", "suse"] or is_rhel %}
+                    "gentoo", "openEuler", "OpenCloudOS", "openmandriva", "suse", "TencentOS"] or is_rhel %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}

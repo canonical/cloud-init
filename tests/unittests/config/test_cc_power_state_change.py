@@ -180,18 +180,20 @@ class TestPowerStateChangeSchema:
             (
                 {"power_state": {"mode": "halt", "delay": "5"}},
                 (
-                    "power_state.delay: DEPRECATED:"
-                    " Use of string for this value will be dropped after"
-                    " April 2027. Use ``now`` or integer type."
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
             (
                 {"power_state": {"mode": "halt", "delay": "+5"}},
                 (
-                    "power_state.delay: DEPRECATED:"
-                    " Use of string for this value will be dropped after"
-                    " April 2027. Use ``now`` or integer type."
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "+"}}, ""),

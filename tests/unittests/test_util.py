@@ -14,6 +14,7 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 from urllib.parse import urlparse
@@ -266,6 +267,36 @@ OS_RELEASE_OPENEULER_20 = dedent(
     VERSION_ID="20.03"
     PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
     ANSI_COLOR="0;31"
+"""
+)
+
+OS_RELEASE_OPENCLOUDOS_8 = dedent(
+    """\
+    NAME="OpenCloudOS"
+    VERSION="8.6"
+    ID="OpenCloudOS"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.6"
+    PLATFORM_ID="platform:oc8"
+    PRETTY_NAME="OpenCloudOS 8.6"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:opencloudos:opencloudos:8"
+    HOME_URL="https://www.opencloudos.org/"
+    BUG_REPORT_URL="https://bugs.opencloudos.tech/"
+"""
+)
+
+OS_RELEASE_TENCENTOS_3 = dedent(
+    """\
+    NAME="TencentOS"
+    VERSION="3.1"
+    ID="TencentOS"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="3.1"
+    PLATFORM_ID="platform:el3"
+    PRETTY_NAME="TencentOS 3.1"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:tencentos:tencentos:3"
 """
 )
 
@@ -1130,6 +1161,22 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(("openEuler", "20.03", "LTS-SP2"), dist)
 
     @mock.patch(M_PATH + "load_file")
+    def test_get_linux_opencloudos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on OpenCloudOS."""
+        m_os_release.return_value = OS_RELEASE_OPENCLOUDOS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("OpenCloudOS", "8.6", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_tencentos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on TencentOS."""
+        m_os_release.return_value = OS_RELEASE_TENCENTOS_3
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("TencentOS", "3.1", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -1245,10 +1292,12 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
             ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
+            ({"system": "linux", "dist": ("OpenCloudOS",)}, "opencloudos"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
+            ({"system": "linux", "dist": ("TencentOS",)}, "tencentos"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
             ({"system": "linux", "dist": ("linuxmint",)}, "ubuntu"),
@@ -1706,6 +1755,25 @@ class TestWriteFile(helpers.TestCase):
 
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
+
+    def test_dir_ownership(self):
+        """Verifiy that directories is created with appropriate ownership."""
+        dirname = os.path.join(self.tmp, "subdir", "subdir2")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+        user = "foo"
+        group = "foo"
+
+        with mock.patch.object(
+            util, "chownbyname", return_value=None
+        ) as mockobj:
+            util.write_file(path, contents, user=user, group=group)
+
+        calls = [
+            mock.call(os.path.join(self.tmp, "subdir"), user, group),
+            mock.call(Path(dirname), user, group),
+        ]
+        mockobj.assert_has_calls(calls, any_order=False)
 
     def test_dir_is_not_created_if_ensure_dir_false(self):
         """Verify directories are not created if ensure_dir_exists is False."""
