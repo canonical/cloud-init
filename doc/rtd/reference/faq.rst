@@ -244,7 +244,7 @@ users are projects that have close contact with ``cloud-init``, which is why
 this model currently works.
 
 It is worth mentioning for library users that ``cloud-init`` defines a custom
-log level. This log level, ``25``, is dedicated to logging info
+log level. This log level, ``35``, is dedicated to logging info
 related to deprecation information. Users of ``cloud-init`` as a library
 may wish to ensure that this log level doesn't collide with external
 libraries that define their own custom log levels.

@@ -63,7 +63,7 @@ def flushLoggers(root):
     flushLoggers(root.parent)
 
 
-def defineDeprecationLogger(lvl=25):
+def defineDeprecationLogger(lvl=35):
     logging.addLevelName(lvl, "DEPRECATED")
 
     def deprecated(self, message, *args, **kwargs):

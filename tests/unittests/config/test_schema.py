@@ -55,7 +55,7 @@ from tests.unittests.helpers import (
 from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.config.schema."
-DEPRECATED_LOG_LEVEL = 25
+DEPRECATED_LOG_LEVEL = 35
 
 
 def get_schemas() -> dict:
