@@ -222,7 +222,7 @@ class Modules:
         # and which ones failed + the exception of why it failed
         failures = []
         which_ran = []
-        for (mod, name, freq, args) in mostly_mods:
+        for mod, name, freq, args in mostly_mods:
             try:
                 LOG.debug(
                     "Running module %s (%s) with frequency %s", name, mod, freq
@@ -248,9 +248,9 @@ class Modules:
                     func_signature = signature(mod.handle)
                     func_params = func_signature.parameters
                     if len(func_params) == 5:
-                        LOG.warning(
-                            "DEPRECATED: The use of modules with a `log` "
-                            "parameter is depecrated"
+                        util.deprecate(
+                            deprecated="Config modules with a `log` parameter",
+                            deprecated_version="23.2",
                         )
                         func_args.update({"log": LOG})
                     ran, _r = cc.run(
