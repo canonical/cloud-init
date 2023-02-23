@@ -32,7 +32,24 @@ DISTRO_OVERRIDES = {
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["update-ca-trust"],
     },
+    "opensuse": {
+        "ca_cert_path": "/etc/pki/trust/",
+        "ca_cert_local_path": "/usr/share/pki/trust/",
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["update-ca-certificates"],
+    },
 }
+
+for distro in (
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+):
+    DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["opensuse"]
 
 MODULE_DESCRIPTION = """\
 This module adds CA certificates to the system's CA store and updates any
@@ -48,7 +65,19 @@ configuration option ``remove_defaults``.
     Alpine Linux requires the ca-certificates package to be installed in
     order to provide the ``update-ca-certificates`` command.
 """
-distros = ["alpine", "debian", "rhel", "ubuntu"]
+distros = [
+    "alpine",
+    "debian",
+    "rhel",
+    "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+    "ubuntu",
+]
 
 meta: MetaSchema = {
     "id": "cc_ca_certs",

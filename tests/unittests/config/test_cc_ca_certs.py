@@ -311,6 +311,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 "cloud_dir": tmpdir,
             }
         )
+        self.add_patch("cloudinit.config.cc_ca_certs.os.stat", "m_stat")
 
     def test_commands(self):
         ca_certs_content = "# line1\nline2\nline3\n"
@@ -318,6 +319,7 @@ class TestRemoveDefaultCaCerts(TestCase):
             "# line1\n# Modified by cloud-init to deselect certs due to"
             " user-data\n!line2\n!line3\n"
         )
+        self.m_stat.return_value.st_size = 1
 
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
