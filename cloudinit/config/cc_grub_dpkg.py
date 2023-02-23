@@ -47,10 +47,10 @@ meta: MetaSchema = {
             """\
             grub_dpkg:
               enabled: true
-              # BIOS mode
+              # BIOS mode (install_devices needs disk)
               grub-pc/install_devices: /dev/sda
               grub-pc/install_devices_empty: false
-              # EFI mode
+              # EFI mode (install_devices needs partition)
               grub-efi/install_devices: /dev/sda
             """
         )
@@ -170,7 +170,7 @@ def handle(
 
 
 # Returns the debconf config for grub-pc or grub-efi depending on the
-# system's boot mode.
+# systems boot mode.
 def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
     if is_efi_booted(log):
         idevs = util.get_cfg_option_str(

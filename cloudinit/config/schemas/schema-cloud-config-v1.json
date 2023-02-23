@@ -1358,7 +1358,7 @@
             },
             "grub-efi/install_devices": {
               "type": "string",
-              "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot/efi`` will be used to find the device"
+              "description": "Partition to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot/efi`` will be used to find the partition"
             }
           }
         },
