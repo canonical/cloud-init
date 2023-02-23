@@ -235,6 +235,20 @@ to their respective support channels. For Subiquity autoinstaller that is via
 IRC (``#ubuntu-server`` on Libera) or Discourse. For Juju support see their
 `discourse page`_.
 
+
+Can I use cloud-init as a library?
+==================================
+Yes, in fact some projects `already do`_. However, ``cloud-init`` does not
+currently make any API guarantees to external consumers - current library
+users are projects that have close contact with ``cloud-init``, which is why
+this model currently works.
+
+It is worth mentioning for library users that ``cloud-init`` defines a custom
+log level. This log level, ``25``, is dedicated to logging info
+related to deprecation information. Users of ``cloud-init`` as a library
+may wish to ensure that this log level doesn't collide with external
+libraries that define their own custom log levels.
+
 Where can I learn more?
 =======================
 
@@ -279,6 +293,7 @@ Whitepapers:
 .. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 .. _Juju: https://ubuntu.com/blog/topics/juju
 .. _discourse page: https://discourse.charmhub.io
+.. _already do: https://github.com/canonical/ubuntu-advantage-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
 .. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper
