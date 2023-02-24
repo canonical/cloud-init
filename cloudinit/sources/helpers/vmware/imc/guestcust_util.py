@@ -15,7 +15,6 @@ from cloudinit import safeyaml, subp, util
 
 from .config import Config
 from .config_custom_script import (
-    CustomScriptNotFound,
     PostCustomScript,
     PreCustomScript,
 )
