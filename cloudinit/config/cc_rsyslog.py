@@ -107,9 +107,9 @@ def load_config(cfg: dict) -> dict:
     mycfg = cfg.get("rsyslog", {})
 
     if isinstance(cfg.get("rsyslog"), list):
-        LOG.warning(
-            "DEPRECATION: This rsyslog list format is deprecated and will be "
-            "removed in a future version of cloud-init. Use documented keys."
+        util.deprecate(
+            deprecated="The rsyslog key with value of type 'list'",
+            deprecated_version="22.2",
         )
         mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
         if KEYNAME_LEGACY_FILENAME in cfg:

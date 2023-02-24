@@ -133,10 +133,10 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
     cfg_name = "PasswordAuthentication"
 
     if isinstance(pw_auth, str):
-        LOG.warning(
-            "DEPRECATION: The 'ssh_pwauth' config key should be set to "
-            "a boolean value. The string format is deprecated and will be "
-            "removed in a future version of cloud-init."
+        util.deprecate(
+            deprecated="Using a string value for the 'ssh_pwauth' key",
+            deprecated_version="22.2",
+            extra_message="Use a boolean value with 'ssh_pwauth'.",
         )
     if util.is_true(pw_auth):
         cfg_val = "yes"
@@ -192,17 +192,19 @@ def handle(
         chfg = cfg["chpasswd"]
         users_list = util.get_cfg_option_list(chfg, "users", default=[])
         if "list" in chfg and chfg["list"]:
-            log.warning(
-                "DEPRECATION: key 'lists' is now deprecated. Use 'users'."
+            util.deprecate(
+                deprecated="Config key 'lists'",
+                deprecated_version="22.3",
+                extra_message="Use 'users' instead.",
             )
             if isinstance(chfg["list"], list):
                 log.debug("Handling input for chpasswd as list.")
                 plist = util.get_cfg_option_list(chfg, "list", plist)
             else:
-                log.warning(
-                    "DEPRECATION: The chpasswd multiline string format is "
-                    "deprecated and will be removed from a future version of "
-                    "cloud-init. Use the list format instead."
+                util.deprecate(
+                    deprecated="The chpasswd multiline string",
+                    deprecated_version="22.2",
+                    extra_message="Use string type instead.",
                 )
                 log.debug("Handling input for chpasswd as multiline string.")
                 multiline = util.get_cfg_option_str(chfg, "list")

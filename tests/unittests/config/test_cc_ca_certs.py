@@ -9,7 +9,9 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import distros, helpers, subp, util
+from cloudinit import distros, helpers
+from cloudinit import log as logger
+from cloudinit import subp, util
 from cloudinit.config import cc_ca_certs
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -424,25 +426,23 @@ class TestCACertsSchema:
     @mock.patch.object(cc_ca_certs, "update_ca_certs")
     def test_deprecate_key_warnings(self, update_ca_certs, caplog):
         """Assert warnings are logged for deprecated keys."""
-        log = logging.getLogger("CALogTest")
+        logger.setupLogging()
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
-            "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, log, []
+            "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, None, []
         )
         expected_warnings = [
-            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
-            " instead.",
-            "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
-            " Use 'ca_certs.remove_defaults' instead.",
+            "Key 'ca-certs' is deprecated in",
+            "Key 'remove-defaults' is deprecated in",
         ]
         for warning in expected_warnings:
             assert warning in caplog.text
+            assert "DEPRECAT" in caplog.text
         assert 1 == update_ca_certs.call_count
 
     @mock.patch.object(cc_ca_certs, "update_ca_certs")
     def test_duplicate_keys(self, update_ca_certs, caplog):
         """Assert warnings are logged for deprecated keys."""
-        log = logging.getLogger("CALogTest")
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
             "IGNORE",
@@ -451,7 +451,7 @@ class TestCACertsSchema:
                 "ca_certs": {"remove_defaults": False},
             },
             cloud,
-            log,
+            None,
             [],
         )
         expected_warning = (
@@ -460,6 +460,3 @@ class TestCACertsSchema:
         )
         assert expected_warning in caplog.text
         assert 1 == update_ca_certs.call_count
-
-
-# vi: ts=4 expandtab

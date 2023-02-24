@@ -219,11 +219,11 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    LOG.warning(
-                        "DEPRECATED: `url` kernel command line key is"
-                        " deprecated for providing cloud-config via URL."
-                        " Please use `cloud-config-url` kernel command line"
-                        " parameter instead"
+                    util.deprecate(
+                        deprecated="The kernel command line key `url`",
+                        deprecated_version="22.3",
+                        extra_message=" Please use `cloud-config-url` "
+                        "kernel command line parameter instead",
                     )
             else:
                 if cmdline_name == "cloud-config-url":

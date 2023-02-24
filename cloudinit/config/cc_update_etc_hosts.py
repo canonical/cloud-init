@@ -106,9 +106,10 @@ def handle(
 
     if util.translate_bool(manage_hosts, addons=["template"]):
         if manage_hosts == "template":
-            log.warning(
-                "DEPRECATED: please use manage_etc_hosts: true instead of"
-                " 'template'"
+            util.deprecate(
+                deprecated="Value 'template' for key 'manage_etc_hosts'",
+                deprecated_version="22.2",
+                extra_message="Use 'true' instead.",
             )
         (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:

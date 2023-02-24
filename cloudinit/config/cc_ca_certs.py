@@ -229,9 +229,10 @@ def handle(
     @param args: Any module arguments from cloud.cfg
     """
     if "ca-certs" in cfg:
-        LOG.warning(
-            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
-            " instead."
+        util.deprecate(
+            deprecated="Key 'ca-certs'",
+            deprecated_version="22.1",
+            extra_message="Use 'ca_certs' instead.",
         )
     elif "ca_certs" not in cfg:
         LOG.debug(
@@ -251,9 +252,10 @@ def handle(
     # If there is a remove_defaults option set to true, disable the system
     # default trusted CA certs first.
     if "remove-defaults" in ca_cert_cfg:
-        LOG.warning(
-            "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
-            " Use 'ca_certs.remove_defaults' instead."
+        util.deprecate(
+            deprecated="Key 'remove-defaults'",
+            deprecated_version="22.1",
+            extra_message="Use 'remove_defaults' instead.",
         )
     if ca_cert_cfg.get(
         "remove_defaults", ca_cert_cfg.get("remove-defaults", False)
