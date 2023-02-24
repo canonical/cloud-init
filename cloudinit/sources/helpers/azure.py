@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
 from time import sleep, time
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -50,8 +50,10 @@ DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
     "for more information on remediation."
 )
 
+T = TypeVar("T")
 
-def azure_ds_telemetry_reporter(func):
+
+def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
     def impl(*args, **kwargs):
         with events.ReportEventStack(
             name=func.__name__,
@@ -335,7 +337,7 @@ def http_with_retries(
     url: str,
     *,
     headers: dict,
-    data: Optional[str] = None,
+    data: Optional[bytes] = None,
     retry_sleep: int = 5,
     timeout_minutes: int = 20,
 ) -> url_helper.UrlResponse:
@@ -440,7 +442,7 @@ class AzureEndpointHttpClient:
         return http_with_retries(url, headers=headers)
 
     def post(
-        self, url, data=None, extra_headers=None
+        self, url, data: Optional[bytes] = None, extra_headers=None
     ) -> url_helper.UrlResponse:
         headers = self.headers
         if extra_headers is not None:
@@ -752,7 +754,7 @@ class GoalStateHealthReporter:
         status: str,
         substatus=None,
         description=None,
-    ) -> str:
+    ) -> bytes:
         health_detail = ""
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -770,10 +772,10 @@ class GoalStateHealthReporter:
             health_detail_subsection=health_detail,
         )
 
-        return health_report
+        return health_report.encode("utf-8")
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document: str) -> None:
+    def _post_health_report(self, document: bytes) -> None:
         push_log_to_kvp()
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
@@ -1051,10 +1053,9 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(endpoint: str, description: Optional[str] = None):
+def report_failure_to_fabric(endpoint: str):
     shim = WALinuxAgentShim(endpoint=endpoint)
-    if not description:
-        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -eu
+set -o pipefail
+
+CLA_SIGNERS_FILE="tools/.github-cla-signers"
+
+sort -f "${CLA_SIGNERS_FILE}" -o "${CLA_SIGNERS_FILE}"
+
+if [[ -n "$(git status --porcelain -- ${CLA_SIGNERS_FILE})" ]]; then
+    echo "Please make sure that ${CLA_SIGNERS_FILE} is in alphabetical order."
+    git --no-pager diff "${CLA_SIGNERS_FILE}"
+    exit 1
+fi

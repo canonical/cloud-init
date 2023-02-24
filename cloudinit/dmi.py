@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+import re
 from collections import namedtuple
 from typing import Optional
 
@@ -180,6 +181,33 @@ def read_dmi_data(key: str) -> Optional[str]:
 
     LOG.debug("did not find either path %s or dmidecode command", DMI_SYS_PATH)
     return None
+
+
+def sub_dmi_vars(src: str) -> str:
+    """Replace __dmi.VARNAME__ with DMI values from either sysfs or kenv."""
+    if "__" not in src:
+        return src
+    valid_dmi_keys = DMIDECODE_TO_KERNEL.keys()
+    for match in re.findall(r"__dmi\.([^_]+)__", src):
+        if match not in valid_dmi_keys:
+            LOG.warning(
+                "Ignoring invalid __dmi.%s__ in %s. Expected one of: %s.",
+                match,
+                src,
+                valid_dmi_keys,
+            )
+            continue
+        dmi_value = read_dmi_data(match)
+        if not dmi_value:
+            dmi_value = ""
+        LOG.debug(
+            "Replacing __dmi.%s__ in '%s' with '%s'.",
+            match,
+            src,
+            dmi_value,
+        )
+        src = src.replace(f"__dmi.{match}__", dmi_value)
+    return src
 
 
 # vi: ts=4 expandtab

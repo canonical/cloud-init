@@ -1,0 +1,13 @@
+hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+	options=8051b<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,TSO4,LRO,LINKSTATE>
+	ether 00:0d:3a:54:ad:1e
+	inet 10.0.0.35 netmask 0xffffff00 broadcast 10.0.0.255
+	media: Ethernet 100GBase-CR4 <full-duplex,rxpause,txpause>
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+mce0: flags=8a43<UP,BROADCAST,RUNNING,ALLMULTI,SIMPLEX,MULTICAST> metric 0 mtu 1500
+	options=8805bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,LRO,LINKSTATE>
+	ether 00:0d:3a:54:ad:1e
+	media: Ethernet 100GBase-CR4 <full-duplex,rxpause,txpause>
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>

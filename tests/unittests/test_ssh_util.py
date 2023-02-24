@@ -3,6 +3,7 @@
 import os
 import stat
 from functools import partial
+from textwrap import dedent
 from typing import NamedTuple
 from unittest import mock
 from unittest.mock import patch
@@ -477,6 +478,18 @@ class TestParseSSHConfig:
         assert expected_key == ret[0].key
         assert expected_value == ret[0].value
 
+    def test_duplicated_keys(self, m_is_file, m_load_file):
+        file_content = [
+            "HostCertificate /data/ssh/ssh_host_rsa_cert",
+            "HostCertificate /data/ssh/ssh_host_ed25519_cert",
+        ]
+        m_is_file.return_value = True
+        m_load_file.return_value = "\n".join(file_content)
+        ret = ssh_util.parse_ssh_config("some real file")
+        assert len(file_content) == len(ret)
+        for i in range(len(file_content)):
+            assert file_content[i] == ret[i].line
+
 
 class TestUpdateSshConfigLines:
     """Test the update_ssh_config_lines method."""
@@ -620,6 +633,31 @@ class TestUpdateSshConfig:
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
         assert not os.path.isfile(f"other_{mycfg}.d/50-cloud-init.conf")
+
+
+class TestAppendSshConfig:
+    cfgdata = "\n".join(["#Option val", "MyKey ORIG_VAL", ""])
+
+    @mock.patch(M_PATH + "_ensure_cloud_init_ssh_config_file")
+    def test_append_ssh_config(self, m_ensure_cloud_init_config_file, tmpdir):
+        mycfg = tmpdir.join("ssh_config")
+        util.write_file(mycfg, self.cfgdata)
+        m_ensure_cloud_init_config_file.return_value = str(mycfg)
+        ssh_util.append_ssh_config(
+            [("MyKey", "NEW_VAL"), ("MyKey", "NEW_VAL_2")], mycfg
+        )
+        found = util.load_file(mycfg)
+        expected_cfg = dedent(
+            """\
+            #Option val
+            MyKey ORIG_VAL
+            MyKey NEW_VAL
+            MyKey NEW_VAL_2
+            """
+        )
+        assert expected_cfg == found
+        # assert there is a newline at end of file (LP: #1677205)
+        assert "\n" == found[-1]
 
 
 class TestBasicAuthorizedKeyParse:

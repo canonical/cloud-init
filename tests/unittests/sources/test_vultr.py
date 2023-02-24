@@ -30,6 +30,9 @@ VULTR_V1_1 = {
         },
     },
     "hostname": "CLOUDINIT_1",
+    "local-hostname": "CLOUDINIT_1",
+    "instance-v2-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
+    "instance-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
     "instanceid": "42506325",
     "interfaces": [
         {
@@ -50,7 +53,7 @@ VULTR_V1_1 = {
         }
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": {"regioncode": "EWR"},
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "raid1-script": "",
@@ -85,7 +88,9 @@ VULTR_V1_2 = {
         },
     },
     "hostname": "CLOUDINIT_2",
+    "local-hostname": "CLOUDINIT_2",
     "instance-v2-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
+    "instance-id": "29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
     "instanceid": "42872224",
     "interfaces": [
         {
@@ -121,7 +126,7 @@ VULTR_V1_2 = {
         },
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": {"regioncode": "EWR"},
+    "region": "us",
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "user-data": [],
@@ -139,7 +144,45 @@ VULTR_V1_2 = {
     ],
 }
 
+VULTR_V1_3 = None
+
 SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
+
+CLOUD_INTERFACES = {
+    "version": 1,
+    "config": [
+        {
+            "type": "nameserver",
+            "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+        },
+        {
+            "type": "physical",
+            "mac_address": "56:00:03:1b:4e:ca",
+            "accept-ra": 1,
+            "subnets": [
+                {"type": "dhcp", "control": "auto"},
+                {"type": "ipv6_slaac", "control": "auto"},
+                {
+                    "type": "static6",
+                    "control": "auto",
+                    "address": "2002:19f0:5:28a7::/64",
+                },
+            ],
+        },
+        {
+            "type": "physical",
+            "mac_address": "5a:00:03:1b:4e:ca",
+            "subnets": [
+                {
+                    "type": "static",
+                    "control": "auto",
+                    "address": "10.1.112.3",
+                    "netmask": "255.255.240.0",
+                }
+            ],
+        },
+    ],
+}
 
 INTERFACES = ["lo", "dummy0", "eth1", "eth0", "eth2"]
 
@@ -241,7 +284,13 @@ def check_route(url):
 
 class TestDataSourceVultr(CiTestCase):
     def setUp(self):
+        global VULTR_V1_3
         super(TestDataSourceVultr, self).setUp()
+
+        # Create v3
+        VULTR_V1_3 = VULTR_V1_2.copy()
+        VULTR_V1_3["cloud_interfaces"] = CLOUD_INTERFACES.copy()
+        VULTR_V1_3["interfaces"] = []
 
         # Stored as a dict to make it easier to maintain
         raw1 = json.dumps(VULTR_V1_1["vendor-data"][0])
@@ -250,6 +299,7 @@ class TestDataSourceVultr(CiTestCase):
         # Make expected format
         VULTR_V1_1["vendor-data"] = [raw1]
         VULTR_V1_2["vendor-data"] = [raw2]
+        VULTR_V1_3["vendor-data"] = [raw2]
 
         self.tmp = self.tmp_dir()
 
@@ -293,6 +343,28 @@ class TestDataSourceVultr(CiTestCase):
         )
 
         self.maxDiff = orig_val
+
+        # Test network config generation
+        self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
+
+    # Test the datasource with new network config type
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
+    @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
+    def test_datasource_cloud_interfaces(
+        self, mock_getmeta, mock_isvultr, mock_netmap
+    ):
+        mock_getmeta.return_value = VULTR_V1_3
+        mock_isvultr.return_value = True
+        mock_netmap.return_value = INTERFACE_MAP
+
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        source = DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+        )
+
+        source._get_data()
 
         # Test network config generation
         self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)

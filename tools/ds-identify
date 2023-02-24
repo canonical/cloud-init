@@ -926,7 +926,7 @@ dscheck_UpCloud() {
     return ${DS_NOT_FOUND}
 }
 
-ovf_vmware_guest_customization() {
+vmware_guest_customization() {
     # vmware guest customization
 
     # virt provider must be vmware
@@ -1039,8 +1039,6 @@ dscheck_OVF() {
     ovf_vmware_transport_guestinfo && return "${DS_FOUND}"
 
     has_ovf_cdrom && return "${DS_FOUND}"
-
-    ovf_vmware_guest_customization && return "${DS_FOUND}"
 
     return ${DS_NOT_FOUND}
 }
@@ -1264,6 +1262,13 @@ dscheck_OpenStack() {
         *) return ${DS_MAYBE};;
     esac
 
+    # If we are on bare metal, then we maybe are on a
+    # bare metal Ironic environment.
+    detect_virt
+    if [ "${_RET}" = "none" ]; then
+      return ${DS_MAYBE}
+    fi
+
     return ${DS_NOT_FOUND}
 }
 
@@ -1466,6 +1471,7 @@ dscheck_VMware() {
     #
     #   * envvars
     #   * guestinfo
+    #   * imc (VMware Guest Customization)
     #
     # Please note when updating this function with support for new data
     # transports, the order should match the order in the _get_data
@@ -1498,6 +1504,10 @@ dscheck_VMware() {
          vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
         return "${DS_FOUND}"
     fi
+
+    # Activate the VMware datasource only if tools plugin is available and
+    # guest customization is enabled.
+    vmware_guest_customization && return "${DS_FOUND}"
 
     return "${DS_NOT_FOUND}"
 }

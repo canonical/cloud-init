@@ -87,7 +87,9 @@ class TestHandleUsersGroups(CiTestCase):
         m_linux_group,
     ):
         """When users in config, create users with freebsd.create_user."""
-        cfg = {"users": ["default", {"name": "me2"}]}  # merged cloud-config
+        cfg = {
+            "users": ["default", {"name": "me2", "uid": 1234}]
+        }  # merged cloud-config
         # System config defines a default user for the distro.
         sys_cfg = {
             "default_user": {
@@ -115,7 +117,7 @@ class TestHandleUsersGroups(CiTestCase):
                     lock_passwd=True,
                     shell="/bin/tcsh",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", uid=1234, default=False),
             ],
         )
         m_fbsd_group.assert_not_called()
@@ -363,9 +365,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "users.0.lock-passwd: DEPRECATED."
-                        " Dropped after April 2027. Use ``lock_passwd``."
-                        " Default: ``true``"
+                        "Cloud config schema deprecations: "
+                        "users.0.lock-passwd: Default: ``true`` "
+                        "Deprecated in version 22.3. Use "
+                        "``lock_passwd`` instead."
                     ),
                 ),
                 False,
@@ -385,10 +388,14 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: users.0.groups.adm:"
-                        " DEPRECATED. When providing an object for"
-                        " users.groups the ``<group_name>`` keys are the"
-                        " groups to add this user to,"
+                        "Cloud config schema deprecations: "
+                        "users.0.groups.adm: When providing an object "
+                        "for users.groups the ``<group_name>`` keys "
+                        "are the groups to add this user to Deprecated"
+                        " in version 23.1., users.0.groups.sudo: When "
+                        "providing an object for users.groups the "
+                        "``<group_name>`` keys are the groups to add "
+                        "this user to Deprecated in version 23.1."
                     ),
                 ),
                 False,
@@ -438,10 +445,11 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "deprecations: user.groups.sbuild: DEPRECATED. "
-                        "When providing an object for users.groups the "
-                        "``<group_name>`` keys are the groups to add this "
-                        "user to"
+                        "Cloud config schema deprecations: "
+                        "user.groups.sbuild: When providing an object "
+                        "for users.groups the ``<group_name>`` keys "
+                        "are the groups to add this user to Deprecated"
+                        " in version 23.1."
                     ),
                 ),
                 False,
@@ -451,9 +459,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "deprecations: user.sudo: DEPRECATED. The value"
-                        " ``false`` will be dropped after April 2027."
-                        " Use ``null`` or no ``sudo`` key instead."
+                        "Cloud config schema deprecations: user.sudo:"
+                        "  Changed in version 22.2. The value "
+                        "``false`` is deprecated for this key, use "
+                        "``null`` instead."
                     ),
                 ),
                 False,
@@ -468,9 +477,10 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "users.0.uid: DEPRECATED. The use of ``string`` type"
-                        " will be dropped after April 2027. Use an ``integer``"
-                        " instead."
+                        "Cloud config schema deprecations: "
+                        "users.0.uid:  Changed in version 22.3. The "
+                        "use of ``string`` type is deprecated. Use "
+                        "an ``integer`` instead."
                     ),
                 ),
                 False,

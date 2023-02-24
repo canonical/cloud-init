@@ -191,6 +191,15 @@ class Mixin:
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
+    @pytest.mark.ubuntu
+    def test_check_ssh_service(self, class_client):
+        """Ensure we check the sshd status because we modified the config"""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        assert (
+            "'systemctl', 'show', '--property', 'ActiveState', "
+            "'--value', 'ssh'" in log
+        )
+
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
         sshd_config = class_client.execute("sshd -T").stdout

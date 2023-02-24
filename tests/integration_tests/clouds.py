@@ -13,6 +13,7 @@ from uuid import UUID
 from pycloudlib import (
     EC2,
     GCE,
+    IBM,
     OCI,
     Azure,
     LXDContainer,
@@ -408,3 +409,14 @@ class OpenstackCloud(IntegrationCloud):
                 "OS image id: {}".format(image.image_id)
             ) from e
         return image.image_id
+
+
+class IbmCloud(IntegrationCloud):
+    datasource = "ibm"
+    cloud_instance: IBM
+
+    def _get_cloud_instance(self) -> IBM:
+        # Note: IBM image names starting with `ibm` are reserved.
+        return IBM(
+            tag="integration-test-ibm",
+        )

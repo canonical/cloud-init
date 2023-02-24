@@ -46,7 +46,6 @@ lxd:
         ipv4.address: auto
         ipv6.address: auto
       description: ""
-      managed: false
       name: lxdbr0
       type: ""
     storage_pools:
@@ -220,6 +219,10 @@ def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
         # https://discuss.linuxcontainers.org/t/lxd-5-5-has-been-released/14899
         if "features.storage.buckets" in project["config"]:
             assert "true" == project["config"].pop("features.storage.buckets")
+        # `features.networks.zones` was introduced in lxd 5.9. More info:
+        # https://discuss.linuxcontainers.org/t/lxd-5-9-has-been-released/
+        if "features.networks.zones" in project["config"]:
+            assert "true" == project["config"].pop("features.networks.zones")
         assert project == src_project
 
 

@@ -311,6 +311,7 @@ class TestHandleSsh:
         cfg = {"ssh_keys": {}}
 
         expected_calls = []
+        cert_content = ""
         for key_type in cc_ssh.GENERATE_KEY_NAMES:
             private_name = "{}_private".format(key_type)
             public_name = "{}_public".format(key_type)
@@ -330,26 +331,32 @@ class TestHandleSsh:
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key".format(key_type),
                         private_value,
-                        384,
+                        0o600,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key.pub".format(key_type),
                         public_value,
-                        384,
+                        0o644,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key-cert.pub".format(key_type),
                         cert_value,
-                        384,
-                    ),
-                    mock.call(
-                        sshd_conf_fname,
-                        "HostCertificate /etc/ssh/ssh_host_{}_key-cert.pub"
-                        "\n".format(key_type),
-                        preserve_mode=True,
+                        0o644,
                     ),
                 ]
             )
+            cert_content += (
+                f"HostCertificate /etc/ssh/ssh_host_{key_type}_key-cert.pub\n"
+            )
+
+        expected_calls.append(
+            mock.call(
+                sshd_conf_fname,
+                cert_content,
+                omode="ab",
+                preserve_mode=True,
+            )
+        )
 
         # Run the handler.
         m_nug.return_value = ([], {})
