@@ -1516,12 +1516,6 @@ def blkid(devs=None, disable_cache=False):
     return ret
 
 
-def peek_file(fname, max_bytes):
-    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
-    with open(fname, "rb") as ifh:
-        return ifh.read(max_bytes)
-
-
 def uniq_list(in_list):
     out_list = []
     for i in in_list:

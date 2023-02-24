@@ -535,9 +535,6 @@ class Init:
         ]
         return def_handlers
 
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
-
     def _default_vendordata_handlers(self):
         return self._default_handlers(
             opts={

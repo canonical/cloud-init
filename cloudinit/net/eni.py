@@ -308,18 +308,6 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]["auto"] = False
 
 
-def parse_deb_config(path):
-    """Parses a debian network configuration file."""
-    ifaces = {}
-    with open(path, "r") as fp:
-        contents = fp.read().strip()
-    abs_path = os.path.abspath(path)
-    _parse_deb_config_data(
-        ifaces, contents, os.path.dirname(abs_path), abs_path
-    )
-    return ifaces
-
-
 def convert_eni_data(eni_data):
     # return a network config representation of what is in eni_data
     ifaces = {}

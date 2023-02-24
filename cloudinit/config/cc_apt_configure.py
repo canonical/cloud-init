@@ -383,15 +383,6 @@ def rename_apt_lists(new_mirrors, target, arch):
                 LOG.warning("Failed to rename apt list:", exc_info=True)
 
 
-def mirror_to_placeholder(tmpl, mirror, placeholder):
-    """mirror_to_placeholder
-    replace the specified mirror in a template with a placeholder string
-    Checks for existance of the expected mirror and warns if not found"""
-    if mirror not in tmpl:
-        LOG.warning("Expected mirror '%s' not found in: %s", mirror, tmpl)
-    return tmpl.replace(mirror, placeholder)
-
-
 def map_known_suites(suite):
     """there are a few default names which will be auto-extended.
     This comes at the inability to use those names literally as suites,

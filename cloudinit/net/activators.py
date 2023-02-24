@@ -72,24 +72,6 @@ class NetworkActivator(ABC):
             [i["name"] for i in network_state.iter_interfaces()]
         )
 
-    @classmethod
-    def bring_down_interfaces(cls, device_names: Iterable[str]) -> bool:
-        """Bring down specified list of interfaces.
-
-        Return True is successful, otherwise return False
-        """
-        return all(cls.bring_down_interface(device) for device in device_names)
-
-    @classmethod
-    def bring_down_all_interfaces(cls, network_state: NetworkState) -> bool:
-        """Bring down all interfaces.
-
-        Return True is successful, otherwise return False
-        """
-        return cls.bring_down_interfaces(
-            [i["name"] for i in network_state.iter_interfaces()]
-        )
-
 
 class IfUpDownActivator(NetworkActivator):
     # Note that we're not overriding bring_up_interfaces to pass something
@@ -203,26 +185,6 @@ class NetplanActivator(NetworkActivator):
             "Calling 'netplan apply' rather than "
             "altering individual interfaces"
         )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
-
-    @staticmethod
-    def bring_down_interfaces(device_names: Iterable[str]) -> bool:
-        """Apply netplan config.
-
-        Return True is successful, otherwise return False
-        """
-        LOG.debug(
-            "Calling 'netplan apply' rather than "
-            "altering individual interfaces"
-        )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
-
-    @staticmethod
-    def bring_down_all_interfaces(network_state: NetworkState) -> bool:
-        """Apply netplan config.
-
-        Return True is successful, otherwise return False
-        """
         return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
 
 
