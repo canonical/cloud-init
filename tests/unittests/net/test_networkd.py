@@ -195,7 +195,51 @@ Domains=rgrunbla.github.beta.tailscale.net
 
 [Route]
 Gateway=10.0.0.1
+
+[Route]
 Gateway=2a01:4f8:10a:19d2::2
+
+"""
+
+V2_CONFIG_MULTI_SUBNETS = """
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - 192.168.1.1/24
+        - fec0::1/64
+      gateway4: 192.168.254.254
+      gateway6: "fec0::ffff"
+      routes:
+        - to: 169.254.1.1/32
+        - to: "fe80::1/128"
+"""
+
+V2_CONFIG_MULTI_SUBNETS_RENDERED = """\
+[Address]
+Address=192.168.1.1/24
+
+[Address]
+Address=fec0::1/64
+
+[Match]
+Name=eth0
+
+[Network]
+DHCP=no
+
+[Route]
+Gateway=192.168.254.254
+
+[Route]
+Gateway=fec0::ffff
+
+[Route]
+Destination=169.254.1.1/32
+
+[Route]
+Destination=fe80::1/128
 
 """
 
@@ -307,5 +351,16 @@ class TestNetworkdRenderState:
 
         assert rendered_content["eth0"] == V1_CONFIG_MULTI_SUBNETS_RENDERED
 
+    def test_networkd_render_v2_multi_subnets(self):
+        """
+        Ensure a device with multiple subnets gets correctly rendered.
 
-# vi: ts=4 expandtab
+        Per systemd-networkd docs, [Route] can only contain a single instance
+        of Gateway.
+        """
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(V2_CONFIG_MULTI_SUBNETS)
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert rendered_content["eth0"] == V2_CONFIG_MULTI_SUBNETS_RENDERED

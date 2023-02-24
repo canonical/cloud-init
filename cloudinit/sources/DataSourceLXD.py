@@ -11,6 +11,7 @@ Notes:
 import os
 import socket
 import stat
+import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional, Union, cast
@@ -277,6 +278,14 @@ def _get_json_response(
     session: requests.Session, url: str, do_raise: bool = True
 ):
     url_response = _do_request(session, url, do_raise)
+    if not url_response.ok:
+        LOG.debug(
+            "Skipping %s on [HTTP:%d]:%s",
+            url,
+            url_response.status_code,
+            url_response.text,
+        )
+        return {}
     try:
         return url_response.json()
     except JSONDecodeError as exc:
@@ -291,7 +300,20 @@ def _get_json_response(
 def _do_request(
     session: requests.Session, url: str, do_raise: bool = True
 ) -> requests.Response:
-    response = session.get(url)
+    for retries in range(30, 0, -1):
+        response = session.get(url)
+        if 500 == response.status_code:
+            # retry every 0.1 seconds for 3 seconds in the case of 500 error
+            # tis evil, but it also works around a bug
+            time.sleep(0.1)
+            LOG.warning(
+                "[GET] [HTTP:%d] %s, retrying %d more time(s)",
+                response.status_code,
+                url,
+                retries,
+            )
+        else:
+            break
     LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
     if do_raise and not response.ok:
         raise sources.InvalidMetaDataException(
@@ -386,7 +408,9 @@ class _MetaDataReader:
                 md.update(self._process_config(session))
             if MetaDataKeys.DEVICES in metadata_keys:
                 url = url_helper.combine_url(self._version_url, "devices")
-                md["devices"] = _get_json_response(session, url)
+                devices = _get_json_response(session, url, do_raise=False)
+                if devices:
+                    md["devices"] = devices
             return md
 
 

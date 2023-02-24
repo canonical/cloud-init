@@ -75,6 +75,23 @@ HEALTH_REPORT_XML_TEMPLATE = """\
 </Health>
 """
 
+
+def get_formatted_health_report_xml_bytes(
+    container_id: str,
+    incarnation: int,
+    instance_id: str,
+    health_status: str,
+    health_detail_subsection: str,
+) -> bytes:
+    return HEALTH_REPORT_XML_TEMPLATE.format(
+        container_id=container_id,
+        incarnation=incarnation,
+        instance_id=instance_id,
+        health_status=health_status,
+        health_detail_subsection=health_detail_subsection,
+    ).encode("utf-8")
+
+
 HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
     """\
     <Details>
@@ -626,14 +643,11 @@ class TestGoalStateHealthReporter(CiTestCase):
             return element.text
         return None
 
-    def _get_formatted_health_report_xml_string(self, **kwargs):
-        return HEALTH_REPORT_XML_TEMPLATE.format(**kwargs)
-
     def _get_formatted_health_detail_subsection_xml_string(self, **kwargs):
         return HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(**kwargs)
 
     def _get_report_ready_health_document(self):
-        return self._get_formatted_health_report_xml_string(
+        return get_formatted_health_report_xml_bytes(
             incarnation=escape(str(self.default_parameters["incarnation"])),
             container_id=escape(self.default_parameters["container_id"]),
             instance_id=escape(self.default_parameters["instance_id"]),
@@ -651,7 +665,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             )
         )
 
-        return self._get_formatted_health_report_xml_string(
+        return get_formatted_health_report_xml_bytes(
             incarnation=escape(str(self.default_parameters["incarnation"])),
             container_id=escape(self.default_parameters["container_id"]),
             instance_id=escape(self.default_parameters["instance_id"]),
@@ -887,7 +901,7 @@ class TestGoalStateHealthReporter(CiTestCase):
                 health_description=escape(health_description),
             )
         )
-        health_document = self._get_formatted_health_report_xml_string(
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(incarnation),
             container_id=escape(container_id),
             instance_id=escape(instance_id),
@@ -1132,9 +1146,9 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation, posted_document)
-        self.assertIn(self.test_container_id, posted_document)
-        self.assertIn(self.test_instance_id, posted_document)
+        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
+        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
+        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
 
     def test_goal_state_values_used_for_report_failure(self):
         shim = wa_shim(endpoint="test_endpoint")
@@ -1142,14 +1156,14 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation, posted_document)
-        self.assertIn(self.test_container_id, posted_document)
-        self.assertIn(self.test_instance_id, posted_document)
+        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
+        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
+        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
 
     def test_xml_elems_in_report_ready_post(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data()
-        health_document = HEALTH_REPORT_XML_TEMPLATE.format(
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(self.test_incarnation),
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
@@ -1164,7 +1178,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_xml_elems_in_report_failure_post(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
-        health_document = HEALTH_REPORT_XML_TEMPLATE.format(
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(self.test_incarnation),
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
@@ -1382,34 +1396,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric(
-            endpoint="test_endpoint", description="TestDesc"
-        )
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description="TestDesc"
-        )
-
-    def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
+    def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
         azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
-        # default err message description should be shown to the user
-        # if no description is passed in
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
-        )
-
-    def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric(
-            endpoint="test_endpoint", description=""
-        )
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501

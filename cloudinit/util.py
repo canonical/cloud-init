@@ -35,10 +35,11 @@ from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
+from pathlib import Path
 from typing import Callable, Deque, Dict, List, TypeVar
 from urllib import parse
 
-from cloudinit import importer
+from cloudinit import features, importer
 from cloudinit import log as logging
 from cloudinit import (
     mergers,
@@ -639,11 +640,13 @@ def _get_variant(info):
             "mariner",
             "miraclelinux",
             "openeuler",
+            "opencloudos",
             "openmandriva",
             "photon",
             "rhel",
             "rocky",
             "suse",
+            "tencentos",
             "virtuozzo",
         ):
             variant = linux_dist
@@ -653,10 +656,12 @@ def _get_variant(info):
             variant = "rhel"
         elif linux_dist in (
             "opensuse",
-            "opensuse-tumbleweed",
             "opensuse-leap",
-            "sles",
+            "opensuse-microos",
+            "opensuse-tumbleweed",
             "sle_hpc",
+            "sle-micro",
+            "sles",
         ):
             variant = "suse"
         else:
@@ -976,14 +981,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.find("%s") >= 0:
-        ud_url = base % ("user-data" + ext)
-        vd_url = base % ("vendor-data" + ext)
-        md_url = base % ("meta-data" + ext)
+        ud_url = base.replace("%s", "user-data" + ext)
+        vd_url = base.replace("%s", "vendor-data" + ext)
+        md_url = base.replace("%s", "meta-data" + ext)
     else:
+        if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
+            if base[-1] != "/" and parse.urlparse(base).query == "":
+                # Append fwd slash when no query string and no %s
+                base += "/"
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
-
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )
@@ -1784,12 +1792,41 @@ def json_dumps(data):
     )
 
 
-def ensure_dir(path, mode=None):
+def get_non_exist_parent_dir(path):
+    """Get the last directory in a path that does not exist.
+
+    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    return /usr/a
+    """
+    p_path = os.path.dirname(path)
+    # Check if parent directory of path is root
+    if p_path == os.path.dirname(p_path):
+        return path
+    else:
+        if os.path.isdir(p_path):
+            return path
+        else:
+            return get_non_exist_parent_dir(p_path)
+
+
+def ensure_dir(path, mode=None, user=None, group=None):
     if not os.path.isdir(path):
+        # Get non existed parent dir first before they are created.
+        non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
+        # Change the ownership
+        if user or group:
+            chownbyname(non_existed_parent_dir, user, group)
+            # if path=/usr/a/b/c and non_existed_parent_dir=/usr,
+            # then sub_relative_dir=PosixPath('a/b/c')
+            sub_relative_dir = Path(path.split(non_existed_parent_dir)[1][1:])
+            sub_path = Path(non_existed_parent_dir)
+            for part in sub_relative_dir.parts:
+                sub_path = sub_path.joinpath(part)
+                chownbyname(sub_path, user, group)
     else:
         # Just adjust the mode
         chmod(path, mode)
@@ -2126,6 +2163,8 @@ def write_file(
     preserve_mode=False,
     *,
     ensure_dir_exists=True,
+    user=None,
+    group=None,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2140,6 +2179,8 @@ def write_file(
     @param ensure_dir_exists: If True (the default), ensure that the directory
                               containing `filename` exists before writing to
                               the file.
+    @param user: The user to set on the file.
+    @param group: The group to set on the file.
     """
 
     if preserve_mode:
@@ -2149,7 +2190,7 @@ def write_file(
             pass
 
     if ensure_dir_exists:
-        ensure_dir(os.path.dirname(filename))
+        ensure_dir(os.path.dirname(filename), user=user, group=group)
     if "b" in omode.lower():
         content = encode_text(content)
         write_type = "bytes"
@@ -2761,11 +2802,25 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
 
 def human2bytes(size):
     """Convert human string or integer to size in bytes
+
+    In the original implementation, SI prefixes parse to IEC values
+    (1KB=1024B). Later, support for parsing IEC prefixes was added,
+    also parsing to IEC values (1KiB=1024B). To maintain backwards
+    compatibility for the long-used implementation, no fix is provided for SI
+    prefixes (to make 1KB=1000B may now violate user expectations).
+
+    Future prospective callers of this function should consider implementing a
+    new function with more standard expectations (1KB=1000B and 1KiB=1024B)
+
+    Examples:
     10M => 10485760
-    .5G => 536870912
+    10MB => 10485760
+    10MiB => 10485760
     """
     size_in = size
-    if size.endswith("B"):
+    if size.endswith("iB"):
+        size = size[:-2]
+    elif size.endswith("B"):
         size = size[:-1]
 
     mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}

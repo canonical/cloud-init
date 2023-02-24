@@ -12,8 +12,8 @@ REPO_D = "/root/playbooks"
 USER_DATA = """\
 #cloud-config
 version: v1
-packages_update: true
-packages_upgrade: true
+package_update: true
+package_upgrade: true
 packages:
   - git
   - python3-pip
@@ -114,8 +114,8 @@ ANSIBLE_CONTROL = """\
 # This example installs a playbook repository from a remote private repository
 # and then runs two of the plays.
 
-packages_update: true
-packages_upgrade: true
+package_update: true
+package_upgrade: true
 packages:
   - git
   - python3-pip
@@ -301,6 +301,9 @@ def test_ansible_pull_distro(client):
 
 @pytest.mark.user_data(ANSIBLE_CONTROL)
 @pytest.mark.lxd_vm
+# Not bionic because test uses pip install and version in pip is removing
+# support for python version in bionic
+@pytest.mark.not_bionic
 def test_ansible_controller(client):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)

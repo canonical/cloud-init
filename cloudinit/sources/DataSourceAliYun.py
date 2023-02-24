@@ -18,6 +18,11 @@ class DataSourceAliYun(EC2.DataSourceEc2):
     min_metadata_version = "2016-01-01"
     extended_metadata_versions: List[str] = []
 
+    # Aliyun metadata server security enhanced mode overwrite
+    @property
+    def imdsv2_token_put_header(self):
+        return "X-aliyun-ecs-metadata-token"
+
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         hostname = self.metadata.get("hostname")
         is_default = False

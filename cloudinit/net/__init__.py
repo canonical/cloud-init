@@ -1000,15 +1000,61 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret: dict = {}
-    for name, mac, _driver, _devid in get_interfaces(
+    driver_map: dict = {}
+    for name, mac, driver, _devid in get_interfaces(
         blacklist_drivers=blacklist_drivers
     ):
         if mac in ret:
-            raise RuntimeError(
-                "duplicate mac found! both '%s' and '%s' have mac '%s'"
-                % (name, ret[mac], mac)
+            raise_duplicate_mac_error = True
+            msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
+                name,
+                ret[mac],
+                mac,
             )
+            # Hyper-V netvsc driver will register a VF with the same mac
+            #
+            # The VF will be enslaved to the master nic shortly after
+            # registration. If cloud-init starts enumerating the interfaces
+            # before the completion of the enslaving process, it will see
+            # two different nics with duplicate mac. Cloud-init should ignore
+            # the slave nic (which does not have hv_netvsc driver).
+            if driver != driver_map[mac]:
+                if driver_map[mac] == "hv_netvsc":
+                    LOG.warning(
+                        msg + " Ignoring '%s' due to driver '%s' and "
+                        "'%s' having driver hv_netvsc."
+                        % (name, driver, ret[mac])
+                    )
+                    continue
+                if driver == "hv_netvsc":
+                    raise_duplicate_mac_error = False
+                    LOG.warning(
+                        msg + " Ignoring '%s' due to driver '%s' and "
+                        "'%s' having driver hv_netvsc."
+                        % (ret[mac], driver_map[mac], name)
+                    )
+
+            # This is intended to be a short-term fix of LP: #1997922
+            # Long term, we should better handle configuration of virtual
+            # devices where duplicate MACs are expected early in boot if
+            # cloud-init happens to enumerate network interfaces before drivers
+            # have fully initialized the leader/subordinate relationships for
+            # those devices or switches.
+            if driver == "mscc_felix" or driver == "fsl_enetc":
+                LOG.debug(
+                    "Ignoring duplicate macs from '%s' and '%s' due to "
+                    "driver '%s'.",
+                    name,
+                    ret[mac],
+                    driver,
+                )
+                continue
+
+            if raise_duplicate_mac_error:
+                raise RuntimeError(msg)
+
         ret[mac] = name
+        driver_map[mac] = driver
 
         # Pretend that an Infiniband GUID is an ethernet address for Openstack
         # configuration purposes

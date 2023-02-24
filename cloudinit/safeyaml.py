@@ -25,6 +25,27 @@ class _CustomSafeLoader(yaml.SafeLoader):
         return super().construct_scalar(node)
 
 
+def _fix_nested_map_index(new_key_path, marks):
+    new_marks = []
+    for mark in marks:
+        if "." not in mark.path:
+            new_marks.append(mark)
+            continue
+        path_prefix, _path_idx = mark.path.rsplit(".", 1)
+        if new_key_path not in mark.path and path_prefix in mark.path:
+            new_marks.append(
+                SchemaPathMarks(
+                    # Replace only the first match of path_prefix
+                    mark.path.replace(path_prefix, new_key_path, 1),
+                    mark.start_mark,
+                    mark.end_mark,
+                )
+            )
+        else:
+            new_marks.append(mark)
+    return new_marks
+
+
 class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
     """A loader which provides line and column start and end marks for YAML.
 
@@ -102,7 +123,30 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
             if line_num not in self.schemamarks_by_line:
                 self.schemamarks_by_line[line_num] = [marks]
             else:
-                self.schemamarks_by_line[line_num].append(marks)
+                if line_num == sequence_item.end_mark.line:
+                    self.schemamarks_by_line[line_num].append(marks)
+                else:  # Incorrect multi-line mapping or sequence object.
+                    for inner_line in range(
+                        line_num, sequence_item.end_mark.line
+                    ):
+                        if inner_line in self.schemamarks_by_line:
+                            schema_marks = self.schemamarks_by_line[inner_line]
+                            new_marks = _fix_nested_map_index(
+                                node_key_path, schema_marks
+                            )
+                            if (
+                                inner_line == line_num
+                                and schema_marks[0].path != node_key_path
+                            ):
+                                new_marks.insert(
+                                    0,
+                                    SchemaPathMarks(
+                                        node_key_path,
+                                        schema_marks[0].start_mark,
+                                        schema_marks[-1].end_mark,
+                                    ),
+                                )
+                            self.schemamarks_by_line[inner_line] = new_marks
         return sequence
 
     def get_single_data(self):

@@ -33,10 +33,12 @@ distros = [
     "fedora",
     "mariner",
     "openEuler",
+    "OpenCloudOS",
     "openmandriva",
     "photon",
     "rhel",
     "rocky",
+    "TencentOS",
     "virtuozzo",
 ]
 

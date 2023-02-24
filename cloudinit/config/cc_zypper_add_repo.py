@@ -18,7 +18,16 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
-distros = ["opensuse", "sles"]
+distros = [
+    "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+]
+
 MODULE_DESCRIPTION = """\
 Zypper behavior can be configured using the ``config`` key, which will modify
 ``/etc/zypp/zypp.conf``. The configuration writer will only append the
@@ -31,7 +40,8 @@ options will be resolved by the way the zypp.conf INI file is parsed.
 The ``repos`` key may be used to add repositories to the system. Beyond the
 required ``id`` and ``baseurl`` attributions, no validation is performed
 on the ``repos`` entries. It is assumed the user is familiar with the
-zypper repository file format.
+zypper repository file format. This configuration is also applicable for
+systems with transactional-updates.
 """
 meta: MetaSchema = {
     "id": "cc_zypper_add_repo",

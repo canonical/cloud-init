@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "2022, Canonical Ltd."
+copyright = "Canonical Ltd."
 
 # -- General configuration ----------------------------------------------------
 
@@ -29,6 +29,8 @@ needs_sphinx = "4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "m2r2",
+    "notfound.extension",
+    "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
@@ -58,6 +60,12 @@ exclude_patterns = []
 # output. They are ignored by default.
 show_authors = False
 
+# Sphinx-copybutton config options: 1) prompt to be stripped from copied code.
+# 2) Set to copy all lines (not just prompt lines) to ensure multiline snippets
+# can be copied even if they don't contain an EOF line.
+copybutton_prompt_text = "$ "
+copybutton_only_copy_prompt_lines = False
+
 # -- Options for HTML output --------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -72,6 +80,21 @@ html_theme_options = {
     "dark_logo": "logo-dark-mode.png",
 }
 
+html_extra_path = ["googleaf254801a5285c31.html"]
+
 # Make sure the target is unique
 autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 2
+
+# Sphinx-copybutton config options:
+notfound_body = (
+    "<h1>Page not found</h1><p>Sorry we missed you! Our docs have had a"
+    " remodel and some deprecated links have changed.</p><p>"
+    "<a href='https://canonical-cloud-init.readthedocs-hosted.com'>Back to our"
+    " homepage now hosted at"
+    " https://canonical-cloud-init.readthedocs-hosted.com</a></p>"
+)
+notfound_context = {
+    "title": "Page not found",
+    "body": notfound_body,
+}

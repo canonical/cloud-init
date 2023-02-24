@@ -15,10 +15,12 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
+from cloudinit.util import is_true
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
     verify_clean_log,
@@ -77,6 +79,23 @@ timezone: US/Aleutian
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestCombined:
+    @pytest.mark.ubuntu  # Because netplan
+    def test_netplan_permissions(self, class_client: IntegrationInstance):
+        """
+        Test that netplan config file is generated with proper permissions
+        """
+        file_perms = class_client.execute(
+            "stat -c %a /etc/netplan/50-cloud-init.yaml"
+        )
+        assert file_perms.ok, "Unable to check perms on 50-cloud-init.yaml"
+        feature_netplan_root_only = is_true(
+            get_feature_flag_value(
+                class_client, "NETPLAN_CONFIG_ROOT_READ_ONLY"
+            )
+        )
+        config_perms = "600" if feature_netplan_root_only else "644"
+        assert config_perms == file_perms.stdout.strip()
+
     def test_final_message(self, class_client: IntegrationInstance):
         """Test that final_message module works as expected.
 
@@ -154,8 +173,8 @@ class TestCombined:
     def test_snap(self, class_client: IntegrationInstance):
         """Integration test for the snap module.
 
-        This test specifies a command to be executed by the ``snap`` module
-        and then checks that if that command was executed during boot.
+        This test verify that the snap packages specified in the user-data
+        were installed by the ``snap`` module during boot.
         """
         client = class_client
         snap_output = client.execute("snap list")
@@ -404,6 +423,23 @@ class TestCombined:
         assert v1_data["availability_zone"] == client.instance.zone
         assert v1_data["instance_id"] == client.instance.instance_id
         assert v1_data["local_hostname"] == client.instance.name
+
+    @pytest.mark.lxd_container
+    @pytest.mark.azure
+    @pytest.mark.gce
+    @pytest.mark.ec2
+    def test_instance_cloud_id_across_reboot(
+        self, class_client: IntegrationInstance
+    ):
+        client = class_client
+        platform = client.settings.PLATFORM
+        cloud_id_alias = {"ec2": "aws", "lxd_container": "lxd"}
+        cloud_file = f"cloud-id-{cloud_id_alias.get(platform, platform)}"
+        assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
+        assert client.execute("test -f /run/cloud-init/cloud-id").ok
+        client.restart()
+        assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
+        assert client.execute("test -f /run/cloud-init/cloud-id").ok
 
 
 @pytest.mark.user_data(USER_DATA)
