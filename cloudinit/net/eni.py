@@ -317,7 +317,7 @@ def convert_eni_data(eni_data):
 
 def _ifaces_to_net_config_data(ifaces):
     """Return network config that represents the ifaces data provided.
-    ifaces = parse_deb_config("/etc/network/interfaces")
+    ifaces = _parse_deb_config_data(...)
     config = ifaces_to_net_config_data(ifaces)
     state = parse_net_config_data(config)."""
     devs = {}
