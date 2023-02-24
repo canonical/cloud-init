@@ -1,4 +1,4 @@
-cloud-init (23.1-0ubuntu0~18.04.1) UNRELEASED; urgency=medium
+cloud-init (23.1-0ubuntu0~18.04.1) bionic; urgency=medium
 
   * d/patches/retain-netplan-world-readable.patch:
     - Retain original world-readable perms of /etc/netplan/50-cloud-init.yaml.
