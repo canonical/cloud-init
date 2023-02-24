@@ -523,14 +523,6 @@ def do_pre_custom_script(cust_cfg, custom_script, cust_cfg_dir):
     try:
         precust = PreCustomScript(custom_script, cust_cfg_dir)
         precust.execute()
-    except CustomScriptNotFound as e:
-        set_cust_error_status(
-            "Error executing pre-customization script",
-            str(e),
-            GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-            cust_cfg,
-        )
-        return False
     except Exception as e:
         set_cust_error_status(
             "Error executing pre-customization script",
@@ -546,14 +538,6 @@ def do_post_custom_script(cust_cfg, custom_script, cust_cfg_dir, ccScriptsDir):
     try:
         postcust = PostCustomScript(custom_script, cust_cfg_dir, ccScriptsDir)
         postcust.execute()
-    except CustomScriptNotFound as e:
-        set_cust_error_status(
-            "Error executing post-customization script",
-            str(e),
-            GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-            cust_cfg,
-        )
-        return False
     except Exception as e:
         set_cust_error_status(
             "Error executing post-customization script",
