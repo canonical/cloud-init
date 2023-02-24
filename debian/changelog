@@ -1,4 +1,4 @@
-cloud-init (23.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
+cloud-init (23.1-0ubuntu0~20.04.1) focal; urgency=medium
 
   * d/patches/retain-netplan-world-readable.patch:
     - Retain original world-readable perms of /etc/netplan/50-cloud-init.yaml.
@@ -9,7 +9,7 @@ cloud-init (23.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.1/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 24 Feb 2023 12:51:40 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 24 Feb 2023 12:51:43 +0100
 
 cloud-init (22.4.2-0ubuntu0~20.04.2) focal; urgency=medium
 
