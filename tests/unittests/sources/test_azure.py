@@ -3723,7 +3723,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -3806,12 +3805,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -3921,12 +3918,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4072,12 +4067,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4170,7 +4163,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
 
@@ -4235,7 +4227,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"

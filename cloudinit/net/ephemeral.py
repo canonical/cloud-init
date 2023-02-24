@@ -361,7 +361,7 @@ class EphemeralDHCPv4:
         if self.lease:
             return self.lease
         leases = maybe_perform_dhcp_discovery(
-            self.iface, self.dhcp_log_func, self.tmp_dir
+            self.iface, self.dhcp_log_func
         )
         if not leases:
             raise NoDHCPLeaseError()
