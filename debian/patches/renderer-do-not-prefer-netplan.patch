@@ -7,7 +7,7 @@ Forwarded: not-needed
 Last-Update: 2020-06-01
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -216,10 +216,7 @@ system_info:
+@@ -218,10 +218,7 @@ system_info:
       groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
       sudo: ["ALL=(ALL) NOPASSWD:ALL"]
       shell: /bin/bash
@@ -21,7 +21,7 @@ Last-Update: 2020-06-01
     # Other config here will be given to the distro class and/or path classes
 --- a/tests/unittests/test_render_cloudcfg.py
 +++ b/tests/unittests/test_render_cloudcfg.py
-@@ -80,7 +80,6 @@ class TestRenderCloudCfg:
+@@ -82,7 +82,6 @@ class TestRenderCloudCfg:
              ("freebsd", ["freebsd"]),
              ("netbsd", ["netbsd"]),
              ("openbsd", ["openbsd"]),
