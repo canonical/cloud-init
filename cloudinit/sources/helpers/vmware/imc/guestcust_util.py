@@ -14,10 +14,7 @@ import time
 from cloudinit import safeyaml, subp, util
 
 from .config import Config
-from .config_custom_script import (
-    PostCustomScript,
-    PreCustomScript,
-)
+from .config_custom_script import PostCustomScript, PreCustomScript
 from .config_file import ConfigFile
 from .config_nic import NicConfigurator
 from .config_passwd import PasswordConfigurator
