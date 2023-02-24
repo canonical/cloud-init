@@ -7,10 +7,8 @@ Forwarded: not-needed
 Last-Update: 2023-01-09 
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: cloud-init/cloudinit/features.py
-===================================================================
---- cloud-init.orig/cloudinit/features.py
-+++ cloud-init/cloudinit/features.py
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
 @@ -59,7 +59,7 @@ only non-hashed passwords were expired.
  (This flag can be removed after Jammy is no longer supported.)
  """
@@ -20,10 +18,8 @@ Index: cloud-init/cloudinit/features.py
  """
  If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
  be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
-Index: cloud-init/tests/unittests/distros/test_netconfig.py
-===================================================================
---- cloud-init.orig/tests/unittests/distros/test_netconfig.py
-+++ cloud-init/tests/unittests/distros/test_netconfig.py
+--- a/tests/unittests/distros/test_netconfig.py
++++ b/tests/unittests/distros/test_netconfig.py
 @@ -592,32 +592,41 @@ class TestNetCfgDistroUbuntuNetplan(Test
              (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
          )
