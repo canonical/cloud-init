@@ -440,18 +440,22 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                 ],
             ),
-            (  # Assert 404 on devices
+            (  # Assert 404 on devices logs about skipping
                 True,
                 {
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
+                    # No devices URL response, so 404 raised
                 },
-                InvalidMetaDataException(
-                    "Invalid HTTP response [404] from http://lxd/1.0/devices"
-                ),
+                {
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {},
+                    "meta-data": "local-hostname: md\n",
+                },
                 [
                     "[GET] [HTTP:200] http://lxd/1.0/meta-data",
                     "[GET] [HTTP:200] http://lxd/1.0/config",
+                    "Skipping http://lxd/1.0/devices on [HTTP:404]",
                 ],
             ),
             (  # Assert non-JSON format from devices
@@ -693,5 +697,46 @@ class TestReadMetadata:
             == m_session_get.call_args_list
         )
 
+    @mock.patch.object(lxd.requests.Session, "get")
+    @mock.patch.object(lxd.time, "sleep")
+    def test_socket_retry(self, m_session_get, m_sleep):
+        """validate socket retry logic"""
 
-# vi: ts=4 expandtab
+        def generate_return_codes():
+            """
+            [200]
+            [500, 200]
+            [500, 500, 200]
+            [500, 500, ..., 200]
+            """
+            five_hundreds = []
+
+            # generate a couple of longer ones to assert timeout condition
+            for _ in range(33):
+                five_hundreds.append(500)
+                yield [*five_hundreds, 200]
+
+        for return_codes in generate_return_codes():
+            m = mock.Mock(
+                get=mock.Mock(
+                    side_effect=[
+                        mock.MagicMock(
+                            ok=mock.PropertyMock(return_value=True),
+                            status_code=code,
+                            text=mock.PropertyMock(
+                                return_value="properly formatted http response"
+                            ),
+                        )
+                        for code in return_codes
+                    ]
+                )
+            )
+            resp = lxd._do_request(m, "http://agua/")
+
+            # assert that 30 iterations or the first 200 code is the final
+            # attempt, whichever comes first
+            assert min(len(return_codes), 30) == m.get.call_count
+            if len(return_codes) < 31:
+                assert 200 == resp.status_code
+            else:
+                assert 500 == resp.status_code

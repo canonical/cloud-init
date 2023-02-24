@@ -13,11 +13,12 @@ import json
 import os
 import sys
 from time import gmtime, sleep, strftime
-from typing import Any, Dict, List, NamedTuple, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from cloudinit import safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.distros import uses_systemd
+from cloudinit.helpers import Paths
 from cloudinit.util import get_cmdline, load_file, load_json
 
 CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
@@ -63,7 +64,7 @@ class StatusDetails(NamedTuple):
     description: str
     errors: List[str]
     last_update: str
-    datasource: str
+    datasource: Optional[str]
 
 
 TABULAR_LONG_TMPL = """\
@@ -124,7 +125,7 @@ def handle_status_args(name, args) -> int:
                 sys.stdout.flush()
             details = get_status_details(paths)
             sleep(0.25)
-    details_dict: Dict[str, Union[str, List[str], Dict[str, Any]]] = {
+    details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
         "datasource": details.datasource,
         "boot_status_code": details.boot_status_code.value,
         "status": details.status.value,
@@ -195,7 +196,7 @@ def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
     return (bootstatus_code, reason)
 
 
-def get_status_details(paths=None) -> StatusDetails:
+def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
     """Return a dict with status, details and errors.
 
     @param paths: An initialized cloudinit.helpers.paths object.
@@ -206,7 +207,7 @@ def get_status_details(paths=None) -> StatusDetails:
 
     status = UXAppStatus.NOT_RUN
     errors = []
-    datasource = ""
+    datasource: Optional[str] = ""
     status_v1 = {}
 
     status_file = os.path.join(paths.run_dir, "status.json")
@@ -228,9 +229,14 @@ def get_status_details(paths=None) -> StatusDetails:
                 status = UXAppStatus.RUNNING
                 description = "Running in stage: {0}".format(value)
         elif key == "datasource":
+            if value is None:
+                # If ds not yet written in status.json, then keep previous
+                # description
+                datasource = value
+                continue
             description = value
-            datasource, _, _ = value.partition(" ")
-            datasource = datasource.lower().replace("datasource", "")
+            ds, _, _ = value.partition(" ")
+            datasource = ds.lower().replace("datasource", "")
         elif isinstance(value, dict):
             errors.extend(value.get("errors", []))
             start = value.get("start") or 0

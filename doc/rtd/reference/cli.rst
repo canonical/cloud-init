@@ -1,0 +1,416 @@
+.. _cli:
+
+CLI commands
+************
+
+For the latest list of subcommands and arguments use ``cloud-init``'s
+``--help`` option. This can be used against ``cloud-init`` itself, or on any
+of its subcommands.
+
+.. code-block:: shell-session
+
+   $ cloud-init --help
+
+Example output:
+
+.. code-block::
+
+   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
+                                                               {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
+
+    options:
+      -h, --help            show this help message and exit
+      --version, -v         Show program's version number and exit.
+      --file FILES, -f FILES
+                            Use additional yaml configuration files.
+      --debug, -d           Show additional pre-action logging (default: False).
+      --force               Force running even if no datasource is found (use at your own risk).
+
+    Subcommands:
+      {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema}
+        init                Initialize cloud-init and perform initial modules.
+        modules             Activate modules using a given configuration key.
+        single              Run a single module.
+        query               Query standardized instance metadata from the command line.
+        dhclient-hook       Run the dhclient hook to record network info.
+        features            List defined features.
+        analyze             Devel tool: Analyze cloud-init logs and data.
+        devel               Run development tools.
+        collect-logs        Collect and tar all cloud-init debug info.
+        clean               Remove logs and artifacts so cloud-init can re-run.
+        status              Report cloud-init status or wait on completion.
+        schema              Validate cloud-config files using jsonschema.
+
+
+The rest of this document will give an overview of each of the subcommands.
+
+.. _cli_analyze:
+
+:command:`analyze`
+==================
+
+Get detailed reports of where ``cloud-init`` spends its time during the boot
+process. For more complete reference see :ref:`analyze`.
+
+Possible subcommands include:
+
+* :command:`blame`: report ordered by most costly operations.
+* :command:`dump`: machine-readable JSON dump of all ``cloud-init`` tracked
+  events.
+* :command:`show`: show time-ordered report of the cost of operations during
+  each boot stage.
+* :command:`boot`: show timestamps from kernel initialisation, kernel finish
+  initialisation, and ``cloud-init`` start.
+
+.. _cli_clean:
+
+:command:`clean`
+================
+
+Remove ``cloud-init`` artifacts from :file:`/var/lib/cloud` to simulate a clean
+instance. On reboot, ``cloud-init`` will re-run all stages as it did on
+first boot.
+
+* :command:`--logs`: Optionally remove all ``cloud-init`` log files in
+  :file:`/var/log/`.
+* :command:`--reboot`: Reboot the system after removing artifacts.
+* :command:`--machine-id`: Set :file:`/etc/machine-id` to ``uninitialized\n``
+  on this image for systemd environments. On distributions without systemd,
+  remove the file. Best practice when cloning a golden image, to ensure the
+  next boot of that image auto-generates a unique machine ID.
+  `More details on machine-id`_.
+
+.. _cli_collect_logs:
+
+:command:`collect-logs`
+=======================
+
+Collect and tar ``cloud-init``-generated logs, data files, and system
+information for triage. This subcommand is integrated with apport.
+
+Logs collected include:
+
+* :file:`/var/log/cloud-init.log`
+* :file:`/var/log/cloud-init-output.log`
+* :file:`/run/cloud-init`
+* :file:`/var/lib/cloud/instance/user-data.txt`
+* ``cloud-init`` package version
+* ``dmesg`` output
+* ``journalctl`` output
+
+.. note::
+   Ubuntu users can file bugs using :command:`ubuntu-bug cloud-init` to
+   automatically attach these logs to a bug report.
+
+.. _cli_devel:
+
+:command:`devel`
+================
+
+Collection of development tools under active development. These tools will
+likely be promoted to top-level subcommands when stable.
+
+Do **NOT** rely on the output of these commands as they can and will change.
+
+Current subcommands:
+
+:command:`net-convert`
+----------------------
+
+Manually use ``cloud-init``'s network format conversion. Useful for testing
+configuration or testing changes to the network conversion logic itself.
+
+:command:`render`
+-----------------
+
+Use ``cloud-init``'s jinja template render to process **#cloud-config** or
+**custom-scripts**, injecting any variables from
+:file:`/run/cloud-init/instance-data.json`. It accepts a user data file
+containing the jinja template header ``## template: jinja`` and renders that
+content with any :file:`instance-data.json` variables present.
+
+:command:`hotplug-hook`
+-----------------------
+
+Respond to newly added system devices by retrieving updated system metadata
+and bringing up/down the corresponding device. This command is intended to be
+called via a ``systemd`` service and is not considered user-accessible except
+for debugging purposes.
+
+.. _cli_features:
+
+:command:`features`
+===================
+
+Print out each feature supported. If ``cloud-init`` does not have the
+:command:`features` subcommand, it also does not support any features
+described in this document.
+
+.. code-block:: shell-session
+
+   $ cloud-init features
+
+Example output:
+
+.. code-block::
+
+   NETWORK_CONFIG_V1
+   NETWORK_CONFIG_V2
+
+
+.. _cli_init:
+
+:command:`init`
+===============
+
+Generally run by OS init systems to execute ``cloud-init``'s stages:
+*init* and *init-local*. See :ref:`boot_stages` for more info.
+Can be run on the commandline, but is generally gated to run only once
+due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
+:file:`/var/lib/cloud/sem`.
+
+* :command:`--local`: Run *init-local* stage instead of *init*.
+
+.. _cli_modules:
+
+:command:`modules`
+==================
+
+Generally run by OS init systems to execute ``modules:config`` and
+``modules:final`` boot stages. This executes cloud config :ref:`modules`
+configured to run in the Init, Config and Final stages. The modules are
+declared to run in various boot stages in the file
+:file:`/etc/cloud/cloud.cfg` under keys:
+
+* ``cloud_init_modules``
+* ``cloud_config_modules``
+* ``cloud_final_modules``
+
+Can be run on the command line, but each module is gated to run only once due
+to semaphores in :file:`/var/lib/cloud/`.
+
+* :command:`--mode [init|config|final]`: Run ``modules:init``,
+  ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
+  See :ref:`boot_stages` for more info.
+
+.. _cli_query:
+
+:command:`query`
+================
+
+Query standardised cloud instance metadata crawled by ``cloud-init`` and stored
+in :file:`/run/cloud-init/instance-data.json`. This is a convenience
+command-line interface to reference any cached configuration metadata that
+``cloud-init`` crawls when booting the instance. See :ref:`instance_metadata`
+for more info.
+
+* :command:`--all`: Dump all available instance data as JSON which can be
+  queried.
+* :command:`--instance-data`: Optional path to a different
+  :file:`instance-data.json` file to source for queries.
+* :command:`--list-keys`: List available query keys from cached instance data.
+* :command:`--format`: A string that will use jinja-template syntax to render a
+  string replacing.
+* :command:`<varname>`: A dot-delimited variable path into the
+  :file:`instance-data.json` object.
+
+Below demonstrates how to list all top-level query keys that are standardised
+aliases:
+
+.. code-block:: shell-session
+
+    $ cloud-init query --list-keys
+
+Example output:
+
+.. code-block::
+
+    _beta_keys
+    availability_zone
+    base64_encoded_keys
+    cloud_name
+    ds
+    instance_id
+    local_hostname
+    platform
+    public_ssh_keys
+    region
+    sensitive_keys
+    subplatform
+    userdata
+    v1
+    vendordata
+
+Here are a few examples of how to query standardised metadata from clouds:
+
+.. code-block:: shell-session
+
+   $ cloud-init query v1.cloud_name
+
+Example output:
+
+.. code-block::
+
+   aws  # or openstack, azure, gce etc.
+
+Any standardised ``instance-data`` under a <v#> key is aliased as a top-level
+key for convenience:
+
+.. code-block:: shell-session
+
+   $ cloud-init query cloud_name
+
+Example output:
+
+.. code-block::
+
+   aws  # or openstack, azure, gce etc.
+
+One can also query datasource-specific metadata on EC2, e.g.:
+
+.. code-block:: shell-session
+
+   $ cloud-init query ds.meta_data.public_ipv4
+
+
+.. note::
+
+   The standardised instance data keys under **v#** are guaranteed not to
+   change behaviour or format. If using top-level convenience aliases for any
+   standardised instance data keys, the most value (highest **v#**) of that key
+   name is what is reported as the top-level value. So these aliases act as a
+   'latest'.
+
+This data can then be formatted to generate custom strings or data. For
+example, we can generate a custom hostname FQDN based on ``instance-id``, cloud
+and region:
+
+.. code-block:: shell-session
+
+   $ cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
+
+.. code-block::
+
+   custom-i-0e91f69987f37ec74.us-east-2.aws.com
+
+
+.. _cli_schema:
+
+:command:`schema`
+=================
+
+Validate cloud-config files using jsonschema.
+
+* :command:`-h, --help`: Show this help message and exit.
+* :command:`-c CONFIG_FILE, --config-file CONFIG_FILE`: Path of the
+  cloud-config YAML file to validate.
+* :command:`--system`: Validate the system cloud-config user data.
+* :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`:
+  Print schema module
+  docs. Choices are: "all" or "space-delimited" ``cc_names``.
+* :command:`--annotate`: Annotate existing cloud-config file with errors.
+
+The following example checks a config file and annotates the config file with
+errors on :file:`stdout`.
+
+.. code-block:: shell-session
+
+   $ cloud-init schema -c ./config.yml --annotate
+
+
+.. _cli_single:
+
+:command:`single`
+=================
+
+Attempt to run a single, named, cloud config module.
+
+* :command:`--name`: The cloud-config module name to run.
+* :command:`--frequency`: Module frequency for this run.
+  One of (``always``|``once-per-instance``|``once``).
+* :command:`--report`: Enable reporting.
+
+The following example re-runs the ``cc_set_hostname`` module ignoring the
+module default frequency of ``once-per-instance``:
+
+.. code-block:: shell-session
+
+   $ cloud-init single --name set_hostname --frequency always
+
+.. note::
+
+   Mileage may vary trying to re-run each ``cloud-config`` module, as
+   some are not idempotent.
+
+.. _cli_status:
+
+:command:`status`
+=================
+
+Report whether ``cloud-init`` is running, done, disabled or errored. Exits
+non-zero if an error is detected in ``cloud-init``.
+
+* :command:`--long`: Detailed status information.
+* :command:`--wait`: Block until ``cloud-init`` completes.
+* :command:`--format [yaml|json|tabular]`: Machine-readable JSON or YAML
+  detailed output.
+
+The :command:`status` command can be used simply as follows:
+
+.. code-block:: shell-session
+
+   $ cloud-init status
+
+Which shows whether ``cloud-init`` is currently running, done, disabled, or in
+error, as in this example output:
+
+.. code-block::
+
+   status: running
+
+The :command:`--long` option, shown below, provides a more verbose output.
+
+.. code-block:: shell-session
+
+   $ cloud-init status --long
+
+Example output when ``cloud-init`` is running:
+
+.. code-block::
+
+   status: running
+   time: Fri, 26 Jan 2018 21:39:43 +0000
+   detail:
+   Running in stage: init-local
+
+Example output when ``cloud-init`` is done:
+
+.. code-block::
+
+   status: done
+   boot_status_code: enabled-by-generator
+   last_update: Tue, 16 Aug 2022 19:12:58 +0000
+   detail:
+   DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
+
+The detailed output can be shown in machine-readable JSON or YAML with the
+:command:`format` option, for example:
+
+.. code-block:: shell-session
+
+   $ cloud-init status --format=json
+
+Which would produce the following example output:
+
+.. code-block::
+
+   {
+    "boot_status_code": "enabled-by-generator",
+    "datasource": "nocloud",
+    "detail": "DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]",
+    "errors": [],
+    "last_update": "Tue, 16 Aug 2022 19:12:58 +0000",
+    "status": "done"
+   }
+
+.. _More details on machine-id: https://www.freedesktop.org/software/systemd/man/machine-id.html

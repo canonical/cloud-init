@@ -48,12 +48,6 @@ class DataSourceVultr(sources.DataSource):
 
         # Fetch metadata
         self.metadata = self.get_metadata()
-        self.metadata["instance-id"] = self.metadata["instance-v2-id"]
-        self.metadata["local-hostname"] = self.metadata["hostname"]
-        region = self.metadata["region"]["regioncode"]
-        if "countrycode" in self.metadata["region"]:
-            region = self.metadata["region"]["countrycode"]
-        self.metadata["region"] = region.lower()
         self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
@@ -76,10 +70,10 @@ class DataSourceVultr(sources.DataSource):
         if "cloud_interfaces" in md:
             # In the future we will just drop pre-configured
             # network configs into the array. They need names though.
-            self.netcfg = vultr.add_interface_names(md["cloud_interfaces"])
+            vultr.add_interface_names(md["cloud_interfaces"])
+            self.netcfg = md["cloud_interfaces"]
         else:
             self.netcfg = vultr.generate_network_config(md["interfaces"])
-
         # Grab vendordata
         self.vendordata_raw = md["vendor-data"]
 

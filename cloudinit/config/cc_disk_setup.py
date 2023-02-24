@@ -80,6 +80,10 @@ meta: MetaSchema = {
                 table_type: gpt
                 layout: [[100, 82]]
                 overwrite: true
+              /dev/sdd:
+                table_type: mbr
+                layout: true
+                overwrite: true
             fs_setup:
             - label: fs1
               filesystem: ext4
@@ -91,10 +95,14 @@ meta: MetaSchema = {
             - label: swap
               device: swap_disk.1
               filesystem: swap
+            - label: fs3
+              device: /dev/sdd1
+              filesystem: ext4
             mounts:
             - ["my_alias.1", "/mnt1"]
             - ["my_alias.2", "/mnt2"]
             - ["swap_disk.1", "none", "swap", "sw", "0", "0"]
+            - ["/dev/sdd1", "/mnt3"]
             """
         )
     ],
@@ -431,33 +439,6 @@ def is_disk_used(device):
     return False
 
 
-def get_dyn_func(*args):
-    """
-    Call the appropriate function.
-
-    The first value is the template for function name
-    The second value is the template replacement
-    The remain values are passed to the function
-
-    For example: get_dyn_func("foo_%s", 'bar', 1, 2, 3,)
-        would call "foo_bar" with args of 1, 2, 3
-    """
-    if len(args) < 2:
-        raise Exception("Unable to determine dynamic funcation name")
-
-    func_name = args[0] % args[1]
-    func_args = args[2:]
-
-    try:
-        if func_args:
-            return globals()[func_name](*func_args)
-        else:
-            return globals()[func_name]
-
-    except KeyError as e:
-        raise Exception("No such function %s to call!" % func_name) from e
-
-
 def get_hdd_size(device):
     try:
         size_in_bytes, _ = subp.subp([BLKDEV_CMD, "--getsize64", device])
@@ -556,9 +537,12 @@ def check_partition_layout(table_type, device, layout):
     to add support for other disk layout schemes, add a
     function called check_partition_%s_layout
     """
-    found_layout = get_dyn_func(
-        "check_partition_%s_layout", table_type, device, layout
-    )
+    if "gpt" == table_type:
+        found_layout = check_partition_gpt_layout(device, layout)
+    elif "mbr" == table_type:
+        found_layout = check_partition_mbr_layout(device, layout)
+    else:
+        raise Exception("Unable to determine table type")
 
     LOG.debug(
         "called check_partition_%s_layout(%s, %s), returned: %s",
@@ -605,8 +589,8 @@ def get_partition_mbr_layout(size, layout):
     """
 
     if not isinstance(layout, list) and isinstance(layout, bool):
-        # Create a single partition
-        return "0,"
+        # Create a single partition, default to Linux
+        return ",,83"
 
     if (len(layout) == 0 and isinstance(layout, list)) or not isinstance(
         layout, list
@@ -673,7 +657,7 @@ def get_partition_gpt_layout(size, layout):
 def purge_disk_ptable(device):
     # wipe the first and last megabyte of a disk (or file)
     # gpt stores partition table both at front and at end.
-    null = "\0"
+    null = b"\0"
     start_len = 1024 * 1024
     end_len = 1024 * 1024
     with open(device, "rb+") as fp:
@@ -714,7 +698,11 @@ def get_partition_layout(table_type, size, layout):
     other layouts, simply add a "get_partition_%s_layout"
     function.
     """
-    return get_dyn_func("get_partition_%s_layout", table_type, size, layout)
+    if "mbr" == table_type:
+        return get_partition_mbr_layout(size, layout)
+    elif "gpt" == table_type:
+        return get_partition_gpt_layout(size, layout)
+    raise Exception("Unable to determine table type")
 
 
 def read_parttbl(device):
@@ -741,7 +729,7 @@ def exec_mkpart_mbr(device, layout):
     types, i.e. gpt
     """
     # Create the partitions
-    prt_cmd = [SFDISK_CMD, "--Linux", "--unit=S", "--force", device]
+    prt_cmd = [SFDISK_CMD, "--force", device]
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
@@ -777,19 +765,6 @@ def exec_mkpart_gpt(device, layout):
         raise
 
     read_parttbl(device)
-
-
-def exec_mkpart(table_type, device, layout):
-    """
-    Fetches the function for creating the table type.
-    This allows to dynamically find which function to call.
-
-    Paramaters:
-        table_type: type of partition table to use
-        device: the device to work on
-        layout: layout definition specific to partition table
-    """
-    return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
 
 
 def assert_and_settle_device(device):
@@ -869,7 +844,12 @@ def mkpart(device, definition):
     LOG.debug("   Layout is: %s", part_definition)
 
     LOG.debug("Creating partition table on %s", device)
-    exec_mkpart(table_type, device, part_definition)
+    if "mbr" == table_type:
+        exec_mkpart_mbr(device, part_definition)
+    elif "gpt" == table_type:
+        exec_mkpart_gpt(device, part_definition)
+    else:
+        raise Exception("Unable to determine table type")
 
     LOG.debug("Partition table created for %s", device)
 
@@ -968,7 +948,7 @@ def mkfs(fs_cfg):
         odevice = device
         LOG.debug("Identifying device to create %s filesytem on", label)
 
-        # any mean pick the first match on the device with matching fs_type
+        # 'any' means pick the first match on the device with matching fs_type
         label_match = True
         if partition.lower() == "any":
             label_match = False

@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 from io import BytesIO
+from pathlib import Path
 from unittest import mock
 
 from configobj import ConfigObj
@@ -241,6 +242,22 @@ class TestHostname(t_help.FilesystemMockingTestCase):
             " OOPS on: hostname1.me.com",
             str(ctx_mgr.exception),
         )
+
+    def test_ignore_empty_previous_artifact_file(self):
+        cfg = {
+            "hostname": "blah",
+            "fqdn": "blah.blah.blah.yahoo.com",
+        }
+        distro = self._fetch_distro("debian")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        prev_fn = Path(cc.get_cpath("data")) / "set-hostname"
+        prev_fn.touch()
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, LOG, [])
+        contents = util.load_file("/etc/hostname")
+        self.assertEqual("blah", contents.strip())
 
 
 # vi: ts=4 expandtab

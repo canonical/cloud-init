@@ -6,6 +6,8 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.net import network_state
+from cloudinit.net.netplan import Renderer as NetplanRenderer
+from cloudinit.net.renderers import NAME_TO_RENDERER
 from tests.unittests.helpers import CiTestCase
 
 netstate_path = "cloudinit.net.network_state"
@@ -99,15 +101,140 @@ class TestNetworkStateParseConfig(CiTestCase):
         self.assertNotEqual(None, result)
 
 
-class TestNetworkStateParseConfigV2(CiTestCase):
-    def test_version_2_ignores_renderer_key(self):
+@mock.patch("cloudinit.net.network_state.get_interfaces_by_mac")
+class TestNetworkStateParseConfigV2:
+    def test_version_2_ignores_renderer_key(self, m_get_interfaces_by_mac):
         ncfg = {"version": 2, "renderer": "networkd", "ethernets": {}}
-        with mock.patch("cloudinit.net.network_state.get_interfaces_by_mac"):
-            nsi = network_state.NetworkStateInterpreter(
-                version=ncfg["version"], config=ncfg
+        nsi = network_state.NetworkStateInterpreter(
+            version=ncfg["version"], config=ncfg
+        )
+        nsi.parse_config(skip_broken=False)
+        assert ncfg == nsi.as_dict()["config"]
+
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            pytest.param(
+                """
+                version: 2
+                ethernets:
+                    eth0:
+                        addresses:
+                        - 10.54.2.19/21
+                        - 2a00:1730:fff9:100::52/128
+                        {gateway4}
+                        {gateway6}
+                        match:
+                            macaddress: 52:54:00:3f:fc:f7
+                        nameservers:
+                            addresses:
+                            - 10.52.1.1
+                            - 10.52.1.71
+                            - 2001:4860:4860::8888
+                            - 2001:4860:4860::8844
+                        set-name: eth0
+                """,
+                id="ethernets",
+            ),
+            pytest.param(
+                """
+                version: 2
+                vlans:
+                  encc000.2653:
+                    id: 2653
+                    link: "encc000"
+                    addresses:
+                      - 10.54.2.19/21
+                      - 2a00:1730:fff9:100::52/128
+                    {gateway4}
+                    {gateway6}
+                    nameservers:
+                      addresses:
+                        - 10.52.1.1
+                        - 10.52.1.71
+                        - 2001:4860:4860::8888
+                        - 2001:4860:4860::8844
+                """,
+                id="vlan",
+            ),
+            pytest.param(
+                """
+                version: 2
+                bonds:
+                  bond0:
+                    addresses:
+                      - 10.54.2.19/21
+                      - 2a00:1730:fff9:100::52/128
+                    {gateway4}
+                    {gateway6}
+                    interfaces:
+                    - enp0s0
+                    - enp0s1
+                    mtu: 1334
+                    parameters: {{}}
+                """,
+                id="bond",
+            ),
+            pytest.param(
+                """
+                version: 2
+                bridges:
+                  bridge0:
+                    addresses:
+                      - 10.54.2.19/21
+                      - 2a00:1730:fff9:100::52/128
+                    {gateway4}
+                    {gateway6}
+                    interfaces:
+                    - enp0s0
+                    - enp0s1
+                    parameters: {{}}
+                """,
+                id="bridge",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "renderer_cls",
+        [
+            pytest.param(None, id="non-netplan"),
+        ]
+        + [
+            pytest.param(mod.Renderer, id=name)
+            for name, mod in NAME_TO_RENDERER.items()
+        ],
+    )
+    def test_v2_warns_deprecated_gateways(
+        self, m_get_interfaces_by_mac, renderer_cls, cfg: str, caplog
+    ):
+        """
+        Tests that a v2 netconf with the deprecated `gateway4` or `gateway6`
+        issues a warning about it only on non netplan targets.
+
+        In netplan targets we perform a passthrough and the warning is not
+        needed.
+        """
+        ncfg = safeyaml.load(
+            cfg.format(
+                gateway4="gateway4: 10.54.0.1",
+                gateway6="gateway6: 2a00:1730:fff9:100::1",
             )
-            nsi.parse_config(skip_broken=False)
-            self.assertEqual(ncfg, nsi.as_dict()["config"])
+        )
+        nsi = network_state.NetworkStateInterpreter(
+            version=ncfg["version"],
+            config=ncfg,
+            renderer=mock.MagicMock(spec=renderer_cls),
+        )
+        nsi.parse_config(skip_broken=False)
+        assert ncfg == nsi.as_dict()["config"]
+
+        if renderer_cls != NetplanRenderer:
+            count = 1  # Only one deprecation
+        else:
+            count = 0  # No deprecation as we passthrough
+        assert count == caplog.text.count(
+            "DEPRECATED: The use of `gateway4` and `gateway6` is"
+        )
 
 
 class TestNetworkStateParseNameservers:

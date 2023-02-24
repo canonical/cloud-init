@@ -76,10 +76,10 @@ class TestCaCerts:
                 unlinked_files.append(filename)
 
         assert ["ca-certificates.crt"] == unlinked_files
-        assert "cloud-init-ca-certs.pem" == links["a535c1f3.0"]
+        assert "cloud-init-ca-cert-1.pem" == links["a535c1f3.0"]
         assert (
-            "/usr/share/ca-certificates/cloud-init-ca-certs.crt"
-            == links["cloud-init-ca-certs.pem"]
+            "/usr/local/share/ca-certificates/cloud-init-ca-cert-1.crt"
+            == links["cloud-init-ca-cert-1.pem"]
         )
 
     def test_cert_installed(self, class_client: IntegrationInstance):

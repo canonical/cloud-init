@@ -166,7 +166,6 @@ class UserDataProcessor:
             # TODO(harlowja): Should this be happening, shouldn't
             # the part header be modified and not the base?
             _replace_header(base_msg, CONTENT_TYPE, ctype)
-
             self._attach_part(append_msg, part)
 
     def _attach_launch_index(self, msg):

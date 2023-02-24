@@ -3,7 +3,8 @@
 # The top level settings are used as module
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
-{% set is_rhel = variant in ["rhel", "centos"] %}
+{% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
+                             "miraclelinux", "rhel", "rocky", "virtuozzo" ] %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
@@ -34,8 +35,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["almalinux", "alpine", "amazon", "cloudlinux", "eurolinux",
-                  "fedora", "miraclelinux", "openEuler", "openmandriva", "rocky", "virtuozzo"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "fedora", "openEuler", "OpenCloudOS", "openmandriva", "photon", "TencentOS"] or is_rhel %}
 {% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
@@ -44,10 +44,12 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
 {% endif %}
+{% if variant not in ["photon"] %}
 resize_rootfs_tmp: /dev
 ssh_pwauth:   false
-
 {% endif %}
+{% endif %}
+
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
@@ -197,9 +199,9 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["almalinux", "alpine", "amazon", "arch", "cloudlinux", "debian",
-                  "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "mariner", "miraclelinux", "openbsd", "openEuler",
-                  "openmandriva", "photon", "rocky", "suse", "ubuntu", "virtuozzo"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "freebsd",
+                  "gentoo", "netbsd", "mariner", "openbsd", "openEuler", "OpenCloudOS",
+                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu"] or is_rhel %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -252,15 +254,15 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["almalinux", "alpine", "amazon", "arch", "cloudlinux", "eurolinux",
-                    "fedora", "gentoo", "miraclelinux", "openEuler", "openmandriva", "rocky", "suse", "virtuozzo"] or is_rhel %}
+{% elif variant in ["alpine", "amazon", "arch", "fedora",
+                    "gentoo", "openEuler", "OpenCloudOS", "openmandriva", "suse", "TencentOS"] or is_rhel %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
      name: ec2-user
      lock_passwd: True
      gecos: EC2 Default User
-{% elif is_rhel %}
+{% elif variant in ["rhel", "centos"] %}
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User

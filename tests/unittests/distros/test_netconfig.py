@@ -7,7 +7,15 @@ from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
-from cloudinit import distros, helpers, safeyaml, settings, subp, util
+from cloudinit import (
+    distros,
+    features,
+    helpers,
+    safeyaml,
+    settings,
+    subp,
+    util,
+)
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import (
@@ -190,7 +198,9 @@ network:
         eth0:
             addresses:
             - 192.168.1.5/24
-            gateway4: 192.168.1.254
+            routes:
+            -   to: default
+                via: 192.168.1.254
         eth1:
             dhcp4: true
 """
@@ -207,7 +217,9 @@ network:
         eth0:
             addresses:
             - 2607:f0d0:1002:0011::2/64
-            gateway6: 2607:f0d0:1002:0011::1
+            routes:
+            -   to: default
+                via: 2607:f0d0:1002:0011::1
         eth1:
             dhcp4: true
 """
@@ -359,7 +371,7 @@ class TestNetCfgDistroFreeBSD(TestNetCfgDistroBase):
         }
         rc_conf_expected = """\
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
@@ -374,6 +386,27 @@ ifconfig_eth1=DHCP
         )
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_apply_network_config_freebsd_ipv6_standard(self, ifaces_mac):
+        ifaces_mac.return_value = {
+            "00:15:5d:4c:73:00": "eth0",
+        }
+        rc_conf_expected = """\
+ipv6_defaultrouter=2607:f0d0:1002:0011::1
+ifconfig_eth1=DHCP
+ifconfig_eth0_ipv6='inet6 2607:f0d0:1002:0011::2/64'
+"""
+
+        expected_cfgs = {
+            "/etc/rc.conf": rc_conf_expected,
+            "/etc/resolv.conf": "",
+        }
+        self._apply_and_verify_freebsd(
+            self.distro.apply_network_config,
+            V1_NET_CFG_IPV6,
+            expected_cfgs=expected_cfgs.copy(),
+        )
+
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_ifrename(self, ifaces_mac):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "vtnet0",
@@ -381,7 +414,7 @@ ifconfig_eth1=DHCP
         rc_conf_expected = """\
 ifconfig_vtnet0_name=eth0
 defaultrouter=192.168.1.254
-ifconfig_eth0='192.168.1.5 netmask 255.255.255.0'
+ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
@@ -452,7 +485,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
@@ -496,7 +528,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_eni(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -522,7 +553,12 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         self.devlist = ["eth0", "lo"]
 
     def _apply_and_verify_netplan(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self,
+        apply_fn,
+        config,
+        expected_cfgs=None,
+        bringup=False,
+        previous_files=(),
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
@@ -534,65 +570,97 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
                 return_value=self.devlist,
             ):
                 with self.reRooted(tmpd) as tmpd:
+                    for previous_path, content, mode in previous_files:
+                        util.write_file(previous_path, content, mode=mode)
                     apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
-        for cfgpath, expected in expected_cfgs.items():
+        for cfgpath, expected, mode in expected_cfgs:
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            self.assertEqual(mode, get_mode(cfgpath, tmpd))
 
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
 
     def test_apply_network_config_v1_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V1_TO_V2_NET_CFG_IPV6_OUTPUT,
-        }
+        expected_cfgs = (
+            (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
+        )
 
-        # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V1_NET_CFG_IPV6,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
     def test_apply_network_config_v2_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_TO_V2_NET_CFG_OUTPUT,
-        }
-        # ub_distro.apply_network_config(V2_NET_CFG, False)
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
+        )
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
 
+    def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
+        """Custom permissions on existing netplan is kept when more strict."""
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
+        )
+        with mock.patch.object(
+            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        ):
+            # When NETPLAN_CONFIG_ROOT_READ_ONLY is False default perms are 644
+            # we keep 640 because it's more strict.
+            # 1640 is used to assert sticky bit preserved across write
+            self._apply_and_verify_netplan(
+                self.distro.apply_network_config,
+                V2_NET_CFG,
+                expected_cfgs=expected_cfgs,
+                previous_files=(
+                    ("/etc/netplan/50-cloud-init.yaml", "a", 0o640),
+                ),
+            )
+
+    def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
+        """Kinetic and earlier have 50-cloud-init.yaml world-readable"""
+        expected_cfgs = (
+            (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o644),
+        )
+        with mock.patch.object(
+            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        ):
+            self._apply_and_verify_netplan(
+                self.distro.apply_network_config,
+                V2_NET_CFG,
+                expected_cfgs=expected_cfgs,
+            )
+
     def test_apply_network_config_v2_full_passthrough_ub(self):
-        expected_cfgs = {
-            self.netplan_path(): V2_PASSTHROUGH_NET_CFG_OUTPUT,
-        }
-        # ub_distro.apply_network_config(V2_PASSTHROUGH_NET_CFG, False)
+        expected_cfgs = (
+            (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
+        )
         self._apply_and_verify_netplan(
             self.distro.apply_network_config,
             V2_PASSTHROUGH_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
+            expected_cfgs=expected_cfgs,
         )
         self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
         self.assertIn(
@@ -912,6 +980,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
+        mode = 0o600 if with_netplan else 0o644
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
             print(expected)
@@ -919,7 +988,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            self.assertEqual(mode, get_mode(cfgpath, tmpd))
 
     def netctl_path(self, iface):
         return "/etc/netctl/%s" % iface
@@ -957,7 +1026,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             ),
         }
 
-        # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(
             self.distro.apply_network_config,
             V1_NET_CFG,
@@ -976,7 +1044,9 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                         eth0:
                             addresses:
                             - 192.168.1.5/24
-                            gateway4: 192.168.1.254
+                            routes:
+                            -   to: default
+                                via: 192.168.1.254
                         eth1:
                             dhcp4: true
                 """
@@ -1245,6 +1315,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
+    # Mask upper st_mode bits like S_IFREG bit preserve sticky and isuid/osgid
     return os.stat(subp.target_path(target, path)).st_mode & 0o777
 
 
