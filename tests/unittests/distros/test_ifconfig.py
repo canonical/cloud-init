@@ -38,6 +38,22 @@ class TestIfconfigParserFreeBSD(TestCase):
         ifs = Ifconfig().parse(self.ifs_txt)
         assert "txcsum" in ifs["vtnet0"].options
 
+    def test_duplicate_mac(self):
+        """
+        assert that we can have duplicate macs, and that it's not an accident
+        """
+        self.ifs_txt = readResource(
+            "netinfo/freebsd-duplicate-macs-ifconfig-output"
+        )
+        ifc = Ifconfig()
+        ifc.parse(self.ifs_txt)
+        ifs_by_mac = ifc.ifs_by_mac()
+        assert len(ifs_by_mac["00:0d:3a:54:ad:1e"]) == 2
+        assert (
+            ifs_by_mac["00:0d:3a:54:ad:1e"][0].name
+            != ifs_by_mac["00:0d:3a:54:ad:1e"][1].name
+        )
+
 
 class TestIfconfigParserOpenBSD(TestCase):
     def setUp(self):

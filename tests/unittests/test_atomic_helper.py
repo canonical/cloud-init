@@ -30,6 +30,16 @@ class TestAtomicHelper(CiTestCase):
         atomic_helper.write_file(path, contents, mode=0o400)
         self.check_file(path, contents, perms=0o400)
 
+    def test_file_preserve_permissions(self):
+        """create a file with mode 700, then write_file with mode 644."""
+        path = self.tmp_path("test_file_preserve_permissions")
+        contents = b"test_file_perms"
+        with open(path, mode="wb") as f:
+            f.write(b"test file preserve permissions")
+            os.chmod(f.name, 0o700)
+            atomic_helper.write_file(path, contents, preserve_mode=True)
+            self.check_file(path, contents, perms=0o700)
+
     def test_write_json(self):
         """write_json output is readable json."""
         path = self.tmp_path("test_write_json")

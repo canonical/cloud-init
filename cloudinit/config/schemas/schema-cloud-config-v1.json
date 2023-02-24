@@ -174,6 +174,7 @@
                   "label": "<group_name>",
                   "description": "When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to",
                   "deprecated": true,
+                  "deprecated_version": "23.1",
                   "type": [
                     "null"
                   ],
@@ -197,9 +198,11 @@
         },
         "lock-passwd": {
           "default": true,
-          "description": "Dropped after April 2027. Use ``lock_passwd``. Default: ``true``",
           "type": "boolean",
-          "deprecated": true
+          "description": "Default: ``true``",
+          "deprecated": true,
+          "deprecated_version": "22.3",
+          "deprecated_description": "Use ``lock_passwd`` instead."
         },
         "lock_passwd": {
           "default": true,
@@ -292,8 +295,9 @@
             },
             {
               "type": "boolean",
-              "deprecated": true,
-              "description": "The value ``false`` will be dropped after April 2027. Use ``null`` or no ``sudo`` key instead."
+              "changed": true,
+              "changed_version": "22.2",
+              "changed_description": "The value ``false`` is deprecated for this key, use ``null`` instead."
             }
           ]
         },
@@ -305,8 +309,9 @@
             },
             {
               "type": "string",
-              "description": "The use of ``string`` type will be dropped after April 2027. Use an ``integer`` instead.",
-              "deprecated": true
+              "changed": true,
+              "changed_description": "The use of ``string`` type is deprecated. Use an ``integer`` instead.",
+              "changed_version": "22.3"
             }
           ]
         }
@@ -361,10 +366,11 @@
       "additionalProperties": false,
       "properties": {
         "remove-defaults": {
-          "description": "Dropped after April 2027. Use ``remove_defaults``.",
           "type": "boolean",
           "default": false,
-          "deprecated": true
+          "deprecated": true,
+          "deprecated_version": "22.3",
+          "deprecated_description": "Use ``remove_defaults`` instead."
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: false",
@@ -920,7 +926,8 @@
             },
             {
               "deprecated": true,
-              "description": "Dropped after April 2027. Use ``ca_certs``."
+              "deprecated_version": "22.3",
+              "deprecated_description": "Use ``ca_certs`` instead."
             }
           ]
         }
@@ -1144,7 +1151,14 @@
                           {
                             "type": "array",
                             "items": {
-                              "type": "integer"
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "string"
+                                }
+                              ]
                             },
                             "minItems": 2,
                             "maxItems": 2
@@ -1180,7 +1194,7 @@
               },
               "device": {
                 "type": "string",
-                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<device name>.<partition number>`` format, the value of ``partition`` will be overwritten."
+                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<alias name>.<partition number>`` format, the value of ``partition`` will be overwritten."
               },
               "partition": {
                 "type": [
@@ -1197,7 +1211,7 @@
                     ]
                   }
                 ],
-                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any file system that matches ``type`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
+                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``filesystem`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any filesystem that matches ``filesystem`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
               },
               "overwrite": {
                 "type": "boolean",
@@ -1287,8 +1301,9 @@
                   "enum": [
                     false
                   ],
-                  "description": "Specifying a boolean ``false`` value for this key is deprecated. Use ``off`` instead.",
-                  "deprecated": true
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use ``off`` instead."
                 }
               ]
             },
@@ -1335,8 +1350,9 @@
                 },
                 {
                   "type": "string",
-                  "description": "Use a boolean value instead.",
-                  "deprecated": true
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Use a boolean value instead."
                 }
               ]
             }
@@ -1344,8 +1360,9 @@
         },
         "grub-dpkg": {
           "type": "object",
-          "description": "Use ``grub_dpkg`` instead",
-          "deprecated": true
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``grub_dpkg`` instead."
         }
       }
     },
@@ -1764,7 +1781,7 @@
               "description": "Path to the swap file to create"
             },
             "size": {
-              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T.",
+              "description": "The size in bytes of the swap file, 'auto' or a human-readable size abbreviation of the format <float_size><units> where units are one of B, K, M, G or T. **WARNING: Attempts to use IEC prefixes in your configuration prior to cloud-init version 23.1 will result in unexpected behavior. SI prefixes names (KB, MB) are required on pre-23.1 cloud-init, however IEC values are used. In summary, assume 1KB == 1024B, not 1000B**",
               "oneOf": [
                 {
                   "enum": [
@@ -1911,20 +1928,26 @@
         "apt_update": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_update``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_update`` instead."
         },
         "apt_upgrade": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_upgrade``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_upgrade`` instead."
         },
         "apt_reboot_if_required": {
           "type": "boolean",
           "default": false,
-          "description": "Dropped after April 2027. Use ``package_reboot_if_required``. Default: ``false``",
-          "deprecated": true
+          "description": "Default: ``false``.",
+          "deprecated": true,
+          "deprecated_version": "22.2",
+          "deprecated_description": "Use ``package_reboot_if_required`` instead."
         }
       }
     },
@@ -1998,8 +2021,9 @@
                 {
                   "type": "string",
                   "pattern": "^\\+?[0-9]+$",
-                  "deprecated": true,
-                  "description": "Use of string for this value will be dropped after April 2027. Use ``now`` or integer type."
+                  "changed": true,
+                  "changed_version": "22.3",
+                  "changed_description": "Use of type string for this value is deprecated. Use ``now`` or integer type."
                 },
                 {
                   "enum": [
@@ -2417,8 +2441,9 @@
                 },
                 {
                   "type": "string",
-                  "description": "Use of string for this value is DEPRECATED. Use a boolean value instead.",
-                  "deprecated": true
+                  "deprecated": true,
+                  "deprecated_version": "22.3",
+                  "deprecated_description": "Use of type string for this value is deprecated. Use a boolean instead."
                 }
               ]
             },
@@ -2515,11 +2540,12 @@
             },
             {
               "type": "string",
-              "description": "Use of non-boolean values for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
-              "deprecated": true
+              "changed": true,
+              "changed_version": "22.3",
+              "changed_description": "Use of non-boolean values for this field is deprecated."
             }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
         },
         "chpasswd": {
           "type": "object",
@@ -2531,7 +2557,7 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
             },
             "users": {
-              "description": "Replaces the deprecated ``list`` key. This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``.",
+              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``.",
               "type": "array",
               "items": {
                 "minItems": 1,
@@ -2595,8 +2621,10 @@
                 }
               ],
               "minItems": 1,
-              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.\n\nUse of a multiline string for this field is DEPRECATED and will result in an error in a future version of cloud-init.",
-              "deprecated": true
+              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.",
+              "deprecated": true,
+              "deprecated_version": "22.2",
+              "deprecated_description": "Use ``users`` instead."
             }
           }
         },
@@ -2959,8 +2987,9 @@
               "enum": [
                 "template"
               ],
-              "description": "Value ``template`` will be dropped after April 2027. Use ``true`` instead.",
-              "deprecated": true
+              "changed_description": "Use of ``template`` is deprecated, use ``true`` instead.",
+              "changed": true,
+              "changed_version": "22.3"
             }
           ]
         },
@@ -3122,7 +3151,7 @@
               "owner": {
                 "type": "string",
                 "default": "root:root",
-                "description": "Optional owner:group to chown on the file. Default: ``root:root``"
+                "description": "Optional owner:group to chown on the file and new directories. Default: ``root:root``"
               },
               "permissions": {
                 "type": "string",

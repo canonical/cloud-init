@@ -21,8 +21,8 @@ cloudlocal_start()
 	${command} init --local
 }
 
-load_rc_config $name
+load_rc_config 'cloudinit'
 
-: ${cloudinitlocal_enable="NO"}
+: ${cloudinit_enable="NO"}
 
 run_rc_command "$1"

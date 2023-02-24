@@ -37,12 +37,19 @@ distros = [
     "miraclelinux",
     "openbsd",
     "openEuler",
+    "OpenCloudOS",
     "openmandriva",
     "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
     "photon",
     "rhel",
     "rocky",
+    "sle_hpc",
+    "sle-micro",
     "sles",
+    "TencentOS",
     "ubuntu",
     "virtuozzo",
 ]
@@ -215,6 +222,11 @@ DISTRO_CLIENT_CONFIG = {
     },
 }
 
+for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
+
+for distro in ("sle_hpc", "sle-micro"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["sles"]
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.

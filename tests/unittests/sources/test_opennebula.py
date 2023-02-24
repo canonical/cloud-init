@@ -121,7 +121,9 @@ class TestOpenNebulaDataSource(CiTestCase):
             util.find_devs_with = lambda n: []  # type: ignore
             populate_context_dir(self.seed_dir, {"KEY1": "val1"})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-            ret = dsrc.get_data()
+            with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam:
+                ret = dsrc.get_data()
+            self.assertEqual([mock.call("nobody")], getpwnam.call_args_list)
             self.assertTrue(ret)
         finally:
             util.find_devs_with = orig_find_devs_with

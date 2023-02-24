@@ -21,25 +21,26 @@ class TestPackageUpdateUpgradeSchema:
             (
                 {"apt_update": False},
                 (
-                    "deprecations: apt_update: DEPRECATED."
-                    " Dropped after April 2027. Use ``package_update``."
-                    " Default: ``false``"
+                    "Cloud config schema deprecations: apt_update: "
+                    "Default: ``false``. Deprecated in version 22.2. "
+                    "Use ``package_update`` instead."
                 ),
             ),
             (
                 {"apt_upgrade": False},
                 (
-                    "deprecations: apt_upgrade: DEPRECATED."
-                    " Dropped after April 2027. Use ``package_upgrade``."
-                    " Default: ``false``"
+                    "Cloud config schema deprecations: apt_upgrade: "
+                    "Default: ``false``. Deprecated in version 22.2. "
+                    "Use ``package_upgrade`` instead."
                 ),
             ),
             (
                 {"apt_reboot_if_required": False},
                 (
-                    "deprecations: apt_reboot_if_required: DEPRECATED."
-                    " Dropped after April 2027."
-                    " Use ``package_reboot_if_required``. Default: ``false``"
+                    "Cloud config schema deprecations: "
+                    "apt_reboot_if_required: Default: ``false``. "
+                    "Deprecated in version 22.2. Use "
+                    "``package_reboot_if_required`` instead."
                 ),
             ),
         ],

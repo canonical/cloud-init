@@ -38,7 +38,7 @@ how it is executed:
 
 Note that the ``runcmd`` module only writes the script to be run
 later. The module that actually runs the script is ``scripts-user``
-in the :ref:`topics/boot:Final` boot stage.
+in the :ref:`Final<boot-Final>` boot stage.
 
 .. note::
 
