@@ -1257,7 +1257,7 @@ def is_resolvable(url) -> bool:
             "example.invalid.",
             "__cloud_init_expected_not_found__",
         )
-        badresults = {}
+        badresults: dict = {}
         for iname in badnames:
             try:
                 result = socket.getaddrinfo(
