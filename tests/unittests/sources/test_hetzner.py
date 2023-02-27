@@ -114,7 +114,6 @@ class TestDataSourceHetzner(CiTestCase):
             connectivity_url_data={
                 "url": "http://169.254.169.254/hetzner/v1/metadata/instance-id"
             },
-            tmp_dir=mock.ANY,
         )
 
         self.assertTrue(m_readmd.called)

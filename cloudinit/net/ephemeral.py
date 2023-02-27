@@ -315,14 +315,12 @@ class EphemeralDHCPv4:
         iface=None,
         connectivity_url_data: Optional[Dict[str, Any]] = None,
         dhcp_log_func=None,
-        tmp_dir=None,
     ):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
-        self.tmp_dir = tmp_dir
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
@@ -424,23 +422,19 @@ class EphemeralIPNetwork:
         interface,
         ipv6: bool = False,
         ipv4: bool = True,
-        tmp_dir=None,
     ):
         self.interface = interface
         self.ipv4 = ipv4
         self.ipv6 = ipv6
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
-        self.tmp_dir = tmp_dir
 
     def __enter__(self):
         # ipv6 dualstack might succeed when dhcp4 fails
         # therefore catch exception unless only v4 is used
         try:
             if self.ipv4:
-                self.stack.enter_context(
-                    EphemeralDHCPv4(self.interface, tmp_dir=self.tmp_dir)
-                )
+                self.stack.enter_context(EphemeralDHCPv4(self.interface))
             if self.ipv6:
                 self.stack.enter_context(EphemeralIPv6Network(self.interface))
         # v6 link local might be usable

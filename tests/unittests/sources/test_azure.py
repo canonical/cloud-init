@@ -3406,7 +3406,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3433,7 +3432,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3476,7 +3474,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3511,7 +3508,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3550,7 +3546,6 @@ class TestEphemeralNetworking:
                 mock.call(
                     iface=None,
                     dhcp_log_func=dsaz.dhcp_log_cb,
-                    tmp_dir=azure_ds.distro.get_tmp_exec_path(),
                 ),
             ]
             + [mock.call().obtain_lease()] * 11
