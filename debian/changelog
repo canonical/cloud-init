@@ -1,3 +1,10 @@
+cloud-init (23.1-0ubuntu0~18.04.2) UNRELEASED; urgency=medium
+
+  * d/patches/netplan99-cannot-use-default.patch:
+    - Retain routes' definitions compatible with netplan 0.99
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 27 Feb 2023 20:41:44 +0100
+
 cloud-init (23.1-0ubuntu0~18.04.1) bionic; urgency=medium
 
   * d/patches/retain-netplan-world-readable.patch:
