@@ -180,10 +180,7 @@ class DataSourceScaleway(sources.DataSource):
         self.ephemeral_fixed_address = None
         self.has_ipv4 = True
         if "metadata_urls" in self.ds_cfg.keys():
-            # Merge and deduplicate lists
-            self.metadata_urls = list(
-                set(self.metadata_urls) | set(self.ds_cfg["metadata_urls"])
-            )
+            self.metadata_urls += self.ds_cfg["metadata_urls"]
 
     def _set_metadata_url(self, urls):
         """
