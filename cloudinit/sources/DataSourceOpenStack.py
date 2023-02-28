@@ -157,7 +157,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
@@ -165,15 +164,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                     self.fallback_interface,
                     tmp_dir=self.distro.get_tmp_exec_path(),
                 ):
-                    if not self.detect_openstack(
-                        accept_oracle=not oracle_considered
-                    ):
-                        LOG.debug(
-                            "OpenStack datasource not running"
-                            " on OpenStack (dhcp)"
-                        )
-                        return False
-
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",
@@ -183,13 +173,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                 util.logexc(LOG, str(e))
                 return False
         else:
-            if not self.detect_openstack(accept_oracle=not oracle_considered):
-                LOG.debug(
-                    "OpenStack datasource not running"
-                    " on OpenStack (non-dhcp)"
-                )
-                return False
-
             try:
                 results = self._crawl_metadata()
             except sources.InvalidMetaDataException as e:
@@ -268,7 +251,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             raise sources.InvalidMetaDataException(msg) from e
         return result
 
-    def detect_openstack(self, accept_oracle=False):
+    def detect_openstack(self):
+        accept_oracle = "Oracle" in self.sys_cfg.get("datasource_list")
         """Return True when a potential OpenStack platform is detected."""
         if not util.is_x86():
             # Non-Intel cpus don't properly report dmi product names

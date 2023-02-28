@@ -695,6 +695,9 @@ class DataSourceAzure(sources.DataSource):
         super(DataSourceAzure, self).clear_cached_attrs(attr_defaults)
         self._metadata_imds = sources.UNSET
 
+    def detect_datasource(self):
+        return is_platform_viable(Path(self.seed_dir))
+
     @azure_ds_telemetry_reporter
     def _get_data(self):
         """Crawl and process datasource metadata caching metadata as attrs.
@@ -702,8 +705,6 @@ class DataSourceAzure(sources.DataSource):
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
-        if not is_platform_viable(Path(self.seed_dir)):
-            return False
         try:
             get_boot_telemetry()
         except Exception as e:

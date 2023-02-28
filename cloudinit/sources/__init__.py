@@ -13,6 +13,7 @@ import copy
 import json
 import os
 import pickle
+import re
 from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
@@ -307,6 +308,38 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def __str__(self):
         return type_utils.obj_name(self)
 
+    def detect_datasource(self) -> bool:
+        """Check if running on this datasource"""
+        return True
+
+    @staticmethod
+    def get_cmdline(self):
+        """Check if command line argument for this datasource was passed
+
+        Passing by command line overrides runtime datasource detection
+        """
+        with open("/proc/cmdline", "r") as f:
+            cmdline = f.read()
+        ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+) ", cmdline)
+        ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+) ", cmdline)
+        ds = ds_parse_1 or ds_parse_2
+        if ds:
+            return ds.group(1)
+
+    @classmethod
+    def ds_matches_cmdline(self):
+        """TODO: verify implementation"""
+        return self.dsname == self.get_cmdline()
+
+    def _check_and_get_data(self):
+        """Overrides runtime datasource detection if commandline used"""
+        if self.ds_matches_cmdline() or self.detect_datasource():
+            LOG.debug(f"Machine is running on {self}.")
+            self._get_data()
+            return True
+        LOG.debug(f"Datasource type {self} is not detected.")
+        return False
+
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
         local_hostname = self.get_hostname().hostname
@@ -370,7 +403,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Minimally, the datasource should return a boolean True on success.
         """
         self._dirty_cache = True
-        return_value = self._get_data()
+        return_value = self._check_and_get_data()
         if not return_value:
             return return_value
         self.persist_instance_data()
@@ -1109,6 +1142,3 @@ def pkl_load(fname: str) -> Optional[DataSource]:
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None
-
-
-# vi: ts=4 expandtab

@@ -140,13 +140,10 @@ class DataSourceOracle(sources.DataSource):
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))
 
-    def _is_platform_viable(self) -> bool:
-        """Check platform environment to report if this datasource may run."""
+    def detect_datasource(self) -> bool:
         return _is_platform_viable()
 
     def _get_data(self):
-        if not self._is_platform_viable():
-            return False
 
         self.system_uuid = _read_system_uuid()
 

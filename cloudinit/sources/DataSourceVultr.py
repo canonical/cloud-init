@@ -39,10 +39,6 @@ class DataSourceVultr(sources.DataSource):
 
     # Initiate data and check if Vultr
     def _get_data(self):
-        LOG.debug("Detecting if machine is a Vultr instance")
-        if not vultr.is_vultr():
-            LOG.debug("Machine is not a Vultr instance")
-            return False
 
         LOG.debug("Machine is a Vultr instance")
 
@@ -116,6 +112,9 @@ class DataSourceVultr(sources.DataSource):
     @property
     def network_config(self):
         return self.netcfg
+
+    def detect_datasource(self):
+        return vultr.is_vultr()
 
 
 # Used to match classes to dependencies

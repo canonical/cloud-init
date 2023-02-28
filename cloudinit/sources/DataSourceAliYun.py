@@ -35,14 +35,13 @@ class DataSourceAliYun(EC2.DataSourceEc2):
         return parse_public_keys(self.metadata.get("public-keys", {}))
 
     def _get_cloud_name(self):
-        if _is_aliyun():
+        if self.detect_datasource():
             return EC2.CloudNames.ALIYUN
         else:
             return EC2.CloudNames.NO_EC2_METADATA
 
-
-def _is_aliyun():
-    return dmi.read_dmi_data("system-product-name") == ALIYUN_PRODUCT
+    def detect_datasource(self):
+        return dmi.read_dmi_data("system-product-name") == ALIYUN_PRODUCT
 
 
 def parse_public_keys(public_keys):
