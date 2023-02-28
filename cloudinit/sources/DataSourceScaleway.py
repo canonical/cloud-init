@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 DS_BASE_URLS = ["http://169.254.42.42", "http://[fd00:42::42]"]
 
 DEF_MD_RETRIES = 3
-DEF_MD_ALIVE = 2
+DEF_MD_MAX_WAIT = 2
 DEF_MD_TIMEOUT = 10
 
 
@@ -122,7 +122,10 @@ def query_data_api(api_type, api_address, retries, timeout):
                 address = url_address
                 if url_address[0] == "[":
                     address = url_address[1:-1]
-                if net.is_ipv6_address(address):
+                addr_proto = socket.getaddrinfo(
+                    address, None, proto=socket.IPPROTO_TCP
+                )[0][0]
+                if addr_proto == socket.AF_INET6:
                     localhost = "0::"
             except ValueError:
                 pass
@@ -168,7 +171,7 @@ class DataSourceScaleway(sources.DataSource):
 
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
-        self.alive = int(self.ds_cfg.get("alive", DEF_MD_ALIVE))
+        self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
         self._fallback_interface = None
         self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
@@ -187,28 +190,26 @@ class DataSourceScaleway(sources.DataSource):
         Define metadata_url based upon api-metadata URL availability.
         """
 
-        for url in urls:
-            resp = None
-            for _ in range(0, self.retries):
-                try:
-                    LOG.debug("Trying to reach %s", url)
-                    resp = requests.get(
-                        url + "/conf?format=json",
-                        timeout=self.alive,
-                    )
-                except ConnectionError:
-                    continue
-                break
-            if not resp:
-                continue
-            if resp.status_code == 200:
-                LOG.debug("%s is reachable", url)
-                self.metadata_url = f"{url}/conf?format=json"
-                self.userdata_url = f"{url}/user_data/cloud-init"
-                self.vendordata_url = f"{url}/vendor_data/cloud-init"
-                return
-        LOG.debug("Unable to reach api-metadata at %s", urls)
-        raise ConnectionError
+        start_time = time.time()
+        avail_url, response = url_helper.wait_for_url(
+            urls=urls,
+            max_wait=self.max_wait,
+            timeout=self.timeout,
+            connect_synchronously=False,
+        )
+        if avail_url:
+            LOG.debug("%s is reachable", avail_url)
+            self.metadata_url = f"{avail_url}/conf?format=json"
+            self.userdata_url = f"{avail_url}/user_data/cloud-init"
+            self.vendordata_url = f"{avail_url}/vendor_data/cloud-init"
+            return
+        else:
+            LOG.debug(
+                "Unable to reach api-metadata at %s after %s seconds",
+                urls,
+                int(time.time() - start_time),
+            )
+            raise ConnectionError
 
     def _crawl_metadata(self):
         resp = url_helper.readurl(
@@ -281,15 +282,12 @@ class DataSourceScaleway(sources.DataSource):
                     self._fallback_interface,
                     # tmp_dir=self.distro.get_tmp_exec_path(),
                 ) as ipv4:
-                    ipv4_urls = self._set_urls_on_ip_version(
-                        "ipv4", self.metadata_urls
-                    )
                     util.log_time(
                         logfunc=LOG.debug,
                         msg="Set api-metadata URL depending on "
                         "IPv4 availability",
                         func=self._set_metadata_url,
-                        args=(ipv4_urls,),
+                        args=(self.metadata_urls,),
                     )
                     util.log_time(
                         logfunc=LOG.debug,
@@ -310,15 +308,12 @@ class DataSourceScaleway(sources.DataSource):
                 with EphemeralIPv6Network(
                     self._fallback_interface,
                 ):
-                    ipv6_urls = self._set_urls_on_ip_version(
-                        "ipv6", self.metadata_urls
-                    )
                     util.log_time(
                         logfunc=LOG.debug,
                         msg="Set api-metadata URL depending on "
                         "IPv6 availability",
                         func=self._set_metadata_url,
-                        args=(ipv6_urls,),
+                        args=(self.metadata_urls,),
                     )
                     util.log_time(
                         logfunc=LOG.debug,
