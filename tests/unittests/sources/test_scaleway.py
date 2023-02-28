@@ -202,7 +202,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
             # Make sure that API answers on the first try
             self.responses.add_callback(
                 responses.GET,
-                f"{url}/conf?format=json",
+                f"{url}",
                 callback=MetadataResponses.get_ok,
             )
             # Define the metadata URLS
@@ -247,61 +247,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.assertTrue(self.base_urls[1] in self.datasource.metadata_url)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.socket.getaddrinfo")
-    def test_set_url_on_ip_version_v4_v6(self, getaddr):
-
-        getaddr.side_effect = [
-            [
-                [
-                    socket.AF_INET,
-                ]
-            ],
-            [
-                [
-                    socket.AF_INET6,
-                ]
-            ],
-        ]*2
-        v4_url = self.datasource._set_urls_on_ip_version(
-            "ipv4", self.base_urls
-        )[0]
-        v6_url = self.datasource._set_urls_on_ip_version(
-            "ipv6", self.base_urls
-        )[0]
-
-        self.assertEqual(v4_url, self.base_urls[0])
-        self.assertEqual(v6_url, self.base_urls[1])
-
-    @mock.patch("cloudinit.sources.DataSourceScaleway.socket.getaddrinfo")
-    def test_set_url_on_ip_version_dns_urls(self, getaddr):
-
-        getaddr.side_effect = [
-            [
-                [
-                    socket.AF_INET,
-                ]
-            ],
-            [
-                [
-                    socket.AF_INET6,
-                ]
-            ],
-        ]
-        v4_dns_url = self.datasource._set_urls_on_ip_version(
-            "ipv4", ["http://www.google.com"]
-        )[0]
-        v6_dns_url = self.datasource._set_urls_on_ip_version(
-            "ipv6", ["http://ipv6.google.com"]
-        )[0]
-
-        self.assertEqual(v4_dns_url, "http://www.google.com")
-        self.assertEqual(v6_dns_url, "http://ipv6.google.com")
-
-    def test_set_url_on_ip_version_wrong_proto(self):
-
-        url = self.datasource._set_urls_on_ip_version("ipv5", self.base_urls)
-        self.assertEqual(url, [])
-
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_ipv4_metadata_ok(self, dhcpv4):
         """
@@ -312,17 +257,32 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_url,
+            f"{self.base_urls[0]}",
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.userdata_url,
+            f"{self.base_urls[1]}",
+            callback=MetadataResponses.get_ok,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            f"{self.base_urls[0]}/conf?format=json",
+            callback=MetadataResponses.get_ok,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            f"{self.base_urls[1]}/conf?format=json",
+            callback=MetadataResponses.get_ok,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            f"{self.base_urls[0]}/user_data/cloud-init",
             callback=DataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.vendordata_url,
+            f"{self.base_urls[0]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
         )
         self.assertTrue(self.datasource.get_data())
@@ -366,8 +326,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_url,
+            f"{self.base_urls[0]}",
             callback=ConnectTimeout,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            f"{self.base_urls[1]}",
+            callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
@@ -387,12 +352,15 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource.get_data()
 
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}/conf?format=json",
-            self.datasource.retries,
+            f"{self.datasource.metadata_urls[0]}",
+            1,
         )
-        # Called twice : once to set URL and second get metadata
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}/conf?format=json", 2
+            f"{self.datasource.metadata_urls[1]}",
+            1,
+        )
+        self.responses.assert_call_count(
+            f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
         )
         self.assertEqual(
             self.datasource.get_instance_id(),
@@ -421,9 +389,10 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_ipv4_ipv6_metadata_timeout(self, dhcpv4, inet6):
+    def test_ipv4_ipv6_metadata_timeout(self, dhcpv4, inet6, sleep):
         """
         get_data() fails to return metadata. Metadata, user data and
         vendor data are empty
@@ -434,22 +403,23 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_url,
+            f"{self.base_urls[0]}",
             callback=ConnectTimeout,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}/conf?format=json",
+            f"{self.base_urls[1]}",
             callback=ConnectTimeout,
         )
+        self.datasource.max_wait = 0
         ret = self.datasource.get_data()
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}/conf?format=json",
-            self.datasource.retries,
+            f"{self.datasource.metadata_urls[0]}",
+            2,
         )
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}/conf?format=json",
-            self.datasource.retries,
+            f"{self.datasource.metadata_urls[1]}",
+            2,
         )
 
         self.assertFalse(ret)
@@ -505,22 +475,25 @@ class TestDataSourceScaleway(ResponsesTestCase):
         with self.assertRaises(ConnectionError):
             self.responses.add_callback(
                 responses.GET,
-                f"{self.datasource.metadata_urls[0]}/conf?format=json",
+                f"{self.datasource.metadata_urls[0]}",
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}/conf?format=json",
+            f"{self.datasource.metadata_urls[0]}",
             self.datasource.retries,
         )
         self.assertEqual(self.datasource.metadata, {})
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.socket.getaddrinfo")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_metadata_connection_errors_two_urls(self, dhcpv4, net6, getaddr):
+    def test_metadata_connection_errors_two_urls(
+        self, dhcpv4, net6, getaddr, sleep
+    ):
         """
         get_data() returns ConnectionError on legacy or DNS URL
         The DNS URL is also tested for IPv6 connectivity
@@ -545,22 +518,25 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_urls[0] + "/conf?format=json",
+            self.datasource.metadata_urls[0],
             callback=ConnectionError,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_urls[1] + "/conf?format=json",
+            self.datasource.metadata_urls[1],
             callback=ConnectionError,
         )
+        self.datasource.max_wait = 0
         self.datasource.get_data()
+        # url_helper.wait_on_url tests both URL in list each time so
+        # called twice for each URL
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}/conf?format=json",
-            self.datasource.retries,
+            f"{self.datasource.metadata_urls[0]}",
+            2,
         )
         self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}/conf?format=json",
-            self.datasource.retries,
+            f"{self.datasource.metadata_urls[1]}",
+            2,
         )
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
