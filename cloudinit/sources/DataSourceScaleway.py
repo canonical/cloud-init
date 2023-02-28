@@ -280,7 +280,6 @@ class DataSourceScaleway(sources.DataSource):
                 # it will only reach timeout on VMs with only IPv6 addresses.
                 with EphemeralDHCPv4(
                     self._fallback_interface,
-                    # tmp_dir=self.distro.get_tmp_exec_path(),
                 ) as ipv4:
                     util.log_time(
                         logfunc=LOG.debug,
