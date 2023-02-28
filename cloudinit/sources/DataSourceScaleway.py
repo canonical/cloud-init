@@ -188,7 +188,7 @@ class DataSourceScaleway(sources.DataSource):
         """
 
         start_time = time.time()
-        avail_url, response = url_helper.wait_for_url(
+        avail_url, _ = url_helper.wait_for_url(
             urls=urls,
             max_wait=self.max_wait,
             timeout=self.timeout,
