@@ -16,7 +16,6 @@ from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
-from cloudinit.sources.azure import imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -297,6 +296,15 @@ def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
         azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
+
+
+def fake_http_error_for_code(status_code: int):
+    response_failure = requests.Response()
+    response_failure.status_code = status_code
+    return requests.exceptions.HTTPError(
+        "fake error",
+        response=response_failure,
+    )
 
 
 def construct_ovf_env(
@@ -2887,36 +2895,38 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             "unknown-245": "624c3620",
         }
 
-        # Simulate two NICs by adding the same one twice.
-        md = {
-            "interface": [
-                IMDS_NETWORK_METADATA["interface"][0],
-                IMDS_NETWORK_METADATA["interface"][0],
-            ]
-        }
-
-        m_req = mock.Mock(content=json.dumps(md))
-        m_request.side_effect = [
-            requests.Timeout("Fake connection timeout"),
-            requests.ConnectionError("Fake Network Unreachable"),
-            m_req,
-        ]
+        m_req = mock.Mock(content=json.dumps({"not": "empty"}))
+        m_request.side_effect = (
+            [requests.Timeout("Fake connection timeout")] * 5
+            + [requests.ConnectionError("Fake Network Unreachable")] * 5
+            + 290 * [fake_http_error_for_code(410)]
+            + [m_req]
+        )
         m_dhcpv4.return_value.lease = lease
 
-        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth0")
+        is_primary = dsa._check_if_nic_is_primary("eth0")
         self.assertEqual(True, is_primary)
-        self.assertEqual(2, expected_nic_count)
-        assert len(m_request.mock_calls) == 3
+        assert len(m_request.mock_calls) == 301
 
-        # Re-run tests to verify max retries.
+        # Re-run tests to verify max http failures.
         m_request.reset_mock()
-        m_request.side_effect = [
-            requests.Timeout("Fake connection timeout")
-        ] * 6 + [requests.ConnectionError("Fake Network Unreachable")] * 6
+        m_request.side_effect = 305 * [fake_http_error_for_code(410)]
 
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
-        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth1")
+        is_primary = dsa._check_if_nic_is_primary("eth1")
+        self.assertEqual(False, is_primary)
+        assert len(m_request.mock_calls) == 301
+
+        # Re-run tests to verify max connection error retries.
+        m_request.reset_mock()
+        m_request.side_effect = [
+            requests.Timeout("Fake connection timeout")
+        ] * 9 + [requests.ConnectionError("Fake Network Unreachable")] * 9
+
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
+
+        is_primary = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
         assert len(m_request.mock_calls) == 11
 
@@ -3591,15 +3601,6 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx is None
 
 
-def fake_http_error_for_code(status_code: int):
-    response_failure = requests.Response()
-    response_failure.status_code = status_code
-    return requests.exceptions.HTTPError(
-        "fake error",
-        response=response_failure,
-    )
-
-
 class TestInstanceId:
     def test_metadata(self, azure_ds, mock_dmi_read_dmi_data):
         azure_ds.metadata = {"instance-id": "test-id"}
@@ -3704,7 +3705,7 @@ class TestProvisioning:
                 timeout=2,
                 headers={"Metadata": "true"},
                 retries=10,
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 infinite=False,
                 log_req_resp=True,
             ),
@@ -3763,7 +3764,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3782,7 +3783,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3852,9 +3853,7 @@ class TestProvisioning:
         )
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(
-                contents=json.dumps(self.imds_md["network"]).encode()
-            ),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -3866,7 +3865,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3876,11 +3875,11 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
-                retries=10,
+                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -3895,7 +3894,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4015,7 +4014,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4025,11 +4024,11 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
-                retries=10,
+                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -4044,7 +4043,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4122,7 +4121,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4141,7 +4140,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4202,7 +4201,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
