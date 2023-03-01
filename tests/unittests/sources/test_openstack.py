@@ -367,7 +367,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
         self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
-        m_dhcp.assert_called_with("eth9", None, mock.ANY)
+        m_dhcp.assert_called_with("eth9", None)
 
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
