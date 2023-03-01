@@ -280,22 +280,6 @@ def read_metadata_service(base_url, ssl_details=None, timeout=5, retries=5):
     return reader.read_v2()
 
 
-def detect_openstack(accept_oracle=False):
-    """Return True when a potential OpenStack platform is detected."""
-    if not util.is_x86():
-        return True  # Non-Intel cpus don't properly report dmi product names
-    product_name = dmi.read_dmi_data("system-product-name")
-    if product_name in VALID_DMI_PRODUCT_NAMES:
-        return True
-    elif dmi.read_dmi_data("chassis-asset-tag") in VALID_DMI_ASSET_TAGS:
-        return True
-    elif accept_oracle and oracle._is_platform_viable():
-        return True
-    elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
-        return True
-    return False
-
-
 # Used to match classes to dependencies
 datasources = [
     (DataSourceOpenStackLocal, (sources.DEP_FILESYSTEM,)),

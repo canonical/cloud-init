@@ -394,7 +394,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Minimally, the datasource should return a boolean True on success.
         """
         self._dirty_cache = True
-        return_value = self._get_data()
+        return_value = self._check_and_get_data()
         if not return_value:
             return return_value
         self.persist_instance_data()
