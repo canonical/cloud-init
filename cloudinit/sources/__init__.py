@@ -318,8 +318,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Passing by command line overrides runtime datasource detection
         """
-        with open("/proc/cmdline", "r") as f:
-            cmdline = f.read()
+        cmdline = util.get_cmdline()
         ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+) ", cmdline)
         ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+) ", cmdline)
         ds = ds_parse_1 or ds_parse_2
