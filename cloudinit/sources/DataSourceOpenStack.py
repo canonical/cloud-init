@@ -161,10 +161,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
-                with EphemeralDHCPv4(
-                    self.fallback_interface,
-                    tmp_dir=self.distro.get_tmp_exec_path(),
-                ):
+                with EphemeralDHCPv4(self.fallback_interface):
                     if not self.detect_openstack(
                         accept_oracle=not oracle_considered
                     ):

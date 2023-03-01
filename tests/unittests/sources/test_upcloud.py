@@ -242,7 +242,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with("eth1", None, mock.ANY)
+        m_dhcp.assert_called_with("eth1", None)
 
         m_net.assert_called_once_with(
             broadcast="10.6.3.255",
