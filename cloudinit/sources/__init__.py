@@ -324,7 +324,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
         if self.override_ds_detect():
-            LOG.debug("Machine is configured to run on single datasource %s.", self)
+            LOG.debug(
+                "Machine is configured to run on single datasource %s.", self
+            )
         elif self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
         else:
