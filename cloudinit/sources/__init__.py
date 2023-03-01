@@ -325,8 +325,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Overrides runtime datasource detection"""
         if self.override_ds_detect() or self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
-            self._get_data()
-            return True
+            return self._get_data()
 
         LOG.debug("Datasource type %s is not detected.", self)
         return False
