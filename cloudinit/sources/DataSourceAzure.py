@@ -680,9 +680,9 @@ class DataSourceAzure(sources.DataSource):
         return crawled_data
 
     @azure_ds_telemetry_reporter
-    def get_metadata_from_imds(self) -> Dict:
+    def get_metadata_from_imds(self, retries: int = 10) -> Dict:
         try:
-            return imds.fetch_metadata_with_api_fallback()
+            return imds.fetch_metadata_with_api_fallback(retries=retries)
         except (UrlError, ValueError) as error:
             report_diagnostic_event(
                 "Ignoring IMDS metadata due to: %s" % error,
@@ -979,11 +979,8 @@ class DataSourceAzure(sources.DataSource):
         raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
 
     @azure_ds_telemetry_reporter
-    def _check_if_nic_is_primary(self, ifname):
-        """Check if a given interface is the primary nic or not. If it is the
-        primary nic, then we also get the expected total nic count from IMDS.
-        IMDS will process the request and send a response only for primary NIC.
-        """
+    def _check_if_nic_is_primary(self, ifname: str) -> bool:
+        """Check if a given interface is the primary nic or not."""
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
         # primary or secondary. In this case, retry DHCP until successful.
@@ -992,18 +989,11 @@ class DataSourceAzure(sources.DataSource):
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
-        imds_md = self.get_metadata_from_imds()
+        imds_md = self.get_metadata_from_imds(retries=300)
         if imds_md:
             # Only primary NIC will get a response from IMDS.
             LOG.info("%s is the primary nic", ifname)
-
-            # Set the expected nic count based on the response received.
-            expected_nic_count = len(imds_md["interface"])
-            report_diagnostic_event(
-                "Expected nic count: %d" % expected_nic_count,
-                logger_func=LOG.info,
-            )
-            return True, expected_nic_count
+            return True
 
         # If we are not the primary nic, then clean the dhcp context.
         LOG.warning(
@@ -1012,7 +1002,7 @@ class DataSourceAzure(sources.DataSource):
             ifname,
         )
         self._teardown_ephemeral_networking()
-        return False, -1
+        return False
 
     @azure_ds_telemetry_reporter
     def _wait_for_hot_attached_primary_nic(self, nl_sock):
@@ -1055,9 +1045,7 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    primary_nic_found, _ = self._check_if_nic_is_primary(
-                        ifname
-                    )
+                    primary_nic_found = self._check_if_nic_is_primary(ifname)
 
                 # Exit criteria: check if we've discovered primary nic
                 if primary_nic_found:
