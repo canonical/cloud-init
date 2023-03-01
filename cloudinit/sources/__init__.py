@@ -323,12 +323,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
-        if self.override_ds_detect() or self.ds_detect():
+        if self.override_ds_detect():
+            LOG.debug("Machine is configured to run on single datasource %s.", self)
+        elif self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
-            return self._get_data()
-
-        LOG.debug("Datasource type %s is not detected.", self)
-        return False
+        else:
+            LOG.debug("Datasource type %s is not detected.", self)
+            return False
+        return self._get_data()
 
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
