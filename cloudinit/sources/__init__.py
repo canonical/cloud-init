@@ -317,18 +317,18 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         - TODO: commandline argument is used (ci.ds=OpenStack)
         """
         return self.sys_cfg.get("datasource_list", []) in (
-            [self.dslist],
-            [self.dslist, "None"],
+            [self.dsname],
+            [self.dsname, "None"],
         )
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
-        if self.override_ds_detect() or self.detect_datasource():
-            LOG.debug(f"Machine is running on {self}.")
+        if self.override_ds_detect() or self.ds_detect():
+            LOG.debug("Machine is running on %s.", self)
             self._get_data()
             return True
 
-        LOG.debug(f"Datasource type {self} is not detected.")
+        LOG.debug("Datasource type %s is not detected.", self)
         return False
 
     def _get_standardized_metadata(self, instance_data):
