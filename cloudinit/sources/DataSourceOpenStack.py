@@ -267,13 +267,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             return True
         elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
             return True
-        # On bare metal hardware, the product name is not set like
-        # in a virtual OpenStack vm. We check if the system is virtual
-        # and if the openstack specific metadata service has been found.
-        elif not self.distro.is_virtual and self.wait_for_metadata_service(
-            max_wait=15, timeout=5
-        ):
-            return True
         return False
 
 
