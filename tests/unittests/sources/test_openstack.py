@@ -305,7 +305,8 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        self.assertTrue(ds_os.get_data())
+        with mock.patch.object(ds_os, "ds_detect", return_value=True):
+            self.assertTrue(ds_os.get_data())
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
         md.pop("instance-id", None)
@@ -382,9 +383,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        with test_helpers.mock.patch.object(
-            ds_os, "ds_detect"
-        ) as m_detect_os:
+        with test_helpers.mock.patch.object(ds_os, "ds_detect") as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -413,7 +412,8 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        self.assertFalse(ds_os.get_data())
+        with mock.patch.object(ds_os, "ds_detect", return_value=True):
+            self.assertFalse(ds_os.get_data())
         self.assertIsNone(ds_os.version)
 
     def test_network_config_disabled_by_datasource_config(self):
@@ -488,9 +488,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        with test_helpers.mock.patch.object(
-            ds_os, "ds_detect"
-        ) as m_detect_os:
+        with test_helpers.mock.patch.object(ds_os, "ds_detect") as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -598,9 +596,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
     @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_not_ds_detect_intel_x86_ec2(
-        self, m_dmi, m_proc_env, m_is_x86
-    ):
+    def test_not_ds_detect_intel_x86_ec2(self, m_dmi, m_proc_env, m_is_x86):
         """Return False on EC2 platforms."""
         m_is_x86.return_value = True
         # No product_name in proc/1/environ
@@ -621,9 +617,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         m_proc_env.assert_called_with(1)
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_ds_detect_intel_product_name_compute(
-        self, m_dmi, m_is_x86
-    ):
+    def test_ds_detect_intel_product_name_compute(self, m_dmi, m_is_x86):
         """Return True on OpenStack compute and nova instances."""
         m_is_x86.return_value = True
         openstack_product_names = ["OpenStack Nova", "OpenStack Compute"]
@@ -656,9 +650,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_ds_detect_sapccloud_chassis_asset_tag(
-        self, m_dmi, m_is_x86
-    ):
+    def test_ds_detect_sapccloud_chassis_asset_tag(self, m_dmi, m_is_x86):
         """Return True on OpenStack reporting SAP CCloud VM asset-tag."""
         m_is_x86.return_value = True
 
@@ -676,9 +668,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_ds_detect_huaweicloud_chassis_asset_tag(
-        self, m_dmi, m_is_x86
-    ):
+    def test_ds_detect_huaweicloud_chassis_asset_tag(self, m_dmi, m_is_x86):
         """Return True on OpenStack reporting Huawei Cloud VM asset-tag."""
         m_is_x86.return_value = True
 
@@ -696,9 +686,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_ds_detect_oraclecloud_chassis_asset_tag(
-        self, m_dmi, m_is_x86
-    ):
+    def test_ds_detect_oraclecloud_chassis_asset_tag(self, m_dmi, m_is_x86):
         """Return True on OpenStack reporting Oracle cloud asset-tag."""
         m_is_x86.return_value = True
 
@@ -755,9 +743,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
     @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
-    def test_ds_detect_by_proc_1_environ(
-        self, m_dmi, m_proc_env, m_is_x86
-    ):
+    def test_ds_detect_by_proc_1_environ(self, m_dmi, m_proc_env, m_is_x86):
         """Return True when nova product_name specified in /proc/1/environ."""
         m_is_x86.return_value = True
         # Nova product_name in proc/1/environ
