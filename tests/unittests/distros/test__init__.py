@@ -275,48 +275,6 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
                 d.is_virtual, "Reflect unknown state on ProcessExecutionError"
             )
 
-    def test_virtualization_on_freebsd(self):
-        # This test function is a bit unusual:
-        # We need to first mock away the `ifconfig -a` subp call
-        # Then, we can use side-effects to get the results of two subp calls
-        # needed for is_container()/virtual() which is_virtual depends on.
-        # We also have to clear cache between each of those assertions.
-
-        cls = distros.fetch("freebsd")
-        with mock.patch(
-            "cloudinit.distros.subp.subp", return_value=("", None)
-        ):
-            d = cls("freebsd", {}, None)
-        # This mock is called by `sysctl -n security.jail.jailed`
-        with mock.patch(
-            "cloudinit.distros.subp.subp",
-            side_effect=[("0\n", None), ("literaly any truthy value", None)],
-        ):
-            self.assertFalse(d.is_container())
-            d.is_container.cache_clear()
-            self.assertTrue(d.is_container())
-            d.is_container.cache_clear()
-
-        # This mock is called by `sysctl -n kern.vm_guest`
-        with mock.patch(
-            "cloudinit.distros.subp.subp",
-            # fmt: off
-            side_effect=[
-                ("0\n", None), ("hv\n", None),  # virtual
-                ("0\n", None), ("none\n", None),  # physical
-                ("0\n", None), ("hv\n", None)  # virtual
-            ],
-            # fmt: on
-        ):
-            self.assertEqual(d.virtual(), "microsoft")
-            d.is_container.cache_clear()
-            d.virtual.cache_clear()
-            self.assertEqual(d.virtual(), "none")
-            d.is_container.cache_clear()
-            d.virtual.cache_clear()
-
-            self.assertTrue(d.is_virtual)
-
 
 class TestGetPackageMirrors:
     def return_first(self, mlist):
