@@ -150,9 +150,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        oracle_considered = "Oracle" in self.sys_cfg.get("datasource_list")
-        if not detect_openstack(accept_oracle=not oracle_considered):
-            return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
@@ -246,6 +243,24 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             )
             raise sources.InvalidMetaDataException(msg) from e
         return result
+
+    def ds_detect(self):
+        """Return True when a potential OpenStack platform is detected."""
+        accept_oracle = "Oracle" in self.sys_cfg.get("datasource_list")
+        if not util.is_x86():
+            # Non-Intel cpus don't properly report dmi product names
+            return True
+
+        product_name = dmi.read_dmi_data("system-product-name")
+        if product_name in VALID_DMI_PRODUCT_NAMES:
+            return True
+        elif dmi.read_dmi_data("chassis-asset-tag") in VALID_DMI_ASSET_TAGS:
+            return True
+        elif accept_oracle and oracle._is_platform_viable():
+            return True
+        elif util.get_proc_env(1).get("product_name") == DMI_PRODUCT_NOVA:
+            return True
+        return False
 
 
 class DataSourceOpenStackLocal(DataSourceOpenStack):
