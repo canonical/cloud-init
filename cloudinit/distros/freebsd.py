@@ -6,9 +6,7 @@
 
 import os
 import re
-from functools import lru_cache
 from io import StringIO
-from typing import Optional
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
@@ -194,40 +192,5 @@ class Distro(cloudinit.distros.bsd.BSD):
             freq=PER_INSTANCE,
         )
 
-    @lru_cache()
-    def is_container(self) -> bool:
-        """return whether we're running in a container.
-        Cached, because it's unlikely to change."""
-        jailed, _ = subp.subp(["sysctl", "-n", "security.jail.jailed"])
-        if jailed.strip() == "0":
-            return False
-        return True
 
-    @lru_cache()
-    def virtual(self) -> str:
-        """return the kind of virtualisation system we're running under.
-        Cached, because it's unlikely to change."""
-        if self.is_container():
-            return "jail"
-        # map FreeBSD's kern.vm_guest to systemd-detect-virt, just like we do
-        # in ds-identify
-        VM_GUEST_TO_SYSTEMD = {
-            "hv": "microsoft",
-            "vbox": "oracle",
-            "generic": "vm-other",
-        }
-        vm, _ = subp.subp(["sysctl", "-n", "kern.vm_guest"])
-        vm = vm.strip()
-        if vm in VM_GUEST_TO_SYSTEMD:
-            return VM_GUEST_TO_SYSTEMD[vm]
-        return vm
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        This can fail on some platforms, so the signature is Optional[bool]
-        """
-        if self.virtual() == "none":
-            return False
-        return True
+# vi: ts=4 expandtab
