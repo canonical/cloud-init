@@ -583,9 +583,10 @@ def handle(
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
         if mode != "off":
-            log.warning(
-                f"DEPRECATED: growpart mode '{mode}' is deprecated. "
-                "Use 'off' instead."
+            util.deprecate(
+                deprecated="Growpart's 'mode' key with value '{mode}'",
+                deprecated_version="22.2",
+                extra_message="Use 'off' instead.",
             )
         log.debug("growpart disabled: mode=%s" % mode)
         return

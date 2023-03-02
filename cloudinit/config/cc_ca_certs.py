@@ -32,7 +32,24 @@ DISTRO_OVERRIDES = {
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["update-ca-trust"],
     },
+    "opensuse": {
+        "ca_cert_path": "/etc/pki/trust/",
+        "ca_cert_local_path": "/usr/share/pki/trust/",
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["update-ca-certificates"],
+    },
 }
+
+for distro in (
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+):
+    DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["opensuse"]
 
 MODULE_DESCRIPTION = """\
 This module adds CA certificates to the system's CA store and updates any
@@ -48,7 +65,19 @@ configuration option ``remove_defaults``.
     Alpine Linux requires the ca-certificates package to be installed in
     order to provide the ``update-ca-certificates`` command.
 """
-distros = ["alpine", "debian", "rhel", "ubuntu"]
+distros = [
+    "alpine",
+    "debian",
+    "rhel",
+    "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+    "ubuntu",
+]
 
 meta: MetaSchema = {
     "id": "cc_ca_certs",
@@ -200,9 +229,10 @@ def handle(
     @param args: Any module arguments from cloud.cfg
     """
     if "ca-certs" in cfg:
-        LOG.warning(
-            "DEPRECATION: key 'ca-certs' is now deprecated. Use 'ca_certs'"
-            " instead."
+        util.deprecate(
+            deprecated="Key 'ca-certs'",
+            deprecated_version="22.1",
+            extra_message="Use 'ca_certs' instead.",
         )
     elif "ca_certs" not in cfg:
         LOG.debug(
@@ -222,9 +252,10 @@ def handle(
     # If there is a remove_defaults option set to true, disable the system
     # default trusted CA certs first.
     if "remove-defaults" in ca_cert_cfg:
-        LOG.warning(
-            "DEPRECATION: key 'ca-certs.remove-defaults' is now deprecated."
-            " Use 'ca_certs.remove_defaults' instead."
+        util.deprecate(
+            deprecated="Key 'remove-defaults'",
+            deprecated_version="22.1",
+            extra_message="Use 'remove_defaults' instead.",
         )
     if ca_cert_cfg.get(
         "remove_defaults", ca_cert_cfg.get("remove-defaults", False)

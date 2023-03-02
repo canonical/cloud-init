@@ -316,11 +316,6 @@ if not platform.system().endswith("BSD"):
 
     data_files.extend(
         [
-            (
-                ETC + "/NetworkManager/dispatcher.d/",
-                ["tools/hook-network-manager"],
-            ),
-            (ETC + "/dhcp/dhclient-exit-hooks.d/", ["tools/hook-dhclient"]),
             (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",

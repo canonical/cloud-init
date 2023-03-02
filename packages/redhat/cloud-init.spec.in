@@ -179,9 +179,6 @@ fi
 %attr(0755, root, root) %{_initddir}/cloud-init
 %endif
 
-%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
-%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
-
 # Program binaries
 %{_bindir}/cloud-init*
 %{_bindir}/cloud-id*

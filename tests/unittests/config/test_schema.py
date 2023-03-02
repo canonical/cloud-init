@@ -19,7 +19,7 @@ from typing import List, Optional, Sequence, Set
 
 import pytest
 
-from cloudinit import stages
+from cloudinit import log, stages
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
@@ -55,6 +55,7 @@ from tests.unittests.helpers import (
 from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.config.schema."
+DEPRECATED_LOG_LEVEL = 35
 
 
 def get_schemas() -> dict:
@@ -645,6 +646,7 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
+        log.setupLogging()
         validate_cloudconfig_schema(
             config,
             schema,
@@ -653,7 +655,7 @@ class TestValidateCloudConfigSchema:
         )
         if expected_msg is None:
             return
-        log_record = (M_PATH[:-1], logging.WARNING, expected_msg)
+        log_record = (M_PATH[:-1], DEPRECATED_LOG_LEVEL, expected_msg)
         if log_deprecations:
             assert log_record == caplog.record_tuples[-1]
         else:

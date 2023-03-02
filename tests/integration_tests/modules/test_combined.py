@@ -29,6 +29,10 @@ from tests.integration_tests.util import (
 
 USER_DATA = """\
 #cloud-config
+users:
+- default
+- name: craig
+  sudo: false  # make sure craig doesn't get elevated perms
 apt:
   primary:
     - arches: [default]
@@ -112,6 +116,14 @@ class TestCombined:
         )
 
         assert re.search(expected, log)
+
+    def test_deprecated_message(self, class_client: IntegrationInstance):
+        """Check that deprecated key produces a log warning"""
+        client = class_client
+        log = client.read_from_file("/var/log/cloud-init.log")
+        assert "Deprecated cloud-config provided" in log
+        assert "The value of 'false' in user craig's 'sudo' config is " in log
+        assert 2 == log.count("DEPRECATE")
 
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.
