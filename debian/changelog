@@ -1,8 +1,8 @@
-cloud-init (23.1-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (23.1.1-0ubuntu1) lunar; urgency=medium
 
   * Upstream snapshot based on main at 4896402b.
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 02 Mar 2023 16:45:44 -0600
+ -- James Falcon <james.falcon@canonical.com>  Thu, 02 Mar 2023 16:46:05 -0600
 
 cloud-init (23.1-0ubuntu2) lunar; urgency=medium
 
