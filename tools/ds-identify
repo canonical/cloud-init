@@ -1262,13 +1262,6 @@ dscheck_OpenStack() {
         *) return ${DS_MAYBE};;
     esac
 
-    # If we are on bare metal, then we maybe are on a
-    # bare metal Ironic environment.
-    detect_virt
-    if [ "${_RET}" = "none" ]; then
-      return ${DS_MAYBE}
-    fi
-
     return ${DS_NOT_FOUND}
 }
 
