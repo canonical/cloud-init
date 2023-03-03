@@ -1,4 +1,4 @@
-cloud-init (23.1.1-0ubuntu0~18.04.1) UNRELEASED; urgency=medium
+cloud-init (23.1.1-0ubuntu0~18.04.1) bionic; urgency=medium
 
   * d/patches/netplan99-cannot-use-default.patch:
     - Retain routes' definitions compatible with netplan 0.99
@@ -11,7 +11,7 @@ cloud-init (23.1.1-0ubuntu0~18.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.1.1/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 03 Mar 2023 10:02:07 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 03 Mar 2023 10:03:11 +0100
 
 cloud-init (22.4.2-0ubuntu0~18.04.1) bionic; urgency=medium
 
