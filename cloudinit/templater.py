@@ -149,12 +149,6 @@ def render_to_file(fn, outfn, params, mode=0o644):
     util.write_file(outfn, contents, mode=mode)
 
 
-def render_string_to_file(content, outfn, params, mode=0o644):
-    """Render string"""
-    contents = render_string(content, params)
-    util.write_file(outfn, contents, mode=mode)
-
-
 def render_string(content, params):
     """Render string"""
     if not params:

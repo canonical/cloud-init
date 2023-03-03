@@ -322,28 +322,3 @@ class TestActivatorsBringDown:
         activator.bring_down_interface("eth0")
         assert len(m_subp.call_args_list) == 1
         assert m_subp.call_args_list[0] == expected_call_list[0]
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_interfaces(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        activator.bring_down_interfaces(["eth0", "eth1"])
-        assert expected_call_list == m_subp.call_args_list
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_all_interfaces_v1(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        network_state = parse_net_config_data(load(V1_CONFIG))
-        activator.bring_down_all_interfaces(network_state)
-        for call in m_subp.call_args_list:
-            assert call in expected_call_list
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_all_interfaces_v2(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        network_state = parse_net_config_data(load(V2_CONFIG))
-        activator.bring_down_all_interfaces(network_state)
-        for call in m_subp.call_args_list:
-            assert call in expected_call_list

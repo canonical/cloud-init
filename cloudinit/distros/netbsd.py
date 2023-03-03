@@ -100,13 +100,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             raise
         self.unlock_passwd(user)
 
-    def force_passwd_change(self, user):
-        try:
-            subp.subp(["usermod", "-F", user])
-        except Exception:
-            util.logexc(LOG, "Failed to set pw expiration for %s", user)
-            raise
-
     def lock_passwd(self, name):
         try:
             subp.subp(["usermod", "-C", "yes", name])

@@ -94,13 +94,6 @@ def warn_deprecated_all_devices(dikt: dict) -> None:
         )
 
 
-def from_state_file(state_file):
-    state = util.read_conf(state_file)
-    nsi = NetworkStateInterpreter()
-    nsi.load(state)
-    return nsi
-
-
 def diff_keys(expected, actual):
     missing = set(expected)
     for key in actual:

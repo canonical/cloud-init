@@ -230,16 +230,6 @@ class NicConfigurator:
 
         return (subnet_list, route_list)
 
-    def _genIpv6Route(self, name, nic, addrs):
-        route_list = []
-
-        for addr in addrs:
-            route_list.append(
-                {"type": "route", "gateway": addr.gateway, "metric": 10000}
-            )
-
-        return route_list
-
     def generate(self, configure=False, osfamily=None):
         """Return the config elements that are needed to configure the nics"""
         if configure:

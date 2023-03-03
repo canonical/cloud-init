@@ -10,7 +10,6 @@ from tests.unittests import helpers as test_helpers
 SERVER_CONTEXT = {
     "cpu": 1000,
     "cpus_instead_of_cores": False,
-    "global_context": {"some_global_key": "some_global_val"},
     "mem": 1073741824,
     "meta": {
         "ssh_public_key": "ssh-rsa AAAAB3NzaC1yc2E.../hQ5D5 john@doe",

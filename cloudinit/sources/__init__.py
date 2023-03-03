@@ -895,10 +895,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def network_config(self):
         return None
 
-    @property
-    def first_instance_boot(self):
-        return
-
     def setup(self, is_new_instance):
         """setup(is_new_instance)
 
