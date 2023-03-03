@@ -8,10 +8,8 @@ Forwarded: not-needed
 Last-Update: 2023-02-27
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: b/cloudinit/net/netplan.py
-===================================================================
---- a/cloudinit/net/netplan.py	2023-02-27 20:40:42.534650863 +0100
-+++ b/cloudinit/net/netplan.py	2023-02-27 20:40:42.514650609 +0100
+--- a/cloudinit/net/netplan.py
++++ b/cloudinit/net/netplan.py
 @@ -119,7 +119,7 @@ def _extract_addresses(config: dict, ent
              if subnet.get("gateway"):
                  new_route = {
@@ -21,10 +19,8 @@ Index: b/cloudinit/net/netplan.py
                  }
                  try:
                      subnet_gateway = ipaddress.ip_address(subnet["gateway"])
-Index: b/tests/unittests/test_net.py
-===================================================================
---- a/tests/unittests/test_net.py	2023-02-27 20:40:42.534650863 +0100
-+++ b/tests/unittests/test_net.py	2023-02-27 20:40:42.522650711 +0100
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
 @@ -403,7 +403,7 @@ network:
                  transmit-hash-policy: layer3+4
                  up-delay: 0
@@ -140,10 +136,8 @@ Index: b/tests/unittests/test_net.py
                            via: 2001:ffff::1
                            on-link: true
                        set-name: interface0
-Index: b/tests/unittests/distros/test_netconfig.py
-===================================================================
---- a/tests/unittests/distros/test_netconfig.py	2023-02-27 20:40:42.534650863 +0100
-+++ b/tests/unittests/distros/test_netconfig.py	2023-02-27 20:40:42.522650711 +0100
+--- a/tests/unittests/distros/test_netconfig.py
++++ b/tests/unittests/distros/test_netconfig.py
 @@ -199,7 +199,7 @@ network:
              addresses:
              - 192.168.1.5/24
