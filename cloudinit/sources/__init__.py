@@ -307,6 +307,33 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def __str__(self):
         return type_utils.obj_name(self)
 
+    def ds_detect(self) -> bool:
+        """Check if running on this datasource"""
+        return True
+
+    def override_ds_detect(self):
+        """Override if either:
+        - only a single datasource defined (nothing to fall back to)
+        - TODO: commandline argument is used (ci.ds=OpenStack)
+        """
+        return self.sys_cfg.get("datasource_list", []) in (
+            [self.dsname],
+            [self.dsname, "None"],
+        )
+
+    def _check_and_get_data(self):
+        """Overrides runtime datasource detection"""
+        if self.override_ds_detect():
+            LOG.debug(
+                "Machine is configured to run on single datasource %s.", self
+            )
+        elif self.ds_detect():
+            LOG.debug("Machine is running on %s.", self)
+        else:
+            LOG.debug("Datasource type %s is not detected.", self)
+            return False
+        return self._get_data()
+
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
         local_hostname = self.get_hostname().hostname
@@ -370,7 +397,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Minimally, the datasource should return a boolean True on success.
         """
         self._dirty_cache = True
-        return_value = self._get_data()
+        return_value = self._check_and_get_data()
         if not return_value:
             return return_value
         self.persist_instance_data()
