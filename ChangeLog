@@ -1,3 +1,8 @@
+23.1.1
+ - source: Force OpenStack when it is only option (#2045)
+ - sources/azure: fix regressions in IMDS behavior (#2041)
+   [Chris Patterson]
+
 23.1
  - Support transactional-updates for SUSE based distros (#1997)
    [Robert Schweikert]

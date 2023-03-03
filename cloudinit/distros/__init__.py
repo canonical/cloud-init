@@ -992,37 +992,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             **kwargs,
         )
 
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        If the detection fails, it returns None.
-        """
-        if not uses_systemd():
-            # For non systemd systems the method should be
-            # implemented in the distro class.
-            LOG.warning("is_virtual should be implemented on distro class")
-            return None
-
-        try:
-            detect_virt_path = subp.which("systemd-detect-virt")
-            if detect_virt_path:
-                out, _ = subp.subp(
-                    [detect_virt_path], capture=True, rcs=[0, 1]
-                )
-
-                return not out.strip() == "none"
-            else:
-                err_msg = "detection binary not found"
-        except subp.ProcessExecutionError as e:
-            err_msg = str(e)
-
-        LOG.warning(
-            "Failed to detect virtualization with systemd-detect-virt: %s",
-            err_msg,
-        )
-        return None
-
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
