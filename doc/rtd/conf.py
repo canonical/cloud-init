@@ -1,6 +1,6 @@
+import datetime
 import os
 import sys
-import datetime
 
 from cloudinit import version
 
@@ -19,8 +19,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-author = "Canonical Group Ltd."
-copyright = "%s, %s" % (datetime.date.today().year, author)
+copyright = f"Canonical Group Ltd, {datetime.date.today().year}"
 
 # -- General configuration ----------------------------------------------------
 
@@ -108,13 +107,10 @@ html_theme_options = {
 }
 
 
-
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_static_path = ["static"]
-html_css_files = [
-    "css/custom.css"
-]
+html_css_files = ["css/custom.css"]
 
 html_extra_path = ["googleaf254801a5285c31.html"]
 
