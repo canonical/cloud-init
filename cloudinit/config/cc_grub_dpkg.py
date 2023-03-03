@@ -22,9 +22,8 @@ from cloudinit.subp import ProcessExecutionError
 MODULE_DESCRIPTION = """\
 Configure which device is used as the target for grub installation. This module
 can be enabled/disabled using the ``enabled`` config key in the ``grub_dpkg``
-config dict. The global config key ``grub-dpkg`` is an alias for ``grub_dpkg``.
-If no installation device is specified this module will execute grub-probe to
-determine which disk the /boot directory is associated with.
+config dict. This module automatically selects a disk with ``grub-probe`` if no
+installation device is specified.
 
 The value which is placed into the debconf database is in the format which the
 grub postinstall script expects. Normally, this is a /dev/disk/by-id/ value,

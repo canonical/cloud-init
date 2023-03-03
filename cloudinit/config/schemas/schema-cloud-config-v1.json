@@ -1343,7 +1343,7 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``.",
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``",
               "oneOf": [
                 {
                   "type": "boolean"
@@ -1360,6 +1360,7 @@
         },
         "grub-dpkg": {
           "type": "object",
+          "description": "An alias for ``grub_dpkg``",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``grub_dpkg`` instead."
