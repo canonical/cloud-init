@@ -11,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.subp import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError, SubpResult
 from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 
 
@@ -43,7 +43,7 @@ class TestFetchIdevs:
             ),
             # KVM Instance
             (
-                ["/dev/vda"],
+                SubpResult("/dev/vda", ""),
                 True,
                 None,
                 (
@@ -55,7 +55,7 @@ class TestFetchIdevs:
             ),
             # Xen Instance
             (
-                ["/dev/xvda"],
+                SubpResult("/dev/xvda", ""),
                 True,
                 None,
                 "",
@@ -64,7 +64,7 @@ class TestFetchIdevs:
             ),
             # NVMe Hardware Instance
             (
-                ["/dev/nvme1n1"],
+                SubpResult("/dev/nvme1n1", ""),
                 True,
                 None,
                 (
@@ -77,7 +77,7 @@ class TestFetchIdevs:
             ),
             # SCSI Hardware Instance
             (
-                ["/dev/sda"],
+                SubpResult("/dev/sda", ""),
                 True,
                 None,
                 (
@@ -90,7 +90,7 @@ class TestFetchIdevs:
             ),
             # UEFI Hardware Instance
             (
-                ["/dev/sda2"],
+                SubpResult("/dev/sda2", ""),
                 True,
                 None,
                 (
@@ -125,7 +125,10 @@ class TestFetchIdevs:
         is_efi_boot,
     ):
         """Tests outputs from grub-probe and udevadm info against grub_dpkg"""
-        m_subp.side_effect = [grub_output, ["".join(udevadm_output)]]
+        m_subp.side_effect = [
+            grub_output,
+            SubpResult("".join(udevadm_output), ""),
+        ]
         m_exists.return_value = path_exists
         m_efi_booted.return_value = is_efi_boot
         log = mock.Mock(spec=Logger)
