@@ -987,7 +987,6 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
-                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
@@ -1030,7 +1029,6 @@ class TestNonIscsiRoot_GetDataBehaviour:
                     "headers": {"Authorization": "Bearer Oracle"},
                     "url": "http://169.254.169.254/opc/v2/instance/",
                 },
-                tmp_dir=oracle_ds.distro.get_tmp_exec_path(),
             )
         ] == m_EphemeralDHCPv4.call_args_list
 
@@ -1133,6 +1131,15 @@ class TestNetworkConfig:
         ds_idx = config_sources.index(NetworkConfigSource.DS)
         initramfs_idx = config_sources.index(NetworkConfigSource.INITRAMFS)
         assert ds_idx < initramfs_idx
+
+    def test_system_network_cfg_preferred_over_ds(
+        self, m_get_interfaces_by_mac
+    ):
+        """Ensure that system net config is preferred over DS config"""
+        config_sources = oracle.DataSourceOracle.network_config_sources
+        ds_idx = config_sources.index(NetworkConfigSource.DS)
+        system_idx = config_sources.index(NetworkConfigSource.SYSTEM_CFG)
+        assert system_idx < ds_idx
 
     @pytest.mark.parametrize("set_primary", [True, False])
     def test__add_network_config_from_opc_imds_no_vnics_data(

@@ -47,7 +47,6 @@ from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 from cloudinit import atomic_helper
 
 from cloudinit.config import cc_set_hostname
-from cloudinit import dhclient_hook
 from cloudinit.cmd.devel import read_cfg_paths
 
 
@@ -219,11 +218,11 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    LOG.warning(
-                        "DEPRECATED: `url` kernel command line key is"
-                        " deprecated for providing cloud-config via URL."
-                        " Please use `cloud-config-url` kernel command line"
-                        " parameter instead"
+                    util.deprecate(
+                        deprecated="The kernel command line key `url`",
+                        deprecated_version="22.3",
+                        extra_message=" Please use `cloud-config-url` "
+                        "kernel command line parameter instead",
                     )
             else:
                 if cmdline_name == "cloud-config-url":
@@ -945,11 +944,6 @@ def main(sysv_args=None):
         "query",
         help="Query standardized instance metadata from the command line.",
     )
-
-    parser_dhclient = subparsers.add_parser(
-        dhclient_hook.NAME, help=dhclient_hook.__doc__
-    )
-    dhclient_hook.get_parser(parser_dhclient)
 
     parser_features = subparsers.add_parser(
         "features", help="List defined features."

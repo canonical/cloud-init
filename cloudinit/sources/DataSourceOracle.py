@@ -118,9 +118,9 @@ class DataSourceOracle(sources.DataSource):
     vendordata_pure = None
     network_config_sources: Tuple[sources.NetworkConfigSource, ...] = (
         sources.NetworkConfigSource.CMD_LINE,
+        sources.NetworkConfigSource.SYSTEM_CFG,
         sources.NetworkConfigSource.DS,
         sources.NetworkConfigSource.INITRAMFS,
-        sources.NetworkConfigSource.SYSTEM_CFG,
     )
 
     _network_config: dict = {"config": [], "version": 1}
@@ -156,7 +156,6 @@ class DataSourceOracle(sources.DataSource):
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
                 "headers": V2_HEADERS,
             },
-            tmp_dir=self.distro.get_tmp_exec_path(),
         )
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(

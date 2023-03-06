@@ -526,9 +526,6 @@ class JoyentMetadataClient:
         ).decode()
         return self.request(rtype="PUT", param=param)
 
-    def delete(self, key):
-        return self.request(rtype="DELETE", param=key)
-
     def close_transport(self):
         if self.fp:
             self.fp.close()

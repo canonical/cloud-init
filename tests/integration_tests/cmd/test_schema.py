@@ -19,7 +19,7 @@ class TestSchemaDeprecations:
     def test_clean_log(self, class_client: IntegrationInstance):
         log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log, ignore_deprecations=True)
-        assert "WARNING]: Deprecated cloud-config provided:" in log
+        assert "DEPRECATED]: Deprecated cloud-config provided:" in log
         assert "apt_reboot_if_required: Default: ``false``. Deprecated " in log
         assert "apt_update: Default: ``false``. Deprecated in version" in log
         assert "apt_upgrade: Default: ``false``. Deprecated in version" in log

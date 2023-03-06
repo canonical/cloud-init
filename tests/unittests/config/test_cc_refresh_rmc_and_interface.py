@@ -110,7 +110,6 @@ class TestRsctNodeFile(t_help.CiTestCase):
             util.load_file(fname),
         )
 
-    @mock.patch(MPATH + ".refresh_rmc")
     @mock.patch(MPATH + ".restart_network_manager")
     @mock.patch(MPATH + ".disable_ipv6")
     @mock.patch(MPATH + ".refresh_ipv6")
@@ -123,11 +122,13 @@ class TestRsctNodeFile(t_help.CiTestCase):
         m_refresh_ipv6,
         m_disable_ipv6,
         m_restart_nm,
-        m_which,
     ):
-        """Basic test of handle."""
+        """Basic test of handle.
+
+        TODO: This test has suspicious mock names, is it actually testing the
+        correct things?
+        """
         m_netdev_info.return_value = NET_INFO
-        m_which.return_value = "/opt/rsct/bin/rmcctrl"
         ccrmci.handle("refresh_rmc_and_interface", None, None, None, None)
         self.assertEqual(1, m_netdev_info.call_count)
         m_refresh_ipv6.assert_called_with("env5")
