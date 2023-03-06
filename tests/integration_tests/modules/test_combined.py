@@ -60,7 +60,7 @@ rsyslog:
       content: |
         module(load="imtcp")
         input(type="imtcp" port="514")
-        $template RemoteLogs,"/var/tmp/rsyslog.log"
+        $template RemoteLogs,"/var/spool/rsyslog/cloudinit.log"
         *.* ?RemoteLogs
         & ~
   remotes:
@@ -175,7 +175,9 @@ class TestCombined:
     def test_rsyslog(self, class_client: IntegrationInstance):
         """Test rsyslog is configured correctly."""
         client = class_client
-        assert "My test log" in client.read_from_file("/var/tmp/rsyslog.log")
+        assert "My test log" in client.read_from_file(
+            "/var/spool/rsyslog/cloudinit.log"
+        )
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
