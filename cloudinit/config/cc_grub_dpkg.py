@@ -11,7 +11,6 @@
 import os
 from logging import Logger
 from textwrap import dedent
-from typing import Optional
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -81,7 +80,7 @@ def fetch_idevs(log: Logger):
         # get the root disk where the /boot directory resides.
         disk = subp.subp(
             ["grub-probe", "-t", probe_target, probe_mount], capture=True
-        )[0].strip()
+        ).stdout.strip()
     except ProcessExecutionError as e:
         # grub-common may not be installed, especially on containers
         # FileNotFoundError is a nested exception of ProcessExecutionError
@@ -109,8 +108,8 @@ def fetch_idevs(log: Logger):
             subp.subp(
                 ["udevadm", "info", "--root", "--query=symlink", disk],
                 capture=True,
-            )[0]
-            .strip()
+            )
+            .stdout.strip()
             .split()
         )
     except Exception:
@@ -129,8 +128,10 @@ def fetch_idevs(log: Logger):
     return idevs
 
 
-# Check if the system is booted in EFI mode.
 def is_efi_booted(log: Logger) -> bool:
+    """
+    Check if the system is booted in EFI mode.
+    """
     try:
         return os.path.exists("/sys/firmware/efi")
     except OSError as e:
@@ -152,26 +153,21 @@ def handle(
         return
 
     dconf_sel = get_debconf_config(mycfg, log)
-    if dconf_sel is None:
-        log.debug(
-            "%s no debconf config returned",
-            name,
-        )
-        return
-
     log.debug("Setting grub debconf-set-selections with '%s'" % dconf_sel)
 
     try:
         subp.subp(["debconf-set-selections"], dconf_sel)
     except Exception as e:
         util.logexc(
-            log, "Failed to run debconf-set-selections for grub-dpkg: %s", e
+            log, "Failed to run debconf-set-selections for grub_dpkg: %s", e
         )
 
 
-# Returns the debconf config for grub-pc or grub-efi depending on the
-# systems boot mode.
-def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
+def get_debconf_config(mycfg: Config, log: Logger) -> str:
+    """
+    Returns the debconf config for grub-pc or
+    grub-efi depending on the systems boot mode.
+    """
     if is_efi_booted(log):
         idevs = util.get_cfg_option_str(
             mycfg, "grub-efi/install_devices", None
@@ -200,6 +196,3 @@ def get_debconf_config(mycfg: Config, log: Logger) -> Optional[str]:
             "grub-pc grub-pc/install_devices_empty boolean %s\n"
             % (idevs, idevs_empty)
         )
-
-
-# vi: ts=4 expandtab

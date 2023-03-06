@@ -124,7 +124,7 @@ class TestFetchIdevs:
         expected_idevs,
         is_efi_boot,
     ):
-        """Tests outputs from grub-probe and udevadm info against grub-dpkg"""
+        """Tests outputs from grub-probe and udevadm info against grub_dpkg"""
         m_subp.side_effect = [grub_output, ["".join(udevadm_output)]]
         m_exists.return_value = path_exists
         m_efi_booted.return_value = is_efi_boot
