@@ -1355,6 +1355,10 @@
                   "changed_description": "Use a boolean value instead."
                 }
               ]
+            },
+            "grub-efi/install_devices": {
+              "type": "string",
+              "description": "Partition to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot/efi`` will be used to find the partition"
             }
           }
         },

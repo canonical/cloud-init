@@ -46,8 +46,11 @@ meta: MetaSchema = {
             """\
             grub_dpkg:
               enabled: true
+              # BIOS mode (install_devices needs disk)
               grub-pc/install_devices: /dev/sda
               grub-pc/install_devices_empty: false
+              # EFI mode (install_devices needs partition)
+              grub-efi/install_devices: /dev/sda
             """
         )
     ],
@@ -57,7 +60,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def fetch_idevs(log):
+def fetch_idevs(log: Logger):
     """
     Fetches the /dev/disk/by-id device grub is installed to.
     Falls back to plain disk name if no by-id entry is present.
@@ -65,11 +68,19 @@ def fetch_idevs(log):
     disk = ""
     devices = []
 
+    # BIOS mode systems use /boot and the disk path,
+    # EFI mode systems use /boot/efi and the partition path.
+    probe_target = "disk"
+    probe_mount = "/boot"
+    if is_efi_booted(log):
+        probe_target = "device"
+        probe_mount = "/boot/efi"
+
     try:
         # get the root disk where the /boot directory resides.
-        disk = subp.subp(["grub-probe", "-t", "disk", "/boot"], capture=True)[
-            0
-        ].strip()
+        disk = subp.subp(
+            ["grub-probe", "-t", probe_target, probe_mount], capture=True
+        ).stdout.strip()
     except ProcessExecutionError as e:
         # grub-common may not be installed, especially on containers
         # FileNotFoundError is a nested exception of ProcessExecutionError
@@ -97,8 +108,8 @@ def fetch_idevs(log):
             subp.subp(
                 ["udevadm", "info", "--root", "--query=symlink", disk],
                 capture=True,
-            )[0]
-            .strip()
+            )
+            .stdout.strip()
             .split()
         )
     except Exception:
@@ -117,10 +128,21 @@ def fetch_idevs(log):
     return idevs
 
 
+def is_efi_booted(log: Logger) -> bool:
+    """
+    Check if the system is booted in EFI mode.
+    """
+    try:
+        return os.path.exists("/sys/firmware/efi")
+    except OSError as e:
+        log.error("Failed to determine if system is booted in EFI mode: %s", e)
+        # If we can't determine if we're booted in EFI mode, assume we're not.
+        return False
+
+
 def handle(
     name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
 ) -> None:
-
     mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
     if not mycfg:
         mycfg = {}
@@ -130,35 +152,47 @@ def handle(
         log.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
         return
 
-    idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
-    if idevs is None:
-        idevs = fetch_idevs(log)
-
-    idevs_empty = mycfg.get("grub-pc/install_devices_empty")
-    if idevs_empty is None:
-        idevs_empty = not idevs
-    elif not isinstance(idevs_empty, bool):
-        idevs_empty = util.translate_bool(idevs_empty)
-    idevs_empty = str(idevs_empty).lower()
-
-    # now idevs and idevs_empty are set to determined values
-    # or, those set by user
-
-    dconf_sel = (
-        "grub-pc grub-pc/install_devices string %s\n"
-        "grub-pc grub-pc/install_devices_empty boolean %s\n"
-        % (idevs, idevs_empty)
-    )
-
-    log.debug(
-        "Setting grub debconf-set-selections with '%s','%s'"
-        % (idevs, idevs_empty)
-    )
+    dconf_sel = get_debconf_config(mycfg, log)
+    log.debug("Setting grub debconf-set-selections with '%s'" % dconf_sel)
 
     try:
         subp.subp(["debconf-set-selections"], dconf_sel)
-    except Exception:
-        util.logexc(log, "Failed to run debconf-set-selections for grub-dpkg")
+    except Exception as e:
+        util.logexc(
+            log, "Failed to run debconf-set-selections for grub_dpkg: %s", e
+        )
 
 
-# vi: ts=4 expandtab
+def get_debconf_config(mycfg: Config, log: Logger) -> str:
+    """
+    Returns the debconf config for grub-pc or
+    grub-efi depending on the systems boot mode.
+    """
+    if is_efi_booted(log):
+        idevs = util.get_cfg_option_str(
+            mycfg, "grub-efi/install_devices", None
+        )
+
+        if idevs is None:
+            idevs = fetch_idevs(log)
+
+        return "grub-pc grub-efi/install_devices string %s\n" % idevs
+    else:
+        idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
+        if idevs is None:
+            idevs = fetch_idevs(log)
+
+        idevs_empty = mycfg.get("grub-pc/install_devices_empty")
+        if idevs_empty is None:
+            idevs_empty = not idevs
+        elif not isinstance(idevs_empty, bool):
+            idevs_empty = util.translate_bool(idevs_empty)
+        idevs_empty = str(idevs_empty).lower()
+
+        # now idevs and idevs_empty are set to determined values
+        # or, those set by user
+        return (
+            "grub-pc grub-pc/install_devices string %s\n"
+            "grub-pc grub-pc/install_devices_empty boolean %s\n"
+            % (idevs, idevs_empty)
+        )
