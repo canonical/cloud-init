@@ -3138,6 +3138,52 @@ def deprecate(
             LOG.warning(deprecate_msg)
 
 
+def deprecate_python(
+    *,
+    deprecated: str,
+    deprecated_version: str,
+    extra_message: Optional[str] = None,
+):
+    """Mark a "thing" as deprecated due to Python deprecation. Deduplicated
+    deprecations are logged.
+
+    @param deprecated: Noun to be deprecated. Write this as the start
+        of a sentence, with no period. Version and extra message will
+        be appended.
+    @param deprecated_version: The version in which the thing was
+        deprecated
+    @param removed_version: The version in which the thing wil be removed
+    @param extra_message: A remedy for the user's problem. A good
+        message will be actionable and specific (i.e., don't use a
+        generic "Use updated key." if the user used a deprecated key).
+        End the string with a period.
+
+    Note: uses keyword-only arguments to improve legibility
+    """
+    if not hasattr(deprecate_python, "_log"):
+        deprecate_python._log = set()  # type: ignore
+    if not hasattr(deprecate_python, "_version"):
+        version = sys.version_info
+        deprecate_python._version = Version(
+            version.major, version.minor, version.micro
+        )
+    # don't log on older version of Python
+    if deprecate_python._version < Version.from_str(deprecated_version):
+        return
+    message = extra_message or ""
+    dedup = hash(deprecated + message + deprecated_version)
+    if dedup not in deprecate._log:  # type: ignore
+        deprecate._log.add(dedup)  # type: ignore
+        deprecate_msg = (
+            f"{deprecated} was deprecated in Python {deprecated_version} and"
+            "will be removed in {removed_version}. {message}"
+        ).rstrip()
+        if hasattr(LOG, "deprecated"):
+            LOG.deprecated(deprecate_msg)
+        else:
+            LOG.warning(deprecate_msg)
+
+
 def deprecate_call(
     *, deprecated_version: str, extra_message: str, schedule: int = 5
 ):
@@ -3166,6 +3212,7 @@ def deprecate_call(
                 deprecated_version=deprecated_version,
                 deprecated=func.__name__,
                 extra_message=extra_message,
+                schedule=schedule,
             )
             return out
 

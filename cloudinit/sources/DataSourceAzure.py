@@ -1744,6 +1744,7 @@ def read_azure_ovf(contents):
 
 
 def encrypt_pass(password, salt_id="$6$"):
+    util.deprecate_python("")
     return crypt.crypt(password, salt_id + util.rand_str(strlen=16))
 
 
