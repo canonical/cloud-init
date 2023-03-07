@@ -47,6 +47,11 @@ meta: MetaSchema = {
       - name: zfs
         persist:
           blacklist: true
+      - name: btrfs
+        load: true
+        persist:
+          softdep:
+            pre: ["nf_conntrack" "nf_tables"]
     """
         ),
     ],
@@ -210,7 +215,9 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
         entry = f"{key} {module_name} {value}"
         # softdep special case
         if key == "softdep":
-            entry += " pre:".join({key["pre"]}) + " post: ".join({key["post"]})
+            entry += " pre: ".join({key["pre"]}) + " post: ".join(
+                {key["post"]}
+            )
         # blacklist special case
         elif key == "blacklist":
             if value:
