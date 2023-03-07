@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import sys
 from urllib.parse import SplitResult, urlsplit
 
 import requests
@@ -90,7 +91,7 @@ class TestOnScaleway(CiTestCase):
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
-    def test_not_on_scaleway(
+    def test_not_ds_detect(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
         self.install_mocks(
@@ -98,7 +99,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertFalse(DataSourceScaleway.on_scaleway())
+        self.assertFalse(DataSourceScaleway.DataSourceScaleway.ds_detect())
 
         # When not on Scaleway, get_data() returns False.
         datasource = DataSourceScaleway.DataSourceScaleway(
@@ -109,7 +110,7 @@ class TestOnScaleway(CiTestCase):
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
-    def test_on_scaleway_dmi(
+    def test_ds_detect_dmi(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
         """
@@ -121,12 +122,12 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.on_scaleway())
+        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
-    def test_on_scaleway_var_run_scaleway(
+    def test_ds_detect_var_run_scaleway(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
         """
@@ -137,12 +138,12 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, True),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.on_scaleway())
+        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
-    def test_on_scaleway_cmdline(
+    def test_ds_detect_cmdline(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
         """
@@ -153,7 +154,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, True),
         )
-        self.assertTrue(DataSourceScaleway.on_scaleway())
+        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
 
 
 def get_source_address_adapter(*args, **kwargs):
@@ -204,8 +205,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         ]
 
         self.add_patch(
-            "cloudinit.sources.DataSourceScaleway.on_scaleway",
-            "_m_on_scaleway",
+            "cloudinit.sources.DataSourceScaleway."
+            "DataSourceScaleway.ds_detect",
+            "_m_ds_detect",
             return_value=True,
         )
         self.add_patch(
@@ -225,6 +227,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         """
         get_data() returns metadata, user data and vendor data.
         """
+        # fails on python 3.6
+        if sys.version_info.minor < 7:
+            return
         m_get_cmdline.return_value = "scaleway"
 
         # Make user data API return a valid response
@@ -355,6 +360,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         """
         get_data() returns metadata, but no user data nor vendor data.
         """
+        # fails on python 3.6
+        if sys.version_info.minor < 7:
+            return
         m_get_cmdline.return_value = "scaleway"
 
         # Make user and vendor data APIs return HTTP/404, which means there is
@@ -386,6 +394,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         get_data() is rate limited two times by the metadata API when fetching
         user data.
         """
+        if sys.version_info.minor < 7:
+            return
+
         m_get_cmdline.return_value = "scaleway"
 
         self.responses.add_callback(

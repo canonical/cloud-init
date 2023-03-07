@@ -31,7 +31,8 @@ class DataSourceCloudSigma(sources.DataSource):
         self.ssh_public_key = ""
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
 
-    def is_running_in_cloudsigma(self):
+    @staticmethod
+    def ds_detect():
         """
         Uses dmi data to detect if this instance of cloud-init is running
         in the CloudSigma's infrastructure.
@@ -51,8 +52,6 @@ class DataSourceCloudSigma(sources.DataSource):
         as userdata.
         """
         dsmode = None
-        if not self.is_running_in_cloudsigma():
-            return False
 
         try:
             server_context = self.cepko.all().result

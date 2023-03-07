@@ -13,6 +13,7 @@ import copy
 import json
 import os
 import pickle
+import re
 from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
@@ -311,22 +312,45 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Check if running on this datasource"""
         return True
 
+    @staticmethod
+    def get_cmdline():
+        """Check if command line argument for this datasource was passed
+        Passing by command line overrides runtime datasource detection
+        """
+        cmdline = util.get_cmdline()
+        ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+) ", cmdline)
+        ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+) ", cmdline)
+        ds = ds_parse_1 or ds_parse_2
+        if ds:
+            return ds.group(1)
+
     def override_ds_detect(self):
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - TODO: commandline argument is used (ci.ds=OpenStack)
+        - commandline argument is used (ci.ds=OpenStack)
+
+        Note: On systemd, get_cmdline() will not run, since ds-identify
+        will check the kernel commandline and emit a single datasource.
+        get_cmdline() exists for the general case - when ds-identify
+        does not run, _something_ needs to detect the kernel command
+        line definition. Accordingly, order get_cmdline() call second.
         """
-        return self.sys_cfg.get("datasource_list", []) in (
+        if self.sys_cfg.get("datasource_list", []) in (
             [self.dsname],
             [self.dsname, "None"],
-        )
+        ):
+            return f"Machine is configured to run on single datasource {self}."
+        elif self.get_cmdline():
+            return (
+                "Machine is configured by the kernel commandline to run on "
+                f"single datasource {self}."
+            )
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
-        if self.override_ds_detect():
-            LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
-            )
+        msg = self.override_ds_detect()
+        if msg:
+            LOG.debug(msg)
         elif self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
         else:

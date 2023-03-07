@@ -37,12 +37,12 @@ class DataSourceVultr(sources.DataSource):
             ]
         )
 
+    @staticmethod
+    def ds_detect():
+        return vultr.is_vultr()
+
     # Initiate data and check if Vultr
     def _get_data(self):
-        LOG.debug("Detecting if machine is a Vultr instance")
-        if not vultr.is_vultr():
-            LOG.debug("Machine is not a Vultr instance")
-            return False
 
         LOG.debug("Machine is a Vultr instance")
 
