@@ -87,3 +87,21 @@ class TestDeprecatedLogs:
             schedule=6,
         )
         assert 2 == len(caplog.records)
+
+    def test_python_log_deduplication(self, caplog):
+        ci_logging.defineDeprecationLogger()
+        util.deprecate_python(
+            deprecated="Python stuff",
+            deprecated_version="3.2",
+        )
+        util.deprecate_python(
+            deprecated="Python stuff",
+            deprecated_version="3.2",
+        )
+        assert 1 == len(caplog.records)
+        print(caplog.records)
+        print(caplog.records[0])
+        assert (
+            "Python stuff was deprecated in Python 3.2 and will be removed in "
+            "a future version of Python. Please file a bug report."
+        ) in caplog.text

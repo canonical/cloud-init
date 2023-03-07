@@ -1744,7 +1744,11 @@ def read_azure_ovf(contents):
 
 
 def encrypt_pass(password, salt_id="$6$"):
-    util.deprecate_python("")
+    util.deprecate_python(
+        deprecated="Standard library module 'crypt'",
+        deprecated_version="3.11",
+        removed_version="3.13",
+    )
     return crypt.crypt(password, salt_id + util.rand_str(strlen=16))
 
 

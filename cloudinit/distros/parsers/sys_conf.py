@@ -17,6 +17,8 @@ from io import StringIO
 # bash scripts...
 import configobj
 
+from cloudinit import util
+
 # See: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap08.html
 # or look at the 'param_expand()' function in the subst.c file in the bash
 # source tarball...
@@ -93,6 +95,11 @@ class SysConf(configobj.ConfigObj):
                                 lambda x: self._get_single_quote(x) % x
                             )  # noqa: E731
                     else:
+                        util.deprecate_python(
+                            deprecated="Standard library module 'pipes'",
+                            deprecated_version="3.11",
+                            removed_version="3.13",
+                        )
                         quot_func = pipes.quote
         if not quot_func:
             return value
@@ -111,6 +118,3 @@ class SysConf(configobj.ConfigObj):
             val,
             cmnt,
         )
-
-
-# vi: ts=4 expandtab

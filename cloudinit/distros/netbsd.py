@@ -90,6 +90,11 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         if hashed:
             hashed_pw = passwd
         else:
+            util.deprecate_python(
+                deprecated="Standard library module 'crypt'",
+                deprecated_version="3.11",
+                removed_version="3.13",
+            )
             method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
             hashed_pw = crypt.crypt(passwd, crypt.mksalt(method))
 
@@ -136,6 +141,3 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
 class Distro(NetBSD):
     pass
-
-
-# vi: ts=4 expandtab

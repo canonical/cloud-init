@@ -2931,6 +2931,12 @@ def load_shell_content(content, add_empty=False, empty_val=None):
     variables.  Set their value to empty_val."""
 
     def _shlex_split(blob):
+        if blob is None:
+            deprecate_python(
+                deprecated="Passing 'None' to shlex.split()",
+                deprecated_version="3.9",
+            )
+
         return shlex.split(blob, comments=True)
 
     data = {}
@@ -3142,6 +3148,7 @@ def deprecate_python(
     *,
     deprecated: str,
     deprecated_version: str,
+    removed_version: Optional[str] = None,
     extra_message: Optional[str] = None,
 ):
     """Mark a "thing" as deprecated due to Python deprecation. Deduplicated
@@ -3164,19 +3171,24 @@ def deprecate_python(
         deprecate_python._log = set()  # type: ignore
     if not hasattr(deprecate_python, "_version"):
         version = sys.version_info
-        deprecate_python._version = Version(
+        deprecate_python._version = Version(  # type: ignore
             version.major, version.minor, version.micro
         )
     # don't log on older version of Python
-    if deprecate_python._version < Version.from_str(deprecated_version):
+    if deprecate_python._version < Version.from_str(  # type: ignore
+        deprecated_version
+    ):
         return
-    message = extra_message or ""
+    if not removed_version:
+        removed_version = "a future version of Python"
+    message = extra_message or "Please file a bug report."
     dedup = hash(deprecated + message + deprecated_version)
     if dedup not in deprecate._log:  # type: ignore
         deprecate._log.add(dedup)  # type: ignore
         deprecate_msg = (
-            f"{deprecated} was deprecated in Python {deprecated_version} and"
-            "will be removed in {removed_version}. {message}"
+            f"{deprecated} was deprecated in Python "
+            f"{deprecated_version} and will be removed in "
+            f"{removed_version}. {message}"
         ).rstrip()
         if hasattr(LOG, "deprecated"):
             LOG.deprecated(deprecate_msg)
