@@ -55,7 +55,7 @@ class Release:
 
     def __lt__(self, other: "Release"):
         if self.os != other.os:
-            return False
+            raise ValueError(f"{self.os} cannot be compared to {other.os}!")
         return version.parse(self.version) < version.parse(other.version)
 
     @classmethod
@@ -82,12 +82,11 @@ class Release:
         return cls(os, series, version, image_id)
 
 
-XENIAL = Release("ubuntu", "xenial", "16.04")
 BIONIC = Release("ubuntu", "bionic", "18.04")
 FOCAL = Release("ubuntu", "focal", "20.04")
-GROOVY = Release("ubuntu", "jammy", "22.04")
-HIRSUTE = Release("ubuntu", "kinetic", "22.10")
+JAMMY = Release("ubuntu", "jammy", "22.04")
+KINETIC = Release("ubuntu", "kinetic", "22.10")
+LUNAR = Release("ubuntu", "lunar", "23.04")
 
 CURRENT_RELEASE = Release.from_os_image()
-RELEASE_IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
-RELEASE_NOT_UBUNTU = not RELEASE_IS_UBUNTU
+IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
