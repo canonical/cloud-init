@@ -24,6 +24,11 @@ kernel_modules:
     load: false
     persist:
       blacklist: true
+  - name: btrfs
+    load: true
+    persist:
+      softdep:
+        pre: ["nf_conntrack" "nf_tables"]
 """
 
 KERNEL_MODULES_LXD = "lockd,zfs,wireguard"
@@ -65,8 +70,8 @@ class BaseTest:
                 id="ASCII-check-2",
             ),
             pytest.param(
-                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard' | wc -l",
-                "3",
+                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard\\|^btrfs' | wc -l",
+                "4",
                 id="check-loaded-modules",
             ),
             pytest.param(
