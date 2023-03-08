@@ -1,5 +1,7 @@
 cloud-init (23.1.1-0ubuntu2) UNRELEASED; urgency=medium
 
+  * d/cloud-init.postinst: MAAS prefer yaml.safe_load over yaml.load
+    (LP: #2009746)
   * d/cloud-init.preinst: Oracle to remove vestigial /etc/cloud.cloud.cfg.d/
     99-disable-network-config.cfg because system config is now honored before
     datasource config (LP: #1956788)
