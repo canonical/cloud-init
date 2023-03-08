@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -117,10 +118,18 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
         "focal",
     ):
         requires.append("dh-systemd")
+    build_deps = ",".join(requires)
+    (stdout, _stderr) = subp.subp(
+        ["dpkg-query", "-W", "-f='${Provides}'", "debhelper"]
+    )
+    # Get latest debhelper-compate support on host
+    debhelper_matches = re.findall(r"(debhelper-compat \(= \d+\)),", stdout)
+    if debhelper_matches:
+        build_deps += f",{debhelper_matches[-1]}"
     templater.render_to_file(
         util.abs_join(find_root(), "packages", "debian", "control.in"),
         util.abs_join(deb_dir, "control"),
-        params={"build_depends": ",".join(requires)},
+        params={"build_depends": build_deps},
     )
 
 

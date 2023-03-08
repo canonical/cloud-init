@@ -4,7 +4,7 @@ export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 DEB_VERSION := $(shell dpkg-parsechangelog --show-field=Version)
 
 %:
-	dh $@ --with python3,systemd --buildsystem pybuild
+	dh $@ --with python3 --buildsystem pybuild
 
 override_dh_install:
 	dh_install
