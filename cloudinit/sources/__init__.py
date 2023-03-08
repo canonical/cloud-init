@@ -313,7 +313,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return True
 
     @staticmethod
-    def get_cmdline():
+    def parse_cmdline():
         """Check if command line argument for this datasource was passed
         Passing by command line overrides runtime datasource detection
         """
@@ -336,16 +336,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         does not run, _something_ needs to detect the kernel command
         line definition. Accordingly, order get_cmdline() call second.
         """
-        if self.sys_cfg.get("datasource_list", []) in (
-            [self.dsname],
-            [self.dsname, "None"],
-        ):
-            return f"Machine is configured to run on single datasource {self}."
-        elif self.get_cmdline():
+        if self.dsname == self.parse_cmdline():
             return (
                 "Machine is configured by the kernel commandline to run on "
                 f"single datasource {self}."
             )
+        elif self.sys_cfg.get("datasource_list", []) in (
+            [self.dsname],
+            [self.dsname, "None"],
+        ):
+            return f"Machine is configured to run on single datasource {self}."
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
