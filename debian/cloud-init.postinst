@@ -38,10 +38,10 @@ def update(src, cand):
 REMOVER = object
 if len(sys.argv) == 5:
    REMOVER = sys.argv[4]
-newcfg = yaml.load(newyaml)
+newcfg = yaml.safe_load(newyaml)
 
 with open(fname, "r") as fp:
-    cfg = yaml.load(fp)
+    cfg = yaml.safe_load(fp)
 if not cfg: cfg = {}
 
 cfg = update(cfg, newcfg)
