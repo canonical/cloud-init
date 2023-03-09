@@ -126,14 +126,3 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
             == nocloud_metadata["local-hostname"]
         )
         assert v1["public_ssh_keys"][0] == nocloud_metadata["public-keys"]
-
-
-@pytest.mark.lxd_vm
-@pytest.mark.ubuntu  # Because netplan
-def test_lxd_datasource_kernel(client: IntegrationInstance):
-    client.edit("environment.DEBUG_PROC_CMDLINE", "ao ci.ds=OpenStack aakj")
-    log = client.execute("cat /var/log/cloud-init.log")
-    assert (
-        "Machine is configured by the kernel commandline to run on single "
-        "datasource OpenStack"
-    ) in log

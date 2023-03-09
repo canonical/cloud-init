@@ -330,11 +330,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         - only a single datasource defined (nothing to fall back to)
         - commandline argument is used (ci.ds=OpenStack)
 
-        Note: On systemd, get_cmdline() will not run, since ds-identify
-        will check the kernel commandline and emit a single datasource.
-        get_cmdline() exists for the general case - when ds-identify
-        does not run, _something_ needs to detect the kernel command
-        line definition. Accordingly, order get_cmdline() call second.
+        Note: get_cmdline() is required for the general case - when ds-identify
+        does not run, _something_ needs to detect the kernel command line
+        definition.
         """
         if self.dsname == self.parse_cmdline():
             return (
