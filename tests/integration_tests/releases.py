@@ -41,12 +41,12 @@ class Release:
     def __init__(
         self,
         os: str,
-        release: str,
+        series: str,
         version: str,
         image_id: Optional[str] = None,
     ):
         self.os = os
-        self.series = release
+        self.series = series
         self.version = version
         self.image_id = image_id
 
