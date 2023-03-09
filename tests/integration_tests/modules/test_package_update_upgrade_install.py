@@ -16,6 +16,8 @@ import re
 
 import pytest
 
+from tests.integration_tests.releases import IS_UBUNTU
+
 USER_DATA = """\
 #cloud-config
 packages:
@@ -26,7 +28,7 @@ package_upgrade: true
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Uses Apt")
 @pytest.mark.user_data(USER_DATA)
 class TestPackageUpdateUpgradeInstall:
     def assert_package_installed(self, pkg_out, name, version=None):

@@ -47,52 +47,6 @@ def _get_ubuntu_series() -> list:
     return out.splitlines()
 
 
-class ImageSpecification:
-    """A specification of an image to launch for testing.
-
-    If either of ``os`` and ``release`` are not specified, an attempt will be
-    made to infer the correct values for these on instantiation.
-
-    :param image_id:
-        The image identifier used by the rest of the codebase to launch this
-        image.
-    :param os:
-        An optional string describing the operating system this image is for
-        (e.g.  "ubuntu", "rhel", "freebsd").
-    :param release:
-        A optional string describing the operating system release (e.g.
-        "focal", "8"; the exact values here will depend on the OS).
-    """
-
-    def __init__(
-        self,
-        image_id: str,
-        os: Optional[str] = None,
-        release: Optional[str] = None,
-    ):
-        if image_id in _get_ubuntu_series():
-            if os is None:
-                os = "ubuntu"
-            if release is None:
-                release = image_id
-
-        self.image_id = image_id
-        self.os = os
-        self.release = release
-        log.info(
-            "Detected image: image_id=%s os=%s release=%s",
-            self.image_id,
-            self.os,
-            self.release,
-        )
-
-    @classmethod
-    def from_os_image(cls):
-        """Return an ImageSpecification for integration_settings.OS_IMAGE."""
-        parts = integration_settings.OS_IMAGE.split("::", 2)
-        return cls(*parts)
-
-
 class IntegrationCloud(ABC):
     datasource: str
     cloud_instance: BaseCloud
