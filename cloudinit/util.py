@@ -3166,6 +3166,7 @@ def deprecate_call(
                 deprecated_version=deprecated_version,
                 deprecated=func.__name__,
                 extra_message=extra_message,
+                schedule=schedule,
             )
             return out
 
