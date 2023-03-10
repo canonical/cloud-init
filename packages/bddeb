@@ -122,7 +122,7 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     (stdout, _stderr) = subp.subp(
         ["dpkg-query", "-W", "-f='${Provides}'", "debhelper"]
     )
-    # Get latest debhelper-compate support on host
+    # Get latest debhelper-compat support on host
     debhelper_matches = re.findall(r"(debhelper-compat \(= \d+\)),", stdout)
     if debhelper_matches:
         build_deps += f",{debhelper_matches[-1]}"
