@@ -33,7 +33,7 @@ def ubuntu_version_from_series(series) -> str:
         raise ValueError(
             f"'{series}' is not a recognized Ubuntu release"
         ) from e
-    return out.rstrip(" LTS")
+    return out.strip().rstrip(" LTS")
 
 
 @functools.total_ordering
