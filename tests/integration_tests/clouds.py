@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Optional, Type
+from typing import Type
 from uuid import UUID
 
 from pycloudlib import (
