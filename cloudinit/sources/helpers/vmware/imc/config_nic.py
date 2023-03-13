@@ -62,7 +62,7 @@ class NicConfigurator:
         if not primary_nics:
             return None
         elif len(primary_nics) > 1:
-            raise Exception(
+            raise RuntimeError(
                 "There can only be one primary nic",
                 [nic.mac for nic in primary_nics],
             )

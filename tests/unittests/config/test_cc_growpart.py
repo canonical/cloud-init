@@ -381,7 +381,7 @@ class TestEncrypted:
             return "/dev/vdz"
         elif value.startswith("/dev"):
             return value
-        raise Exception(f"unexpected value {value}")
+        raise RuntimeError(f"unexpected value {value}")
 
     def _realpath_side_effect(self, value):
         return "/dev/dm-1" if value.startswith("/dev/mapper") else value

@@ -75,7 +75,7 @@ class TestGetMbrHddSize(TestCase):
                 return hdd_size_in_bytes, None
             elif "--getss" in cmd:
                 return sector_size_in_bytes, None
-            raise Exception("Unexpected blockdev command called")
+            raise RuntimeError("Unexpected blockdev command called")
 
         self.subp.side_effect = _subp
 

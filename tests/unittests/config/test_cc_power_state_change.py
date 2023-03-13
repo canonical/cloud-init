@@ -164,7 +164,7 @@ def check_lps_ret(psc_return, mode=None):
 
     if len(errs):
         lines = ["Errors in result: %s" % str(psc_return)] + errs
-        raise Exception("\n".join(lines))
+        raise RuntimeError("\n".join(lines))
 
 
 class TestPowerStateChangeSchema:

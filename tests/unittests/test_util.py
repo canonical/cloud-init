@@ -2877,7 +2877,7 @@ class TestFindDevs:
                 return msdos
             elif pattern == "/dev/iso9660/*":
                 return iso9660
-            raise Exception
+            raise RuntimeError
 
         m_glob.side_effect = fake_glob
 

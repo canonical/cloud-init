@@ -102,7 +102,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         interfaces = self.metadata.get("interfaces")
         LOG.debug(interfaces)
         if not interfaces:
-            raise Exception("Unable to get meta-data from server....")
+            raise RuntimeError("Unable to get meta-data from server....")
 
         nameservers = self.metadata_full["dns"]["nameservers"]
         self._network_config = do_helper.convert_network_configuration(

@@ -129,7 +129,7 @@ class DataSourceHetzner(sources.DataSource):
 
         _net_config = self.metadata["network-config"]
         if not _net_config:
-            raise Exception("Unable to get meta-data from server....")
+            raise RuntimeError("Unable to get meta-data from server....")
 
         self._network_config = _net_config
 
