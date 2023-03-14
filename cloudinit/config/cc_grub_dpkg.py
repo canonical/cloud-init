@@ -141,7 +141,6 @@ def is_efi_booted() -> bool:
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-
     mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
     if not mycfg:
         mycfg = {}
@@ -153,31 +152,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     dconf_sel = get_debconf_config(mycfg)
     LOG.debug("Setting grub debconf-set-selections with '%s'", dconf_sel)
-    idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
-    if idevs is None:
-        idevs = fetch_idevs()
-
-    idevs_empty = mycfg.get("grub-pc/install_devices_empty")
-    if idevs_empty is None:
-        idevs_empty = not idevs
-    elif not isinstance(idevs_empty, bool):
-        idevs_empty = util.translate_bool(idevs_empty)
-    idevs_empty = str(idevs_empty).lower()
-
-    # now idevs and idevs_empty are set to determined values
-    # or, those set by user
-
-    dconf_sel = (
-        "grub-pc grub-pc/install_devices string %s\n"
-        "grub-pc grub-pc/install_devices_empty boolean %s\n"
-        % (idevs, idevs_empty)
-    )
-
-    LOG.debug(
-        "Setting grub debconf-set-selections with '%s','%s'",
-        idevs,
-        idevs_empty,
-    )
 
     try:
         subp.subp(["debconf-set-selections"], dconf_sel)
