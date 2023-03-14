@@ -203,9 +203,10 @@ def disable_system_ca_certs(distro_cfg):
                     out_lines.append(header_comment)
                     added_header = True
                 out_lines.append("!" + line)
-    util.write_file(
-        ca_cert_cfg_fn, "\n".join(out_lines) + "\n", omode="wb"
-    )
+
+        util.write_file(
+            ca_cert_cfg_fn, "\n".join(out_lines) + "\n", omode="wb"
+        )
 
 
 def remove_default_ca_certs(distro_cfg):
