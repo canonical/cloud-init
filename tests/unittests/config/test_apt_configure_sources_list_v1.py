@@ -135,7 +135,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     @staticmethod
     def myresolve(name):
         """Fake util.is_resolvable for mirrorfail tests"""
-        if name == "does.not.exist":
+        if "does.not.exist" in name:
             print("Faking FAIL for '%s'" % name)
             return False
         else:
@@ -155,8 +155,8 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 ],
                 "http://httpredir.debian.org/debian",
             )
-        mockresolve.assert_any_call("does.not.exist")
-        mockresolve.assert_any_call("httpredir.debian.org")
+        mockresolve.assert_any_call("http://does.not.exist")
+        mockresolve.assert_any_call("http://httpredir.debian.org/debian")
 
     def test_apt_v1_srcl_ubuntu_mirrorfail(self):
         """Test rendering of a source.list from template for ubuntu"""
@@ -168,8 +168,8 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 ["http://does.not.exist", "http://archive.ubuntu.com/ubuntu/"],
                 "http://archive.ubuntu.com/ubuntu/",
             )
-        mockresolve.assert_any_call("does.not.exist")
-        mockresolve.assert_any_call("archive.ubuntu.com")
+        mockresolve.assert_any_call("http://does.not.exist")
+        mockresolve.assert_any_call("http://archive.ubuntu.com/ubuntu/")
 
     def test_apt_v1_srcl_custom(self):
         """Test rendering from a custom source.list template"""
