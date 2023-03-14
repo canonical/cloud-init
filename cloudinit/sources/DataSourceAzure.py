@@ -9,6 +9,7 @@ import crypt
 import os
 import os.path
 import re
+import socket
 import xml.etree.ElementTree as ET
 from enum import Enum
 from pathlib import Path
@@ -571,11 +572,14 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
 
+            if pps_type == PPSType.RUNNING:
+                self._wait_for_pps_running_reuse()
             if pps_type == PPSType.SAVABLE:
-                self._wait_for_all_nics_ready()
+                self._wait_for_pps_savable_reuse()
             elif pps_type == PPSType.OS_DISK:
-                self._report_ready_for_pps(create_marker=False)
                 self._wait_for_pps_os_disk_shutdown()
+            else:
+                self._wait_for_pps_unknown_reuse()
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
@@ -974,15 +978,6 @@ class DataSourceAzure(sources.DataSource):
             self._create_report_ready_marker()
 
     @azure_ds_telemetry_reporter
-    def _wait_for_pps_os_disk_shutdown(self):
-        report_diagnostic_event(
-            "Waiting for host to shutdown VM...",
-            logger_func=LOG.info,
-        )
-        sleep(31536000)
-        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
-
-    @azure_ds_telemetry_reporter
     def _check_if_nic_is_primary(self, ifname: str) -> bool:
         """Check if a given interface is the primary nic or not."""
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
@@ -1060,16 +1055,71 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(str(error), logger_func=LOG.error)
 
     @azure_ds_telemetry_reporter
-    def _wait_for_all_nics_ready(self):
-        """Wait for nic(s) to be hot-attached. There may be multiple nics
-        depending on the customer request.
-        But only primary nic would be able to communicate with wireserver
-        and IMDS. So we detect and save the primary nic to be used later.
-        """
-
-        nl_sock = None
+    def _create_bound_netlink_socket(self) -> socket.socket:
         try:
-            nl_sock = netlink.create_bound_netlink_socket()
+            return netlink.create_bound_netlink_socket()
+        except netlink.NetlinkCreateSocketError as error:
+            report_diagnostic_event(
+                f"Failed to create netlink socket: {error}",
+                logger_func=LOG.error,
+            )
+            raise
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_os_disk_shutdown(self):
+        """Report ready and wait for host to initiate shutdown."""
+        self._report_ready_for_pps(create_marker=False)
+
+        report_diagnostic_event(
+            "Waiting for host to shutdown VM...",
+            logger_func=LOG.info,
+        )
+        sleep(31536000)
+        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_running_reuse(self) -> None:
+        """Report ready and wait for nic link to switch upon re-use."""
+        nl_sock = self._create_bound_netlink_socket()
+
+        try:
+            if (
+                self._ephemeral_dhcp_ctx is None
+                or self._ephemeral_dhcp_ctx.iface is None
+            ):
+                raise RuntimeError("missing ephemeral context")
+
+            iface = self._ephemeral_dhcp_ctx.iface
+            self._report_ready_for_pps()
+
+            LOG.debug(
+                "Wait for vnetswitch to happen on %s",
+                iface,
+            )
+            with events.ReportEventStack(
+                name="wait-for-media-disconnect-connect",
+                description="wait for vnet switch",
+                parent=azure_ds_reporter,
+            ):
+                try:
+                    netlink.wait_for_media_disconnect_connect(nl_sock, iface)
+                except AssertionError as e:
+                    report_diagnostic_event(
+                        "Error while waiting for vnet switch: %s" % e,
+                        logger_func=LOG.error,
+                    )
+        finally:
+            nl_sock.close()
+
+        # Teardown source PPS network configuration.
+        self._teardown_ephemeral_networking()
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_savable_reuse(self):
+        """Report ready and wait for nic(s) to be hot-attached upon re-use."""
+        nl_sock = self._create_bound_netlink_socket()
+
+        try:
             self._report_ready_for_pps(expect_url_error=True)
             try:
                 self._teardown_ephemeral_networking()
@@ -1083,76 +1133,25 @@ class DataSourceAzure(sources.DataSource):
 
             self._wait_for_nic_detach(nl_sock)
             self._wait_for_hot_attached_primary_nic(nl_sock)
-        except netlink.NetlinkCreateSocketError as e:
-            report_diagnostic_event(str(e), logger_func=LOG.warning)
-            raise
         finally:
-            if nl_sock:
-                nl_sock.close()
+            nl_sock.close()
 
     @azure_ds_telemetry_reporter
-    def _poll_imds(self):
-        """Poll IMDS for the new provisioning data until we get a valid
-        response. Then return the returned JSON object."""
-        nl_sock = None
-        report_ready = bool(
-            not os.path.isfile(self._reported_ready_marker_file)
-        )
+    def _wait_for_pps_unknown_reuse(self):
+        """Report ready if needed for unknown/recovery PPS."""
+        if os.path.isfile(self._reported_ready_marker_file):
+            # Already reported ready, nothing to do.
+            return
+
+        self._report_ready_for_pps()
+
+        # Teardown source PPS network configuration.
+        self._teardown_ephemeral_networking()
+
+    @azure_ds_telemetry_reporter
+    def _poll_imds(self) -> bytes:
+        """Poll IMDs for reprovisiondata XML document data."""
         dhcp_attempts = 0
-
-        if report_ready:
-            try:
-                if (
-                    self._ephemeral_dhcp_ctx is None
-                    or self._ephemeral_dhcp_ctx.iface is None
-                ):
-                    raise RuntimeError("Missing ephemeral context")
-                iface = self._ephemeral_dhcp_ctx.iface
-
-                nl_sock = netlink.create_bound_netlink_socket()
-                self._report_ready_for_pps()
-
-                LOG.debug(
-                    "Wait for vnetswitch to happen on %s",
-                    iface,
-                )
-                with events.ReportEventStack(
-                    name="wait-for-media-disconnect-connect",
-                    description="wait for vnet switch",
-                    parent=azure_ds_reporter,
-                ):
-                    try:
-                        netlink.wait_for_media_disconnect_connect(
-                            nl_sock, iface
-                        )
-                    except AssertionError as e:
-                        report_diagnostic_event(
-                            "Error while waiting for vnet switch: %s" % e,
-                            logger_func=LOG.error,
-                        )
-            except netlink.NetlinkCreateSocketError as e:
-                report_diagnostic_event(
-                    "Failed to create bound netlink socket: %s" % e,
-                    logger_func=LOG.warning,
-                )
-                raise sources.InvalidMetaDataException(
-                    "Failed to report ready while in provisioning pool."
-                ) from e
-            except NoDHCPLeaseError as e:
-                report_diagnostic_event(
-                    "DHCP failed while in provisioning pool",
-                    logger_func=LOG.warning,
-                )
-                raise sources.InvalidMetaDataException(
-                    "Failed to report ready while in provisioning pool."
-                ) from e
-            finally:
-                if nl_sock:
-                    nl_sock.close()
-
-            # Teardown old network configuration.
-            self._teardown_ephemeral_networking()
-
         reprovision_data = None
         while not reprovision_data:
             if not self._is_ephemeral_networking_up():
@@ -1177,7 +1176,6 @@ class DataSourceAzure(sources.DataSource):
             "attempted dhcp %d times after reuse" % dhcp_attempts,
             logger_func=LOG.debug,
         )
-
         return reprovision_data
 
     @azure_ds_telemetry_reporter
