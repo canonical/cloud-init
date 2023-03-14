@@ -149,4 +149,4 @@ def reset_rmc():
     if node_id_after == node_id_before:
         msg = "New node ID did not get generated."
         LOG.error(msg)
-        raise Exception(msg)
+        raise RuntimeError(msg)

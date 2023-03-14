@@ -55,7 +55,7 @@ class DataSourceNWCS(sources.DataSource):
         md = self.get_metadata()
 
         if md is None:
-            raise Exception("failed to get metadata")
+            raise RuntimeError("failed to get metadata")
 
         self.metadata_full = md
 
@@ -111,7 +111,7 @@ class DataSourceNWCS(sources.DataSource):
             return self._network_config
 
         if not self.metadata["network"]["config"]:
-            raise Exception("Unable to get metadata from server")
+            raise RuntimeError("Unable to get metadata from server")
 
         # metadata sends interface names, but we dont want to use them
         for i in self.metadata["network"]["config"]:

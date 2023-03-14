@@ -346,7 +346,7 @@ class Renderer(renderer.Renderer):
                                 f" and dhcp{version}-overrides.use-domains"
                                 f" configured. Use one"
                             )
-                            raise Exception(exception)
+                            raise RuntimeError(exception)
 
                         self.parse_dhcp_overrides(cfg, device, dhcp, version)
 
