@@ -180,7 +180,7 @@ def disable_system_ca_certs(distro_cfg):
 
     ca_cert_cfg_fn = distro_cfg["ca_cert_config"]
 
-    if ca_cert_cfg_fn is None:
+    if not ca_cert_cfg_fn or not os.path.exists(ca_cert_cfg_fn):
         return
 
     header_comment = (
