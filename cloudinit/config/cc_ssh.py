@@ -280,7 +280,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     if gid != -1:
                         # perform same "sanitize permissions" as sshd-keygen
                         os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, 0o640)
+                        os.chmod(keyfile, 0o600)
                         os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
