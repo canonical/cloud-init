@@ -37,6 +37,8 @@ jobs:
             ubuntu-dev-tools
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+          # Install all build and test dependencies
+          ./tools/read-dependencies -r requirements.txt -r test-requirements.txt -d ubuntu -s -i
       - name: Build package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
