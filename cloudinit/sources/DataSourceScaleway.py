@@ -270,6 +270,10 @@ class DataSourceScaleway(sources.DataSource):
 
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
+
+        # The DataSource uses EventType.BOOT so we are called more than once.
+        # Try to crawl metadata on IPv4 first and set has_ipv4 to False if we
+        # timeout so we do not try to crawl on IPv4 more than once.
         if self.has_ipv4:
             try:
                 # DHCPv4 waits for timeout defined in /etc/dhcp/dhclient.conf
@@ -298,7 +302,11 @@ class DataSourceScaleway(sources.DataSource):
                 ProcessExecutionError,
             ) as e:
                 util.logexc(LOG, str(e))
+                # DHCPv4 timeout means that there is no DHCPv4 on the NIC.
+                # Flag it so we do not try to crawl on IPv4 again.
                 self.has_ipv4 = False
+
+        # Only crawl metadata on IPv6 if it has not been done on IPv4
         if not self.has_ipv4:
             try:
                 with EphemeralIPv6Network(
@@ -371,6 +379,7 @@ class DataSourceScaleway(sources.DataSource):
             netcfg[self._fallback_interface] = ip_cfg
             self._network_config = {"version": 2, "ethernets": netcfg}
         else:
+            # Kept for backward compatibility
             netcfg = {
                 "type": "physical",
                 "name": "%s" % self._fallback_interface,
