@@ -51,13 +51,14 @@ class ReadUrlRetryHandler:
         # Check for connection errors which may occur early boot, but
         # are otherwise indicative that we are not connecting with the
         # primary NIC.
-        if isinstance(
-            exception.cause, (requests.ConnectionError, requests.Timeout)
-        ):
+        if isinstance(exception.cause, requests.ConnectionError):
             self.max_connection_errors -= 1
             if self.max_connection_errors < 0:
                 retry = False
-        elif exception.code not in self.retry_codes:
+        elif (
+            exception.code is not None
+            and exception.code not in self.retry_codes
+        ):
             retry = False
 
         if self._request_count >= self._logging_threshold:
