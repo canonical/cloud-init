@@ -3022,8 +3022,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
+        dhcp_ctx.iface = lease["interface"]
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = dhcp_ctx
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3031,7 +3033,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
         assert m_report_ready.mock_calls == [mock.call()]
 
-        self.assertEqual(3, m_dhcp.call_count, "Expected 3 DHCP calls")
+        self.assertEqual(2, m_dhcp.call_count, "Expected 2 DHCP calls")
         assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
@@ -3162,6 +3164,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3196,6 +3199,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3237,8 +3241,9 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             }
         ]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3247,7 +3252,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
     def test__reprovision_calls__poll_imds(
         self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
@@ -3268,10 +3273,11 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         content = construct_ovf_env(username=username, hostname=hostname)
         m_fetch_reprovisiondata.side_effect = [content]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md["local-hostname"], hostname)
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3280,7 +3286,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
 
 class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
@@ -4173,6 +4179,35 @@ class TestProvisioning:
         ]
 
         # Verify no netlink operations for recovering PPS.
+        assert self.mock_netlink.mock_calls == []
+
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
+    def test_source_pps_fails_initial_dhcp(self, pps_type):
+        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.mock_net_dhcp_maybe_perform_dhcp_discovery.side_effect = [
+            dhcp.NoDHCPLeaseError()
+        ]
+
+        with mock.patch.object(self.azure_ds, "_report_failure") as m_report:
+            self.azure_ds._get_data()
+
+        assert m_report.mock_calls == [mock.call()]
+
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+        ]
+        assert self.mock_readurl.mock_calls == []
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
         assert self.mock_netlink.mock_calls == []
 
     @pytest.mark.parametrize(

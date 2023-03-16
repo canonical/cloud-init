@@ -579,6 +579,12 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
 
+            # Networking is a hard requirement for source PPS, fail without it.
+            if not self._is_ephemeral_networking_up():
+                msg = "DHCP failed while in source PPS"
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
+
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
             elif pps_type == PPSType.OS_DISK:
@@ -1096,13 +1102,6 @@ class DataSourceAzure(sources.DataSource):
         dhcp_attempts = 0
 
         if report_ready:
-            # Networking must be up for netlink to detect
-            # media disconnect/connect.  It may be down to due
-            # initial DHCP failure, if so check for it and retry,
-            # ensuring we flag it as required.
-            if not self._is_ephemeral_networking_up():
-                self._setup_ephemeral_networking(timeout_minutes=20)
-
             try:
                 if (
                     self._ephemeral_dhcp_ctx is None
