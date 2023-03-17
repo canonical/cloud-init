@@ -277,10 +277,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                         sys.stdout.write(util.decode_binary(out))
 
                     gid = util.get_group_id("ssh_keys")
+                    permissions_private = 0o600;
+                    if int(ssh_util.get_openssh_major_version()) < 9:
+                        permissions_private = 0o640;
                     if gid != -1:
                         # perform same "sanitize permissions" as sshd-keygen
                         os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, 0o600)
+                        os.chmod(keyfile, permissions_private)
                         os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
