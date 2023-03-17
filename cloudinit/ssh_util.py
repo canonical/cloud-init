@@ -8,6 +8,7 @@
 
 import os
 import pwd
+import subprocess
 from typing import List, Sequence, Tuple
 
 from cloudinit import log as logging
@@ -641,5 +642,9 @@ def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
         preserve_mode=True,
     )
 
+def getOpensshMajorVersion():
+    result = subprocess.getstatusoutput("ssh -V")
+    version = result[1][8]
+    return version
 
 # vi: ts=4 expandtab
