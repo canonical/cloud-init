@@ -642,7 +642,7 @@ def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
         preserve_mode=True,
     )
 
-def getOpensshMajorVersion():
+def get_openssh_major_version():
     result = subprocess.getstatusoutput("ssh -V")
     version = result[1][8]
     return version
