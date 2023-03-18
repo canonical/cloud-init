@@ -4,7 +4,6 @@ from tests.integration_tests.instances import IntegrationInstance
 
 
 @pytest.mark.lxd_vm
-@pytest.mark.lxd_container
 @pytest.mark.lxd_use_exec
 def test_lxd_datasource_kernel_override(client: IntegrationInstance):
     """This test is twofold: it tests kernel commandline override, which also

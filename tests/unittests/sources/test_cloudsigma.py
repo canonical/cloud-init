@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import sys
 
 from cloudinit import distros, helpers, sources
 from cloudinit.sources import DataSourceCloudSigma
@@ -44,7 +43,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         super(DataSourceCloudSigmaTest, self).setUp()
         self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.add_patch(
-            DS_PATH + ".ds_detect",
+            DS_PATH + ".override_ds_detect",
             "m_is_container",
             return_value=True,
         )
@@ -57,9 +56,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
 
     def test_get_hostname(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(
             "test_server", self.datasource.get_hostname().hostname
@@ -71,9 +67,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.assertEqual("65b2fb23", self.datasource.get_hostname().hostname)
 
     def test_get_public_ssh_keys(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(
             [SERVER_CONTEXT["meta"]["ssh_public_key"]],
@@ -81,9 +74,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_get_instance_id(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(
             SERVER_CONTEXT["uuid"], self.datasource.get_instance_id()
@@ -91,25 +81,16 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
 
     def test_platform(self):
         """All platform-related attributes are set."""
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(self.datasource.cloud_name, "cloudsigma")
         self.assertEqual(self.datasource.platform_type, "cloudsigma")
         self.assertEqual(self.datasource.subplatform, "cepko (/dev/ttyS1)")
 
     def test_metadata(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(self.datasource.metadata, SERVER_CONTEXT)
 
     def test_user_data(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(
             self.datasource.userdata_raw,
@@ -117,9 +98,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_encoded_user_data(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
 
         encoded_context = copy.deepcopy(SERVER_CONTEXT)
         encoded_context["meta"]["base64_fields"] = "cloudinit-user-data"
@@ -130,9 +108,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.assertEqual(self.datasource.userdata_raw, b"hi world\n")
 
     def test_vendor_data(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         self.datasource.get_data()
         self.assertEqual(
             self.datasource.vendordata_raw,
@@ -140,9 +115,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_lack_of_vendor_data(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         stripped_context = copy.deepcopy(SERVER_CONTEXT)
         del stripped_context["vendor_data"]
         self.datasource.cepko = CepkoMock(stripped_context)
@@ -151,9 +123,6 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.assertIsNone(self.datasource.vendordata_raw)
 
     def test_lack_of_cloudinit_key_in_vendor_data(self):
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
         stripped_context = copy.deepcopy(SERVER_CONTEXT)
         del stripped_context["vendor_data"]["cloudinit"]
         self.datasource.cepko = CepkoMock(stripped_context)
@@ -173,6 +142,3 @@ class DsLoads(test_helpers.TestCase):
             ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
         )
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)
-
-
-# vi: ts=4 expandtab
