@@ -3,24 +3,23 @@
 Datasources
 ***********
 
-Datasources are sources of configuration data for ``cloud-init`` that typically
-come from the user (i.e., user data) or come from the cloud that created the
-configuration drive (i.e., metadata). Typical user data includes files,
-YAML, and shell scripts whereas typical metadata includes server name,
-instance id, display name, and other cloud specific details.
+# todo fix links
+Datasources are sources of configuration data for ``cloud-init``. This data
+comes in the form of `user data`, `meta data`, and `vendor data`, which are
+combined together into a single configuration.
+
+To view this data, run ``sudo cloud-init query -a`` or check one of the files
+that at instancedata-Using_
+
+TODO: the following belongs in dev docs
 
 Since there are multiple ways to provide this data (each cloud solution seems
 to prefer its own way), a datasource abstract class was internally created to
 allow for a single way to access the different cloud systems methods, providing
 this data through the typical usage of subclasses.
 
-Any metadata processed by ``cloud-init``'s datasources is persisted as
-:file:`/run/cloud-init/instance-data.json`. ``Cloud-init`` provides tooling to
-quickly introspect some of that data. See :ref:`instance_metadata` for more
-information.
-
-Known sources
-=============
+Source
+======
 
 The following is a list of documents for each supported datasource:
 
@@ -54,6 +53,16 @@ The following is a list of documents for each supported datasource:
    datasources/vultr.rst
    datasources/zstack.rst
 
+How to configure datasource
+===========================
+- mention that by default cloud-init should automatically determine which datasource it is running on
+- however, in some cases, the datasource does not identify itself to cloud-init
+- mention datasource_list in /etc/cloud/cloud.cfg.d/
+- mention kernel commandline (include a map of datasource <-> dsname)
+
+
+# TODO: everything below this line belongs in a dev doc
+
 Datasource creation
 ===================
 
@@ -81,6 +90,7 @@ If the log is not present, you can generate it by running from source
 The mechanism used to identify the platform will be required for the
 ``ds-identify`` and datasource module sections below.
 
+# Todo: the following line is broken in upstream docs, lets fix it now
 Add datasource module :file:`cloudinit/sources/DataSource<CloudPlatform>.py`
 ----------------------------------------------------------------------------
 
@@ -132,3 +142,5 @@ Add documentation for your datasource
 -------------------------------------
 
 You should add a new file in :file:`doc/datasources/<cloudplatform>.rst`.
+
+.. _make-mime: https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html#storage-locations
