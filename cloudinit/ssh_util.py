@@ -660,6 +660,7 @@ def get_opensshd_version() -> Optional[str]:
     for line in err.split("\n"):
         if line.startswith(prefix):
             return line[len(prefix) : line.find(",")]
+    return None
 
 
 def get_opensshd_upstream_version() -> Optional[util.Version]:
@@ -670,8 +671,9 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
     `1.2`
     """
     full_version = get_opensshd_version()
+    upstream_version = None
     if full_version is None:
-        return None
+        return upstream_version
     elif "p" in full_version:
         upstream_version = full_version[: full_version.find("p")]
     elif " " in full_version:
@@ -679,9 +681,10 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
     else:
         upstream_version = full_version
     try:
-        return util.Version.from_str(upstream_version)
+        upstream_version = util.Version.from_str(upstream_version)
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
-
+    finally:
+        return upstream_version
 
 # vi: ts=4 expandtab
