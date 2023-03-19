@@ -9,10 +9,11 @@
 import os
 import pwd
 import subprocess
-from typing import List, Sequence, Tuple
+from contextlib import suppress
+from typing import List, Optional, Sequence, Tuple
 
 from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -642,9 +643,45 @@ def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
         preserve_mode=True,
     )
 
-def get_openssh_major_version():
-    result = subprocess.getstatusoutput("ssh -V")
-    version = result[1][8]
-    return version
+def get_opensshd_version() -> Optional[str]:
+    """Get the full version of the OpenSSH sshd daemon on the system.
+
+    On an ubuntu system, this would look something like:
+    1.2p1 Ubuntu-1ubuntu0.1
+
+    If we can't find `sshd` or parse the version number, return None.
+    """
+    # -V isn't actually a valid argument, but it will cause sshd to print
+    # out its version number to stderr.
+    err = ""
+    with suppress(subp.ProcessExecutionError):
+        _, err = subp.subp(["sshd", "-V"], rcs=[0, 1])
+    prefix = "OpenSSH_"
+    for line in err.split("\n"):
+        if line.startswith(prefix):
+            return line[len(prefix) : line.find(",")]
+
+
+def get_opensshd_upstream_version() -> Optional[util.Version]:
+    """Get the upstream version of the OpenSSH sshd dameon on the system.
+
+    This will NOT include the portable number, so if the Ubuntu version looks
+    like `1.2p1 Ubuntu-1ubuntu0.1`, then this function would return
+    `1.2`
+    """
+    full_version = get_opensshd_version()
+    if full_version is None:
+        return
+    elif "p" in full_version:
+        upstream_version = full_version[: full_version.find("p")]
+    elif " " in full_version:
+        upstream_version = full_version[: full_version.find(" ")]
+    else:
+        upstream_version = full_version
+    try:
+        return util.Version.from_str(upstream_version)
+    except (ValueError, TypeError):
+        LOG.warning("Could not parse sshd version: %s", upstream_version)
+
 
 # vi: ts=4 expandtab
