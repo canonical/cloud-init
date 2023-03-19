@@ -8,7 +8,6 @@
 
 import os
 import pwd
-import subprocess
 from contextlib import suppress
 from typing import List, Optional, Sequence, Tuple
 
@@ -643,6 +642,7 @@ def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
         preserve_mode=True,
     )
 
+
 def get_opensshd_version() -> Optional[str]:
     """Get the full version of the OpenSSH sshd daemon on the system.
 
@@ -671,7 +671,7 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
     """
     full_version = get_opensshd_version()
     if full_version is None:
-        return
+        return None
     elif "p" in full_version:
         upstream_version = full_version[: full_version.find("p")]
     elif " " in full_version:
