@@ -107,7 +107,11 @@ def attach_cloud_info(report, ui=None):
     When we have valid _get_instance_data, apport/generic-hooks/cloud_init.py
     provides CloudName, CloudID, CloudPlatform and CloudSubPlatform.
 
-    In absence of instance-data.json, prompt for the cloud below.
+    Apport/generic-hooks are delivered by cloud-init's downstream branches
+    ubuntu/(devel|kinetic|jammy|focal|bionic) so they will not be represented
+    in upstream main.
+
+    In absence of viable instance-data.json format, prompt for the cloud below.
     """
 
     if ui:
@@ -116,7 +120,7 @@ def attach_cloud_info(report, ui=None):
             with open(paths.get_runpath("instance_data")) as file:
                 instance_data = json.load(file)
                 assert instance_data.get("v1", {}).get("cloud_name")
-                return
+                return  # Valid instance-data means generic-hooks will report
         except (IOError, json.decoder.JSONDecodeError, AssertionError):
             pass
 
