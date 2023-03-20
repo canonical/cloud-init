@@ -4,6 +4,7 @@
 
 """Cloud-init apport interface"""
 
+import json
 import os
 
 from cloudinit.cmd.devel import read_cfg_paths
@@ -101,8 +102,29 @@ def attach_hwinfo(report, ui=None):
 
 
 def attach_cloud_info(report, ui=None):
-    """Prompt for cloud details if available."""
+    """Prompt for cloud details if instance-data unavailable.
+
+    When we have valid _get_instance_data, apport/generic-hooks/cloud_init.py
+    provides CloudName, CloudID, CloudPlatform and CloudSubPlatform.
+
+    Apport/generic-hooks are delivered by cloud-init's downstream branches
+    ubuntu/(devel|kinetic|jammy|focal|bionic) so they will not be represented
+    in upstream main.
+
+    In absence of viable instance-data.json format, prompt for the cloud below.
+    """
+
     if ui:
+        paths = read_cfg_paths()
+        try:
+            with open(paths.get_runpath("instance_data")) as file:
+                instance_data = json.load(file)
+                assert instance_data.get("v1", {}).get("cloud_name")
+                return  # Valid instance-data means generic-hooks will report
+        except (IOError, json.decoder.JSONDecodeError, AssertionError):
+            pass
+
+        # No valid /run/cloud/instance-data.json on system. Prompt for cloud.
         prompt = "Is this machine running in a cloud environment?"
         response = ui.yesno(prompt)
         if response is None:
