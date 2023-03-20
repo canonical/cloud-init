@@ -109,11 +109,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     # NOTE: python package was moved to the front after debuild -S would fail with
     # 'Please add apropriate interpreter' errors (as in debian bug 861132)
     requires.extend(["python3"] + reqs + test_reqs)
-    if templ_data["debian_release"] == "xenial":
-        requires.append("python3-pytest-catchlog")
-    elif templ_data["debian_release"] in (
+    if templ_data["debian_release"] in (
         "buster",
-        "xenial",
         "bionic",
         "focal",
     ):
@@ -125,7 +122,11 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     # Get latest debhelper-compat support on host
     debhelper_matches = re.findall(r"(debhelper-compat \(= \d+\)),", stdout)
     if debhelper_matches:
-        build_deps += f",{debhelper_matches[-1]}"
+        if templ_data["debian_release"] == "bionic":
+            # Bionic doesn't support debhelper-compat > 11
+            build_deps += ",debhelper-compat (= 11)"
+        else:
+            build_deps += f",{debhelper_matches[-1]}"
     templater.render_to_file(
         util.abs_join(find_root(), "packages", "debian", "control.in"),
         util.abs_join(deb_dir, "control"),
