@@ -1,5 +1,7 @@
 cloud-init (23.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
 
+  * d/apport-general-hook.py: Add general apport hook to append cloud type,
+    image and instance size information to bug reports (LP: #1724623)
   * d/cloud-init.preinst: Oracle to remove vestigial /etc/cloud.cloud.cfg.d/
     99-disable-network-config.cfg because system config is now honored before
     datasource config (LP: #1956788)
