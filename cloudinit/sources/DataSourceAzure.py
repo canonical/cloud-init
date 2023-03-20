@@ -306,20 +306,6 @@ DEF_EPHEMERAL_LABEL = "Temporary Storage"
 DEF_PASSWD_REDACTION = "REDACTED"
 
 
-@azure_ds_telemetry_reporter
-def is_platform_viable(seed_dir: Optional[Path]) -> bool:
-    """Check platform environment to report if this datasource may run."""
-    chassis_tag = ChassisAssetTag.query_system()
-    if chassis_tag is not None:
-        return True
-
-    # If no valid chassis tag, check for seeded ovf-env.xml.
-    if seed_dir is None:
-        return False
-
-    return (seed_dir / "ovf-env.xml").exists()
-
-
 class DataSourceAzure(sources.DataSource):
 
     dsname = "Azure"
@@ -701,14 +687,27 @@ class DataSourceAzure(sources.DataSource):
         self._metadata_imds = sources.UNSET
 
     @azure_ds_telemetry_reporter
+    def ds_detect(self):
+        """Check platform environment to report if this datasource may
+        run.
+        """
+        chassis_tag = ChassisAssetTag.query_system()
+        if chassis_tag is not None:
+            return True
+
+        # If no valid chassis tag, check for seeded ovf-env.xml.
+        if self.seed_dir is None:
+            return False
+
+        return Path(self.seed_dir, "ovf-env.xml").exists()
+
+    @azure_ds_telemetry_reporter
     def _get_data(self):
         """Crawl and process datasource metadata caching metadata as attrs.
 
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
-        if not is_platform_viable(Path(self.seed_dir)):
-            return False
         try:
             get_boot_telemetry()
         except Exception as e:

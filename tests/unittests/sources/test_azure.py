@@ -1096,8 +1096,8 @@ scbus-1 on xpt0 bus 0
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
 
-    def test_not_is_platform_viable_seed_should_return_no_datasource(self):
-        """Check seed_dir using _is_platform_viable and return False."""
+    def test_not_ds_detect_seed_should_return_no_datasource(self):
+        """Check seed_dir using ds_detect and return False."""
         # Return a non-matching asset tag value
         data = {}
         dsrc = self._get_ds(data)
@@ -3356,7 +3356,7 @@ class TestIsPlatformViable:
     ):
         mock_chassis_asset_tag.return_value = tag
 
-        assert dsaz.is_platform_viable(None) is True
+        assert dsaz.DataSourceAzure.ds_detect(None) is True
 
     def test_true_on_azure_ovf_env_in_seed_dir(
         self, azure_ds, mock_chassis_asset_tag, tmpdir
@@ -3367,7 +3367,7 @@ class TestIsPlatformViable:
         seed_path.parent.mkdir(exist_ok=True, parents=True)
         seed_path.write_text("")
 
-        assert dsaz.is_platform_viable(seed_path.parent) is True
+        assert dsaz.DataSourceAzure.ds_detect(seed_path.parent) is True
 
     def test_false_on_no_matching_azure_criteria(
         self, azure_ds, mock_chassis_asset_tag
@@ -3376,8 +3376,13 @@ class TestIsPlatformViable:
 
         seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
         seed_path.parent.mkdir(exist_ok=True, parents=True)
+        paths = helpers.Paths(
+            {"cloud_dir": "/tmp/", "run_dir": "/tmp/", "seed_dir": seed_path}
+        )
 
-        assert dsaz.is_platform_viable(seed_path) is False
+        assert (
+            dsaz.DataSourceAzure({}, mock.Mock(), paths).ds_detect() is False
+        )
 
 
 class TestRandomSeed(CiTestCase):
@@ -3702,7 +3707,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -3764,7 +3769,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -3865,7 +3870,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4014,7 +4019,7 @@ class TestProvisioning:
             None,
         ]
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4121,7 +4126,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(

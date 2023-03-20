@@ -43,15 +43,6 @@ class DataSourceNWCS(sources.DataSource):
         self.dsmode = sources.DSMODE_NETWORK
 
     def _get_data(self):
-        LOG.info("Detecting if machine is a NWCS instance")
-        on_nwcs = get_nwcs_data()
-
-        if not on_nwcs:
-            LOG.info("Machine is not a NWCS instance")
-            return False
-
-        LOG.info("Machine is a NWCS instance")
-
         md = self.get_metadata()
 
         if md is None:
@@ -125,14 +116,9 @@ class DataSourceNWCS(sources.DataSource):
 
         return self._network_config
 
-
-def get_nwcs_data():
-    vendor_name = dmi.read_dmi_data("system-manufacturer")
-
-    if vendor_name != "NWCS":
-        return False
-
-    return True
+    @staticmethod
+    def ds_detect():
+        return "NWCS" == dmi.read_dmi_data("system-manufacturer")
 
 
 def get_interface_name(mac):
