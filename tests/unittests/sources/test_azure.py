@@ -4,6 +4,7 @@ import copy
 import crypt
 import json
 import os
+import stat
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -1346,6 +1347,14 @@ scbus-1 on xpt0 bus 0
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
         self.assertEqual(2, self.m_fetch.call_count)
+
+    def test_waagent_d_has_0700_perms(self):
+        # we expect /var/lib/waagent to be created 0700
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue(os.path.isdir(self.waagent_d))
+        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
     def test_network_config_set_from_imds(self):
         """Datasource.network_config returns IMDS network data."""
