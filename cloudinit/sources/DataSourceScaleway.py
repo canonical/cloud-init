@@ -38,29 +38,6 @@ DEF_MD_RETRIES = 5
 DEF_MD_TIMEOUT = 10
 
 
-def on_scaleway():
-    """
-    There are three ways to detect if you are on Scaleway:
-
-    * check DMI data: not yet implemented by Scaleway, but the check is made to
-      be future-proof.
-    * the initrd created the file /var/run/scaleway.
-    * "scaleway" is in the kernel cmdline.
-    """
-    vendor_name = dmi.read_dmi_data("system-manufacturer")
-    if vendor_name == "Scaleway":
-        return True
-
-    if os.path.exists("/var/run/scaleway"):
-        return True
-
-    cmdline = util.get_cmdline()
-    if "scaleway" in cmdline:
-        return True
-
-    return False
-
-
 class SourceAddressAdapter(requests.adapters.HTTPAdapter):
     """
     Adapter for requests to choose the local address to bind to.
@@ -203,9 +180,28 @@ class DataSourceScaleway(sources.DataSource):
             "vendor-data", self.vendordata_address, self.retries, self.timeout
         )
 
+    @staticmethod
+    def ds_detect():
+        """
+        There are three ways to detect if you are on Scaleway:
+
+        * check DMI data: not yet implemented by Scaleway, but the check is
+          made to be future-proof.
+        * the initrd created the file /var/run/scaleway.
+        * "scaleway" is in the kernel cmdline.
+        """
+        vendor_name = dmi.read_dmi_data("system-manufacturer")
+        if vendor_name == "Scaleway":
+            return True
+
+        if os.path.exists("/var/run/scaleway"):
+            return True
+
+        cmdline = util.get_cmdline()
+        if "scaleway" in cmdline:
+            return True
+
     def _get_data(self):
-        if not on_scaleway():
-            return False
 
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()

@@ -18,13 +18,6 @@ from cloudinit.settings import PER_INSTANCE
 LOG = logging.getLogger(__name__)
 
 
-def _make_sysconfig_bool(val):
-    if val:
-        return "yes"
-    else:
-        return "no"
-
-
 class Distro(distros.Distro):
     # See: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Network_Configuration_Using_sysconfig_Files.html # noqa
     clock_conf_fn = "/etc/sysconfig/clock"

@@ -402,7 +402,7 @@ class OpenstackCloud(IntegrationCloud):
         try:
             UUID(image.image_id)
         except ValueError as e:
-            raise Exception(
+            raise RuntimeError(
                 "When using Openstack, `OS_IMAGE` MUST be specified with "
                 "a 36-character UUID image ID. Passing in a release name is "
                 "not valid here.\n"

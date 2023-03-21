@@ -1139,19 +1139,6 @@ def get_schema() -> dict:
     return full_schema
 
 
-def get_meta() -> dict:
-    """Return metadata coalesced from all cc_* cloud-config module."""
-    full_meta = dict()
-    for (_, mod_name) in get_modules().items():
-        mod_locs, _ = importer.find_module(
-            mod_name, ["cloudinit.config"], ["meta"]
-        )
-        if mod_locs:
-            mod = importer.import_module(mod_locs[0])
-            full_meta[mod.meta["id"]] = mod.meta
-    return full_meta
-
-
 def get_parser(parser=None):
     """Return a parser for supported cmdline arguments."""
     if not parser:

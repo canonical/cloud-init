@@ -13,6 +13,7 @@ import copy
 import json
 import os
 import pickle
+import re
 from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
@@ -311,28 +312,42 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Check if running on this datasource"""
         return True
 
-    def override_ds_detect(self):
+    def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - TODO: commandline argument is used (ci.ds=OpenStack)
+        - commandline argument is used (ci.ds=OpenStack)
+
+        Note: get_cmdline() is required for the general case - when ds-identify
+        does not run, _something_ needs to detect the kernel command line
+        definition.
         """
-        return self.sys_cfg.get("datasource_list", []) in (
+        if self.dsname == parse_cmdline():
+            LOG.debug(
+                "Machine is configured by the kernel commandline to run on "
+                "single datasource %s.",
+                self,
+            )
+            return True
+        elif self.sys_cfg.get("datasource_list", []) in (
             [self.dsname],
             [self.dsname, "None"],
-        )
+        ):
+            LOG.debug(
+                "Machine is configured to run on single datasource %s.", self
+            )
+            return True
+        return False
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
         if self.override_ds_detect():
-            LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
-            )
+            return self._get_data()
         elif self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
+            return self._get_data()
         else:
             LOG.debug("Datasource type %s is not detected.", self)
             return False
-        return self._get_data()
 
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
@@ -895,10 +910,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def network_config(self):
         return None
 
-    @property
-    def first_instance_boot(self):
-        return
-
     def setup(self, is_new_instance):
         """setup(is_new_instance)
 
@@ -1138,4 +1149,13 @@ def pkl_load(fname: str) -> Optional[DataSource]:
         return None
 
 
-# vi: ts=4 expandtab
+def parse_cmdline():
+    """Check if command line argument for this datasource was passed
+    Passing by command line overrides runtime datasource detection
+    """
+    cmdline = util.get_cmdline()
+    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$)", cmdline)
+    ds = ds_parse_1 or ds_parse_2
+    if ds:
+        return ds.group(1)

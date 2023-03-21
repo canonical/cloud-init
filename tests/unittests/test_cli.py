@@ -55,14 +55,12 @@ class TestCLI:
         data_d = tmpdir.join("data")
         link_d = tmpdir.join("link")
         FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
+        my_action = mock.Mock()
 
-        def myaction():
-            raise Exception("Should not call myaction")
-
-        myargs = FakeArgs((action, myaction), False, "bogusmode")
+        myargs = FakeArgs((action, my_action), False, "bogusmode")
         with pytest.raises(ValueError, match=match):
             cli.status_wrapper(name, myargs, data_d, link_d)
-        assert "Should not call myaction" not in caplog.text
+        assert [] == my_action.call_args_list
 
     def test_status_wrapper_init_local_writes_fresh_status_info(self, tmpdir):
         """When running in init-local mode, status_wrapper writes status.json.

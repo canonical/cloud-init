@@ -1096,8 +1096,8 @@ scbus-1 on xpt0 bus 0
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
 
-    def test_not_is_platform_viable_seed_should_return_no_datasource(self):
-        """Check seed_dir using _is_platform_viable and return False."""
+    def test_not_ds_detect_seed_should_return_no_datasource(self):
+        """Check seed_dir using ds_detect and return False."""
         # Return a non-matching asset tag value
         data = {}
         dsrc = self._get_ds(data)
@@ -3022,8 +3022,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
+        dhcp_ctx.iface = lease["interface"]
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = dhcp_ctx
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3031,7 +3033,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
         assert m_report_ready.mock_calls == [mock.call()]
 
-        self.assertEqual(3, m_dhcp.call_count, "Expected 3 DHCP calls")
+        self.assertEqual(2, m_dhcp.call_count, "Expected 2 DHCP calls")
         assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
@@ -3162,6 +3164,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3196,6 +3199,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3237,8 +3241,9 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             }
         ]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3247,7 +3252,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
     def test__reprovision_calls__poll_imds(
         self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
@@ -3268,10 +3273,11 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         content = construct_ovf_env(username=username, hostname=hostname)
         m_fetch_reprovisiondata.side_effect = [content]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md["local-hostname"], hostname)
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3280,7 +3286,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
 
 class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
@@ -3350,7 +3356,7 @@ class TestIsPlatformViable:
     ):
         mock_chassis_asset_tag.return_value = tag
 
-        assert dsaz.is_platform_viable(None) is True
+        assert dsaz.DataSourceAzure.ds_detect(None) is True
 
     def test_true_on_azure_ovf_env_in_seed_dir(
         self, azure_ds, mock_chassis_asset_tag, tmpdir
@@ -3361,7 +3367,7 @@ class TestIsPlatformViable:
         seed_path.parent.mkdir(exist_ok=True, parents=True)
         seed_path.write_text("")
 
-        assert dsaz.is_platform_viable(seed_path.parent) is True
+        assert dsaz.DataSourceAzure.ds_detect(seed_path.parent) is True
 
     def test_false_on_no_matching_azure_criteria(
         self, azure_ds, mock_chassis_asset_tag
@@ -3370,8 +3376,13 @@ class TestIsPlatformViable:
 
         seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
         seed_path.parent.mkdir(exist_ok=True, parents=True)
+        paths = helpers.Paths(
+            {"cloud_dir": "/tmp/", "run_dir": "/tmp/", "seed_dir": seed_path}
+        )
 
-        assert dsaz.is_platform_viable(seed_path) is False
+        assert (
+            dsaz.DataSourceAzure({}, mock.Mock(), paths).ds_detect() is False
+        )
 
 
 class TestRandomSeed(CiTestCase):
@@ -3696,7 +3707,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -3758,7 +3769,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -3859,7 +3870,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4008,7 +4019,7 @@ class TestProvisioning:
             None,
         ]
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4115,7 +4126,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -4173,6 +4184,35 @@ class TestProvisioning:
         ]
 
         # Verify no netlink operations for recovering PPS.
+        assert self.mock_netlink.mock_calls == []
+
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
+    def test_source_pps_fails_initial_dhcp(self, pps_type):
+        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.mock_net_dhcp_maybe_perform_dhcp_discovery.side_effect = [
+            dhcp.NoDHCPLeaseError()
+        ]
+
+        with mock.patch.object(self.azure_ds, "_report_failure") as m_report:
+            self.azure_ds._get_data()
+
+        assert m_report.mock_calls == [mock.call()]
+
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+        ]
+        assert self.mock_readurl.mock_calls == []
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
         assert self.mock_netlink.mock_calls == []
 
     @pytest.mark.parametrize(

@@ -107,22 +107,6 @@ class EphemeralIPv4Network:
         for cmd in self.cleanup_cmds:
             subp.subp(cmd, capture=True)
 
-    def _delete_address(self, address, prefix):
-        """Perform the ip command to remove the specified address."""
-        subp.subp(
-            [
-                "ip",
-                "-family",
-                "inet",
-                "addr",
-                "del",
-                "%s/%s" % (address, prefix),
-                "dev",
-                self.interface,
-            ],
-            capture=True,
-        )
-
     def _bringup_device(self):
         """Perform the ip comands to fully setup the device."""
         cidr = "{0}/{1}".format(self.ip, self.prefix)

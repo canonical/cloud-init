@@ -382,7 +382,7 @@ def bridge_to_debconf(bridge_cfg):
             debconf["lxd/bridge-domain"] = bridge_cfg.get("domain")
 
     else:
-        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
+        raise RuntimeError('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     return debconf
 
@@ -399,7 +399,7 @@ def bridge_to_cmd(bridge_cfg):
         return None, cmd_attach
 
     if bridge_cfg.get("mode") != "new":
-        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
+        raise RuntimeError('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     cmd_create = ["network", "create", bridge_name]
 

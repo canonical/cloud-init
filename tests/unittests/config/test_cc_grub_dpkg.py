@@ -11,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.subp import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError, SubpResult
 from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 
 
@@ -21,7 +21,7 @@ class TestFetchIdevs:
     # Note: udevadm info returns devices in a large single line string
     @pytest.mark.parametrize(
         "grub_output,path_exists,expected_log_call,udevadm_output"
-        ",expected_idevs",
+        ",expected_idevs,is_efi_boot",
         [
             # Inside a container, grub not installed
             (
@@ -30,6 +30,7 @@ class TestFetchIdevs:
                 mock.call("'grub-probe' not found in $PATH"),
                 "",
                 "",
+                False,
             ),
             # Inside a container, grub installed
             (
@@ -38,10 +39,11 @@ class TestFetchIdevs:
                 mock.call("grub-probe 'failed to get canonical path'"),
                 "",
                 "",
+                False,
             ),
             # KVM Instance
             (
-                ["/dev/vda"],
+                SubpResult("/dev/vda", ""),
                 True,
                 None,
                 (
@@ -49,18 +51,20 @@ class TestFetchIdevs:
                     "/dev/disk/by-path/virtio-pci-0000:00:00.0 ",
                 ),
                 "/dev/vda",
+                False,
             ),
             # Xen Instance
             (
-                ["/dev/xvda"],
+                SubpResult("/dev/xvda", ""),
                 True,
                 None,
                 "",
                 "/dev/xvda",
+                False,
             ),
             # NVMe Hardware Instance
             (
-                ["/dev/nvme1n1"],
+                SubpResult("/dev/nvme1n1", ""),
                 True,
                 None,
                 (
@@ -69,10 +73,11 @@ class TestFetchIdevs:
                     "/dev/disk/by-path/pci-0000:00:00.0-nvme-0 ",
                 ),
                 "/dev/disk/by-id/nvme-Company_hash000",
+                False,
             ),
             # SCSI Hardware Instance
             (
-                ["/dev/sda"],
+                SubpResult("/dev/sda", ""),
                 True,
                 None,
                 (
@@ -81,9 +86,28 @@ class TestFetchIdevs:
                     "/dev/disk/by-path/pci-0000:00:00.0-scsi-0:0:0:0 ",
                 ),
                 "/dev/disk/by-id/company-user-1",
+                False,
+            ),
+            # UEFI Hardware Instance
+            (
+                SubpResult("/dev/sda2", ""),
+                True,
+                None,
+                (
+                    "/dev/disk/by-id/scsi-3500a075116e6875a "
+                    "/dev/disk/by-id/scsi-SATA_Crucial_CT525MX3_171816E6875A "
+                    "/dev/disk/by-id/scsi-0ATA_Crucial_CT525MX3_171816E6875A "
+                    "/dev/disk/by-path/pci-0000:00:17.0-ata-1 "
+                    "/dev/disk/by-id/wwn-0x500a075116e6875a "
+                    "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A"
+                ),
+                "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A-"
+                "part1",
+                True,
             ),
         ],
     )
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.os.path.exists")
     @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
@@ -92,18 +116,30 @@ class TestFetchIdevs:
         m_subp,
         m_exists,
         m_logexc,
+        m_efi_booted,
         grub_output,
         path_exists,
         expected_log_call,
         udevadm_output,
         expected_idevs,
+        is_efi_boot,
     ):
-        """Tests outputs from grub-probe and udevadm info against grub-dpkg"""
-        m_subp.side_effect = [grub_output, ["".join(udevadm_output)]]
+        """Tests outputs from grub-probe and udevadm info against grub_dpkg"""
+        m_subp.side_effect = [
+            grub_output,
+            SubpResult("".join(udevadm_output), ""),
+        ]
         m_exists.return_value = path_exists
+        m_efi_booted.return_value = is_efi_boot
         log = mock.Mock(spec=Logger)
+
         idevs = fetch_idevs(log)
-        assert expected_idevs == idevs
+
+        if is_efi_boot:
+            assert expected_idevs.startswith(idevs) is True
+        else:
+            assert idevs == expected_idevs
+
         if expected_log_call is not None:
             assert expected_log_call in log.debug.call_args_list
 
@@ -112,7 +148,8 @@ class TestHandle:
     """Tests cc_grub_dpkg.handle()"""
 
     @pytest.mark.parametrize(
-        "cfg_idevs,cfg_idevs_empty,fetch_idevs_output,expected_log_output",
+        "cfg_idevs,cfg_idevs_empty,fetch_idevs_output,"
+        "expected_log_output,is_uefi",
         [
             (
                 # No configuration
@@ -121,8 +158,11 @@ class TestHandle:
                 "/dev/disk/by-id/nvme-Company_hash000",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'/dev/disk/by-id/nvme-Company_hash000','false'",
+                    "'grub-pc grub-pc/install_devices string "
+                    "/dev/disk/by-id/nvme-Company_hash000\n",
+                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
+                False,
             ),
             (
                 # idevs set, idevs_empty unset
@@ -131,8 +171,10 @@ class TestHandle:
                 "/dev/sda",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'/dev/sda','false'",
+                    "'grub-pc grub-pc/install_devices string /dev/sda\n",
+                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
+                False,
             ),
             (
                 # idevs unset, idevs_empty set
@@ -141,8 +183,10 @@ class TestHandle:
                 "/dev/xvda",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'/dev/xvda','true'",
+                    "'grub-pc grub-pc/install_devices string /dev/xvda\n",
+                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
                 ),
+                False,
             ),
             (
                 # idevs set, idevs_empty set
@@ -151,8 +195,10 @@ class TestHandle:
                 "/dev/disk/by-id/company-user-1",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'/dev/vda','false'",
+                    "'grub-pc grub-pc/install_devices string /dev/vda\n",
+                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
                 ),
+                False,
             ),
             (
                 # idevs set, idevs_empty set
@@ -162,16 +208,31 @@ class TestHandle:
                 "",
                 (
                     "Setting grub debconf-set-selections with ",
-                    "'/dev/nvme0n1','true'",
+                    "'grub-pc grub-pc/install_devices string /dev/nvme0n1\n",
+                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
                 ),
+                False,
+            ),
+            (
+                # uefi active, idevs set
+                "/dev/sda1",
+                False,
+                "/dev/sda1",
+                (
+                    "Setting grub debconf-set-selections with ",
+                    "'grub-pc grub-efi/install_devices string /dev/sda1\n'",
+                ),
+                True,
             ),
         ],
     )
     @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
     def test_handle(
         self,
+        m_is_efi_booted,
         m_subp,
         m_logexc,
         m_fetch_idevs,
@@ -179,8 +240,10 @@ class TestHandle:
         cfg_idevs_empty,
         fetch_idevs_output,
         expected_log_output,
+        is_uefi,
     ):
         """Test setting of correct debconf database entries"""
+        m_is_efi_booted.return_value = is_uefi
         m_fetch_idevs.return_value = fetch_idevs_output
         log = mock.Mock(spec=Logger)
         cfg = {"grub_dpkg": {}}
@@ -235,8 +298,8 @@ class TestGrubDpkgSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: grub-dpkg:"
-                        "  Deprecated in version 22.2. Use "
+                        "Cloud config schema deprecations: grub-dpkg: An alias"
+                        " for ``grub_dpkg`` Deprecated in version 22.2. Use "
                         "``grub_dpkg`` instead."
                     ),
                 ),

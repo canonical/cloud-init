@@ -367,6 +367,18 @@ class TestRemoveDefaultCaCerts(TestCase):
                     else:
                         assert mock_subp.call_count == 0
 
+    def test_non_existent_cert_cfg(self):
+        self.m_stat.return_value.st_size = 0
+
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
+            with ExitStack() as mocks:
+                mocks.enter_context(
+                    mock.patch.object(util, "delete_dir_contents")
+                )
+                mocks.enter_context(mock.patch.object(subp, "subp"))
+                cc_ca_certs.disable_default_ca_certs(distro_name, conf)
+
 
 class TestCACertsSchema:
     """Directly test schema rather than through handle."""

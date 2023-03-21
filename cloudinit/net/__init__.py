@@ -882,7 +882,7 @@ def _rename_interfaces(
                 )
 
     if len(errors):
-        raise Exception("\n".join(errors))
+        raise RuntimeError("\n".join(errors))
 
 
 def get_interface_mac(ifname):

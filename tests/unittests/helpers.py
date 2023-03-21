@@ -173,7 +173,7 @@ class CiTestCase(TestCase):
             )
         if pass_through:
             return _real_subp(*args, **kwargs)
-        raise Exception(
+        raise RuntimeError(
             "called subp. set self.allowed_subp=True to allow\n subp(%s)"
             % ", ".join(
                 [str(repr(a)) for a in args]

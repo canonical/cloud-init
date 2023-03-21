@@ -343,7 +343,7 @@ used. The format of subplatform will be:
 
 Example output:
 
-  - metadata (http://168.254.169.254)
+  - metadata (http://169.254.169.254)
   - seed-dir (/path/to/seed-dir/)
   - config-disk (/dev/cd0)
   - configdrive (/dev/sr0)

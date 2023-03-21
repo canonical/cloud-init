@@ -126,7 +126,9 @@ class DataSourceUpCloud(sources.DataSource):
 
         raw_network_config = self.metadata.get("network")
         if not raw_network_config:
-            raise Exception("Unable to get network meta-data from server....")
+            raise RuntimeError(
+                "Unable to get network meta-data from server...."
+            )
 
         self._network_config = uc_helper.convert_network_config(
             raw_network_config,

@@ -500,23 +500,3 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
-
-
-def network_state_to_netplan(network_state, header=None):
-    # render the provided network state, return a string of equivalent eni
-    netplan_path = "etc/network/50-cloud-init.yaml"
-    renderer = Renderer(
-        {
-            "netplan_path": netplan_path,
-            "netplan_header": header,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_content(network_state)
-    return header + contents
-
-
-# vi: ts=4 expandtab

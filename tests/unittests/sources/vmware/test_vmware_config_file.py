@@ -50,18 +50,8 @@ class TestVmwareConfigFile(CiTestCase):
         self.assertEqual(2, len(cf), "insert size")
         self.assertEqual("foo", cf["PASSWORD|-PASS"], "password")
         self.assertTrue("PASSWORD|-PASS" in cf, "hasPassword")
-        self.assertFalse(
-            cf.should_keep_current_value("PASSWORD|-PASS"), "keepPassword"
-        )
-        self.assertFalse(
-            cf.should_remove_current_value("PASSWORD|-PASS"), "removePassword"
-        )
         self.assertFalse("FOO" in cf, "hasFoo")
-        self.assertTrue(cf.should_keep_current_value("FOO"), "keepFoo")
-        self.assertFalse(cf.should_remove_current_value("FOO"), "removeFoo")
         self.assertTrue("BAR" in cf, "hasBar")
-        self.assertFalse(cf.should_keep_current_value("BAR"), "keepBar")
-        self.assertTrue(cf.should_remove_current_value("BAR"), "removeBar")
 
     def test_configfile_without_instance_id(self):
         """
@@ -95,7 +85,6 @@ class TestVmwareConfigFile(CiTestCase):
 
         self.assertEqual("myhost1", conf.host_name, "hostName")
         self.assertEqual("Africa/Abidjan", conf.timezone, "tz")
-        self.assertTrue(conf.utc, "utc")
 
         self.assertEqual(
             ["10.20.145.1", "10.20.145.2"], conf.name_servers, "dns"

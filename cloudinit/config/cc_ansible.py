@@ -39,6 +39,7 @@ meta: MetaSchema = {
         dedent(
             """\
             ansible:
+              package_name: ansible-core
               install_method: distro
               pull:
                 url: "https://github.com/holmanb/vmboot.git"

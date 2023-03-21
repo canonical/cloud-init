@@ -226,7 +226,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         distro = self._fetch_distro("debian")
 
         def set_hostname_error(hostname, fqdn):
-            raise Exception("OOPS on: %s" % fqdn)
+            raise RuntimeError("OOPS on: %s" % fqdn)
 
         distro.set_hostname = set_hostname_error
         paths = helpers.Paths({"cloud_dir": self.tmp})
