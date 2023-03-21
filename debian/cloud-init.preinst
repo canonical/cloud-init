@@ -181,6 +181,13 @@ cleanup_lp1552999() {
         "$hdir/cloud-init-local.service" "$hdir/cloud-init.service"
 }
 
+cleanup_oci_network_lp1956788() {
+   # Remove vestigial /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+   # from Oracle now that datasource honors system cfg above datasource cfg.
+   grep DataSourceOracle /var/lib/cloud/instance/datasource > /dev/null 2>&1 || return 0
+   rm -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+}
+
 case "$1" in
     install|upgrade)
         if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
@@ -224,6 +231,8 @@ case "$1" in
       fi
 
       cleanup_lp1552999 "$oldver"
+      cleanup_oci_network_lp1956788
+
 esac
 
 #DEBHELPER#

@@ -1,3 +1,17 @@
+cloud-init (23.1.1-0ubuntu2) lunar; urgency=medium
+
+  * d/apport-general-hook.py: Add general apport hook to append cloud type,
+    image and instance size information to bug reports (LP: #1724623)
+  * d/cloud-init.postinst: MAAS prefer yaml.safe_load over yaml.load
+    (LP: #2009746)
+  * d/cloud-init.preinst: Oracle to remove vestigial /etc/cloud.cloud.cfg.d/
+    99-disable-network-config.cfg because system config is now honored before
+    datasource config (LP: #1956788)
+  * Upstream snapshot based on upstream/main at 85b2fbc2.
+    - Bugs fixed in this snapshot: (LP: #1956788)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 21 Mar 2023 14:43:55 -0600
+
 cloud-init (23.1.1-0ubuntu1) lunar; urgency=medium
 
   * Upstream snapshot based on main at 4896402b.
