@@ -7,6 +7,8 @@ cloud-init (23.1.1-0ubuntu2) UNRELEASED; urgency=medium
   * d/cloud-init.preinst: Oracle to remove vestigial /etc/cloud.cloud.cfg.d/
     99-disable-network-config.cfg because system config is now honored before
     datasource config (LP: #1956788)
+  * Upstream snapshot based on upstream/main at 85b2fbc2.
+    - Bugs fixed in this snapshot: (LP: #1956788)
 
  -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 02 Mar 2023 12:40:49 +0100
 
