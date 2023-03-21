@@ -219,23 +219,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
             return_value="scalewaynic0",
         )
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
-    )
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("time.sleep", return_value=None)
-    def test_metadata_ok(self, sleep, m_get_cmdline, dhcpv4):
-        """
-        get_data() returns metadata, user data and vendor data.
-        """
-        # fails on python 3.6
+    def test_set_metadata_url_ipv4_ok(self):
+
+        # url calls relies on getsentry/responses which only support
+        # python 3.7 and above
         if sys.version_info.minor < 7:
             return
-        m_get_cmdline.return_value = "scaleway"
-
-    def test_set_metadata_url_ipv4_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
@@ -243,15 +232,26 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
     def test_set_metadata_url_ipv6_ok(self):
 
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[1]])
 
         self.assertTrue(self.base_urls[1] in self.datasource.metadata_url)
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_ipv4_metadata_ok(self, dhcpv4):
+    def test_ipv4_metadata_ok(self, dhcpv4, ds_detect):
         """
         get_data() returns metadata, user data and vendor data from IPv4.
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.reset()
@@ -314,13 +314,21 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_ipv4_metadata_timeout_ipv6_ok(self, dhcpv4, inet6):
+    def test_ipv4_metadata_timeout_ipv6_ok(self, dhcpv4, inet6, ds_detect):
         """
         get_data() returns metadata, user data and vendor data from IPv6
         after IPv4 has failed.
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.reset()
@@ -389,14 +397,22 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_ipv4_ipv6_metadata_timeout(self, dhcpv4, inet6, sleep):
+    def test_ipv4_ipv6_metadata_timeout(self, dhcpv4, inet6, sleep, ds_detect):
         """
         get_data() fails to return metadata. Metadata, user data and
         vendor data are empty
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         # Remove callbacks defined at class initialization
@@ -427,11 +443,19 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    def test_metadata_ipv4_404(self, dhcpv4):
+    def test_metadata_ipv4_404(self, dhcpv4, ds_detect):
         """
         get_data() returns metadata, but no user data nor vendor data.
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         # Make user and vendor data APIs return HTTP/404, which means there is
@@ -464,6 +488,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
         """
         get_data() returns ConnectionError on legacy IPv4 URL
         """
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         # Make metadata API fail to connect for legacy ipv4 url
@@ -487,17 +514,25 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.url_helper.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.socket.getaddrinfo")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_two_urls(
-        self, dhcpv4, net6, getaddr, sleep
+        self, dhcpv4, net6, getaddr, sleep, ds_detect
     ):
         """
         get_data() returns ConnectionError on legacy or DNS URL
         The DNS URL is also tested for IPv6 connectivity
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
         getaddr.side_effect = [
             [
@@ -541,13 +576,21 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
+        ".override_ds_detect"
+    )
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     @mock.patch("time.sleep", return_value=None)
-    def test_metadata_ipv4_rate_limit(self, sleep, dhcpv4):
+    def test_metadata_ipv4_rate_limit(self, sleep, dhcpv4, ds_detect):
         """
         get_data() is rate limited two times by the metadata API when fetching
         user data.
         """
+        ds_detect.return_value = True
+        if sys.version_info.minor < 7:
+            return
+
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.add_callback(
@@ -667,83 +710,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
             ],
         )
-
-    @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
-    )
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("time.sleep", return_value=None)
-    def test_metadata_404(self, sleep, m_get_cmdline, dhcpv4):
-        """
-        get_data() returns metadata, but no user data nor vendor data.
-        """
-        # fails on python 3.6
-        if sys.version_info.minor < 7:
-            return
-        m_get_cmdline.return_value = "scaleway"
-
-        # Make user and vendor data APIs return HTTP/404, which means there is
-        # no user / vendor data for the server.
-
-        self.responses.add_callback(
-            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
-        )
-        self.responses.add_callback(
-            responses.GET, self.userdata_url, callback=DataResponses.empty
-        )
-        self.responses.add_callback(
-            responses.GET, self.vendordata_url, callback=DataResponses.empty
-        )
-        self.datasource.get_data()
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
-        self.assertEqual(sleep.call_count, 0)
-
-    @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
-    @mock.patch(
-        "cloudinit.sources.DataSourceScaleway.SourceAddressAdapter",
-        get_source_address_adapter,
-    )
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("time.sleep", return_value=None)
-    def test_metadata_rate_limit(self, sleep, m_get_cmdline, dhcpv4):
-        """
-        get_data() is rate limited two times by the metadata API when fetching
-        user data.
-        """
-        if sys.version_info.minor < 7:
-            return
-
-        m_get_cmdline.return_value = "scaleway"
-
-        self.responses.add_callback(
-            responses.GET, self.metadata_url, callback=MetadataResponses.get_ok
-        )
-        self.responses.add_callback(
-            responses.GET, self.vendordata_url, callback=DataResponses.empty
-        )
-
-        # Workaround https://github.com/getsentry/responses/pull/171
-        # This mocking can be unrolled when Bionic is EOL
-        call_count = 0
-
-        def _callback(request):
-            nonlocal call_count
-            call_count += 1
-            if call_count <= 2:
-                return DataResponses.rate_limited(request)
-            return DataResponses.get_ok(request)
-
-        self.responses.add_callback(
-            responses.GET, self.userdata_url, callback=_callback
-        )
-        self.datasource.get_data()
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
-        )
-        self.assertEqual(sleep.call_count, 2)
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
