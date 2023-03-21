@@ -11,6 +11,7 @@ import pytest
 import requests
 
 from cloudinit import url_helper
+from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
@@ -105,7 +106,7 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_dmi_read_dmi_data():
     with mock.patch(
         MOCKPATH + "dmi.read_dmi_data",
@@ -1380,7 +1381,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
+        error = errors.ReportableError(reason="test")
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint", error=error
+        )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
@@ -1393,24 +1397,29 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             SentinelException,
             azure_helper.report_failure_to_fabric,
             "test_endpoint",
+            errors.ReportableError(reason="test"),
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
+        error = errors.ReportableError(reason="test")
+
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint",
+            error=error,
+        )
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            description=error.as_description(),
         )
 
     def test_instantiates_shim_with_kwargs(self):
         azure_helper.report_failure_to_fabric(
             endpoint="test_endpoint",
+            error=errors.ReportableError(reason="test"),
         )
         self.m_shim.assert_called_once_with(
             endpoint="test_endpoint",

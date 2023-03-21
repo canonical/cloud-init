@@ -20,6 +20,7 @@ from xml.sax.saxutils import escape
 from cloudinit import distros, dmi, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -42,12 +43,6 @@ azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
     reporting_enabled=True,
-)
-
-DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
-    "The VM encountered an error during deployment. "
-    "Please visit https://aka.ms/linuxprovisioningerror "
-    "for more information on remediation."
 )
 
 T = TypeVar("T")
@@ -1053,9 +1048,9 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(endpoint: str):
+def report_failure_to_fabric(endpoint: str, error: errors.ReportableError):
     shim = WALinuxAgentShim(endpoint=endpoint)
-    description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    description = error.as_description()
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:

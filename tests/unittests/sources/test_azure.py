@@ -16,6 +16,7 @@ from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -1152,7 +1153,7 @@ scbus-1 on xpt0 bus 0
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
             self.assertEqual(1, m_crawl_metadata.call_count)
-            m_report_failure.assert_called_once_with()
+            m_report_failure.assert_called_once_with(mock.ANY)
 
     def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
         data = {}
@@ -1162,7 +1163,7 @@ scbus-1 on xpt0 bus 0
             dsrc.get_data()
             self.assertEqual(1, m_crawl_metadata.call_count)
             self.assertIn(
-                "Could not crawl Azure metadata", self.logs.getvalue()
+                "Azure datasource failure occurred:", self.logs.getvalue()
             )
 
     def test_basic_seed_dir(self):
@@ -1773,7 +1774,8 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            self.assertTrue(dsrc._report_failure())
+            error = errors.ReportableError(reason="foo")
+            self.assertTrue(dsrc._report_failure(error))
             self.assertEqual(1, self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
@@ -1803,7 +1805,9 @@ scbus-1 on xpt0 bus 0
             # 1. Using cached ephemeral dhcp context to report failure to Azure
             # 2. Using new ephemeral dhcp to report failure to Azure
             self.m_report_failure_to_fabric.side_effect = Exception
-            self.assertFalse(dsrc._report_failure())
+
+            error = errors.ReportableError(reason="foo")
+            self.assertFalse(dsrc._report_failure(error))
             self.assertEqual(2, self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure(self):
@@ -1812,9 +1816,10 @@ scbus-1 on xpt0 bus 0
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
 
-            self.assertTrue(dsrc._report_failure())
+            error = errors.ReportableError(reason="foo")
+            self.assertTrue(dsrc._report_failure(error))
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="168.63.129.16"
+                endpoint="168.63.129.16", error=error
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
@@ -1828,11 +1833,12 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            self.assertTrue(dsrc._report_failure())
+            error = errors.ReportableError(reason="foo")
+            self.assertTrue(dsrc._report_failure(error))
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="test-ep"
+                endpoint="test-ep", error=error
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
@@ -1849,12 +1855,13 @@ scbus-1 on xpt0 bus 0
             }
             self.m_dhcp.return_value.obtain_lease.return_value = test_lease
 
-            self.assertTrue(dsrc._report_failure())
+            error = errors.ReportableError(reason="foo")
+            self.assertTrue(dsrc._report_failure(error))
 
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="1.2.3.4"
+                endpoint="1.2.3.4", error=error
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
@@ -4038,7 +4045,7 @@ class TestProvisioning:
         with mock.patch.object(self.azure_ds, "_report_failure") as m_report:
             self.azure_ds._get_data()
 
-        assert m_report.mock_calls == [mock.call()]
+        assert m_report.mock_calls == [mock.call(mock.ANY)]
 
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
             mock.call(timeout_minutes=20),
