@@ -3,6 +3,9 @@ pytest
 pytest-cov
 pytest-mock
 
+# Clear lru caches on every test
+pytest-antilru
+
 # Only really needed on older versions of python
 setuptools
 jsonschema
