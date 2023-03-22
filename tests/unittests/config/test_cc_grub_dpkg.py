@@ -235,9 +235,9 @@ class TestGrubDpkgSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=(
-                        "Cloud config schema deprecations: grub-dpkg:"
-                        "  Deprecated in version 22.2. Use "
-                        "``grub_dpkg`` instead."
+                        "Cloud config schema deprecations: grub-dpkg: An "
+                        "alias for ``grub_dpkg`` Deprecated in version 22.2. "
+                        "Use ``grub_dpkg`` instead."
                     ),
                 ),
                 False,
