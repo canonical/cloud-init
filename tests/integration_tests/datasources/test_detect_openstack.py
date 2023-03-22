@@ -1,10 +1,11 @@
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 
-@pytest.mark.lxd_vm
 @pytest.mark.lxd_use_exec
+@pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
 def test_lxd_datasource_kernel_override(client: IntegrationInstance):
     """This test is twofold: it tests kernel commandline override, which also
     validates OpenStack Ironic requirements. OpenStack Ironic does not

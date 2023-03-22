@@ -50,7 +50,9 @@ version: 2
     PLATFORM != "lxd_vm",
     reason="Test requires custom networking provided by LXD",
 )
-@pytest.mark.skipif(CURRENT_RELEASE < FOCAL)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL, reason="Tested on Focal and above"
+)
 @pytest.mark.lxd_use_exec
 class TestInterfaceListingWithOpenvSwitch:
     def test_ovs_member_interfaces_not_excluded(self, client):

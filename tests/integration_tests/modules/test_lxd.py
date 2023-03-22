@@ -241,7 +241,9 @@ def test_storage_btrfs(client):
 @pytest.mark.skipif(
     PLATFORM == "lxd_container", reason="Containers cannot manipulate LXD"
 )
-@pytest.mark.skipif(CURRENT_RELEASE < FOCAL)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL, reason="tested on Focal and later"
+)
 def test_storage_preseed_btrfs(setup_image, session_cloud: IntegrationCloud):
     # TODO: If test is marked as not bionic, why is there a bionic section?
     if CURRENT_RELEASE.series in ("bionic",):
@@ -302,7 +304,9 @@ def test_storage_zfs(client):
 @pytest.mark.skipif(
     PLATFORM == "lxd_container", reason="Containers cannot manipulate LXD"
 )
-@pytest.mark.skipif(CURRENT_RELEASE < FOCAL)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL, reason="Tested on focal and later"
+)
 def test_storage_preseed_zfs(setup_image, session_cloud: IntegrationCloud):
     # TODO: If test is marked as not bionic, why is there a bionic section?
     if CURRENT_RELEASE.series in ("bionic",):
