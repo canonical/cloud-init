@@ -167,6 +167,10 @@ def master_is_openvswitch(devname):
     return os.path.exists(ovs_path)
 
 
+def is_ib_interface(devname):
+    return read_sys_net_safe(devname, "type") == "32"
+
+
 @functools.lru_cache(maxsize=None)
 def openvswitch_is_installed() -> bool:
     """Return a bool indicating if Open vSwitch is installed in the system."""
