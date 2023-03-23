@@ -13,11 +13,13 @@ from tests.unittests.helpers import mock
         "ci.ds=OpenStack",
         "aosiejfoij ci.ds=OpenStack blah",
         "aosiejfoij ci.ds=OpenStack faljskebflk",
+        "ci.ds=OpenStack;",
         # test ci.datasource=
         "aosiejfoij ci.datasource=OpenStack ",
         "ci.datasource=OpenStack",
         "aosiejfoij ci.datasource=OpenStack blah",
         "aosiejfoij ci.datasource=OpenStack faljskebflk",
+        "ci.datasource=OpenStack;",
         # weird whitespace
         "ci.datasource=OpenStack\n",
         "ci.datasource=OpenStack\t",

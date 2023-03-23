@@ -1154,8 +1154,8 @@ def parse_cmdline():
     Passing by command line overrides runtime datasource detection
     """
     cmdline = util.get_cmdline()
-    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$)", cmdline)
-    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$)", cmdline)
+    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
     ds = ds_parse_1 or ds_parse_2
     if ds:
         return ds.group(1)
