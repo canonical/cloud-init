@@ -353,6 +353,8 @@ def _merge_new_seed(cur, seeded):
 
 
 class DataSourceNoCloudNet(DataSourceNoCloud):
+    dsname = "NoCloud-Net"
+
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")

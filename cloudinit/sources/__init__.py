@@ -321,7 +321,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         does not run, _something_ needs to detect the kernel command line
         definition.
         """
-        if self.dsname == parse_cmdline():
+        if self.dsname.lower() == parse_cmdline():
             LOG.debug(
                 "Machine is configured by the kernel commandline to run on "
                 "single datasource %s.",
