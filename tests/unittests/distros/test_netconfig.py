@@ -458,8 +458,16 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
     def eni_path(self):
         return "/etc/network/interfaces.d/50-cloud-init.cfg"
 
+    def rules_path(self):
+        return "/etc/udev/rules.d/70-persistent-net.rules"
+
     def _apply_and_verify_eni(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self,
+        apply_fn,
+        config,
+        expected_cfgs=None,
+        bringup=False,
+        previous_files=(),
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
@@ -467,7 +475,11 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         tmpd = None
         with mock.patch("cloudinit.net.eni.available") as m_avail:
             m_avail.return_value = True
+            path_modes = {}
             with self.reRooted(tmpd) as tmpd:
+                for previous_path, content, mode in previous_files:
+                    util.write_file(previous_path, content, mode=mode)
+                    path_modes[previous_path] = mode
                 apply_fn(config, bringup)
 
         results = dir2dict(tmpd)
@@ -478,7 +490,9 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
             print(results[cfgpath])
             print("----------")
             self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            self.assertEqual(
+                path_modes.get(cfgpath, 0o644), get_mode(cfgpath, tmpd)
+            )
 
     def test_apply_network_config_and_bringup_filters_priority_eni_ub(self):
         """Network activator search priority can be overridden from config."""
@@ -527,11 +541,13 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
     def test_apply_network_config_eni_ub(self):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
+            self.rules_path(): "",
         }
         self._apply_and_verify_eni(
             self.distro.apply_network_config,
             V1_NET_CFG,
             expected_cfgs=expected_cfgs.copy(),
+            previous_files=((self.rules_path(), "something", 0o660),),
         )
 
     def test_apply_network_config_ipv6_ub(self):
