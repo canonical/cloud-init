@@ -574,7 +574,7 @@ class DataSourceAzure(sources.DataSource):
 
             if pps_type == PPSType.RUNNING:
                 self._wait_for_pps_running_reuse()
-            if pps_type == PPSType.SAVABLE:
+            elif pps_type == PPSType.SAVABLE:
                 self._wait_for_pps_savable_reuse()
             elif pps_type == PPSType.OS_DISK:
                 self._wait_for_pps_os_disk_shutdown()
