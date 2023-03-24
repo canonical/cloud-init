@@ -836,7 +836,7 @@ dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
     case " ${DI_KERNEL_CMDLINE} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
-        *\ cd.ds=nocloud*) return ${DS_FOUND};;
+        *\ ci.ds=nocloud*) return ${DS_FOUND};;
     esac
     case " ${DI_DMI_PRODUCT_SERIAL} " in
         *\ ds=nocloud*) return ${DS_FOUND};;

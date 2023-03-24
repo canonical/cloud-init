@@ -321,7 +321,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         does not run, _something_ needs to detect the kernel command line
         definition.
         """
-        if self.dsname.lower() == parse_cmdline():
+        if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
                 "Machine is configured by the kernel commandline to run on "
                 "single datasource %s.",
@@ -1149,13 +1149,15 @@ def pkl_load(fname: str) -> Optional[DataSource]:
         return None
 
 
-def parse_cmdline():
+def parse_cmdline() -> str:
     """Check if command line argument for this datasource was passed
     Passing by command line overrides runtime datasource detection
     """
     cmdline = util.get_cmdline()
+    ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$|;)", cmdline)
     ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
     ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
-    ds = ds_parse_1 or ds_parse_2
-    if ds:
+    ds = ds_parse_0 or ds_parse_1 or ds_parse_2
+    if ds and ds.group(1):
         return ds.group(1)
+    return ""
