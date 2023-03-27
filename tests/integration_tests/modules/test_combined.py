@@ -442,7 +442,10 @@ class TestCombined:
 
     @pytest.mark.skipif(
         PLATFORM not in ["lxd_container", "azure", "gce", "ec2"],
-        reason=f"Test not tested on {PLATFORM}",
+        reason=(
+            f"Test was written for {PLATFORM} but can likely run on "
+            "other platforms."
+        ),
     )
     def test_instance_cloud_id_across_reboot(
         self, class_client: IntegrationInstance

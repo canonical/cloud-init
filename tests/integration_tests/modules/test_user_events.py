@@ -95,7 +95,7 @@ def _test_network_config_applied_on_reboot(client: IntegrationInstance):
 @pytest.mark.skipif(
     PLATFORM != "azure",
     reason=(
-        f"{PLATFORM} doesn't support updates ever boot event by default "
+        f"{PLATFORM} doesn't support updates every boot event by default "
         "(or hasn't been testing for it)."
     ),
 )

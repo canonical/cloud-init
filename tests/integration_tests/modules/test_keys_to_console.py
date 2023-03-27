@@ -89,7 +89,6 @@ class TestKeysToConsoleDisabled:
 
 @pytest.mark.user_data(ENABLE_KEYS_TO_CONSOLE_USER_DATA)
 @retry(tries=30, delay=1)
-# No Azure because no console log on Azure
 @pytest.mark.skipif(
     PLATFORM not in ["ec2", "lxd_container", "oci", "openstack"],
     reason=(

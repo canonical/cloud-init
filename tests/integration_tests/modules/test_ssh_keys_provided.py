@@ -143,7 +143,7 @@ class TestSshKeysProvided:
             "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
             "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub",
         )
-        if CURRENT_RELEASE.series in {"bionic"}:
+        if CURRENT_RELEASE.series == "bionic":
             sshd_config_path = "/etc/ssh/sshd_config"
         else:
             sshd_config_path = "/etc/ssh/sshd_config.d/50-cloud-init.conf"

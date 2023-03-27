@@ -182,7 +182,7 @@ class Mixin:
 
     def test_sshd_config_file(self, class_client):
         """Test that SSH config is written in the correct file."""
-        if CURRENT_RELEASE.series in {"bionic"}:
+        if CURRENT_RELEASE.series == "bionic":
             sshd_file_target = "/etc/ssh/sshd_config"
         else:
             sshd_file_target = "/etc/ssh/sshd_config.d/50-cloud-init.conf"

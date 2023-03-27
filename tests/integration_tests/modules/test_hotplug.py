@@ -43,7 +43,11 @@ def _get_ip_addr(client):
 
 
 @pytest.mark.skipif(
-    PLATFORM != "openstack", reason=f"Test not tested for {PLATFORM}"
+    PLATFORM != "openstack",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
 )
 @pytest.mark.skipif(
     CURRENT_RELEASE < FOCAL,
@@ -90,7 +94,11 @@ def test_hotplug_add_remove(client: IntegrationInstance):
 
 
 @pytest.mark.skipif(
-    PLATFORM != "openstack", reason=f"Test not tested for {PLATFORM}"
+    PLATFORM != "openstack",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
 )
 def test_no_hotplug_in_userdata(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
