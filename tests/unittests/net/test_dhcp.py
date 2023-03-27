@@ -802,7 +802,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         ) as lease:
             self.assertEqual(fake_lease, lease)
         # Ensure that dhcp discovery occurs
-        m_dhcp.called_once_with()
+        m_dhcp.assert_called_once()
 
 
 @pytest.mark.parametrize(
