@@ -535,9 +535,6 @@ class Init:
         ]
         return def_handlers
 
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
-
     def _default_vendordata_handlers(self):
         return self._default_handlers(
             opts={
@@ -758,10 +755,11 @@ class Init:
             return
 
         if isinstance(enabled, str):
-            LOG.debug(
-                "Use of string '%s' for 'vendor_data:enabled' field "
-                "is deprecated. Use boolean value instead",
-                enabled,
+            util.deprecate(
+                deprecated=f"Use of string '{enabled}' for "
+                "'vendor_data:enabled' field",
+                deprecated_version="23.1",
+                extra_message="Use boolean value instead.",
             )
 
         LOG.debug(

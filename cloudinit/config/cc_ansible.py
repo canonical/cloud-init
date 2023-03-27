@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from copy import deepcopy
-from logging import Logger, getLogger
+from logging import getLogger
 from textwrap import dedent
 from typing import Optional
 
@@ -39,6 +39,7 @@ meta: MetaSchema = {
         dedent(
             """\
             ansible:
+              package_name: ansible-core
               install_method: distro
               pull:
                 url: "https://github.com/holmanb/vmboot.git"
@@ -155,9 +156,7 @@ class AnsiblePullDistro(AnsiblePull):
         return bool(which("ansible"))
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     ansible_cfg: dict = cfg.get("ansible", {})
     ansible_user = ansible_cfg.get("run_user")

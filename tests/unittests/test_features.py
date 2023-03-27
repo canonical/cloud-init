@@ -27,7 +27,7 @@ def create_override(request):
     """
     override_path = Path(cloudinit.__file__).parent / "feature_overrides.py"
     if override_path.exists():
-        raise Exception(
+        raise RuntimeError(
             "feature_overrides.py unexpectedly exists! "
             "Remove it to run this test."
         )

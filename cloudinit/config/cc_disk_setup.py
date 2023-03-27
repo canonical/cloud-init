@@ -10,7 +10,6 @@
 import logging
 import os
 import shlex
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -112,9 +111,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
@@ -128,14 +125,14 @@ def handle(
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
         update_disk_setup_devices(disk_setup, alias_to_device)
-        log.debug("Partitioning disks: %s", str(disk_setup))
+        LOG.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
-                log.warning("Invalid disk definition for %s" % disk)
+                LOG.warning("Invalid disk definition for %s", disk)
                 continue
 
             try:
-                log.debug("Creating new partition table/disk")
+                LOG.debug("Creating new partition table/disk")
                 util.log_time(
                     logfunc=LOG.debug,
                     msg="Creating partition on %s" % disk,
@@ -147,15 +144,15 @@ def handle(
 
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
-        log.debug("setting up filesystems: %s", str(fs_setup))
+        LOG.debug("setting up filesystems: %s", str(fs_setup))
         update_fs_setup_devices(fs_setup, alias_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
-                log.warning("Invalid file system definition: %s" % definition)
+                LOG.warning("Invalid file system definition: %s", definition)
                 continue
 
             try:
-                log.debug("Creating new filesystem.")
+                LOG.debug("Creating new filesystem.")
                 device = definition.get("device")
                 util.log_time(
                     logfunc=LOG.debug,
@@ -274,7 +271,7 @@ def enumerate_disk(device, nodeps=False):
     try:
         info, _err = subp.subp(lsblk_cmd)
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
 
@@ -338,7 +335,7 @@ def check_fs(device):
     try:
         out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
 
@@ -444,7 +441,7 @@ def get_hdd_size(device):
         size_in_bytes, _ = subp.subp([BLKDEV_CMD, "--getsize64", device])
         sector_size, _ = subp.subp([BLKDEV_CMD, "--getss", device])
     except Exception as e:
-        raise Exception("Failed to get %s size\n%s" % (device, e)) from e
+        raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
 
@@ -462,7 +459,7 @@ def check_partition_mbr_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
 
@@ -493,7 +490,7 @@ def check_partition_gpt_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
 
@@ -542,7 +539,7 @@ def check_partition_layout(table_type, device, layout):
     elif "mbr" == table_type:
         found_layout = check_partition_mbr_layout(device, layout)
     else:
-        raise Exception("Unable to determine table type")
+        raise RuntimeError("Unable to determine table type")
 
     LOG.debug(
         "called check_partition_%s_layout(%s, %s), returned: %s",
@@ -595,11 +592,11 @@ def get_partition_mbr_layout(size, layout):
     if (len(layout) == 0 and isinstance(layout, list)) or not isinstance(
         layout, list
     ):
-        raise Exception("Partition layout is invalid")
+        raise RuntimeError("Partition layout is invalid")
 
     last_part_num = len(layout)
     if last_part_num > 4:
-        raise Exception("Only simply partitioning is allowed.")
+        raise RuntimeError("Only simply partitioning is allowed.")
 
     part_definition = []
     part_num = 0
@@ -610,7 +607,9 @@ def get_partition_mbr_layout(size, layout):
 
         if isinstance(part, list):
             if len(part) != 2:
-                raise Exception("Partition was incorrectly defined: %s" % part)
+                raise RuntimeError(
+                    "Partition was incorrectly defined: %s" % part
+                )
             percent, part_type = part
 
         part_size = int(float(size) * (float(percent) / 100))
@@ -622,7 +621,7 @@ def get_partition_mbr_layout(size, layout):
 
     sfdisk_definition = "\n".join(part_definition)
     if len(part_definition) > 4:
-        raise Exception(
+        raise RuntimeError(
             "Calculated partition definition is too big\n%s"
             % sfdisk_definition
         )
@@ -638,7 +637,7 @@ def get_partition_gpt_layout(size, layout):
     for partition in layout:
         if isinstance(partition, list):
             if len(partition) != 2:
-                raise Exception(
+                raise RuntimeError(
                     "Partition was incorrectly defined: %s" % partition
                 )
             percent, partition_type = partition
@@ -682,7 +681,7 @@ def purge_disk(device):
                 LOG.info("Purging filesystem on /dev/%s", d["name"])
                 subp.subp(wipefs_cmd)
             except Exception as e:
-                raise Exception(
+                raise RuntimeError(
                     "Failed FS purge of /dev/%s" % d["name"]
                 ) from e
 
@@ -702,7 +701,7 @@ def get_partition_layout(table_type, size, layout):
         return get_partition_mbr_layout(size, layout)
     elif "gpt" == table_type:
         return get_partition_gpt_layout(size, layout)
-    raise Exception("Unable to determine table type")
+    raise RuntimeError("Unable to determine table type")
 
 
 def read_parttbl(device):
@@ -733,7 +732,7 @@ def exec_mkpart_mbr(device, layout):
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             "Failed to partition device %s\n%s" % (device, e)
         ) from e
 
@@ -816,7 +815,7 @@ def mkpart(device, definition):
     # This prevents you from overwriting the device
     LOG.debug("Checking if device %s is a valid device", device)
     if not is_device_valid(device):
-        raise Exception(
+        raise RuntimeError(
             "Device {device} is not a disk device!".format(device=device)
         )
 
@@ -849,7 +848,7 @@ def mkpart(device, definition):
     elif "gpt" == table_type:
         exec_mkpart_gpt(device, part_definition)
     else:
-        raise Exception("Unable to determine table type")
+        raise RuntimeError("Unable to determine table type")
 
     LOG.debug("Partition table created for %s", device)
 
@@ -997,7 +996,7 @@ def mkfs(fs_cfg):
 
     # Check that we can create the FS
     if not (fs_type or fs_cmd):
-        raise Exception(
+        raise RuntimeError(
             "No way to create filesystem '{label}'. fs_type or fs_cmd "
             "must be set.".format(label=label)
         )
@@ -1059,7 +1058,7 @@ def mkfs(fs_cfg):
     try:
         subp.subp(fs_cmd, shell=shell)
     except Exception as e:
-        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
+        raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
 
 
 # vi: ts=4 expandtab

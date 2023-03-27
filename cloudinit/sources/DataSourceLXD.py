@@ -181,16 +181,13 @@ class DataSourceLXD(sources.DataSource):
         super()._unpickle(ci_pkl_version)
         self.skip_hotplug_detect = True
 
-    def _is_platform_viable(self) -> bool:
+    @staticmethod
+    def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
         return is_platform_viable()
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
-        if not self._is_platform_viable():
-            LOG.debug("Not an LXD datasource: No LXD socket found.")
-            return False
-
         self._crawled_metadata = util.log_time(
             logfunc=LOG.debug,
             msg="Crawl of metadata service",

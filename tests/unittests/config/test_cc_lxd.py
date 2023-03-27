@@ -53,7 +53,7 @@ class TestLxd(t_help.CiTestCase):
             subp.call_args_list = []
             install.call_args_list = []
             exists.call_args_list = []
-            cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
+            cc_lxd.handle("cc_lxd", lxd_cfg, cc, [])
             if cmd:
                 which.assert_called_with(cmd)
             # no bridge config, so maybe_cleanup should not be called.
@@ -100,10 +100,10 @@ class TestLxd(t_help.CiTestCase):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
-        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
         self.assertNotIn("WARN", self.logs.getvalue())
         self.assertTrue(cc.distro.install_packages.called)
-        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
         self.assertFalse(m_maybe_clean.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEqual(sorted(install_pkg), ["lxd", "zfsutils-linux"])
@@ -113,7 +113,7 @@ class TestLxd(t_help.CiTestCase):
     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
-        cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
@@ -123,7 +123,7 @@ class TestLxd(t_help.CiTestCase):
     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
-        cc_lxd.handle("cc_lxd", {"package_update": True}, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
@@ -136,7 +136,6 @@ class TestLxd(t_help.CiTestCase):
             "cc_lxd",
             {"lxd": {"preseed": '{"chad": True}'}},
             cc,
-            self.logger,
             [],
         )
         self.assertEqual(

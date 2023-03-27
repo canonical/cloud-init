@@ -8,7 +8,7 @@
 
 """Update Etc Hosts: Update the hosts file (usually ``/etc/hosts``)"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, util
@@ -95,24 +95,24 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
 
     hosts_fn = cloud.distro.hosts_fn
 
     if util.translate_bool(manage_hosts, addons=["template"]):
         if manage_hosts == "template":
-            log.warning(
-                "DEPRECATED: please use manage_etc_hosts: true instead of"
-                " 'template'"
+            util.deprecate(
+                deprecated="Value 'template' for key 'manage_etc_hosts'",
+                deprecated_version="22.2",
+                extra_message="Use 'true' instead.",
             )
         (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warning(
+            LOG.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"
             )
             return
@@ -134,15 +134,15 @@ def handle(
     elif manage_hosts == "localhost":
         (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warning(
+            LOG.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"
             )
             return
 
-        log.debug("Managing localhost in %s", hosts_fn)
+        LOG.debug("Managing localhost in %s", hosts_fn)
         cloud.distro.update_etc_hosts(hostname, fqdn)
     else:
-        log.debug(
+        LOG.debug(
             "Configuration option 'manage_etc_hosts' is not set,"
             " not managing %s in module %s",
             hosts_fn,

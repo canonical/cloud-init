@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import safeyaml
+from cloudinit import log, safeyaml, util
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
@@ -214,6 +214,9 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
+        log.setupLogging()
+
+        util.deprecate._log = set()  # type: ignore
         ncfg = safeyaml.load(
             cfg.format(
                 gateway4="gateway4: 10.54.0.1",
@@ -233,7 +236,7 @@ class TestNetworkStateParseConfigV2:
         else:
             count = 0  # No deprecation as we passthrough
         assert count == caplog.text.count(
-            "DEPRECATED: The use of `gateway4` and `gateway6` is"
+            "The use of `gateway4` and `gateway6`"
         )
 
 

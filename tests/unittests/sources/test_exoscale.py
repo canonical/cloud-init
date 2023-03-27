@@ -76,7 +76,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
         full test data."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_password = "p@ssw0rd"
         expected_id = "12345"
         expected_hostname = "myname"
@@ -102,7 +102,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -124,7 +124,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
         returned by the password server."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_answer = "saved_password"
         expected_id = "12345"
         expected_hostname = "myname"
@@ -150,7 +150,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -163,7 +163,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
         returned by the password server."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_answer = ""
         expected_id = "12345"
         expected_hostname = "myname"
@@ -189,7 +189,7 @@ class TestDatasourceExoscale(ResponsesTestCase):
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -236,5 +236,5 @@ class TestDatasourceExoscale(ResponsesTestCase):
         """The datasource fails fast when the platform is not viable."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: False
-        self.assertFalse(ds._get_data())
+        ds.ds_detect = lambda: False
+        self.assertFalse(ds._check_and_get_data())

@@ -8,7 +8,7 @@
 
 """Phone Home: Post data to url"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, url_helper, util
@@ -95,7 +95,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
-
+LOG = logging.getLogger(__name__)
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/
 #  post: all
@@ -108,14 +108,12 @@ __doc__ = get_meta_doc(meta)
 #
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
         if "phone_home" not in cfg:
-            log.debug(
+            LOG.debug(
                 "Skipping module named %s, "
                 "no 'phone_home' configuration found",
                 name,
@@ -124,7 +122,7 @@ def handle(
         ph_cfg = cfg["phone_home"]
 
     if "url" not in ph_cfg:
-        log.warning(
+        LOG.warning(
             "Skipping module named %s, "
             "no 'url' found in 'phone_home' configuration",
             name,
@@ -139,7 +137,7 @@ def handle(
     except (ValueError, TypeError):
         tries = 10
         util.logexc(
-            log,
+            LOG,
             "Configuration entry 'tries' is not an integer, using %s instead",
             tries,
         )
@@ -165,7 +163,7 @@ def handle(
             all_keys[n] = util.load_file(path)
         except Exception:
             util.logexc(
-                log, "%s: failed to open, can not phone home that data!", path
+                LOG, "%s: failed to open, can not phone home that data!", path
             )
 
     submit_keys = {}
@@ -174,7 +172,7 @@ def handle(
             submit_keys[k] = all_keys[k]
         else:
             submit_keys[k] = None
-            log.warning(
+            LOG.warning(
                 "Requested key %s from 'post'"
                 " configuration list not available",
                 k,
@@ -203,7 +201,7 @@ def handle(
         )
     except Exception:
         util.logexc(
-            log, "Failed to post phone home data to %s in %s tries", url, tries
+            LOG, "Failed to post phone home data to %s in %s tries", url, tries
         )
 
 

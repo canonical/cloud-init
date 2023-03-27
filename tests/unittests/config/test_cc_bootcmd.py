@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
 import re
 import tempfile
 
@@ -14,8 +13,6 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
-
-LOG = logging.getLogger(__name__)
 
 
 class FakeExtendedTempFile:
@@ -50,7 +47,7 @@ class TestBootcmd(CiTestCase):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
         mycloud = get_cloud()
-        handle("notimportant", cfg, mycloud, LOG, None)
+        handle("notimportant", cfg, mycloud, None)
         self.assertIn(
             "Skipping module named notimportant, no 'bootcmd' key",
             self.logs.getvalue(),
@@ -61,7 +58,7 @@ class TestBootcmd(CiTestCase):
         invalid_config = {"bootcmd": 1}
         cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
-            handle("cc_bootcmd", invalid_config, cc, LOG, [])
+            handle("cc_bootcmd", invalid_config, cc, [])
         self.assertIn("Failed to shellify bootcmd", self.logs.getvalue())
         self.assertEqual(
             "Input to shellify was type 'int'. Expected list or tuple.",
@@ -73,7 +70,7 @@ class TestBootcmd(CiTestCase):
         }
         cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
-            handle("cc_bootcmd", invalid_config, cc, LOG, [])
+            handle("cc_bootcmd", invalid_config, cc, [])
         logs = self.logs.getvalue()
         self.assertIn("Failed to shellify", logs)
         self.assertEqual(
@@ -93,7 +90,7 @@ class TestBootcmd(CiTestCase):
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
             with self.allow_subp(["/bin/sh"]):
-                handle("cc_bootcmd", valid_config, cc, LOG, [])
+                handle("cc_bootcmd", valid_config, cc, [])
         self.assertEqual(
             my_id + " iid-datasource-none\n", util.load_file(out_file)
         )
@@ -106,7 +103,7 @@ class TestBootcmd(CiTestCase):
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
             with self.allow_subp(["/bin/sh"]):
                 with self.assertRaises(subp.ProcessExecutionError) as ctxt:
-                    handle("does-not-matter", valid_config, cc, LOG, [])
+                    handle("does-not-matter", valid_config, cc, [])
         self.assertIn(
             "Unexpected error while running command.\nCommand: ['/bin/sh',",
             str(ctxt.exception),

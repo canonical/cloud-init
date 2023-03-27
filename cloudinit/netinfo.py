@@ -94,11 +94,13 @@ def _netdev_info_iproute_json(ipaddr_json):
     return devs
 
 
+@util.deprecate_call(
+    deprecated_version="22.1",
+    extra_message="Required by old iproute2 versions that don't "
+    "support ip json output. Consider upgrading to a more recent version.",
+)
 def _netdev_info_iproute(ipaddr_out):
     """
-    DEPRECATED: Only used on distros that don't support ip json output
-    Use _netdev_info_iproute_json() when possible.
-
     @param ipaddr_out: Output string from 'ip addr show' command.
 
     @returns: A dict of device info keyed by network device name containing

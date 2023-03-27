@@ -8,7 +8,6 @@
 Ensure Network Manager is not managing IPv6 interface"""
 
 import errno
-from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import netinfo, subp, util
@@ -57,9 +56,7 @@ LOG = logging.getLogger(__name__)
 RMCCTRL = "rmcctrl"
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not subp.which(RMCCTRL):
         LOG.debug("No '%s' in path, disabled", RMCCTRL)
         return
@@ -150,20 +147,3 @@ def search(contents):
         or contents.startswith("IPV6INIT")
         or contents.startswith("NM_CONTROLLED")
     )
-
-
-def refresh_rmc():
-    # To make a healthy connection between RMC daemon and hypervisor we
-    # refresh RMC. With refreshing RMC we are ensuring that making IPv6
-    # down and up shouldn't impact communication between RMC daemon and
-    # hypervisor.
-    # -z : stop Resource Monitoring & Control subsystem and all resource
-    # managers, but the command does not return control to the user
-    # until the subsystem and all resource managers are stopped.
-    # -s : start Resource Monitoring & Control subsystem.
-    try:
-        subp.subp([RMCCTRL, "-z"])
-        subp.subp([RMCCTRL, "-s"])
-    except Exception:
-        util.logexc(LOG, "Failed to refresh the RMC subsystem.")
-        raise

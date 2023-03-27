@@ -8,7 +8,6 @@
 
 """Resolv Conf: configure resolv.conf"""
 
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -122,9 +121,7 @@ def generate_resolv_conf(template_fn, params, target_fname):
     templater.render_to_file(template_fn, target_fname, params)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Handler for resolv.conf
 
@@ -135,7 +132,7 @@ def handle(
     @param args: Any module arguments from cloud.cfg
     """
     if "manage_resolv_conf" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no 'manage_resolv_conf' key in configuration",
             name,
@@ -143,7 +140,7 @@ def handle(
         return
 
     if not util.get_cfg_option_bool(cfg, "manage_resolv_conf", False):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " 'manage_resolv_conf' present but set to False",
             name,
@@ -151,7 +148,7 @@ def handle(
         return
 
     if "resolv_conf" not in cfg:
-        log.warning("manage_resolv_conf True but no parameters provided!")
+        LOG.warning("manage_resolv_conf True but no parameters provided!")
         return
 
     try:
@@ -159,7 +156,7 @@ def handle(
             RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolve_conf_fn]
         )
     except KeyError:
-        log.warning("No template found, not rendering resolve configs")
+        LOG.warning("No template found, not rendering resolve configs")
         return
 
     generate_resolv_conf(

@@ -4,7 +4,6 @@
 
 import json
 import re
-from logging import Logger
 from textwrap import dedent
 from typing import Any, List
 from urllib.parse import urlparse
@@ -398,7 +397,11 @@ def _should_auto_attach(ua_section: dict) -> bool:
     # pylint: enable=import-error
 
     try:
-        result = should_auto_attach()
+        result = util.log_time(
+            logfunc=LOG.debug,
+            msg="Checking if the instance can be attached to Ubuntu Pro",
+            func=should_auto_attach,
+        )
     except UserFacingError as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
@@ -440,7 +443,12 @@ def _auto_attach(ua_section: dict):
         enable_beta=enable_beta,
     )
     try:
-        full_auto_attach(options=options)
+        util.log_time(
+            logfunc=LOG.debug,
+            msg="Attaching to Ubuntu Pro",
+            func=full_auto_attach,
+            kwargs={"options": options},
+        )
     except AlreadyAttachedError:
         if enable_beta is not None or enable is not None:
             # Only warn if the user defined some service to enable/disable.
@@ -455,9 +463,7 @@ def _auto_attach(ua_section: dict):
         raise RuntimeError(msg) from ex
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     ua_section = None
     if "ubuntu-advantage" in cfg:
         LOG.warning(
@@ -495,6 +501,9 @@ def handle(
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
     validate_schema_features(ua_section)
+    LOG.debug(
+        "To discover more log info, please check /var/log/ubuntu-advantage.log"
+    )
     if _should_auto_attach(ua_section):
         _auto_attach(ua_section)
 

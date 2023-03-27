@@ -209,9 +209,7 @@ class TestWireGuard(CiTestCase):
     def test_handle_no_config(self, m_maybe_install_wireguard_packages):
         """When no wireguard configuration is provided, nothing happens."""
         cfg = {}
-        cc_wireguard.handle(
-            "wg", cfg=cfg, cloud=None, log=self.logger, args=None
-        )
+        cc_wireguard.handle("wg", cfg=cfg, cloud=None, args=None)
         self.assertIn(
             "DEBUG: Skipping module named wg, no 'wireguard'"
             " configuration found",

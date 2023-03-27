@@ -4,7 +4,6 @@
 Test creation of repositories file
 """
 
-import logging
 import os
 import re
 import textwrap
@@ -35,7 +34,6 @@ class TestNoConfig(FilesystemMockingTestCase):
         self.add_patch(CC_APK + "._write_repositories_file", "m_write_repos")
         self.name = "apk-configure"
         self.cloud_init = None
-        self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
     def test_no_config(self):
@@ -45,9 +43,7 @@ class TestNoConfig(FilesystemMockingTestCase):
         """
         config = util.get_builtin_cfg()
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud_init, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud_init, self.args)
 
         self.assertEqual(0, self.m_write_repos.call_count)
 
@@ -62,7 +58,6 @@ class TestConfig(FilesystemMockingTestCase):
         self.paths = helpers.Paths({"templates_dir": self.new_root})
         self.name = "apk-configure"
         self.cloud = cloud.Cloud(None, self.paths, None, None, None)
-        self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
     @mock.patch(CC_APK + "._write_repositories_file")
@@ -73,9 +68,7 @@ class TestConfig(FilesystemMockingTestCase):
         """
         config = {"apk_repos": {}}
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         self.assertEqual(0, m_write_repos.call_count)
 
@@ -86,9 +79,7 @@ class TestConfig(FilesystemMockingTestCase):
         """
         config = {"apk_repos": {"alpine_repo": []}}
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         self.assertEqual(0, m_write_repos.call_count)
 
@@ -99,9 +90,7 @@ class TestConfig(FilesystemMockingTestCase):
         alpine_version = "v3.12"
         config = {"apk_repos": {"alpine_repo": {"version": alpine_version}}}
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\
@@ -135,9 +124,7 @@ class TestConfig(FilesystemMockingTestCase):
             }
         }
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\
@@ -173,9 +160,7 @@ class TestConfig(FilesystemMockingTestCase):
             }
         }
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\
@@ -215,9 +200,7 @@ class TestConfig(FilesystemMockingTestCase):
             }
         }
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\
@@ -256,9 +239,7 @@ class TestConfig(FilesystemMockingTestCase):
             }
         }
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\
@@ -305,9 +286,7 @@ class TestConfig(FilesystemMockingTestCase):
             }
         }
 
-        cc_apk_configure.handle(
-            self.name, config, self.cloud, self.log, self.args
-        )
+        cc_apk_configure.handle(self.name, config, self.cloud, self.args)
 
         expected_content = textwrap.dedent(
             """\

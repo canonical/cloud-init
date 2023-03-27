@@ -4,7 +4,7 @@
 
 """Write Files Deferred: Defer writing certain files"""
 
-from logging import Logger
+import logging
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
@@ -36,11 +36,10 @@ meta: MetaSchema = {
 
 # This module is undocumented in our schema docs
 __doc__ = ""
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -48,7 +47,7 @@ def handle(
         if util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no deferred file defined in configuration",
             name,
