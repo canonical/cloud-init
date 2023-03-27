@@ -12,15 +12,24 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.6", "3.7", "3.8", "3.9", "3.10", "3.11" ]
-    name: Python ${{matrix.python-version}} unittest
+        toxenv: [ py3 ]
+        experimental: [false]
+        include:
+          - python-version: "3.12-dev"
+            toxenv: py3
+            experimental: true
+          - python-version: "3.6"
+            toxenv: lowest-supported
+            experimental: false
+    name: unittest / ${{ matrix.toxenv }} / python ${{matrix.python-version}}
     runs-on: ubuntu-20.04
+    continue-on-error: ${{ matrix.experimental }}
     steps:
-      - name: "Checkout #1"
-        uses: actions/checkout@v3.0.0
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
+      - name: "Checkout"
+        uses: actions/checkout@v3
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
       - name: Install Python ${{matrix.python-version}}
         uses: actions/setup-python@v4
         with:
@@ -29,6 +38,5 @@ jobs:
         run: pip install tox
       - name: Run unittest
         env:
-          TOXENV: py3
           PYTEST_ADDOPTS: -v
-        run: tox
+        run: tox -e ${{ matrix.toxenv }}
