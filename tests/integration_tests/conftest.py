@@ -65,7 +65,7 @@ def pytest_runtest_setup(item):
     unsupported_message = "Cannot run on platform {}".format(current_platform)
     if "no_container" in test_marks:
         if "lxd_container" in test_marks:
-            raise Exception(
+            raise RuntimeError(
                 "lxd_container and no_container marks simultaneously set "
                 "on test"
             )

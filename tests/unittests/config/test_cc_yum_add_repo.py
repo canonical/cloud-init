@@ -41,7 +41,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             },
         }
         self.patchUtils(self.tmp)
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
         self.assertRaises(
             IOError, util.load_file, "/etc/yum.repos.d/epel_testing.repo"
         )
@@ -61,7 +61,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
         contents = util.load_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
@@ -101,7 +101,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             }
         }
         self.patchUtils(self.tmp)
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, LOG, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
         contents = util.load_file("/etc/yum.repos.d/puppetlabs-products.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)

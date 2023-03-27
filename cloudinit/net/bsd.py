@@ -222,9 +222,6 @@ class BSDRenderer(renderer.Renderer):
     def write_config(self, target=None):
         raise NotImplementedError()
 
-    def set_gateway(self, gateway):
-        raise NotImplementedError()
-
     def rename_interface(self, cur_name, device_name):
         raise NotImplementedError()
 

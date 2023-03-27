@@ -42,7 +42,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         m_user.assert_not_called()
         m_group.assert_not_called()
 
@@ -62,7 +62,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
             [
@@ -107,7 +107,7 @@ class TestHandleUsersGroups(CiTestCase):
             cloud = self.tmp_cloud(
                 distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
             )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_fbsd_user.call_args_list,
             [
@@ -142,7 +142,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
             [
@@ -183,7 +183,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
             [
@@ -216,7 +216,7 @@ class TestHandleUsersGroups(CiTestCase):
         }
         cloud = self.tmp_cloud(distro="ubuntu", sys_cfg={}, metadata={})
         with self.assertRaises(ValueError) as context_manager:
-            cc_users_groups.handle("modulename", cfg, cloud, None, None)
+            cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
         self.assertEqual(
             "Not creating user me2. Key(s) ssh_import_id cannot be provided"
@@ -246,7 +246,7 @@ class TestHandleUsersGroups(CiTestCase):
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
         with self.assertRaises(ValueError) as context_manager:
-            cc_users_groups.handle("modulename", cfg, cloud, None, None)
+            cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
         self.assertEqual(
             "Not creating user me2. Invalid value of ssh_redirect_user:"
@@ -270,7 +270,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
             [
@@ -296,7 +296,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
         )
-        cc_users_groups.handle("modulename", cfg, cloud, None, None)
+        cc_users_groups.handle("modulename", cfg, cloud, None)
         m_user.assert_called_once_with("me2", default=False)
         m_group.assert_not_called()
         self.assertEqual(

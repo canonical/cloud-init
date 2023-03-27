@@ -118,9 +118,9 @@ class DataSourceOracle(sources.DataSource):
     vendordata_pure = None
     network_config_sources: Tuple[sources.NetworkConfigSource, ...] = (
         sources.NetworkConfigSource.CMD_LINE,
+        sources.NetworkConfigSource.SYSTEM_CFG,
         sources.NetworkConfigSource.DS,
         sources.NetworkConfigSource.INITRAMFS,
-        sources.NetworkConfigSource.SYSTEM_CFG,
     )
 
     _network_config: dict = {"config": [], "version": 1}
@@ -140,13 +140,12 @@ class DataSourceOracle(sources.DataSource):
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))
 
-    def _is_platform_viable(self) -> bool:
+    @staticmethod
+    def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
         return _is_platform_viable()
 
     def _get_data(self):
-        if not self._is_platform_viable():
-            return False
 
         self.system_uuid = _read_system_uuid()
 
@@ -156,7 +155,6 @@ class DataSourceOracle(sources.DataSource):
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
                 "headers": V2_HEADERS,
             },
-            tmp_dir=self.distro.get_tmp_exec_path(),
         )
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(

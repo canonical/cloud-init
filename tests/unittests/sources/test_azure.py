@@ -16,7 +16,6 @@ from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
-from cloudinit.sources.azure import imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -297,6 +296,15 @@ def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
         azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
+
+
+def fake_http_error_for_code(status_code: int):
+    response_failure = requests.Response()
+    response_failure.status_code = status_code
+    return requests.exceptions.HTTPError(
+        "fake error",
+        response=response_failure,
+    )
 
 
 def construct_ovf_env(
@@ -1088,8 +1096,8 @@ scbus-1 on xpt0 bus 0
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
 
-    def test_not_is_platform_viable_seed_should_return_no_datasource(self):
-        """Check seed_dir using _is_platform_viable and return False."""
+    def test_not_ds_detect_seed_should_return_no_datasource(self):
+        """Check seed_dir using ds_detect and return False."""
         # Return a non-matching asset tag value
         data = {}
         dsrc = self._get_ds(data)
@@ -2887,36 +2895,38 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             "unknown-245": "624c3620",
         }
 
-        # Simulate two NICs by adding the same one twice.
-        md = {
-            "interface": [
-                IMDS_NETWORK_METADATA["interface"][0],
-                IMDS_NETWORK_METADATA["interface"][0],
-            ]
-        }
-
-        m_req = mock.Mock(content=json.dumps(md))
-        m_request.side_effect = [
-            requests.Timeout("Fake connection timeout"),
-            requests.ConnectionError("Fake Network Unreachable"),
-            m_req,
-        ]
+        m_req = mock.Mock(content=json.dumps({"not": "empty"}))
+        m_request.side_effect = (
+            [requests.Timeout("Fake connection timeout")] * 5
+            + [requests.ConnectionError("Fake Network Unreachable")] * 5
+            + 290 * [fake_http_error_for_code(410)]
+            + [m_req]
+        )
         m_dhcpv4.return_value.lease = lease
 
-        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth0")
+        is_primary = dsa._check_if_nic_is_primary("eth0")
         self.assertEqual(True, is_primary)
-        self.assertEqual(2, expected_nic_count)
-        assert len(m_request.mock_calls) == 3
+        assert len(m_request.mock_calls) == 301
 
-        # Re-run tests to verify max retries.
+        # Re-run tests to verify max http failures.
         m_request.reset_mock()
-        m_request.side_effect = [
-            requests.Timeout("Fake connection timeout")
-        ] * 6 + [requests.ConnectionError("Fake Network Unreachable")] * 6
+        m_request.side_effect = 305 * [fake_http_error_for_code(410)]
 
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
-        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth1")
+        is_primary = dsa._check_if_nic_is_primary("eth1")
+        self.assertEqual(False, is_primary)
+        assert len(m_request.mock_calls) == 301
+
+        # Re-run tests to verify max connection error retries.
+        m_request.reset_mock()
+        m_request.side_effect = [
+            requests.Timeout("Fake connection timeout")
+        ] * 9 + [requests.ConnectionError("Fake Network Unreachable")] * 9
+
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
+
+        is_primary = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
         assert len(m_request.mock_calls) == 11
 
@@ -3012,8 +3022,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
+        dhcp_ctx.iface = lease["interface"]
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = dhcp_ctx
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3021,7 +3033,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
         assert m_report_ready.mock_calls == [mock.call()]
 
-        self.assertEqual(3, m_dhcp.call_count, "Expected 3 DHCP calls")
+        self.assertEqual(2, m_dhcp.call_count, "Expected 2 DHCP calls")
         assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
@@ -3152,6 +3164,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3186,6 +3199,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         with mock.patch.object(
             dsa, "_reported_ready_marker_file", report_file
         ):
@@ -3227,8 +3241,9 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             }
         ]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3237,7 +3252,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
     def test__reprovision_calls__poll_imds(
         self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
@@ -3258,10 +3273,11 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         content = construct_ovf_env(username=username, hostname=hostname)
         m_fetch_reprovisiondata.side_effect = [content]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md["local-hostname"], hostname)
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
-        self.assertEqual(m_dhcp.call_count, 2)
+        self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast="192.168.2.255",
             interface="eth9",
@@ -3270,7 +3286,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             router="192.168.2.1",
             static_routes=None,
         )
-        self.assertEqual(m_net.call_count, 2)
+        self.assertEqual(m_net.call_count, 1)
 
 
 class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
@@ -3340,7 +3356,7 @@ class TestIsPlatformViable:
     ):
         mock_chassis_asset_tag.return_value = tag
 
-        assert dsaz.is_platform_viable(None) is True
+        assert dsaz.DataSourceAzure.ds_detect(None) is True
 
     def test_true_on_azure_ovf_env_in_seed_dir(
         self, azure_ds, mock_chassis_asset_tag, tmpdir
@@ -3351,7 +3367,7 @@ class TestIsPlatformViable:
         seed_path.parent.mkdir(exist_ok=True, parents=True)
         seed_path.write_text("")
 
-        assert dsaz.is_platform_viable(seed_path.parent) is True
+        assert dsaz.DataSourceAzure.ds_detect(seed_path.parent) is True
 
     def test_false_on_no_matching_azure_criteria(
         self, azure_ds, mock_chassis_asset_tag
@@ -3360,8 +3376,13 @@ class TestIsPlatformViable:
 
         seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
         seed_path.parent.mkdir(exist_ok=True, parents=True)
+        paths = helpers.Paths(
+            {"cloud_dir": "/tmp/", "run_dir": "/tmp/", "seed_dir": seed_path}
+        )
 
-        assert dsaz.is_platform_viable(seed_path) is False
+        assert (
+            dsaz.DataSourceAzure({}, mock.Mock(), paths).ds_detect() is False
+        )
 
 
 class TestRandomSeed(CiTestCase):
@@ -3406,7 +3427,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3433,7 +3453,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
         ]
@@ -3476,7 +3495,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3511,7 +3529,6 @@ class TestEphemeralNetworking:
             mock.call(
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
-                tmp_dir=azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call().obtain_lease(),
             mock.call().obtain_lease(),
@@ -3550,7 +3567,6 @@ class TestEphemeralNetworking:
                 mock.call(
                     iface=None,
                     dhcp_log_func=dsaz.dhcp_log_cb,
-                    tmp_dir=azure_ds.distro.get_tmp_exec_path(),
                 ),
             ]
             + [mock.call().obtain_lease()] * 11
@@ -3594,15 +3610,6 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)] * 2
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx is None
-
-
-def fake_http_error_for_code(status_code: int):
-    response_failure = requests.Response()
-    response_failure.status_code = status_code
-    return requests.exceptions.HTTPError(
-        "fake error",
-        response=response_failure,
-    )
 
 
 class TestInstanceId:
@@ -3700,7 +3707,7 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
@@ -3709,7 +3716,7 @@ class TestProvisioning:
                 timeout=2,
                 headers={"Metadata": "true"},
                 retries=10,
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 infinite=False,
                 log_req_resp=True,
             ),
@@ -3723,7 +3730,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -3763,13 +3769,13 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3788,7 +3794,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3806,12 +3812,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -3860,21 +3864,19 @@ class TestProvisioning:
         )
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(
-                contents=json.dumps(self.imds_md["network"]).encode()
-            ),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3884,11 +3886,11 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
-                retries=10,
+                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -3903,7 +3905,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -3921,12 +3923,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4019,13 +4019,13 @@ class TestProvisioning:
             None,
         ]
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4035,11 +4035,11 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
-                retries=10,
+                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -4054,7 +4054,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4072,12 +4072,10 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
             mock.call(
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
@@ -4128,13 +4126,13 @@ class TestProvisioning:
         ]
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
-        self.azure_ds._get_data()
+        self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4153,7 +4151,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4170,7 +4168,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             ),
         ]
 
@@ -4187,6 +4184,35 @@ class TestProvisioning:
         ]
 
         # Verify no netlink operations for recovering PPS.
+        assert self.mock_netlink.mock_calls == []
+
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
+    def test_source_pps_fails_initial_dhcp(self, pps_type):
+        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.mock_net_dhcp_maybe_perform_dhcp_discovery.side_effect = [
+            dhcp.NoDHCPLeaseError()
+        ]
+
+        with mock.patch.object(self.azure_ds, "_report_failure") as m_report:
+            self.azure_ds._get_data()
+
+        assert m_report.mock_calls == [mock.call()]
+
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+        ]
+        assert self.mock_readurl.mock_calls == []
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
         assert self.mock_netlink.mock_calls == []
 
     @pytest.mark.parametrize(
@@ -4215,7 +4241,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                exception_cb=imds._readurl_exception_callback,
+                exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
                 infinite=False,
                 log_req_resp=True,
@@ -4235,7 +4261,6 @@ class TestProvisioning:
             mock.call(
                 None,
                 dsaz.dhcp_log_cb,
-                self.azure_ds.distro.get_tmp_exec_path(),
             )
         ]
         assert self.azure_ds._wireserver_endpoint == "10.11.12.13"

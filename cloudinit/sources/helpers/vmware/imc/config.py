@@ -50,11 +50,6 @@ class Config:
         return self._configFile.get(Config.TIMEZONE, None)
 
     @property
-    def utc(self):
-        """Retrieves whether to set time to UTC or Local."""
-        return self._configFile.get(Config.UTC, None)
-
-    @property
     def admin_password(self):
         """Return the root password to be set."""
         return self._configFile.get(Config.PASS, None)

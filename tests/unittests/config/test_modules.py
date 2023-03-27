@@ -2,6 +2,7 @@
 
 
 import importlib
+import inspect
 import logging
 from pathlib import Path
 from typing import List
@@ -13,6 +14,7 @@ from cloudinit.config.modules import ModuleDetails, Modules, _is_active
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import FREQUENCIES
+from cloudinit.stages import Init
 from tests.unittests.helpers import cloud_init_project_dir, mock
 
 M_PATH = "cloudinit.config.modules."
@@ -21,7 +23,7 @@ M_PATH = "cloudinit.config.modules."
 def get_module_names() -> List[str]:
     """Return list of module names in cloudinit/config"""
     files = list(
-        Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
+        Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py"),
     )
 
     return [mod.stem for mod in files]
@@ -172,3 +174,49 @@ class TestModules:
             mock.call([list(module_details)])
         ] == m_run_modules.call_args_list
         assert "Skipping" not in caplog.text
+
+    @mock.patch(M_PATH + "signature")
+    @mock.patch("cloudinit.config.modules.ReportEventStack")
+    def test_old_handle(self, event, m_signature, caplog):
+        def handle(name, cfg, cloud, log, args):
+            pass
+
+        m_signature.return_value = inspect.signature(handle)
+        module = mock.Mock()
+        module.handle.side_effect = handle
+        mods = Modules(
+            init=mock.Mock(spec=Init),
+            cfg_files=mock.Mock(),
+            reporter=mock.Mock(),
+        )
+        mods._cached_cfg = {}
+        module_details = ModuleDetails(
+            module=module,
+            name="mod_name",
+            frequency=["always"],
+            run_args=[],
+        )
+        m_cc = mods.init.cloudify.return_value
+        m_cc.run.return_value = (1, "doesnotmatter")
+
+        mods._run_modules([module_details])
+
+        assert [
+            mock.call(
+                mock.ANY,
+                mock.ANY,
+                {
+                    "name": "mod_name",
+                    "cfg": {},
+                    "cloud": mock.ANY,
+                    "args": [],
+                    "log": mock.ANY,
+                },
+                freq=["always"],
+            )
+        ] == m_cc.run.call_args_list
+
+        assert (
+            "Config modules with a `log` parameter is deprecated in 23.2"
+            in caplog.text
+        )

@@ -308,18 +308,6 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]["auto"] = False
 
 
-def parse_deb_config(path):
-    """Parses a debian network configuration file."""
-    ifaces = {}
-    with open(path, "r") as fp:
-        contents = fp.read().strip()
-    abs_path = os.path.abspath(path)
-    _parse_deb_config_data(
-        ifaces, contents, os.path.dirname(abs_path), abs_path
-    )
-    return ifaces
-
-
 def convert_eni_data(eni_data):
     # return a network config representation of what is in eni_data
     ifaces = {}
@@ -329,7 +317,7 @@ def convert_eni_data(eni_data):
 
 def _ifaces_to_net_config_data(ifaces):
     """Return network config that represents the ifaces data provided.
-    ifaces = parse_deb_config("/etc/network/interfaces")
+    ifaces = _parse_deb_config_data(...)
     config = ifaces_to_net_config_data(ifaces)
     state = parse_net_config_data(config)."""
     devs = {}
@@ -576,7 +564,9 @@ class Renderer(renderer.Renderer):
             netrules = subp.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(
-                netrules, self._render_persistent_net(network_state)
+                netrules,
+                content=self._render_persistent_net(network_state),
+                preserve_mode=True,
             )
 
 

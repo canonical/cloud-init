@@ -14,8 +14,13 @@ from io import StringIO
 
 import configobj
 
-from cloudinit import subp, util
-from cloudinit.net import find_fallback_nic, get_devicelist
+from cloudinit import subp, temp_utils, util
+from cloudinit.net import (
+    find_fallback_nic,
+    get_devicelist,
+    get_interface_mac,
+    is_ib_interface,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +47,7 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None, tmp_dir=None):
+def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
@@ -51,7 +56,6 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None, tmp_dir=None):
     @param nic: Name of the network interface we want to run dhclient on.
     @param dhcp_log_func: A callable accepting the dhclient output and error
         streams.
-    @param tmp_dir: Tmp dir with exec permissions.
     @return: A list of dicts representing dhcp options for each lease obtained
         from the dhclient discovery if run, otherwise an empty list is
         returned.
@@ -137,6 +141,9 @@ def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
     # link up before attempting discovery. Since we are using -sf /bin/true,
     # we need to do that "link up" ourselves first.
     subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
+    # For INFINIBAND port the dhlient must be sent with dhcp-client-identifier.
+    # So here we are checking if the interface is INFINIBAND or not.
+    # If yes, we are generating the the client-id to be used with the dhclient
     cmd = [
         dhclient_cmd_path,
         "-1",
@@ -149,6 +156,18 @@ def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
         "-sf",
         "/bin/true",
     ]
+    if is_ib_interface(interface):
+        dhcp_client_identifier = "20:%s" % get_interface_mac(interface)[36:]
+        interface_dhclient_content = (
+            'interface "%s" '
+            "{send dhcp-client-identifier %s;}"
+            % (interface, dhcp_client_identifier)
+        )
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        file_name = os.path.join(tmp_dir, interface + "-dhclient.conf")
+        util.write_file(file_name, interface_dhclient_content)
+        cmd.append("-cf")
+        cmd.append(file_name)
     out, err = subp.subp(cmd, capture=True)
 
     # Wait for pid file and lease file to appear, and for the process

@@ -16,7 +16,7 @@ Example output:
 .. code-block::
 
    usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
-                                                               {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
+                                                               {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
       -h, --help            show this help message and exit
@@ -27,12 +27,11 @@ Example output:
       --force               Force running even if no datasource is found (use at your own risk).
 
     Subcommands:
-      {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema}
+      {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}
         init                Initialize cloud-init and perform initial modules.
         modules             Activate modules using a given configuration key.
         single              Run a single module.
         query               Query standardized instance metadata from the command line.
-        dhclient-hook       Run the dhclient hook to record network info.
         features            List defined features.
         analyze             Devel tool: Analyze cloud-init logs and data.
         devel               Run development tools.

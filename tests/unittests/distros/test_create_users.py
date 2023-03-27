@@ -2,7 +2,7 @@
 
 import re
 
-from cloudinit import distros, ssh_util
+from cloudinit import distros, log, ssh_util
 from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -140,6 +140,7 @@ class TestCreateUser(CiTestCase):
         self, m_is_group, m_subp, m_is_snappy
     ):
         """users.groups supports a dict value, but emit deprecation log."""
+        log.setupLogging()
         user = "foouser"
         self.dist.create_user(user, groups={"group1": None, "group2": None})
         expected = [
@@ -150,10 +151,15 @@ class TestCreateUser(CiTestCase):
         ]
         self.assertEqual(m_subp.call_args_list, expected)
         self.assertIn(
-            "WARNING: DEPRECATED: The user foouser has a 'groups' config"
-            " value of type dict which is deprecated and will be removed in a"
-            " future version of cloud-init. Use a comma-delimited string or"
-            " array instead: group1,group2.",
+            "DEPRECAT",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "The user foouser has a 'groups' config value of type dict",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "Use a comma-delimited",
             self.logs.getvalue(),
         )
 
@@ -182,9 +188,9 @@ class TestCreateUser(CiTestCase):
             ],
         )
         self.assertIn(
-            "WARNING: DEPRECATED: The user foouser has a 'sudo' config value"
-            " of 'false' which will be dropped after April 2027. Use 'null'"
-            " instead.",
+            "DEPRECATED: The value of 'false' in user foouser's 'sudo' "
+            "config is deprecated in 22.3 and scheduled to be removed"
+            " in 27.3. Use 'null' instead.",
             self.logs.getvalue(),
         )
 

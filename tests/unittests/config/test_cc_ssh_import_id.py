@@ -74,5 +74,5 @@ class TestHandleSshImportIDs:
         """Skip config without ssh_import_id"""
         m_which.return_value = None
         cloud = get_cloud("ubuntu")
-        cc_ssh_import_id.handle("name", cfg, cloud, LOG, [])
+        cc_ssh_import_id.handle("name", cfg, cloud, [])
         assert log in caplog.text

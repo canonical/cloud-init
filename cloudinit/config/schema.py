@@ -476,7 +476,9 @@ def validate_cloudconfig_schema(
             prefix="Deprecated cloud-config provided:\n",
             separator="\n",
         )
-        LOG.warning(message)
+        # This warning doesn't fit the standardized util.deprecated() utility
+        # format, but it is a deprecation log, so log it directly.
+        LOG.deprecated(message)  # type: ignore
     if strict and (errors or deprecations):
         raise SchemaValidationError(errors, deprecations)
     if errors:
@@ -1135,19 +1137,6 @@ def get_schema() -> dict:
             "allOf": [],
         }
     return full_schema
-
-
-def get_meta() -> dict:
-    """Return metadata coalesced from all cc_* cloud-config module."""
-    full_meta = dict()
-    for (_, mod_name) in get_modules().items():
-        mod_locs, _ = importer.find_module(
-            mod_name, ["cloudinit.config"], ["meta"]
-        )
-        if mod_locs:
-            mod = importer.import_module(mod_locs[0])
-            full_meta[mod.meta["id"]] = mod.meta
-    return full_meta
 
 
 def get_parser(parser=None):

@@ -8,8 +8,8 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
@@ -75,12 +75,12 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "runcmd" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'runcmd' key in configuration", name
         )
         return

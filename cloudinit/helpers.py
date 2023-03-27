@@ -43,9 +43,6 @@ class DummySemaphores:
     def clear(self, _name, _freq):
         return True
 
-    def clear_all(self):
-        pass
-
 
 class FileLock:
     def __init__(self, fn):
@@ -82,14 +79,6 @@ class FileSemaphores:
             util.logexc(LOG, "Failed deleting semaphore %s", sem_file)
             return False
         return True
-
-    def clear_all(self):
-        try:
-            util.del_dir(self.sem_path)
-        except (IOError, OSError):
-            util.logexc(
-                LOG, "Failed deleting semaphore directory %s", self.sem_path
-            )
 
     def _acquire(self, name, freq):
         # Check again if its been already gotten

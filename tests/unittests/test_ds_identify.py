@@ -950,7 +950,7 @@ class TestOracle(DsIdentifyBase):
         """Simple negative test of Oracle."""
         mycfg = copy.deepcopy(VALID_CFG["Oracle"])
         mycfg["files"][P_CHASSIS_ASSET_TAG] = "Not Oracle"
-        self._check_via_dict(mycfg, ds=["openstack", "none"], rc=RC_FOUND)
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND)
 
 
 def blkid_out(disks=None):
@@ -1056,7 +1056,6 @@ VALID_CFG = {
     "Ec2-brightbox-negative": {
         "ds": "Ec2",
         "files": {P_PRODUCT_SERIAL: "tricky-host.bobrightbox.com\n"},
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "GCE": {
         "ds": "GCE",
@@ -1598,7 +1597,6 @@ VALID_CFG = {
     "Ec2-E24Cloud-negative": {
         "ds": "Ec2",
         "files": {P_SYS_VENDOR: "e24cloudyday\n"},
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "VMware-NoValidTransports": {
         "ds": "VMware",
@@ -1757,7 +1755,6 @@ VALID_CFG = {
     "VMware-GuestInfo-NoVirtID": {
         "ds": "VMware",
         "mocks": [
-            MOCK_VIRT_IS_KVM,
             {
                 "name": "vmware_has_rpctool",
                 "ret": 0,
@@ -1863,7 +1860,6 @@ VALID_CFG = {
             P_PRODUCT_NAME: "3DS Outscale VM\n",
             P_SYS_VENDOR: "Not 3DS Outscale\n",
         },
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "Ec2-Outscale-negative-productname": {
         "ds": "Ec2",
@@ -1871,7 +1867,6 @@ VALID_CFG = {
             P_PRODUCT_NAME: "Not 3DS Outscale VM\n",
             P_SYS_VENDOR: "3DS Outscale\n",
         },
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
 }
 

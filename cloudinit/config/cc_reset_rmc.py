@@ -7,7 +7,6 @@
 
 
 import os
-from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -65,9 +64,7 @@ LOG = logging.getLogger(__name__)
 NODE_ID_FILE = "/etc/ct_node_id"
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Ensuring node id has to be generated only once during first boot
     if cloud.datasource.platform_type == "none":
         LOG.debug("Skipping creation of new ct_node_id node")
@@ -149,4 +146,4 @@ def reset_rmc():
     if node_id_after == node_id_before:
         msg = "New node ID did not get generated."
         LOG.error(msg)
-        raise Exception(msg)
+        raise RuntimeError(msg)

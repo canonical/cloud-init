@@ -69,7 +69,7 @@ def _set_filename(msg, filename):
 
 def _handle_error(error_message, source_exception=None):
     if features.ERROR_ON_USER_DATA_FAILURE:
-        raise Exception(error_message) from source_exception
+        raise RuntimeError(error_message) from source_exception
     else:
         LOG.warning(error_message)
 

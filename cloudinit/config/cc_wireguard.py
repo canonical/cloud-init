@@ -4,7 +4,6 @@
 
 """Wireguard"""
 import re
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -258,9 +257,7 @@ def load_wireguard_kernel_module():
         raise
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     wg_section = None
 
     if "wireguard" in cfg:
