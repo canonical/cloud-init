@@ -2,8 +2,15 @@ cloud-init (23.1-0ubuntu0~18.04.3) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Add general apport hook to append cloud type,
     image and instance size information to bug reports (LP: #1724623)
+  * Refresh patches against main:
+    - d/p/ec2-dont-apply-full-imds-network-config.patch
+    - d/p/expire-on-hashed-users.patch
+    - d/p/openstack-no-network-patch.patch
+    - d/p/netplan99-cannot-use-default.patch
+    - d/p/retain-netplan-world-readable.patch
+  * Upstream snapshot based on upstream/main at 4b6e4e13.
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 20 Mar 2023 14:43:46 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 27 Mar 2023 10:17:59 -0500
 
 cloud-init (23.1-0ubuntu0~18.04.2) bionic; urgency=medium
 
