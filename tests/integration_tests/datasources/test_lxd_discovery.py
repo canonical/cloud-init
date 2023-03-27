@@ -3,8 +3,9 @@ import json
 import pytest
 import yaml
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import lxd_has_nocloud, verify_clean_log
 
 
@@ -36,7 +37,7 @@ def _customize_environment(client: IntegrationInstance):
         "datasource_list: [LXD, NoCloud]\n",
     )
     # This is also to ensure that NoCloud can be detected
-    if ImageSpecification.from_os_image().release == "jammy":
+    if CURRENT_RELEASE.series == "jammy":
         # Add nocloud-net seed files because Jammy no longer delivers NoCloud
         # (LP: #1958460).
         client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
@@ -48,9 +49,11 @@ def _customize_environment(client: IntegrationInstance):
     client.restart()
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
-@pytest.mark.ubuntu  # Because netplan
+@pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm"],
+    reason="Test is LXD specific",
+)
 def test_lxd_datasource_discovery(client: IntegrationInstance):
     """Test that DataSourceLXD is detected instead of NoCloud."""
 
@@ -95,7 +98,7 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     ] == sorted(list(ds_cfg.keys()))
     if (
         client.settings.PLATFORM == "lxd_vm"
-        and ImageSpecification.from_os_image().release == "bionic"
+        and CURRENT_RELEASE.series == "bionic"
     ):
         # pycloudlib injects user.vendor_data for lxd_vm on bionic
         # to start the lxd-agent.
