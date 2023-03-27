@@ -7,8 +7,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Scripts User: Run user scripts"""
 
+import logging
 import os
-from logging import Logger
 
 from cloudinit import subp
 from cloudinit.cloud import Cloud
@@ -38,14 +38,13 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 SCRIPT_SUBDIR = "scripts"
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # This is written to by the user data handlers
     # Ie, any custom shell scripts that come down
     # go here...
@@ -53,7 +52,7 @@ def handle(
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning(
+        LOG.warning(
             "Failed to run module %s (%s in %s)",
             name,
             SCRIPT_SUBDIR,

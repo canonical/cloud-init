@@ -8,7 +8,6 @@
 Ensure Network Manager is not managing IPv6 interface"""
 
 import errno
-from logging import Logger
 
 from cloudinit import log as logging
 from cloudinit import netinfo, subp, util
@@ -57,9 +56,7 @@ LOG = logging.getLogger(__name__)
 RMCCTRL = "rmcctrl"
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not subp.which(RMCCTRL):
         LOG.debug("No '%s' in path, disabled", RMCCTRL)
         return

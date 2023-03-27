@@ -8,9 +8,9 @@
 
 """install and configure landscape client"""
 
+import logging
 import os
 from io import BytesIO
-from logging import Logger
 from textwrap import dedent
 
 from configobj import ConfigObj
@@ -98,11 +98,10 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in
@@ -135,7 +134,7 @@ def handle(
 
     util.ensure_dir(os.path.dirname(LSC_CLIENT_CFG_FILE))
     util.write_file(LSC_CLIENT_CFG_FILE, contents.getvalue())
-    log.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
+    LOG.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
 
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
     subp.subp(["service", "landscape-client", "restart"])

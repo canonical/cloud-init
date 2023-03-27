@@ -114,7 +114,7 @@ class TestHandleSsh:
         m_nug.return_value = ([], {})
         cc_ssh.PUBLISH_HOST_KEYS = False
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
         options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with("/etc/ssh/ssh_host_*key*")
@@ -145,7 +145,7 @@ class TestHandleSsh:
         m_path_exists.return_value = True
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -196,7 +196,7 @@ class TestHandleSsh:
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
         if mock_get_public_ssh_keys:
             cloud.get_public_ssh_keys = mock.Mock(return_value=keys)
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
 
         if empty_opts:
             options = ""
@@ -279,7 +279,7 @@ class TestHandleSsh:
                     ]
                 )
             ]
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
         assert (
             expected_calls == cloud.datasource.publish_host_keys.call_args_list
         )
@@ -363,7 +363,7 @@ class TestHandleSsh:
         with mock.patch(
             MODPATH + "ssh_util.parse_ssh_config", return_value=[]
         ):
-            cc_ssh.handle("name", cfg, get_cloud(distro="ubuntu"), LOG, None)
+            cc_ssh.handle("name", cfg, get_cloud(distro="ubuntu"), None)
 
         # Check that all expected output has been done.
         for call_ in expected_calls:
@@ -410,7 +410,7 @@ class TestHandleSsh:
         with mock.patch(
             MODPATH + "ssh_util.parse_ssh_config", return_value=[]
         ):
-            cc_ssh.handle("name", cfg, get_cloud("ubuntu"), LOG, None)
+            cc_ssh.handle("name", cfg, get_cloud("ubuntu"), None)
         assert [] == m_write_file.call_args_list
         expected_log_msgs = [
             f'Skipping {reason} ssh_keys entry: "{key_type}_private"',

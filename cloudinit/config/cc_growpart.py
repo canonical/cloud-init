@@ -16,7 +16,6 @@ import re
 import stat
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from logging import Logger
 from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
@@ -566,18 +565,16 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "growpart" not in cfg:
-        log.debug(
-            "No 'growpart' entry in cfg.  Using default: %s" % DEFAULT_CONFIG
+        LOG.debug(
+            "No 'growpart' entry in cfg.  Using default: %s", DEFAULT_CONFIG
         )
         cfg["growpart"] = DEFAULT_CONFIG
 
     mycfg = cfg.get("growpart")
     if not isinstance(mycfg, dict):
-        log.warning("'growpart' in config was not a dict")
+        LOG.warning("'growpart' in config was not a dict")
         return
 
     mode = mycfg.get("mode", "auto")
@@ -588,39 +585,39 @@ def handle(
                 deprecated_version="22.2",
                 extra_message="Use 'off' instead.",
             )
-        log.debug("growpart disabled: mode=%s" % mode)
+        LOG.debug("growpart disabled: mode=%s", mode)
         return
 
     if util.is_false(mycfg.get("ignore_growroot_disabled", False)):
         if os.path.isfile("/etc/growroot-disabled"):
-            log.debug("growpart disabled: /etc/growroot-disabled exists")
-            log.debug("use ignore_growroot_disabled to ignore")
+            LOG.debug("growpart disabled: /etc/growroot-disabled exists")
+            LOG.debug("use ignore_growroot_disabled to ignore")
             return
 
     devices = util.get_cfg_option_list(mycfg, "devices", ["/"])
     if not len(devices):
-        log.debug("growpart: empty device list")
+        LOG.debug("growpart: empty device list")
         return
 
     try:
         resizer = resizer_factory(mode, cloud.distro)
     except (ValueError, TypeError) as e:
-        log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
+        LOG.debug("growpart unable to find resizer for '%s': %s", mode, e)
         if mode != "auto":
             raise e
         return
 
     resized = util.log_time(
-        logfunc=log.debug,
+        logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
         args=(resizer, devices),
     )
     for (entry, action, msg) in resized:
         if action == RESIZE.CHANGED:
-            log.info("'%s' resized: %s" % (entry, msg))
+            LOG.info("'%s' resized: %s", entry, msg)
         else:
-            log.debug("'%s' %s: %s" % (entry, action, msg))
+            LOG.debug("'%s' %s: %s", entry, action, msg)
 
 
 RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))

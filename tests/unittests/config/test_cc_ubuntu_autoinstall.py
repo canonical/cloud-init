@@ -116,7 +116,7 @@ class TestHandleAutoinstall:
     ):
         subp.return_value = snap_list, ""
         cloud = get_cloud(distro="ubuntu")
-        cc_ubuntu_autoinstall.handle("name", cfg, cloud, LOG, None)
+        cc_ubuntu_autoinstall.handle("name", cfg, cloud, None)
         assert subp_calls == subp.call_args_list
         for log in logs:
             assert log in caplog.text

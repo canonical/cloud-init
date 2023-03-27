@@ -8,10 +8,10 @@
 """SSH: Configure SSH and SSH keys"""
 
 import glob
+import logging
 import os
 import re
 import sys
-from logging import Logger
 from textwrap import dedent
 from typing import List, Optional, Sequence
 
@@ -170,6 +170,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
 pattern_unsupported_config_keys = re.compile(
@@ -196,9 +197,7 @@ for k in GENERATE_KEY_NAMES:
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
@@ -207,7 +206,7 @@ def handle(
             try:
                 util.del_file(f)
             except Exception:
-                util.logexc(log, "Failed deleting key file %s", f)
+                util.logexc(LOG, "Failed deleting key file %s", f)
 
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
@@ -218,7 +217,7 @@ def handle(
                     reason = "unsupported"
                 else:
                     reason = "unrecognized"
-                log.warning('Skipping %s ssh_keys entry: "%s"', reason, key)
+                LOG.warning('Skipping %s ssh_keys entry: "%s"', reason, key)
                 continue
             tgt_fn = CONFIG_KEY_TO_FILE[key][0]
             tgt_perms = CONFIG_KEY_TO_FILE[key][1]
@@ -245,12 +244,12 @@ def handle(
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     subp.subp(cmd, capture=False)
-                log.debug(
-                    f"Generated a key for {public_file} from {private_file}"
+                LOG.debug(
+                    "Generated a key for %s from %s", public_file, private_file
                 )
             except Exception:
                 util.logexc(
-                    log,
+                    LOG,
                     "Failed generating a key for "
                     f"{public_file} from {private_file}",
                 )
@@ -288,10 +287,10 @@ def handle(
                     if e.exit_code == 1 and err.lower().startswith(
                         "unknown key"
                     ):
-                        log.debug("ssh-keygen: unknown key type '%s'", keytype)
+                        LOG.debug("ssh-keygen: unknown key type '%s'", keytype)
                     else:
                         util.logexc(
-                            log,
+                            LOG,
                             "Failed generating key type %s to file %s",
                             keytype,
                             keyfile,
@@ -315,7 +314,7 @@ def handle(
         try:
             cloud.datasource.publish_host_keys(hostkeys)
         except Exception:
-            util.logexc(log, "Publishing host keys failed!")
+            util.logexc(LOG, "Publishing host keys failed!")
 
     try:
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
@@ -329,7 +328,7 @@ def handle(
         if util.get_cfg_option_bool(cfg, "allow_public_ssh_keys", True):
             keys = cloud.get_public_ssh_keys() or []
         else:
-            log.debug(
+            LOG.debug(
                 "Skipping import of publish SSH keys per "
                 "config setting: allow_public_ssh_keys=False"
             )
@@ -340,7 +339,7 @@ def handle(
 
         apply_credentials(keys, user, disable_root, disable_root_opts)
     except Exception:
-        util.logexc(log, "Applying SSH credentials failed!")
+        util.logexc(LOG, "Applying SSH credentials failed!")
 
 
 def apply_credentials(keys, user, disable_root, disable_root_opts):

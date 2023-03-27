@@ -8,7 +8,7 @@
 
 """Locale: set system locale"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
 from cloudinit import util
@@ -49,23 +49,22 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         locale = args[0]
     else:
         locale = util.get_cfg_option_str(cfg, "locale", cloud.get_locale())
 
     if util.is_false(locale):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, disabled by config: %s", name, locale
         )
         return
 
-    log.debug("Setting locale to %s", locale)
+    LOG.debug("Setting locale to %s", locale)
     locale_cfgfile = util.get_cfg_option_str(cfg, "locale_configfile")
     cloud.distro.apply_locale(locale, locale_cfgfile)
 

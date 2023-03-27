@@ -102,7 +102,6 @@ class TestDisabled(unittest.TestCase):
         super(TestDisabled, self).setUp()
         self.name = "growpart"
         self.cloud = None
-        self.log = logging.getLogger("TestDisabled")
         self.args = []
 
         self.handle = cc_growpart.handle
@@ -114,7 +113,7 @@ class TestDisabled(unittest.TestCase):
         config = {"growpart": {"mode": "off"}}
 
         with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
-            self.handle(self.name, config, self.cloud, self.log, self.args)
+            self.handle(self.name, config, self.cloud, self.args)
             self.assertEqual(mockobj.call_count, 0)
 
 
@@ -144,7 +143,7 @@ class TestConfig(TestCase):
         ) as mockobj:
 
             config = {"growpart": {"mode": "auto"}}
-            self.handle(self.name, config, self.cloud, self.log, self.args)
+            self.handle(self.name, config, self.cloud, self.args)
 
             mockobj.assert_has_calls(
                 [
@@ -167,7 +166,6 @@ class TestConfig(TestCase):
                 self.name,
                 config,
                 self.cloud,
-                self.log,
                 self.args,
             )
 
@@ -271,7 +269,7 @@ class TestConfig(TestCase):
                 )
             )
 
-            self.handle(self.name, {}, self.cloud, self.log, self.args)
+            self.handle(self.name, {}, self.cloud, self.args)
 
             factory.assert_called_once_with("auto", self.distro)
             rsdevs.assert_called_once_with(myresizer, ["/"])

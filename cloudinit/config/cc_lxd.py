@@ -7,7 +7,6 @@
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
 import os
-from logging import Logger
 from textwrap import dedent
 from typing import List, Tuple
 
@@ -197,13 +196,11 @@ def supplemental_schema_validation(
         raise ValueError(". ".join(errors))
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Get config
     lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, not present or disabled by cfg", name
         )
         return
@@ -224,7 +221,7 @@ def handle(
         try:
             cloud.distro.install_packages(packages)
         except subp.ProcessExecutionError as exc:
-            log.warning("failed to install packages %s: %s", packages, exc)
+            LOG.warning("failed to install packages %s: %s", packages, exc)
             return
 
     subp.subp(["lxd", "waitready", "--timeout=300"])
@@ -251,7 +248,7 @@ def handle(
         if init_cfg["storage_backend"] == "lvm" and not os.path.exists(
             f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
         ):
-            log.warning(
+            LOG.warning(
                 "cloud-init doesn't use thinpool by default on Ubuntu due to "
                 "LP #1982780. This behavior will change in the future.",
             )
@@ -294,7 +291,7 @@ def handle(
 
             # Update debconf database
             try:
-                log.debug("Setting lxd debconf via " + dconf_comm)
+                LOG.debug("Setting lxd debconf via %s", dconf_comm)
                 data = (
                     "\n".join(
                         ["set %s %s" % (k, v) for k, v in debconf.items()]
@@ -304,14 +301,14 @@ def handle(
                 subp.subp(["debconf-communicate"], data)
             except Exception:
                 util.logexc(
-                    log, "Failed to run '%s' for lxd with" % dconf_comm
+                    LOG, "Failed to run '%s' for lxd with" % dconf_comm
                 )
 
             # Remove the existing configuration file (forces re-generation)
             util.del_file("/etc/default/lxd-bridge")
 
             # Run reconfigure
-            log.debug("Running dpkg-reconfigure for lxd")
+            LOG.debug("Running dpkg-reconfigure for lxd")
             subp.subp(["dpkg-reconfigure", "lxd", "--frontend=noninteractive"])
         else:
             # Built-in LXD bridge support
@@ -323,12 +320,12 @@ def handle(
                 attach=bool(cmd_attach),
             )
             if cmd_create:
-                log.debug("Creating lxd bridge: %s" % " ".join(cmd_create))
+                LOG.debug("Creating lxd bridge: %s", " ".join(cmd_create))
                 _lxc(cmd_create)
 
             if cmd_attach:
-                log.debug(
-                    "Setting up default lxd bridge: %s" % " ".join(cmd_attach)
+                LOG.debug(
+                    "Setting up default lxd bridge: %s", " ".join(cmd_attach)
                 )
                 _lxc(cmd_attach)
 
