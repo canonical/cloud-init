@@ -51,6 +51,7 @@ from tests.unittests.helpers import (
     mock,
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
 )
 from tests.unittests.util import FakeDataSource
 
@@ -422,7 +423,7 @@ class TestValidateCloudConfigSchema:
             context_mgr.value
         )
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validateconfig_strict_metaschema_do_not_raise_exception(
         self, caplog
     ):
@@ -1770,7 +1771,7 @@ class TestStrictMetaschema:
             else:
                 logging.warning("module %s has no schema definition", name)
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validate_bad_module(self):
         """Throw exception by default, don't throw if throw=False
 
