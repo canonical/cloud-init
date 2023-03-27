@@ -4,7 +4,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import base64
 import datetime
 import json
 import os
@@ -64,20 +63,6 @@ def format_record(msg, event):
             else:
                 msg = msg.replace(i, "{%s}" % j)
     return msg.format(**event)
-
-
-def dump_event_files(event):
-    content = dict((k, v) for k, v in event.items() if k not in ["content"])
-    files = content["files"]
-    saved = []
-    for f in files:
-        fname = f["path"]
-        fn_local = os.path.basename(fname)
-        fcontent = base64.b64decode(f["content"]).decode("ascii")
-        util.write_file(fn_local, fcontent)
-        saved.append(fn_local)
-
-    return saved
 
 
 def event_name(event):

@@ -549,12 +549,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'groups' config value of"
-                    " type dict which is deprecated and will be removed in a"
-                    " future version of cloud-init. Use a comma-delimited"
-                    " string or array instead: group1,group2.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The user {name} has a 'groups' config value "
+                    "of type dict",
+                    deprecated_version="22.3",
+                    extra_message="Use a comma-delimited string or "
+                    "array instead: group1,group2.",
                 )
 
             # remove any white spaces in group names, most likely
@@ -682,11 +682,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'sudo' config value of"
-                    " 'false' which will be dropped after April 2027."
-                    " Use 'null' instead.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The value of 'false' in user {name}'s "
+                    "'sudo' config",
+                    deprecated_version="22.3",
+                    extra_message="Use 'null' instead.",
                 )
 
         # Import SSH keys
@@ -991,37 +991,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ],
             **kwargs,
         )
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        If the detection fails, it returns None.
-        """
-        if not uses_systemd():
-            # For non systemd systems the method should be
-            # implemented in the distro class.
-            LOG.warning("is_virtual should be implemented on distro class")
-            return None
-
-        try:
-            detect_virt_path = subp.which("systemd-detect-virt")
-            if detect_virt_path:
-                out, _ = subp.subp(
-                    [detect_virt_path], capture=True, rcs=[0, 1]
-                )
-
-                return not out.strip() == "none"
-            else:
-                err_msg = "detection binary not found"
-        except subp.ProcessExecutionError as e:
-            err_msg = str(e)
-
-        LOG.warning(
-            "Failed to detect virtualization with systemd-detect-virt: %s",
-            err_msg,
-        )
-        return None
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

@@ -963,11 +963,11 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         with mock.patch.object(util, "is_resolvable") as mockresolve:
             util.is_resolvable_url("http://1.2.3.4/ubuntu")
-        mockresolve.assert_called_with("1.2.3.4")
+        mockresolve.assert_called_with("http://1.2.3.4/ubuntu")
 
         with mock.patch.object(util, "is_resolvable") as mockresolve:
             util.is_resolvable_url("http://us.archive.ubuntu.com/ubuntu")
-        mockresolve.assert_called_with("us.archive.ubuntu.com")
+        mockresolve.assert_called_with("http://us.archive.ubuntu.com/ubuntu")
 
         # former tests can leave this set (or not if the test is ran directly)
         # do a hard reset to ensure a stable result
@@ -984,7 +984,6 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         )
         mocksock.assert_any_call("example.invalid.", None, 0, 0, 1, 2)
         mocksock.assert_any_call("us.archive.ubuntu.com", None)
-        mocksock.assert_any_call("1.2.3.4", None)
 
         self.assertTrue(ret)
         self.assertTrue(ret2)

@@ -8,6 +8,7 @@ import logging
 import time
 
 from cloudinit import log as ci_logging
+from cloudinit import util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from tests.unittests.helpers import CiTestCase
 
@@ -57,3 +58,32 @@ class TestCloudInitLogger(CiTestCase):
         self.assertLess(parsed_dt, utc_after)
         self.assertLess(utc_before, utc_after)
         self.assertGreater(utc_after, parsed_dt)
+
+
+class TestDeprecatedLogs:
+    def test_deprecated_log_level(self, caplog):
+        ci_logging.setupLogging()
+        log = ci_logging.getLogger()
+        log.deprecated("deprecated message")
+        assert "DEPRECATED" == caplog.records[0].levelname
+        assert "deprecated message" in caplog.text
+
+    def test_log_deduplication(self, caplog):
+        ci_logging.defineDeprecationLogger()
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+        )
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+        )
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+            schedule=6,
+        )
+        assert 2 == len(caplog.records)

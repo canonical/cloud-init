@@ -168,7 +168,7 @@ def is_enabled(hotplug_init, subsystem):
     try:
         scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
     except KeyError as e:
-        raise Exception(
+        raise RuntimeError(
             "hotplug-hook: cannot handle events for subsystem: {}".format(
                 subsystem
             )

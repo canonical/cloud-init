@@ -6,7 +6,6 @@
 """zypper_add_repo: Add zypper repositories to the system"""
 
 import os
-from logging import Logger
 from textwrap import dedent
 
 import configobj
@@ -190,9 +189,7 @@ def _write_zypp_config(zypper_config):
     util.write_file(zypp_config, new_config)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     zypper_section = cfg.get("zypper")
     if not zypper_section:
         LOG.debug(

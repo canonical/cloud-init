@@ -10,7 +10,6 @@ from tests.unittests import helpers as test_helpers
 SERVER_CONTEXT = {
     "cpu": 1000,
     "cpus_instead_of_cores": False,
-    "global_context": {"some_global_key": "some_global_val"},
     "mem": 1073741824,
     "meta": {
         "ssh_public_key": "ssh-rsa AAAAB3NzaC1yc2E.../hQ5D5 john@doe",
@@ -44,7 +43,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         super(DataSourceCloudSigmaTest, self).setUp()
         self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.add_patch(
-            DS_PATH + ".is_running_in_cloudsigma",
+            DS_PATH + ".override_ds_detect",
             "m_is_container",
             return_value=True,
         )
@@ -99,6 +98,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_encoded_user_data(self):
+
         encoded_context = copy.deepcopy(SERVER_CONTEXT)
         encoded_context["meta"]["base64_fields"] = "cloudinit-user-data"
         encoded_context["meta"]["cloudinit-user-data"] = "aGkgd29ybGQK"
@@ -142,6 +142,3 @@ class DsLoads(test_helpers.TestCase):
             ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
         )
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)
-
-
-# vi: ts=4 expandtab

@@ -8,7 +8,6 @@
 
 import copy
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -548,9 +547,7 @@ def supplemental_schema_validation(ntp_config):
         )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Enable and configure ntp."""
     if "ntp" not in cfg:
         LOG.debug(

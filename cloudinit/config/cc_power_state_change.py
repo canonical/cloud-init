@@ -7,11 +7,11 @@
 """Power State Change: Change power state"""
 
 import errno
+import logging
 import os
 import re
 import subprocess
 import time
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -79,6 +79,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def givecmdline(pid):
@@ -99,10 +100,9 @@ def givecmdline(pid):
         return None
 
 
-def check_condition(cond, log=None):
+def check_condition(cond):
     if isinstance(cond, bool):
-        if log:
-            log.debug("Static Condition: %s" % cond)
+        LOG.debug("Static Condition: %s", cond)
         return cond
 
     pre = "check_condition command (%s): " % cond
@@ -111,58 +111,49 @@ def check_condition(cond, log=None):
         proc.communicate()
         ret = proc.returncode
         if ret == 0:
-            if log:
-                log.debug(pre + "exited 0. condition met.")
+            LOG.debug("%sexited 0. condition met.", pre)
             return True
         elif ret == 1:
-            if log:
-                log.debug(pre + "exited 1. condition not met.")
+            LOG.debug("%sexited 1. condition not met.", pre)
             return False
         else:
-            if log:
-                log.warning(
-                    pre + "unexpected exit %s. " % ret + "do not apply change."
-                )
+            LOG.warning("%sunexpected exit %s. do not apply change.", pre, ret)
             return False
     except Exception as e:
-        if log:
-            log.warning(pre + "Unexpected error: %s" % e)
+        LOG.warning("%sUnexpected error: %s", pre, e)
         return False
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
         (args, timeout, condition) = load_power_state(cfg, cloud.distro)
         if args is None:
-            log.debug("no power_state provided. doing nothing")
+            LOG.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
-        log.warning("%s Not performing power state change!" % str(e))
+        LOG.warning("%s Not performing power state change!", str(e))
         return
 
     if condition is False:
-        log.debug("Condition was false. Will not perform state change.")
+        LOG.debug("Condition was false. Will not perform state change.")
         return
 
     mypid = os.getpid()
 
     cmdline = givecmdline(mypid)
     if not cmdline:
-        log.warning("power_state: failed to get cmdline of current process")
+        LOG.warning("power_state: failed to get cmdline of current process")
         return
 
     devnull_fp = open(os.devnull, "w")
 
-    log.debug("After pid %s ends, will execute: %s" % (mypid, " ".join(args)))
+    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(args))
 
     util.fork_cb(
         run_after_pid_gone,
         mypid,
         cmdline,
         timeout,
-        log,
         condition,
         execmd,
         [args, devnull_fp],
@@ -227,7 +218,7 @@ def execmd(exe_args, output=None, data_in=None):
     doexit(ret)
 
 
-def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
+def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     # wait until pid, with /proc/pid/cmdline contents of pidcmdline
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
@@ -235,8 +226,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
     end_time = time.time() + timeout
 
     def fatal(msg):
-        if log:
-            log.warning(msg)
+        LOG.warning(msg)
         doexit(EXIT_FAIL)
 
     known_errnos = (errno.ENOENT, errno.ESRCH)
@@ -267,11 +257,10 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
     if not msg:
         fatal("Unexpected error in run_after_pid_gone")
 
-    if log:
-        log.debug(msg)
+    LOG.debug(msg)
 
     try:
-        if not check_condition(condition, log):
+        if not check_condition(condition):
             return
     except Exception as e:
         fatal("Unexpected Exception when checking condition: %s" % e)

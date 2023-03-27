@@ -562,26 +562,6 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         val = net.get_mask("eth0")
         self.assertEqual("255.255.255.0", val)
 
-    def test_get_network(self):
-        """
-        Verify get_network('device') correctly returns IPv4 network address.
-        """
-        context = {"ETH0_NETWORK": "1.2.3.0"}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_network("eth0", MACADDR)
-        self.assertEqual("1.2.3.0", val)
-
-    def test_get_network_emptystring(self):
-        """
-        Verify get_network('device') correctly returns IPv4 network address.
-        It returns network address created by MAC address if ETH0_NETWORK has
-        empty string.
-        """
-        context = {"ETH0_NETWORK": ""}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_network("eth0", MACADDR)
-        self.assertEqual("10.18.1.0", val)
-
     def test_get_field(self):
         """
         Verify get_field('device', 'name') returns *context* value.

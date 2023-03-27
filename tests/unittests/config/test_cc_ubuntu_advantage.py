@@ -804,7 +804,7 @@ class TestHandle:
         caplog,
     ):
         """Non-Pro schemas and instance."""
-        handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
+        handle("nomatter", cfg=cfg, cloud=cloud, args=None)
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
         if maybe_install_call_args_list is not None:
@@ -936,7 +936,7 @@ class TestHandle:
             m_auto_attach.side_effect = auto_attach_side_effect
 
         with expectation:
-            handle("nomatter", cfg=cfg, cloud=cloud, log=None, args=None)
+            handle("nomatter", cfg=cfg, cloud=cloud, args=None)
 
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
@@ -981,7 +981,7 @@ class TestHandle:
         enable or disable ua auto-attach.
         """
         m_should_auto_attach.return_value = is_pro
-        handle("nomatter", cfg=cfg, cloud=self.cloud, log=None, args=None)
+        handle("nomatter", cfg=cfg, cloud=self.cloud, args=None)
         assert not m_attach.call_args_list
 
     @pytest.mark.parametrize(
@@ -1012,7 +1012,7 @@ class TestHandle:
         self, m_configure_ua, cfg, handle_kwargs, match
     ):
         with pytest.raises(RuntimeError, match=match):
-            handle("nomatter", cfg=cfg, log=mock.Mock(), **handle_kwargs)
+            handle("nomatter", cfg=cfg, **handle_kwargs)
         assert 0 == m_configure_ua.call_count
 
     @pytest.mark.parametrize(
@@ -1035,7 +1035,6 @@ class TestHandle:
             handle(
                 "nomatter",
                 cfg=cfg,
-                log=mock.Mock(),
                 cloud=self.cloud,
                 args=None,
             )
@@ -1062,7 +1061,6 @@ class TestHandle:
             handle(
                 "nomatter",
                 cfg=cfg,
-                log=mock.Mock(),
                 cloud=self.cloud,
                 args=None,
             )
@@ -1084,7 +1082,6 @@ class TestHandle:
             handle(
                 "nomatter",
                 cfg=cfg,
-                log=mock.Mock(),
                 cloud=self.cloud,
                 args=None,
             )
@@ -1134,9 +1131,13 @@ class TestShouldAutoAttach:
         )
         if expected_result is None:  # UA API does respond
             assert should_auto_attach_value == _should_auto_attach(ua_section)
+            assert (
+                "Checking if the instance can be attached to Ubuntu Pro took"
+                in caplog.text
+            )
         else:  # cloud-init does respond
             assert expected_result == _should_auto_attach(ua_section)
-        assert not caplog.text
+            assert not caplog.text
 
 
 class TestAutoAttach:
@@ -1165,7 +1166,7 @@ class TestAutoAttach:
             "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
         ] = mock.Mock()
         _auto_attach(self.ua_section)
-        assert not caplog.text
+        assert "Attaching to Ubuntu Pro took" in caplog.text
 
 
 class TestAttach:

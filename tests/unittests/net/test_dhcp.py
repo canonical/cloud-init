@@ -221,7 +221,6 @@ class TestDHCPRFC3442(CiTestCase):
 
 
 class TestDHCPParseStaticRoutes(CiTestCase):
-
     with_logs = True
 
     def parse_static_routes_empty_string(self):
@@ -336,6 +335,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
 
 class TestDHCPDiscoveryClean(CiTestCase):
     with_logs = True
+    ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
     @mock.patch("cloudinit.net.dhcp.find_fallback_nic")
     def test_no_fallback_nic_found(self, m_fallback_nic):
@@ -450,12 +450,21 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         m_kill.assert_not_called()
 
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=False)
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery(self, m_wait, m_subp, m_kill, m_getppid, m_remove):
+    def test_dhcp_discovery(
+        self,
+        m_wait,
+        m_subp,
+        m_kill,
+        m_getppid,
+        m_remove,
+        mocked_is_ib_interface,
+    ):
         """dhcp_discovery brings up the interface and runs dhclient.
 
         It also returns the parsed dhcp.leases file.
@@ -512,6 +521,95 @@ class TestDHCPDiscoveryClean(CiTestCase):
             ]
         )
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+        mocked_is_ib_interface.assert_called_once_with("eth9")
+
+    @mock.patch("cloudinit.temp_utils.get_tmp_ancestor", return_value="/tmp")
+    @mock.patch("cloudinit.util.write_file")
+    @mock.patch(
+        "cloudinit.net.dhcp.get_interface_mac",
+        return_value="%s:AA:AA:AA:00:00:AA:AA:AA" % ib_address_prefix,
+    )
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid", return_value=1)
+    @mock.patch("cloudinit.net.dhcp.os.kill")
+    @mock.patch("cloudinit.net.dhcp.subp.subp", return_value=("", ""))
+    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    def test_dhcp_discovery_ib(
+        self,
+        m_wait,
+        m_subp,
+        m_kill,
+        m_getppid,
+        m_remove,
+        mocked_is_ib_interface,
+        get_interface_mac,
+        mocked_write_file,
+        mocked_get_tmp_ancestor,
+    ):
+        """dhcp_discovery brings up the interface and runs dhclient.
+
+        It also returns the parsed dhcp.leases file.
+        """
+        lease_content = dedent(
+            """
+            lease {
+              interface "ib0";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+            }
+        """
+        )
+        my_pid = 1
+        with mock.patch(
+            "cloudinit.util.load_file", side_effect=["1", lease_content]
+        ):
+            self.assertCountEqual(
+                [
+                    {
+                        "interface": "ib0",
+                        "fixed-address": "192.168.2.74",
+                        "subnet-mask": "255.255.255.0",
+                        "routers": "192.168.2.1",
+                    }
+                ],
+                dhcp_discovery("/sbin/dhclient", "ib0"),
+            )
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "ib0", "up"], capture=True
+                ),
+                mock.call(
+                    [
+                        DHCLIENT,
+                        "-1",
+                        "-v",
+                        "-lf",
+                        LEASE_F,
+                        "-pf",
+                        PID_F,
+                        "ib0",
+                        "-sf",
+                        "/bin/true",
+                        "-cf",
+                        "/tmp/ib0-dhclient.conf",
+                    ],
+                    capture=True,
+                ),
+            ]
+        )
+        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+        mocked_is_ib_interface.assert_called_once_with("ib0")
+        get_interface_mac.assert_called_once_with("ib0")
+        mocked_get_tmp_ancestor.assert_called_once_with(needs_exe=True)
+        mocked_write_file.assert_called_once_with(
+            "/tmp/ib0-dhclient.conf",
+            'interface "ib0" {send dhcp-client-identifier '
+            "20:AA:AA:AA:00:00:AA:AA:AA;}",
+        )
 
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
@@ -552,7 +650,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
 
 class TestSystemdParseLeases(CiTestCase):
-
     lxd_lease = dedent(
         """\
     # This is private data. Do not parse.

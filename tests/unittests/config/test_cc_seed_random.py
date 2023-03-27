@@ -71,7 +71,7 @@ class TestRandomSeed(TestCase):
                 "data": "tiny-tim-was-here",
             }
         }
-        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), LOG, [])
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("tiny-tim-was-here", contents)
 
@@ -90,7 +90,6 @@ class TestRandomSeed(TestCase):
             "test",
             cfg,
             get_cloud("ubuntu"),
-            LOG,
             [],
         )
 
@@ -103,7 +102,7 @@ class TestRandomSeed(TestCase):
                 "encoding": "gzip",
             }
         }
-        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), LOG, [])
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("tiny-toe", contents)
 
@@ -116,7 +115,7 @@ class TestRandomSeed(TestCase):
                 "encoding": "gz",
             }
         }
-        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), LOG, [])
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("big-toe", contents)
 
@@ -129,7 +128,7 @@ class TestRandomSeed(TestCase):
                 "encoding": "base64",
             }
         }
-        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), LOG, [])
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("bubbles", contents)
 
@@ -142,7 +141,7 @@ class TestRandomSeed(TestCase):
                 "encoding": "b64",
             }
         }
-        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), LOG, [])
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("kit-kat", contents)
 
@@ -154,7 +153,7 @@ class TestRandomSeed(TestCase):
             }
         }
         c = get_cloud("ubuntu", metadata={"random_seed": "-so-was-josh"})
-        cc_seed_random.handle("test", cfg, c, LOG, [])
+        cc_seed_random.handle("test", cfg, c, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("tiny-tim-was-here-so-was-josh", contents)
 
@@ -162,7 +161,7 @@ class TestRandomSeed(TestCase):
         c = get_cloud("ubuntu")
         self.whichdata = {"pollinate": "/usr/bin/pollinate"}
         cfg = {"random_seed": {"command": ["pollinate", "-q"]}}
-        cc_seed_random.handle("test", cfg, c, LOG, [])
+        cc_seed_random.handle("test", cfg, c, [])
 
         subp_args = [f["args"] for f in self.subp_called]
         self.assertIn(["pollinate", "-q"], subp_args)
@@ -170,7 +169,7 @@ class TestRandomSeed(TestCase):
     def test_seed_command_not_provided(self):
         c = get_cloud("ubuntu")
         self.whichdata = {}
-        cc_seed_random.handle("test", {}, c, LOG, [])
+        cc_seed_random.handle("test", {}, c, [])
 
         # subp should not have been called as which would say not available
         self.assertFalse(self.subp_called)
@@ -185,14 +184,14 @@ class TestRandomSeed(TestCase):
             }
         }
         self.assertRaises(
-            ValueError, cc_seed_random.handle, "test", cfg, c, LOG, []
+            ValueError, cc_seed_random.handle, "test", cfg, c, []
         )
 
     def test_seed_command_and_required(self):
         c = get_cloud("ubuntu")
         self.whichdata = {"foo": "foo"}
         cfg = {"random_seed": {"command_required": True, "command": ["foo"]}}
-        cc_seed_random.handle("test", cfg, c, LOG, [])
+        cc_seed_random.handle("test", cfg, c, [])
 
         self.assertIn(["foo"], [f["args"] for f in self.subp_called])
 
@@ -206,7 +205,7 @@ class TestRandomSeed(TestCase):
                 "file": self._seed_file,
             }
         }
-        cc_seed_random.handle("test", cfg, c, LOG, [])
+        cc_seed_random.handle("test", cfg, c, [])
 
         # this just instists that the first time subp was called,
         # RANDOM_SEED_FILE was in the environment set up correctly

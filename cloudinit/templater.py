@@ -15,14 +15,17 @@
 import collections
 import re
 import sys
-from typing import Type
+from typing import Any
 
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file
 
-JUndefined: Type
+# After bionic EOL, mypy==1.0.0 will be able to type-analyse dynamic
+# base types, substitute this by:
+# JUndefined: typing.Type
+JUndefined: Any
 try:
     from jinja2 import DebugUndefined as _DebugUndefined
     from jinja2 import Template as JTemplate
@@ -41,7 +44,7 @@ MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 # Mypy, and the PEP 484 ecosystem in general, does not support creating
 # classes with dynamic base types: https://stackoverflow.com/a/59636248
-class UndefinedJinjaVariable(JUndefined):  # type: ignore
+class UndefinedJinjaVariable(JUndefined):
     """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):
@@ -146,12 +149,6 @@ def render_from_file(fn, params):
 
 def render_to_file(fn, outfn, params, mode=0o644):
     contents = render_from_file(fn, params)
-    util.write_file(outfn, contents, mode=mode)
-
-
-def render_string_to_file(content, outfn, params, mode=0o644):
-    """Render string"""
-    contents = render_string(content, params)
     util.write_file(outfn, contents, mode=mode)
 
 

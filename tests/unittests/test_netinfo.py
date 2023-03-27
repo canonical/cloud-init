@@ -198,7 +198,7 @@ class TestNetInfo:
                 return (SAMPLE_ROUTE_OUT_V4, "")
             if args[0] == ["netstat", "-A", "inet6", "--route", "--numeric"]:
                 return (SAMPLE_ROUTE_OUT_V6, "")
-            raise Exception("Unexpected subp call %s" % args[0])
+            raise RuntimeError("Unexpected subp call %s" % args[0])
 
         m_subp.side_effect = subp_netstat_route_selector
         m_which.side_effect = lambda x: x if x == "netstat" else None
@@ -216,7 +216,7 @@ class TestNetInfo:
             v6cmd = ["ip", "--oneline", "-6", "route", "list", "table", "all"]
             if v6cmd == args[0]:
                 return (SAMPLE_IPROUTE_OUT_V6, "")
-            raise Exception("Unexpected subp call %s" % args[0])
+            raise RuntimeError("Unexpected subp call %s" % args[0])
 
         m_subp.side_effect = subp_iproute_selector
         m_which.side_effect = lambda x: x if x == "ip" else None

@@ -8,7 +8,6 @@
 
 import base64
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -119,9 +118,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -129,7 +126,7 @@ def handle(
         if not util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no/empty 'write_files' key in configuration",
             name,

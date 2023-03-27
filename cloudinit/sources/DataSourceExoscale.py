@@ -100,9 +100,6 @@ class DataSourceExoscale(sources.DataSource):
         Please refer to the datasource documentation for details on how the
         metadata server and password server are crawled.
         """
-        if not self._is_platform_viable():
-            return False
-
         data = util.log_time(
             logfunc=LOG.debug,
             msg="Crawl of metadata service",
@@ -142,7 +139,8 @@ class DataSourceExoscale(sources.DataSource):
     def get_config_obj(self):
         return self.extra_config
 
-    def _is_platform_viable(self):
+    @staticmethod
+    def ds_detect():
         return dmi.read_dmi_data("system-product-name").startswith(
             EXOSCALE_DMI_NAME
         )

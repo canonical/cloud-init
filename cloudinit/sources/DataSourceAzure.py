@@ -306,20 +306,6 @@ DEF_EPHEMERAL_LABEL = "Temporary Storage"
 DEF_PASSWD_REDACTION = "REDACTED"
 
 
-@azure_ds_telemetry_reporter
-def is_platform_viable(seed_dir: Optional[Path]) -> bool:
-    """Check platform environment to report if this datasource may run."""
-    chassis_tag = ChassisAssetTag.query_system()
-    if chassis_tag is not None:
-        return True
-
-    # If no valid chassis tag, check for seeded ovf-env.xml.
-    if seed_dir is None:
-        return False
-
-    return (seed_dir / "ovf-env.xml").exists()
-
-
 class DataSourceAzure(sources.DataSource):
 
     dsname = "Azure"
@@ -402,7 +388,6 @@ class DataSourceAzure(sources.DataSource):
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
-            tmp_dir=self.distro.get_tmp_exec_path(),
         )
 
         lease = None
@@ -580,6 +565,12 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
 
+            # Networking is a hard requirement for source PPS, fail without it.
+            if not self._is_ephemeral_networking_up():
+                msg = "DHCP failed while in source PPS"
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
+
             if pps_type == PPSType.SAVABLE:
                 self._wait_for_all_nics_ready()
             elif pps_type == PPSType.OS_DISK:
@@ -680,9 +671,9 @@ class DataSourceAzure(sources.DataSource):
         return crawled_data
 
     @azure_ds_telemetry_reporter
-    def get_metadata_from_imds(self) -> Dict:
+    def get_metadata_from_imds(self, retries: int = 10) -> Dict:
         try:
-            return imds.fetch_metadata_with_api_fallback()
+            return imds.fetch_metadata_with_api_fallback(retries=retries)
         except (UrlError, ValueError) as error:
             report_diagnostic_event(
                 "Ignoring IMDS metadata due to: %s" % error,
@@ -696,14 +687,27 @@ class DataSourceAzure(sources.DataSource):
         self._metadata_imds = sources.UNSET
 
     @azure_ds_telemetry_reporter
+    def ds_detect(self):
+        """Check platform environment to report if this datasource may
+        run.
+        """
+        chassis_tag = ChassisAssetTag.query_system()
+        if chassis_tag is not None:
+            return True
+
+        # If no valid chassis tag, check for seeded ovf-env.xml.
+        if self.seed_dir is None:
+            return False
+
+        return Path(self.seed_dir, "ovf-env.xml").exists()
+
+    @azure_ds_telemetry_reporter
     def _get_data(self):
         """Crawl and process datasource metadata caching metadata as attrs.
 
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
-        if not is_platform_viable(Path(self.seed_dir)):
-            return False
         try:
             get_boot_telemetry()
         except Exception as e:
@@ -979,11 +983,8 @@ class DataSourceAzure(sources.DataSource):
         raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
 
     @azure_ds_telemetry_reporter
-    def _check_if_nic_is_primary(self, ifname):
-        """Check if a given interface is the primary nic or not. If it is the
-        primary nic, then we also get the expected total nic count from IMDS.
-        IMDS will process the request and send a response only for primary NIC.
-        """
+    def _check_if_nic_is_primary(self, ifname: str) -> bool:
+        """Check if a given interface is the primary nic or not."""
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
         # primary or secondary. In this case, retry DHCP until successful.
@@ -992,18 +993,11 @@ class DataSourceAzure(sources.DataSource):
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
-        imds_md = self.get_metadata_from_imds()
+        imds_md = self.get_metadata_from_imds(retries=300)
         if imds_md:
             # Only primary NIC will get a response from IMDS.
             LOG.info("%s is the primary nic", ifname)
-
-            # Set the expected nic count based on the response received.
-            expected_nic_count = len(imds_md["interface"])
-            report_diagnostic_event(
-                "Expected nic count: %d" % expected_nic_count,
-                logger_func=LOG.info,
-            )
-            return True, expected_nic_count
+            return True
 
         # If we are not the primary nic, then clean the dhcp context.
         LOG.warning(
@@ -1012,7 +1006,7 @@ class DataSourceAzure(sources.DataSource):
             ifname,
         )
         self._teardown_ephemeral_networking()
-        return False, -1
+        return False
 
     @azure_ds_telemetry_reporter
     def _wait_for_hot_attached_primary_nic(self, nl_sock):
@@ -1055,9 +1049,7 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    primary_nic_found, _ = self._check_if_nic_is_primary(
-                        ifname
-                    )
+                    primary_nic_found = self._check_if_nic_is_primary(ifname)
 
                 # Exit criteria: check if we've discovered primary nic
                 if primary_nic_found:
@@ -1109,13 +1101,6 @@ class DataSourceAzure(sources.DataSource):
         dhcp_attempts = 0
 
         if report_ready:
-            # Networking must be up for netlink to detect
-            # media disconnect/connect.  It may be down to due
-            # initial DHCP failure, if so check for it and retry,
-            # ensuring we flag it as required.
-            if not self._is_ephemeral_networking_up():
-                self._setup_ephemeral_networking(timeout_minutes=20)
-
             try:
                 if (
                     self._ephemeral_dhcp_ctx is None

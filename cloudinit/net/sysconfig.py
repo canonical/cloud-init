@@ -1013,7 +1013,12 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
-            util.write_file(netrules_path, netrules_content, file_mode)
+            util.write_file(
+                netrules_path,
+                content=netrules_content,
+                mode=file_mode,
+                preserve_mode=True,
+            )
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos

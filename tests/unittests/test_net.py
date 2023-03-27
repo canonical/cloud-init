@@ -13,7 +13,7 @@ from typing import Optional
 import pytest
 from yaml.serializer import Serializer
 
-from cloudinit import distros, net
+from cloudinit import distros, log, net
 from cloudinit import safeyaml as yaml
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
@@ -5230,6 +5230,7 @@ USERCTL=no
                 """  # noqa: E501
             ),
         }
+        log.setupLogging()
 
         found = self._render_and_read(network_config=v2_data)
         self._compare_files_to_expected(expected, found)
@@ -8222,23 +8223,39 @@ class TestGetInterfacesByMac(CiTestCase):
         }
         self.assertEqual(expected, result)
 
-    def test_duplicate_ignored_macs(self):
-        # LP: #199792
-        self._data = copy.deepcopy(self._data)
-        self._data["macs"]["swp0"] = "9a:57:7d:78:47:c0"
-        self._data["macs"]["swp1"] = "9a:57:7d:78:47:c0"
-        self._data["own_macs"].append("swp0")
-        self._data["own_macs"].append("swp1")
-        self._data["drivers"]["swp0"] = "mscc_felix"
-        self._data["drivers"]["swp1"] = "mscc_felix"
-        self._mock_setup()
+
+@pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
+@mock.patch("cloudinit.net.get_sys_class_path")
+@mock.patch("cloudinit.util.system_info", return_value={"variant": "ubuntu"})
+class TestDuplicateMac:
+    def test_duplicate_ignored_macs(
+        self, _get_system_info, get_sys_class_path, driver, tmpdir, caplog
+    ):
+        # Create sysfs representation of network devices and drivers in tmpdir
+        sys_net_path = tmpdir.join("class/net")
+        get_sys_class_path.return_value = sys_net_path.strpath + "/"
+        net_data = {
+            "swp0/address": "9a:57:7d:78:47:c0",
+            "swp0/addr_assign_type": "0",
+            "swp0/device/dev_id": "something",
+            "swp1/address": "9a:57:7d:78:47:c0",
+            "swp1/addr_assign_type": "0",
+            "swp1/device/dev_id": "something else",
+        }
+        populate_dir(sys_net_path.strpath, net_data)
+        # Symlink for device driver
+        driver_path = tmpdir.join(f"module/{driver}")
+        driver_path.ensure_dir()
+        sys_net_path.join("swp0/device/driver").mksymlinkto(driver_path)
+        sys_net_path.join("swp1/device/driver").mksymlinkto(driver_path)
+
         with does_not_raise():
             net.get_interfaces_by_mac()
         pattern = (
             "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
-            "driver 'mscc_felix'."
+            f"driver '{driver}'."
         )
-        assert re.search(pattern, self.logs.getvalue())
+        assert re.search(pattern, caplog.text)
 
 
 class TestInterfacesSorting(CiTestCase):

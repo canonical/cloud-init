@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
 from unittest import mock
 
 import pytest
@@ -36,7 +35,7 @@ class TestHandle:
             paths=mock.Mock(boot_finished=boot_finished.strpath)
         )
 
-        handle(None, {}, m_cloud, logging.getLogger(), [])
+        handle(None, {}, m_cloud, [])
 
         # We should not change the status of the instance directory
         assert instance_dir_exists == instance_dir.exists()

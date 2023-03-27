@@ -894,15 +894,14 @@ class TestDataSource(CiTestCase):
             self.datasource.default_update_events,
         )
 
-        def fake_get_data():
-            raise Exception("get_data should not be called")
-
+        fake_get_data = mock.Mock()
         self.datasource.get_data = fake_get_data
         self.assertFalse(
             self.datasource.update_metadata_if_supported(
                 source_event_types=[EventType.BOOT]
             )
         )
+        self.assertEqual([], fake_get_data.call_args_list)
 
     @mock.patch.dict(
         DataSource.supported_update_events,
