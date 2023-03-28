@@ -8,9 +8,9 @@ cloud-init (23.1-0ubuntu0~18.04.3) UNRELEASED; urgency=medium
     - d/p/openstack-no-network-patch.patch
     - d/p/netplan99-cannot-use-default.patch
     - d/p/retain-netplan-world-readable.patch
-  * Upstream snapshot based on upstream/main at 4b6e4e13.
+  * Upstream snapshot based on upstream/main at e3f1ec3f.
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 27 Mar 2023 10:17:59 -0500
+ -- James Falcon <james.falcon@canonical.com>  Tue, 28 Mar 2023 10:04:43 -0500
 
 cloud-init (23.1-0ubuntu0~18.04.2) bionic; urgency=medium
 
