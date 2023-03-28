@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import (
     ASSETS_DIR,
     verify_ordered_items_in_text,
@@ -14,7 +15,9 @@ PICKLE_PATH = Path("/var/lib/cloud/instance/obj.pkl")
 TEST_PICKLE = ASSETS_DIR / "trusty_with_mime.pkl"
 
 
-@pytest.mark.lxd_container
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container", reason=f"Not tested on {PLATFORM}"
+)
 def test_log_message_on_missing_version_file(client: IntegrationInstance):
     client.push_file(TEST_PICKLE, PICKLE_PATH)
     client.restart()

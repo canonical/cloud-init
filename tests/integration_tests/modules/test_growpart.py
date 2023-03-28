@@ -8,6 +8,8 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import IS_UBUNTU
 
 DISK_PATH = "/tmp/test_disk_setup_{}".format(uuid4())
 
@@ -48,8 +50,10 @@ runcmd:
 
 @pytest.mark.user_data(ALIAS_USERDATA)
 @pytest.mark.lxd_setup.with_args(setup_and_mount_lxd_disk)
-@pytest.mark.ubuntu
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm", reason="Test requires additional mounted device"
+)
 class TestGrowPart:
     """Test growpart"""
 

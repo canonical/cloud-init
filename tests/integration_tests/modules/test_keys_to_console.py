@@ -6,6 +6,7 @@ import pytest
 
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import get_console_log
 
 BLACKLIST_USER_DATA = """\
@@ -88,11 +89,13 @@ class TestKeysToConsoleDisabled:
 
 @pytest.mark.user_data(ENABLE_KEYS_TO_CONSOLE_USER_DATA)
 @retry(tries=30, delay=1)
-@pytest.mark.ec2
-@pytest.mark.lxd_container
-@pytest.mark.oci
-@pytest.mark.openstack
-# No Azure because no console log on Azure
+@pytest.mark.skipif(
+    PLATFORM not in ["ec2", "lxd_container", "oci", "openstack"],
+    reason=(
+        "No Azure because no console log on Azure. "
+        "Other platforms need testing."
+    ),
+)
 def test_duplicate_messaging_console_log(client: IntegrationInstance):
     """Test that output can be enabled disabled."""
     assert (

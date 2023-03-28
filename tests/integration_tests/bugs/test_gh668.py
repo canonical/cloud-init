@@ -9,6 +9,7 @@ import pytest
 
 from tests.integration_tests import random_mac_address
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 DESTINATION_IP = "172.16.0.10"
 GATEWAY_IP = "10.0.0.100"
@@ -32,8 +33,10 @@ ethernets:
 EXPECTED_ROUTE = "{} via {}".format(DESTINATION_IP, GATEWAY_IP)
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm"],
+    reason="Test requires custom networking provided by LXD",
+)
 @pytest.mark.lxd_config_dict(
     {
         "user.network-config": NETWORK_CONFIG,

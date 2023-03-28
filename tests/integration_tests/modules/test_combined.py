@@ -16,9 +16,10 @@ import pytest
 
 import cloudinit.config
 from cloudinit.util import is_true
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -83,7 +84,7 @@ timezone: US/Aleutian
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestCombined:
-    @pytest.mark.ubuntu  # Because netplan
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Uses netplan")
     def test_netplan_permissions(self, class_client: IntegrationInstance):
         """
         Test that netplan config file is generated with proper permissions
@@ -303,19 +304,20 @@ class TestCombined:
         assert data["base64_encoded_keys"] == []
         assert data["merged_cfg"] == "redacted for non-root user"
 
-        image_spec = ImageSpecification.from_os_image()
-        image_spec = ImageSpecification.from_os_image()
-        assert data["sys_info"]["dist"][0] == image_spec.os
+        assert data["sys_info"]["dist"][0] == CURRENT_RELEASE.os
 
         v1_data = data["v1"]
         assert re.match(r"\d\.\d+\.\d+-\d+", v1_data["kernel_release"])
-        assert v1_data["variant"] == image_spec.os
-        assert v1_data["distro"] == image_spec.os
-        assert v1_data["distro_release"] == image_spec.release
+        assert v1_data["variant"] == CURRENT_RELEASE.os
+        assert v1_data["distro"] == CURRENT_RELEASE.os
+        assert v1_data["distro_release"] == CURRENT_RELEASE.series
         assert v1_data["machine"] == "x86_64"
         assert re.match(r"3.\d+\.\d+", v1_data["python_version"])
 
-    @pytest.mark.lxd_container
+    @pytest.mark.skipif(
+        PLATFORM != "lxd_container",
+        reason="Test is LXD container specific",
+    )
     def test_instance_json_lxd(self, class_client: IntegrationInstance):
         client = class_client
         instance_json_file = client.read_from_file(
@@ -351,7 +353,7 @@ class TestCombined:
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 
-    @pytest.mark.lxd_vm
+    @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Test is LXD VM specific")
     def test_instance_json_lxd_vm(self, class_client: IntegrationInstance):
         client = class_client
         instance_json_file = client.read_from_file(
@@ -396,7 +398,7 @@ class TestCombined:
         assert v1_data["local_hostname"] == client.instance.name
         assert v1_data["region"] is None
 
-    @pytest.mark.ec2
+    @pytest.mark.skipif(PLATFORM != "ec2", reason="Test is ec2 specific")
     def test_instance_json_ec2(self, class_client: IntegrationInstance):
         client = class_client
         instance_json_file = client.read_from_file(
@@ -419,7 +421,7 @@ class TestCombined:
         assert v1_data["local_hostname"].startswith("ip-")
         assert v1_data["region"] == client.cloud.cloud_instance.region
 
-    @pytest.mark.gce
+    @pytest.mark.skipif(PLATFORM != "gce", reason="Test is GCE specific")
     def test_instance_json_gce(self, class_client: IntegrationInstance):
         client = class_client
         instance_json_file = client.read_from_file(
@@ -438,10 +440,13 @@ class TestCombined:
         assert v1_data["instance_id"] == client.instance.instance_id
         assert v1_data["local_hostname"] == client.instance.name
 
-    @pytest.mark.lxd_container
-    @pytest.mark.azure
-    @pytest.mark.gce
-    @pytest.mark.ec2
+    @pytest.mark.skipif(
+        PLATFORM not in ["lxd_container", "azure", "gce", "ec2"],
+        reason=(
+            f"Test was written for {PLATFORM} but can likely run on "
+            "other platforms."
+        ),
+    )
     def test_instance_cloud_id_across_reboot(
         self, class_client: IntegrationInstance
     ):

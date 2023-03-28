@@ -5,11 +5,19 @@ import os
 import pytest
 from pycloudlib.cloud import ImageType
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import (
     CloudInitSource,
     IntegrationInstance,
+)
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import (
+    BIONIC,
+    CURRENT_RELEASE,
+    FOCAL,
+    IS_UBUNTU,
+    JAMMY,
 )
 from tests.integration_tests.util import verify_clean_log
 
@@ -109,7 +117,7 @@ def get_services_status(client: IntegrationInstance) -> dict:
 
 
 @pytest.mark.adhoc
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Test is Ubuntu specific")
 @pytest.mark.skipif(
     not CLOUD_INIT_UA_TOKEN, reason="CLOUD_INIT_UA_TOKEN env var not provided"
 )
@@ -136,12 +144,11 @@ class TestUbuntuAdvantage:
 
 
 def maybe_install_cloud_init(session_cloud: IntegrationCloud):
-    cfg_image_spec = ImageSpecification.from_os_image()
     source = get_validated_source(session_cloud)
 
     launch_kwargs = {
         "image_id": session_cloud.cloud_instance.daily_image(
-            cfg_image_spec.image_id, image_type=ImageType.PRO
+            CURRENT_RELEASE.image_id, image_type=ImageType.PRO
         )
     }
 
@@ -192,16 +199,16 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
     return {"image_id": session_cloud.snapshot_id}
 
 
-@pytest.mark.azure
-@pytest.mark.ec2
-@pytest.mark.gce
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not all([IS_UBUNTU, CURRENT_RELEASE in [BIONIC, FOCAL, JAMMY]]),
+    reason="Test runs on Ubuntu LTS releases only",
+)
+@pytest.mark.skipif(
+    PLATFORM not in ["azure", "ec2", "gce"],
+    reason=f"Pro isn't offered on {PLATFORM}.",
+)
 class TestUbuntuAdvantagePro:
     def test_custom_services(self, session_cloud: IntegrationCloud):
-        release = ImageSpecification.from_os_image().release
-        if release not in {"bionic", "focal", "jammy"}:
-            pytest.skip(f"Cannot run on non LTS release: {release}")
-
         launch_kwargs = maybe_install_cloud_init(session_cloud)
         with session_cloud.launch(
             user_data=AUTO_ATTACH_CUSTOM_SERVICES,
