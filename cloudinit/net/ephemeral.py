@@ -379,7 +379,7 @@ class EphemeralDHCPv4:
             ephipv4.__enter__()
             self._ephipv4 = ephipv4
         except subp.ProcessExecutionError:
-            ephipv4.__exit__()
+            ephipv4.__exit__(None, None, None)
         return self.lease
 
     def extract_dhcp_options_mapping(self, nmap):
