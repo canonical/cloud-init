@@ -4,9 +4,10 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 
 
-@pytest.mark.lxd_use_exec
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
-def test_lxd_datasource_kernel_override(client: IntegrationInstance):
+@pytest.mark.lxd_use_exec
+@pytest.mark.parametrize("ds_str", ("ds=openstack", "ci.ds=OpenStack"))
+def test_lxd_datasource_kernel_override(ds_str, client: IntegrationInstance):
     """This test is twofold: it tests kernel commandline override, which also
     validates OpenStack Ironic requirements. OpenStack Ironic does not
     advertise itself to cloud-init via any of the conventional methods: DMI,
@@ -25,7 +26,7 @@ def test_lxd_datasource_kernel_override(client: IntegrationInstance):
     """
     client.execute(
         "sed --in-place "
-        '\'s/^.*GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX="ci.ds=OpenStack"/g'
+        "'s/^.*GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"" + ds_str + '"/g'
         "' /etc/default/grub"
     )
 

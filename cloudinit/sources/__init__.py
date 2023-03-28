@@ -40,7 +40,6 @@ VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
-DS_PREFIX = "DataSource"
 
 EXPERIMENTAL_TEXT = (
     "EXPERIMENTAL: The structure and format of content scoped under the 'ds'"
@@ -998,11 +997,12 @@ def find_source(
     raise DataSourceNotFoundException(msg)
 
 
-# Return a list of classes that have the same depends as 'depends'
-# iterate through cfg_list, loading "DataSource*" modules
-# and calling their "get_datasource_list".
-# Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
+    """Return a list of classes that have the same depends as 'depends'
+    iterate through cfg_list, loading "DataSource*" modules
+    and calling their "get_datasource_list".
+    Return an ordered list of classes that match (if any)
+    """
     src_list = []
     LOG.debug(
         "Looking for data source in: %s,"
@@ -1011,9 +1011,9 @@ def list_sources(cfg_list, depends, pkg_list):
         pkg_list,
         depends,
     )
-    for ds_name in cfg_list:
-        if not ds_name.startswith(DS_PREFIX):
-            ds_name = "%s%s" % (DS_PREFIX, ds_name)
+
+    for ds in cfg_list:
+        ds_name = importer.match_case_insensitive_module_name(ds)
         m_locs, _looked_locs = importer.find_module(
             ds_name, pkg_list, ["get_datasource_list"]
         )

@@ -834,13 +834,8 @@ dscheck_LXD() {
 
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
-    case " ${DI_KERNEL_CMDLINE} " in
-        *\ ds=nocloud*) return ${DS_FOUND};;
-        *\ ci.ds=nocloud*) return ${DS_FOUND};;
-    esac
     case " ${DI_DMI_PRODUCT_SERIAL} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
-        *\ ci.ds=nocloud*) return ${DS_FOUND};;
     esac
 
     for d in nocloud nocloud-net; do
@@ -1745,6 +1740,7 @@ read_config() {
         key=${tok%%=*}
         val=${tok#*=}
         case "$key" in
+            ds) _rc_dsname="$val";;
             ci.ds) _rc_dsname="$val";;
             ci.datasource) _rc_dsname="$val";;
             ci.di.policy) _rc_policy="$val";;

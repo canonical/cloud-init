@@ -359,6 +359,12 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+
+        # NoCloud and NoCloud-Net used to both use the same dsname, update here
+        self.dsname = "NoCloud-Net"
+
 
 # Used to match classes to dependencies
 datasources = [
