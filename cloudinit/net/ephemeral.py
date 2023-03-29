@@ -378,7 +378,7 @@ class EphemeralDHCPv4:
             ephipv4 = EphemeralIPv4Network(**kwargs)
             ephipv4.__enter__()
             self._ephipv4 = ephipv4
-        except subp.ProcessExecutionError:
+        except:
             ephipv4.__exit__(None, None, None)
         return self.lease
 
