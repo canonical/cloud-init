@@ -10,6 +10,7 @@ import crypt
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.integration_settings import PLATFORM
 
 OLD_PASSWORD = "DoIM33tTheComplexityRequirements!??"
 NEW_PASSWORD = "DoIM33tTheComplexityRequirementsNow!??"
@@ -22,7 +23,7 @@ def _check_password(instance, unhashed_password):
     assert shadow_password == hashed_password
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
 def test_update_default_password(setup_image, session_cloud: IntegrationCloud):
     os_profile = {
         "os_profile": {

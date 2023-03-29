@@ -8,8 +8,8 @@ import re
 
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
@@ -56,7 +56,7 @@ class TestUsersGroups:
     confirms that they have been configured correctly in the system under test.
     """
 
-    @pytest.mark.ubuntu
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Test assumes 'ubuntu' user")
     @pytest.mark.parametrize(
         "getent_args,regex",
         [
@@ -108,6 +108,10 @@ class TestUsersGroups:
 
 
 @pytest.mark.user_data(USER_DATA)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < JAMMY,
+    reason="Requires version of sudo not available in older releases",
+)
 def test_sudoers_includedir(client: IntegrationInstance):
     """Ensure we don't add additional #includedir to sudoers.
 
@@ -117,13 +121,6 @@ def test_sudoers_includedir(client: IntegrationInstance):
 
     https://github.com/canonical/cloud-init/pull/783
     """
-    if ImageSpecification.from_os_image().release in [
-        "bionic",
-        "focal",
-    ]:
-        raise pytest.skip(
-            "Test requires version of sudo installed on groovy and later"
-        )
     client.execute("sed -i 's/#include/@include/g' /etc/sudoers")
 
     sudoers = client.read_from_file("/etc/sudoers")

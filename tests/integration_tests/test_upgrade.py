@@ -4,8 +4,10 @@ import os
 
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
 from tests.integration_tests.util import verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
@@ -41,23 +43,20 @@ hostname: SRU-worked
 """
 
 
+# The issues that we see on Bionic VMs don't appear anywhere
+# else, including when calling KVM directly. It likely has to
+# do with the extra lxd-agent setup happening on bionic.
+# Given that we still have Bionic covered on all other platforms,
+# the risk of skipping bionic here seems low enough.
+@pytest.mark.skipif(
+    PLATFORM == "lxd_vm" and CURRENT_RELEASE < FOCAL,
+    reason="Update test doesn't run on Bionic LXD VMs",
+)
 def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
-    if (
-        ImageSpecification.from_os_image().release == "bionic"
-        and session_cloud.settings.PLATFORM == "lxd_vm"
-    ):
-        # The issues that we see on Bionic VMs don't appear anywhere
-        # else, including when calling KVM directly. It likely has to
-        # do with the extra lxd-agent setup happening on bionic.
-        # Given that we still have Bionic covered on all other platforms,
-        # the risk of skipping bionic here seems low enough.
-        pytest.skip("Upgrade test doesn't run on LXD VMs and bionic")
-        return
-
     launch_kwargs = {
         "image_id": session_cloud.initial_image_id,
     }
@@ -172,11 +171,11 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
 
 
 @pytest.mark.ci
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
 def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
-        if os.environ.get("TRAVIS"):
+        if os.environ.get("GITHUB_ACTIONS"):
             # If this isn't running on CI, we should know
             pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         else:

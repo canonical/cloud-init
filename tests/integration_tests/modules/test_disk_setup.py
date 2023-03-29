@@ -7,6 +7,8 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
 from tests.integration_tests.util import verify_clean_log
 
 DISK_PATH = "/tmp/test_disk_setup_{}".format(uuid4())
@@ -52,8 +54,10 @@ mounts:
 
 @pytest.mark.user_data(ALIAS_USERDATA)
 @pytest.mark.lxd_setup.with_args(setup_and_mount_lxd_disk)
-@pytest.mark.ubuntu
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm", reason="Test requires additional mounted device"
+)
 class TestDeviceAliases:
     """Test devices aliases work on disk setup/mount"""
 
@@ -124,8 +128,10 @@ mounts:
 
 @pytest.mark.user_data(PARTPROBE_USERDATA)
 @pytest.mark.lxd_setup.with_args(setup_and_mount_lxd_disk)
-@pytest.mark.ubuntu
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm", reason="Test requires additional mounted device"
+)
 class TestPartProbeAvailability:
     """Test disk setup works with partprobe
 
@@ -149,9 +155,10 @@ class TestPartProbeAvailability:
             assert sdb["children"][0]["mountpoints"] == ["/mnt1"]
             assert sdb["children"][1]["mountpoints"] == ["/mnt2"]
 
-    # Not bionic because the LXD agent gets in the way of us
-    # changing the userdata
-    @pytest.mark.not_bionic
+    @pytest.mark.skipif(
+        CURRENT_RELEASE < FOCAL,
+        reason="LXD agent gets in the way of changing userdata",
+    )
     def test_disk_setup_when_mounted(
         self, create_disk, client: IntegrationInstance
     ):

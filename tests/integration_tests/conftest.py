@@ -18,7 +18,6 @@ from tests.integration_tests.clouds import (
     Ec2Cloud,
     GceCloud,
     IbmCloud,
-    ImageSpecification,
     IntegrationCloud,
     LxdContainerCloud,
     LxdVmCloud,
@@ -58,33 +57,9 @@ def pytest_runtest_setup(item):
     platform, then skip the test. If platform specific marks are not
     specified, then we assume the test can be run anywhere.
     """
-    all_platforms = platforms.keys()
     test_marks = [mark.name for mark in item.iter_markers()]
-    supported_platforms = set(all_platforms).intersection(test_marks)
-    current_platform = integration_settings.PLATFORM
-    unsupported_message = "Cannot run on platform {}".format(current_platform)
-    if "no_container" in test_marks:
-        if "lxd_container" in test_marks:
-            raise RuntimeError(
-                "lxd_container and no_container marks simultaneously set "
-                "on test"
-            )
-        if current_platform == "lxd_container":
-            pytest.skip(unsupported_message)
-    if supported_platforms and current_platform not in supported_platforms:
-        pytest.skip(unsupported_message)
-
-    image = ImageSpecification.from_os_image()
-    current_os = image.os
-    supported_os_set = set(os_list).intersection(test_marks)
-    if current_os and supported_os_set and current_os not in supported_os_set:
-        pytest.skip("Cannot run on OS {}".format(current_os))
     if "unstable" in test_marks and not integration_settings.RUN_UNSTABLE:
         pytest.skip("Test marked unstable. Manually remove mark to run it")
-
-    current_release = image.release
-    if "not_{}".format(current_release) in test_marks:
-        pytest.skip("Cannot run on release {}".format(current_release))
 
 
 # disable_subp_usage is defined at a higher level, but we don't

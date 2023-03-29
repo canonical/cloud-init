@@ -3,6 +3,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 
 def _test_crawl(client, ip):
@@ -18,7 +19,7 @@ def _test_crawl(client, ip):
     assert float(result[0]) < 20
 
 
-@pytest.mark.ec2
+@pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
 def test_dual_stack(client: IntegrationInstance):
     # Drop IPv4 responses
     assert client.execute("iptables -I INPUT -s 169.254.169.254 -j DROP").ok

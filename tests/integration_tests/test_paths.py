@@ -10,6 +10,7 @@ from cloudinit.cmd.devel.logs import (
     INSTALLER_APPORT_SENSITIVE_FILES,
 )
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import verify_clean_log
 
 DEFAULT_CLOUD_DIR = "/var/lib/cloud"
@@ -111,7 +112,10 @@ class TestHonorCloudDir:
     # because the test ensures nothing is running under /var/lib/cloud.
     # Since LXD is doing this and not cloud-init, we should just not run
     # on Bionic to avoid it.
-    @pytest.mark.not_bionic
+    @pytest.mark.skipif(
+        CURRENT_RELEASE < FOCAL,
+        reason="LXD inserts conflicting setup on releases prior to focal",
+    )
     def test_honor_cloud_dir(self, custom_client: IntegrationInstance):
         """Integration test for LP: #1976564
 

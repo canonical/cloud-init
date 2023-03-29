@@ -491,9 +491,23 @@ try:
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
+    _jsonschema_version = tuple(
+        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+    )
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
+    _jsonschema_version = (0, 0, 0)
+
+
+def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
+    return skipIf(
+        _jsonschema_version <= version,
+        reason=(
+            f"python3-jsonschema {_jsonschema_version} not greater than"
+            f" {version}"
+        ),
+    )
 
 
 def skipUnlessJsonSchema():
