@@ -4008,7 +4008,7 @@ class TestProvisioning:
         # Verify no netlink operations for recovering PPS.
         assert self.mock_netlink.mock_calls == []
 
-        # Verify reported_ready marker not written and cleaned up.
+        # Verify reported_ready marker not written.
         assert self.wrapped_util_write_file.mock_calls == [
             mock.call(
                 filename=str(self.patched_data_dir_path / "ovf-env.xml"),
