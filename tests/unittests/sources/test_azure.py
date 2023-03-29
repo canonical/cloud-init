@@ -262,10 +262,11 @@ def mock_util_mount_cb():
 
 
 @pytest.fixture
-def mock_util_write_file():
-    with mock.patch(
-        MOCKPATH + "util.write_file",
-        autospec=True,
+def wrapped_util_write_file():
+    with mock.patch.object(
+        dsaz.util,
+        "write_file",
+        wraps=write_file,
     ) as m:
         yield m
 
@@ -3443,7 +3444,9 @@ class TestProvisioning:
         mock_util_find_devs_with,
         mock_util_load_file,
         mock_util_mount_cb,
+        wrapped_util_write_file,
         mock_wrapping_setup_ephemeral_networking,
+        patched_data_dir_path,
         patched_reported_ready_marker_path,
     ):
         self.azure_ds = azure_ds
@@ -3469,9 +3472,11 @@ class TestProvisioning:
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
         self.mock_util_mount_cb = mock_util_mount_cb
+        self.wrapped_util_write_file = wrapped_util_write_file
         self.mock_wrapping_setup_ephemeral_networking = (
             mock_wrapping_setup_ephemeral_networking
         )
+        self.patched_data_dir_path = patched_data_dir_path
         self.patched_reported_ready_marker_path = (
             patched_reported_ready_marker_path
         )
@@ -3554,6 +3559,10 @@ class TestProvisioning:
 
         # Verify netlink.
         assert self.mock_netlink.mock_calls == []
+
+        # Verify no reported_ready marker written.
+        assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     def test_running_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Running"
@@ -3649,6 +3658,12 @@ class TestProvisioning:
             mock.call.wait_for_media_disconnect_connect(mock.ANY, "ethBoot0"),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     def test_savable_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
@@ -3760,6 +3775,12 @@ class TestProvisioning:
             mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -3909,6 +3930,12 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket().close(),
         ]
 
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
+
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
     def test_recovery_pps(self, pps_type):
         self.patched_reported_ready_marker_path.write_text("")
@@ -3980,6 +4007,16 @@ class TestProvisioning:
 
         # Verify no netlink operations for recovering PPS.
         assert self.mock_netlink.mock_calls == []
+
+        # Verify reported_ready marker not written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls == [
+            mock.call(
+                filename=str(self.patched_data_dir_path / "ovf-env.xml"),
+                content=mock.ANY,
+                mode=mock.ANY,
+            )
+        ]
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
     def test_source_pps_fails_initial_dhcp(self, pps_type):
@@ -4076,6 +4113,7 @@ class TestProvisioning:
         # Ensure no reported ready marker is left behind as the VM's next
         # boot will behave like a typical provisioning boot.
         assert self.patched_reported_ready_marker_path.exists() is False
+        assert self.wrapped_util_write_file.mock_calls == []
 
 
 class TestValidateIMDSMetadata:
