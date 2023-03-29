@@ -1,3 +1,10 @@
+cloud-init (23.1.1-0ubuntu3) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at d6ac22e1.
+    - Bugs fixed in this snapshot: (LP: #2011783, #2008888)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 29 Mar 2023 13:03:26 -0600
+
 cloud-init (23.1.1-0ubuntu2) lunar; urgency=medium
 
   * d/apport-general-hook.py: Add general apport hook to append cloud type,
