@@ -3,3 +3,4 @@
 #
 pycloudlib==1!1
 pytest
+packaging
