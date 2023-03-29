@@ -19,7 +19,7 @@ from cloudinit.net.dhcp import (
     parse_static_routes,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.util import ensure_file, write_file
+from cloudinit.util import ensure_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
@@ -347,6 +347,24 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
         self.assertIn(
             "Skip dhcp_discovery: Unable to find fallback nic.",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value="eth9")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_dhclient_exits_with_error(self, m_subp, m_remove, m_fallback):
+        """Log and do nothing when nic is absent and no fallback is found."""
+        m_subp.side_effect = [
+            ("", ""),
+            subp.ProcessExecutionError(exit_code=-5),
+        ]
+
+        with pytest.raises(NoDHCPLeaseError):
+            maybe_perform_dhcp_discovery()
+
+        self.assertIn(
+            "dhclient exited with code: -5",
             self.logs.getvalue(),
         )
 
