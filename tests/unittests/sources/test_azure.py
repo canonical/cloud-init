@@ -262,10 +262,11 @@ def mock_util_mount_cb():
 
 
 @pytest.fixture
-def mock_util_write_file():
-    with mock.patch(
-        MOCKPATH + "util.write_file",
-        autospec=True,
+def wrapped_util_write_file():
+    with mock.patch.object(
+        dsaz.util,
+        "write_file",
+        wraps=write_file,
     ) as m:
         yield m
 
@@ -1347,89 +1348,6 @@ scbus-1 on xpt0 bus 0
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
         self.assertEqual(2, self.m_fetch.call_count)
-
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready"
-    )
-    @mock.patch("cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds")
-    def test_crawl_metadata_on_reprovision_reports_ready(
-        self, poll_imds_func, m_report_ready, m_write
-    ):
-        """If reprovisioning, report ready at the end"""
-        ovfenv = construct_ovf_env(preprovisioned_vm=True)
-
-        data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = self._get_ds(data)
-        poll_imds_func.return_value = ovfenv
-        dsrc.crawl_metadata()
-        self.assertEqual(1, m_report_ready.call_count)
-
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready"
-    )
-    @mock.patch("cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds")
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure."
-        "_wait_for_all_nics_ready"
-    )
-    def test_crawl_metadata_waits_for_nic_on_savable_vms(
-        self, detect_nics, poll_imds_func, report_ready_func, m_write
-    ):
-        """If reprovisioning, report ready at the end"""
-        ovfenv = construct_ovf_env(
-            preprovisioned_vm=True, preprovisioned_vm_type="Savable"
-        )
-
-        data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = self._get_ds(data)
-        poll_imds_func.return_value = ovfenv
-        dsrc.crawl_metadata()
-        self.assertEqual(1, report_ready_func.call_count)
-        self.assertEqual(1, detect_nics.call_count)
-
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
-    @mock.patch(
-        "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
-    )
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready",
-        return_value=True,
-    )
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.imds.fetch_reprovision_data"
-    )
-    def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
-        self, m_fetch_reprovision_data, m_report_ready, m_media_switch, m_write
-    ):
-        """If reprovisioning, report ready using the obtained lease"""
-        ovfenv = construct_ovf_env(preprovisioned_vm=True)
-
-        data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = self._get_ds(data)
-
-        lease = {
-            "interface": "eth9",
-            "fixed-address": "192.168.2.9",
-            "routers": "192.168.2.1",
-            "subnet-mask": "255.255.255.0",
-            "unknown-245": "624c3620",
-        }
-        self.m_dhcp.return_value.obtain_lease.return_value = lease
-        m_media_switch.return_value = None
-
-        reprovision_ovfenv = construct_ovf_env()
-        m_fetch_reprovision_data.return_value = reprovision_ovfenv.encode(
-            "utf-8"
-        )
-
-        dsrc.crawl_metadata()
-
-        assert m_report_ready.mock_calls == [
-            mock.call(),
-            mock.call(pubkey_info=None),
-        ]
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -2790,7 +2708,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     ):
         """Report ready first and then wait for nic detach"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        dsa._wait_for_all_nics_ready()
+        dsa._wait_for_pps_savable_reuse()
         self.assertEqual(1, m_report_ready.call_count)
         self.assertEqual(1, m_wait_for_hot_attached_primary_nic.call_count)
         self.assertEqual(1, m_detach.call_count)
@@ -2849,7 +2767,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_dhcpv4.return_value = dhcp_ctx
         m_imds.side_effect = [md]
 
-        dsa._wait_for_all_nics_ready()
+        dsa._wait_for_pps_savable_reuse()
 
         self.assertEqual(1, m_detach.call_count)
         # only wait for primary nic
@@ -2869,7 +2787,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_imds.reset_mock()
         m_imds.side_effect = [{}, md]
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-        dsa._wait_for_all_nics_ready()
+        dsa._wait_for_pps_savable_reuse()
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(2, m_attach.call_count)
         self.assertEqual(2, m_dhcpv4.call_count)
@@ -2974,9 +2892,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
         self.assertRaises(
-            netlink.NetlinkCreateSocketError, dsa._wait_for_all_nics_ready
+            netlink.NetlinkCreateSocketError, dsa._wait_for_pps_savable_reuse
         )
-        # dsa._wait_for_all_nics_ready()
 
 
 @mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
@@ -2986,7 +2903,6 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
 @mock.patch(MOCKPATH + "imds.fetch_reprovision_data")
-@mock.patch(MOCKPATH + "DataSourceAzure._report_ready", return_value=True)
 class TestPreprovisioningPollIMDS(CiTestCase):
     def setUp(self):
         super(TestPreprovisioningPollIMDS, self).setUp()
@@ -2998,7 +2914,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
     @mock.patch("time.sleep", mock.MagicMock())
     def test_poll_imds_re_dhcp_on_timeout(
         self,
-        m_report_ready,
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
@@ -3010,7 +2925,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             url_helper.UrlError(requests.Timeout("Fake connection timeout")),
             b"ovf data",
         ]
-        report_file = self.tmp_path("report_marker", self.tmp)
         lease = {
             "interface": "eth9",
             "fixed-address": "192.168.2.9",
@@ -3026,21 +2940,15 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         dsa._ephemeral_dhcp_ctx = dhcp_ctx
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ):
-            dsa._poll_imds()
+        dsa._poll_imds()
 
-        assert m_report_ready.mock_calls == [mock.call()]
-
-        self.assertEqual(2, m_dhcp.call_count, "Expected 2 DHCP calls")
+        self.assertEqual(1, m_dhcp.call_count, "Expected 1 DHCP calls")
         assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
     def test_poll_imds_skips_dhcp_if_ctx_present(
         self,
         m_isfile,
-        report_ready_func,
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
@@ -3052,14 +2960,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         polling for reprovisiondata. Note that if this ctx is set when
         _poll_imds is called, then it is not expected to be waiting for
         media_disconnect_connect either."""
-        report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._ephemeral_dhcp_ctx = mock.Mock(lease={})
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ):
-            dsa._poll_imds()
+        dsa._poll_imds()
         self.assertEqual(0, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
 
@@ -3069,7 +2973,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self,
         m_ephemeral_dhcpv4,
         m_isfile,
-        report_ready_func,
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
@@ -3090,14 +2993,11 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             ),
             b"ovf data",
         ]
-        report_file = self.tmp_path("report_marker", self.tmp)
         m_isfile.return_value = True
         distro = mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ), mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
+        with mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
             m_dhcp_ctx.obtain_lease.return_value = "Dummy lease"
             dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
             dsa._poll_imds()
@@ -3105,107 +3005,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(1, m_ephemeral_dhcpv4.call_count)
         self.assertEqual(0, m_media_switch.call_count)
         self.assertEqual(2, m_fetch_reprovisiondata.call_count)
-
-    def test_does_not_poll_imds_report_ready_when_marker_file_exists(
-        self,
-        m_report_ready,
-        m_fetch_reprovisiondata,
-        m_media_switch,
-        m_dhcp,
-        m_net,
-        m_fallback,
-    ):
-        """poll_imds should not call report ready when the reported ready
-        marker file exists"""
-        report_file = self.tmp_path("report_marker", self.tmp)
-        write_file(report_file, content="dont run report_ready :)")
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "unknown-245": "624c3620",
-            }
-        ]
-        m_media_switch.return_value = None
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ):
-            dsa._poll_imds()
-        self.assertEqual(m_report_ready.call_count, 0)
-
-    @mock.patch(MOCKPATH + "imds.fetch_metadata_with_api_fallback")
-    def test_poll_imds_report_ready_success_writes_marker_file(
-        self,
-        m_fetch,
-        m_report_ready,
-        m_fetch_reprovisiondata,
-        m_media_switch,
-        m_dhcp,
-        m_net,
-        m_fallback,
-    ):
-        """poll_imds should write the report_ready marker file if
-        reporting ready succeeds"""
-        report_file = self.tmp_path("report_marker", self.tmp)
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "unknown-245": "624c3620",
-            }
-        ]
-        m_media_switch.return_value = None
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-        self.assertFalse(os.path.exists(report_file))
-        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ):
-            dsa._poll_imds()
-        self.assertEqual(m_report_ready.call_count, 1)
-        self.assertTrue(os.path.exists(report_file))
-
-    def test_poll_imds_report_ready_failure_raises_exc_and_doesnt_write_marker(
-        self,
-        m_report_ready,
-        m_fetch_reprovisiondata,
-        m_media_switch,
-        m_dhcp,
-        m_net,
-        m_fallback,
-    ):
-        """poll_imds should write the report_ready marker file if
-        reporting ready succeeds"""
-        report_file = self.tmp_path("report_marker", self.tmp)
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "unknown-245": "624c3620",
-            }
-        ]
-        m_media_switch.return_value = None
-        m_report_ready.side_effect = [Exception("fail")]
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-        self.assertFalse(os.path.exists(report_file))
-        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
-        with mock.patch.object(
-            dsa, "_reported_ready_marker_file", report_file
-        ):
-            self.assertRaises(InvalidMetaDataException, dsa._poll_imds)
-        self.assertEqual(m_report_ready.call_count, 1)
-        self.assertFalse(os.path.exists(report_file))
 
 
 @mock.patch(MOCKPATH + "DataSourceAzure._report_ready", mock.MagicMock())
@@ -3241,7 +3040,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             }
         ]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
+        dsa._ephemeral_dhcp_ctx = None
         self.assertTrue(len(dsa._poll_imds()) > 0)
         self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
@@ -3273,7 +3072,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         content = construct_ovf_env(username=username, hostname=hostname)
         m_fetch_reprovisiondata.side_effect = [content]
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        dsa._ephemeral_dhcp_ctx = mock.Mock(interface="eth9")
+        dsa._ephemeral_dhcp_ctx = None
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md["local-hostname"], hostname)
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
@@ -3645,7 +3444,9 @@ class TestProvisioning:
         mock_util_find_devs_with,
         mock_util_load_file,
         mock_util_mount_cb,
+        wrapped_util_write_file,
         mock_wrapping_setup_ephemeral_networking,
+        patched_data_dir_path,
         patched_reported_ready_marker_path,
     ):
         self.azure_ds = azure_ds
@@ -3671,9 +3472,11 @@ class TestProvisioning:
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
         self.mock_util_mount_cb = mock_util_mount_cb
+        self.wrapped_util_write_file = wrapped_util_write_file
         self.mock_wrapping_setup_ephemeral_networking = (
             mock_wrapping_setup_ephemeral_networking
         )
+        self.patched_data_dir_path = patched_data_dir_path
         self.patched_reported_ready_marker_path = (
             patched_reported_ready_marker_path
         )
@@ -3756,6 +3559,10 @@ class TestProvisioning:
 
         # Verify netlink.
         assert self.mock_netlink.mock_calls == []
+
+        # Verify no reported_ready marker written.
+        assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     def test_running_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Running"
@@ -3849,9 +3656,14 @@ class TestProvisioning:
         assert self.mock_netlink.mock_calls == [
             mock.call.create_bound_netlink_socket(),
             mock.call.wait_for_media_disconnect_connect(mock.ANY, "ethBoot0"),
-            mock.call.create_bound_netlink_socket().__bool__(),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     def test_savable_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
@@ -3961,9 +3773,14 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket(),
             mock.call.wait_for_nic_detach_event(nl_sock),
             mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
-            mock.call.create_bound_netlink_socket().__bool__(),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -4110,9 +3927,14 @@ class TestProvisioning:
             mock.call.create_bound_netlink_socket(),
             mock.call.wait_for_nic_detach_event(nl_sock),
             mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
-            mock.call.create_bound_netlink_socket().__bool__(),
             mock.call.create_bound_netlink_socket().close(),
         ]
+
+        # Verify reported_ready marker written and cleaned up.
+        assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+            self.patched_reported_ready_marker_path.as_posix(), mock.ANY
+        )
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
     def test_recovery_pps(self, pps_type):
@@ -4185,6 +4007,16 @@ class TestProvisioning:
 
         # Verify no netlink operations for recovering PPS.
         assert self.mock_netlink.mock_calls == []
+
+        # Verify reported_ready marker not written.
+        assert self.wrapped_util_write_file.mock_calls == [
+            mock.call(
+                filename=str(self.patched_data_dir_path / "ovf-env.xml"),
+                content=mock.ANY,
+                mode=mock.ANY,
+            )
+        ]
+        assert self.patched_reported_ready_marker_path.exists() is False
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
     def test_source_pps_fails_initial_dhcp(self, pps_type):
@@ -4281,6 +4113,7 @@ class TestProvisioning:
         # Ensure no reported ready marker is left behind as the VM's next
         # boot will behave like a typical provisioning boot.
         assert self.patched_reported_ready_marker_path.exists() is False
+        assert self.wrapped_util_write_file.mock_calls == []
 
 
 class TestValidateIMDSMetadata:
