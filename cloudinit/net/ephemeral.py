@@ -374,8 +374,12 @@ class EphemeralDHCPv4:
             )
         if self.connectivity_url_data:
             kwargs["connectivity_url_data"] = self.connectivity_url_data
-        self._ephipv4 = EphemeralIPv4Network(**kwargs)
-        self._ephipv4.__enter__()
+        try:
+            ephipv4 = EphemeralIPv4Network(**kwargs)
+            ephipv4.__enter__()
+            self._ephipv4 = ephipv4
+        except subp.ProcessExecutionError:
+            ephipv4.__exit__(None, None, None)
         return self.lease
 
     def extract_dhcp_options_mapping(self, nmap):
