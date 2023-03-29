@@ -32,20 +32,23 @@ def _count_attrs(
     return found_attrs
 
 
-def match_case_insensitive_module_name(ds_name: str) -> Optional[str]:
-    """Check the importable datasource modules for a case-insensitive match.
-    This string comes from ds-identify.
-    """
-    if not ds_name.startswith("DataSource"):
-        ds_name = f"DataSource{ds_name}"
+def match_case_insensitive_module_name(mod_name: str) -> Optional[str]:
+    """Check the importable datasource modules for a case-insensitive match."""
+
+    # nocloud-net is the only datasource that requires matching on a name that
+    # does not match its python module - canonicalize it here
+    if "nocloud-net" == mod_name.lower():
+        mod_name = mod_name[:-4]
+    if not mod_name.startswith("DataSource"):
+        ds_name = f"DataSource{mod_name}"
     modules = {}
-    for dir in importlib.util.find_spec(
-        "cloudinit.sources"
-    ).submodule_search_locations:
-        modules.update(util.get_modules_from_dir(dir))
-    for module in modules.values():
-        if module.lower() == ds_name.lower():
-            return module
+    spec = importlib.util.find_spec("cloudinit.sources")
+    if spec and spec.submodule_search_locations:
+        for dir in spec.submodule_search_locations:
+            modules.update(util.get_modules_from_dir(dir))
+        for module in modules.values():
+            if module.lower() == ds_name.lower():
+                return module
     return ds_name
 
 

@@ -10,6 +10,7 @@
 
 import errno
 import os
+import re
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -353,17 +354,33 @@ def _merge_new_seed(cur, seeded):
 
 
 class DataSourceNoCloudNet(DataSourceNoCloud):
-    dsname = "NoCloud-Net"
-
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")
 
-    def _unpickle(self, ci_pkl_version: int) -> None:
-        super()._unpickle(ci_pkl_version)
-
-        # NoCloud and NoCloud-Net used to both use the same dsname, update here
-        self.dsname = "NoCloud-Net"
+    def ds_detect(self):
+        """NoCloud requires "nocloud-net" as the way to specify
+        seeding from an http(s) address. This diverges from all other
+        datasources in that it does a kernel commandline match on something
+        other than the datasource dsname for only DEP_NETWORK.
+        """
+        cmdline = util.get_cmdline()
+        ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$)", cmdline)
+        ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$)", cmdline)
+        ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$)", cmdline)
+        ds = ds_parse_0 or ds_parse_1 or ds_parse_2
+        deprecated = ds_parse_1 or ds_parse_2
+        if deprecated:
+            util.deprecate(
+                deprecated=(
+                    f"Defining the datasource on the commandline using "
+                    f"ci.ds={ds} or ci.datasource={ds}"
+                ),
+                deprecated_version="23.2",
+                extra_message=f"Use ds={ds} instead",
+            )
+        if ds:
+            return "nocloud-net" == ds.group(1).lower()
 
 
 # Used to match classes to dependencies
@@ -376,6 +393,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

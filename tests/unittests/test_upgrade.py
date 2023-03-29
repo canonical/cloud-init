@@ -18,16 +18,12 @@ import pytest
 
 from cloudinit.sources import pkl_load
 from cloudinit.sources.DataSourceAzure import DataSourceAzure
-from cloudinit.sources.DataSourceNoCloud import (
-    DataSourceNoCloud,
-    DataSourceNoCloudNet,
-)
+from cloudinit.sources.DataSourceNoCloud import DataSourceNoCloud
 from tests.unittests.helpers import resourceLocation
 
 DSNAME_TO_CLASS = {
     "Azure": DataSourceAzure,
     "NoCloud": DataSourceNoCloud,
-    "NoCloud-Net": DataSourceNoCloudNet,
 }
 
 
@@ -54,7 +50,7 @@ class TestUpgrade:
         distro = previous_obj_pkl.distro
         paths = previous_obj_pkl.paths
         ds = ds_class(sys_cfg, distro, paths)
-        if "NoCloud" in ds.dsname and previous_obj_pkl.__dict__:
+        if ds.dsname == "NoCloud" and previous_obj_pkl.__dict__:
             expected = (
                 set({"seed_dirs"}),  # LP: #1568150 handled with getattr checks
                 set(),

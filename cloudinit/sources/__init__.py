@@ -40,6 +40,7 @@ VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
+DS_PREFIX = "DataSource"
 
 EXPERIMENTAL_TEXT = (
     "EXPERIMENTAL: The structure and format of content scoped under the 'ds'"
@@ -1158,6 +1159,16 @@ def parse_cmdline() -> str:
     ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
     ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
     ds = ds_parse_0 or ds_parse_1 or ds_parse_2
+    deprecated = ds_parse_1 or ds_parse_2
+    if deprecated:
+        util.deprecate(
+            deprecated=(
+                f"Defining the datasource on the commandline using "
+                f"ci.ds={ds} or ci.datasource={ds}"
+            ),
+            deprecated_version="23.2",
+            extra_message=f"Use ds={ds} instead",
+        )
     if ds and ds.group(1):
         return ds.group(1)
     return ""
