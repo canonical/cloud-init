@@ -168,7 +168,17 @@ def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
         util.write_file(file_name, interface_dhclient_content)
         cmd.append("-cf")
         cmd.append(file_name)
-    out, err = subp.subp(cmd, capture=True)
+
+    try:
+        out, err = subp.subp(cmd, capture=True)
+    except subp.ProcessExecutionError as error:
+        LOG.debug(
+            "dhclient exited with code: %s stderr: %r stdout: %r",
+            error.exit_code,
+            error.stderr,
+            error.stdout,
+        )
+        raise NoDHCPLeaseError from error
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we
