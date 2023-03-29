@@ -319,8 +319,7 @@ def get_jsonschema_validator():
     # type jsonschema attributes in cloud-init's schema.
     # This allows #cloud-config to provide valid yaml "content: !!binary | ..."
 
-    strict_metaschema = deepcopy(Draft4Validator.META_SCHEMA)
-    strict_metaschema["additionalProperties"] = False
+    meta_schema = deepcopy(Draft4Validator.META_SCHEMA)
 
     # This additional label allows us to specify a different name
     # than the property key when generating docs.
@@ -328,10 +327,11 @@ def get_jsonschema_validator():
     # otherwise the property label in the generated docs will be a
     # regular expression.
     # http://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties
-    strict_metaschema["properties"]["label"] = {"type": "string"}
+    meta_schema["properties"]["label"] = {"type": "string"}
 
     validator_kwargs = {}
     if hasattr(Draft4Validator, "TYPE_CHECKER"):  # jsonschema 3.0+
+        meta_schema["additionalProperties"] = False  # Unsupported in 2.6.0
         type_checker = Draft4Validator.TYPE_CHECKER.redefine(
             "string", is_schema_byte_string
         )
@@ -339,6 +339,7 @@ def get_jsonschema_validator():
             "type_checker": type_checker,
         }
     else:  # jsonschema 2.6 workaround
+        # pylint:disable-next=no-member
         types = Draft4Validator.DEFAULT_TYPES  # pylint: disable=E1101
         # Allow bytes as well as string (and disable a spurious unsupported
         # assignment-operation pylint warning which appears because this
@@ -354,7 +355,7 @@ def get_jsonschema_validator():
     validators["anyOf"] = _anyOf
 
     cloudinitValidator = create(
-        meta_schema=strict_metaschema,
+        meta_schema=meta_schema,
         validators=validators,
         version="draft4",
         **validator_kwargs,
