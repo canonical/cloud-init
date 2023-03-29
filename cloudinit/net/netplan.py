@@ -1,6 +1,8 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import hashlib
+import io
 import ipaddress
 import os
 import textwrap
@@ -233,6 +235,17 @@ def _clean_default(target=None):
         os.unlink(f)
 
 
+def _hash_content(f: io.BufferedIOBase) -> bytes:
+    BUF_SIZE = 65536  # 64kb
+    sha1 = hashlib.sha1()
+    while True:
+        data = f.read(BUF_SIZE)
+        if not data:
+            break
+        sha1.update(data)
+    return sha1.digest()
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
@@ -284,23 +297,48 @@ class Renderer(renderer.Renderer):
 
         if not header.endswith("\n"):
             header += "\n"
+        content = header + content
+
+        # note: optimization for boot activate TODO
+        same_content = False
+        if os.path.exists(fpnplan):
+            hashed_content = _hash_content(io.BytesIO(content.encode()))
+            with open(fpnplan, "rb") as f:
+                hashed_original_content = _hash_content(f)
+            LOG.debug(
+                "hashed values:\n%s\n%s",
+                hashed_original_content,
+                hashed_content,
+            )
+
+            with open(fpnplan, "r") as f:
+                orig_content = f.read()
+            LOG.debug("Original content:\n%s", orig_content)
+            LOG.debug("Content:\n%s", content)
+            if hashed_content == hashed_original_content:
+                same_content = True
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        if os.path.exists(fpnplan):
+        if not same_content and os.path.exists(fpnplan):
             current_mode = util.get_permissions(fpnplan)
             if current_mode & mode == current_mode:
                 # preserve mode if existing perms are more strict than default
                 mode = current_mode
-        util.write_file(fpnplan, header + content, mode=mode)
+        util.write_file(fpnplan, content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
-        self._netplan_generate(run=self._postcmds)
+        self._netplan_generate(run=self._postcmds, same_content=same_content)
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run=False):
+    def _netplan_generate(self, run: bool = False, same_content: bool = False):
         if not run:
             LOG.debug("netplan generate postcmd disabled")
+            return
+        if same_content:
+            LOG.debug(
+                "skipping netplan generate. reason: identical network config"
+            )
             return
         subp.subp(self.NETPLAN_GENERATE, capture=True)
 
