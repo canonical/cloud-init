@@ -2921,8 +2921,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         # Re-run tests to verify max connection error retries.
         m_request.reset_mock()
         m_request.side_effect = [
-            requests.Timeout("Fake connection timeout")
-        ] * 9 + [requests.ConnectionError("Fake Network Unreachable")] * 9
+            requests.ConnectionError("Fake Network Unreachable")
+        ] * 15
 
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
