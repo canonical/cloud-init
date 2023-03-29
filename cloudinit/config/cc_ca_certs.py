@@ -5,7 +5,6 @@
 """CA Certs: Add ca certificates."""
 
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -25,6 +24,13 @@ DEFAULT_CONFIG = {
     "ca_cert_update_cmd": ["update-ca-certificates"],
 }
 DISTRO_OVERRIDES = {
+    "fedora": {
+        "ca_cert_path": "/etc/pki/ca-trust/",
+        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["update-ca-trust"],
+    },
     "rhel": {
         "ca_cert_path": "/etc/pki/ca-trust/",
         "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
@@ -68,6 +74,7 @@ configuration option ``remove_defaults``.
 distros = [
     "alpine",
     "debian",
+    "fedora",
     "rhel",
     "opensuse",
     "opensuse-microos",
@@ -223,9 +230,7 @@ def remove_default_ca_certs(distro_cfg):
     util.delete_dir_contents(distro_cfg["ca_cert_local_path"])
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle ca_cert sections in cloud-config file.
 

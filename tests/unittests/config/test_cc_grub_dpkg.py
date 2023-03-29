@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from logging import Logger
 from unittest import mock
 
 import pytest
@@ -111,8 +110,10 @@ class TestFetchIdevs:
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.os.path.exists")
     @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.LOG")
     def test_fetch_idevs(
         self,
+        m_log,
         m_subp,
         m_exists,
         m_logexc,
@@ -131,9 +132,8 @@ class TestFetchIdevs:
         ]
         m_exists.return_value = path_exists
         m_efi_booted.return_value = is_efi_boot
-        log = mock.Mock(spec=Logger)
 
-        idevs = fetch_idevs(log)
+        idevs = fetch_idevs()
 
         if is_efi_boot:
             assert expected_idevs.startswith(idevs) is True
@@ -141,7 +141,7 @@ class TestFetchIdevs:
             assert idevs == expected_idevs
 
         if expected_log_call is not None:
-            assert expected_log_call in log.debug.call_args_list
+            assert expected_log_call in m_log.debug.call_args_list
 
 
 class TestHandle:
@@ -157,10 +157,10 @@ class TestHandle:
                 None,
                 "/dev/disk/by-id/nvme-Company_hash000",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string "
-                    "/dev/disk/by-id/nvme-Company_hash000\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-pc/install_devices string "
+                    "/dev/disk/by-id/nvme-Company_hash000\n"
+                    "grub-pc grub-pc/install_devices_empty boolean false\n",
                 ),
                 False,
             ),
@@ -170,9 +170,9 @@ class TestHandle:
                 None,
                 "/dev/sda",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/sda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-pc/install_devices string /dev/sda\n"
+                    "grub-pc grub-pc/install_devices_empty boolean false\n",
                 ),
                 False,
             ),
@@ -182,9 +182,9 @@ class TestHandle:
                 "true",
                 "/dev/xvda",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/xvda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-pc/install_devices string /dev/xvda\n"
+                    "grub-pc grub-pc/install_devices_empty boolean true\n",
                 ),
                 False,
             ),
@@ -194,9 +194,9 @@ class TestHandle:
                 False,
                 "/dev/disk/by-id/company-user-1",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/vda\n",
-                    "grub-pc grub-pc/install_devices_empty boolean false\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-pc/install_devices string /dev/vda\n"
+                    "grub-pc grub-pc/install_devices_empty boolean false\n",
                 ),
                 False,
             ),
@@ -207,9 +207,9 @@ class TestHandle:
                 True,
                 "",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-pc/install_devices string /dev/nvme0n1\n",
-                    "grub-pc grub-pc/install_devices_empty boolean true\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-pc/install_devices string /dev/nvme0n1\n"
+                    "grub-pc grub-pc/install_devices_empty boolean true\n",
                 ),
                 False,
             ),
@@ -219,8 +219,8 @@ class TestHandle:
                 False,
                 "/dev/sda1",
                 (
-                    "Setting grub debconf-set-selections with ",
-                    "'grub-pc grub-efi/install_devices string /dev/sda1\n'",
+                    "Setting grub debconf-set-selections with '%s'",
+                    "grub-pc grub-efi/install_devices string /dev/sda1\n",
                 ),
                 True,
             ),
@@ -230,8 +230,10 @@ class TestHandle:
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
     @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.LOG")
     def test_handle(
         self,
+        m_log,
         m_is_efi_booted,
         m_subp,
         m_logexc,
@@ -245,14 +247,14 @@ class TestHandle:
         """Test setting of correct debconf database entries"""
         m_is_efi_booted.return_value = is_uefi
         m_fetch_idevs.return_value = fetch_idevs_output
-        log = mock.Mock(spec=Logger)
         cfg = {"grub_dpkg": {}}
         if cfg_idevs is not None:
             cfg["grub_dpkg"]["grub-pc/install_devices"] = cfg_idevs
         if cfg_idevs_empty is not None:
             cfg["grub_dpkg"]["grub-pc/install_devices_empty"] = cfg_idevs_empty
-        handle(mock.Mock(), cfg, mock.Mock(), log, mock.Mock())
-        log.debug.assert_called_with("".join(expected_log_output))
+        handle(mock.Mock(), cfg, mock.Mock(), mock.Mock())
+        print(m_log.debug.call_args_list)
+        m_log.debug.assert_called_with(*expected_log_output)
 
 
 class TestGrubDpkgSchema:

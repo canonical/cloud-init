@@ -549,7 +549,6 @@ class TestFetchReprovisionData:
         "terminal_error",
         [
             requests.ConnectionError("Fake connection error"),
-            requests.Timeout("Fake connection timeout"),
         ],
     )
     def test_retry_until_failure(

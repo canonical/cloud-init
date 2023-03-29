@@ -4,8 +4,8 @@
 
 """Salt Minion: Setup and run salt minion"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import safeyaml, subp, util
@@ -65,6 +65,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 # Note: see https://docs.saltstack.com/en/latest/topics/installation/
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
@@ -98,12 +99,10 @@ class SaltConstants:
         )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there isn't a salt key in the configuration don't do anything
     if "salt_minion" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'salt_minion' key in configuration",
             name,
         )

@@ -3,7 +3,6 @@
 """ test_handler_apt_configure_sources_list
 Test templating of sources list
 """
-import logging
 import os
 import shutil
 import tempfile
@@ -14,8 +13,6 @@ from cloudinit.config import cc_apt_configure
 from cloudinit.distros.debian import Distro
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
-
-LOG = logging.getLogger(__name__)
 
 YAML_TEXT_CUSTOM_SL = """
 apt_mirror: http://archive.ubuntu.com/ubuntu/
@@ -97,9 +94,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                         templater, "render_string", return_value="fake"
                     ) as mockrnd:
                         with mock.patch.object(util, "rename"):
-                            cc_apt_configure.handle(
-                                "test", cfg, mycloud, LOG, None
-                            )
+                            cc_apt_configure.handle("test", cfg, mycloud, None)
 
         mockisfile.assert_any_call(
             "/etc/cloud/templates/sources.list.%s.tmpl" % distro
@@ -182,9 +177,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 with mock.patch.object(
                     Distro, "get_primary_arch", return_value="amd64"
                 ):
-                    cc_apt_configure.handle(
-                        "notimportant", cfg, mycloud, LOG, None
-                    )
+                    cc_apt_configure.handle("notimportant", cfg, mycloud, None)
 
         mockwrite.assert_called_once_with(
             "/etc/apt/sources.list", EXPECTED_CONVERTED_CONTENT, mode=420

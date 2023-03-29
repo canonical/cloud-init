@@ -8,8 +8,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Grub Dpkg: Configure grub debconf installation device"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -57,9 +57,10 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def fetch_idevs(log: Logger):
+def fetch_idevs():
     """
     Fetches the /dev/disk/by-id device grub is installed to.
     Falls back to plain disk name if no by-id entry is present.
@@ -71,7 +72,7 @@ def fetch_idevs(log: Logger):
     # EFI mode systems use /boot/efi and the partition path.
     probe_target = "disk"
     probe_mount = "/boot"
-    if is_efi_booted(log):
+    if is_efi_booted():
         probe_target = "device"
         probe_mount = "/boot/efi"
 
@@ -84,18 +85,18 @@ def fetch_idevs(log: Logger):
         # grub-common may not be installed, especially on containers
         # FileNotFoundError is a nested exception of ProcessExecutionError
         if isinstance(e.reason, FileNotFoundError):
-            log.debug("'grub-probe' not found in $PATH")
+            LOG.debug("'grub-probe' not found in $PATH")
         # disks from the container host are present in /proc and /sys
         # which is where grub-probe determines where /boot is.
         # it then checks for existence in /dev, which fails as host disks
         # are not exposed to the container.
         elif "failed to get canonical path" in e.stderr:
-            log.debug("grub-probe 'failed to get canonical path'")
+            LOG.debug("grub-probe 'failed to get canonical path'")
         else:
             # something bad has happened, continue to log the error
             raise
     except Exception:
-        util.logexc(log, "grub-probe failed to execute for grub-dpkg")
+        util.logexc(LOG, "grub-probe failed to execute for grub-dpkg")
 
     if not disk or not os.path.exists(disk):
         # If we failed to detect a disk, we can return early
@@ -113,73 +114,71 @@ def fetch_idevs(log: Logger):
         )
     except Exception:
         util.logexc(
-            log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
+            LOG, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
         )
 
-    log.debug("considering these device symlinks: %s", ",".join(devices))
+    LOG.debug("considering these device symlinks: %s", ",".join(devices))
     # filter symlinks for /dev/disk/by-id entries
     devices = [dev for dev in devices if "disk/by-id" in dev]
-    log.debug("filtered to these disk/by-id symlinks: %s", ",".join(devices))
+    LOG.debug("filtered to these disk/by-id symlinks: %s", ",".join(devices))
     # select first device if there is one, else fall back to plain name
     idevs = sorted(devices)[0] if devices else disk
-    log.debug("selected %s", idevs)
+    LOG.debug("selected %s", idevs)
 
     return idevs
 
 
-def is_efi_booted(log: Logger) -> bool:
+def is_efi_booted() -> bool:
     """
     Check if the system is booted in EFI mode.
     """
     try:
         return os.path.exists("/sys/firmware/efi")
     except OSError as e:
-        log.error("Failed to determine if system is booted in EFI mode: %s", e)
+        LOG.error("Failed to determine if system is booted in EFI mode: %s", e)
         # If we can't determine if we're booted in EFI mode, assume we're not.
         return False
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
     if not mycfg:
         mycfg = {}
 
     enabled = mycfg.get("enabled", True)
     if util.is_false(enabled):
-        log.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
+        LOG.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
         return
 
-    dconf_sel = get_debconf_config(mycfg, log)
-    log.debug("Setting grub debconf-set-selections with '%s'" % dconf_sel)
+    dconf_sel = get_debconf_config(mycfg)
+    LOG.debug("Setting grub debconf-set-selections with '%s'", dconf_sel)
 
     try:
         subp.subp(["debconf-set-selections"], dconf_sel)
     except Exception as e:
         util.logexc(
-            log, "Failed to run debconf-set-selections for grub_dpkg: %s", e
+            LOG, "Failed to run debconf-set-selections for grub_dpkg: %s", e
         )
 
 
-def get_debconf_config(mycfg: Config, log: Logger) -> str:
+def get_debconf_config(mycfg: Config) -> str:
     """
     Returns the debconf config for grub-pc or
     grub-efi depending on the systems boot mode.
     """
-    if is_efi_booted(log):
+    if is_efi_booted():
         idevs = util.get_cfg_option_str(
             mycfg, "grub-efi/install_devices", None
         )
 
         if idevs is None:
-            idevs = fetch_idevs(log)
+            idevs = fetch_idevs()
 
         return "grub-pc grub-efi/install_devices string %s\n" % idevs
     else:
         idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
         if idevs is None:
-            idevs = fetch_idevs(log)
+            idevs = fetch_idevs()
 
         idevs_empty = mycfg.get("grub-pc/install_devices_empty")
         if idevs_empty is None:

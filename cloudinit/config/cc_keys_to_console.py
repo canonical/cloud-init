@@ -8,8 +8,8 @@
 
 """Keys to Console: Control which SSH host keys may be written to console"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -68,6 +68,8 @@ meta: MetaSchema = {
 }
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
+
 
 def _get_helper_tool_path(distro):
     try:
@@ -77,18 +79,16 @@ def _get_helper_tool_path(distro):
     return HELPER_TOOL_TPL % base_lib
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, logging of SSH host keys disabled", name
         )
         return
 
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
-        log.warning(
+        LOG.warning(
             "Unable to activate module %s, helper tool not found at %s",
             name,
             helper_path,
@@ -107,7 +107,7 @@ def handle(
         (stdout, _stderr) = subp.subp(cmd)
         util.multi_log("%s\n" % (stdout.strip()), stderr=False, console=True)
     except Exception:
-        log.warning("Writing keys to the system console failed!")
+        LOG.warning("Writing keys to the system console failed!")
         raise
 
 

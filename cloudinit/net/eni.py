@@ -564,7 +564,9 @@ class Renderer(renderer.Renderer):
             netrules = subp.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(
-                netrules, self._render_persistent_net(network_state)
+                netrules,
+                content=self._render_persistent_net(network_state),
+                preserve_mode=True,
             )
 
 

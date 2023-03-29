@@ -4,7 +4,6 @@
 
 import json
 import re
-from logging import Logger
 from textwrap import dedent
 from typing import Any, List
 from urllib.parse import urlparse
@@ -464,9 +463,7 @@ def _auto_attach(ua_section: dict):
         raise RuntimeError(msg) from ex
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     ua_section = None
     if "ubuntu-advantage" in cfg:
         LOG.warning(

@@ -9,6 +9,7 @@ import yaml
 
 from tests.integration_tests import random_mac_address
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 MAC_ADDRESS = random_mac_address()
 NETWORK_CONFIG = """\
@@ -28,8 +29,10 @@ iface eth0 inet dhcp
     ethernet-wol g"""
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm"],
+    reason="Test requires custom networking provided by LXD",
+)
 @pytest.mark.lxd_config_dict(
     {
         "user.network-config": NETWORK_CONFIG,

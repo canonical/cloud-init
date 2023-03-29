@@ -167,6 +167,10 @@ def master_is_openvswitch(devname):
     return os.path.exists(ovs_path)
 
 
+def is_ib_interface(devname):
+    return read_sys_net_safe(devname, "type") == "32"
+
+
 @functools.lru_cache(maxsize=None)
 def openvswitch_is_installed() -> bool:
     """Return a bool indicating if Open vSwitch is installed in the system."""
@@ -1040,7 +1044,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
             # cloud-init happens to enumerate network interfaces before drivers
             # have fully initialized the leader/subordinate relationships for
             # those devices or switches.
-            if driver == "mscc_felix" or driver == "fsl_enetc":
+            if driver in ("fsl_enetc", "mscc_felix", "qmi_wwan"):
                 LOG.debug(
                     "Ignoring duplicate macs from '%s' and '%s' due to "
                     "driver '%s'.",

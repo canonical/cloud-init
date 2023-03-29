@@ -3,7 +3,6 @@
 """Autoinstall: Support ubuntu live-server autoinstall syntax."""
 
 import re
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -75,9 +74,7 @@ __doc__ = get_meta_doc(meta)
 LIVE_INSTALLER_SNAPS = ("subiquity", "ubuntu-desktop-installer")
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if "autoinstall" not in cfg:
         LOG.debug(

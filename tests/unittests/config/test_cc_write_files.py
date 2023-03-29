@@ -160,7 +160,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
             ]
         }
         cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, LOG, [])
+        handle("ignored", cfg, cc, [])
         assert content == util.load_file(file_path)
         self.assertNotIn(
             "Unknown encoding type text/plain", self.logs.getvalue()
@@ -171,7 +171,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         file_path = "/tmp/deferred.file"
         config = {"write_files": [{"path": file_path, "defer": True}]}
         cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_file", config, cc, LOG, [])
+        handle("cc_write_file", config, cc, [])
         with self.assertRaises(FileNotFoundError):
             util.load_file(file_path)
 

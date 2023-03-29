@@ -40,7 +40,7 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
             "/usr/share/zoneinfo/%s" % cfg["timezone"], dummy_contents
         )
 
-        cc_timezone.handle("cc_timezone", cfg, cc, LOG, [])
+        cc_timezone.handle("cc_timezone", cfg, cc, [])
 
         contents = util.load_file("/etc/sysconfig/clock", decode=False)
         n_cfg = ConfigObj(BytesIO(contents))

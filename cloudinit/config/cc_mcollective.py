@@ -11,7 +11,6 @@
 
 import errno
 import io
-from logging import Logger
 from textwrap import dedent
 
 # Used since this can maintain comments
@@ -89,6 +88,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def configure(
@@ -152,13 +152,11 @@ def configure(
     util.write_file(server_cfg, contents.getvalue(), mode=0o644)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # If there isn't a mcollective key in the configuration don't do anything
     if "mcollective" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'mcollective' key in configuration",
             name,
         )

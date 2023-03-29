@@ -11,6 +11,7 @@ import os.path
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import IS_UBUNTU
 from tests.integration_tests.util import get_inactive_modules, verify_clean_log
 
 USER_DATA = """\
@@ -57,7 +58,9 @@ ca_certs:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="CA cert functionality is distro specific"
+)
 @pytest.mark.user_data(USER_DATA)
 class TestCaCerts:
     def test_certs_updated(self, class_client: IntegrationInstance):
