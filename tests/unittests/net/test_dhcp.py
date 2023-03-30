@@ -353,7 +353,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value="eth9")
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    def test_dhclient_exits_with_error(self, m_subp, m_remove, m_fallback):
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhclient_exits_with_error(
+        self, m_which, m_subp, m_remove, m_fallback
+    ):
         """Log and do nothing when nic is absent and no fallback is found."""
         m_subp.side_effect = [
             ("", ""),
