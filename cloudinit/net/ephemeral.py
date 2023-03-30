@@ -378,8 +378,14 @@ class EphemeralDHCPv4:
             ephipv4 = EphemeralIPv4Network(**kwargs)
             ephipv4.__enter__()
             self._ephipv4 = ephipv4
-        except Exception:
+        except subp.ProcessExecutionError:
+            LOG.error(
+                "Error bringing up EphemeralIPv4Network. "
+                "Datasource setup cannot continue"
+            )
             ephipv4.__exit__(None, None, None)
+            raise
+
         return self.lease
 
     def extract_dhcp_options_mapping(self, nmap):
