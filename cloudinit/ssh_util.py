@@ -671,7 +671,8 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
     `1.2`
     """
     full_version = get_opensshd_version()
-    upstream_version = None
+    # The default version of openssh is 9.0
+    upstream_version = util.Version(9, 0)
     if full_version is None:
         return upstream_version
     elif "p" in full_version:
