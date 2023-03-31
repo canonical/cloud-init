@@ -357,6 +357,14 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")
 
+    def ds_detect(self):
+        """NoCloud requires "nocloud-net" as the way to specify
+        seeding from an http(s) address. This diverges from all other
+        datasources in that it does a kernel commandline match on something
+        other than the datasource dsname for only DEP_NETWORK.
+        """
+        return "nocloud-net" == sources.parse_cmdline()
+
 
 # Used to match classes to dependencies
 datasources = [
@@ -368,6 +376,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab
