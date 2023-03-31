@@ -282,9 +282,21 @@ def load_cmdline_data(fill, cmdline=None):
     for idstr, dsmode in pairs:
         if parse_cmdline_data(idstr, fill, cmdline):
             # if dsmode was explicitly in the command line, then
-            # prefer it to the dsmode based on the command line id
-            if "dsmode" not in fill:
+            # prefer it to the dsmode based on seedfrom type
+            if "dsmode" not in fill and fill["seedfrom"]:
+                seedfrom = fill["seedfrom"]
+                if seedfrom.startswith("http://") or seedfrom.startswith(
+                    "https://"
+                ):
+                    fill["dsmode"] = sources.DSMODE_NETWORK
+                elif seedfrom.startswith("file://") or seedfrom.startswith(
+                    "/"
+                ):
+                    fill["dsmode"] = sources.DSMODE_LOCAL
+            elif "dsmode" not in fill:
+                # this path only gets hit if no seedfrom arg is provided
                 fill["dsmode"] = dsmode
+
             return True
     return False
 
