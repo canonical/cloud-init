@@ -32,6 +32,8 @@ If that file exists already, it will not be overwritten, and the
 
 Then, when the datasource runs, it will find that config already available.
 
+# TODO say something about datasource detection override
+
 So, to be able to configure the MAAS datasource by controlling the
 kernel command line from outside the image, you can append:
 
@@ -61,6 +63,7 @@ Then, have the following content at that url:
    Since ``cloud-config-url=`` is so generic, in order to avoid false
    positives, ``cloud-init`` requires the content to start with
    ``#cloud-config`` for it to be considered.
+
 
 .. note::
 

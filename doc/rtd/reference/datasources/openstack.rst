@@ -5,6 +5,8 @@ OpenStack
 
 This datasource supports reading data from the `OpenStack Metadata Service`_.
 
+# TODO: document d1ffbea556a061 and its implications for openstack baremetal
+
 Discovery
 =========
 
