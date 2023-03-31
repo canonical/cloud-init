@@ -643,7 +643,7 @@ def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
     )
 
 
-def get_opensshd_version() -> Optional[str]:
+def get_opensshd_version():
     """Get the full version of the OpenSSH sshd daemon on the system.
 
     On an ubuntu system, this would look something like:
@@ -663,19 +663,19 @@ def get_opensshd_version() -> Optional[str]:
     return None
 
 
-def get_opensshd_upstream_version() -> Optional[util.Version]:
+def get_opensshd_upstream_version():
     """Get the upstream version of the OpenSSH sshd dameon on the system.
 
     This will NOT include the portable number, so if the Ubuntu version looks
     like `1.2p1 Ubuntu-1ubuntu0.1`, then this function would return
     `1.2`
     """
-    full_version = get_opensshd_version()
     # The default version of openssh is not less than 9.0
-    upstream_version = util.Version(9, 0)
+    upstream_version = "9.0"
+    full_version = get_opensshd_version()
     if full_version is None:
-        return upstream_version
-    elif "p" in full_version:
+        return util.Version.from_str(upstream_version)
+    if "p" in full_version:
         upstream_version = full_version[: full_version.find("p")]
     elif " " in full_version:
         upstream_version = full_version[: full_version.find(" ")]
