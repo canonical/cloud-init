@@ -9,7 +9,7 @@
 import os
 import pwd
 from contextlib import suppress
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, util
