@@ -10,7 +10,6 @@
 
 import errno
 import os
-import re
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -364,23 +363,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         datasources in that it does a kernel commandline match on something
         other than the datasource dsname for only DEP_NETWORK.
         """
-        cmdline = util.get_cmdline()
-        ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$)", cmdline)
-        ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$)", cmdline)
-        ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$)", cmdline)
-        ds = ds_parse_0 or ds_parse_1 or ds_parse_2
-        deprecated = ds_parse_1 or ds_parse_2
-        if deprecated:
-            util.deprecate(
-                deprecated=(
-                    f"Defining the datasource on the commandline using "
-                    f"ci.ds={ds} or ci.datasource={ds}"
-                ),
-                deprecated_version="23.2",
-                extra_message=f"Use ds={ds} instead",
-            )
-        if ds:
-            return "nocloud-net" == ds.group(1).lower()
+        return "nocloud-net" == sources.parse_cmdline()
 
 
 # Used to match classes to dependencies

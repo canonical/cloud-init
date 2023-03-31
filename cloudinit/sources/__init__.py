@@ -1161,13 +1161,15 @@ def parse_cmdline() -> str:
     ds = ds_parse_0 or ds_parse_1 or ds_parse_2
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
+        dsname = deprecated.group(1).strip()
         util.deprecate(
             deprecated=(
                 f"Defining the datasource on the commandline using "
-                f"ci.ds={ds} or ci.datasource={ds}"
+                f"ci.ds={dsname} or "
+                f"ci.datasource={dsname}"
             ),
             deprecated_version="23.2",
-            extra_message=f"Use ds={ds} instead",
+            extra_message=f"Use ds={dsname} instead",
         )
     if ds and ds.group(1):
         return ds.group(1)
