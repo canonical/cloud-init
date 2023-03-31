@@ -671,7 +671,7 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
     `1.2`
     """
     full_version = get_opensshd_version()
-    # The default version of openssh is 9.0
+    # The default version of openssh is not less than 9.0
     upstream_version = util.Version(9, 0)
     if full_version is None:
         return upstream_version
@@ -683,9 +683,9 @@ def get_opensshd_upstream_version() -> Optional[util.Version]:
         upstream_version = full_version
     try:
         upstream_version = util.Version.from_str(upstream_version)
+        return upstream_version
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
-    finally:
-        return upstream_version
+
 
 # vi: ts=4 expandtab
