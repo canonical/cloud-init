@@ -16,9 +16,7 @@ Alternatively, you can provide metadata via the kernel command line or SMBIOS
 
   ds=nocloud[;key=val;key=val]
 
-or, ::
-
-  ds=nocloud-net[;key=val;key=val]
+  # TODO: Document future changes here
 
 Permitted keys
 ==============
@@ -29,10 +27,17 @@ The permitted keys are:
 * ``i`` or ``instance-id``
 * ``s`` or ``seedfrom``
 
-With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
-``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
-with ``http://`` or ``https://`` and end with a trailing ``/``.
+Valid ``seedfrom`` values consist of:
 
+Filesystem: begins with ``/`` or ``file://``
+Http server: begins with ``http://`` or ``https://`` and ends
+    with a trailing ``/``.
+
+# TODO: Document future changes here
+# TODO: Why is the dmi stuff higher on the page than file formats? reorder?
+
+DMI-Specific Kernel Commandline
+===============================
 Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
 kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).
 Your ``seedfrom`` URL can contain variable names of the format
