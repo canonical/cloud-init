@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import ssh_util
+from cloudinit import ssh_util, util
 from cloudinit.config import cc_ssh
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -283,6 +283,50 @@ class TestHandleSsh:
         assert (
             expected_calls == cloud.datasource.publish_host_keys.call_args_list
         )
+
+    @pytest.mark.parametrize(
+        "ssh_keys_group_exists,sshd_version,expected_private_permissions",
+        [(False, 0, 0), (True, 8, 0o640), (True, 10, 0o600)],
+    )
+    @mock.patch(MODPATH + "subp.subp", return_value=("", ""))
+    @mock.patch(MODPATH + "util.get_group_id", return_value=10)
+    @mock.patch(MODPATH + "ssh_util.get_opensshd_upstream_version")
+    @mock.patch(MODPATH + "os.path.exists", return_value=False)
+    @mock.patch(MODPATH + "os.chown")
+    @mock.patch(MODPATH + "os.chmod")
+    def test_ssh_hostkey_permissions(
+        self,
+        m_chmod,
+        m_chown,
+        m_exists,
+        m_sshd_version,
+        m_gid,
+        m_subp,
+        m_setup_keys,
+        ssh_keys_group_exists,
+        sshd_version,
+        expected_private_permissions,
+    ):
+        """Test our generated hostkeys use same perms as sshd-keygen.
+
+        SSHD version < 9.0 should apply 640 permissions to the private key.
+        Otherwise, 600.
+        """
+        m_gid.return_value = 10 if ssh_keys_group_exists else -1
+        m_sshd_version.return_value = util.Version(sshd_version, 0)
+        key_path = cc_ssh.KEY_FILE_TPL % "rsa"
+        cloud = get_cloud(distro="ubuntu")
+        cc_ssh.handle("name", {"ssh_genkeytypes": ["rsa"]}, cloud, [])
+        if ssh_keys_group_exists:
+            m_chown.assert_called_once_with(key_path, -1, 10)
+            assert m_chmod.call_args_list == [
+                mock.call(key_path, expected_private_permissions),
+                mock.call(f"{key_path}.pub", 0o644),
+            ]
+        else:
+            m_sshd_version.assert_not_called()
+            m_chown.assert_not_called()
+            m_chmod.assert_not_called()
 
     @pytest.mark.parametrize("with_sshd_dconf", [False, True])
     @mock.patch(MODPATH + "util.ensure_dir")
