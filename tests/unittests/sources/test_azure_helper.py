@@ -115,6 +115,12 @@ def mock_dmi_read_dmi_data():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_query_vm_id():
+    with mock.patch.object(errors, "query_vm_id", return_value=None) as m:
+        yield m
+
+
 @pytest.fixture
 def mock_readurl():
     with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:

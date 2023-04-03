@@ -2,7 +2,6 @@
 
 import base64
 import datetime
-from unittest import mock
 
 import pytest
 
@@ -10,23 +9,9 @@ from cloudinit import version
 from cloudinit.sources.azure import errors
 
 
-@pytest.fixture(autouse=True)
-def mock_dmi_uuid():
-    uuid = "527c2691-029f-fe4c-b1f4-a4da7ebac2cf"
-    with mock.patch(
-        "cloudinit.sources.azure.errors.dmi.read_dmi_data", return_value=uuid
-    ) as m:
-        yield m
-
-
 @pytest.fixture()
 def agent_string():
     yield f"agent=Cloud-Init/{version.version_string()}"
-
-
-@pytest.fixture()
-def id_string(mock_dmi_uuid):
-    yield f"vm_id={mock_dmi_uuid.return_value}"
 
 
 def quote_csv_value(value: str) -> str:
@@ -91,12 +76,17 @@ def quote_csv_value(value: str) -> str:
         },
     ],
 )
+@pytest.mark.parametrize(
+    "vm_id", [None, "527c2691-029f-fe4c-b1f4-a4da7ebac2cf"]
+)
 def test_reportable_errors(
     agent_string,
-    id_string,
+    monkeypatch,
     reason,
     supporting_data,
+    vm_id,
 ):
+    monkeypatch.setattr(errors, "query_vm_id", lambda: vm_id)
     timestamp = datetime.datetime.utcnow()
 
     error = errors.ReportableError(
@@ -111,8 +101,10 @@ def test_reportable_errors(
         agent_string,
         "documentation_url=https://aka.ms/linuxprovisioningerror",
         f"timestamp={timestamp.isoformat()}",
-        id_string,
     ]
+
+    if vm_id:
+        description_parts.append(f"vm_id={vm_id}")
 
     if supporting_data:
         description_parts.extend(
@@ -122,7 +114,11 @@ def test_reportable_errors(
     assert error.as_description() == "|".join(description_parts)
 
 
-def test_unhandled_exception():
+@pytest.mark.parametrize(
+    "vm_id", [None, "527c2691-029f-fe4c-b1f4-a4da7ebac2cf"]
+)
+def test_unhandled_exception(monkeypatch, vm_id):
+    monkeypatch.setattr(errors, "query_vm_id", lambda: vm_id)
     source_error = None
     try:
         raise ValueError("my value error")

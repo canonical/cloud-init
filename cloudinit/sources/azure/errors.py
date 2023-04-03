@@ -10,7 +10,9 @@ from datetime import datetime
 from io import StringIO
 from typing import Any, Dict, Optional
 
-from cloudinit import dmi, version
+from cloudinit import version
+
+from .dmi import query_vm_id
 
 LOG = logging.getLogger(__name__)
 
@@ -48,10 +50,9 @@ class ReportableError(Exception):
             f"timestamp={self.timestamp.isoformat()}",
         ]
 
-        system_uuid = dmi.read_dmi_data("system-uuid")
-        if system_uuid:
-            system_uuid = system_uuid.lower()
-            error.append(f"vm_id={system_uuid}")
+        vm_id = query_vm_id()
+        if vm_id:
+            error.append(f"vm_id={vm_id}")
 
         data = error + [f"{k}={v}" for k, v in self.supporting_data.items()]
 
