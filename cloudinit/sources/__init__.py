@@ -110,7 +110,10 @@ def process_instance_metadata(metadata, key_path="", sensitive_keys=()):
             sub_key_path = key_path + "/" + key
         else:
             sub_key_path = key
-        if key in sensitive_keys or sub_key_path in sensitive_keys:
+        if (
+            key.lower() in sensitive_keys
+            or sub_key_path.lower() in sensitive_keys
+        ):
             sens_keys.append(sub_key_path)
         if isinstance(val, str) and val.startswith("ci-b64:"):
             base64_encoded_keys.append(sub_key_path)
@@ -132,6 +135,12 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
     Replace any keys values listed in 'sensitive_keys' with redact_value.
     """
+    # While 'sensitive_keys' should already sanitized to only include what
+    # is in metadata, it is possible keys will overlap. For example, if
+    # "merged_cfg" and "merged_cfg/ds/userdata" both match, it's possible that
+    # "merged_cfg" will get replaced first, meaning "merged_cfg/ds/userdata"
+    # no longer represents a valid key.
+    # Thus, we still need to do membership checks in this function.
     if not metadata.get("sensitive_keys", []):
         return metadata
     md_copy = copy.deepcopy(metadata)
@@ -139,9 +148,14 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
         path_parts = key_path.split("/")
         obj = md_copy
         for path in path_parts:
-            if isinstance(obj[path], dict) and path != path_parts[-1]:
+            if (
+                path in obj
+                and isinstance(obj[path], dict)
+                and path != path_parts[-1]
+            ):
                 obj = obj[path]
-        obj[path] = redact_value
+        if path in obj:
+            obj[path] = redact_value
     return md_copy
 
 
@@ -249,6 +263,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     sensitive_metadata_keys: Tuple[str, ...] = (
         "merged_cfg",
         "security-credentials",
+        "userdata",
+        "user-data",
+        "user_data",
+        "vendordata",
+        "vendor-data",
+        # Provide ds/vendor_data to avoid redacting top-level
+        #  "vendor_data": {enabled: True}
+        "ds/vendor_data",
     )
 
     # True on datasources that may not see hotplugged devices reflected
