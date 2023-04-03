@@ -84,23 +84,32 @@ class EphemeralIPv4Network:
                 )
                 return
 
-        self._bringup_device()
+        try:
+            self._bringup_device()
 
-        # rfc3442 requires us to ignore the router config *if* classless static
-        # routes are provided.
-        #
-        # https://tools.ietf.org/html/rfc3442
-        #
-        # If the DHCP server returns both a Classless Static Routes option and
-        # a Router option, the DHCP client MUST ignore the Router option.
-        #
-        # Similarly, if the DHCP server returns both a Classless Static Routes
-        # option and a Static Routes option, the DHCP client MUST ignore the
-        # Static Routes option.
-        if self.static_routes:
-            self._bringup_static_routes()
-        elif self.router:
-            self._bringup_router()
+            # rfc3442 requires us to ignore the router config *if*
+            # classless static routes are provided.
+            #
+            # https://tools.ietf.org/html/rfc3442
+            #
+            # If the DHCP server returns both a Classless Static Routes
+            # option and a Router option, the DHCP client MUST ignore
+            # the Router option.
+            #
+            # Similarly, if the DHCP server returns both a Classless
+            # Static Routes option and a Static Routes option, the DHCP
+            # client MUST ignore the Static Routes option.
+            if self.static_routes:
+                self._bringup_static_routes()
+            elif self.router:
+                self._bringup_router()
+        except subp.ProcessExecutionError:
+            LOG.error(
+                "Error bringing up EphemeralIPv4Network. "
+                "Datasource setup cannot continue"
+            )
+            self.__exit__(None, None, None)
+            raise
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
         """Teardown anything we set up."""
