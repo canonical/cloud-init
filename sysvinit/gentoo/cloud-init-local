@@ -8,6 +8,7 @@ depend() {
 }
 
 start() {
+  grep 'cloud-init=disabled' /proc/cmdline && exit 0
   cloud-init init --local
   eend 0
 }

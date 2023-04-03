@@ -6,6 +6,7 @@ depend() {
 }
 
 start() {
+  grep 'cloud-init=disabled' /proc/cmdline && exit 0
   cloud-init modules --mode final
   eend 0
 }
