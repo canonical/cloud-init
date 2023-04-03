@@ -188,6 +188,14 @@ cleanup_oci_network_lp1956788() {
    rm -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 }
 
+cleanup_gce_disable_network_activation_sc1440() {
+   # Remove vestigial /etc/cloud/cloud.cfg.d/99-disable-network-activation.cfg
+   # from GCE images now that google-guest-agent includes
+   # https://github.com/GoogleCloudPlatform/guest-agent/commit/8c36e064abebb814dc56647e8db43f261deb9a63
+   grep DataSourceGCE /var/lib/cloud/instance/datasource > /dev/null 2>&1 || return 0
+   rm -f /etc/cloud/cloud.cfg.d/99-disable-network-activation.cfg
+}
+
 case "$1" in
     install|upgrade)
         if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
@@ -232,6 +240,7 @@ case "$1" in
 
       cleanup_lp1552999 "$oldver"
       cleanup_oci_network_lp1956788
+      cleanup_gce_disable_network_activation_sc1440
 
 esac
 
