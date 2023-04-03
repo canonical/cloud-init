@@ -5,8 +5,10 @@
 # Vultr Metadata API:
 # https://www.vultr.com/metadata/
 
+from typing import Tuple
+
 import cloudinit.sources.helpers.vultr as vultr
-from cloudinit import log as log
+from cloudinit import log as log 
 from cloudinit import sources, stages, util, version
 
 LOG = log.getLogger(__name__)
@@ -27,6 +29,10 @@ BUILTIN_DS_CONFIG = {
 class DataSourceVultr(sources.DataSource):
 
     dsname = "Vultr"
+
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + ("startup-script",)
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceVultr, self).__init__(sys_cfg, distro, paths)
@@ -54,13 +60,8 @@ class DataSourceVultr(sources.DataSource):
         self.get_datasource_data(self.metadata)
 
         # Dump some data so diagnosing failures is manageable
-        LOG.debug("Vultr Vendor Config:")
-        LOG.debug(util.json_dumps(self.metadata["vendor-data"]))
         LOG.debug("SUBID: %s", self.metadata["instance-id"])
         LOG.debug("Hostname: %s", self.metadata["local-hostname"])
-        if self.userdata_raw is not None:
-            LOG.debug("User-Data:")
-            LOG.debug(self.userdata_raw)
 
         return True
 
@@ -155,6 +156,3 @@ if __name__ == "__main__":
     )
     config = md["vendor-data"]
     sysinfo = vultr.get_sysinfo()
-
-    print(util.json_dumps(sysinfo))
-    print(util.json_dumps(config))
