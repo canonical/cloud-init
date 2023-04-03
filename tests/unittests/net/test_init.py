@@ -13,6 +13,7 @@ import requests
 import responses
 
 import cloudinit.net as net
+from cloudinit import subp
 from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
@@ -853,6 +854,78 @@ class TestEphemeralIPV4Network(CiTestCase):
         with EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
+
+    def test_teardown_on_enter_exception(self, m_subp):
+        """Ensure ephemeral teardown happens.
+
+        Even though we're using a context manager, we need to handle any
+        exceptions raised in __enter__ manually and do the appropriate
+        teardown.
+        """
+
+        def side_effect(args, **kwargs):
+            if args[3] == "append" and args[4] == "3.3.3.3/32":
+                raise subp.ProcessExecutionError("oh no!")
+
+        m_subp.side_effect = side_effect
+
+        with pytest.raises(subp.ProcessExecutionError):
+            with EphemeralIPv4Network(
+                interface="eth0",
+                ip="1.1.1.1",
+                prefix_or_mask="255.255.255.0",
+                broadcast="1.1.1.255",
+                static_routes=[
+                    ("2.2.2.2/32", "9.9.9.9"),
+                    ("3.3.3.3/32", "8.8.8.8"),
+                ],
+            ):
+                pass
+
+        expected_teardown_calls = [
+            mock.call(
+                [
+                    "ip",
+                    "-4",
+                    "route",
+                    "del",
+                    "2.2.2.2/32",
+                    "via",
+                    "9.9.9.9",
+                    "dev",
+                    "eth0",
+                ],
+                capture=True,
+            ),
+            mock.call(
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "link",
+                    "set",
+                    "dev",
+                    "eth0",
+                    "down",
+                ],
+                capture=True,
+            ),
+            mock.call(
+                [
+                    "ip",
+                    "-family",
+                    "inet",
+                    "addr",
+                    "del",
+                    "1.1.1.1/24",
+                    "dev",
+                    "eth0",
+                ],
+                capture=True,
+            ),
+        ]
+        for teardown in expected_teardown_calls:
+            assert teardown in m_subp.call_args_list
 
     @mock.patch("cloudinit.net.readurl")
     def test_ephemeral_ipv4_no_network_if_url_connectivity(
