@@ -18,6 +18,11 @@ start_cmd="cloudlocal_start"
 cloudlocal_start()
 {
 	echo -n "${command} starting"
+	if kenv -q kernel_options | grep 'cloud-init=disabled'; then
+		echo "cloud-init is disabled via /proc/cmdline."
+		exit 0
+	fi
+
 	${command} init --local
 }
 

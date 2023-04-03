@@ -17,6 +17,7 @@ start_cmd="cloudconfig_start"
 
 cloudconfig_start()
 {
+	kenv -q kernel_options | grep 'cloud-init=disabled' && exit 0
 	echo "${command} starting"
 	${command} modules --mode config
 }
