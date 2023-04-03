@@ -14,7 +14,7 @@ import stat
 import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -168,11 +168,14 @@ class DataSourceLXD(sources.DataSource):
     _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Union[Dict, str] = sources.UNSET
 
-    sensitive_metadata_keys = (
-        "merged_cfg",
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + (
         "user.meta-data",
         "user.vendor-data",
         "user.user-data",
+        "cloud-init.user-data",
+        "cloud-init.vendor-data",
     )
 
     skip_hotplug_detect = True
