@@ -95,23 +95,18 @@ def test_reportable_errors(
         timestamp=timestamp,
     )
 
-    description_parts = [
-        "PROVISIONING_ERROR: error=PROVISIONING_FAILED_CLOUDINIT",
-        quote_csv_value(f"reason={reason}"),
-        agent_string,
-        "documentation_url=https://aka.ms/linuxprovisioningerror",
+    data = [
+        f"PROVISIONING_ERROR: " + quote_csv_value(f"reason={reason}"),
+        f"agent=Cloud-Init/{version.version_string()}",
+    ]
+    data += [quote_csv_value(f"{k}={v}") for k, v in supporting_data.items()]
+    data += [
+        f"vm_id={vm_id}",
         f"timestamp={timestamp.isoformat()}",
+        "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    if vm_id:
-        description_parts.append(f"vm_id={vm_id}")
-
-    if supporting_data:
-        description_parts.extend(
-            [quote_csv_value(f"{k}={v}") for k, v in supporting_data.items()]
-        )
-
-    assert error.as_description() == "|".join(description_parts)
+    assert error.as_description() == "|".join(data)
 
 
 @pytest.mark.parametrize(

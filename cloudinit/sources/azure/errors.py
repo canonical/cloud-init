@@ -26,7 +26,6 @@ class ReportableError(Exception):
         timestamp: Optional[datetime] = None,
     ) -> None:
         self.documentation_url = "https://aka.ms/linuxprovisioningerror"
-        self.error = "PROVISIONING_FAILED_CLOUDINIT"
         self.reason = reason
 
         if supporting_data:
@@ -42,19 +41,18 @@ class ReportableError(Exception):
     def as_description(
         self, *, delimiter: str = "|", quotechar: str = "'"
     ) -> str:
-        error = [
-            f"error={self.error}",
+        vm_id = query_vm_id()
+
+        data = [
             f"reason={self.reason}",
             f"agent=Cloud-Init/{version.version_string()}",
-            f"documentation_url={self.documentation_url}",
-            f"timestamp={self.timestamp.isoformat()}",
         ]
-
-        vm_id = query_vm_id()
-        if vm_id:
-            error.append(f"vm_id={vm_id}")
-
-        data = error + [f"{k}={v}" for k, v in self.supporting_data.items()]
+        data += [f"{k}={v}" for k, v in self.supporting_data.items()]
+        data += [
+            f"vm_id={vm_id}",
+            f"timestamp={self.timestamp.isoformat()}",
+            f"documentation_url={self.documentation_url}",
+        ]
 
         with StringIO() as io:
             csv.writer(
