@@ -96,7 +96,7 @@ def test_reportable_errors(
     )
 
     data = [
-        f"PROVISIONING_ERROR: " + quote_csv_value(f"reason={reason}"),
+        "PROVISIONING_ERROR: " + quote_csv_value(f"reason={reason}"),
         f"agent=Cloud-Init/{version.version_string()}",
     ]
     data += [quote_csv_value(f"{k}={v}") for k, v in supporting_data.items()]
