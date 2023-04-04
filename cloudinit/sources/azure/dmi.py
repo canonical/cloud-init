@@ -19,7 +19,7 @@ def query_vm_id() -> Optional[str]:
     system_uuid = system_uuid.lower()
     parts = system_uuid.split("-")
 
-    # Swap endianess for first three parts.
+    # Swap endianness for first three parts.
     for i in [0, 1, 2]:
         try:
             parts[i] = bytearray.fromhex(parts[i])[::-1].hex()
