@@ -69,5 +69,3 @@ Then, have the following content at that url:
 .. note::
 
    The ``cloud-config-url=`` is un-authed http GET, and contains credentials.
-   It could be set up to be randomly generated and also to check the source
-   address in order to be more secure.
