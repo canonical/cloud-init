@@ -35,6 +35,9 @@ Then, when the datasource runs, it will find that config already available.
 # TODO: say something about datasource detection override
 # TODO: document cloud-init=disabled (also, does this work on non-systemd)
 
+
+# TODO: Since cloud-config-url in the commandline tells ds-identify that this
+# is MASS, this belongs in MAAS-specific documentation
 So, to be able to configure the MAAS datasource by controlling the
 kernel command line from outside the image, you can append:
 
