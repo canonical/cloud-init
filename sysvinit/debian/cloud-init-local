@@ -44,7 +44,7 @@ fi
 case "$1" in
 start)
 	log_daemon_msg "Starting $DESC" "$NAME"
-	if grep 'cloud-init=disabled' /proc/cmdline; then
+	if grep -q 'cloud-init=disabled' /proc/cmdline; then
 		log_daemon_msg "$NAME is disabled via /proc/cmdline."
 		exit 0
 	fi
