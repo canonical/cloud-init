@@ -11,11 +11,12 @@ from pathlib import Path
 import pytest
 import requests
 
-from cloudinit import distros, helpers, subp, url_helper
+from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.net import dhcp
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
+from cloudinit.sources.azure import identity
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -81,9 +82,9 @@ def mock_azure_report_failure_to_fabric():
 @pytest.fixture
 def mock_chassis_asset_tag():
     with mock.patch.object(
-        dsaz.ChassisAssetTag,
+        identity.ChassisAssetTag,
         "query_system",
-        return_value=dsaz.ChassisAssetTag.AZURE_CLOUD.value,
+        return_value=identity.ChassisAssetTag.AZURE_CLOUD.value,
     ) as m:
         yield m
 
@@ -110,13 +111,14 @@ def mock_time():
 def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
-            return "fake-system-uuid"
+            return "50109936-ef07-47fe-ac82-890c853f60d5"
         elif key == "chassis-asset-tag":
             return "7783-7084-3265-9085-8269-3286-77"
         raise RuntimeError()
 
-    with mock.patch(
-        MOCKPATH + "dmi.read_dmi_data",
+    with mock.patch.object(
+        dmi,
+        "read_dmi_data",
         side_effect=fake_read,
         autospec=True,
     ) as m:
@@ -1029,7 +1031,7 @@ scbus-1 on xpt0 bus 0
                 ),
                 (dsaz.subp, "which", lambda x: True),
                 (
-                    dsaz.dmi,
+                    dmi,
                     "read_dmi_data",
                     self.m_read_dmi_data,
                 ),
@@ -3147,7 +3149,7 @@ class TestIsPlatformViable:
     @pytest.mark.parametrize(
         "tag",
         [
-            dsaz.ChassisAssetTag.AZURE_CLOUD.value,
+            identity.ChassisAssetTag.AZURE_CLOUD.value,
         ],
     )
     def test_true_on_azure_chassis(
@@ -3422,7 +3424,7 @@ class TestInstanceId:
     def test_fallback(self, azure_ds, mock_dmi_read_dmi_data):
         id = azure_ds.get_instance_id()
 
-        assert id == "fake-system-uuid"
+        assert id == "50109936-ef07-47fe-ac82-890c853f60d5"
 
 
 class TestProvisioning:
@@ -3543,7 +3545,10 @@ class TestProvisioning:
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
-        assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
 
         # Verify IMDS metadata.
         assert self.azure_ds.metadata["imds"] == self.imds_md
@@ -3633,7 +3638,10 @@ class TestProvisioning:
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
-        assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
 
         # Verify IMDS metadata.
         assert self.azure_ds.metadata["imds"] == self.imds_md
@@ -3749,7 +3757,10 @@ class TestProvisioning:
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
-        assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
 
         # Verify IMDS metadata.
         assert self.azure_ds.metadata["imds"] == self.imds_md
@@ -3903,7 +3914,10 @@ class TestProvisioning:
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
-        assert self.azure_ds.metadata["instance-id"] == "fake-system-uuid"
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
 
         # Verify IMDS metadata.
         assert self.azure_ds.metadata["imds"] == self.imds_md
