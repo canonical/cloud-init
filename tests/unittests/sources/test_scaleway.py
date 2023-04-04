@@ -199,10 +199,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.base_urls = DataSourceScaleway.DS_BASE_URLS
         for url in self.base_urls:
-            # Make sure that API answers on the first try
+            # Make sure that API answers on the first try.
+            # The trailing / at the end of the URL is needed to
+            # workaround a bug in responses 3.6 which does not match
+            # the URL otherwise.
             self.responses.add_callback(
                 responses.GET,
-                f"{url}",
+                f"{url}/",
                 callback=MetadataResponses.get_ok,
             )
             # Define the metadata URLS
@@ -221,19 +224,11 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
     def test_set_metadata_url_ipv4_ok(self):
 
-        # url calls relies on getsentry/responses which only support
-        # python 3.7 and above
-        if sys.version_info.minor < 7:
-            return
-
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.assertTrue(self.base_urls[0] in self.datasource.metadata_url)
 
     def test_set_metadata_url_ipv6_ok(self):
-
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
@@ -249,30 +244,29 @@ class TestDataSourceScaleway(ResponsesTestCase):
         get_data() returns metadata, user data and vendor data from IPv4.
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[0]}",
+            f"{self.base_urls[0]}/",
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}",
+            f"{self.base_urls[1]}/",
+            callback=MetadataResponses.get_ok,
+        )
+        # Use _fix_mocking_url to workaround py3.6 bug in responses
+        self.responses.add_callback(
+            responses.GET,
+            _fix_mocking_url(f"{self.base_urls[0]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[0]}/conf?format=json",
-            callback=MetadataResponses.get_ok,
-        )
-        self.responses.add_callback(
-            responses.GET,
-            f"{self.base_urls[1]}/conf?format=json",
+            _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
@@ -326,30 +320,28 @@ class TestDataSourceScaleway(ResponsesTestCase):
         after IPv4 has failed.
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[0]}",
+            f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}",
+            f"{self.base_urls[1]}/",
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}/conf?format=json",
+            _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}/user_data/cloud-init",
+            _fix_mocking_url(f"{self.base_urls[1]}/user_data/cloud-init"),
             callback=DataResponses.get_ok,
         )
         self.responses.add_callback(
@@ -359,17 +351,19 @@ class TestDataSourceScaleway(ResponsesTestCase):
         )
         self.datasource.get_data()
 
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}",
-            1,
-        )
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}",
-            1,
-        )
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
-        )
+        if sys.version_info.minor >= 7:
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[0]}",
+                1,
+            )
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[1]}",
+                1,
+            )
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
+            )
+
         self.assertEqual(
             self.datasource.get_instance_id(),
             MetadataResponses.FAKE_METADATA["id"],
@@ -410,8 +404,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
         vendor data are empty
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
@@ -419,24 +411,26 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.responses.reset()
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[0]}",
+            f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
         self.responses.add_callback(
             responses.GET,
-            f"{self.base_urls[1]}",
+            f"{self.base_urls[1]}/",
             callback=ConnectTimeout,
         )
         self.datasource.max_wait = 0
         ret = self.datasource.get_data()
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}",
-            2,
-        )
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}",
-            2,
-        )
+        # assert_call_count is not available in responses for py3.6
+        if sys.version_info.minor >= 7:
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[0]}",
+                2,
+            )
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[1]}",
+                2,
+            )
 
         self.assertFalse(ret)
         self.assertEqual(self.datasource.metadata, {})
@@ -453,8 +447,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
         get_data() returns metadata, but no user data nor vendor data.
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
@@ -463,17 +455,17 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_url,
+            _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.userdata_url,
+            _fix_mocking_url(self.datasource.userdata_url),
             callback=DataResponses.empty,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.vendordata_url,
+            _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
         )
         self.datasource.get_data()
@@ -488,8 +480,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
         """
         get_data() returns ConnectionError on legacy IPv4 URL
         """
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
@@ -502,14 +492,15 @@ class TestDataSourceScaleway(ResponsesTestCase):
         with self.assertRaises(ConnectionError):
             self.responses.add_callback(
                 responses.GET,
-                f"{self.datasource.metadata_urls[0]}",
+                f"{self.datasource.metadata_urls[0]}/",
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}",
-            self.datasource.retries,
-        )
+        if sys.version_info.minor >= 7:
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[0]}/",
+                self.datasource.retries,
+            )
         self.assertEqual(self.datasource.metadata, {})
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
@@ -530,8 +521,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
         The DNS URL is also tested for IPv6 connectivity
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
         getaddr.side_effect = [
@@ -545,8 +534,8 @@ class TestDataSourceScaleway(ResponsesTestCase):
         # Make metadata API fail to connect for both legacy & DNS
         # DNS url will also be tested for IPv6 connectivity
         self.datasource.metadata_urls = [
-            "http://169.254.42.42",
-            "http://api-metadata.com",
+            "http://169.254.42.42/",
+            "http://api-metadata.com/",
         ]
 
         self.datasource.has_ipv4 = True
@@ -565,14 +554,15 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource.get_data()
         # url_helper.wait_on_url tests both URL in list each time so
         # called twice for each URL
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[0]}",
-            2,
-        )
-        self.responses.assert_call_count(
-            f"{self.datasource.metadata_urls[1]}",
-            2,
-        )
+        if sys.version_info.minor >= 7:
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[0]}",
+                2,
+            )
+            self.responses.assert_call_count(
+                f"{self.datasource.metadata_urls[1]}",
+                2,
+            )
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
@@ -588,19 +578,17 @@ class TestDataSourceScaleway(ResponsesTestCase):
         user data.
         """
         ds_detect.return_value = True
-        if sys.version_info.minor < 7:
-            return
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.responses.add_callback(
             responses.GET,
-            self.datasource.metadata_url,
+            _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
         self.responses.add_callback(
             responses.GET,
-            self.datasource.vendordata_url,
+            _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
         )
         # Temporary bump the retries count so the two rate limits do not
@@ -619,7 +607,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
             return DataResponses.get_ok(request)
 
         self.responses.add_callback(
-            responses.GET, self.datasource.userdata_url, callback=_callback
+            responses.GET,
+            _fix_mocking_url(self.datasource.userdata_url),
+            callback=_callback,
         )
         self.datasource.get_data()
         self.assertEqual(
