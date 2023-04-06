@@ -26,7 +26,7 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
-from cloudinit.sources.azure import identity, imds
+from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -727,11 +727,12 @@ class DataSourceAzure(sources.DataSource):
                 msg="Crawl of metadata service",
                 func=self.crawl_metadata,
             )
-        except Exception as e:
-            report_diagnostic_event(
-                "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
-            )
-            self._report_failure()
+        except errors.ReportableError as error:
+            self._report_failure(error)
+            return False
+        except Exception as error:
+            reportable_error = errors.ReportableErrorUnhandledException(error)
+            self._report_failure(reportable_error)
             return False
         finally:
             self._teardown_ephemeral_networking()
@@ -1170,12 +1171,17 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self) -> bool:
+    def _report_failure(self, error: errors.ReportableError) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
         @return: The success status of sending the failure signal.
         """
+        report_diagnostic_event(
+            f"Azure datasource failure occurred: {error.as_description()}",
+            logger_func=LOG.error,
+        )
+
         if self._is_ephemeral_networking_up():
             try:
                 report_diagnostic_event(
@@ -1183,7 +1189,9 @@ class DataSourceAzure(sources.DataSource):
                     "to report failure to Azure",
                     logger_func=LOG.debug,
                 )
-                report_failure_to_fabric(endpoint=self._wireserver_endpoint)
+                report_failure_to_fabric(
+                    endpoint=self._wireserver_endpoint, error=error
+                )
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1203,7 +1211,9 @@ class DataSourceAzure(sources.DataSource):
             except NoDHCPLeaseError:
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
-            report_failure_to_fabric(endpoint=self._wireserver_endpoint)
+            report_failure_to_fabric(
+                endpoint=self._wireserver_endpoint, error=error
+            )
             return True
         except Exception as e:
             report_diagnostic_event(
