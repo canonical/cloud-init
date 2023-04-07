@@ -36,7 +36,7 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
 @pytest.mark.parametrize(
     "ds_str, configured",
     (
-        ("ds=nocloud", "DataSourceNoCloud"),
+        ("ds=nocloud;s=http://my-url/", "DataSourceNoCloud"),
         ("ci.ds=openstack", "DataSourceOpenStack"),
     ),
 )
