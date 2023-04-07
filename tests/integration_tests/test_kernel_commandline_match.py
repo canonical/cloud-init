@@ -14,9 +14,7 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     Ironic, for example, it will succeed.
     """
     client = c
-    client.execute(
-        "sed --in-place /GRUB_CMDLINE_LINUX=/d /etc/default/grub"
-    )
+    client.execute("sed --in-place /GRUB_CMDLINE_LINUX=/d /etc/default/grub")
     client.execute(
         "echo \"GRUB_CMDLINE_LINUX='" + ds_str + "'\" >> /etc/default/grub"
     )
