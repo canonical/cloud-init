@@ -1739,6 +1739,9 @@ read_config() {
     for tok in ${DI_KERNEL_CMDLINE}; do
         key=${tok%%=*}
         val=${tok#*=}
+
+        # discard anything after delimiter
+        val=$(echo $val | cut -f1 -d ';')
         case "$key" in
             ds) _rc_dsname="$val";;
             ci.ds) _rc_dsname="$val";;
