@@ -18,6 +18,11 @@ stages to boot:
 Generator
 =========
 
+# TODO: This entire stage is really just an implementation detail of systemd
+# systems - as long as we document how to disable cloud-init somewhere else
+# I think we can probably remove this information - unless we think it is
+# somehow actionable for the average user?
+
 When booting under ``systemd``, a `generator`_ will run that determines if
 ``cloud-init.target`` should be included in the boot goals. By default, this
 generator will enable ``cloud-init``. It will not enable ``cloud-init``
