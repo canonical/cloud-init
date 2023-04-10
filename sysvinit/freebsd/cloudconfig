@@ -18,7 +18,7 @@ start_cmd="cloudconfig_start"
 cloudconfig_start()
 {
 	kenv -q kernel_options | grep -q 'cloud-init=disabled' \
-      || -e /etc/cloud/cloud-init.disabled \
+      || test -e /etc/cloud/cloud-init.disabled \
       && exit 0
 	echo "${command} starting"
 	${command} modules --mode config
