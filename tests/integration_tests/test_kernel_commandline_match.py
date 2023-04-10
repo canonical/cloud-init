@@ -28,18 +28,10 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     #
     # Not doing this will result in a semicolon-delimited ds argument
     # terminating the kernel arguments prematurely.
-    client.execute(
-        'printf "GRUB_CMDLINE_LINUX=\\\"" >> /etc/default/grub'
-    )
-    client.execute(
-        "printf \"'\" >> /etc/default/grub"
-    )
-    client.execute(
-        f"printf '{ds_str}' >> /etc/default/grub"
-    )
-    client.execute(
-        "printf \"'\\\"\" >> /etc/default/grub"
-    )
+    client.execute('printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub')
+    client.execute('printf "\'" >> /etc/default/grub')
+    client.execute(f"printf '{ds_str}' >> /etc/default/grub")
+    client.execute('printf "\'\\"" >> /etc/default/grub')
 
     # We should probably include non-systemd distros at some point. This should
     # most likely be as simple as updating the output path for grub-mkconfig
