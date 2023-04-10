@@ -9,6 +9,7 @@ name="cloudinit"
 start_cmd="start_cloud_init"
 start_cloud_init()
 {
+    test -e /etc/cloud/cloud-init.disabled && exit 0
     /usr/pkg/bin/cloud-init modules --mode final
 }
 
