@@ -9,6 +9,7 @@ depend() {
 
 start() {
   grep -q 'cloud-init=disabled' /proc/cmdline \
+    || -e /etc/cloud/cloud-init.disabled \
     && ewarn "$RC_SVCNAME is disabled via /proc/cmdline." \
     && exit 0
   cloud-init init
