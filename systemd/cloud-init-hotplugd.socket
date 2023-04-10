@@ -5,8 +5,6 @@
 # Known bug with an enforcing SELinux policy: LP: #1936229
 [Unit]
 Description=cloud-init hotplug hook socket
-ConditionPathExists=!/etc/cloud/cloud-init.disabled
-ConditionKernelCommandLine=!cloud-init=disabled
 
 [Socket]
 ListenFIFO=/run/cloud-init/hook-hotplug-cmd
