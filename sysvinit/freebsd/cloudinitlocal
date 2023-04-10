@@ -17,13 +17,13 @@ start_cmd="cloudlocal_start"
 
 cloudlocal_start()
 {
-	echo -n "${command} starting"
-	if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
-		warn "cloud-init is disabled via kernel_options."
+    echo -n "${command} starting"
+    if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
+        warn "cloud-init is disabled via kernel_options."
 	elif test -e /etc/cloud/cloud-init.disabled; then
-		warn "cloud-init is disabled via cloud-init.disabled file."
+        warn "cloud-init is disabled via cloud-init.disabled file."
 	else
-		${command} init --local
+        ${command} init --local
 	fi
 }
 

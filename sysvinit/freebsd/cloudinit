@@ -18,8 +18,8 @@ start_cmd="cloudinit_start"
 cloudinit_start()
 {
 	kenv -q kernel_options | grep -q 'cloud-init=disabled' \
-      || test -e /etc/cloud/cloud-init.disabled \
-      && exit 0
+		|| test -e /etc/cloud/cloud-init.disabled \
+		&& exit 0
 	echo -n "${command} starting"
 	${command} init
 }
