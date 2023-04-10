@@ -14,6 +14,20 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     Ironic, for example, it will succeed.
     """
     client = c
+
+    # The final output in /etc/default/grub should be:
+    #
+    # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
+    #
+    # That ensures that the kernel commandline passed into
+    # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
+    #
+    # Example:
+    #
+    # linux /boot/vmlinuz-5.15.0-1030-kvm ro 'ds=nocloud;s=http://my-url/'
+    #
+    # Not doing this will result in a semicolon-delimited ds argument
+    # terminating the kernel arguments prematurely.
     client.execute(
         'printf "GRUB_CMDLINE_LINUX=\\\"" >> /etc/default/grub'
     )
