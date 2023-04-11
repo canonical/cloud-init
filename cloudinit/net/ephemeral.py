@@ -308,12 +308,14 @@ class EphemeralDHCPv4:
         iface=None,
         connectivity_url_data: Optional[Dict[str, Any]] = None,
         dhcp_log_func=None,
+        distro=None,
     ):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
+        self.distro = distro
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be

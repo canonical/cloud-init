@@ -2,7 +2,7 @@
 
 import cloudinit.net.bsd
 from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import subp, util, net
 
 LOG = logging.getLogger(__name__)
 
@@ -50,11 +50,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         for dhcp_interface in self.dhcp_interfaces():
             # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
             # the routes are not recreated.
-            subp.subp(
-                ["service", "dhclient", "stop", dhcp_interface],
-                rcs=[0, 1],
-                capture=True,
-            )
+            net.dhcp.start_service(dhcp_interface)
 
         subp.subp(["service", "netif", "restart"], capture=True)
         # On FreeBSD 10, the restart of routing and dhclient is likely to fail
@@ -66,11 +62,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         subp.subp(["service", "routing", "restart"], capture=True, rcs=[0, 1])
 
         for dhcp_interface in self.dhcp_interfaces():
-            subp.subp(
-                ["service", "dhclient", "start", dhcp_interface],
-                rcs=[0, 1],
-                capture=True,
-            )
+            net.dhcp.stop_service(dhcp_interface)
 
     def set_route(self, network, netmask, gateway):
         if network == "0.0.0.0":

@@ -11,6 +11,7 @@ import re
 import signal
 import time
 from io import StringIO
+import glob
 
 import configobj
 
@@ -47,7 +48,7 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
+def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None, distro=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
@@ -74,7 +75,7 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     if not dhclient_path:
         LOG.debug("Skip dhclient configuration: No dhclient command found.")
         raise NoDHCPLeaseMissingDhclientError()
-    return dhcp_discovery(dhclient_path, nic, dhcp_log_func)
+    return dhcp_discovery(dhclient_path, nic, dhcp_log_func, distro)
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -111,7 +112,11 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
-def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
+def dhcp_discovery(
+        dhclient_cmd_path,
+        interface,
+        dhcp_log_func=None,
+        distro=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
     @param dhclient_cmd_path: Full path to the dhclient used.
@@ -364,4 +369,86 @@ def parse_static_routes(rfc3442):
     return static_routes
 
 
-# vi: ts=4 expandtab
+def kill_dhcp_client():
+    subp.subp(["pkill", "dhclient"], rcs=[0, 1])
+
+
+def clear_leases():
+    kill_dhcp_client()
+    files = glob.glob("/var/lib/dhcp/*")
+    for file in files:
+        os.remove(files)
+
+
+def start_service(dhcp_interface):
+    subp.subp(
+        ["service", "dhclient", "start", dhcp_interface],
+        rcs=[0, 1],
+        capture=True,
+    )
+
+
+def stop_service(dhcp_interface):
+    subp.subp(
+        ["service", "dhclient", "stop", dhcp_interface],
+        rcs=[0, 1],
+        capture=True,
+    )
+
+def get_dhclient_d():
+    # find lease files directory
+    supported_dirs = [
+        "/var/lib/dhclient",
+        "/var/lib/dhcp",
+        "/var/lib/NetworkManager",
+    ]
+    for d in supported_dirs:
+        if os.path.exists(d) and len(os.listdir(d)) > 0:
+            LOG.debug("Using %s lease directory", d)
+            return d
+    return None
+
+
+def get_latest_lease(lease_d=None):
+    # find latest lease file
+    if lease_d is None:
+        lease_d = get_dhclient_d()
+    if not lease_d:
+        return None
+    lease_files = os.listdir(lease_d)
+    latest_mtime = -1
+    latest_file = None
+
+    # lease files are named inconsistently across distros.
+    # We assume that 'dhclient6' indicates ipv6 and ignore it.
+    # ubuntu:
+    #   dhclient.<iface>.leases, dhclient.leases, dhclient6.leases
+    # centos6:
+    #   dhclient-<iface>.leases, dhclient6.leases
+    # centos7: ('--' is not a typo)
+    #   dhclient--<iface>.lease, dhclient6.leases
+    for fname in lease_files:
+        if fname.startswith("dhclient6"):
+            # avoid files that start with dhclient6 assuming dhcpv6.
+            continue
+        if not (fname.endswith(".lease") or fname.endswith(".leases")):
+            continue
+
+        abs_path = os.path.join(lease_d, fname)
+        mtime = os.path.getmtime(abs_path)
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+            latest_file = abs_path
+    return latest_file
+
+
+def parse_dhcp_server_from_lease_file(lease_file):
+    with open(lease_file, "r") as fd:
+        for line in fd:
+            if "dhcp-server-identifier" in line:
+                words = line.strip(" ;\r\n").split(" ")
+                if len(words) > 2:
+                    dhcptok = words[2]
+                    LOG.debug("Found DHCP identifier %s", dhcptok)
+                    latest_address = dhcptok
+    return latest_address
