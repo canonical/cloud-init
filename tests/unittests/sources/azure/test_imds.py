@@ -36,6 +36,22 @@ def mock_requests_session_request():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_time():
+    with mock.patch.object(imds, "time", autospec=True) as m:
+        m.time_current = 0.0
+        m.time_increment = 1.0
+
+        def fake_time():
+            nonlocal m
+            current = m.time_current
+            m.time_current += m.time_increment
+            return current
+
+        m.side_effect = fake_time
+        yield m
+
+
 @pytest.fixture
 def mock_url_helper_time_sleep():
     with mock.patch("cloudinit.url_helper.time.sleep", autospec=True) as m:
@@ -60,13 +76,14 @@ class TestFetchMetadataWithApiFallback:
         "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
     )
     headers = {"Metadata": "true"}
-    retries = 10
     timeout = 2
 
+    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
     def test_basic(
         self,
         caplog,
         mock_requests_session_request,
+        retry_timeout,
         wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
@@ -74,7 +91,7 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert md == fake_md
         assert wrapped_readurl.mock_calls == [
@@ -82,9 +99,8 @@ class TestFetchMetadataWithApiFallback:
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
                 exception_cb=mock.ANY,
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
             )
         ]
@@ -92,7 +108,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 "cloudinit.url_helper",
@@ -101,10 +117,12 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
+    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
     def test_basic_fallback(
         self,
         caplog,
         mock_requests_session_request,
+        retry_timeout,
         wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
@@ -113,7 +131,7 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert md == fake_md
         assert wrapped_readurl.mock_calls == [
@@ -121,18 +139,16 @@ class TestFetchMetadataWithApiFallback:
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
                 exception_cb=mock.ANY,
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
             ),
             mock.call(
                 self.fallback_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
                 exception_cb=mock.ANY,
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
             ),
         ]
@@ -141,7 +157,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 LOG_PATH,
@@ -156,7 +172,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 "cloudinit.url_helper",
@@ -176,9 +192,12 @@ class TestFetchMetadataWithApiFallback:
             requests.Timeout("Fake connection timeout"),
         ],
     )
+    @pytest.mark.parametrize("max_attempts,retry_timeout", [(2, 1.0)])
     def test_will_retry_errors(
         self,
         caplog,
+        max_attempts,
+        retry_timeout,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
         error,
@@ -189,16 +208,16 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert md == fake_md
-        assert len(mock_requests_session_request.mock_calls) == 2
+        assert len(mock_requests_session_request.mock_calls) == max_attempts
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
         assert caplog.record_tuples == [
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 LOG_PATH,
@@ -216,7 +235,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[1/11\] open.*"),
+                StringMatch(r"\[1/infinite\] open.*"),
             ),
             (
                 "cloudinit.url_helper",
@@ -225,9 +244,11 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
+    @pytest.mark.parametrize("retry_timeout", [3.0, 30.0])
     def test_will_retry_errors_on_fallback(
         self,
         caplog,
+        retry_timeout,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
     ):
@@ -238,17 +259,18 @@ class TestFetchMetadataWithApiFallback:
             fake_http_error_for_code(429),
             mock.Mock(content=json.dumps(fake_md)),
         ]
+        max_attempts = len(mock_requests_session_request.side_effect)
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert md == fake_md
-        assert len(mock_requests_session_request.mock_calls) == 3
+        assert len(mock_requests_session_request.mock_calls) == max_attempts
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
         assert caplog.record_tuples == [
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 LOG_PATH,
@@ -271,7 +293,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 LOG_PATH,
@@ -289,7 +311,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[1/11\] open.*"),
+                StringMatch(r"\[1/infinite\] open.*"),
             ),
             (
                 "cloudinit.url_helper",
@@ -309,25 +331,35 @@ class TestFetchMetadataWithApiFallback:
             requests.Timeout("Fake connection timeout"),
         ],
     )
+    @pytest.mark.parametrize(
+        "max_attempts,retry_timeout", [(1, 0.0), (2, 1.0), (301, 300.0)]
+    )
     def test_retry_until_failure(
         self,
+        error,
+        max_attempts,
+        retry_timeout,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
-        error,
     ):
-        mock_requests_session_request.side_effect = [error] * (11)
+        mock_requests_session_request.side_effect = error
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert exc_info.value.cause == error
-        assert len(mock_requests_session_request.mock_calls) == (
-            self.retries + 1
+
+        # Connection errors max out at 11 attempts.
+        max_attempts = (
+            11
+            if isinstance(error, requests.ConnectionError)
+            and max_attempts > 11
+            else max_attempts
         )
-        assert (
-            mock_url_helper_time_sleep.mock_calls
-            == [mock.call(1)] * self.retries
+        assert len(mock_requests_session_request.mock_calls) == (max_attempts)
+        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * (
+            max_attempts - 1
         )
 
         logs = [x for x in caplog.record_tuples if x[0] == LOG_PATH]
@@ -340,7 +372,7 @@ class TestFetchMetadataWithApiFallback:
                     f".*{error!s}.*"
                 ),
             )
-            for i in range(1, 12)
+            for i in range(1, max_attempts + 1)
         ] + [
             (
                 LOG_PATH,
@@ -356,12 +388,14 @@ class TestFetchMetadataWithApiFallback:
             fake_http_error_for_code(501),
         ],
     )
+    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
     def test_will_not_retry_errors(
         self,
+        error,
+        retry_timeout,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
-        error,
     ):
         fake_md = {"foo": {"bar": []}}
         mock_requests_session_request.side_effect = [
@@ -370,7 +404,7 @@ class TestFetchMetadataWithApiFallback:
         ]
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert exc_info.value.cause == error
         assert len(mock_requests_session_request.mock_calls) == 1
@@ -380,7 +414,7 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/11\] open.*"),
+                StringMatch(r"\[0/infinite\] open.*"),
             ),
             (
                 LOG_PATH,
@@ -397,8 +431,10 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
+    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
     def test_non_json_repsonse(
         self,
+        retry_timeout,
         caplog,
         mock_requests_session_request,
         wrapped_readurl,
@@ -408,16 +444,15 @@ class TestFetchMetadataWithApiFallback:
         ]
 
         with pytest.raises(ValueError):
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
 
         assert wrapped_readurl.mock_calls == [
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
                 exception_cb=mock.ANY,
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
             ),
         ]

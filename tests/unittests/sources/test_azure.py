@@ -2799,8 +2799,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch("cloudinit.url_helper.time.sleep", autospec=True)
     @mock.patch("requests.Session.request", autospec=True)
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
+    @mock.patch(MOCKPATH + "time", autospec=True)
+    @mock.patch("cloudinit.sources.azure.imds.time", autospec=True)
     def test_check_if_nic_is_primary_retries_on_failures(
-        self, m_dhcpv4, m_request, m_sleep
+        self, m_imds_time, m_time, m_dhcpv4, m_request, m_sleep
     ):
         """Retry polling for network metadata on all failures except timeout
         and network unreachable errors"""
@@ -2816,27 +2818,45 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         }
 
         m_req = mock.Mock(content=json.dumps({"not": "empty"}))
-        m_request.side_effect = (
+        errors = (
             [requests.Timeout("Fake connection timeout")] * 5
             + [requests.ConnectionError("Fake Network Unreachable")] * 5
-            + 290 * [fake_http_error_for_code(410)]
+            + [fake_http_error_for_code(410)] * 5
             + [m_req]
         )
+        m_request.side_effect = errors
         m_dhcpv4.return_value.lease = lease
+        fake_time = 0.0
+        fake_time_increment = 5.0
+
+        def fake_timer():
+            nonlocal fake_time, fake_time_increment
+            fake_time += fake_time_increment
+            return fake_time
+
+        m_time.side_effect = fake_timer
+        m_imds_time.side_effect = fake_timer
 
         is_primary = dsa._check_if_nic_is_primary("eth0")
         self.assertEqual(True, is_primary)
-        assert len(m_request.mock_calls) == 301
+        assert len(m_request.mock_calls) == len(errors)
 
         # Re-run tests to verify max http failures.
+        attempts = 3
+        fake_time = 0.0
+        fake_time_increment = 300 / attempts
+
+        m_time.side_effect = fake_timer
+        m_imds_time.side_effect = fake_timer
         m_request.reset_mock()
-        m_request.side_effect = 305 * [fake_http_error_for_code(410)]
+        errors = 100 * [fake_http_error_for_code(410)]
+        m_request.side_effect = errors
 
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
         is_primary = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
-        assert len(m_request.mock_calls) == 301
+        assert len(m_request.mock_calls) == attempts
 
         # Re-run tests to verify max connection error retries.
         m_request.reset_mock()
@@ -2848,7 +2868,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         is_primary = dsa._check_if_nic_is_primary("eth1")
         self.assertEqual(False, is_primary)
-        assert len(m_request.mock_calls) == 11
+        assert len(m_request.mock_calls) == attempts
 
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     def test_wait_for_link_up_returns_if_already_up(self, m_is_link_up):
@@ -3520,9 +3540,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 timeout=2,
                 headers={"Metadata": "true"},
-                retries=10,
                 exception_cb=mock.ANY,
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
             ),
         ]
@@ -3589,9 +3608,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
             mock.call(
@@ -3608,9 +3626,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
         ]
@@ -3698,9 +3715,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
             mock.call(
@@ -3708,9 +3724,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -3727,9 +3742,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
         ]
@@ -3855,9 +3869,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
             mock.call(
@@ -3865,9 +3878,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=300,
                 timeout=2,
             ),
             mock.call(
@@ -3884,9 +3896,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
         ]
@@ -3970,9 +3981,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
             mock.call(
@@ -3989,9 +3999,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
         ]
@@ -4089,9 +4098,8 @@ class TestProvisioning:
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
                 headers={"Metadata": "true"},
-                infinite=False,
+                infinite=True,
                 log_req_resp=True,
-                retries=10,
                 timeout=2,
             ),
         ]
