@@ -14,11 +14,24 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     Ironic, for example, it will succeed.
     """
     client = c
-    client.execute(
-        "sed --in-place "
-        "'s/^.*GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"" + ds_str + '"/g'
-        "' /etc/default/grub"
-    )
+
+    # The final output in /etc/default/grub should be:
+    #
+    # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
+    #
+    # That ensures that the kernel commandline passed into
+    # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
+    #
+    # Example:
+    #
+    # linux /boot/vmlinuz-5.15.0-1030-kvm ro 'ds=nocloud;s=http://my-url/'
+    #
+    # Not doing this will result in a semicolon-delimited ds argument
+    # terminating the kernel arguments prematurely.
+    client.execute('printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub')
+    client.execute('printf "\'" >> /etc/default/grub')
+    client.execute(f"printf '{ds_str}' >> /etc/default/grub")
+    client.execute('printf "\'\\"" >> /etc/default/grub')
 
     # We should probably include non-systemd distros at some point. This should
     # most likely be as simple as updating the output path for grub-mkconfig
@@ -36,7 +49,7 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
 @pytest.mark.parametrize(
     "ds_str, configured",
     (
-        ("ds=nocloud", "DataSourceNoCloud"),
+        ("ds=nocloud;s=http://my-url/", "DataSourceNoCloud"),
         ("ci.ds=openstack", "DataSourceOpenStack"),
     ),
 )
