@@ -6,8 +6,8 @@ import time
 from cloudinit import helpers, util
 from cloudinit.sources.DataSourceCloudStack import (
     DataSourceCloudStack,
-    get_latest_lease,
 )
+from cloudinit.net.dhcp import get_latest_lease
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 MOD_PATH = "cloudinit.sources.DataSourceCloudStack"
@@ -25,7 +25,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         default_gw = "192.201.20.0"
         get_latest_lease = mock.MagicMock(return_value=None)
         self.patches.enter_context(
-            mock.patch(mod_name + ".get_latest_lease", get_latest_lease)
+            mock.patch(mod_name + ".dhcp.get_latest_lease", get_latest_lease)
         )
 
         get_default_gw = mock.MagicMock(return_value=default_gw)

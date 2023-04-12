@@ -38,6 +38,7 @@ class TestManagePuppetServices(CiTestCase):
             mock.call(
                 ["systemctl", "enable", "puppet-agent.service"],
                 capture=True,
+                rcs=None,
             )
         ]
         self.assertIn(expected_calls, m_subp.call_args_list)
@@ -51,6 +52,7 @@ class TestManagePuppetServices(CiTestCase):
             mock.call(
                 ["systemctl", "start", "puppet-agent.service"],
                 capture=True,
+                rcs=None,
             )
         ]
         self.assertIn(expected_calls, m_subp.call_args_list)
@@ -62,10 +64,12 @@ class TestManagePuppetServices(CiTestCase):
             mock.call(
                 ["systemctl", "enable", "puppet-agent.service"],
                 capture=True,
+                rcs=None,
             ),
             mock.call(
                 ["systemctl", "enable", "puppet.service"],
                 capture=True,
+                rcs=None,
             ),
         ]
         self.assertEqual(expected_calls, m_subp.call_args_list)

@@ -37,14 +37,15 @@ class Distro(cloudinit.distros.bsd.BSD):
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(cls, action: str, service: str, rcs=None):
         """
         Perform the requested action on a service. This handles FreeBSD's
         'service' case. The FreeBSD 'service' is closer in features to
         'systemctl' than SysV init's 'service', so we override it.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
+        init_cmd = cls.init_cmd
         cmds = {
             "stop": [service, "stop"],
             "start": [service, "start"],
@@ -56,7 +57,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             "status": [service, "status"],
         }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]

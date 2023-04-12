@@ -15,7 +15,7 @@ import glob
 
 import configobj
 
-from cloudinit import subp, temp_utils, util
+from cloudinit import subp, temp_utils, util, distros
 from cloudinit.net import (
     find_fallback_nic,
     get_devicelist,
@@ -380,20 +380,13 @@ def clear_leases():
         os.remove(files)
 
 
-def start_service(dhcp_interface):
-    subp.subp(
-        ["service", "dhclient", "start", dhcp_interface],
-        rcs=[0, 1],
-        capture=True,
-    )
+def start_service(dhcp_interface: str, distro: distros.Distro):
+    distro.manage_service("start", "dhclient", rcs=[0, 1])
 
 
-def stop_service(dhcp_interface):
-    subp.subp(
-        ["service", "dhclient", "stop", dhcp_interface],
-        rcs=[0, 1],
-        capture=True,
-    )
+def stop_service(dhcp_interface: str, distro: distros.Distro):
+    distro.manage_service("stop", "dhclient", rcs=[0, 1])
+
 
 def get_dhclient_d():
     # find lease files directory

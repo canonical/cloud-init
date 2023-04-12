@@ -73,7 +73,8 @@ class MockDistro(distros.Distro):
     def set_hostname(self, hostname, fqdn=None):
         pass
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         return True
 
     def get_primary_arch(self):

@@ -503,7 +503,7 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_FreeBSD.return_value = is_FreeBSD
                 m_util.is_OpenBSD.return_value = is_OpenBSD
                 cc_ntp.handle("notimportant", cfg, mycloud, None)
-                m_subp.assert_called_with(expected_service_call, capture=True)
+                m_subp.assert_called_with(expected_service_call, capture=True, rcs=None)
 
             self.assertEqual(expected_content, util.load_file(confpath))
 

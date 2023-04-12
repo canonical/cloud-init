@@ -173,13 +173,15 @@ class Distro(distros.Distro):
 
         return command
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """
         Alpine uses OpenRC, not systemd
         """
         return False
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(self, action: str, service: str, rcs=None):
         """
         Perform the requested action on a service. This handles OpenRC
         specific implementation details.
@@ -202,4 +204,4 @@ class Distro(distros.Distro):
             "status": list(init_cmd) + [service, "status"],
         }
         cmd = list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)

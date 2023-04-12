@@ -185,7 +185,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
@@ -916,15 +917,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(cls, action: str, service: str, rcs=None):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
         as necessary.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
-        if self.uses_systemd() or "systemctl" in init_cmd:
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
             init_cmd = ["systemctl"]
             cmds = {
                 "stop": ["stop", service],
@@ -948,7 +950,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "status": [service, "status"],
             }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout, model, variant, options):
         if self.uses_systemd():
@@ -1193,6 +1195,3 @@ def uses_systemd():
         return stat.S_ISDIR(res.st_mode)
     except Exception:
         return False
-
-
-# vi: ts=4 expandtab
