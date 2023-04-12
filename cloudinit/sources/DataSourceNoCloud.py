@@ -280,24 +280,23 @@ def load_cmdline_data(fill, cmdline=None):
         ("ds=nocloud-net", sources.DSMODE_NETWORK),
     ]
     for idstr, dsmode in pairs:
-        if parse_cmdline_data(idstr, fill, cmdline):
+        if not parse_cmdline_data(idstr, fill, cmdline):
+            continue
+        if "dsmode" in fill:
             # if dsmode was explicitly in the command line, then
             # prefer it to the dsmode based on seedfrom type
-            if "dsmode" not in fill and fill["seedfrom"]:
-                seedfrom = fill["seedfrom"]
-                if seedfrom.startswith("http://") or seedfrom.startswith(
-                    "https://"
-                ):
-                    fill["dsmode"] = sources.DSMODE_NETWORK
-                elif seedfrom.startswith("file://") or seedfrom.startswith(
-                    "/"
-                ):
-                    fill["dsmode"] = sources.DSMODE_LOCAL
-            elif "dsmode" not in fill:
-                # this path only gets hit if no seedfrom arg is provided
-                fill["dsmode"] = dsmode
-
             return True
+
+        seedfrom = fill.get("seedfrom")
+        if seedfrom:
+            if seedfrom.startswith(("http://", "https://")):
+                fill["dsmode"] = sources.DSMODE_NETWORK
+            elif seedfrom.startswith(("file://", "/")):
+                fill["dsmode"] = sources.DSMODE_LOCAL
+        else:
+            fill["dsmode"] = dsmode
+
+        return True
     return False
 
 
