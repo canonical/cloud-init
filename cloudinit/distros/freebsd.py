@@ -192,6 +192,3 @@ class Distro(cloudinit.distros.bsd.BSD):
             ["update"],
             freq=PER_INSTANCE,
         )
-
-
-# vi: ts=4 expandtab

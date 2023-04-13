@@ -1251,6 +1251,3 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
             product_name="Not 3DS Outscale VM".lower(),
         )
         self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
-
-
-# vi: ts=4 expandtab

@@ -4,10 +4,8 @@ import os
 import time
 
 from cloudinit import helpers, util
-from cloudinit.sources.DataSourceCloudStack import (
-    DataSourceCloudStack,
-)
 from cloudinit.net.dhcp import IscDhclient
+from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 MOD_PATH = "cloudinit.sources.DataSourceCloudStack"
@@ -25,7 +23,10 @@ class TestCloudStackPasswordFetching(CiTestCase):
         default_gw = "192.201.20.0"
         get_latest_lease = mock.MagicMock(return_value=None)
         self.patches.enter_context(
-            mock.patch(mod_name + ".dhcp.IscDhclient.get_latest_lease", get_latest_lease)
+            mock.patch(
+                mod_name + ".dhcp.IscDhclient.get_latest_lease",
+                get_latest_lease,
+            )
         )
 
         get_default_gw = mock.MagicMock(return_value=default_gw)
@@ -151,7 +152,8 @@ class TestGetLatestLease(CiTestCase):
         lease_d = self.tmp_dir()
         self._populate_dir_list(lease_d, files)
         self.assertEqual(
-            self.tmp_path(expected, lease_d), IscDhclient.get_latest_lease(lease_d)
+            self.tmp_path(expected, lease_d),
+            IscDhclient.get_latest_lease(lease_d),
         )
 
     def test_skips_dhcpv6_files(self):

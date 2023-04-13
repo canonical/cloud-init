@@ -25,13 +25,14 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["usermod", "-G", group_name, member_name]
 
-    def manage_service(self, action: str, service: str, rcs=None):
+    @classmethod
+    def manage_service(cls, action: str, service: str, rcs=None):
         """
         Perform the requested action on a service. This handles OpenBSD's
         'rcctl'.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
+        init_cmd = cls.init_cmd
         cmds = {
             "stop": ["stop", service],
             "start": ["start", service],

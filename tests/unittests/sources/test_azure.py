@@ -4350,6 +4350,3 @@ class TestValidateIMDSMetadata:
         }
 
         assert azure_ds.validate_imds_network_metadata(imds_md) is False
-
-
-# vi: ts=4 expandtab

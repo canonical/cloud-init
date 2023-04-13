@@ -492,6 +492,3 @@ class TestDataSourceVultr(CiTestCase):
             pass
 
         self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
-
-
-# vi: ts=4 expandtab

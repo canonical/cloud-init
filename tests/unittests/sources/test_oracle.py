@@ -1211,6 +1211,3 @@ class TestNetworkConfig:
             oracle_ds._network_config["config"]
         ), "Config not added"
         assert "" == caplog.text
-
-
-# vi: ts=4 expandtab

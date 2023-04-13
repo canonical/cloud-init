@@ -4,7 +4,7 @@ import platform
 
 import cloudinit.net.bsd
 from cloudinit import log as logging
-from cloudinit import subp, util, net
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 

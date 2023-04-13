@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Optional
 import cloudinit.net as net
 from cloudinit import subp
 from cloudinit.net.dhcp import (
+    IscDhclient,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
-    IscDhclient,
 )
 
 LOG = logging.getLogger(__name__)
@@ -353,7 +353,9 @@ class EphemeralDHCPv4:
         """
         if self.lease:
             return self.lease
-        leases = maybe_perform_dhcp_discovery(self.distro, self.iface, self.dhcp_log_func)
+        leases = maybe_perform_dhcp_discovery(
+            self.distro, self.iface, self.dhcp_log_func
+        )
         if not leases:
             raise NoDHCPLeaseError()
         self.lease = leases[-1]
@@ -431,7 +433,9 @@ class EphemeralIPNetwork:
         # therefore catch exception unless only v4 is used
         try:
             if self.ipv4:
-                self.stack.enter_context(EphemeralDHCPv4(self.distro, self.interface))
+                self.stack.enter_context(
+                    EphemeralDHCPv4(self.distro, self.interface)
+                )
             if self.ipv6:
                 self.stack.enter_context(EphemeralIPv6Network(self.interface))
         # v6 link local might be usable

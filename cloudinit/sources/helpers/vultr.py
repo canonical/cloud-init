@@ -18,7 +18,9 @@ LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(distro, url, timeout, retries, sec_between, agent, tmp_dir=None):
+def get_metadata(
+    distro, url, timeout, retries, sec_between, agent, tmp_dir=None
+):
     # Bring up interface (and try untill one works)
     exception = RuntimeError("Failed to DHCP")
 
@@ -287,6 +289,3 @@ def add_interface_names(netcfg):
                 % interface["mac_address"]
             )
         interface["name"] = interface_name
-
-
-# vi: ts=4 expandtab

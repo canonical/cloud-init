@@ -333,6 +333,3 @@ class TestUpCloudDatasourceLoading(CiTestCase):
             ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceUpCloud], found)
-
-
-# vi: ts=4 expandtab

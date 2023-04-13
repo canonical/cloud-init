@@ -4,15 +4,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import abc
 import contextlib
+import glob
 import logging
 import os
 import re
 import signal
 import time
 from io import StringIO
-import glob
-import abc
 
 import configobj
 
@@ -89,9 +89,7 @@ def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
         )
         raise NoDHCPLeaseInterfaceError()
     client = select_dhcp_client(distro)
-    return client.dhcp_discovery(
-        nic, dhcp_log_func, distro
-    )
+    return client.dhcp_discovery(nic, dhcp_log_func, distro)
 
 
 def networkd_parse_lease(content):
@@ -135,6 +133,8 @@ def networkd_get_option_from_leases(keyname, leases_d=None):
 
 
 class DhcpClient(abc.ABC):
+    client_name = ""
+
     @classmethod
     def kill_dhcp_client(cls):
         subp.subp(["pkill", cls.client_name], rcs=[0, 1])
@@ -161,15 +161,17 @@ class IscDhclient(DhcpClient):
     def __init__(self):
         self.dhclient_path = subp.which("dhclient")
         if not self.dhclient_path:
-            LOG.debug("Skip dhclient configuration: No dhclient command found.")
+            LOG.debug(
+                "Skip dhclient configuration: No dhclient command found."
+            )
             raise NoDHCPLeaseMissingDhclientError()
 
     @staticmethod
     def parse_dhcp_lease_file(lease_file):
         """Parse the given dhcp lease file for the most recent lease.
 
-        Return a list of dicts of dhcp options. Each dict contains key value pairs
-        a specific lease in order from oldest to newest.
+        Return a list of dicts of dhcp options. Each dict contains key value
+        pairs a specific lease in order from oldest to newest.
 
         @raises: InvalidDHCPLeaseFileError on empty of unparseable leasefile
             content.
@@ -199,25 +201,26 @@ class IscDhclient(DhcpClient):
         return dhcp_leases
 
     def dhcp_discovery(
-            self,
-            interface,
-            dhcp_log_func=None,
-            distro=None,):
-        """Run dhclient on the interface without scripts or filesystem artifacts.
+        self,
+        interface,
+        dhcp_log_func=None,
+        distro=None,
+    ):
+        """Run dhclient on the interface without scripts/filesystem artifacts.
 
         @param dhclient_cmd_path: Full path to the dhclient used.
         @param interface: Name of the network interface on which to dhclient.
-        @param dhcp_log_func: A callable accepting the dhclient output and error
-            streams.
+        @param dhcp_log_func: A callable accepting the dhclient output and
+            error streams.
 
-        @return: A list of dicts of representing the dhcp leases parsed from the
-            dhclient.lease file or empty list.
+        @return: A list of dicts of representing the dhcp leases parsed from
+            the dhclient.lease file or empty list.
         """
         LOG.debug("Performing a dhcp discovery on %s", interface)
 
-        # We want to avoid running /sbin/dhclient-script because of side-effects in
-        # /etc/resolv.conf any any other vendor specific scripts in
-        # /etc/dhcp/dhclient*hooks.d.
+        # We want to avoid running /sbin/dhclient-script because of
+        # side-effects in # /etc/resolv.conf any any other vendor specific
+        # scripts in /etc/dhcp/dhclient*hooks.d.
         pid_file = "/run/dhclient.pid"
         lease_file = "/run/dhclient.lease"
 
@@ -227,14 +230,15 @@ class IscDhclient(DhcpClient):
             os.remove(pid_file)
             os.remove(lease_file)
 
-        # ISC dhclient needs the interface up to send initial discovery packets.
-        # Generally dhclient relies on dhclient-script PREINIT action to bring the
-        # link up before attempting discovery. Since we are using -sf /bin/true,
-        # we need to do that "link up" ourselves first.
+        # ISC dhclient needs the interface up to send initial discovery packets
+        # Generally dhclient relies on dhclient-script PREINIT action to bring
+        # the link up before attempting discovery. Since we are using
+        # -sf /bin/true, we need to do that "link up" ourselves first.
         subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
-        # For INFINIBAND port the dhlient must be sent with dhcp-client-identifier.
-        # So here we are checking if the interface is INFINIBAND or not.
-        # If yes, we are generating the the client-id to be used with the dhclient
+        # For INFINIBAND port the dhlient must be sent with
+        # dhcp-client-identifier. So here we are checking if the interface is
+        # INFINIBAND or not. If yes, we are generating the the client-id to be
+        # used with the dhclient
         cmd = [
             self.dhclient_path,
             "-1",
@@ -248,7 +252,9 @@ class IscDhclient(DhcpClient):
             "/bin/true",
         ]
         if is_ib_interface(interface):
-            dhcp_client_identifier = "20:%s" % get_interface_mac(interface)[36:]
+            dhcp_client_identifier = (
+                "20:%s" % get_interface_mac(interface)[36:]
+            )
             interface_dhclient_content = (
                 'interface "%s" '
                 "{send dhcp-client-identifier %s;}"
@@ -319,25 +325,31 @@ class IscDhclient(DhcpClient):
 
     @staticmethod
     def parse_static_routes(rfc3442):
-        """parse rfc3442 format and return a list containing tuple of strings.
+        """
+        parse rfc3442 format and return a list containing tuple of strings.
 
         The tuple is composed of the network_address (including net length) and
-        gateway for a parsed static route.  It can parse two formats of rfc3442,
-        one from dhcpcd and one from dhclient (isc).
+        gateway for a parsed static route.  It can parse two formats of
+        rfc3442, one from dhcpcd and one from dhclient (isc).
 
         @param rfc3442: string in rfc3442 format (isc or dhcpd)
         @returns: list of tuple(str, str) for all valid parsed routes until the
                   first parsing error.
 
-        E.g.
-        sr=parse_static_routes("32,169,254,169,254,130,56,248,255,0,130,56,240,1")
+        e.g.:
+
+        sr=parse_static_routes(\
+        "32,169,254,169,254,130,56,248,255,0,130,56,240,1")
         sr=[
-            ("169.254.169.254/32", "130.56.248.255"), ("0.0.0.0/0", "130.56.240.1")
+            ("169.254.169.254/32", "130.56.248.255"), \
+        ("0.0.0.0/0", "130.56.240.1")
         ]
 
-        sr2 = parse_static_routes("24.191.168.128 192.168.128.1,0 192.168.128.1")
+        sr2 = parse_static_routes(\
+        "24.191.168.128 192.168.128.1,0 192.168.128.1")
         sr2 = [
-            ("191.168.128.0/24", "192.168.128.1"), ("0.0.0.0/0", "192.168.128.1")
+            ("191.168.128.0/24", "192.168.128.1"),\
+        ("0.0.0.0/0", "192.168.128.1")
         ]
 
         Python version of isc-dhclient's hooks:
@@ -391,7 +403,9 @@ class IscDhclient(DhcpClient):
                 if len(tokens[idx:]) < req_toks:
                     _trunc_error(net_length, req_toks, len(tokens[idx:]))
                     return static_routes
-                net_address = ".".join(tokens[idx + 1 : idx + 2] + ["0", "0", "0"])
+                net_address = ".".join(
+                    tokens[idx + 1 : idx + 2] + ["0", "0", "0"]
+                )
                 gateway = ".".join(tokens[idx + 2 : idx + req_toks])
                 current_idx = idx + req_toks
             elif net_length == 0:
@@ -410,7 +424,9 @@ class IscDhclient(DhcpClient):
                 )
                 return static_routes
 
-            static_routes.append(("%s/%s" % (net_address, net_length), gateway))
+            static_routes.append(
+                ("%s/%s" % (net_address, net_length), gateway)
+            )
 
         return static_routes
 

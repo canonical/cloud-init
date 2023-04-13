@@ -149,5 +149,3 @@ if __name__ == "__main__":
 
     print(util.json_dumps(sysinfo))
     print(util.json_dumps(config))
-
-# vi: ts=4 expandtab

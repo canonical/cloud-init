@@ -4,8 +4,8 @@ from unittest import mock
 
 import pytest
 
-from tests.unittests.util import MockDistro
 from cloudinit.net.ephemeral import EphemeralIPNetwork
+from tests.unittests.util import MockDistro
 
 M_PATH = "cloudinit.net.ephemeral."
 
@@ -33,7 +33,9 @@ class TestEphemeralIPNetwork:
             expected_call_args_list.append(
                 mock.call(m_ephemeral_dhcp_v4.return_value)
             )
-            assert [mock.call(distro, interface)] == m_ephemeral_dhcp_v4.call_args_list
+            assert [
+                mock.call(distro, interface)
+            ] == m_ephemeral_dhcp_v4.call_args_list
         else:
             assert [] == m_ephemeral_dhcp_v4.call_args_list
         if ipv6:

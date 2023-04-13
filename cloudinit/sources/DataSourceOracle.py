@@ -410,5 +410,3 @@ if __name__ == "__main__":
             }
         )
     )
-
-# vi: ts=4 expandtab

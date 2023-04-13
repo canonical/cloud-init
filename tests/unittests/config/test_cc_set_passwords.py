@@ -21,9 +21,11 @@ SYSTEMD_CHECK_CALL = mock.call(
     ["systemctl", "show", "--property", "ActiveState", "--value", "ssh"]
 )
 SYSTEMD_RESTART_CALL = mock.call(
-    ["systemctl", "restart", "ssh"], capture=True, rcs=None)
+    ["systemctl", "restart", "ssh"], capture=True, rcs=None
+)
 SERVICE_RESTART_CALL = mock.call(
-    ["service", "ssh", "restart"], capture=True, rcs=None)
+    ["service", "ssh", "restart"], capture=True, rcs=None
+)
 
 
 @pytest.fixture(autouse=True)
@@ -80,7 +82,6 @@ class TestHandleSSHPwauth:
                 assert SYSTEMD_RESTART_CALL in m_subp.call_args_list
             else:
                 assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
-
 
     @mock.patch(f"{MODPATH}update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
@@ -726,6 +727,3 @@ class TestSetPasswordsSchema:
     def test_schema_validation(self, config, expectation):
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

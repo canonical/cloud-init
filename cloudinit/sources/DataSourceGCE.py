@@ -354,5 +354,3 @@ if __name__ == "__main__":
             data["user-data-b64"] = b64encode(data["user-data"]).decode()
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

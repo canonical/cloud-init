@@ -9,7 +9,7 @@ import logging
 import os
 import re
 
-from cloudinit import subp, util, net
+from cloudinit import net, subp, util
 from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 
 logger = logging.getLogger(__name__)
@@ -277,6 +277,3 @@ class NicConfigurator:
         util.write_file(interfaceFile, content="\n".join(lines))
 
         self.clear_dhcp()
-
-
-# vi: ts=4 expandtab
