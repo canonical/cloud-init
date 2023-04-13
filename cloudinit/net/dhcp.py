@@ -57,12 +57,12 @@ def select_dhcp_client(distro):
     for client in distro.dhcp_client_priority:
         try:
             dhcp_client = client()
-            LOG.debug("Selected dhcp client: %s.", client.client_name)
+            LOG.debug("DHCP client selected: %s", client.client_name)
+            return dhcp_client
         except NoDHCPLeaseMissingDhclientError:
-            LOG.debug("Dhcp client [%s] not found.", client.client_name)
+            LOG.warning("DHCP client not found: %s", client.client_name)
     else:
         raise NoDHCPLeaseMissingDhclientError()
-    return dhcp_client
 
 
 def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
@@ -90,7 +90,7 @@ def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
         raise NoDHCPLeaseInterfaceError()
     client = select_dhcp_client(distro)
     return client.dhcp_discovery(
-        dhclient_path, nic, dhcp_log_func, distro
+        nic, dhcp_log_func, distro
     )
 
 

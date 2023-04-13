@@ -366,7 +366,33 @@ class TestDHCPDiscoveryClean(CiTestCase):
             maybe_perform_dhcp_discovery(MockDistro())
 
         self.assertIn(
-            "Dhcp client [dhcpcd] not found.",
+            "DHCP client selected: dhclient",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value="eth9")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhcp_client_failover(
+        self, m_which, m_subp, m_remove, m_fallback
+    ):
+        """Log and do nothing when nic is absent and no fallback is found."""
+        m_subp.side_effect = [
+            ("", ""),
+            subp.ProcessExecutionError(exit_code=-5),
+        ]
+
+        m_which.side_effect = [False, True]
+        with pytest.raises(NoDHCPLeaseError):
+            maybe_perform_dhcp_discovery(MockDistro())
+
+        self.assertIn(
+            "DHCP client not found: dhclient",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "DHCP client not found: dhcpcd",
             self.logs.getvalue(),
         )
 
