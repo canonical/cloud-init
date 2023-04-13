@@ -7,7 +7,7 @@
 
 import cloudinit.sources.helpers.vultr as vultr
 from cloudinit import log as log
-from cloudinit import sources, util, version
+from cloudinit import sources, stages, util, version
 
 LOG = log.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
@@ -137,7 +137,16 @@ if __name__ == "__main__":
         print("Machine is not a Vultr instance")
         sys.exit(1)
 
+    # It should probably be safe to try to detect distro via stages.Init(),
+    # which will fall back to Ubuntu if no distro config is found.
+    # this distro object is only used for dhcp fallback. Feedback from user(s)
+    # of __main__ would help determine if a better approach exists.
+    #
+    # we don't needReportEventStack, so reporter=True
+    distro = stages.Init(reporter=True).distro
+
     md = vultr.get_metadata(
+        distro,
         BUILTIN_DS_CONFIG["url"],
         BUILTIN_DS_CONFIG["timeout"],
         BUILTIN_DS_CONFIG["retries"],

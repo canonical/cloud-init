@@ -61,8 +61,7 @@ def select_dhcp_client(distro):
             return dhcp_client
         except NoDHCPLeaseMissingDhclientError:
             LOG.warning("DHCP client not found: %s", client.client_name)
-    else:
-        raise NoDHCPLeaseMissingDhclientError()
+    raise NoDHCPLeaseMissingDhclientError()
 
 
 def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
@@ -144,7 +143,7 @@ class DhcpClient(abc.ABC):
         cls.kill_dhcp_client()
         files = glob.glob("/var/lib/dhcp/*")
         for file in files:
-            os.remove(files)
+            os.remove(file)
 
     @classmethod
     def start_service(cls, dhcp_interface: str, distro):

@@ -245,7 +245,7 @@ class NicConfigurator:
 
     def clear_dhcp(self):
         logger.info("Clearing DHCP leases")
-        net.dhcp.clear_leases()
+        net.dhcp.IscDhclient.clear_leases()
 
     def configure(self, osfamily=None):
         """
