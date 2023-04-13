@@ -32,7 +32,7 @@ from cloudinit import (
 from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net import activators, eni, network_state, renderers, dhcp
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -110,12 +110,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
+        self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""

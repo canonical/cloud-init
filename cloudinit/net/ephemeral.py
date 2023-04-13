@@ -11,7 +11,7 @@ from cloudinit import subp
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
-    parse_static_routes,
+    IscDhclient,
 )
 
 LOG = logging.getLogger(__name__)
@@ -380,7 +380,7 @@ class EphemeralDHCPv4:
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
+            kwargs["static_routes"] = IscDhclient.parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:

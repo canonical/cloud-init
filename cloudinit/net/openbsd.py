@@ -43,7 +43,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     ["dhcpleasectl", "-w", "30", interface], capture=True
                 )
         else:
-            net.dhcp.kill_dhcp_client()
+            net.dhcp.IscDhclient.kill_dhcp_client()
             subp.subp(["route", "del", "default"], capture=True, rcs=[0, 1])
             subp.subp(["route", "flush", "default"], capture=True, rcs=[0, 1])
             subp.subp(["sh", "/etc/netstart"], capture=True)
