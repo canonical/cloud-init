@@ -131,6 +131,7 @@ class DataSourceEc2(sources.DataSource):
                 return False
             try:
                 with EphemeralIPNetwork(
+                    self.distro,
                     self.fallback_interface,
                     ipv4=True,
                     ipv6=True,

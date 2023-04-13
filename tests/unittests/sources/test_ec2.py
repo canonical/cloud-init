@@ -879,7 +879,7 @@ class TestEc2(test_helpers.ResponsesTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with("eth9", None)
+        m_dhcp.assert_called_once_with(ds.distro, "eth9", None)
         m_net4.assert_called_once_with(
             broadcast="192.168.2.255",
             interface="eth9",

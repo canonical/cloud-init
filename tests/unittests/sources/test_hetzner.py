@@ -110,6 +110,7 @@ class TestDataSourceHetzner(CiTestCase):
         self.assertTrue(ret)
 
         m_net.assert_called_once_with(
+            ds.distro,
             iface="eth0",
             connectivity_url_data={
                 "url": "http://169.254.169.254/hetzner/v1/metadata/instance-id"

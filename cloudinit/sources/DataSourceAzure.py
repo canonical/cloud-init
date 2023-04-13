@@ -387,6 +387,7 @@ class DataSourceAzure(sources.DataSource):
 
         LOG.debug("Requested ephemeral networking (iface=%s)", iface)
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+            self.distro,
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
         )

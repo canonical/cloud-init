@@ -84,6 +84,7 @@ class DataSourceGCE(sources.DataSource):
         network_context = noop()
         if self.perform_dhcp_setup:
             network_context = EphemeralDHCPv4(
+                self.distro,
                 self.fallback_interface,
             )
         with network_context:

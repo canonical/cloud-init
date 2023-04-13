@@ -88,6 +88,7 @@ class DataSourceVultr(sources.DataSource):
     # Get the metadata by flag
     def get_metadata(self):
         return vultr.get_metadata(
+            self.distro,
             self.ds_cfg["url"],
             self.ds_cfg["timeout"],
             self.ds_cfg["retries"],

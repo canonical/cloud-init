@@ -175,7 +175,7 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4()
+        eph = EphemeralDHCPv4(MockDistro(),)
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -206,7 +206,7 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4()
+        eph = EphemeralDHCPv4(MockDistro(),)
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -801,6 +801,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
 
         self.responses.add(responses.GET, url)
         with EphemeralDHCPv4(
+            MockDistro(),
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertIsNone(lease)
@@ -824,6 +825,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
 
         self.responses.add(responses.GET, url, body=b"", status=404)
         with EphemeralDHCPv4(
+            MockDistro(),
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertEqual(fake_lease, lease)
@@ -845,7 +847,7 @@ class TestEphemeralDhcpLeaseErrors:
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4(MockDistro(),).obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
@@ -853,7 +855,7 @@ class TestEphemeralDhcpLeaseErrors:
     def test_obtain_lease_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4(MockDistro(),).obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
@@ -862,7 +864,7 @@ class TestEphemeralDhcpLeaseErrors:
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            with EphemeralDHCPv4():
+            with EphemeralDHCPv4(MockDistro(),):
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
@@ -871,7 +873,7 @@ class TestEphemeralDhcpLeaseErrors:
     def test_ctx_mgr_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            with EphemeralDHCPv4():
+            with EphemeralDHCPv4(MockDistro(),):
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
