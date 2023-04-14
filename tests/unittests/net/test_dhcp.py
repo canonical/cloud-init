@@ -12,6 +12,7 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
+    dhcp_udhcpc_discovery,
     dhcp_discovery,
     maybe_perform_dhcp_discovery,
     networkd_load_leases,
@@ -333,6 +334,43 @@ class TestDHCPParseStaticRoutes(CiTestCase):
         )
 
 
+class TestUDHCPCDiscoveryClean(CiTestCase):
+    maxDiff = None
+
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.load_json")
+    @mock.patch("cloudinit.util.load_file")
+    @mock.patch("cloudinit.util.write_file")
+    def test_udhcpc_discovery(
+        self, m_write_file, m_load_file, m_loadjson, m_subp, m_remove
+    ):
+        """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
+        m_subp.return_value = ("", "")
+        m_loadjson.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
+        }
+        self.assertEqual(
+            [
+                {
+                    "fixed-address": "192.168.2.74",
+                    "interface": "eth9",
+                    "routers": "192.168.2.1",
+                    "static_routes": [
+                        ("10.240.0.1/32", "0.0.0.0"),
+                        ("0.0.0.0/0", "10.240.0.1"),
+                    ],
+                    "subnet-mask": "255.255.255.0",
+                }
+            ],
+            dhcp_udhcpc_discovery("/sbin/udhcpc", "eth9"),
+        )
+
+
 class TestDHCPDiscoveryClean(CiTestCase):
     with_logs = True
     ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
@@ -393,7 +431,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             maybe_perform_dhcp_discovery()
 
         self.assertIn(
-            "Skip dhclient configuration: No dhclient command found.",
+            "Skip dhclient configuration: No dhclient or udhcpc command found.",
             self.logs.getvalue(),
         )
 

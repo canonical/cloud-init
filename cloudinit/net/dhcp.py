@@ -25,6 +25,42 @@ from cloudinit.net import (
 LOG = logging.getLogger(__name__)
 
 NETWORKD_LEASES_DIR = "/run/systemd/netif/leases"
+UDHCPC_SCRIPT = """#!/bin/sh
+log() {
+    echo "udhcpc[$PPID]" "$interface: $2"
+}
+
+[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
+
+case $1 in
+    bound|renew)
+    cat <<JSON > "$LEASE_FILE"
+{
+    "interface": "$interface",
+    "fixed-address": "$ip",
+    "subnet-mask": "$subnet",
+    "routers": "${router%% *}",
+    "static_routes" : "${staticroutes}"
+}
+JSON
+    ;;
+
+    deconfig)
+    log err "Not supported"
+    exit 1
+    ;;
+
+    leasefail | nak)
+    log err "configuration failed: $1: $message"
+    exit 1
+    ;;
+
+    *)
+    echo "$0: Unknown udhcpc command: $1" >&2
+    exit 1
+    ;;
+esac
+"""
 
 
 class NoDHCPLeaseError(Exception):
@@ -48,12 +84,14 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
 
 
 def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
-    """Perform dhcp discovery if nic valid and dhclient command exists.
+    """Perform dhcp discovery if nic valid and dhclient or udhcpc command
+        exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
     skip dhcp_discovery and return an empty dict.
 
-    @param nic: Name of the network interface we want to run dhclient on.
+    @param nic: Name of the network interface we want to run the dhcp client
+        on.
     @param dhcp_log_func: A callable accepting the dhclient output and error
         streams.
     @return: A list of dicts representing dhcp options for each lease obtained
@@ -71,10 +109,15 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
         )
         raise NoDHCPLeaseInterfaceError()
     dhclient_path = subp.which("dhclient")
-    if not dhclient_path:
-        LOG.debug("Skip dhclient configuration: No dhclient command found.")
-        raise NoDHCPLeaseMissingDhclientError()
-    return dhcp_discovery(dhclient_path, nic, dhcp_log_func)
+    if dhclient_path:
+        return dhcp_discovery(dhclient_path, nic, dhcp_log_func)
+    udhcpc_path = subp.which("udhcpc")
+    if udhcpc_path:
+        return dhcp_udhcpc_discovery(udhcpc_path, nic, dhcp_log_func)
+    LOG.debug(
+        "Skip dhclient configuration: No dhclient or udhcpc command found."
+    )
+    raise NoDHCPLeaseMissingDhclientError()
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -109,6 +152,61 @@ def parse_dhcp_lease_file(lease_file):
             )
         )
     return dhcp_leases
+
+
+def dhcp_udhcpc_discovery(udhcpc_cmd_path, interface, dhcp_log_func=None):
+    """Run udhcpc on the interface without scripts or filesystem artifacts.
+
+    @param udhcpc_cmd_path: Full path to the udhcpc used.
+    @param interface: Name of the network interface on which to dhclient.
+    @param dhcp_log_func: A callable accepting the dhclient output and error
+        streams.
+
+    @return: A list of dicts of representing the dhcp leases parsed from the
+        dhclient.lease file or empty list.
+    """
+    LOG.debug("Performing a dhcp discovery on %s", interface)
+
+    tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+    lease_file = os.path.join(tmp_dir, interface + ".lease.json")
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(lease_file)
+
+    # udhcpc needs the interface up to send initial discovery packets.
+    # Generally dhclient relies on dhclient-script PREINIT action to bring the
+    # link up before attempting discovery. Since we are using -sf /bin/true,
+    # we need to do that "link up" ourselves first.
+    subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
+    udhcpc_script = os.path.join(tmp_dir, "udhcpc_script")
+    util.write_file(udhcpc_script, UDHCPC_SCRIPT, 0o755)
+    cmd = [
+        udhcpc_cmd_path,
+        "-O",
+        "staticroutes",
+        "-i",
+        interface,
+        "-s",
+        udhcpc_script,
+        "-n",  # Exit if lease is not obtained
+        "-q",  # Exit after obtaining lease
+        "-f",  # Run in foreground
+        "-v",
+    ]
+
+    out, err = subp.subp(
+        cmd, update_env={"LEASE_FILE": lease_file}, capture=True
+    )
+
+    if dhcp_log_func is not None:
+        dhcp_log_func(out, err)
+    lease_json = util.load_json(util.load_file(lease_file))
+    static_routes = lease_json["static_routes"].split()
+    if static_routes:
+        # format: dest1/mask gw1 ... destn/mask gwn
+        lease_json["static_routes"] = [
+            i for i in zip(static_routes[::2], static_routes[1::2])
+        ]
+    return [lease_json]
 
 
 def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
