@@ -358,7 +358,9 @@ class TestUsersGroupsSchema:
             ({"users": "oldstyle,default"}, does_not_raise(), None),
             ({"users": ["default"]}, does_not_raise(), None),
             ({"users": ["default", ["aaa", "bbb"]]}, does_not_raise(), None),
-            # no default user creation
+            # no user creation at all
+            ({"users": []}, does_not_raise(), None),
+            # different default user creation
             ({"users": ["foobar"]}, does_not_raise(), None),
             (
                 {"users": [{"name": "bbsw", "lock-passwd": True}]},
