@@ -18,6 +18,7 @@ from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import CiTestCase, ResponsesTestCase
+from tests.unittests.util import MockDistro
 
 
 class TestSysDevPath(CiTestCase):
@@ -769,7 +770,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             params = copy.deepcopy(required_params)
             params[key] = None
             with self.assertRaises(ValueError) as context_manager:
-                EphemeralIPv4Network(**params)
+                EphemeralIPv4Network(MockDistro(), **params)
             error = context_manager.exception
             self.assertIn("Cannot init network on", str(error))
             self.assertEqual(0, m_subp.call_count)
@@ -785,7 +786,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         for error_val in invalid_masks:
             params["prefix_or_mask"] = error_val
             with self.assertRaises(ValueError) as context_manager:
-                with EphemeralIPv4Network(**params):
+                with EphemeralIPv4Network(MockDistro(), **params):
                     pass
             error = context_manager.exception
             self.assertIn(
@@ -809,12 +810,10 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
                 update_env={"LANG": "C"},
             ),
             mock.call(
                 ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
-                capture=True,
             ),
         ]
         expected_teardown_calls = [
@@ -829,7 +828,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "eth0",
                     "down",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -842,7 +840,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
         ]
         params = {
@@ -851,7 +848,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
         }
-        with EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(MockDistro(), **params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
@@ -864,13 +861,14 @@ class TestEphemeralIPV4Network(CiTestCase):
         """
 
         def side_effect(args, **kwargs):
-            if args[3] == "append" and args[4] == "3.3.3.3/32":
+            if "append" in args and "3.3.3.3/32" in args:
                 raise subp.ProcessExecutionError("oh no!")
 
         m_subp.side_effect = side_effect
 
         with pytest.raises(subp.ProcessExecutionError):
             with EphemeralIPv4Network(
+                MockDistro(),
                 interface="eth0",
                 ip="1.1.1.1",
                 prefix_or_mask="255.255.255.0",
@@ -895,7 +893,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -908,7 +905,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "eth0",
                     "down",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -921,7 +917,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
         ]
         for teardown in expected_teardown_calls:
@@ -941,7 +936,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "connectivity_url_data": {"url": "http://example.org/index.html"},
         }
 
-        with EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(MockDistro(), **params):
             self.assertEqual(
                 [mock.call(url="http://example.org/index.html", timeout=5)],
                 m_readurl.call_args_list,
@@ -977,11 +972,10 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
                 update_env={"LANG": "C"},
             )
         ]
-        with EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(MockDistro(), **params):
             pass
         self.assertEqual(expected_calls, m_subp.call_args_list)
         self.assertIn(
@@ -999,7 +993,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         }
         for prefix_val in ["24", 16]:  # prefix can be int or string
             params["prefix_or_mask"] = prefix_val
-            with EphemeralIPv4Network(**params):
+            with EphemeralIPv4Network(MockDistro(), **params):
                 pass
         m_subp.assert_has_calls(
             [
@@ -1016,7 +1010,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                         "dev",
                         "eth0",
                     ],
-                    capture=True,
                     update_env={"LANG": "C"},
                 )
             ]
@@ -1036,7 +1029,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                         "dev",
                         "eth0",
                     ],
-                    capture=True,
                     update_env={"LANG": "C"},
                 )
             ]
@@ -1051,7 +1043,8 @@ class TestEphemeralIPV4Network(CiTestCase):
             "broadcast": "192.168.2.255",
             "router": "192.168.2.1",
         }
-        m_subp.return_value = "", ""  # Empty response from ip route gw check
+        # Empty response from ip route gw check
+        m_subp.return_value = subp.SubpResult("", "")
         expected_setup_calls = [
             mock.call(
                 [
@@ -1066,14 +1059,12 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
                 update_env={"LANG": "C"},
             ),
             mock.call(
                 ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
-                capture=True,
             ),
-            mock.call(["ip", "route", "show", "0.0.0.0/0"], capture=True),
+            mock.call(["ip", "route", "show", "0.0.0.0/0"]),
             mock.call(
                 [
                     "ip",
@@ -1086,7 +1077,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "src",
                     "192.168.2.2",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1100,13 +1090,11 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
         ]
         expected_teardown_calls = [
             mock.call(
                 ["ip", "-4", "route", "del", "default", "dev", "eth0"],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1120,11 +1108,10 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "src",
                     "192.168.2.2",
                 ],
-                capture=True,
             ),
         ]
 
-        with EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(MockDistro(), **params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
@@ -1155,12 +1142,10 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
                 update_env={"LANG": "C"},
             ),
             mock.call(
                 ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1172,7 +1157,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1186,7 +1170,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1200,7 +1183,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
         ]
         expected_teardown_calls = [
@@ -1216,7 +1198,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1230,11 +1211,9 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
             mock.call(
                 ["ip", "-4", "route", "del", "192.168.2.1/32", "dev", "eth0"],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1247,7 +1226,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "eth0",
                     "down",
                 ],
-                capture=True,
             ),
             mock.call(
                 [
@@ -1260,10 +1238,9 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                capture=True,
             ),
         ]
-        with EphemeralIPv4Network(**params):
+        with EphemeralIPv4Network(MockDistro(), **params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
 
@@ -1276,10 +1253,9 @@ class TestEphemeralIPV6Network:
         expected_setup_calls = [
             mock.call(
                 ["ip", "link", "set", "dev", "eth0", "up"],
-                capture=False,
             ),
         ]
-        with EphemeralIPv6Network(interface="eth0"):
+        with EphemeralIPv6Network(MockDistro(), interface="eth0"):
             assert expected_setup_calls == m_subp.call_args_list
 
 

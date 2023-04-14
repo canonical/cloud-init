@@ -3072,6 +3072,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertTrue(len(dsa._poll_imds()) > 0)
         self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
+            dsa.distro,
             broadcast="192.168.2.255",
             interface="eth9",
             ip="192.168.2.9",
@@ -3106,6 +3107,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
         self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
+            dsa.distro,
             broadcast="192.168.2.255",
             interface="eth9",
             ip="192.168.2.9",
