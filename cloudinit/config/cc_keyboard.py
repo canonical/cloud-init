@@ -10,6 +10,8 @@ from textwrap import dedent
 
 from cloudinit import distros
 from cloudinit import log as logging
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -48,6 +50,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["keyboard"],
 }
 
 
@@ -56,7 +59,7 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "keyboard" not in cfg:
         LOG.debug(
             "Skipping module named %s, no 'keyboard' section found", name

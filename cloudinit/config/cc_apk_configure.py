@@ -10,6 +10,8 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import temp_utils, templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -100,12 +102,13 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": ["apk_repos"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle apk_repos sections in cloud-config file.
 

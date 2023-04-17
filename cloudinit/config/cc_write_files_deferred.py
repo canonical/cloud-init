@@ -4,7 +4,11 @@
 
 """Write Files Deferred: Defer writing certain files"""
 
+import logging
+
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.cc_write_files import DEFAULT_DEFER, write_files
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
@@ -27,13 +31,15 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [],
+    "activate_by_schema_keys": ["write_files"],
 }
 
 # This module is undocumented in our schema docs
 __doc__ = ""
+LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -41,10 +47,10 @@ def handle(name, cfg, _cloud, log, _args):
         if util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no deferred file defined in configuration",
             name,
         )
         return
-    write_files(name, filtered_files)
+    write_files(name, filtered_files, cloud.distro.default_owner)

@@ -7,9 +7,10 @@ See https://github.com/canonical/cloud-init/pull/800
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.integration_settings import PLATFORM
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
 @pytest.mark.parametrize(
     "instance_type,is_ephemeral",
     [

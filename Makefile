@@ -3,12 +3,13 @@ CWD=$(shell pwd)
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
-PYTHON = python3
-PIP_INSTALL := pip3 install
+PYTHON ?= python3
 
 ifeq ($(distro),)
   distro = redhat
 endif
+NUM_ITER ?= 100
+
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 GENERATOR_F=./systemd/cloud-init-generator
@@ -26,7 +27,7 @@ flake8:
 	@$(CWD)/tools/run-flake8
 
 unittest: clean_pyc
-	python3 -m pytest -v tests/unittests cloudinit
+	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
 ci-deps-ubuntu:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
@@ -109,6 +110,12 @@ deb-src:
 doc:
 	tox -e doc
 
+fmt:
+	tox -e do_format && tox -e check_format
+
+fmt-tip:
+	tox -e do_format_tip && tox -e check_format_tip
+
 # Spell check && filter false positives
 _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
        grep -v -e 'doc/rtd/topics/cli.rst: modules modules' \
@@ -149,6 +156,6 @@ fix_spelling:
 		sh
 
 .PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
-.PHONY: check_version pip-test-requirements pip-requirements clean_pyc
+.PHONY: check_version clean_pyc
 .PHONY: unittest style-check fix_spelling render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging check_spelling clean_release doc

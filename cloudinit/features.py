@@ -49,6 +49,37 @@ mirrors via :py:mod:`apt: <cloudinit.config.cc_apt_configure>`
 directives in cloud-config.
 """
 
+
+EXPIRE_APPLIES_TO_HASHED_USERS = True
+"""
+If ``EXPIRE_APPLIES_TO_HASHED_USERS`` is True, then when expire is set true
+in cc_set_passwords, hashed passwords will be expired. Previous to 22.3,
+only non-hashed passwords were expired.
+
+(This flag can be removed after Jammy is no longer supported.)
+"""
+
+NETPLAN_CONFIG_ROOT_READ_ONLY = True
+"""
+If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
+be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
+This prevents wifi passwords in network v2 configuration from being
+world-readable. Prior to 23.1, netplan configuration is world-readable.
+
+(This flag can be removed after Jammy is no longer supported.)
+"""
+
+
+NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH = True
+"""
+Append a forward slash '/' if NoCloud seedurl does not end with either
+a querystring or forward slash. Prior to 23.1, nocloud seedurl would be used
+unaltered, appending meta-data, user-data and vendor-data to without URL path
+separators.
+
+(This flag can be removed when Jammy is no longer supported.)
+"""
+
 try:
     # pylint: disable=wildcard-import
     from cloudinit.feature_overrides import *  # noqa

@@ -5,24 +5,33 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 
 
 class TestScriptsVendorSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         (
-            ({"vendor_data": {"enabled": True}}, None),
-            ({"vendor_data": {"enabled": "yes"}}, None),
+            ({"vendor_data": {"enabled": True}}, does_not_raise()),
+            ({"vendor_data": {"enabled": False}}, does_not_raise()),
+            (
+                {"vendor_data": {"enabled": "yes"}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "Cloud config schema deprecations: "
+                        "vendor_data.enabled:  Deprecated in version "
+                        "22.3. Use of type string for this value is "
+                        "deprecated. Use a boolean instead."
+                    ),
+                ),
+            ),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(self, config, expectation):
         """Assert expected schema validation and error messages."""
         # New-style schema $defs exist in config/cloud-init-schema*.json
         schema = get_schema()
-        if error_msg is None:
+        with expectation:
             validate_cloudconfig_schema(config, schema, strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, schema, strict=True)

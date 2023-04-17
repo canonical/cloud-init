@@ -14,6 +14,8 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -60,6 +62,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": ["rsyslog"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -103,9 +106,9 @@ def load_config(cfg: dict) -> dict:
     mycfg = cfg.get("rsyslog", {})
 
     if isinstance(cfg.get("rsyslog"), list):
-        LOG.warning(
-            "DEPRECATION: This rsyslog list format is deprecated and will be "
-            "removed in a future version of cloud-init. Use documented keys."
+        util.deprecate(
+            deprecated="The rsyslog key with value of type 'list'",
+            deprecated_version="22.2",
         )
         mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
         if KEYNAME_LEGACY_FILENAME in cfg:
@@ -212,7 +215,7 @@ def parse_remotes_line(line, name=None):
     return t
 
 
-class SyslogRemotesLine(object):
+class SyslogRemotesLine:
     def __init__(
         self, name=None, match=None, proto=None, addr=None, port=None
     ):
@@ -293,9 +296,9 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     return "\n".join(lines) + "\n"
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "rsyslog" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'rsyslog' key in configuration", name
         )
         return
@@ -313,7 +316,7 @@ def handle(name, cfg, cloud, log, _args):
         )
 
     if not mycfg["configs"]:
-        log.debug("Empty config rsyslog['configs'], nothing to do")
+        LOG.debug("Empty config rsyslog['configs'], nothing to do")
         return
 
     changes = apply_rsyslog_changes(
@@ -323,14 +326,14 @@ def handle(name, cfg, cloud, log, _args):
     )
 
     if not changes:
-        log.debug("restart of syslog not necessary, no changes made")
+        LOG.debug("restart of syslog not necessary, no changes made")
         return
 
     try:
         restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
     except subp.ProcessExecutionError as e:
         restarted = False
-        log.warning("Failed to reload syslog", e)
+        LOG.warning("Failed to reload syslog %s", str(e))
 
     if restarted:
         # This only needs to run if we *actually* restarted
@@ -338,7 +341,7 @@ def handle(name, cfg, cloud, log, _args):
         cloud.cycle_logging()
         # This should now use rsyslog if
         # the logging was setup to use it...
-        log.debug("%s configured %s files", name, changes)
+        LOG.debug("%s configured %s files", name, changes)
 
 
 # vi: ts=4 expandtab syntax=python

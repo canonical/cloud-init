@@ -12,9 +12,11 @@ import abc
 import copy
 import json
 import os
+import pickle
+import re
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from cloudinit import dmi, importer
 from cloudinit import log as logging
@@ -25,6 +27,7 @@ from cloudinit.atomic_helper import write_json
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
+from cloudinit.helpers import Paths
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
@@ -45,11 +48,6 @@ EXPERIMENTAL_TEXT = (
 )
 
 
-# File in which public available instance meta-data is written
-# security-sensitive key values are redacted from this world-readable file
-INSTANCE_JSON_FILE = "instance-data.json"
-# security-sensitive key values are present in this root-readable file
-INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 
 # Key which can be provide a cloud's official product name to cloud-init
@@ -158,6 +156,11 @@ URLParams = namedtuple(
     ],
 )
 
+DataSourceHostname = namedtuple(
+    "DataSourceHostname",
+    ["hostname", "is_default"],
+)
+
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
@@ -249,9 +252,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         "security-credentials",
     )
 
+    # True on datasources that may not see hotplugged devices reflected
+    # in the updated metadata
+    skip_hotplug_detect = False
+
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
+    def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -280,6 +287,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, "vendordata2_raw"):
             self.vendordata2_raw = None
+        if not hasattr(self, "skip_hotplug_detect"):
+            self.skip_hotplug_detect = False
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -299,9 +308,50 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def __str__(self):
         return type_utils.obj_name(self)
 
+    def ds_detect(self) -> bool:
+        """Check if running on this datasource"""
+        return True
+
+    def override_ds_detect(self) -> bool:
+        """Override if either:
+        - only a single datasource defined (nothing to fall back to)
+        - commandline argument is used (ci.ds=OpenStack)
+
+        Note: get_cmdline() is required for the general case - when ds-identify
+        does not run, _something_ needs to detect the kernel command line
+        definition.
+        """
+        if self.dsname.lower() == parse_cmdline().lower():
+            LOG.debug(
+                "Machine is configured by the kernel commandline to run on "
+                "single datasource %s.",
+                self,
+            )
+            return True
+        elif self.sys_cfg.get("datasource_list", []) in (
+            [self.dsname],
+            [self.dsname, "None"],
+        ):
+            LOG.debug(
+                "Machine is configured to run on single datasource %s.", self
+            )
+            return True
+        return False
+
+    def _check_and_get_data(self):
+        """Overrides runtime datasource detection"""
+        if self.override_ds_detect():
+            return self._get_data()
+        elif self.ds_detect():
+            LOG.debug("Machine is running on %s.", self)
+            return self._get_data()
+        else:
+            LOG.debug("Datasource type %s is not detected.", self)
+            return False
+
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
-        local_hostname = self.get_hostname()
+        local_hostname = self.get_hostname().hostname
         instance_id = self.get_instance_id()
         availability_zone = self.availability_zone
         # In the event of upgrade from existing cloudinit, pickled datasource
@@ -356,26 +406,31 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not attr_defaults:
             self._dirty_cache = False
 
-    def get_data(self):
+    def get_data(self) -> bool:
         """Datasources implement _get_data to setup metadata and userdata_raw.
 
         Minimally, the datasource should return a boolean True on success.
         """
         self._dirty_cache = True
-        return_value = self._get_data()
+        return_value = self._check_and_get_data()
         if not return_value:
             return return_value
         self.persist_instance_data()
         return return_value
 
-    def persist_instance_data(self):
+    def persist_instance_data(self, write_cache=True):
         """Process and write INSTANCE_JSON_FILE with all instance metadata.
 
         Replace any hyphens with underscores in key names for use in template
         processing.
 
+        :param write_cache: boolean set True to persist obj.pkl when
+            instance_link exists.
+
         @return True on successful write, False otherwise.
         """
+        if write_cache and os.path.lexists(self.paths.instance_link):
+            pkl_store(self, self.paths.get_ipath_cur("obj_pkl"))
         if hasattr(self, "_crawled_metadata"):
             # Any datasource with _crawled_metadata will best represent
             # most recent, 'raw' metadata
@@ -418,26 +473,27 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except UnicodeDecodeError as e:
             LOG.warning("Error persisting instance-data.json: %s", str(e))
             return False
-        json_sensitive_file = os.path.join(
-            self.paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-        )
+        json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
         cloud_id = instance_data["v1"].get("cloud_id", "none")
         cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
         util.write_file(f"{cloud_id_file}-{cloud_id}", f"{cloud_id}\n")
+        # cloud-id not found, then no previous cloud-id fle
+        prev_cloud_id_file = None
+        new_cloud_id_file = f"{cloud_id_file}-{cloud_id}"
+        # cloud-id found, then the prev cloud-id file is source of symlink
         if os.path.exists(cloud_id_file):
             prev_cloud_id_file = os.path.realpath(cloud_id_file)
-        else:
-            prev_cloud_id_file = cloud_id_file
-        util.sym_link(f"{cloud_id_file}-{cloud_id}", cloud_id_file, force=True)
-        if prev_cloud_id_file != cloud_id_file:
+
+        util.sym_link(new_cloud_id_file, cloud_id_file, force=True)
+        if prev_cloud_id_file and prev_cloud_id_file != new_cloud_id_file:
             util.del_file(prev_cloud_id_file)
         write_json(json_sensitive_file, processed_data, mode=0o600)
-        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
+        json_file = self.paths.get_runpath("instance_data")
         # World readable
         write_json(json_file, redact_sensitive_keys(processed_data))
         return True
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         """Walk metadata sources, process crawled data and save attributes."""
         raise NotImplementedError(
             "Subclasses of DataSource must implement _get_data which"
@@ -707,22 +763,33 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @param metadata_only: Boolean, set True to avoid looking up hostname
             if meta-data doesn't have local-hostname present.
 
-        @return: hostname or qualified hostname. Optionally return None when
+        @return: a DataSourceHostname namedtuple
+            <hostname or qualified hostname>, <is_default> (str, bool).
+            is_default is a bool and
+            it's true only if hostname is localhost and was
+            returned by util.get_hostname() as a default.
+            This is used to differentiate with a user-defined
+            localhost hostname.
+            Optionally return (None, False) when
             metadata_only is True and local-hostname data is not available.
         """
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
+        is_default = False
 
         if not self.metadata or not self.metadata.get("local-hostname"):
             if metadata_only:
-                return None
+                return DataSourceHostname(None, is_default)
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
             # but instead, basically look up the existing hostname
             toks = []
             hostname = util.get_hostname()
+            if hostname == "localhost":
+                # default hostname provided by socket.gethostname()
+                is_default = True
             hosts_fqdn = util.get_fqdn_from_hosts(hostname)
             if hosts_fqdn and hosts_fqdn.find(".") > 0:
                 toks = str(hosts_fqdn).split(".")
@@ -755,9 +822,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             hostname = toks[0]
 
         if fqdn and domain != defdomain:
-            return "%s.%s" % (hostname, domain)
-        else:
-            return hostname
+            hostname = "%s.%s" % (hostname, domain)
+
+        return DataSourceHostname(hostname, is_default)
 
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
@@ -842,10 +909,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     @property
     def network_config(self):
         return None
-
-    @property
-    def first_instance_boot(self):
-        return
 
     def setup(self, is_new_instance):
         """setup(is_new_instance)
@@ -935,11 +998,12 @@ def find_source(
     raise DataSourceNotFoundException(msg)
 
 
-# Return a list of classes that have the same depends as 'depends'
-# iterate through cfg_list, loading "DataSource*" modules
-# and calling their "get_datasource_list".
-# Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
+    """Return a list of classes that have the same depends as 'depends'
+    iterate through cfg_list, loading "DataSource*" modules
+    and calling their "get_datasource_list".
+    Return an ordered list of classes that match (if any)
+    """
     src_list = []
     LOG.debug(
         "Looking for data source in: %s,"
@@ -948,9 +1012,9 @@ def list_sources(cfg_list, depends, pkg_list):
         pkg_list,
         depends,
     )
-    for ds_name in cfg_list:
-        if not ds_name.startswith(DS_PREFIX):
-            ds_name = "%s%s" % (DS_PREFIX, ds_name)
+
+    for ds in cfg_list:
+        ds_name = importer.match_case_insensitive_module_name(ds)
         m_locs, _looked_locs = importer.find_module(
             ds_name, pkg_list, ["get_datasource_list"]
         )
@@ -970,7 +1034,9 @@ def list_sources(cfg_list, depends, pkg_list):
     return src_list
 
 
-def instance_id_matches_system_uuid(instance_id, field="system-uuid"):
+def instance_id_matches_system_uuid(
+    instance_id, field: str = "system-uuid"
+) -> bool:
     # quickly (local check only) if self.instance_id is still valid
     # we check kernel command line or files.
     if not instance_id:
@@ -1045,4 +1111,66 @@ def list_from_depends(depends, ds_list):
     return ret_list
 
 
-# vi: ts=4 expandtab
+def pkl_store(obj: DataSource, fname: str) -> bool:
+    """Use pickle to serialize Datasource to a file as a cache.
+
+    :return: True on success
+    """
+    try:
+        pk_contents = pickle.dumps(obj)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource %s", obj)
+        return False
+    try:
+        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource to %s", fname)
+        return False
+    return True
+
+
+def pkl_load(fname: str) -> Optional[DataSource]:
+    """Use pickle to deserialize a instance Datasource from a cache file."""
+    pickle_contents = None
+    try:
+        pickle_contents = util.load_file(fname, decode=False)
+    except Exception as e:
+        if os.path.isfile(fname):
+            LOG.warning("failed loading pickle in %s: %s", fname, e)
+
+    # This is allowed so just return nothing successfully loaded...
+    if not pickle_contents:
+        return None
+    try:
+        return pickle.loads(pickle_contents)
+    except DatasourceUnpickleUserDataError:
+        return None
+    except Exception:
+        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
+        return None
+
+
+def parse_cmdline() -> str:
+    """Check if command line argument for this datasource was passed
+    Passing by command line overrides runtime datasource detection
+    """
+    cmdline = util.get_cmdline()
+    ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds = ds_parse_0 or ds_parse_1 or ds_parse_2
+    deprecated = ds_parse_1 or ds_parse_2
+    if deprecated:
+        dsname = deprecated.group(1).strip()
+        util.deprecate(
+            deprecated=(
+                f"Defining the datasource on the commandline using "
+                f"ci.ds={dsname} or "
+                f"ci.datasource={dsname}"
+            ),
+            deprecated_version="23.2",
+            extra_message=f"Use ds={dsname} instead",
+        )
+    if ds and ds.group(1):
+        return ds.group(1)
+    return ""

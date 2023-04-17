@@ -18,6 +18,31 @@ class TestPackageUpdateUpgradeSchema:
             ({"packages": ["p1", ["p2", "p3", "p4"]]}, ""),
             # empty packages list
             ({"packages": []}, "is too short"),
+            (
+                {"apt_update": False},
+                (
+                    "Cloud config schema deprecations: apt_update: "
+                    "Default: ``false``. Deprecated in version 22.2. "
+                    "Use ``package_update`` instead."
+                ),
+            ),
+            (
+                {"apt_upgrade": False},
+                (
+                    "Cloud config schema deprecations: apt_upgrade: "
+                    "Default: ``false``. Deprecated in version 22.2. "
+                    "Use ``package_upgrade`` instead."
+                ),
+            ),
+            (
+                {"apt_reboot_if_required": False},
+                (
+                    "Cloud config schema deprecations: "
+                    "apt_reboot_if_required: Default: ``false``. "
+                    "Deprecated in version 22.2. Use "
+                    "``package_reboot_if_required`` instead."
+                ),
+            ),
         ],
     )
     @skipUnlessJsonSchema()

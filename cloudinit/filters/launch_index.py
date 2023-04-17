@@ -17,7 +17,7 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 
-class Filter(object):
+class Filter:
     def __init__(self, wanted_idx, allow_none=True):
         self.wanted_idx = wanted_idx
         self.allow_none = allow_none

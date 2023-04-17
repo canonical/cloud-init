@@ -8,10 +8,13 @@
 
 """Update Hostname: Update hostname and fqdn"""
 
+import logging
 import os
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -73,14 +76,16 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug(
+        LOG.debug(
             "Configuration option 'preserve_hostname' is set,"
             " not updating the hostname in module %s",
             name,
@@ -94,14 +99,19 @@ def handle(name, cfg, cloud, log, _args):
     if hostname_fqdn is not None:
         cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
 
-    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn, is_default) = util.get_hostname_fqdn(cfg, cloud)
+    if is_default and hostname == "localhost":
+        # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
+        LOG.debug("Hostname is localhost. Let other services handle this.")
+        return
+
     try:
         prev_fn = os.path.join(cloud.get_cpath("data"), "previous-hostname")
-        log.debug("Updating hostname to %s (%s)", fqdn, hostname)
+        LOG.debug("Updating hostname to %s (%s)", fqdn, hostname)
         cloud.distro.update_hostname(hostname, fqdn, prev_fn)
     except Exception:
         util.logexc(
-            log, "Failed to update the hostname to %s (%s)", fqdn, hostname
+            LOG, "Failed to update the hostname to %s (%s)", fqdn, hostname
         )
         raise
 

@@ -6,6 +6,7 @@ import pytest
 
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
+    NAME_TO_ACTIVATOR,
     IfUpDownActivator,
     NetplanActivator,
     NetworkdActivator,
@@ -79,23 +80,23 @@ def unavailable_mocks():
 
 
 class TestSearchAndSelect:
-    def test_defaults(self, available_mocks):
-        resp = search_activator()
-        assert resp == DEFAULT_PRIORITY
+    def test_empty_list(self, available_mocks):
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        assert resp == [NAME_TO_ACTIVATOR[name] for name in DEFAULT_PRIORITY]
 
         activator = select_activator()
-        assert activator == DEFAULT_PRIORITY[0]
+        assert activator == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[0]]
 
     def test_priority(self, available_mocks):
-        new_order = [NetplanActivator, NetworkManagerActivator]
-        resp = search_activator(priority=new_order)
-        assert resp == new_order
+        new_order = ["netplan", "network-manager"]
+        resp = search_activator(priority=new_order, target=None)
+        assert resp == [NAME_TO_ACTIVATOR[name] for name in new_order]
 
         activator = select_activator(priority=new_order)
-        assert activator == new_order[0]
+        assert activator == NAME_TO_ACTIVATOR[new_order[0]]
 
     def test_target(self, available_mocks):
-        search_activator(target="/tmp")
+        search_activator(priority=DEFAULT_PRIORITY, target="/tmp")
         assert "/tmp" == available_mocks.m_which.call_args[1]["target"]
 
         select_activator(target="/tmp")
@@ -106,20 +107,22 @@ class TestSearchAndSelect:
         return_value=False,
     )
     def test_first_not_available(self, m_available, available_mocks):
-        resp = search_activator()
-        assert resp == DEFAULT_PRIORITY[1:]
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        assert resp == [
+            NAME_TO_ACTIVATOR[activator] for activator in DEFAULT_PRIORITY[1:]
+        ]
 
         resp = select_activator()
-        assert resp == DEFAULT_PRIORITY[1]
+        assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[1]]
 
     def test_priority_not_exist(self, available_mocks):
         with pytest.raises(ValueError):
-            search_activator(priority=["spam", "eggs"])
+            search_activator(priority=["spam", "eggs"], target=None)
         with pytest.raises(ValueError):
             select_activator(priority=["spam", "eggs"])
 
     def test_none_available(self, unavailable_mocks):
-        resp = search_activator()
+        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
         assert resp == []
 
         with pytest.raises(NoActivatorException):
@@ -319,28 +322,3 @@ class TestActivatorsBringDown:
         activator.bring_down_interface("eth0")
         assert len(m_subp.call_args_list) == 1
         assert m_subp.call_args_list[0] == expected_call_list[0]
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_interfaces(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        activator.bring_down_interfaces(["eth0", "eth1"])
-        assert expected_call_list == m_subp.call_args_list
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_all_interfaces_v1(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        network_state = parse_net_config_data(load(V1_CONFIG))
-        activator.bring_down_all_interfaces(network_state)
-        for call in m_subp.call_args_list:
-            assert call in expected_call_list
-
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_all_interfaces_v2(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        network_state = parse_net_config_data(load(V2_CONFIG))
-        activator.bring_down_all_interfaces(network_state)
-        for call in m_subp.call_args_list:
-            assert call in expected_call_list

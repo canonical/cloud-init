@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 
-from cloudinit import distros, helpers, sources
+import copy
+from unittest import mock
+
+from cloudinit import distros, helpers, importer, sources
 from cloudinit.sources import DataSourceCloudSigma
 from cloudinit.sources.helpers.cloudsigma import Cepko
 from tests.unittests import helpers as test_helpers
@@ -10,7 +12,6 @@ from tests.unittests import helpers as test_helpers
 SERVER_CONTEXT = {
     "cpu": 1000,
     "cpus_instead_of_cores": False,
-    "global_context": {"some_global_key": "some_global_val"},
     "mem": 1073741824,
     "meta": {
         "ssh_public_key": "ssh-rsa AAAAB3NzaC1yc2E.../hQ5D5 john@doe",
@@ -44,7 +45,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         super(DataSourceCloudSigmaTest, self).setUp()
         self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.add_patch(
-            DS_PATH + ".is_running_in_cloudsigma",
+            DS_PATH + ".override_ds_detect",
             "m_is_container",
             return_value=True,
         )
@@ -58,12 +59,14 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
 
     def test_get_hostname(self):
         self.datasource.get_data()
-        self.assertEqual("test_server", self.datasource.get_hostname())
+        self.assertEqual(
+            "test_server", self.datasource.get_hostname().hostname
+        )
         self.datasource.metadata["name"] = ""
-        self.assertEqual("65b2fb23", self.datasource.get_hostname())
+        self.assertEqual("65b2fb23", self.datasource.get_hostname().hostname)
         utf8_hostname = b"\xd1\x82\xd0\xb5\xd1\x81\xd1\x82".decode("utf-8")
         self.datasource.metadata["name"] = utf8_hostname
-        self.assertEqual("65b2fb23", self.datasource.get_hostname())
+        self.assertEqual("65b2fb23", self.datasource.get_hostname().hostname)
 
     def test_get_public_ssh_keys(self):
         self.datasource.get_data()
@@ -97,6 +100,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_encoded_user_data(self):
+
         encoded_context = copy.deepcopy(SERVER_CONTEXT)
         encoded_context["meta"]["base64_fields"] = "cloudinit-user-data"
         encoded_context["meta"]["cloudinit-user-data"] = "aGkgd29ybGQK"
@@ -135,11 +139,15 @@ class DsLoads(test_helpers.TestCase):
         ds_list = DataSourceCloudSigma.get_datasource_list(deps)
         self.assertEqual(ds_list, [DataSourceCloudSigma.DataSourceCloudSigma])
 
+    @mock.patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
+            ["CloudSigma"],
+            (sources.DEP_FILESYSTEM,),
+            ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)
-
-
-# vi: ts=4 expandtab

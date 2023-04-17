@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import random
-import re
+import tempfile
 
 import pytest
 
@@ -75,7 +75,7 @@ class TestGetMbrHddSize(TestCase):
                 return hdd_size_in_bytes, None
             elif "--getss" in cmd:
                 return sector_size_in_bytes, None
-            raise Exception("Unexpected blockdev command called")
+            raise RuntimeError("Unexpected blockdev command called")
 
         self.subp.side_effect = _subp
 
@@ -103,7 +103,7 @@ class TestGetMbrHddSize(TestCase):
 class TestGetPartitionMbrLayout(TestCase):
     def test_single_partition_using_boolean(self):
         self.assertEqual(
-            "0,", cc_disk_setup.get_partition_mbr_layout(1000, True)
+            ",,83", cc_disk_setup.get_partition_mbr_layout(1000, True)
         )
 
     def test_single_partition_using_list(self):
@@ -201,6 +201,23 @@ class TestUpdateFsSetupDevices(TestCase):
         )
 
 
+class TestPurgeDisk(TestCase):
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.read_parttbl", return_value=None
+    )
+    def test_purge_disk_ptable(self, *args):
+        pseudo_device = tempfile.NamedTemporaryFile()
+
+        cc_disk_setup.purge_disk_ptable(pseudo_device.name)
+
+        with pseudo_device as f:
+            actual = f.read()
+
+        expected = b"\0" * (1024 * 1024)
+
+        self.assertEqual(expected, actual)
+
+
 @mock.patch(
     "cloudinit.config.cc_disk_setup.assert_and_settle_device",
     return_value=None,
@@ -212,7 +229,6 @@ class TestUpdateFsSetupDevices(TestCase):
 @mock.patch("cloudinit.config.cc_disk_setup.device_type", return_value=None)
 @mock.patch("cloudinit.config.cc_disk_setup.subp.subp", return_value=("", ""))
 class TestMkfsCommandHandling(CiTestCase):
-
     with_logs = True
 
     def test_with_cmd(self, subp, *args):
@@ -264,12 +280,12 @@ class TestMkfsCommandHandling(CiTestCase):
         subp.assert_called_once_with(
             [
                 "/sbin/mkfs.ext4",
-                "/dev/xdb1",
                 "-L",
                 "without_cmd",
                 "-F",
                 "are",
                 "added",
+                "/dev/xdb1",
             ],
             shell=False,
         )
@@ -293,7 +309,7 @@ class TestMkfsCommandHandling(CiTestCase):
             m_which.call_args_list,
         )
         subp.assert_called_once_with(
-            ["/sbin/mkswap", "/dev/xdb1", "-L", "swap", "-f"], shell=False
+            ["/sbin/mkswap", "-L", "swap", "-f", "/dev/xdb1"], shell=False
         )
 
 
@@ -312,13 +328,6 @@ class TestDebugSchema:
                 {"device_aliases": 1},
                 "device_aliases: 1 is not of type 'object'",
             ),
-            (
-                {"debug": {"boguskey": True}},
-                re.escape(
-                    "Additional properties are not allowed ('boguskey' was"
-                    " unexpected)"
-                ),
-            ),
         ),
     )
     @skipUnlessJsonSchema()
@@ -329,5 +338,25 @@ class TestDebugSchema:
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, schema, strict=True)
 
-
-# vi: ts=4 expandtab
+    @pytest.mark.parametrize(
+        "config",
+        (
+            (
+                {
+                    "disk_setup": {
+                        "/dev/disk/by-id/google-home": {
+                            "table_type": "gpt",
+                            "layout": [
+                                [100, "933AC7E1-2EB4-4F13-B844-0E14E2AEF915"]
+                            ],
+                        }
+                    }
+                }
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_valid_schema(self, config):
+        """Assert expected schema validation and no error messages."""
+        schema = get_schema()
+        validate_cloudconfig_schema(config, schema, strict=True)

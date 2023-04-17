@@ -6,11 +6,16 @@
 
 """Apt Pipelining: configure apt pipelining."""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
+
+LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
@@ -50,23 +55,24 @@ meta: MetaSchema = {
         "apt_pipelining: os",
         "apt_pipelining: 3",
     ],
+    "activate_by_schema_keys": ["apt_pipelining"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     apt_pipe_value = cfg.get("apt_pipelining", "os")
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 
     if apt_pipe_value_s == "false":
-        write_apt_snippet("0", log, DEFAULT_FILE)
+        write_apt_snippet("0", LOG, DEFAULT_FILE)
     elif apt_pipe_value_s in ("none", "unchanged", "os"):
         return
     elif apt_pipe_value_s in [str(b) for b in range(0, 6)]:
-        write_apt_snippet(apt_pipe_value_s, log, DEFAULT_FILE)
+        write_apt_snippet(apt_pipe_value_s, LOG, DEFAULT_FILE)
     else:
-        log.warning("Invalid option for apt_pipelining: %s", apt_pipe_value)
+        LOG.warning("Invalid option for apt_pipelining: %s", apt_pipe_value)
 
 
 def write_apt_snippet(setting, log, f_name):

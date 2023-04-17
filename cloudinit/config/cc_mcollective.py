@@ -19,6 +19,8 @@ from configobj import ConfigObj
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -82,9 +84,11 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["mcollective"],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def configure(
@@ -148,11 +152,11 @@ def configure(
     util.write_file(server_cfg, contents.getvalue(), mode=0o644)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # If there isn't a mcollective key in the configuration don't do anything
     if "mcollective" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'mcollective' key in configuration",
             name,
         )

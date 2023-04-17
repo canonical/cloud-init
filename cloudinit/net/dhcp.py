@@ -4,23 +4,22 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import contextlib
 import logging
 import os
 import re
 import signal
 import time
 from io import StringIO
-from typing import Any, Dict
 
 import configobj
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
-    EphemeralIPv4Network,
     find_fallback_nic,
     get_devicelist,
-    has_url_connectivity,
-    mask_and_ipv4_to_bcast_addr,
+    get_interface_mac,
+    is_ib_interface,
 )
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ class NoDHCPLeaseError(Exception):
 
 
 class InvalidDHCPLeaseFileError(NoDHCPLeaseError):
-    """Raised when parsing an empty or invalid dhcp.leases file.
+    """Raised when parsing an empty or invalid dhclient.lease file.
 
     Current uses are DataSourceAzure and DataSourceEc2 during ephemeral
     boot to scrape metadata.
@@ -46,111 +45,6 @@ class NoDHCPLeaseInterfaceError(NoDHCPLeaseError):
 
 class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
-
-
-class EphemeralDHCPv4(object):
-    def __init__(
-        self,
-        iface=None,
-        connectivity_url_data: Dict[str, Any] = None,
-        dhcp_log_func=None,
-    ):
-        self.iface = iface
-        self._ephipv4 = None
-        self.lease = None
-        self.dhcp_log_func = dhcp_log_func
-        self.connectivity_url_data = connectivity_url_data
-
-    def __enter__(self):
-        """Setup sandboxed dhcp context, unless connectivity_url can already be
-        reached."""
-        if self.connectivity_url_data:
-            if has_url_connectivity(self.connectivity_url_data):
-                LOG.debug(
-                    "Skip ephemeral DHCP setup, instance has connectivity"
-                    " to %s",
-                    self.connectivity_url_data,
-                )
-                return
-        return self.obtain_lease()
-
-    def __exit__(self, excp_type, excp_value, excp_traceback):
-        """Teardown sandboxed dhcp context."""
-        self.clean_network()
-
-    def clean_network(self):
-        """Exit _ephipv4 context to teardown of ip configuration performed."""
-        if self.lease:
-            self.lease = None
-        if not self._ephipv4:
-            return
-        self._ephipv4.__exit__(None, None, None)
-
-    def obtain_lease(self):
-        """Perform dhcp discovery in a sandboxed environment if possible.
-
-        @return: A dict representing dhcp options on the most recent lease
-            obtained from the dhclient discovery if run, otherwise an error
-            is raised.
-
-        @raises: NoDHCPLeaseError if no leases could be obtained.
-        """
-        if self.lease:
-            return self.lease
-        leases = maybe_perform_dhcp_discovery(self.iface, self.dhcp_log_func)
-        if not leases:
-            raise NoDHCPLeaseError()
-        self.lease = leases[-1]
-        LOG.debug(
-            "Received dhcp lease on %s for %s/%s",
-            self.lease["interface"],
-            self.lease["fixed-address"],
-            self.lease["subnet-mask"],
-        )
-        nmap = {
-            "interface": "interface",
-            "ip": "fixed-address",
-            "prefix_or_mask": "subnet-mask",
-            "broadcast": "broadcast-address",
-            "static_routes": [
-                "rfc3442-classless-static-routes",
-                "classless-static-routes",
-            ],
-            "router": "routers",
-        }
-        kwargs = self.extract_dhcp_options_mapping(nmap)
-        if not kwargs["broadcast"]:
-            kwargs["broadcast"] = mask_and_ipv4_to_bcast_addr(
-                kwargs["prefix_or_mask"], kwargs["ip"]
-            )
-        if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
-                kwargs["static_routes"]
-            )
-        if self.connectivity_url_data:
-            kwargs["connectivity_url_data"] = self.connectivity_url_data
-        ephipv4 = EphemeralIPv4Network(**kwargs)
-        ephipv4.__enter__()
-        self._ephipv4 = ephipv4
-        return self.lease
-
-    def extract_dhcp_options_mapping(self, nmap):
-        result = {}
-        for internal_reference, lease_option_names in nmap.items():
-            if isinstance(lease_option_names, list):
-                self.get_first_option_value(
-                    internal_reference, lease_option_names, result
-                )
-            else:
-                result[internal_reference] = self.lease.get(lease_option_names)
-        return result
-
-    def get_first_option_value(
-        self, internal_mapping, lease_option_names, result
-    ):
-        for different_names in lease_option_names:
-            if not result.get(internal_mapping):
-                result[internal_mapping] = self.lease.get(different_names)
 
 
 def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
@@ -180,11 +74,7 @@ def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     if not dhclient_path:
         LOG.debug("Skip dhclient configuration: No dhclient command found.")
         raise NoDHCPLeaseMissingDhclientError()
-    with temp_utils.tempdir(
-        rmtree_ignore_errors=True, prefix="cloud-init-dhcp-", needs_exe=True
-    ) as tdir:
-        # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
-        return dhcp_discovery(dhclient_path, nic, tdir, dhcp_log_func)
+    return dhcp_discovery(dhclient_path, nic, dhcp_log_func)
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -221,44 +111,41 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
-def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
+def dhcp_discovery(dhclient_cmd_path, interface, dhcp_log_func=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
     @param dhclient_cmd_path: Full path to the dhclient used.
-    @param interface: Name of the network inteface on which to dhclient.
-    @param cleandir: The directory from which to run dhclient as well as store
-        dhcp leases.
+    @param interface: Name of the network interface on which to dhclient.
     @param dhcp_log_func: A callable accepting the dhclient output and error
         streams.
 
     @return: A list of dicts of representing the dhcp leases parsed from the
-        dhcp.leases file or empty list.
+        dhclient.lease file or empty list.
     """
     LOG.debug("Performing a dhcp discovery on %s", interface)
 
-    # XXX We copy dhclient out of /sbin/dhclient to avoid dealing with strict
-    # app armor profiles which disallow running dhclient -sf <our-script-file>.
     # We want to avoid running /sbin/dhclient-script because of side-effects in
     # /etc/resolv.conf any any other vendor specific scripts in
     # /etc/dhcp/dhclient*hooks.d.
-    sandbox_dhclient_cmd = os.path.join(cleandir, "dhclient")
-    util.copy(dhclient_cmd_path, sandbox_dhclient_cmd)
-    pid_file = os.path.join(cleandir, "dhclient.pid")
-    lease_file = os.path.join(cleandir, "dhcp.leases")
+    pid_file = "/run/dhclient.pid"
+    lease_file = "/run/dhclient.lease"
 
-    # In some cases files in /var/tmp may not be executable, launching dhclient
-    # from there will certainly raise 'Permission denied' error. Try launching
-    # the original dhclient instead.
-    if not os.access(sandbox_dhclient_cmd, os.X_OK):
-        sandbox_dhclient_cmd = dhclient_cmd_path
+    # this function waits for these files to exist, clean previous runs
+    # to avoid false positive in wait_for_files
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(pid_file)
+        os.remove(lease_file)
 
     # ISC dhclient needs the interface up to send initial discovery packets.
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
     # link up before attempting discovery. Since we are using -sf /bin/true,
     # we need to do that "link up" ourselves first.
     subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
+    # For INFINIBAND port the dhlient must be sent with dhcp-client-identifier.
+    # So here we are checking if the interface is INFINIBAND or not.
+    # If yes, we are generating the the client-id to be used with the dhclient
     cmd = [
-        sandbox_dhclient_cmd,
+        dhclient_cmd_path,
         "-1",
         "-v",
         "-lf",
@@ -269,7 +156,29 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
         "-sf",
         "/bin/true",
     ]
-    out, err = subp.subp(cmd, capture=True)
+    if is_ib_interface(interface):
+        dhcp_client_identifier = "20:%s" % get_interface_mac(interface)[36:]
+        interface_dhclient_content = (
+            'interface "%s" '
+            "{send dhcp-client-identifier %s;}"
+            % (interface, dhcp_client_identifier)
+        )
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        file_name = os.path.join(tmp_dir, interface + "-dhclient.conf")
+        util.write_file(file_name, interface_dhclient_content)
+        cmd.append("-cf")
+        cmd.append(file_name)
+
+    try:
+        out, err = subp.subp(cmd, capture=True)
+    except subp.ProcessExecutionError as error:
+        LOG.debug(
+            "dhclient exited with code: %s stderr: %r stdout: %r",
+            error.exit_code,
+            error.stderr,
+            error.stdout,
+        )
+        raise NoDHCPLeaseError from error
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we

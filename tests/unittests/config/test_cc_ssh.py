@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import ssh_util
+from cloudinit import ssh_util, util
 from cloudinit.config import cc_ssh
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -57,6 +57,7 @@ def _replace_options(user: Optional[str] = None) -> str:
     return options
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 @mock.patch(MODPATH + "ssh_util.setup_user_keys")
 class TestHandleSsh:
     """Test cc_ssh handling of ssh config."""
@@ -113,7 +114,7 @@ class TestHandleSsh:
         m_nug.return_value = ([], {})
         cc_ssh.PUBLISH_HOST_KEYS = False
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
         options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with("/etc/ssh/ssh_host_*key*")
@@ -144,7 +145,7 @@ class TestHandleSsh:
         m_path_exists.return_value = True
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -195,7 +196,7 @@ class TestHandleSsh:
         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
         if mock_get_public_ssh_keys:
             cloud.get_public_ssh_keys = mock.Mock(return_value=keys)
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
 
         if empty_opts:
             options = ""
@@ -278,20 +279,83 @@ class TestHandleSsh:
                     ]
                 )
             ]
-        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        cc_ssh.handle("name", cfg, cloud, None)
         assert (
             expected_calls == cloud.datasource.publish_host_keys.call_args_list
         )
 
+    @pytest.mark.parametrize(
+        "ssh_keys_group_exists,sshd_version,expected_private_permissions",
+        [(False, 0, 0), (True, 8, 0o640), (True, 10, 0o600)],
+    )
+    @mock.patch(MODPATH + "subp.subp", return_value=("", ""))
+    @mock.patch(MODPATH + "util.get_group_id", return_value=10)
+    @mock.patch(MODPATH + "ssh_util.get_opensshd_upstream_version")
+    @mock.patch(MODPATH + "os.path.exists", return_value=False)
+    @mock.patch(MODPATH + "os.chown")
+    @mock.patch(MODPATH + "os.chmod")
+    def test_ssh_hostkey_permissions(
+        self,
+        m_chmod,
+        m_chown,
+        m_exists,
+        m_sshd_version,
+        m_gid,
+        m_subp,
+        m_setup_keys,
+        ssh_keys_group_exists,
+        sshd_version,
+        expected_private_permissions,
+    ):
+        """Test our generated hostkeys use same perms as sshd-keygen.
+
+        SSHD version < 9.0 should apply 640 permissions to the private key.
+        Otherwise, 600.
+        """
+        m_gid.return_value = 10 if ssh_keys_group_exists else -1
+        m_sshd_version.return_value = util.Version(sshd_version, 0)
+        key_path = cc_ssh.KEY_FILE_TPL % "rsa"
+        cloud = get_cloud(distro="ubuntu")
+        cc_ssh.handle("name", {"ssh_genkeytypes": ["rsa"]}, cloud, [])
+        if ssh_keys_group_exists:
+            m_chown.assert_called_once_with(key_path, -1, 10)
+            assert m_chmod.call_args_list == [
+                mock.call(key_path, expected_private_permissions),
+                mock.call(f"{key_path}.pub", 0o644),
+            ]
+        else:
+            m_sshd_version.assert_not_called()
+            m_chown.assert_not_called()
+            m_chmod.assert_not_called()
+
+    @pytest.mark.parametrize("with_sshd_dconf", [False, True])
+    @mock.patch(MODPATH + "util.ensure_dir")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "util.write_file")
-    def test_handle_ssh_keys_in_cfg(self, m_write_file, m_nug, m_setup_keys):
+    def test_handle_ssh_keys_in_cfg(
+        self,
+        m_write_file,
+        m_nug,
+        m_ensure_dir,
+        m_setup_keys,
+        with_sshd_dconf,
+        mocker,
+    ):
         """Test handle with ssh keys and certificate."""
         # Populate a config dictionary to pass to handle() as well
         # as the expected file-writing calls.
+        mocker.patch(
+            MODPATH + "ssh_util._includes_dconf", return_value=with_sshd_dconf
+        )
+        if with_sshd_dconf:
+            sshd_conf_fname = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        else:
+            sshd_conf_fname = "/etc/ssh/sshd_config"
+
         cfg = {"ssh_keys": {}}
 
         expected_calls = []
+        cert_content = ""
         for key_type in cc_ssh.GENERATE_KEY_NAMES:
             private_name = "{}_private".format(key_type)
             public_name = "{}_public".format(key_type)
@@ -311,37 +375,51 @@ class TestHandleSsh:
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key".format(key_type),
                         private_value,
-                        384,
+                        0o600,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key.pub".format(key_type),
                         public_value,
-                        384,
+                        0o644,
                     ),
                     mock.call(
                         "/etc/ssh/ssh_host_{}_key-cert.pub".format(key_type),
                         cert_value,
-                        384,
-                    ),
-                    mock.call(
-                        "/etc/ssh/sshd_config",
-                        "HostCertificate /etc/ssh/ssh_host_{}_key-cert.pub"
-                        "\n".format(key_type),
-                        preserve_mode=True,
+                        0o644,
                     ),
                 ]
             )
+            cert_content += (
+                f"HostCertificate /etc/ssh/ssh_host_{key_type}_key-cert.pub\n"
+            )
+
+        expected_calls.append(
+            mock.call(
+                sshd_conf_fname,
+                cert_content,
+                omode="ab",
+                preserve_mode=True,
+            )
+        )
 
         # Run the handler.
         m_nug.return_value = ([], {})
         with mock.patch(
             MODPATH + "ssh_util.parse_ssh_config", return_value=[]
         ):
-            cc_ssh.handle("name", cfg, get_cloud(distro="ubuntu"), LOG, None)
+            cc_ssh.handle("name", cfg, get_cloud(distro="ubuntu"), None)
 
         # Check that all expected output has been done.
         for call_ in expected_calls:
             assert call_ in m_write_file.call_args_list
+
+        if with_sshd_dconf:
+            assert (
+                mock.call("/etc/ssh/sshd_config.d", mode=0o755)
+                in m_ensure_dir.call_args_list
+            )
+        else:
+            assert [] == m_ensure_dir.call_args_list
 
     @pytest.mark.parametrize(
         "key_type,reason",
@@ -376,7 +454,7 @@ class TestHandleSsh:
         with mock.patch(
             MODPATH + "ssh_util.parse_ssh_config", return_value=[]
         ):
-            cc_ssh.handle("name", cfg, get_cloud("ubuntu"), LOG, None)
+            cc_ssh.handle("name", cfg, get_cloud("ubuntu"), None)
         assert [] == m_write_file.call_args_list
         expected_log_msgs = [
             f'Skipping {reason} ssh_keys entry: "{key_type}_private"',

@@ -31,7 +31,7 @@ def gen_subnet(ip, netmask):
     return ".".join([str(x) for x in result])
 
 
-class NicConfigurator(object):
+class NicConfigurator:
     def __init__(self, nics, use_system_devices=True):
         """
         Initialize the Nic Configurator
@@ -62,7 +62,7 @@ class NicConfigurator(object):
         if not primary_nics:
             return None
         elif len(primary_nics) > 1:
-            raise Exception(
+            raise RuntimeError(
                 "There can only be one primary nic",
                 [nic.mac for nic in primary_nics],
             )
@@ -229,16 +229,6 @@ class NicConfigurator(object):
         #    route_list.extend(self._genIpv6Route(name, nic, addrs))
 
         return (subnet_list, route_list)
-
-    def _genIpv6Route(self, name, nic, addrs):
-        route_list = []
-
-        for addr in addrs:
-            route_list.append(
-                {"type": "route", "gateway": addr.gateway, "metric": 10000}
-            )
-
-        return route_list
 
     def generate(self, configure=False, osfamily=None):
         """Return the config elements that are needed to configure the nics"""

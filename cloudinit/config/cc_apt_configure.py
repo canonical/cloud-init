@@ -17,6 +17,8 @@ from textwrap import dedent
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp, templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -114,10 +116,18 @@ meta: MetaSchema = {
                   key: |
                       ------BEGIN PGP PUBLIC KEY BLOCK-------
                       <key data>
+                      ------END PGP PUBLIC KEY BLOCK-------
+              source4:
+                  source: 'deb $MIRROR $RELEASE multiverse'
+                  append: false
+                  key: |
+                      ------BEGIN PGP PUBLIC KEY BLOCK-------
+                      <key data>
                       ------END PGP PUBLIC KEY BLOCK-------"""
         )
     ],
     "frequency": frequency,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -159,28 +169,25 @@ def get_default_mirrors(arch=None, target=None):
     raise ValueError("No default mirror known for arch %s" % arch)
 
 
-def handle(name, ocfg, cloud, log, _):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
     # keeping code close to curtin codebase via entry handler
     target = None
-    if log is not None:
-        global LOG
-        LOG = log
     # feed back converted config, but only work on the subset under 'apt'
-    ocfg = convert_to_v3_apt_format(ocfg)
-    cfg = ocfg.get("apt", {})
+    cfg = convert_to_v3_apt_format(cfg)
+    apt_cfg = cfg.get("apt", {})
 
-    if not isinstance(cfg, dict):
+    if not isinstance(apt_cfg, dict):
         raise ValueError(
             "Expected dictionary for 'apt' config, found {config_type}".format(
-                config_type=type(cfg)
+                config_type=type(apt_cfg)
             )
         )
 
-    apply_debconf_selections(cfg, target)
-    apply_apt(cfg, cloud, target)
+    apply_debconf_selections(apt_cfg, target)
+    apply_apt(apt_cfg, cloud, target)
 
 
 def _should_configure_on_empty_apt():
@@ -368,15 +375,6 @@ def rename_apt_lists(new_mirrors, target, arch):
             except OSError:
                 # since this is a best effort task, warn with but don't fail
                 LOG.warning("Failed to rename apt list:", exc_info=True)
-
-
-def mirror_to_placeholder(tmpl, mirror, placeholder):
-    """mirror_to_placeholder
-    replace the specified mirror in a template with a placeholder string
-    Checks for existance of the expected mirror and warns if not found"""
-    if mirror not in tmpl:
-        LOG.warning("Expected mirror '%s' not found in: %s", mirror, tmpl)
-    return tmpl.replace(mirror, placeholder)
 
 
 def map_known_suites(suite):
@@ -583,7 +581,12 @@ def add_apt_sources(
         sourcefn = subp.target_path(target, ent["filename"])
         try:
             contents = "%s\n" % (source)
-            util.write_file(sourcefn, contents, omode="a")
+            omode = "a"
+
+            if "append" in ent and not ent["append"]:
+                omode = "w"
+
+            util.write_file(sourcefn, contents, omode=omode)
         except IOError as detail:
             LOG.exception("failed write to file %s: %s", sourcefn, detail)
             raise
@@ -596,9 +599,10 @@ def add_apt_sources(
 def convert_v1_to_v2_apt_format(srclist):
     """convert v1 apt format to v2 (dict in apt_sources)"""
     srcdict = {}
-    LOG.warning(
-        "DEPRECATION: 'apt_sources' deprecated config key found."
-        " Use 'apt' instead"
+    util.deprecate(
+        deprecated="Config key 'apt_sources'",
+        deprecated_version="22.1",
+        extra_message="Use 'apt' instead",
     )
     if isinstance(srclist, list):
         LOG.debug("apt config: convert V1 to V2 format (source list to dict)")
@@ -674,18 +678,17 @@ def convert_v2_to_v3_apt_format(oldcfg):
     # no old config, so no new one to be created
     if not needtoconvert:
         return oldcfg
-    LOG.warning(
-        "DEPRECATION apt: converted deprecated config V2 to V3 format for"
-        " keys '%s'. Use updated config keys.",
-        ", ".join(needtoconvert),
+    util.deprecate(
+        deprecated=f"The following config key(s): {needtoconvert}",
+        deprecated_version="22.1",
     )
 
     # if old AND new config are provided, prefer the new one (LP #1616831)
     newaptcfg = oldcfg.get("apt", None)
     if newaptcfg is not None:
-        LOG.warning(
-            "DEPRECATION: apt config: deprecated V1/2 and V3 format specified,"
-            " preferring V3"
+        util.deprecate(
+            deprecated="Support for combined old and new apt module keys",
+            deprecated_version="22.1",
         )
         for oldkey in needtoconvert:
             newkey = mapoldkeys[oldkey]
@@ -756,7 +759,7 @@ def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
             raise ValueError("unknown mirror type")
 
         # if we have a fqdn, then search its domain portion first
-        (_, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        fqdn = util.get_hostname_fqdn(cfg, cloud).fqdn
         mydom = ".".join(fqdn.split(".")[1:])
         if mydom:
             doms.append(".%s" % mydom)

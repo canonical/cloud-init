@@ -13,6 +13,8 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
@@ -27,16 +29,28 @@ distros = [
     "alpine",
     "centos",
     "cloudlinux",
+    "cos",
     "debian",
     "eurolinux",
     "fedora",
+    "freebsd",
+    "mariner",
     "miraclelinux",
+    "openbsd",
     "openEuler",
+    "OpenCloudOS",
+    "openmandriva",
     "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
     "photon",
     "rhel",
     "rocky",
+    "sle_hpc",
+    "sle-micro",
     "sles",
+    "TencentOS",
     "ubuntu",
     "virtuozzo",
 ]
@@ -66,6 +80,14 @@ NTP_CLIENT_CONFIG = {
         "template_name": "ntp.conf.{distro}",
         "template": None,
     },
+    "openntpd": {
+        "check_exe": "ntpd",
+        "confpath": "/etc/ntpd.conf",
+        "packages": [],
+        "service_name": "ntpd",
+        "template_name": "ntpd.conf.{distro}",
+        "template": None,
+    },
     "systemd-timesyncd": {
         "check_exe": "/lib/systemd/systemd-timesyncd",
         "confpath": "/etc/systemd/timesyncd.conf.d/cloud-init.conf",
@@ -89,9 +111,67 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "ntpd",
         },
     },
+    "centos": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
+    "cos": {
+        "chrony": {
+            "service_name": "chronyd",
+            "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
     "debian": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
+        },
+    },
+    "freebsd": {
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+            "template_name": "ntp.conf.{distro}",
+        },
+        "chrony": {
+            "confpath": "/usr/local/etc/chrony.conf",
+            "packages": ["chrony"],
+            "service_name": "chronyd",
+            "template_name": "chrony.conf.{distro}",
+        },
+        "openntpd": {
+            "check_exe": "/usr/local/sbin/ntpd",
+            "confpath": "/usr/local/etc/ntp.conf",
+            "packages": ["openntpd"],
+            "service_name": "openntpd",
+            "template_name": "ntpd.conf.openbsd",
+        },
+    },
+    "mariner": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
+        },
+    },
+    "openbsd": {
+        "openntpd": {},
+    },
+    "openmandriva": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "ntp": {
+            "confpath": "/etc/ntp.conf",
+            "service_name": "ntpd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/lib/systemd/systemd-timesyncd",
         },
     },
     "opensuse": {
@@ -143,6 +223,11 @@ DISTRO_CLIENT_CONFIG = {
     },
 }
 
+for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
+
+for distro in ("sle_hpc", "sle-micro"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["sles"]
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.
@@ -212,6 +297,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["ntp"],
 }
 __doc__ = get_meta_doc(meta)
 
@@ -403,6 +489,8 @@ def write_ntp_config_template(
     if not peers:
         peers = []
 
+    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
+        return
     if (
         len(servers) == 0
         and distro_name == "alpine"
@@ -531,7 +619,7 @@ def supplemental_schema_validation(ntp_config):
         )
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Enable and configure ntp."""
     if "ntp" not in cfg:
         LOG.debug(
@@ -618,6 +706,24 @@ def handle(name, cfg, cloud, log, _args):
         packages=ntp_client_config["packages"],
         check_exe=ntp_client_config["check_exe"],
     )
+    if util.is_BSD():
+        if ntp_client_config.get("service_name") != "ntpd":
+            try:
+                cloud.distro.manage_service("stop", "ntpd")
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to stop base ntpd service")
+            try:
+                cloud.distro.manage_service("disable", "ntpd")
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to disable base ntpd service")
+
+        try:
+            cloud.distro.manage_service(
+                "enable", ntp_client_config.get("service_name")
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.exception("Failed to enable ntp service: %s", e)
+            raise
     try:
         cloud.distro.manage_service(
             "reload", ntp_client_config.get("service_name")

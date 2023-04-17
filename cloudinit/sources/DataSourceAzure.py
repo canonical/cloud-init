@@ -6,34 +6,33 @@
 
 import base64
 import crypt
-import functools
 import os
 import os.path
 import re
+import socket
 import xml.etree.ElementTree as ET
 from enum import Enum
+from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
-from xml.dom import minidom
 
-import requests
-
-from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
-    EphemeralDHCPv4,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
 )
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
+from cloudinit.sources.azure import identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
-    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     DEFAULT_WIRESERVER_ENDPOINT,
+    BrokenAzureDataSource,
+    NonAzureDataSource,
+    OvfEnvXml,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     build_minimal_ovf,
@@ -42,12 +41,11 @@ from cloudinit.sources.helpers.azure import (
     get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
-    is_byte_swapped,
     push_log_to_kvp,
     report_diagnostic_event,
     report_failure_to_fabric,
 )
-from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
+from cloudinit.url_helper import UrlError
 
 LOG = logging.getLogger(__name__)
 
@@ -58,40 +56,13 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = "/dev/disk/cloud/azure_resource"
 DEFAULT_FS = "ext4"
-# DMI chassis-asset-tag is set static for all azure instances
-AZURE_CHASSIS_ASSET_TAG = "7783-7084-3265-9085-8269-3286-77"
-REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = "/var/lib/waagent"
 DEFAULT_PROVISIONING_ISO_DEV = "/dev/sr0"
-
-# In the event where the IMDS primary server is not
-# available, it takes 1s to fallback to the secondary one
-IMDS_TIMEOUT_IN_SECONDS = 2
-IMDS_URL = "http://169.254.169.254/metadata"
-IMDS_VER_MIN = "2019-06-01"
-IMDS_VER_WANT = "2021-08-01"
-IMDS_EXTENDED_VER_MIN = "2021-03-01"
-IMDS_RETRY_CODES = (
-    404,  # not found (yet)
-    410,  # gone / unavailable (yet)
-    429,  # rate-limited/throttled
-    500,  # server error
-)
-imds_readurl_exception_callback = functools.partial(
-    retry_on_url_exc,
-    retry_codes=IMDS_RETRY_CODES,
-    retry_instances=(requests.Timeout,),
-)
-
-
-class MetadataType(Enum):
-    ALL = "{}/instance".format(IMDS_URL)
-    NETWORK = "{}/instance/network".format(IMDS_URL)
-    REPROVISION_DATA = "{}/reprovisiondata".format(IMDS_URL)
 
 
 class PPSType(Enum):
     NONE = "None"
+    OS_DISK = "PreprovisionedOSDisk"
     RUNNING = "Running"
     SAVABLE = "Savable"
     UNKNOWN = "Unknown"
@@ -100,7 +71,7 @@ class PPSType(Enum):
 PLATFORM_ENTROPY_SOURCE: Optional[str] = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
-# stock ubuntu suported images.
+# stock ubuntu supported images.
 UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
     "/etc/netplan/90-hotplug-azure.yaml",
     "/usr/local/sbin/ephemeral_eth.sh",
@@ -206,6 +177,33 @@ def get_hv_netvsc_macs_normalized() -> List[str]:
     ]
 
 
+@azure_ds_telemetry_reporter
+def determine_device_driver_for_mac(mac: str) -> Optional[str]:
+    """Determine the device driver to match on, if any."""
+    drivers = [
+        i[2]
+        for i in net.get_interfaces(blacklist_drivers=BLACKLIST_DRIVERS)
+        if mac == normalize_mac_address(i[1])
+    ]
+    if "hv_netvsc" in drivers:
+        return "hv_netvsc"
+
+    if len(drivers) == 1:
+        report_diagnostic_event(
+            "Assuming driver for interface with mac=%s drivers=%r"
+            % (mac, drivers),
+            logger_func=LOG.debug,
+        )
+        return drivers[0]
+
+    report_diagnostic_event(
+        "Unable to specify driver for interface with mac=%s drivers=%r"
+        % (mac, drivers),
+        logger_func=LOG.warning,
+    )
+    return None
+
+
 def execute_or_debug(cmd, fail_ret=None) -> str:
     try:
         return subp.subp(cmd).stdout  # pyright: ignore
@@ -285,7 +283,6 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
 }
-# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
     "disk_setup": {
@@ -332,6 +329,9 @@ class DataSourceAzure(sources.DataSource):
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        self._reported_ready_marker_file = os.path.join(
+            paths.cloud_dir, "data", "reported_ready"
+        )
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -339,6 +339,9 @@ class DataSourceAzure(sources.DataSource):
         self._ephemeral_dhcp_ctx = None
         self._iso_dev = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        self._reported_ready_marker_file = os.path.join(
+            self.paths.cloud_dir, "data", "reported_ready"
+        )
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -381,7 +384,8 @@ class DataSourceAzure(sources.DataSource):
 
         LOG.debug("Requested ephemeral networking (iface=%s)", iface)
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
-            iface=iface, dhcp_log_func=dhcp_log_cb
+            iface=iface,
+            dhcp_log_func=dhcp_log_cb,
         )
 
         lease = None
@@ -479,11 +483,10 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        ovf_is_accessible = False
-        metadata_source = None
-        md = {}
+        ovf_source = None
+        md = {"local-hostname": ""}
+        cfg = {"system_info": {"default_user": {"name": ""}}}
         userdata_raw = ""
-        cfg = {}
         files = {}
 
         for src in list_possible_azure_ds(self.seed_dir, ddir):
@@ -501,8 +504,12 @@ class DataSourceAzure(sources.DataSource):
                     self._iso_dev = src
                 else:
                     md, userdata_raw, cfg, files = load_azure_ds_dir(src)
-                ovf_is_accessible = True
-                metadata_source = src
+
+                ovf_source = src
+                report_diagnostic_event(
+                    "Found provisioning metadata in %s" % ovf_source,
+                    logger_func=LOG.debug,
+                )
                 break
             except NonAzureDataSource:
                 report_diagnostic_event(
@@ -514,38 +521,36 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(
                     "%s was not mountable" % src, logger_func=LOG.debug
                 )
-                md = {"local-hostname": ""}
-                cfg = {"system_info": {"default_user": {"name": ""}}}
-                metadata_source = "IMDS"
                 continue
             except BrokenAzureDataSource as exc:
                 msg = "BrokenAzureDataSource: %s" % exc
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-
-        report_diagnostic_event(
-            "Found provisioning metadata in %s" % metadata_source,
-            logger_func=LOG.debug,
-        )
+        else:
+            msg = (
+                "Unable to find provisioning media, falling back to IMDS "
+                "metadata. Be aware that IMDS metadata does not support "
+                "admin passwords or custom-data (user-data only)."
+            )
+            report_diagnostic_event(msg, logger_func=LOG.warning)
 
         # If we read OVF from attached media, we are provisioning.  If OVF
         # is not found, we are probably provisioning on a system which does
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(self._iso_dev) or not ovf_is_accessible
+        requires_imds_metadata = bool(self._iso_dev) or ovf_source is None
         timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
         except NoDHCPLeaseError:
             pass
 
+        imds_md = {}
         if self._is_ephemeral_networking_up():
-            imds_md = self.get_imds_data_with_api_fallback(retries=10)
-        else:
-            imds_md = {}
+            imds_md = self.get_metadata_from_imds()
 
-        if not imds_md and not ovf_is_accessible:
+        if not imds_md and ovf_source is None:
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
@@ -558,17 +563,29 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
 
-            if pps_type == PPSType.SAVABLE:
-                self._wait_for_all_nics_ready()
+            # Networking is a hard requirement for source PPS, fail without it.
+            if not self._is_ephemeral_networking_up():
+                msg = "DHCP failed while in source PPS"
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
+
+            if pps_type == PPSType.RUNNING:
+                self._wait_for_pps_running_reuse()
+            elif pps_type == PPSType.SAVABLE:
+                self._wait_for_pps_savable_reuse()
+            elif pps_type == PPSType.OS_DISK:
+                self._wait_for_pps_os_disk_shutdown()
+            else:
+                self._wait_for_pps_unknown_reuse()
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
-            imds_md = self.get_imds_data_with_api_fallback(retries=10)
+            imds_md = self.get_metadata_from_imds()
 
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = metadata_source
+        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -595,7 +612,7 @@ class DataSourceAzure(sources.DataSource):
                 "disable_password"
             ] = imds_disable_password
 
-        if metadata_source == "IMDS" and not crawled_data["files"]:
+        if self.seed == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
                     username=imds_username,  # pyright: ignore
@@ -624,17 +641,7 @@ class DataSourceAzure(sources.DataSource):
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
 
-        if not metadata_source:
-            msg = "No Azure metadata found"
-            report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg)
-        else:
-            report_diagnostic_event(
-                "found datasource in %s" % metadata_source,
-                logger_func=LOG.debug,
-            )
-
-        if metadata_source == ddir:
+        if ovf_source == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug
             )
@@ -664,14 +671,36 @@ class DataSourceAzure(sources.DataSource):
 
         return crawled_data
 
-    def _is_platform_viable(self):
-        """Check platform environment to report if this datasource may run."""
-        return _is_platform_viable(self.seed_dir)
+    @azure_ds_telemetry_reporter
+    def get_metadata_from_imds(self, retries: int = 10) -> Dict:
+        try:
+            return imds.fetch_metadata_with_api_fallback(retries=retries)
+        except (UrlError, ValueError) as error:
+            report_diagnostic_event(
+                "Ignoring IMDS metadata due to: %s" % error,
+                logger_func=LOG.warning,
+            )
+            return {}
 
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached class attributes to defaults."""
         super(DataSourceAzure, self).clear_cached_attrs(attr_defaults)
         self._metadata_imds = sources.UNSET
+
+    @azure_ds_telemetry_reporter
+    def ds_detect(self):
+        """Check platform environment to report if this datasource may
+        run.
+        """
+        chassis_tag = identity.ChassisAssetTag.query_system()
+        if chassis_tag is not None:
+            return True
+
+        # If no valid chassis tag, check for seeded ovf-env.xml.
+        if self.seed_dir is None:
+            return False
+
+        return Path(self.seed_dir, "ovf-env.xml").exists()
 
     @azure_ds_telemetry_reporter
     def _get_data(self):
@@ -680,8 +709,6 @@ class DataSourceAzure(sources.DataSource):
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
-        if not self._is_platform_viable():
-            return False
         try:
             get_boot_telemetry()
         except Exception as e:
@@ -704,9 +731,7 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(
                 "Could not crawl Azure metadata: %s" % e, logger_func=LOG.error
             )
-            self._report_failure(
-                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            self._report_failure()
             return False
         finally:
             self._teardown_ephemeral_networking()
@@ -748,9 +773,6 @@ class DataSourceAzure(sources.DataSource):
         )
         self.userdata_raw = crawled_data["userdata_raw"]
 
-        user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
-        self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
-
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
         write_files(
@@ -758,53 +780,10 @@ class DataSourceAzure(sources.DataSource):
         )
         return True
 
-    @azure_ds_telemetry_reporter
-    def get_imds_data_with_api_fallback(
-        self,
-        *,
-        retries: int,
-        md_type: MetadataType = MetadataType.ALL,
-        exc_cb=imds_readurl_exception_callback,
-        infinite: bool = False,
-    ) -> dict:
-        """Fetch metadata from IMDS using IMDS_VER_WANT API version.
-
-        Falls back to IMDS_VER_MIN version if IMDS returns a 400 error code,
-        indicating that IMDS_VER_WANT is unsupported.
-
-        :return: Parsed metadata dictionary or empty dict on error.
-        """
-        LOG.info("Attempting IMDS api-version: %s", IMDS_VER_WANT)
-        try:
-            return get_metadata_from_imds(
-                retries=retries,
-                md_type=md_type,
-                api_version=IMDS_VER_WANT,
-                exc_cb=exc_cb,
-                infinite=infinite,
-            )
-        except UrlError as error:
-            LOG.info("UrlError with IMDS api-version: %s", IMDS_VER_WANT)
-            # Fall back if HTTP code is 400, otherwise return empty dict.
-            if error.code != 400:
-                return {}
-
-        log_msg = "Fall back to IMDS api-version: {}".format(IMDS_VER_MIN)
-        report_diagnostic_event(log_msg, logger_func=LOG.info)
-        try:
-            return get_metadata_from_imds(
-                retries=retries,
-                md_type=md_type,
-                api_version=IMDS_VER_MIN,
-                exc_cb=exc_cb,
-                infinite=infinite,
-            )
-        except UrlError as error:
-            report_diagnostic_event(
-                "Failed to fetch IMDS metadata: %s" % error,
-                logger_func=LOG.error,
-            )
-            return {}
+    def get_instance_id(self):
+        if not self.metadata or "instance-id" not in self.metadata:
+            return self._iid()
+        return str(self.metadata["instance-id"])
 
     def device_name_to_device(self, name):
         return self.ds_cfg["disk_aliases"].get(name)
@@ -875,24 +854,18 @@ class DataSourceAzure(sources.DataSource):
         prev_iid_path = os.path.join(
             self.paths.get_cpath("data"), "instance-id"
         )
-        # Older kernels than 4.15 will have UPPERCASE product_uuid.
-        # We don't want Azure to react to an UPPER/lower difference as a new
-        # instance id as it rewrites SSH host keys.
-        # LP: #1835584
-        system_uuid = dmi.read_dmi_data("system-uuid")
-        if system_uuid is None:
-            raise RuntimeError("failed to read system-uuid")
-
-        iid = system_uuid.lower()
+        system_uuid = identity.query_system_uuid()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
-            if previous.lower() == iid:
-                # If uppercase/lowercase equivalent, return the previous value
-                # to avoid new instance id.
+            swapped_id = identity.byte_swap_system_uuid(system_uuid)
+
+            # Older kernels than 4.15 will have UPPERCASE product_uuid.
+            # We don't want Azure to react to an UPPER/lower difference as
+            # a new instance id as it rewrites SSH host keys.
+            # LP: #1835584
+            if previous.lower() in [system_uuid, swapped_id]:
                 return previous
-            if is_byte_swapped(previous.lower(), iid):
-                return previous
-        return iid
+        return system_uuid
 
     @azure_ds_telemetry_reporter
     def _wait_for_nic_detach(self, nl_sock):
@@ -948,7 +921,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
-        path = REPORTED_READY_MARKER_FILE
+        path = self._reported_ready_marker_file
         LOG.info("Creating a marker file to report ready: %s", path)
         util.write_file(
             path, "{pid}: {time}\n".format(pid=os.getpid(), time=time())
@@ -960,7 +933,12 @@ class DataSourceAzure(sources.DataSource):
         )
 
     @azure_ds_telemetry_reporter
-    def _report_ready_for_pps(self) -> None:
+    def _report_ready_for_pps(
+        self,
+        *,
+        create_marker: bool = True,
+        expect_url_error: bool = False,
+    ) -> None:
         """Report ready for PPS, creating the marker file upon completion.
 
         :raises sources.InvalidMetaDataException: On error reporting ready.
@@ -968,106 +946,53 @@ class DataSourceAzure(sources.DataSource):
         try:
             self._report_ready()
         except Exception as error:
-            msg = "Failed reporting ready while in the preprovisioning pool."
-            report_diagnostic_event(msg, logger_func=LOG.error)
-            raise sources.InvalidMetaDataException(msg) from error
+            # Ignore HTTP failures for Savable PPS as the call may appear to
+            # fail if the network interface is unplugged or the VM is
+            # suspended before we process the response. Worst case scenario
+            # is that we failed to report ready for source PPS and this VM
+            # will be discarded shortly, no harm done.
+            if expect_url_error and isinstance(error, UrlError):
+                report_diagnostic_event(
+                    "Ignoring http call failure, it was expected.",
+                    logger_func=LOG.debug,
+                )
+                # The iso was ejected prior to reporting ready.
+                self._iso_dev = None
+            else:
+                msg = (
+                    "Failed reporting ready while in the preprovisioning pool."
+                )
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg) from error
 
-        self._create_report_ready_marker()
+        if create_marker:
+            self._create_report_ready_marker()
 
     @azure_ds_telemetry_reporter
-    def _check_if_nic_is_primary(self, ifname):
-        """Check if a given interface is the primary nic or not. If it is the
-        primary nic, then we also get the expected total nic count from IMDS.
-        IMDS will process the request and send a response only for primary NIC.
-        """
-        is_primary = False
-        expected_nic_count = -1
-        imds_md = None
-        metadata_poll_count = 0
-        metadata_logging_threshold = 1
-        expected_errors_count = 0
-
+    def _check_if_nic_is_primary(self, ifname: str) -> bool:
+        """Check if a given interface is the primary nic or not."""
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
         # primary or secondary. In this case, retry DHCP until successful.
         self._setup_ephemeral_networking(iface=ifname, timeout_minutes=20)
 
-        # Retry polling network metadata for a limited duration only when the
-        # calls fail due to network unreachable error or timeout.
-        # This is because the platform drops packets going towards IMDS
-        # when it is not a primary nic. If the calls fail due to other issues
-        # like 410, 503 etc, then it means we are primary but IMDS service
-        # is unavailable at the moment. Retry indefinitely in those cases
-        # since we cannot move on without the network metadata. In the future,
-        # all this will not be necessary, as a new dhcp option would tell
-        # whether the nic is primary or not.
-        def network_metadata_exc_cb(msg, exc):
-            nonlocal expected_errors_count, metadata_poll_count
-            nonlocal metadata_logging_threshold
-
-            metadata_poll_count = metadata_poll_count + 1
-
-            # Log when needed but back off exponentially to avoid exploding
-            # the log file.
-            if metadata_poll_count >= metadata_logging_threshold:
-                metadata_logging_threshold *= 2
-                report_diagnostic_event(
-                    "Ran into exception when attempting to reach %s "
-                    "after %d polls." % (msg, metadata_poll_count),
-                    logger_func=LOG.error,
-                )
-
-                if isinstance(exc, UrlError):
-                    report_diagnostic_event(
-                        "poll IMDS with %s failed. Exception: %s and code: %s"
-                        % (msg, exc.cause, exc.code),
-                        logger_func=LOG.error,
-                    )
-
-            # Retry up to a certain limit for both timeout and network
-            # unreachable errors.
-            if exc.cause and isinstance(
-                exc.cause, (requests.Timeout, requests.ConnectionError)
-            ):
-                expected_errors_count = expected_errors_count + 1
-                return expected_errors_count <= 10
-            return True
-
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
-        try:
-            imds_md = self.get_imds_data_with_api_fallback(
-                retries=0,
-                md_type=MetadataType.NETWORK,
-                exc_cb=network_metadata_exc_cb,
-                infinite=True,
-            )
-        except Exception as e:
-            LOG.warning(
-                "Failed to get network metadata using nic %s. Attempt to "
-                "contact IMDS failed with error %s. Assuming this is not the "
-                "primary nic.",
-                ifname,
-                e,
-            )
-
+        imds_md = self.get_metadata_from_imds(retries=300)
         if imds_md:
             # Only primary NIC will get a response from IMDS.
             LOG.info("%s is the primary nic", ifname)
-            is_primary = True
+            return True
 
-            # Set the expected nic count based on the response received.
-            expected_nic_count = len(imds_md["interface"])
-            report_diagnostic_event(
-                "Expected nic count: %d" % expected_nic_count,
-                logger_func=LOG.info,
-            )
-        else:
-            # If we are not the primary nic, then clean the dhcp context.
-            self._teardown_ephemeral_networking()
-
-        return is_primary, expected_nic_count
+        # If we are not the primary nic, then clean the dhcp context.
+        LOG.warning(
+            "Failed to fetch IMDS metadata using nic %s. "
+            "Assuming this is not the primary nic.",
+            ifname,
+        )
+        self._teardown_ephemeral_networking()
+        return False
 
     @azure_ds_telemetry_reporter
     def _wait_for_hot_attached_primary_nic(self, nl_sock):
@@ -1110,9 +1035,7 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    primary_nic_found, _ = self._check_if_nic_is_primary(
-                        ifname
-                    )
+                    primary_nic_found = self._check_if_nic_is_primary(ifname)
 
                 # Exit criteria: check if we've discovered primary nic
                 if primary_nic_found:
@@ -1123,138 +1046,104 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(str(error), logger_func=LOG.error)
 
     @azure_ds_telemetry_reporter
-    def _wait_for_all_nics_ready(self):
-        """Wait for nic(s) to be hot-attached. There may be multiple nics
-        depending on the customer request.
-        But only primary nic would be able to communicate with wireserver
-        and IMDS. So we detect and save the primary nic to be used later.
-        """
-
-        nl_sock = None
+    def _create_bound_netlink_socket(self) -> socket.socket:
         try:
-            nl_sock = netlink.create_bound_netlink_socket()
-            self._report_ready_for_pps()
-            self._teardown_ephemeral_networking()
-            self._wait_for_nic_detach(nl_sock)
-            self._wait_for_hot_attached_primary_nic(nl_sock)
-        except netlink.NetlinkCreateSocketError as e:
-            report_diagnostic_event(str(e), logger_func=LOG.warning)
+            return netlink.create_bound_netlink_socket()
+        except netlink.NetlinkCreateSocketError as error:
+            report_diagnostic_event(
+                f"Failed to create netlink socket: {error}",
+                logger_func=LOG.error,
+            )
             raise
-        finally:
-            if nl_sock:
-                nl_sock.close()
 
     @azure_ds_telemetry_reporter
-    def _poll_imds(self):
-        """Poll IMDS for the new provisioning data until we get a valid
-        response. Then return the returned JSON object."""
-        url = "{}?api-version={}".format(
-            MetadataType.REPROVISION_DATA.value, IMDS_VER_MIN
+    def _wait_for_pps_os_disk_shutdown(self):
+        """Report ready and wait for host to initiate shutdown."""
+        self._report_ready_for_pps(create_marker=False)
+
+        report_diagnostic_event(
+            "Waiting for host to shutdown VM...",
+            logger_func=LOG.info,
         )
-        headers = {"Metadata": "true"}
-        nl_sock = None
-        report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
-        self.imds_logging_threshold = 1
-        self.imds_poll_counter = 1
+        sleep(31536000)
+        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_running_reuse(self) -> None:
+        """Report ready and wait for nic link to switch upon re-use."""
+        nl_sock = self._create_bound_netlink_socket()
+
+        try:
+            if (
+                self._ephemeral_dhcp_ctx is None
+                or self._ephemeral_dhcp_ctx.iface is None
+            ):
+                raise RuntimeError("missing ephemeral context")
+
+            iface = self._ephemeral_dhcp_ctx.iface
+            self._report_ready_for_pps()
+
+            LOG.debug(
+                "Wait for vnetswitch to happen on %s",
+                iface,
+            )
+            with events.ReportEventStack(
+                name="wait-for-media-disconnect-connect",
+                description="wait for vnet switch",
+                parent=azure_ds_reporter,
+            ):
+                try:
+                    netlink.wait_for_media_disconnect_connect(nl_sock, iface)
+                except AssertionError as e:
+                    report_diagnostic_event(
+                        "Error while waiting for vnet switch: %s" % e,
+                        logger_func=LOG.error,
+                    )
+        finally:
+            nl_sock.close()
+
+        # Teardown source PPS network configuration.
+        self._teardown_ephemeral_networking()
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_savable_reuse(self):
+        """Report ready and wait for nic(s) to be hot-attached upon re-use."""
+        nl_sock = self._create_bound_netlink_socket()
+
+        try:
+            self._report_ready_for_pps(expect_url_error=True)
+            try:
+                self._teardown_ephemeral_networking()
+            except subp.ProcessExecutionError as e:
+                report_diagnostic_event(
+                    "Ignoring failure while tearing down networking, "
+                    "NIC was likely unplugged: %r" % e,
+                    logger_func=LOG.info,
+                )
+                self._ephemeral_dhcp_ctx = None
+
+            self._wait_for_nic_detach(nl_sock)
+            self._wait_for_hot_attached_primary_nic(nl_sock)
+        finally:
+            nl_sock.close()
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_pps_unknown_reuse(self):
+        """Report ready if needed for unknown/recovery PPS."""
+        if os.path.isfile(self._reported_ready_marker_file):
+            # Already reported ready, nothing to do.
+            return
+
+        self._report_ready_for_pps()
+
+        # Teardown source PPS network configuration.
+        self._teardown_ephemeral_networking()
+
+    @azure_ds_telemetry_reporter
+    def _poll_imds(self) -> bytes:
+        """Poll IMDs for reprovisiondata XML document data."""
         dhcp_attempts = 0
         reprovision_data = None
-
-        def exc_cb(msg, exception):
-            if isinstance(exception, UrlError):
-                if exception.code in (404, 410):
-                    if self.imds_poll_counter == self.imds_logging_threshold:
-                        # Reducing the logging frequency as we are polling IMDS
-                        self.imds_logging_threshold *= 2
-                        LOG.debug(
-                            "Backing off logging threshold for the same "
-                            "exception to %d",
-                            self.imds_logging_threshold,
-                        )
-                        report_diagnostic_event(
-                            "poll IMDS with %s failed. "
-                            "Exception: %s and code: %s"
-                            % (msg, exception.cause, exception.code),
-                            logger_func=LOG.debug,
-                        )
-                    self.imds_poll_counter += 1
-                    return True
-                else:
-                    # If we get an exception while trying to call IMDS, we call
-                    # DHCP and setup the ephemeral network to acquire a new IP.
-                    report_diagnostic_event(
-                        "poll IMDS with %s failed. Exception: %s and code: %s"
-                        % (msg, exception.cause, exception.code),
-                        logger_func=LOG.warning,
-                    )
-                    return False
-
-            report_diagnostic_event(
-                "poll IMDS failed with an unexpected exception: %s"
-                % exception,
-                logger_func=LOG.warning,
-            )
-            return False
-
-        if report_ready:
-            # Networking must be up for netlink to detect
-            # media disconnect/connect.  It may be down to due
-            # initial DHCP failure, if so check for it and retry,
-            # ensuring we flag it as required.
-            if not self._is_ephemeral_networking_up():
-                self._setup_ephemeral_networking(timeout_minutes=20)
-
-            try:
-                if (
-                    self._ephemeral_dhcp_ctx is None
-                    or self._ephemeral_dhcp_ctx.iface is None
-                ):
-                    raise RuntimeError("Missing ephemeral context")
-                iface = self._ephemeral_dhcp_ctx.iface
-
-                nl_sock = netlink.create_bound_netlink_socket()
-                self._report_ready_for_pps()
-
-                LOG.debug(
-                    "Wait for vnetswitch to happen on %s",
-                    iface,
-                )
-                with events.ReportEventStack(
-                    name="wait-for-media-disconnect-connect",
-                    description="wait for vnet switch",
-                    parent=azure_ds_reporter,
-                ):
-                    try:
-                        netlink.wait_for_media_disconnect_connect(
-                            nl_sock, iface
-                        )
-                    except AssertionError as e:
-                        report_diagnostic_event(
-                            "Error while waiting for vnet switch: %s" % e,
-                            logger_func=LOG.error,
-                        )
-            except netlink.NetlinkCreateSocketError as e:
-                report_diagnostic_event(
-                    "Failed to create bound netlink socket: %s" % e,
-                    logger_func=LOG.warning,
-                )
-                raise sources.InvalidMetaDataException(
-                    "Failed to report ready while in provisioning pool."
-                ) from e
-            except NoDHCPLeaseError as e:
-                report_diagnostic_event(
-                    "DHCP failed while in provisioning pool",
-                    logger_func=LOG.warning,
-                )
-                raise sources.InvalidMetaDataException(
-                    "Failed to report ready while in provisioning pool."
-                ) from e
-            finally:
-                if nl_sock:
-                    nl_sock.close()
-
-            # Teardown old network configuration.
-            self._teardown_ephemeral_networking()
-
         while not reprovision_data:
             if not self._is_ephemeral_networking_up():
                 dhcp_attempts += 1
@@ -1269,14 +1158,7 @@ class DataSourceAzure(sources.DataSource):
                 parent=azure_ds_reporter,
             ):
                 try:
-                    reprovision_data = readurl(
-                        url,
-                        timeout=IMDS_TIMEOUT_IN_SECONDS,
-                        headers=headers,
-                        exception_cb=exc_cb,
-                        infinite=True,
-                        log_req_resp=False,
-                    ).contents
+                    reprovision_data = imds.fetch_reprovision_data()
                 except UrlError:
                     self._teardown_ephemeral_networking()
                     continue
@@ -1285,15 +1167,10 @@ class DataSourceAzure(sources.DataSource):
             "attempted dhcp %d times after reuse" % dhcp_attempts,
             logger_func=LOG.debug,
         )
-        report_diagnostic_event(
-            "polled imds %d times after reuse" % self.imds_poll_counter,
-            logger_func=LOG.debug,
-        )
-
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description: Optional[str] = None) -> bool:
+    def _report_failure(self) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
         @param description: A description of the error encountered.
@@ -1306,10 +1183,7 @@ class DataSourceAzure(sources.DataSource):
                     "to report failure to Azure",
                     logger_func=LOG.debug,
                 )
-                report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint,
-                    description=description,
-                )
+                report_failure_to_fabric(endpoint=self._wireserver_endpoint)
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1329,9 +1203,7 @@ class DataSourceAzure(sources.DataSource):
             except NoDHCPLeaseError:
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
-            report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, description=description
-            )
+            report_failure_to_fabric(endpoint=self._wireserver_endpoint)
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -1383,13 +1255,18 @@ class DataSourceAzure(sources.DataSource):
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
-        if os.path.isfile(REPORTED_READY_MARKER_FILE):
+        if os.path.isfile(self._reported_ready_marker_file):
             pps_type = PPSType.UNKNOWN
         elif (
             ovf_cfg.get("PreprovisionedVMType", None) == PPSType.SAVABLE.value
             or self._ppstype_from_imds(imds_md) == PPSType.SAVABLE.value
         ):
             pps_type = PPSType.SAVABLE
+        elif (
+            ovf_cfg.get("PreprovisionedVMType", None) == PPSType.OS_DISK.value
+            or self._ppstype_from_imds(imds_md) == PPSType.OS_DISK.value
+        ):
+            pps_type = PPSType.OS_DISK
         elif (
             ovf_cfg.get("PreprovisionedVm") is True
             or ovf_cfg.get("PreprovisionedVMType", None)
@@ -1441,12 +1318,14 @@ class DataSourceAzure(sources.DataSource):
 
     def _cleanup_markers(self):
         """Cleanup any marker files."""
-        util.del_file(REPORTED_READY_MARKER_FILE)
+        util.del_file(self._reported_ready_marker_file)
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
+        instance_dir = self.paths.get_ipath_cur()
         try:
             address_ephemeral_resize(
+                instance_dir,
                 is_new_instance=is_new_instance,
                 preserve_ntfs=self.ds_cfg.get(DS_CFG_KEY_PRESERVE_NTFS, False),
             )
@@ -1462,22 +1341,42 @@ class DataSourceAzure(sources.DataSource):
             .get("platformFaultDomain")
         )
 
+    @azure_ds_telemetry_reporter
+    def _generate_network_config(self):
+        """Generate network configuration according to configuration."""
+        # Use IMDS network metadata, if configured.
+        if (
+            self._metadata_imds
+            and self._metadata_imds != sources.UNSET
+            and self.ds_cfg.get("apply_network_config")
+        ):
+            try:
+                return generate_network_config_from_instance_network_metadata(
+                    self._metadata_imds["network"]
+                )
+            except Exception as e:
+                LOG.error(
+                    "Failed generating network config "
+                    "from IMDS network metadata: %s",
+                    str(e),
+                )
+
+        # Generate fallback configuration.
+        try:
+            return _generate_network_config_from_fallback_config()
+        except Exception as e:
+            LOG.error("Failed generating fallback network config: %s", str(e))
+
+        return {}
+
     @property
     def network_config(self):
-        """Generate a network config like net.generate_fallback_network() with
-        the following exceptions.
+        """Provide network configuration v2 dictionary."""
+        # Use cached config, if present.
+        if self._network_config and self._network_config != sources.UNSET:
+            return self._network_config
 
-        1. Probe the drivers of the net-devices present and inject them in
-           the network configuration under params: driver: <driver> value
-        2. Generate a fallback network config that does not include any of
-           the blacklisted devices.
-        """
-        if not self._network_config or self._network_config == sources.UNSET:
-            if self.ds_cfg.get("apply_network_config"):
-                nc_src = self._metadata_imds
-            else:
-                nc_src = None
-            self._network_config = parse_network_config(nc_src)
+        self._network_config = self._generate_network_config()
         return self._network_config
 
     @property
@@ -1710,7 +1609,10 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 @azure_ds_telemetry_reporter
 def address_ephemeral_resize(
-    devpath=RESOURCE_DISK_PATH, is_new_instance=False, preserve_ntfs=False
+    instance_dir: str,
+    devpath: str = RESOURCE_DISK_PATH,
+    is_new_instance: bool = False,
+    preserve_ntfs: bool = False,
 ):
     if not os.path.exists(devpath):
         report_diagnostic_event(
@@ -1736,14 +1638,13 @@ def address_ephemeral_resize(
         return
 
     for mod in ["disk_setup", "mounts"]:
-        sempath = "/var/lib/cloud/instance/sem/config_" + mod
+        sempath = os.path.join(instance_dir, "sem", "config_" + mod)
         bmsg = 'Marker "%s" for module "%s"' % (sempath, mod)
         if os.path.exists(sempath):
             try:
                 os.unlink(sempath)
                 LOG.debug("%s removed.", bmsg)
-            except Exception as e:
-                # python3 throws FileNotFoundError, python2 throws OSError
+            except FileNotFoundError as e:
                 LOG.warning("%s: remove failed! (%s)", bmsg, e)
         else:
             LOG.debug("%s did not exist.", bmsg)
@@ -1779,285 +1680,54 @@ def write_files(datadir, files, dirmode=None):
         util.write_file(filename=fname, content=content, mode=0o600)
 
 
-def find_child(node, filter_func):
-    ret = []
-    if not node.hasChildNodes():
-        return ret
-    for child in node.childNodes:
-        if filter_func(child):
-            ret.append(child)
-    return ret
-
-
-@azure_ds_telemetry_reporter
-def load_azure_ovf_pubkeys(sshnode):
-    # This parses a 'SSH' node formatted like below, and returns
-    # an array of dicts.
-    #  [{'fingerprint': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
-    #    'path': '/where/to/go'}]
-    #
-    # <SSH><PublicKeys>
-    #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/x/y/z</Path>
-    #   ...
-    # </PublicKeys></SSH>
-    # Under some circumstances, there may be a <Value> element along with the
-    # Fingerprint and Path. Pass those along if they appear.
-    results = find_child(sshnode, lambda n: n.localName == "PublicKeys")
-    if len(results) == 0:
-        return []
-    if len(results) > 1:
-        raise BrokenAzureDataSource(
-            "Multiple 'PublicKeys'(%s) in SSH node" % len(results)
-        )
-
-    pubkeys_node = results[0]
-    pubkeys = find_child(pubkeys_node, lambda n: n.localName == "PublicKey")
-
-    if len(pubkeys) == 0:
-        return []
-
-    found = []
-    text_node = minidom.Document.TEXT_NODE
-
-    for pk_node in pubkeys:
-        if not pk_node.hasChildNodes():
-            continue
-
-        cur = {"fingerprint": "", "path": "", "value": ""}
-        for child in pk_node.childNodes:
-            if child.nodeType == text_node or not child.localName:
-                continue
-
-            name = child.localName.lower()
-
-            if name not in cur.keys():
-                continue
-
-            if (
-                len(child.childNodes) != 1
-                or child.childNodes[0].nodeType != text_node
-            ):
-                continue
-
-            cur[name] = child.childNodes[0].wholeText.strip()
-        found.append(cur)
-
-    return found
-
-
 @azure_ds_telemetry_reporter
 def read_azure_ovf(contents):
-    try:
-        dom = minidom.parseString(contents)
-    except Exception as e:
-        error_str = "Invalid ovf-env.xml: %s" % e
-        report_diagnostic_event(error_str, logger_func=LOG.warning)
-        raise BrokenAzureDataSource(error_str) from e
+    """Parse OVF XML contents.
 
-    results = find_child(
-        dom.documentElement, lambda n: n.localName == "ProvisioningSection"
-    )
+    :return: Tuple of metadata, configuration, userdata dicts.
 
-    if len(results) == 0:
-        raise NonAzureDataSource("No ProvisioningSection")
-    if len(results) > 1:
-        raise BrokenAzureDataSource(
-            "found '%d' ProvisioningSection items" % len(results)
-        )
-    provSection = results[0]
-
-    lpcs_nodes = find_child(
-        provSection,
-        lambda n: n.localName == "LinuxProvisioningConfigurationSet",
-    )
-
-    if len(lpcs_nodes) == 0:
-        raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")
-    if len(lpcs_nodes) > 1:
-        raise BrokenAzureDataSource(
-            "found '%d' %ss"
-            % (len(lpcs_nodes), "LinuxProvisioningConfigurationSet")
-        )
-    lpcs = lpcs_nodes[0]
-
-    if not lpcs.hasChildNodes():
-        raise BrokenAzureDataSource("no child nodes of configuration set")
-
-    md_props = "seedfrom"
-    md: Dict[str, Any] = {"azure_data": {}}
+    :raises NonAzureDataSource: if XML is not in Azure's format.
+    :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+    """
+    ovf_env = OvfEnvXml.parse_text(contents)
+    md: Dict[str, Any] = {}
     cfg = {}
-    ud = ""
-    password = None
-    username = None
+    ud = ovf_env.custom_data or ""
 
-    for child in lpcs.childNodes:
-        if child.nodeType == dom.TEXT_NODE or not child.localName:
-            continue
+    if ovf_env.hostname:
+        md["local-hostname"] = ovf_env.hostname
 
-        name = child.localName.lower()
+    if ovf_env.public_keys:
+        cfg["_pubkeys"] = ovf_env.public_keys
 
-        simple = False
-        value = ""
-        if (
-            len(child.childNodes) == 1
-            and child.childNodes[0].nodeType == dom.TEXT_NODE
-        ):
-            simple = True
-            value = child.childNodes[0].wholeText
-
-        attrs = dict([(k, v) for k, v in child.attributes.items()])
-
-        # we accept either UserData or CustomData.  If both are present
-        # then behavior is undefined.
-        if name == "userdata" or name == "customdata":
-            if attrs.get("encoding") in (None, "base64"):
-                ud = base64.b64decode("".join(value.split()))
-            else:
-                ud = value
-        elif name == "username":
-            username = value
-        elif name == "userpassword":
-            password = value
-        elif name == "hostname":
-            md["local-hostname"] = value
-        elif name == "dscfg":
-            if attrs.get("encoding") in (None, "base64"):
-                dscfg = base64.b64decode("".join(value.split()))
-            else:
-                dscfg = value
-            cfg["datasource"] = {DS_NAME: util.load_yaml(dscfg, default={})}
-        elif name == "ssh":
-            cfg["_pubkeys"] = load_azure_ovf_pubkeys(child)
-        elif name == "disablesshpasswordauthentication":
-            cfg["ssh_pwauth"] = util.is_false(value)
-        elif simple:
-            if name in md_props:
-                md[name] = value
-            else:
-                md["azure_data"][name] = value
+    if ovf_env.disable_ssh_password_auth is not None:
+        cfg["ssh_pwauth"] = not ovf_env.disable_ssh_password_auth
+    elif ovf_env.password:
+        cfg["ssh_pwauth"] = True
 
     defuser = {}
-    if username:
-        defuser["name"] = username
-    if password:
+    if ovf_env.username:
+        defuser["name"] = ovf_env.username
+    if ovf_env.password:
         defuser["lock_passwd"] = False
-        if DEF_PASSWD_REDACTION != password:
-            defuser["passwd"] = cfg["password"] = encrypt_pass(password)
+        if DEF_PASSWD_REDACTION != ovf_env.password:
+            defuser["hashed_passwd"] = encrypt_pass(ovf_env.password)
 
     if defuser:
         cfg["system_info"] = {"default_user": defuser}
 
-    if "ssh_pwauth" not in cfg and password:
-        cfg["ssh_pwauth"] = True
+    cfg["PreprovisionedVm"] = ovf_env.preprovisioned_vm
+    report_diagnostic_event(
+        "PreprovisionedVm: %s" % ovf_env.preprovisioned_vm,
+        logger_func=LOG.info,
+    )
 
-    preprovisioning_cfg = _get_preprovisioning_cfgs(dom)
-    cfg = util.mergemanydict([cfg, preprovisioning_cfg])
-
+    cfg["PreprovisionedVMType"] = ovf_env.preprovisioned_vm_type
+    report_diagnostic_event(
+        "PreprovisionedVMType: %s" % ovf_env.preprovisioned_vm_type,
+        logger_func=LOG.info,
+    )
     return (md, ud, cfg)
-
-
-@azure_ds_telemetry_reporter
-def _get_preprovisioning_cfgs(dom):
-    """Read the preprovisioning related flags from ovf and populates a dict
-    with the info.
-
-    Two flags are in use today: PreprovisionedVm bool and
-    PreprovisionedVMType enum. In the long term, the PreprovisionedVm bool
-    will be deprecated in favor of PreprovisionedVMType string/enum.
-
-    Only these combinations of values are possible today:
-        - PreprovisionedVm=True and PreprovisionedVMType=Running
-        - PreprovisionedVm=False and PreprovisionedVMType=Savable
-        - PreprovisionedVm is missing and PreprovisionedVMType=Running/Savable
-        - PreprovisionedVm=False and PreprovisionedVMType is missing
-
-    More specifically, this will never happen:
-        - PreprovisionedVm=True and PreprovisionedVMType=Savable
-    """
-    cfg = {"PreprovisionedVm": False, "PreprovisionedVMType": None}
-
-    platform_settings_section = find_child(
-        dom.documentElement, lambda n: n.localName == "PlatformSettingsSection"
-    )
-    if not platform_settings_section or len(platform_settings_section) == 0:
-        LOG.debug("PlatformSettingsSection not found")
-        return cfg
-    platform_settings = find_child(
-        platform_settings_section[0],
-        lambda n: n.localName == "PlatformSettings",
-    )
-    if not platform_settings or len(platform_settings) == 0:
-        LOG.debug("PlatformSettings not found")
-        return cfg
-
-    # Read the PreprovisionedVm bool flag. This should be deprecated when the
-    # platform has removed PreprovisionedVm and only surfaces
-    # PreprovisionedVMType.
-    cfg["PreprovisionedVm"] = _get_preprovisionedvm_cfg_value(
-        platform_settings
-    )
-
-    cfg["PreprovisionedVMType"] = _get_preprovisionedvmtype_cfg_value(
-        platform_settings
-    )
-    return cfg
-
-
-@azure_ds_telemetry_reporter
-def _get_preprovisionedvm_cfg_value(platform_settings):
-    preprovisionedVm = False
-
-    # Read the PreprovisionedVm bool flag. This should be deprecated when the
-    # platform has removed PreprovisionedVm and only surfaces
-    # PreprovisionedVMType.
-    preprovisionedVmVal = find_child(
-        platform_settings[0], lambda n: n.localName == "PreprovisionedVm"
-    )
-    if not preprovisionedVmVal or len(preprovisionedVmVal) == 0:
-        LOG.debug("PreprovisionedVm not found")
-        return preprovisionedVm
-    preprovisionedVm = util.translate_bool(
-        preprovisionedVmVal[0].firstChild.nodeValue
-    )
-
-    report_diagnostic_event(
-        "PreprovisionedVm: %s" % preprovisionedVm, logger_func=LOG.info
-    )
-
-    return preprovisionedVm
-
-
-@azure_ds_telemetry_reporter
-def _get_preprovisionedvmtype_cfg_value(platform_settings):
-    preprovisionedVMType = None
-
-    # Read the PreprovisionedVMType value from the ovf. It can be
-    # 'Running' or 'Savable' or not exist. This enum value is intended to
-    # replace PreprovisionedVm bool flag in the long term.
-    # A Running VM is the same as preprovisioned VMs of today. This is
-    # equivalent to having PreprovisionedVm=True.
-    # A Savable VM is one whose nic is hot-detached immediately after it
-    # reports ready the first time to free up the network resources.
-    # Once assigned to customer, the customer-requested nics are
-    # hot-attached to it and reprovision happens like today.
-    preprovisionedVMTypeVal = find_child(
-        platform_settings[0], lambda n: n.localName == "PreprovisionedVMType"
-    )
-    if (
-        not preprovisionedVMTypeVal
-        or len(preprovisionedVMTypeVal) == 0
-        or preprovisionedVMTypeVal[0].firstChild is None
-    ):
-        LOG.debug("PreprovisionedVMType not found")
-        return preprovisionedVMType
-
-    preprovisionedVMType = preprovisionedVMTypeVal[0].firstChild.nodeValue
-
-    report_diagnostic_event(
-        "PreprovisionedVMType: %s" % preprovisionedVMType, logger_func=LOG.info
-    )
-
-    return preprovisionedVMType
 
 
 def encrypt_pass(password, salt_id="$6$"):
@@ -2087,9 +1757,8 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     seed = util.load_file(source, quiet=True, decode=False)
 
     # The seed generally contains non-Unicode characters. load_file puts
-    # them into a str (in python 2) or bytes (in python 3). In python 2,
-    # bad octets in a str cause util.json_dumps() to throw an exception. In
-    # python 3, bytes is a non-serializable type, and the handler load_file
+    # them into bytes (in python 3).
+    # bytes is a non-serializable type, and the handler load_file
     # uses applies b64 encoding *again* to handle it. The simplest solution
     # is to just b64encode the data and then decode it to a serializable
     # string. Same number of bits of entropy, just with 25% more zeroes.
@@ -2128,40 +1797,16 @@ def load_azure_ds_dir(source_dir):
 
 
 @azure_ds_telemetry_reporter
-def parse_network_config(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata if present or generate
-    fallback network config excluding mlx4_core devices.
+def generate_network_config_from_instance_network_metadata(
+    network_metadata: dict,
+) -> dict:
+    """Convert imds network metadata dictionary to network v2 configuration.
 
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
-    """
-    if imds_metadata != sources.UNSET and imds_metadata:
-        try:
-            return _generate_network_config_from_imds_metadata(imds_metadata)
-        except Exception as e:
-            LOG.error(
-                "Failed generating network config "
-                "from IMDS network metadata: %s",
-                str(e),
-            )
-    try:
-        return _generate_network_config_from_fallback_config()
-    except Exception as e:
-        LOG.error("Failed generating fallback network config: %s", str(e))
-    return {}
+    :param: network_metadata: Dict of "network" key from instance metdata.
 
-
-@azure_ds_telemetry_reporter
-def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
-    """Convert imds_metadata dictionary to network v2 configuration.
-    Parses network configuration from imds metadata.
-
-    @param: imds_metadata: Dict of content read from IMDS network service.
-    @return: Dictionary containing network version 2 standard configuration.
+    :return: Dictionary containing network version 2 standard configuration.
     """
     netconfig: Dict[str, Any] = {"version": 2, "ethernets": {}}
-    network_metadata = imds_metadata["network"]
     for idx, intf in enumerate(network_metadata["interface"]):
         has_ip_address = False
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
@@ -2208,11 +1853,8 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             dev_config.update(
                 {"match": {"macaddress": mac.lower()}, "set-name": nicname}
             )
-            # With netvsc, we can get two interfaces that
-            # share the same MAC, so we need to make sure
-            # our match condition also contains the driver
-            driver = device_driver(nicname)
-            if driver and driver == "hv_netvsc":
+            driver = determine_device_driver_for_mac(mac)
+            if driver:
                 dev_config["match"]["driver"] = driver
             netconfig["ethernets"][nicname] = dev_config
             continue
@@ -2238,96 +1880,6 @@ def _generate_network_config_from_fallback_config() -> dict:
     if cfg is None:
         return {}
     return cfg
-
-
-@azure_ds_telemetry_reporter
-def get_metadata_from_imds(
-    retries,
-    md_type=MetadataType.ALL,
-    api_version=IMDS_VER_MIN,
-    exc_cb=imds_readurl_exception_callback,
-    infinite=False,
-):
-    """Query Azure's instance metadata service, returning a dictionary.
-
-    For more info on IMDS:
-        https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
-
-    @param retries: The number of retries of the IMDS_URL.
-    @param md_type: Metadata type for IMDS request.
-    @param api_version: IMDS api-version to use in the request.
-
-    @return: A dict of instance metadata containing compute and network
-        info.
-    """
-    kwargs = {
-        "logfunc": LOG.debug,
-        "msg": "Crawl of Azure Instance Metadata Service (IMDS)",
-        "func": _get_metadata_from_imds,
-        "args": (retries, exc_cb, md_type, api_version, infinite),
-    }
-    try:
-        return util.log_time(**kwargs)
-    except Exception as e:
-        report_diagnostic_event(
-            "exception while getting metadata: %s" % e,
-            logger_func=LOG.warning,
-        )
-        raise
-
-
-@azure_ds_telemetry_reporter
-def _get_metadata_from_imds(
-    retries,
-    exc_cb,
-    md_type=MetadataType.ALL,
-    api_version=IMDS_VER_MIN,
-    infinite=False,
-):
-    url = "{}?api-version={}".format(md_type.value, api_version)
-    headers = {"Metadata": "true"}
-
-    # support for extended metadata begins with 2021-03-01
-    if api_version >= IMDS_EXTENDED_VER_MIN and md_type == MetadataType.ALL:
-        url = url + "&extended=true"
-
-    try:
-        response = readurl(
-            url,
-            timeout=IMDS_TIMEOUT_IN_SECONDS,
-            headers=headers,
-            retries=retries,
-            exception_cb=exc_cb,
-            infinite=infinite,
-        )
-    except Exception as e:
-        # pylint:disable=no-member
-        if isinstance(e, UrlError) and e.code == 400:
-            raise
-        else:
-            report_diagnostic_event(
-                "Ignoring IMDS instance metadata. "
-                "Get metadata from IMDS failed: %s" % e,
-                logger_func=LOG.warning,
-            )
-            return {}
-    try:
-        from json.decoder import JSONDecodeError
-
-        json_decode_error = JSONDecodeError
-    except ImportError:
-        json_decode_error = ValueError
-
-    try:
-        return util.load_json(response.contents)
-    except json_decode_error as e:
-        report_diagnostic_event(
-            "Ignoring non-json IMDS instance metadata response: %s. "
-            "Loading non-json IMDS response failed: %s"
-            % (response.contents, e),
-            logger_func=LOG.warning,
-        )
-    return {}
 
 
 @azure_ds_telemetry_reporter
@@ -2366,32 +1918,6 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
                 util.del_dir(path)
             else:
                 util.del_file(path)
-
-
-def _is_platform_viable(seed_dir):
-    """Check platform environment to report if this datasource may run."""
-    with events.ReportEventStack(
-        name="check-platform-viability",
-        description="found azure asset tag",
-        parent=azure_ds_reporter,
-    ) as evt:
-        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-        if asset_tag == AZURE_CHASSIS_ASSET_TAG:
-            return True
-        msg = "Non-Azure DMI asset tag '%s' discovered." % asset_tag
-        evt.description = msg
-        report_diagnostic_event(msg, logger_func=LOG.debug)
-        if os.path.exists(os.path.join(seed_dir, "ovf-env.xml")):
-            return True
-        return False
-
-
-class BrokenAzureDataSource(Exception):
-    pass
-
-
-class NonAzureDataSource(Exception):
-    pass
 
 
 # Legacy: Must be present in case we load an old pkl object

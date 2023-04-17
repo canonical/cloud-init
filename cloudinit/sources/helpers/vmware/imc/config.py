@@ -6,10 +6,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-from .nic import Nic
+from cloudinit.sources.helpers.vmware.imc.nic import Nic
 
 
-class Config(object):
+class Config:
     """
     Stores the Contents specified in the Customization
     Specification file.
@@ -29,6 +29,7 @@ class Config(object):
     DEFAULT_RUN_POST_SCRIPT = "MISC|DEFAULT-RUN-POST-CUST-SCRIPT"
     CLOUDINIT_META_DATA = "CLOUDINIT|METADATA"
     CLOUDINIT_USER_DATA = "CLOUDINIT|USERDATA"
+    CLOUDINIT_INSTANCE_ID = "CLOUDINIT|INSTANCE-ID"
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -47,11 +48,6 @@ class Config(object):
     def timezone(self):
         """Return the timezone."""
         return self._configFile.get(Config.TIMEZONE, None)
-
-    @property
-    def utc(self):
-        """Retrieves whether to set time to UTC or Local."""
-        return self._configFile.get(Config.UTC, None)
 
     @property
     def admin_password(self):
@@ -141,6 +137,11 @@ class Config(object):
     def user_data_name(self):
         """Return the name of cloud-init user data."""
         return self._configFile.get(Config.CLOUDINIT_USER_DATA, None)
+
+    @property
+    def instance_id(self):
+        """Return instance id"""
+        return self._configFile.get(Config.CLOUDINIT_INSTANCE_ID, None)
 
 
 # vi: ts=4 expandtab

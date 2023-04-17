@@ -1,5 +1,5 @@
 #cloud-config
-# Cloud-init supports the creation of simple partition tables and file systems
+# Cloud-init supports the creation of simple partition tables and filesystems
 # on devices.
 
 # Default disk definitions for AWS
@@ -147,13 +147,13 @@ disk_setup:
 #               If layout is set to "true" and overwrite is set to "false",
 #               it will skip partitioning the device without a failure.
 #
-#   overwrite=<BOOL>: This describes whether to ride with saftey's on and
+#   overwrite=<BOOL>: This describes whether to ride with safetys on and
 #               everything holstered.
 #
 #               'false' is the default, which means that:
 #                   1. The device will be checked for a partition table
-#                   2. The device will be checked for a file system
-#                   3. If either a partition of file system is found, then
+#                   2. The device will be checked for a filesystem
+#                   3. If either a partition of filesystem is found, then
 #                       the operation will be _skipped_.
 #
 #               'true' is cowboy mode. There are no checks and things are
@@ -161,10 +161,10 @@ disk_setup:
 #                   really, really don't want to do.
 #
 #
-# fs_setup: Setup the file system
-# -------------------------------
+# fs_setup: Setup the filesystem
+# ------------------------------
 #
-# fs_setup describes the how the file systems are supposed to look.
+# fs_setup describes the how the filesystems are supposed to look.
 
 fs_setup:
   - label: ephemeral0
@@ -189,10 +189,10 @@ fs_setup:
 #       replace_fs: <FS_TYPE>
 #
 # Where:
-#   <LABEL>: The file system label to be used. If set to None, no label is
+#   <LABEL>: The filesystem label to be used. If set to None, no label is
 #     used.
 #
-#   <FS_TYPE>: The file system type. It is assumed that the there
+#   <FS_TYPE>: The filesystem type. It is assumed that the there
 #     will be a "mkfs.<FS_TYPE>" that behaves likes "mkfs". On a standard
 #     Ubuntu Cloud Image, this means that you have the option of ext{2,3,4},
 #     and vfat by default.
@@ -212,15 +212,15 @@ fs_setup:
 #     The valid options are:
 #     "auto|any": tell cloud-init not to care whether there is a partition
 #       or not. Auto will use the first partition that does not contain a
-#       file system already. In the absence of a partition table, it will
+#       filesystem already. In the absence of a partition table, it will
 #       put it directly on the disk.
 #
-#       "auto": If a file system that matches the specification in terms of
-#       label, type and device, then cloud-init will skip the creation of
-#       the file system.
+#       "auto": If a filesystem that matches the specification in terms of
+#       label, filesystem and device, then cloud-init will skip the creation
+#       of the filesystem.
 #
-#       "any": If a file system that matches the file system type and device,
-#       then cloud-init will skip the creation of the file system.
+#       "any": If a filesystem that matches the filesystem type and device,
+#       then cloud-init will skip the creation of the filesystem.
 #
 #       Devices are selected based on first-detected, starting with partitions
 #       and then the raw disk. Consider the following:
@@ -231,7 +231,7 @@ fs_setup:
 #           |-xvdb3  btrfs  test
 #           \-xvdb4  ext4   test
 #
-#         If you ask for 'auto', label of 'test, and file system of 'ext4'
+#         If you ask for 'auto', label of 'test, and filesystem of 'ext4'
 #         then cloud-init will select the 2nd partition, even though there
 #         is a partition match at the 4th partition.
 #
@@ -243,25 +243,25 @@ fs_setup:
 #
 #         In general, if you have a specific partition configuration in mind,
 #         you should define either the device or the partition number. 'auto'
-#         and 'any' are specifically intended for formatting ephemeral storage or
-#         for simple schemes.
+#         and 'any' are specifically intended for formatting ephemeral storage
+#         or for simple schemes.
 #
-#       "none": Put the file system directly on the device.
+#       "none": Put the filesystem directly on the device.
 #
 #       <NUM>: where NUM is the actual partition number.
 #
 #   <OVERWRITE>: Defines whether or not to overwrite any existing
 #     filesystem.
 #
-#     "true": Indiscriminately destroy any pre-existing file system. Use at
+#     "true": Indiscriminately destroy any pre-existing filesystem. Use at
 #         your own peril.
 #
-#     "false": If an existing file system exists, skip the creation.
+#     "false": If an existing filesystem exists, skip the creation.
 #
 #   <REPLACE_FS>: This is a special directive, used for Microsoft Azure that
-#     instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
+#     instructs cloud-init to replace a filesystem of <FS_TYPE>. NOTE:
 #     unless you define a label, this requires the use of the 'any' partition
 #     directive.
 #
-# Behavior Caveat: The default behavior is to _check_ if the file system exists.
-#   If a file system matches the specification, then the operation is a no-op.
+# Behavior Caveat: The default behavior is to _check_ if the filesystem exists.
+#   If a filesystem matches the specification, then the operation is a no-op.

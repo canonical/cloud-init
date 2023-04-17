@@ -2,7 +2,7 @@
 
 import re
 
-from cloudinit import distros, ssh_util
+from cloudinit import distros, log, ssh_util
 from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -135,6 +135,48 @@ class TestCreateUser(CiTestCase):
         ]
         self.assertEqual(m_subp.call_args_list, expected)
 
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_create_groups_with_dict_deprecated(
+        self, m_is_group, m_subp, m_is_snappy
+    ):
+        """users.groups supports a dict value, but emit deprecation log."""
+        log.setupLogging()
+        user = "foouser"
+        self.dist.create_user(user, groups={"group1": None, "group2": None})
+        expected = [
+            mock.call(["groupadd", "group1"]),
+            mock.call(["groupadd", "group2"]),
+            self._useradd2call([user, "--groups", "group1,group2", "-m"]),
+            mock.call(["passwd", "-l", user]),
+        ]
+        self.assertEqual(m_subp.call_args_list, expected)
+        self.assertIn(
+            "DEPRECAT",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "The user foouser has a 'groups' config value of type dict",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "Use a comma-delimited",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_create_groups_with_list(self, m_is_group, m_subp, m_is_snappy):
+        """users.groups supports a list value."""
+        user = "foouser"
+        self.dist.create_user(user, groups=["group1", "group2"])
+        expected = [
+            mock.call(["groupadd", "group1"]),
+            mock.call(["groupadd", "group2"]),
+            self._useradd2call([user, "--groups", "group1,group2", "-m"]),
+            mock.call(["passwd", "-l", user]),
+        ]
+        self.assertEqual(m_subp.call_args_list, expected)
+        self.assertNotIn("WARNING: DEPRECATED: ", self.logs.getvalue())
+
     def test_explicit_sudo_false(self, m_subp, m_is_snappy):
         user = "foouser"
         self.dist.create_user(user, sudo=False)
@@ -145,6 +187,24 @@ class TestCreateUser(CiTestCase):
                 mock.call(["passwd", "-l", user]),
             ],
         )
+        self.assertIn(
+            "DEPRECATED: The value of 'false' in user foouser's 'sudo' "
+            "config is deprecated in 22.3 and scheduled to be removed"
+            " in 27.3. Use 'null' instead.",
+            self.logs.getvalue(),
+        )
+
+    def test_explicit_sudo_none(self, m_subp, m_is_snappy):
+        user = "foouser"
+        self.dist.create_user(user, sudo=None)
+        self.assertEqual(
+            m_subp.call_args_list,
+            [
+                self._useradd2call([user, "-m"]),
+                mock.call(["passwd", "-l", user]),
+            ],
+        )
+        self.assertNotIn("WARNING: DEPRECATED: ", self.logs.getvalue())
 
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_string(

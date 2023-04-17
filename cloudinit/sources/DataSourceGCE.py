@@ -11,7 +11,8 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.distros import ug_util
-from cloudinit.net.dhcp import EphemeralDHCPv4
+from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
 
 
-class GoogleMetadataFetcher(object):
+class GoogleMetadataFetcher:
     def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
         self.num_retries = num_retries
@@ -82,7 +83,9 @@ class DataSourceGCE(sources.DataSource):
         url_params = self.get_url_params()
         network_context = noop()
         if self.perform_dhcp_setup:
-            network_context = EphemeralDHCPv4(self.fallback_interface)
+            network_context = EphemeralDHCPv4(
+                self.fallback_interface,
+            )
         with network_context:
             ret = util.log_time(
                 LOG.debug,
@@ -122,7 +125,9 @@ class DataSourceGCE(sources.DataSource):
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
-        return self.metadata["local-hostname"].split(".")[0]
+        return DataSourceHostname(
+            self.metadata["local-hostname"].split(".")[0], False
+        )
 
     @property
     def availability_zone(self):

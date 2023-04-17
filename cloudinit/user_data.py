@@ -69,12 +69,12 @@ def _set_filename(msg, filename):
 
 def _handle_error(error_message, source_exception=None):
     if features.ERROR_ON_USER_DATA_FAILURE:
-        raise Exception(error_message) from source_exception
+        raise RuntimeError(error_message) from source_exception
     else:
         LOG.warning(error_message)
 
 
-class UserDataProcessor(object):
+class UserDataProcessor:
     def __init__(self, paths):
         self.paths = paths
         self.ssl_details = util.fetch_ssl_details(paths)
@@ -166,7 +166,6 @@ class UserDataProcessor(object):
             # TODO(harlowja): Should this be happening, shouldn't
             # the part header be modified and not the base?
             _replace_header(base_msg, CONTENT_TYPE, ctype)
-
             self._attach_part(append_msg, part)
 
     def _attach_launch_index(self, msg):

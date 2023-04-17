@@ -7,9 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Scripts User: Run user scripts"""
 
+import logging
 import os
 
 from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -31,15 +34,17 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 SCRIPT_SUBDIR = "scripts"
 
 
-def handle(name, _cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # This is written to by the user data handlers
     # Ie, any custom shell scripts that come down
     # go here...
@@ -47,7 +52,7 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning(
+        LOG.warning(
             "Failed to run module %s (%s in %s)",
             name,
             SCRIPT_SUBDIR,

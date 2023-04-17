@@ -47,7 +47,7 @@ class TestLocale(FilesystemMockingTestCase):
 
         with mock.patch("cloudinit.distros.arch.subp.subp") as m_subp:
             with mock.patch("cloudinit.distros.arch.LOG.warning") as m_LOG:
-                cc_locale.handle("cc_locale", cfg, cc, LOG, [])
+                cc_locale.handle("cc_locale", cfg, cc, [])
                 m_LOG.assert_called_with(
                     "Invalid locale_configfile %s, "
                     "only supported value is "
@@ -67,7 +67,7 @@ class TestLocale(FilesystemMockingTestCase):
             "locale": "My.Locale",
         }
         cc = get_cloud("sles")
-        cc_locale.handle("cc_locale", cfg, cc, LOG, [])
+        cc_locale.handle("cc_locale", cfg, cc, [])
         if cc.distro.uses_systemd():
             locale_conf = cc.distro.systemd_locale_conf_fn
         else:
@@ -82,7 +82,7 @@ class TestLocale(FilesystemMockingTestCase):
     def test_set_locale_sles_default(self):
         cfg = {}
         cc = get_cloud("sles")
-        cc_locale.handle("cc_locale", cfg, cc, LOG, [])
+        cc_locale.handle("cc_locale", cfg, cc, [])
 
         if cc.distro.uses_systemd():
             locale_conf = cc.distro.systemd_locale_conf_fn
@@ -105,7 +105,7 @@ class TestLocale(FilesystemMockingTestCase):
             with mock.patch(
                 "cloudinit.distros.debian.LOCALE_CONF_FN", locale_conf
             ):
-                cc_locale.handle("cc_locale", cfg, cc, LOG, [])
+                cc_locale.handle("cc_locale", cfg, cc, [])
                 m_subp.assert_called_with(
                     [
                         "update-locale",
@@ -123,7 +123,7 @@ class TestLocale(FilesystemMockingTestCase):
         with mock.patch.object(cc.distro, "uses_systemd") as m_use_sd:
             m_use_sd.return_value = True
             with mock.patch(update_sysconfig) as m_update_syscfg:
-                cc_locale.handle("cc_locale", cfg, cc, LOG, [])
+                cc_locale.handle("cc_locale", cfg, cc, [])
                 m_update_syscfg.assert_called_with(
                     "/etc/locale.conf", {"LANG": "en_US.UTF-8"}
                 )

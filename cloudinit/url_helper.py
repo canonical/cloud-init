@@ -19,7 +19,7 @@ from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote, urlparse, urlunparse
 
 import requests
@@ -59,7 +59,7 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, **kwargs):
+def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
     """Wrapper function around readurl to allow passing a file path as url.
 
     When url is not a local file path, passthrough any kwargs to readurl.
@@ -90,7 +90,7 @@ def read_file_or_url(url, **kwargs):
 # Made to have same accessors as UrlResponse so that the
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
-class StringResponse(object):
+class StringResponse:
     def __init__(self, contents, code=200):
         self.code = code
         self.headers = {}
@@ -112,12 +112,14 @@ class FileResponse(StringResponse):
         self.url = path
 
 
-class UrlResponse(object):
-    def __init__(self, response):
+class UrlResponse:
+    def __init__(self, response: requests.Response):
         self._response = response
 
     @property
-    def contents(self):
+    def contents(self) -> bytes:
+        if self._response.content is None:
+            return b""
         return self._response.content
 
     @property
@@ -143,6 +145,20 @@ class UrlResponse(object):
 
     def __str__(self):
         return self._response.text
+
+    def iter_content(
+        self, chunk_size: Optional[int] = 1, decode_unicode: bool = False
+    ) -> Iterator[bytes]:
+        """Iterates over the response data.
+
+        When stream=True is set on the request, this avoids reading the content
+        at once into memory for large responses.
+
+        :param chunk_size: Number of bytes it should read into memory.
+        :param decode_unicode: If True, content will be decoded using the best
+        available encoding based on the response.
+        """
+        yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
 class UrlError(IOError):
@@ -191,6 +207,7 @@ def readurl(
     infinite=False,
     log_req_resp=True,
     request_method="",
+    stream: bool = False,
 ) -> UrlResponse:
     """Wrapper around requests.Session to read the url and retry if necessary
 
@@ -222,10 +239,13 @@ def readurl(
     :param request_method: String passed as 'method' to Session.request.
         Typically GET, or POST. Default: POST if data is provided, GET
         otherwise.
+    :param stream: if False, the response content will be immediately
+    downloaded.
     """
     url = _cleanurl(url)
     req_args = {
         "url": url,
+        "stream": stream,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
     req_args["allow_redirects"] = allow_redirects
@@ -355,7 +375,7 @@ def _run_func_with_delay(
     addr: str,
     timeout: int,
     event: threading.Event,
-    delay: float = None,
+    delay: Optional[float] = None,
 ) -> Any:
     """Execute func with optional delay"""
     if delay:
@@ -456,11 +476,11 @@ def wait_for_url(
     max_wait=None,
     timeout=None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
-    headers_cb: Callable = None,
+    headers_cb: Optional[Callable] = None,
     headers_redact=None,
     sleep_time: int = 1,
-    exception_cb: Callable = None,
-    sleep_time_cb: Callable[[Any, int], int] = None,
+    exception_cb: Optional[Callable] = None,
+    sleep_time_cb: Optional[Callable[[Any, int], int]] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,
@@ -660,7 +680,7 @@ def wait_for_url(
     return False, None
 
 
-class OauthUrlHelper(object):
+class OauthUrlHelper:
     def __init__(
         self,
         consumer_key=None,

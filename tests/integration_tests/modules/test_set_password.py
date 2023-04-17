@@ -12,6 +12,7 @@ import pytest
 import yaml
 
 from tests.integration_tests.decorators import retry
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import get_console_log
 
 COMMON_USER_DATA = """\
@@ -61,6 +62,23 @@ chpasswd:
       dick:RANDOM
       harry:RANDOM
       mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+"""
+)
+
+USERS_USER_DATA = (
+    COMMON_USER_DATA
+    + """
+chpasswd:
+  users:
+    - name: tom
+      password: mypassword123!
+      type: text
+    - name: dick
+      type: RANDOM
+    - name: harry
+      type: RANDOM
+    - name: mikey
+      password: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
 )
 
@@ -160,22 +178,45 @@ class Mixin:
         shadow = class_client.read_from_file("/etc/shadow")
         for user_dict in USERS_DICTS:
             if "name" in user_dict:
-                assert "{}:".format(user_dict["name"]) in shadow
+                assert f'{user_dict["name"]}:' in shadow
 
-    def test_sshd_config(self, class_client):
-        """Test that SSH password auth is enabled."""
-        sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
+    def test_sshd_config_file(self, class_client):
+        """Test that SSH config is written in the correct file."""
+        if CURRENT_RELEASE.series == "bionic":
+            sshd_file_target = "/etc/ssh/sshd_config"
+        else:
+            sshd_file_target = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        assert class_client.execute(f"ls {sshd_file_target}").ok
+        sshd_config = class_client.read_from_file(sshd_file_target)
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Use of systemctl")
+    def test_check_ssh_service(self, class_client):
+        """Ensure we check the sshd status because we modified the config"""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        assert (
+            "'systemctl', 'show', '--property', 'ActiveState', "
+            "'--value', 'ssh'" in log
+        )
 
-@pytest.mark.ci
+    def test_sshd_config(self, class_client):
+        """Test that SSH password auth is enabled."""
+        sshd_config = class_client.execute("sshd -T").stdout
+        assert "passwordauthentication yes" in sshd_config
+
+
 @pytest.mark.user_data(LIST_USER_DATA)
 class TestPasswordList(Mixin):
     """Launch an instance with LIST_USER_DATA, ensure Mixin tests pass."""
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(STRING_USER_DATA)
 class TestPasswordListString(Mixin):
     """Launch an instance with STRING_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.ci
+@pytest.mark.user_data(USERS_USER_DATA)
+class TestPasswordUsersList(Mixin):
+    """Launch an instance with USERS_USER_DATA, ensure Mixin tests pass."""

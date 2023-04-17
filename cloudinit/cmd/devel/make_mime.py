@@ -10,9 +10,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from cloudinit import log
+from cloudinit.cmd.devel import addLogHandlerCLI
 from cloudinit.handlers import INCLUSION_TYPES_MAP
-
-from . import addLogHandlerCLI
 
 NAME = "make-mime"
 LOG = log.getLogger(NAME)

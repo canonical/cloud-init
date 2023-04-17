@@ -8,9 +8,11 @@
 
 import os
 import pwd
+from contextlib import suppress
+from typing import List, Sequence, Tuple
 
 from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ DISABLE_USER_OPTS = (
 )
 
 
-class AuthKeyLine(object):
+class AuthKeyLine:
     def __init__(
         self, source, keytype=None, base64=None, comment=None, options=None
     ):
@@ -95,7 +97,7 @@ class AuthKeyLine(object):
             return " ".join(toks)
 
 
-class AuthKeyLineParser(object):
+class AuthKeyLineParser:
     """
     AUTHORIZED_KEYS FILE FORMAT
      AuthorizedKeysFile specifies the file containing public keys for public
@@ -476,7 +478,7 @@ def setup_user_keys(keys, username, options=None):
         util.write_file(auth_key_fn, content, preserve_mode=True)
 
 
-class SshdConfigLine(object):
+class SshdConfigLine:
     def __init__(self, line, k=None, v=None):
         self.line = line
         self._key = k
@@ -499,18 +501,18 @@ class SshdConfigLine(object):
             return v
 
 
-def parse_ssh_config(fname):
+def parse_ssh_config(fname) -> List[SshdConfigLine]:
     if not os.path.isfile(fname):
         return []
     return parse_ssh_config_lines(util.load_file(fname).splitlines())
 
 
-def parse_ssh_config_lines(lines):
+def parse_ssh_config_lines(lines) -> List[SshdConfigLine]:
     # See: man sshd_config
     # The file contains keyword-argument pairs, one per line.
     # Lines starting with '#' and empty lines are interpreted as comments.
     # Note: key-words are case-insensitive and arguments are case-sensitive
-    ret = []
+    ret: List[SshdConfigLine] = []
     for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
@@ -544,11 +546,33 @@ def parse_ssh_config_map(fname):
     return ret
 
 
+def _includes_dconf(fname: str) -> bool:
+    if not os.path.isfile(fname):
+        return False
+    with open(fname, "r") as f:
+        for line in f:
+            if line.startswith(f"Include {fname}.d/*.conf"):
+                return True
+    return False
+
+
+def _ensure_cloud_init_ssh_config_file(fname):
+    if _includes_dconf(fname):
+        if not os.path.isdir(f"{fname}.d"):
+            util.ensure_dir(f"{fname}.d", mode=0o755)
+        fname = os.path.join(f"{fname}.d", "50-cloud-init.conf")
+        if not os.path.isfile(fname):
+            # Ensure root read-only:
+            util.ensure_file(fname, 0o600)
+    return fname
+
+
 def update_ssh_config(updates, fname=DEF_SSHD_CFG):
     """Read fname, and update if changes are necessary.
 
     @param updates: dictionary of desired values {Option: value}
     @return: boolean indicating if an update was done."""
+    fname = _ensure_cloud_init_ssh_config_file(fname)
     lines = parse_ssh_config(fname)
     changed = update_ssh_config_lines(lines=lines, updates=updates)
     if changed:
@@ -604,6 +628,64 @@ def update_ssh_config_lines(lines, updates):
                 "line %d: option %s added with %s", len(lines), key, value
             )
     return changed
+
+
+def append_ssh_config(lines: Sequence[Tuple[str, str]], fname=DEF_SSHD_CFG):
+    if not lines:
+        return
+    fname = _ensure_cloud_init_ssh_config_file(fname)
+    content = (f"{k} {v}" for k, v in lines)
+    util.write_file(
+        fname,
+        "\n".join(content) + "\n",
+        omode="ab",
+        preserve_mode=True,
+    )
+
+
+def get_opensshd_version():
+    """Get the full version of the OpenSSH sshd daemon on the system.
+
+    On an ubuntu system, this would look something like:
+    1.2p1 Ubuntu-1ubuntu0.1
+
+    If we can't find `sshd` or parse the version number, return None.
+    """
+    # -V isn't actually a valid argument, but it will cause sshd to print
+    # out its version number to stderr.
+    err = ""
+    with suppress(subp.ProcessExecutionError):
+        _, err = subp.subp(["sshd", "-V"], rcs=[0, 1])
+    prefix = "OpenSSH_"
+    for line in err.split("\n"):
+        if line.startswith(prefix):
+            return line[len(prefix) : line.find(",")]
+    return None
+
+
+def get_opensshd_upstream_version():
+    """Get the upstream version of the OpenSSH sshd dameon on the system.
+
+    This will NOT include the portable number, so if the Ubuntu version looks
+    like `1.2p1 Ubuntu-1ubuntu0.1`, then this function would return
+    `1.2`
+    """
+    # The default version of openssh is not less than 9.0
+    upstream_version = "9.0"
+    full_version = get_opensshd_version()
+    if full_version is None:
+        return util.Version.from_str(upstream_version)
+    if "p" in full_version:
+        upstream_version = full_version[: full_version.find("p")]
+    elif " " in full_version:
+        upstream_version = full_version[: full_version.find(" ")]
+    else:
+        upstream_version = full_version
+    try:
+        upstream_version = util.Version.from_str(upstream_version)
+        return upstream_version
+    except (ValueError, TypeError):
+        LOG.warning("Could not parse sshd version: %s", upstream_version)
 
 
 # vi: ts=4 expandtab

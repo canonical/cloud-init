@@ -6,10 +6,10 @@ import argparse
 import re
 import sys
 from datetime import datetime
+from typing import IO
 
+from cloudinit.analyze import dump, show
 from cloudinit.util import json_dumps
-
-from . import dump, show
 
 
 def get_parser(parser=None):
@@ -192,6 +192,7 @@ def analyze_boot(name, args):
     }
 
     outfh.write(status_map[status_code].format(**kwargs))
+    clean_io(infh, outfh)
     return status_code
 
 
@@ -218,6 +219,7 @@ def analyze_blame(name, args):
         outfh.write("\n".join(srecs) + "\n")
         outfh.write("\n")
     outfh.write("%d boot records analyzed\n" % (idx + 1))
+    clean_io(infh, outfh)
 
 
 def analyze_show(name, args):
@@ -254,12 +256,14 @@ def analyze_show(name, args):
         )
         outfh.write("\n".join(record) + "\n")
     outfh.write("%d boot records analyzed\n" % (idx + 1))
+    clean_io(infh, outfh)
 
 
 def analyze_dump(name, args):
     """Dump cloud-init events in json format"""
     (infh, outfh) = configure_io(args)
     outfh.write(json_dumps(_get_events(infh)) + "\n")
+    clean_io(infh, outfh)
 
 
 def _get_events(infile):
@@ -291,6 +295,14 @@ def configure_io(args):
             sys.exit(1)
 
     return (infh, outfh)
+
+
+def clean_io(*file_handles: IO) -> None:
+    """close filehandles"""
+    for file_handle in file_handles:
+        if file_handle in (sys.stdin, sys.stdout):
+            continue
+        file_handle.close()
 
 
 if __name__ == "__main__":

@@ -11,7 +11,6 @@
 
 import copy
 
-from cloudinit import util
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
 
 
@@ -39,14 +38,7 @@ class Distro(debian.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
         if not self._preferred_ntp_clients:
-            (_name, _version, codename) = util.system_info()["dist"]
-            # Xenial cloud-init only installed ntp, UbuntuCore has timesyncd.
-            if codename == "xenial" and not util.system_is_snappy():
-                self._preferred_ntp_clients = ["ntp"]
-            else:
-                self._preferred_ntp_clients = copy.deepcopy(
-                    PREFERRED_NTP_CLIENTS
-                )
+            self._preferred_ntp_clients = copy.deepcopy(PREFERRED_NTP_CLIENTS)
         return self._preferred_ntp_clients
 
 

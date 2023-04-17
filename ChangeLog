@@ -1,3 +1,520 @@
+23.1.1
+ - source: Force OpenStack when it is only option (#2045)
+ - sources/azure: fix regressions in IMDS behavior (#2041)
+   [Chris Patterson]
+
+23.1
+ - Support transactional-updates for SUSE based distros (#1997)
+   [Robert Schweikert]
+ - Set ownership for new folders in Write Files Module (#1980)
+   [Jack] (LP: #1990513)
+ - add OpenCloudOS and TencentOS support (#1964) [wynnfeng]
+ - lxd: Retry if the server isn't ready (#2025)
+ - test: switch pycloudlib source to pypi (#2024)
+ - test: Fix integration test deprecation message (#2023)
+ - Recognize opensuse-microos, dev tooling fixes [Robert Schweikert]
+ - sources/azure: refactor imds handler into own module (#1977)
+   [Chris Patterson]
+ - docs: deprecation generation support [1/2] (#2013)
+ - add function is_virtual to distro/FreeBSD (#1957) [Mina Galić]
+ - cc_ssh: support multiple hostcertificates (#2018) (LP: #1999164)
+ - Fix minor schema validation regression and fixup typing (#2017)
+ - doc: Reword user data debug section (#2019)
+ - Overhaul/rewrite of certificate handling as follows: (#1962)
+   [dermotbradley] (LP: #1931174)
+ - disk_setup: use byte string when purging the partition table (#2012)
+   [Stefan Prietl]
+ - cli: schema also validate vendordata*.
+ - ci: sort and add checks for cla signers file [Stefan Prietl]
+ - Add "ederst" as contributor (#2010) [Stefan Prietl]
+ - readme: add reference to packages dir (#2001)
+ - docs: update downstream package list (#2002)
+ - docs: add google search verification (#2000) [s-makin]
+ - docs: fix 404 render use default notfound_urls_prefix in RTD conf (#2004)
+ - Fix OpenStack datasource detection on bare metal (#1923)
+   [Alexander Birkner] (LP: #1815990)
+ - docs: add themed RTD 404 page and pointer to readthedocs-hosted (#1993)
+ - schema: fix gpt labels, use type string for GUID (#1995)
+ - cc_disk_setup: code cleanup (#1996)
+ - netplan: keep custom strict perms when 50-cloud-init.yaml exists
+ - cloud-id: better handling of change in datasource files
+   [d1r3ct0r] (LP: #1998998)
+ - tests: Remove restart check from test
+ - Ignore duplicate macs from mscc_felix and fsl_enetc (LP: #1997922)
+ - Warn on empty network key (#1990)
+ - Fix Vultr cloud_interfaces usage (#1986) [eb3095]
+ - cc_puppet: Update puppet service name (#1970) [d1r3ct0r] (LP: #2002969)
+ - docs: Clarify networking docs (#1987)
+ - lint: remove httpretty (#1985) [sxt1001]
+ - cc_set_passwords: Prevent traceback when restarting ssh (#1981)
+ - tests: fix lp1912844 (#1978)
+ - tests: Skip ansible test on bionic (#1984)
+ - Wait for NetworkManager (#1983) [Robert Schweikert]
+ - docs: minor polishing (#1979) [s-makin]
+ - CI: migrate integration-test to GH actions (#1969)
+ - Fix permission of SSH host keys (#1971) [Ron Gebauer]
+ - Fix default route rendering on v2 ipv6 (#1973) (LP: #2003562)
+ - doc: fix path in net_convert command (#1975)
+ - docs: update net_convert docs (#1974)
+ - doc: fix dead link
+ - cc_set_hostname: ignore /var/lib/cloud/data/set-hostname if it's empty
+   (#1967) [Emanuele Giuseppe Esposito]
+ - distros/rhel.py: _read_hostname() missing strip on "hostname" (#1941)
+   [Mark Mielke]
+ - integration tests: add  IBM VPC support (SC-1352) (#1915)
+ - machine-id: set to uninitialized to trigger regeneration on clones
+   (LP: #1999680)
+ - sources/azure: retry on connection error when fetching metdata (#1968)
+   [Chris Patterson]
+ - Ensure ssh state accurately obtained (#1966)
+ - bddeb: drop dh-systemd dependency on newer deb-based releases [d1r3ct0r]
+ - doc: fix `config formats` link in cloudsigma.rst (#1960)
+ - Fix wrong subp syntax in cc_set_passwords.py (#1961)
+ - docs: update the PR template link to readthedocs (#1958) [d1r3ct0r]
+ - ci: switch unittests to gh actions (#1956)
+ - Add mount_default_fields for PhotonOS. (#1952) [Shreenidhi Shedi]
+ - sources/azure: minor refactor for metadata source detection logic
+   (#1936) [Chris Patterson]
+ - add "CalvoM" as contributor (#1955) [d1r3ct0r]
+ - ci: doc to gh actions (#1951)
+ - lxd: handle 404 from missing devices route for LXD 4.0 (LP: #2001737)
+ - docs: Diataxis overhaul (#1933) [s-makin]
+ - vultr: Fix issue regarding cache and region codes (#1938) [eb3095]
+ - cc_set_passwords: Move ssh status checking later (SC-1368) (#1909)
+   (LP: #1998526)
+ - Improve Wireguard module idempotency (#1940) [Fabian Lichtenegger-Lukas]
+ - network/netplan: add gateways as on-link when necessary (#1931)
+   [Louis Sautier] (LP: #2000596)
+ - tests: test_lxd assert features.networks.zones when present (#1939)
+ - Use btrfs enquque when available (#1926) [Robert Schweikert]
+ - sources/azure: drop description for report_failure_to_fabric() (#1934)
+   [Chris Patterson]
+ - cc_disk_setup.py: fix MBR single partition creation (#1932)
+   [dermotbradley] (LP: #1851438)
+ - Fix typo with package_update/package_upgrade (#1927) [eb3095]
+ - sources/azure: fix device driver matching for net config (#1914)
+   [Chris Patterson]
+ - BSD: fix duplicate macs in Ifconfig parser (#1917) [Mina Galić]
+ - test: mock dns calls (#1922)
+ - pycloudlib: add lunar support for integration tests (#1928)
+ - nocloud: add support for dmi variable expansion for seedfrom URL
+   (LP: #1994980)
+ - tools: read-version drop extra call to git describe --long
+ - doc: improve cc_write_files doc (#1916)
+ - read-version: When insufficient tags, use cloudinit.version.get_version
+ - mounts: document weird prefix in schema (#1913)
+ - add utility function test cases (#1910) [sxt1001]
+ - test: mock file deletion in dhcp tests (#1911)
+ - Ensure network ready before cloud-init service runs on RHEL (#1893)
+   (LP: #1998655)
+ - docs: add copy button to code blocks (#1890) [s-makin]
+ - netplan: define features.NETPLAN_CONFIG_ROOT_READ_ONLY flag
+ - azure: fix support for systems without az command installed (#1908)
+ - Networking Clarification (#1892)
+ - Fix the distro.osfamily output problem in the openEuler system. (#1895)
+   [sxt1001] (LP: #1999042)
+ - pycloudlib: bump commit dropping azure api smoke test
+ - * net: netplan config root read-only as wifi config can contain creds
+ - autoinstall: clarify docs for users
+ - sources/azure: encode health report as utf-8 (#1897) [Chris Patterson]
+ - Add back gateway4/6 deprecation to docs (#1898)
+ - networkd: Add support for multiple [Route] sections (#1868)
+   [Nigel Kukard]
+ - doc: add qemu tutorial (#1863)
+ - lint: fix tip-flake8 and tip-mypy (#1896)
+ - Add support for setting uid when creating users on FreeBSD (#1888)
+   [einsibjarni]
+ - Fix exception in BSD networking code-path (#1894) [Mina Galić]
+ - Append derivatives to is_rhel list in cloud.cfg.tmpl (#1887) [Louis Abel]
+ - FreeBSD init: use cloudinit_enable as only rcvar (#1875) [Mina Galić]
+ - feat: add support aliyun metadata security harden mode (#1865)
+   [Manasseh Zhou]
+ - docs: uprate analyze to performance page [s-makin]
+ - test: fix lxd preseed managed network config (#1881)
+ - Add support for static IPv6 addresses for FreeBSD (#1839) [einsibjarni]
+ - Make 3.12 failures not fail the build (#1873)
+ - Docs: adding relative links [s-makin]
+ - Update read-version
+ - Fix setup.py to align with PEP 440 versioning replacing trailing
+ - travis: promote 3.11-dev to 3.11 (#1866)
+ - test_cloud_sigma: delete useless test (#1828) [sxt1001]
+ - Add "nkukard" as contributor (#1864) [Nigel Kukard]
+ - tests: ds-id mocks for vmware-rpctool as utility may not exist in env
+ - doc: add how to render new module doc (#1855)
+ - doc: improve module creation explanation (#1851)
+ - Add Support for IPv6 metadata to OpenStack (#1805)
+   [Marvin Vogt] (LP: #1906849)
+ - add xiaoge1001 to .github-cla-signers (#1854) [sxt1001]
+ - network: Deprecate gateway{4,6} keys in network config v2 (#1794)
+   (LP: #1992512)
+ - VMware: Move Guest Customization transport from OVF to VMware (#1573)
+   [PengpengSun]
+ - doc: home page links added (#1852) [s-makin]
+
+22.4.2
+ - status: handle ds not defined in status.json (#1876) (LP: #1997559)
+
+22.4.1
+ - net: skip duplicate mac check for netvsc nic and its VF (#1853)
+   [Anh Vo] (LP: #1844191)
+ - ChangeLog: whitespace cleanup (#1850)
+ - changelog: capture 22.3.1-4 releases
+
+22.4
+ - test: fix pro integration test [Alberto Contreras]
+ - cc_disk_setup: pass options in correct order to utils (#1829)
+   [dermotbradley]
+ - tests: text_lxd basic_preseed verify_clean_log (#1826)
+ - docs: switch sphinx theme to furo (SC-1327) (#1821) [Alberto Contreras]
+ - tests: activate Ubuntu Pro tests (only on Jenkins) (#1777)
+   [Alberto Contreras]
+ - tests: test_lxd assert features.storage.buckets when present (#1827)
+ - tests: replace missed ansible install-method with underscore (#1825)
+ - tests: replace ansible install-method with underscore
+ - ansible: standardize schema keys
+ - ci: run json tool on 22.04 rather than 20.04 (#1823)
+ - Stop using devices endpoint for LXD network config (#1819)
+ - apport: address new curtin log and config locations (#1812)
+ - cc_grub: reword docs for clarity (#1818)
+ - tests: Fix preseed test (#1820)
+ - Auto-format schema (#1810)
+ - Ansible Control Module (#1778)
+ - Fix last reported event possibly not being sent (#1796) (LP: #1993836)
+ - tests: Ignore unsupported lxd project keys (#1817) [Alberto Contreras]
+ - udevadm settle should handle non-udev system gracefully (#1806)
+   [dermotbradley]
+ - add mariner support (#1780) [Minghe Ren]
+ - Net: add BSD ifconfig(8) parser and state class (#1779) [Mina Galić]
+ - adding itjamie to .github-cla-signers [Jamie (Bear) Murphy]
+ - Fix inconsistency between comment and statement (#1809) [Guillaume Gay]
+ - Update .github-cla-signers (#1811) [Guillaume Gay]
+ - alpine.py: Add Alpine-specific manage_service function and update tests
+   (#1804) [dermotbradley]
+ - test: add 3.12-dev to Travis CI (#1798) [Alberto Contreras]
+ - add NWCS datasource (#1793) [shell-skrimp]
+ - Adding myself as CLA signer (#1799) [s-makin]
+ - apport: fix some data collection failures due to symlinks (#1797)
+   [Dan Bungert]
+ - read-version: Make it compatible with bionic (#1795) [Alberto Contreras]
+ - lxd: add support for lxd preseed config(#1789)
+ - Enable hotplug for LXD datasource (#1787)
+ - cli: collect logs and apport subiquity support
+ - add support for Container-Optimized OS (#1748) [vteratipally]
+ - test: temporarily disable failing integration test (#1792)
+ - Fix LXD/nocloud detection on lxd vm tests (#1791)
+ - util: Implement __str__ and __iter__ for Version (#1790)
+ - cc_ua: consume ua json api for enable commands [Alberto Contreras]
+ - Add clarity to cc_final_message docs (#1788)
+ - cc_ntp: add support for BSDs (#1759) [Mina Galić] (LP: #1990041)
+ - make Makefile make agnostic (#1786) [Mina Galić]
+ - Remove hardcoding and unnecessary overrides in Makefile (#1783)
+   [Joseph Mingrone]
+ - Add my username (Jehops) to .github-cla-signers (#1784) [Joseph Mingrone]
+ - Temporarily remove broken test (#1781)
+ - Create reference documentation for base config
+ - cc_ansible: add support for galaxy install (#1736)
+ - distros/manage_services: add support to disable service (#1772)
+   [Mina Galić] (LP: #1991024)
+ - OpenBSD: remove pkg_cmd_environ function (#1773)
+   [Mina Galić] (LP: 1991567)
+ - docs: Correct typo in the FAQ (#1774) [Maximilian Wörner]
+ - tests: Use LXD metadata to determine NoCloud status (#1776)
+ - analyze: use init-local as start of boot record (#1767) [Chris Patterson]
+ - docs: use opensuse for distro name in package doc (#1771)
+ - doc: clarify packages as dev only (#1769) [Alberto Contreras]
+ - Distro manage service: Improve BSD support (#1758)
+   [Mina Galić] (LP: #1990070)
+ - testing: check logs for critical errors (#1765) [Chris Patterson]
+ - cc_ubuntu_advantage: Handle already attached on Pro [Alberto Contreras]
+ - doc: Add configuration explanation (SC-1169)
+ - Fix Oracle DS primary interface when using IMDS (#1757) (LP: #1989686)
+ - style: prefer absolute imports over relative imports [Mina Galić]
+ - tests: Fix ip log during instance destruction (#1755) [Alberto Contreras]
+ - cc_ubuntu_advantage: add ua_config in auto-attach [Alberto Contreras]
+ - apt configure: sources write/append mode (#1738)
+   [Fabian Lichtenegger-Lukas]
+ - networkd: Add test and improve typing. (#1747) [Alberto Contreras]
+ - pycloudlib: bump commit for gce cpu architecture support (#1750)
+ - commit ffcb29bc8315d1e1d6244eeb1cbd8095958f7bad (LP: #1307667)
+ - testing: workaround LXD vendor data (#1740)
+ - support dhcp{4,6}-overrides in networkd renderer (#1710) [Aidan Obley]
+ - tests: Drop httpretty in favor of responses (#1720) [Alberto Contreras]
+ - cc_ubuntu_advantage: Implement custom auto-attach behaviors (#1583)
+   [Alberto Contreras]
+ - Fix Oracle DS not setting subnet when using IMDS (#1735) (LP: #1989686)
+ - testing: focal lxd datasource discovery (#1734)
+ - cc_ubuntu_advantage: Redact token from logs (#1726) [Alberto Contreras]
+ - docs: make sure echo properly evaluates the string (#1733) [Mina Galić]
+ - net: set dhclient lease and pid files (#1715)
+ - cli: status machine-readable output --format yaml/json (#1663)
+   (LP: #1883122)
+ - tests: Simplify does_not_raise (#1731) [Alberto Contreras]
+ - Refactor: Drop inheritance from object (#1728) [Alberto Contreras]
+ - testing: LXD datasource now supported on Focal (#1732)
+ - Allow jinja templating in /etc/cloud (SC-1170) (#1722) (LP: #1913461)
+ - sources/azure: ensure instance id is always correct (#1727)
+   [Chris Patterson]
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - doc: main page Diátaxis rewording (SC-967) (#1701)
+ - ubuntu advantage: improved idempotency, enable list is now strict
+   [Fabian Lichtenegger-Lukas]
+ - test: bump pycloudlib (#1724) [Alberto Contreras]
+ - cloud.cfg.tmpl: make sure "centos" settings are identical to "rhel"
+   (#1639) [Emanuele Giuseppe Esposito]
+ - lxd: fetch 1.0/devices content (#1712) [Alberto Contreras]
+ - Update docs according to ad8f406a (#1719)
+ - testing: Port unittests/analyze to pytest (#1708) [Alberto Contreras]
+ - doc: Fix rtd builds. (#1718) [Alberto Contreras]
+ - testing: fully mock noexec calls (#1717) [Alberto Contreras]
+ - typing: Add types to cc_<module>.handle (#1700) [Alberto Contreras]
+ - Identify 3DS Outscale Datasource as Ec2 (#1686) [Maxime Dufour]
+ - config: enable bootstrapping pip in ansible (#1707)
+ - Fix cc_chef typing issue (#1716)
+ - Refactor instance json files to use Paths (SC-1238) (#1709)
+ - tools: read-version check GITHUB_REF and git branch --show-current
+   (#1677)
+ - net: Ensure a tmp with exec permissions for dhcp (#1690)
+   [Alberto Contreras] (LP: #1962343)
+ - testing: Fix test regression in test_combined (#1713) [Alberto Contreras]
+ - Identify Huawei Cloud as OpenStack (#1689) [huang xinjie]
+ - doc: add reporting suggestion to FAQ (SC-1236) (#1698)
+
+22.3.4
+ - Fix Oracle DS primary interface when using IMDS (LP: #1989686)
+
+22.3.3
+ - Fix Oracle DS not setting subnet when using IMDS (LP: #1989686)
+
+22.3.2
+ - azure: define new attribute for pre-22.3 pickles (#1725)
+ - sources/azure: ensure instance id is always correct (#1727)
+
+22.3.1
+ - Fix v2 interface matching when no MAC (LP: #1986551)
+ - test: reduce number of network dependencies in flaky test (#1702)
+ - docs: publish cc_ubuntu_autoinstall docs to rtd (#1696)
+ - net: Fix EphemeraIPNetwork (#1697) [Alberto Contreras]
+ - test: make ansible test work across older versions (#1691)
+ - Networkd multi-address support/fix (#1685) [Teodor Garzdin]
+ - make: drop broken targets (#1688)
+ - net: Passthough v2 netconfigs in netplan systems (#1650)
+   [Alberto Contreras] (LP: #1978543)
+ - NM ipv6 connection does not work on Azure and Openstack (#1616)
+   [Emanuele Giuseppe Esposito]
+ - Fix check_format_tip (#1679) [Alberto Contreras]
+ - DataSourceVMware: fix var use before init (#1674)
+   [Andrew Kutz] (LP: #1987005)
+ - rpm/copr: ensure RPM represents new clean.d dir artifacts (#1680)
+ - test: avoid centos leaked check of /etc/yum.repos.d/epel-testing.repo
+   (#1676)
+
+22.3
+ - sources: obj.pkl cache should be written anyime get_data is run (#1669)
+ - schema: drop release number from version file (#1664)
+ - pycloudlib: bump to quiet azure HTTP info logs (#1668)
+ - test: fix wireguard integration tests (#1666)
+ - Github is deprecating the 18.04 runner starting 12.1 (#1665)
+ - integration tests: Ensure one setup for all tests (#1661)
+ - tests: ansible test fixes (#1660)
+ - Prevent concurrency issue in test_webhook_hander.py (#1658)
+ - Workaround net_setup_link race with udev (#1655) (LP: #1983516)
+ - test: drop erroneous lxd assertion, verify command succeeded (#1657)
+ - Fix Chrony usage on Centos Stream (#1648) [Sven Haardiek] (LP: #1885952)
+ - sources/azure: handle network unreachable errors for savable PPS (#1642)
+   [Chris Patterson]
+ - Return cc_set_hostname to PER_INSTANCE frequency (#1651) (LP: #1983811)
+ - test: Collect integration test time by default (#1638)
+ - test: Drop forced package install hack in lxd integration test (#1649)
+ - schema: Resolve user-data if --system given (#1644)
+   [Alberto Contreras] (LP: #1983306)
+ - test: use fake filesystem to avoid file removal (#1647)
+   [Alberto Contreras]
+ - tox: Fix tip-flake8 and tip-mypy (#1635) [Alberto Contreras]
+ - config: Add wireguard config module (#1570) [Fabian Lichtenegger-Lukas]
+ - tests: can run without azure-cli, tests expect inactive ansible (#1643)
+ - typing: Type UrlResponse.contents (#1633) [Alberto Contreras]
+ - testing: fix references to `DEPRECATED.` (#1641) [Alberto Contreras]
+ - ssh_util: Handle sshd_config.d folder [Alberto Contreras] (LP: #1968873)
+ - schema: Enable deprecations in cc_update_etc_hosts (#1631)
+   [Alberto Contreras]
+ - Add Ansible Config Module (#1579)
+ - util: Support Idle process state in get_proc_ppid() (#1637)
+ - schema: Enable deprecations in cc_growpart (#1628) [Alberto Contreras]
+ - schema: Enable deprecations in cc_users_groups (#1627)
+   [Alberto Contreras]
+ - util: Fix error path and parsing in get_proc_ppid()
+ - main: avoid downloading full contents cmdline urls (#1606)
+   [Alberto Contreras] (LP: #1937319)
+ - schema: Enable deprecations in cc_scripts_vendor (#1629)
+   [Alberto Contreras]
+ - schema: Enable deprecations in cc_set_passwords (#1630)
+   [Alberto Contreras]
+ - sources/azure: add experimental support for preprovisioned os disks
+   (#1622) [Chris Patterson]
+ - Remove configobj a_to_u calls (#1632) [Stefano Rivera]
+ - cc_debug: Drop this module (#1614) [Alberto Contreras]
+ - schema: add aggregate descriptions in anyOf/oneOf (#1636)
+ - testing: migrate test_sshutil to pytest (#1617) [Alberto Contreras]
+ - testing: Fix test_ca_certs integration test (#1626) [Alberto Contreras]
+ - testing: add support for pycloudlib's pro images (#1604)
+   [Alberto Contreras]
+ - testing: migrate test_cc_set_passwords to pytest (#1615)
+   [Alberto Contreras]
+ - network: add system_info network activator cloud.cfg overrides (#1619)
+   (LP: #1958377)
+ - docs: Align git remotes with uss-tableflip setup (#1624)
+   [Alberto Contreras]
+ - testing: cover active config module checks (#1609) [Alberto Contreras]
+ - lxd: lvm avoid thinpool when kernel module absent
+ - lxd: enable MTU configuration in cloud-init
+ - doc: pin doc8 to last passing version
+ - cc_set_passwords fixes (#1590)
+ - Modernise importer.py and type ModuleDetails (#1605) [Alberto Contreras]
+ - config: Def activate_by_schema_keys for t-z (#1613) [Alberto Contreras]
+ - config: define activate_by_schema_keys for p-r mods (#1611)
+   [Alberto Contreras]
+ - clean: add param to remove /etc/machine-id for golden image creation
+ - config: define `activate_by_schema_keys` for a-f mods (#1608)
+   [Alberto Contreras]
+ - config: define activate_by_schema_keys for s mods (#1612)
+   [Alberto Contreras]
+ - sources/azure: reorganize tests for network config (#1586)
+   [Chris Patterson]
+ - config: Define activate_by_schema_keys for g-n mods (#1610)
+   [Alberto Contreras]
+ - meta-schema: add infra to skip inapplicable modules [Alberto Contreras]
+ - sources/azure: don't set cfg["password"] for default user pw (#1592)
+   [Chris Patterson]
+ - schema: activate grub-dpkg deprecations (#1600) [Alberto Contreras]
+ - docs: clarify user password purposes (#1593)
+ - cc_lxd: Add btrfs and lvm lxd storage options (SC-1026) (#1585)
+ - archlinux: Fix distro naming[1] (#1601) [Kristian Klausen]
+ - cc_ubuntu_autoinstall: support live-installer autoinstall config
+ - clean: allow third party cleanup scripts in /etc/cloud/clean.d (#1581)
+ - sources/azure: refactor chassis asset tag handling (#1574)
+   [Chris Patterson]
+ - Add "netcho" as contributor (#1591) [Kaloyan Kotlarski]
+ - testing: drop impish support (#1596) [Alberto Contreras]
+ - black: fix missed formatting issue which landed in main (#1594)
+ - bsd: Don't assume that root user is in root group (#1587)
+ - docs: Fix comment typo regarding use of packages (#1582)
+   [Peter Mescalchin]
+ - Update govc command in VMWare walkthrough (#1576) [manioo8]
+ - Update .github-cla-signers (#1588) [Daniel Mullins]
+ - Rename the openmandriva user to omv (#1575) [Bernhard Rosenkraenzer]
+ - sources/azure: increase read-timeout to 60 seconds for wireserver
+   (#1571) [Chris Patterson]
+ - Resource leak cleanup (#1556)
+ - testing: remove appereances of FakeCloud (#1584) [Alberto Contreras]
+ - Fix expire passwords for hashed passwords (#1577)
+   [Sadegh Hayeri] (LP: #1979065)
+ - mounts: fix suggested_swapsize for > 64GB hosts (#1569) [Steven Stallion]
+ - Update chpasswd schema to deprecate password parsing (#1517)
+ - tox: Remove entries from default envlist (#1578) (LP: #1980854)
+ - tests: add test for parsing static dns for existing devices (#1557)
+   [Jonas Konrad]
+ - testing: port cc_ubuntu_advantage test to pytest (#1559)
+   [Alberto Contreras]
+ - Schema deprecation handling (#1549) [Alberto Contreras]
+ - Enable pytest to run in parallel (#1568)
+ - sources/azure: refactor ovf-env.xml parsing (#1550) [Chris Patterson]
+ - schema: Force stricter validation (#1547)
+ - ubuntu advantage config: http_proxy, https_proxy (#1512)
+   [Fabian Lichtenegger-Lukas]
+ - net: fix interface matching support (#1552) (LP: #1979877)
+ - Fuzz testing jsonchema (#1499) [Alberto Contreras]
+ - testing: Wait for changed boot-id in test_status.py (#1548)
+ - CI: Fix GH pinned-format jobs (#1558) [Alberto Contreras]
+ - Typo fix (#1560) [Jaime Hablutzel]
+ - tests: mock dns lookup that causes long timeouts (#1555)
+ - tox: add unpinned env for do_format and check_format (#1554)
+ - cc_ssh_import_id: Substitute deprecated warn (#1553) [Alberto Contreras]
+ - Remove schema errors from log (#1551) (LP: #1978422) (CVE-2022-2084)
+ - Update WebHookHandler to run as background thread (SC-456) (#1491)
+   (LP: #1910552)
+ - testing: Don't run custom cloud dir test on Bionic (#1542)
+ - bash completion: update schema command (#1543) (LP: #1979547)
+ - CI: add non-blocking run against the linters tip versions (#1531)
+   [Paride Legovini]
+ - Change groups within the users schema to support lists and strings
+   (#1545) [RedKrieg]
+ - make it clear which username should go in the contributing doc (#1546)
+ - Pin setuptools for Travis (SC-1136) (#1540)
+ - Fix LXD datasource crawl when BOOT enabled (#1537)
+ - testing: Fix wrong path in dual stack test (#1538)
+ - cloud-config: honor cloud_dir setting (#1523)
+   [Alberto Contreras] (LP: #1976564)
+ - Add python3-debconf to pkg-deps.json Build-Depends (#1535)
+   [Alberto Contreras]
+ - redhat spec: udev/rules.d lives under /usr/lib on rhel-based systems
+   (#1536)
+ - tests/azure: add test coverage for DisableSshPasswordAuthentication
+   (#1534) [Chris Patterson]
+ - summary: Add david-caro to the cla signers (#1527) [David Caro]
+ - Add support for OpenMandriva (https://openmandriva.org/) (#1520)
+   [Bernhard Rosenkraenzer]
+ - tests/azure: refactor ovf creation (#1533) [Chris Patterson]
+ - Improve DataSourceOVF error reporting when script disabled (#1525) [rong]
+ - tox: integration-tests-jenkins: softfail if only some test failed
+   (#1528) [Paride Legovini]
+ - CI: drop linters from Travis CI (moved to GH Actions) (#1530)
+   [Paride Legovini]
+ - sources/azure: remove unused encoding support for customdata (#1526)
+   [Chris Patterson]
+ - sources/azure: remove unused metadata captured when parsing ovf (#1524)
+   [Chris Patterson]
+ - sources/azure: remove dscfg parsing from ovf-env.xml (#1522)
+   [Chris Patterson]
+ - Remove extra space from ec2 dual stack crawl message (#1521)
+ - tests/azure: use namespaces in generated ovf-env.xml documents (#1519)
+   [Chris Patterson]
+ - setup.py: adjust udev/rules default path (#1513)
+   [Emanuele Giuseppe Esposito]
+ - Add python3-deconf dependency (#1506) [Alberto Contreras]
+ - Change match macadress param for network v2 config (#1518)
+   [Henrique Caricatti Capozzi]
+ - sources/azure: remove unused userdata property from ovf (#1516)
+   [Chris Patterson]
+ - sources/azure: minor refactoring to network config generation (#1497)
+   [Chris Patterson]
+ - net: Implement link-local ephemeral ipv6
+ - Rename function to avoid confusion (#1501)
+ - Fix cc_phone_home requiring 'tries' (#1500) (LP: #1977952)
+ - datasources: replace networking functions with stdlib and cloudinit.net
+   code
+ - Remove xenial references (#1472) [Alberto Contreras]
+ - Oracle ds changes (#1474) [Alberto Contreras] (LP: #1967942)
+ - improve runcmd docs (#1498)
+ - add 3.11-dev to Travis CI (#1493)
+ - Only run github actions on pull request (#1496)
+ - Fix integration test client creation (#1494) [Alberto Contreras]
+ - tox: add link checker environment, fix links (#1480)
+ - cc_ubuntu_advantage: Fix doc (#1487) [Alberto Contreras]
+ - cc_yum_add_repo: Fix repo id canonicalization (#1489)
+   [Alberto Contreras] (LP: #1975818)
+ - Add linitio as contributor in the project (#1488) [Kevin Allioli]
+ - net-convert: use yaml.dump for debugging python NetworkState obj (#1484)
+   (LP: #1975907)
+ - test_schema: no relative $ref URLs, replace $ref with local path (#1486)
+ - cc_set_hostname: do not write "localhost" when no hostname is given
+   (#1453) [Emanuele Giuseppe Esposito]
+ - Update .github-cla-signers (#1478) [rong]
+ - schema: write_files defaults, versions $ref full URL and add vscode
+   (#1479)
+ - docs: fix external links, add one more to the list (#1477)
+ - doc: Document how to change module frequency (#1481)
+ - tests: bump pycloudlib (#1482)
+ - tests: bump pycloudlib pinned commit for kinetic Azure (#1476)
+ - testing: fix test_status.py (#1475)
+ - integration tests: If KEEP_INSTANCE = True, log IP (#1473)
+ - Drop mypy excluded files (#1454) [Alberto Contreras]
+ - Docs additions (#1470)
+ - Add "formatting tests" to Github Actions
+ - Remove unused arguments in function signature (#1471)
+ - Changelog: correct errant classification of LP issues as GH (#1464)
+ - Use Network-Manager and Netplan as default renderers for RHEL and Fedora
+   (#1465) [Emanuele Giuseppe Esposito]
+
 22.2
  - Fix test due to caplog incompatibility (#1461) [Alberto Contreras]
  - Align rhel custom files with upstream (#1431)
@@ -2808,7 +3325,7 @@
  - support network rendering to sysconfig (for centos and RHEL)
  - write_files: if no permissions are given, just use default without warn.
  - user_data: fix error when user-data is not utf-8 decodable (LP: #1532072)
- - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk] 
+ - fix mcollective module with python3 (LP: #1597699) [Sergii Golovatiuk]
 
 0.7.6:
  - open 0.7.6
@@ -2933,7 +3450,7 @@
    filesystems.  Useful if attached disks are not formatted (LP: #1218506)
  - Fix usage of libselinux-python when selinux is disabled. [Garrett Holmstrom]
  - multi_log: only write to /dev/console if it exists [Garrett Holmstrom]
- - config/cloud.cfg: add 'sudo' to list groups for the default user 
+ - config/cloud.cfg: add 'sudo' to list groups for the default user
    (LP: #1228228)
  - documentation fix for use of 'mkpasswd' [Eric Nordlund]
  - respect /etc/growroot-disabled file (LP: #1234331)
@@ -2999,7 +3516,7 @@
    can be more useful.
 
 0.7.1:
- - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
+ - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6
  - config-drive: map hostname to local-hostname (LP: #1061964)
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
@@ -3048,14 +3565,14 @@
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
- - utilize the 'exception_cb' above to modify the oauth timestamp in 
+ - utilize the 'exception_cb' above to modify the oauth timestamp in
    DataSourceMAAS requests if a 401 or 403 is received. (LP: #978127)
  - catch signals and exit rather than stack tracing
  - if logging fails, enable a fallback logger by patching the logging module
  - do not 'start networking' in cloud-init-nonet, but add
    cloud-init-container job that runs only if in container and emits
    net-device-added (LP: #1031065)
- - search only top level dns for 'instance-data' in 
+ - search only top level dns for 'instance-data' in
    DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
@@ -3093,10 +3610,10 @@
      reduces reuse and limits future functionality, and makes testing harder)
  - removal of global config that defined paths, shared config, now this is
    via objects making unit testing testing and global side-effects a non issue
- - creation of a 'helpers.py' 
-   - this contains an abstraction for the 'lock' like objects that the various 
-     module/handler running stages use to avoid re-running a given 
-     module/handler for a given frequency. this makes it separated from 
+ - creation of a 'helpers.py'
+   - this contains an abstraction for the 'lock' like objects that the various
+     module/handler running stages use to avoid re-running a given
+     module/handler for a given frequency. this makes it separated from
      the actual usage of that object (thus helpful for testing and clear lines
      usage and how the actual job is accomplished)
      - a common 'runner' class is the main entrypoint using these locks to
@@ -3105,11 +3622,11 @@
    - add in a 'paths' object that provides access to the previously global
      and/or config based paths (thus providing a single entrypoint object/type
      that provides path information)
-       - this also adds in the ability to change the path when constructing 
-       that path 'object' and adding in additional config that can be used to 
+       - this also adds in the ability to change the path when constructing
+       that path 'object' and adding in additional config that can be used to
        alter the root paths of 'joins' (useful for testing or possibly useful
        in chroots?)
-        - config options now avaiable that can alter the 'write_root' and the 
+        - config options now avaiable that can alter the 'write_root' and the
          'read_root' when backing code uses the paths join() function
    - add a config parser subclass that will automatically add unknown sections
      and return default values (instead of throwing exceptions for these cases)
@@ -3133,7 +3650,7 @@
    the passed in logger (its still passed in)
    - ensure that all places where exception are caught and where applicable
      that the util logexc() is called, so that no exceptions that may occur
-     are dropped without first being logged (where it makes sense for this 
+     are dropped without first being logged (where it makes sense for this
      to happen)
  - add a 'requires' file that lists cloud-init dependencies
    - applying it in package creation (bdeb and brpm) as well as using it
@@ -3145,12 +3662,12 @@
    subp() utility method, which now has an exception type that will provide
    detailed information on python 2.6 and 2.7
  - forced all code loading, moving, chmod, writing files and other system
-   level actions to go through standard set of util functions, this greatly 
+   level actions to go through standard set of util functions, this greatly
    helps in debugging and determining exactly which system actions cloud-init
    is performing
  - adjust url fetching and url trying to go through a single function that
    reads urls in the new 'url helper' file, this helps in tracing, debugging
-   and knowing which urls are being called and/or posted to from with-in 
+   and knowing which urls are being called and/or posted to from with-in
    cloud-init code
    - add in the sending of a 'User-Agent' header for all urls fetched that
      do not provide there own header mapping, derive this user-agent from
@@ -3160,7 +3677,7 @@
    and defined output that should be easier to parse than a custom format
  - add a set of distro specific classes, that handle distro specific actions
    that modules and or handler code can use as needed, this is organized into
-   a base abstract class with child classes that implement the shared 
+   a base abstract class with child classes that implement the shared
    functionality. config determines exactly which subclass to load, so it can
    be easily extended as needed.
    - current functionality
@@ -3172,16 +3689,16 @@
       - interface up/down activating
    - implemented a debian + ubuntu subclass
    - implemented a redhat + fedora subclass
- - adjust the root 'cloud.cfg' file to now have distrobution/path specific 
+ - adjust the root 'cloud.cfg' file to now have distrobution/path specific
    configuration values in it. these special configs are merged as the normal
    config is, but the system level config is not passed into modules/handlers
    - modules/handlers must go through the path and distro object instead
- - have the cloudstack datasource test the url before calling into boto to 
+ - have the cloudstack datasource test the url before calling into boto to
    avoid the long wait for boto to finish retrying and finally fail when
    the gateway meta-data address is unavailable
  - add a simple mock ec2 meta-data python based http server that can serve a
    very simple set of ec2 meta-data back to callers
-      - useful for testing or for understanding what the ec2 meta-data 
+      - useful for testing or for understanding what the ec2 meta-data
         service can provide in terms of data or functionality
  - for ssh key and authorized key file parsing add in classes and util
    functions that maintain the state of individual lines, allowing for a
@@ -3215,7 +3732,7 @@
    - use 'is None' instead of the frowned upon '== None' which picks up a large
      set of 'true' cases than is typically desired (ie for objects that have
      there own equality)
-   - use context managers on locks, tempdir, chdir, file, selinux, umask, 
+   - use context managers on locks, tempdir, chdir, file, selinux, umask,
      unmounting commands so that these actions do not have to be closed and/or
      cleaned up manually in finally blocks, which is typically not done and
      will eventually be a bug in the future
@@ -3239,7 +3756,7 @@
  - place the rfc 8222 time formatting and uptime repeated pieces of code in the
    util module as a set of function with the name 'time_rfc2822'/'uptime'
  - separate the pylint+pep8 calling from one tool into two indivudal tools so
-   that they can be called independently, add make file sections that can be 
+   that they can be called independently, add make file sections that can be
    used to call these independently
  - remove the support for the old style config that was previously located in
    '/etc/ec2-init/ec2-config.cfg', no longer supported!
@@ -3250,12 +3767,12 @@
  - use the new defaulting config parser (that will not raise errors on sections
    that do not exist or return errors when values are fetched that do not
    exist) in the 'puppet' module
- - for config 'modules' add in the ability for the module to provide a list of 
+ - for config 'modules' add in the ability for the module to provide a list of
    distro names which it is known to work with, if when ran and the distro
    being used name does not match one of those in this list, a warning will be
    written out saying that this module may not work correctly on this
    distrobution
- - for all dynamically imported modules ensure that they are fixed up before 
+ - for all dynamically imported modules ensure that they are fixed up before
    they are used by ensuring that they have certain attributes, if they do not
    have those attributes they will be set to a sensible set of defaults instead
  - adjust all 'config' modules and handlers to use the adjusted util functions
@@ -3283,7 +3800,7 @@
  - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
  - DataSourceEc2: more resilliant to slow metadata service
    - config change: 'retries' dropped, 'max_wait' added, timeout increased
- - close stdin in all cloud-init programs that are launched at boot 
+ - close stdin in all cloud-init programs that are launched at boot
    (LP: #903993)
  - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
  - write full ssh keys to console for easy machine consumption (LP: #893400)
@@ -3295,7 +3812,7 @@
    in the payload parameter. (LP: #874342)
  - add test case framework [Mike Milner] (LP: #890851)
  - fix pylint warnings [Juerg Haefliger] (LP: #914739)
- - add support for adding and deleting CA Certificates [Mike Milner] 
+ - add support for adding and deleting CA Certificates [Mike Milner]
    (LP: #915232)
  - in ci-info lines, use '.' to indicate empty field for easier machine reading
  - support empty lines in "#include" files (LP: #923043)
@@ -3309,17 +3826,17 @@
  - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS)
    (LP: #942061)
  - DataSourceCloudStack: add support for CloudStack datasource [Cosmin Luta]
- - add option 'apt_pipelining' to address issue with S3 mirrors 
+ - add option 'apt_pipelining' to address issue with S3 mirrors
    (LP: #948461) [Ben Howard]
  - warn on non-multipart, non-handled user-data [Martin Packman]
  - run resizefs in the background in order to not block boot (LP: #961226)
  - Fix bug in Chef support where validation_key was present in config, but
    'validation_cert' was not (LP: #960547)
- - Provide user friendly message when an invalid locale is set 
+ - Provide user friendly message when an invalid locale is set
    [Ben Howard] (LP: #859814)
  - Support reading cloud-config from kernel command line parameter and
    populating local file with it, which can then provide data for DataSources
- - improve chef examples for working configurations on 11.10 and 12.04 
+ - improve chef examples for working configurations on 11.10 and 12.04
    [Lorin Hochstein] (LP: #960564)
 
 0.6.2:
@@ -3368,7 +3885,7 @@
    This was done by changing all users of util.subp to have None input unless
    specified
  - Add some debug info to the console when cloud-init runs.
-   This is useful if debugging, IP and route information is printed to the 
+   This is useful if debugging, IP and route information is printed to the
    console.
  - change the mechanism for handling .ssh/authorized_keys, to update entries
    rather than appending.  This ensures that the authorized_keys that are
@@ -3430,7 +3947,7 @@
  - moved upstart/cloud-run-user-script.conf to upstart/cloud-final.conf
  - cloud-final.conf now runs runs cloud-config modules similar
    to cloud-config and cloud-init.
- - LP: #653271 
+ - LP: #653271
    - added writing of "boot-finished" to /var/lib/cloud/instance/boot-finished
      this is the last thing done, indicating cloud-init is finished booting
    - writes message to console with timestamp and uptime
@@ -3453,6 +3970,6 @@
  - add support for reading Rightscale style user data (LP: #668400)
    and acting on it in cloud-config (cc_rightscale_userdata.py)
  - make the message on 'disable_root' more clear (LP: #672417)
- - do not require public key if private is given in ssh cloud-config 
+ - do not require public key if private is given in ssh cloud-config
    (LP: #648905)
 # vi: syntax=text textwidth=79

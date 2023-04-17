@@ -11,8 +11,13 @@ They can be published to registered handlers with report_event.
 import base64
 import os.path
 import time
+from typing import List
 
-from . import available_handlers, instantiated_handler_registry
+from cloudinit.reporting import (
+    available_handlers,
+    instantiated_handler_registry,
+)
+from cloudinit.reporting.handlers import ReportingHandler
 
 FINISH_EVENT_TYPE = "finish"
 START_EVENT_TYPE = "start"
@@ -30,7 +35,7 @@ class _nameset(set):
 status = _nameset(("SUCCESS", "WARN", "FAIL"))
 
 
-class ReportingEvent(object):
+class ReportingEvent:
     """Encapsulation of event formatting."""
 
     def __init__(
@@ -116,8 +121,10 @@ def report_event(event, excluded_handler_types=None):
         if hndl_type in excluded_handler_types
     }
 
-    handlers = instantiated_handler_registry.registered_items.items()
-    for _, handler in handlers:
+    handlers: List[ReportingHandler] = list(
+        instantiated_handler_registry.registered_items.values()
+    )
+    for handler in handlers:
         if type(handler) in excluded_handler_classes:
             continue  # skip this excluded handler
         handler.publish_event(event)
@@ -150,7 +157,7 @@ def report_start_event(event_name, event_description):
     return report_event(event)
 
 
-class ReportEventStack(object):
+class ReportEventStack:
     """Context Manager for using :py:func:`report_event`
 
     This enables calling :py:func:`report_start_event` and

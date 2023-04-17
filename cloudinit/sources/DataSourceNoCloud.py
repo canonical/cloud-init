@@ -156,7 +156,7 @@ class DataSourceNoCloud(sources.DataSource):
         # The special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
-        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg
+        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg/
         if "seedfrom" in mydata["meta-data"]:
             seedfrom = mydata["meta-data"]["seedfrom"]
             seedfound = False
@@ -167,6 +167,9 @@ class DataSourceNoCloud(sources.DataSource):
             if not seedfound:
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
+            # check and replace instances of known dmi.<dmi_keys> such as
+            # chassis-serial-number or baseboard-product-name
+            seedfrom = dmi.sub_dmi_vars(seedfrom)
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
@@ -277,12 +280,23 @@ def load_cmdline_data(fill, cmdline=None):
         ("ds=nocloud-net", sources.DSMODE_NETWORK),
     ]
     for idstr, dsmode in pairs:
-        if parse_cmdline_data(idstr, fill, cmdline):
+        if not parse_cmdline_data(idstr, fill, cmdline):
+            continue
+        if "dsmode" in fill:
             # if dsmode was explicitly in the command line, then
-            # prefer it to the dsmode based on the command line id
-            if "dsmode" not in fill:
-                fill["dsmode"] = dsmode
+            # prefer it to the dsmode based on seedfrom type
             return True
+
+        seedfrom = fill.get("seedfrom")
+        if seedfrom:
+            if seedfrom.startswith(("http://", "https://")):
+                fill["dsmode"] = sources.DSMODE_NETWORK
+            elif seedfrom.startswith(("file://", "/")):
+                fill["dsmode"] = sources.DSMODE_LOCAL
+        else:
+            fill["dsmode"] = dsmode
+
+        return True
     return False
 
 
@@ -354,6 +368,14 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")
 
+    def ds_detect(self):
+        """NoCloud requires "nocloud-net" as the way to specify
+        seeding from an http(s) address. This diverges from all other
+        datasources in that it does a kernel commandline match on something
+        other than the datasource dsname for only DEP_NETWORK.
+        """
+        return "nocloud-net" == sources.parse_cmdline()
+
 
 # Used to match classes to dependencies
 datasources = [
@@ -365,6 +387,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

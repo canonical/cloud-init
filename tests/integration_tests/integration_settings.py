@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+from typing import Optional
 
 from cloudinit.util import is_false, is_true
 
@@ -20,25 +21,26 @@ RUN_UNSTABLE = False
 #  azure
 #  ec2
 #  gce
+#  ibm
 #  oci
 #  openstack
 PLATFORM = "lxd_container"
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
 # If the pycloudlib instance provides a default, this can be left None
-INSTANCE_TYPE = None
+INSTANCE_TYPE: Optional[str] = None
 
 # Determines the base image to use or generate new images from.
 #
 # This can be the name of an Ubuntu release, or in the format
-# <image_id>[::<os>[::<release>]].  If given, os and release should describe
-# the image specified by image_id.  (Ubuntu releases are converted to this
-# format internally; in this case, to "focal::ubuntu::focal".)
+# <image_id>[::<os>[::<release>[::<version>]].  If given, os and release should
+# describe the image specified by image_id.  (Ubuntu releases are converted
+# to this format internally; in this case, to "None::ubuntu::focal::20.04".)
 OS_IMAGE = "focal"
 
 # Populate if you want to use a pre-launched instance instead of
 # creating a new one. The exact contents will be platform dependent
-EXISTING_INSTANCE_ID = None
+EXISTING_INSTANCE_ID: Optional[str] = None
 
 ##################################################################
 # IMAGE GENERATION SETTINGS

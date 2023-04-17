@@ -135,7 +135,7 @@ class BrokenContextDiskDir(Exception):
     pass
 
 
-class OpenNebulaNetwork(object):
+class OpenNebulaNetwork:
     def __init__(self, context, distro, system_nics_by_mac=None):
         self.context = context
         if system_nics_by_mac is None:
@@ -160,9 +160,6 @@ class OpenNebulaNetwork(object):
 
     def mac2ip(self, mac):
         return ".".join([str(int(c, 16)) for c in mac.split(":")[2:]])
-
-    def mac2network(self, mac):
-        return self.mac2ip(mac).rpartition(".")[0] + ".0"
 
     def get_nameservers(self, dev):
         nameservers = {}
@@ -207,9 +204,6 @@ class OpenNebulaNetwork(object):
 
     def get_mask(self, dev):
         return self.get_field(dev, "mask", "255.255.255.0")
-
-    def get_network(self, dev, mac):
-        return self.get_field(dev, "network", self.mac2network(mac))
 
     def get_field(self, dev, name, default=None):
         """return the field name in context for device dev.

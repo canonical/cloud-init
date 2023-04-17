@@ -1,7 +1,10 @@
 ## template:jinja
+
 # The top level settings are used as module
-# and system configuration.
+# and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
+{% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
+                             "miraclelinux", "rhel", "rocky", "virtuozzo" ] %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
@@ -32,9 +35,8 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
-                  "fedora", "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
-{% if variant == "rhel" %}
+{% if variant in ["alpine", "amazon", "fedora", "openEuler", "OpenCloudOS", "openmandriva", "photon", "TencentOS"] or is_rhel %}
+{% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
@@ -42,10 +44,12 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
 {% endif %}
+{% if variant not in ["photon"] %}
 resize_rootfs_tmp: /dev
-ssh_pwauth:   0
-
+ssh_pwauth:   false
 {% endif %}
+{% endif %}
+
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
@@ -70,7 +74,7 @@ network:
   config: disabled
 {% endif %}
 
-{% if variant == "rhel" %}
+{% if is_rhel %}
 # Default redhat settings:
 ssh_deletekeys:   true
 ssh_genkeytypes:  ['rsa', 'ecdsa', 'ed25519']
@@ -111,22 +115,28 @@ cloud_init_modules:
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
+{% if variant in ["ubuntu"] %}
+ - wireguard
+{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - snap
 {% endif %}
+{% if variant in ["ubuntu"] %}
+ - ubuntu_autoinstall
+{% endif %}
 {% if variant not in ["photon"] %}
  - ssh-import-id
-{% if variant not in ["rhel"] %}
+{% if not is_rhel %}
  - keyboard
 {% endif %}
  - locale
 {% endif %}
  - set-passwords
-{% if variant in ["rhel"] %}
+{% if is_rhel %}
  - rh_subscription
 {% endif %}
-{% if variant in ["rhel", "fedora", "photon"] %}
-{% if variant not in ["photon"] %}
+{% if variant in ["fedora", "mariner", "openmandriva", "photon"] or is_rhel %}
+{% if variant not in ["mariner", "photon"] %}
  - spacewalk
 {% endif %}
  - yum-add-repo
@@ -145,9 +155,7 @@ cloud_config_modules:
 {% if variant in ["alpine"] %}
  - apk-configure
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
  - ntp
-{% endif %}
  - timezone
  - disable-ec2-metadata
  - runcmd
@@ -169,6 +177,7 @@ cloud_final_modules:
  - write-files-deferred
  - puppet
  - chef
+ - ansible
  - mcollective
  - salt-minion
  - reset_rmc
@@ -190,9 +199,9 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
-                  "eurolinux", "fedora", "freebsd", "gentoo", "netbsd", "miraclelinux", "openbsd", "openEuler",
-                  "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
+{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "freebsd",
+                  "gentoo", "netbsd", "mariner", "openbsd", "openEuler", "OpenCloudOS",
+                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu"] or is_rhel %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -212,6 +221,7 @@ system_info:
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
    network:
      renderers: ['netplan', 'eni', 'sysconfig']
+     activators: ['netplan', 'eni', 'network-manager', 'networkd']
    # Automatically discover the best ntp_client
    ntp_client: auto
    # Other config here will be given to the distro class and/or path classes
@@ -244,18 +254,22 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "eurolinux",
-                    "fedora", "gentoo", "miraclelinux", "openEuler", "rhel", "rocky", "suse", "virtuozzo"] %}
+{% elif variant in ["alpine", "amazon", "arch", "fedora",
+                    "gentoo", "openEuler", "OpenCloudOS", "openmandriva", "suse", "TencentOS"] or is_rhel %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
      name: ec2-user
      lock_passwd: True
      gecos: EC2 Default User
-{% elif variant == "rhel" %}
+{% elif variant in ["rhel", "centos"] %}
      name: cloud-user
      lock_passwd: true
      gecos: Cloud User
+{% elif variant == "openmandriva" %}
+     name: omv
+     lock_passwd: True
+     gecos: OpenMandriva admin
 {% else %}
      name: {{ variant }}
      lock_passwd: True
@@ -271,7 +285,9 @@ system_info:
      groups: [adm, sudo]
 {% elif variant == "arch" %}
      groups: [wheel, users]
-{% elif variant == "rhel" %}
+{% elif variant == "openmandriva" %}
+     groups: [wheel, users, systemd-journal]
+{% elif is_rhel %}
      groups: [adm, systemd-journal]
 {% else %}
      groups: [wheel, adm, systemd-journal]
@@ -342,6 +358,22 @@ system_info:
    # In Photon, we have default network settings, hence if network settings are
    # not explicitly given in metadata, don't use fallback network config.
    disable_fallback_netcfg: true
+{% elif variant in ["mariner"] %}
+   default_user:
+     name: mariner
+     lock_passwd: True
+     gecos: MarinerOS
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/bash
+   # Other config here will be given to the distro class and/or path classes
+   paths:
+      cloud_dir: /var/lib/cloud/
+      templates_dir: /etc/cloud/templates/
+   network:
+      renderers: ['networkd']
+
+   ssh_svcname: sshd
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
@@ -349,7 +381,10 @@ system_info:
 {% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
-{% elif variant in ["rhel", "fedora"] %}
+{% elif variant in ["fedora"] or is_rhel %}
    network:
       renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
+{% elif variant == "openmandriva" %}
+   network:
+      renderers: ['network-manager', 'networkd']
 {% endif %}

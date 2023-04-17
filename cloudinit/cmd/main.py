@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import traceback
+from typing import Tuple
 
 from cloudinit import patcher
 from cloudinit.config.modules import Modules
@@ -46,7 +47,7 @@ from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 from cloudinit import atomic_helper
 
 from cloudinit.config import cc_set_hostname
-from cloudinit import dhclient_hook
+from cloudinit.cmd.devel import read_cfg_paths
 
 
 # Welcome message template
@@ -142,7 +143,7 @@ def parse_cmdline_url(cmdline, names=("cloud-config-url", "url")):
     raise KeyError("No keys (%s) found in string '%s'" % (cmdline, names))
 
 
-def attempt_cmdline_url(path, network=True, cmdline=None):
+def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     """Write data from url referenced in command line to path.
 
     path: a file to write content to if downloaded.
@@ -189,7 +190,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
 
         return (level, m)
 
-    kwargs = {"url": url, "timeout": 10, "retries": 2}
+    kwargs = {"url": url, "timeout": 10, "retries": 2, "stream": True}
     if network or path_is_local:
         level = logging.WARN
         kwargs["sec_between"] = 1
@@ -201,22 +202,43 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     header = b"#cloud-config"
     try:
         resp = url_helper.read_file_or_url(**kwargs)
+        sniffed_content = b""
         if resp.ok():
-            data = resp.contents
-            if not resp.contents.startswith(header):
+            is_cloud_cfg = True
+            if isinstance(resp, url_helper.UrlResponse):
+                try:
+                    sniffed_content += next(
+                        resp.iter_content(chunk_size=len(header))
+                    )
+                except StopIteration:
+                    pass
+                if not sniffed_content.startswith(header):
+                    is_cloud_cfg = False
+            elif not resp.contents.startswith(header):
+                is_cloud_cfg = False
+            if is_cloud_cfg:
+                if cmdline_name == "url":
+                    util.deprecate(
+                        deprecated="The kernel command line key `url`",
+                        deprecated_version="22.3",
+                        extra_message=" Please use `cloud-config-url` "
+                        "kernel command line parameter instead",
+                    )
+            else:
                 if cmdline_name == "cloud-config-url":
                     level = logging.WARN
                 else:
                     level = logging.INFO
                 return (
                     level,
-                    "contents of '%s' did not start with %s" % (url, header),
+                    f"contents of '{url}' did not start with {str(header)}",
                 )
         else:
             return (
                 level,
                 "url '%s' returned code %s. Ignoring." % (url, resp.code),
             )
+        data = sniffed_content + resp.contents
 
     except url_helper.UrlError as e:
         return (level, "retrieving url '%s' failed: %s" % (url, e))
@@ -454,7 +476,12 @@ def main_init(name, args):
 
     # Validate user-data adheres to schema definition
     if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
-        validate_cloudconfig_schema(config=init.cfg, strict=False)
+        validate_cloudconfig_schema(
+            config=init.cfg,
+            strict=False,
+            log_details=False,
+            log_deprecations=True,
+        )
     else:
         LOG.debug("Skipping user-data validation. No user-data found.")
 
@@ -661,7 +688,8 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        paths = read_cfg_paths()
+        data_d = paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
@@ -773,14 +801,12 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]["errors"])
 
 
-def _maybe_persist_instance_data(init):
+def _maybe_persist_instance_data(init: stages.Init):
     """Write instance-data.json file if absent and datasource is restored."""
-    if init.ds_restored:
-        instance_data_file = os.path.join(
-            init.paths.run_dir, sources.INSTANCE_JSON_FILE
-        )
+    if init.datasource and init.ds_restored:
+        instance_data_file = init.paths.get_runpath("instance_data")
         if not os.path.exists(instance_data_file):
-            init.datasource.persist_instance_data()
+            init.datasource.persist_instance_data(write_cache=False)
 
 
 def _maybe_set_hostname(init, stage, retry_stage):
@@ -790,12 +816,12 @@ def _maybe_set_hostname(init, stage, retry_stage):
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn) = util.get_hostname_fqdn(
+    (hostname, _fqdn, _) = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set-hostname", init.cfg, cloud, LOG, None)
+            cc_set_hostname.handle("set-hostname", init.cfg, cloud, None)
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"
@@ -890,13 +916,13 @@ def main(sysv_args=None):
         "--name",
         "-n",
         action="store",
-        help="module name to run",
+        help="Module name to run.",
         required=True,
     )
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="Set module frequency.",
+        help="Module frequency for this run.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )
@@ -918,11 +944,6 @@ def main(sysv_args=None):
         "query",
         help="Query standardized instance metadata from the command line.",
     )
-
-    parser_dhclient = subparsers.add_parser(
-        dhclient_hook.NAME, help=dhclient_hook.__doc__
-    )
-    dhclient_hook.get_parser(parser_dhclient)
 
     parser_features = subparsers.add_parser(
         "features", help="List defined features."
@@ -1063,8 +1084,8 @@ def main(sysv_args=None):
             func=functor,
             args=(name, args),
         )
-        reporting.flush_events()
-        return retval
+    reporting.flush_events()
+    return retval
 
 
 if __name__ == "__main__":

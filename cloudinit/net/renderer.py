@@ -7,17 +7,14 @@
 
 import abc
 import io
+from typing import Optional
 
-from cloudinit.net.network_state import NetworkState, parse_net_config_data
+from cloudinit.net.network_state import NetworkState
 from cloudinit.net.udev import generate_udev_rule
 
 
 def filter_by_type(match_type):
     return lambda iface: match_type == iface["type"]
-
-
-def filter_by_name(match_name):
-    return lambda iface: match_name == iface["name"]
 
 
 def filter_by_attr(match_name):
@@ -27,7 +24,7 @@ def filter_by_attr(match_name):
 filter_by_physical = filter_by_type("physical")
 
 
-class Renderer(object):
+class Renderer:
     def __init__(self, config=None):
         pass
 
@@ -49,17 +46,10 @@ class Renderer(object):
         return content.getvalue()
 
     @abc.abstractmethod
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         """Render network state."""
-
-    def render_network_config(
-        self, network_config, templates=None, target=None
-    ):
-        return self.render_network_state(
-            network_state=parse_net_config_data(network_config),
-            templates=templates,
-            target=target,
-        )
-
-
-# vi: ts=4 expandtab

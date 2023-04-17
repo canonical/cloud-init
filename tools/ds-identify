@@ -127,7 +127,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD"
+LXD NWCS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -736,7 +736,6 @@ probe_floppy() {
     return "${STATE_FLOPPY_PROBED}"
 }
 
-
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
@@ -835,9 +834,6 @@ dscheck_LXD() {
 
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
-    case " ${DI_KERNEL_CMDLINE} " in
-        *\ ds=nocloud*) return ${DS_FOUND};;
-    esac
     case " ${DI_DMI_PRODUCT_SERIAL} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
@@ -927,7 +923,7 @@ dscheck_UpCloud() {
     return ${DS_NOT_FOUND}
 }
 
-ovf_vmware_guest_customization() {
+vmware_guest_customization() {
     # vmware guest customization
 
     # virt provider must be vmware
@@ -1041,8 +1037,6 @@ dscheck_OVF() {
 
     has_ovf_cdrom && return "${DS_FOUND}"
 
-    ovf_vmware_guest_customization && return "${DS_FOUND}"
-
     return ${DS_NOT_FOUND}
 }
 
@@ -1134,6 +1128,13 @@ ec2_identify_platform() {
     case "$vendor" in
         e24cloud) _RET="E24cloud"; return 0;;
     esac
+
+
+    local product_name="${DI_DMI_PRODUCT_NAME}"
+    if [ "${product_name}" = "3DS Outscale VM" ]  && \
+       [ "${vendor}" = "3DS Outscale" ]; then
+        _RET="Outscale"; return 0
+    fi
 
     # AWS http://docs.aws.amazon.com/AWSEC2/
     #     latest/UserGuide/identify_ec2_instances.html
@@ -1240,6 +1241,10 @@ dscheck_OpenStack() {
         return ${DS_FOUND}
     fi
 
+    if dmi_chassis_asset_tag_matches "HUAWEICLOUD"; then
+        return ${DS_FOUND}
+    fi
+
     # LP: #1669875 : allow identification of OpenStack by asset tag
     if dmi_chassis_asset_tag_matches "$nova"; then
         return ${DS_FOUND}
@@ -1337,6 +1342,11 @@ dscheck_Scaleway() {
 
 dscheck_Hetzner() {
     dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_NWCS() {
+    dmi_sys_vendor_is NWCS && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
@@ -1451,6 +1461,7 @@ dscheck_VMware() {
     #
     #   * envvars
     #   * guestinfo
+    #   * imc (VMware Guest Customization)
     #
     # Please note when updating this function with support for new data
     # transports, the order should match the order in the _get_data
@@ -1483,6 +1494,10 @@ dscheck_VMware() {
          vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
         return "${DS_FOUND}"
     fi
+
+    # Activate the VMware datasource only if tools plugin is available and
+    # guest customization is enabled.
+    vmware_guest_customization && return "${DS_FOUND}"
 
     return "${DS_NOT_FOUND}"
 }
@@ -1724,7 +1739,11 @@ read_config() {
     for tok in ${DI_KERNEL_CMDLINE}; do
         key=${tok%%=*}
         val=${tok#*=}
+
+        # discard anything after delimiter
+        val=${val%;*}
         case "$key" in
+            ds) _rc_dsname="$val";;
             ci.ds) _rc_dsname="$val";;
             ci.datasource) _rc_dsname="$val";;
             ci.di.policy) _rc_policy="$val";;

@@ -11,6 +11,7 @@
 import contextlib
 import copy as obj_copy
 import email
+import functools
 import glob
 import grp
 import gzip
@@ -32,16 +33,19 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from collections import deque
+from collections import deque, namedtuple
+from contextlib import suppress
 from errno import EACCES, ENOENT
-from functools import lru_cache
-from typing import Callable, List, TypeVar
+from functools import lru_cache, total_ordering
+from pathlib import Path
+from typing import Callable, Deque, Dict, List, Optional, TypeVar
 from urllib import parse
 
-from cloudinit import importer
+from cloudinit import features, importer
 from cloudinit import log as logging
 from cloudinit import (
     mergers,
+    net,
     safeyaml,
     subp,
     temp_utils,
@@ -162,7 +166,7 @@ def fully_decoded_payload(part):
     return cte_payload
 
 
-class SeLinuxGuard(object):
+class SeLinuxGuard:
     def __init__(self, path, recursive=False):
         # Late import since it might not always
         # be possible to use this
@@ -287,14 +291,51 @@ def rand_dict_key(dictionary, postfix=None):
     return newkey
 
 
-def read_conf(fname):
+def read_conf(fname, *, instance_data_file=None) -> Dict:
+    """Read a yaml config with optional template, and convert to dict"""
+    # Avoid circular import
+    from cloudinit.handlers.jinja_template import (
+        JinjaLoadError,
+        NotJinjaError,
+        render_jinja_payload_from_file,
+    )
+
     try:
-        return load_yaml(load_file(fname), default={})
+        config_file = load_file(fname)
     except IOError as e:
         if e.errno == ENOENT:
             return {}
         else:
             raise
+
+    if instance_data_file and os.path.exists(instance_data_file):
+        try:
+            config_file = render_jinja_payload_from_file(
+                config_file,
+                fname,
+                instance_data_file,
+            )
+            LOG.debug(
+                "Applied instance data in '%s' to "
+                "configuration loaded from '%s'",
+                instance_data_file,
+                fname,
+            )
+        except NotJinjaError:
+            # A log isn't appropriate here as we generally expect most
+            # cloud.cfgs to not be templated. The other path is logged
+            pass
+        except JinjaLoadError as e:
+            LOG.warning(
+                "Could not apply Jinja template '%s' to '%s'. "
+                "Exception: %s",
+                instance_data_file,
+                config_file,
+                repr(e),
+            )
+    if config_file is None:
+        return {}
+    return load_yaml(config_file, default={})  # pyright: ignore
 
 
 # Merges X lists, and then keeps the
@@ -368,7 +409,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir) -> dict:
+def get_modules_from_dir(root_dir: str) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):
@@ -599,12 +640,16 @@ def _get_variant(info):
             "debian",
             "eurolinux",
             "fedora",
+            "mariner",
             "miraclelinux",
             "openeuler",
+            "opencloudos",
+            "openmandriva",
             "photon",
             "rhel",
             "rocky",
             "suse",
+            "tencentos",
             "virtuozzo",
         ):
             variant = linux_dist
@@ -614,10 +659,12 @@ def _get_variant(info):
             variant = "rhel"
         elif linux_dist in (
             "opensuse",
-            "opensuse-tumbleweed",
             "opensuse-leap",
-            "sles",
+            "opensuse-microos",
+            "opensuse-tumbleweed",
             "sle_hpc",
+            "sle-micro",
+            "sles",
         ):
             variant = "suse"
         else:
@@ -800,28 +847,6 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             os.dup2(new_fp.fileno(), o_err.fileno())
 
 
-def make_url(
-    scheme, host, port=None, path="", params="", query="", fragment=""
-):
-
-    pieces = [scheme or ""]
-
-    netloc = ""
-    if host:
-        netloc = str(host)
-
-    if port is not None:
-        netloc += ":" + "%s" % (port)
-
-    pieces.append(netloc or "")
-    pieces.append(path or "")
-    pieces.append(params or "")
-    pieces.append(query or "")
-    pieces.append(fragment or "")
-
-    return parse.urlunparse(pieces)
-
-
 def mergemanydict(srcs, reverse=False) -> dict:
     if reverse:
         srcs = reversed(srcs)
@@ -887,17 +912,16 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
 def fetch_ssl_details(paths=None):
     ssl_details = {}
     # Lookup in these locations for ssl key/cert files
-    ssl_cert_paths = [
-        "/var/lib/cloud/data/ssl",
-        "/var/lib/cloud/instance/data/ssl",
-    ]
-    if paths:
-        ssl_cert_paths.extend(
-            [
-                os.path.join(paths.get_ipath_cur("data"), "ssl"),
-                os.path.join(paths.get_cpath("data"), "ssl"),
-            ]
-        )
+    if not paths:
+        ssl_cert_paths = [
+            "/var/lib/cloud/data/ssl",
+            "/var/lib/cloud/instance/data/ssl",
+        ]
+    else:
+        ssl_cert_paths = [
+            os.path.join(paths.get_ipath_cur("data"), "ssl"),
+            os.path.join(paths.get_cpath("data"), "ssl"),
+        ]
     ssl_cert_paths = uniq_merge(ssl_cert_paths)
     ssl_cert_paths = [d for d in ssl_cert_paths if d and os.path.isdir(d)]
     cert_file = None
@@ -960,14 +984,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.find("%s") >= 0:
-        ud_url = base % ("user-data" + ext)
-        vd_url = base % ("vendor-data" + ext)
-        md_url = base % ("meta-data" + ext)
+        ud_url = base.replace("%s", "user-data" + ext)
+        vd_url = base.replace("%s", "vendor-data" + ext)
+        md_url = base.replace("%s", "meta-data" + ext)
     else:
+        if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
+            if base[-1] != "/" and parse.urlparse(base).query == "":
+                # Append fwd slash when no query string and no %s
+                base += "/"
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
-
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )
@@ -998,7 +1025,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     return (md, ud, vd)
 
 
-def read_conf_d(confd):
+def read_conf_d(confd, *, instance_data_file=None) -> dict:
     """Read configuration directory."""
     # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
@@ -1013,7 +1040,12 @@ def read_conf_d(confd):
     cfgs = []
     for fn in confs:
         try:
-            cfgs.append(read_conf(os.path.join(confd, fn)))
+            cfgs.append(
+                read_conf(
+                    os.path.join(confd, fn),
+                    instance_data_file=instance_data_file,
+                )
+            )
         except OSError as e:
             if e.errno == EACCES:
                 LOG.warning(
@@ -1023,18 +1055,29 @@ def read_conf_d(confd):
     return mergemanydict(cfgs)
 
 
-def read_conf_with_confd(cfgfile):
-    cfgs = deque()
+def read_conf_with_confd(cfgfile, *, instance_data_file=None) -> dict:
+    """Read yaml file along with optional ".d" directory, return merged config
+
+    Given a yaml file, load the file as a dictionary. Additionally, if there
+    exists a same-named directory with .d extension, read all files from
+    that directory in order and return the merged config. The template
+    file is optional and will be applied to any applicable jinja file
+    in the configs.
+
+    For example, this function can read both /etc/cloud/cloud.cfg and all
+    files in /etc/cloud/cloud.cfg.d and merge all configs into a single dict.
+    """
+    cfgs: Deque[Dict] = deque()
     cfg: dict = {}
     try:
-        cfg = read_conf(cfgfile)
+        cfg = read_conf(cfgfile, instance_data_file=instance_data_file)
     except OSError as e:
         if e.errno == EACCES:
             LOG.warning("REDACTED config part %s for non-root user", cfgfile)
     else:
         cfgs.append(cfg)
 
-    confd = False
+    confd = ""
     if "conf_d" in cfg:
         confd = cfg["conf_d"]
         if confd:
@@ -1045,12 +1088,12 @@ def read_conf_with_confd(cfgfile):
                 )
             else:
                 confd = str(confd).strip()
-    elif os.path.isdir("%s.d" % cfgfile):
-        confd = "%s.d" % cfgfile
+    elif os.path.isdir(f"{cfgfile}.d"):
+        confd = f"{cfgfile}.d"
 
     if confd and os.path.isdir(confd):
         # Conf.d settings override input configuration
-        confd_cfg = read_conf_d(confd)
+        confd_cfg = read_conf_d(confd, instance_data_file=instance_data_file)
         cfgs.appendleft(confd_cfg)
 
     return mergemanydict(cfgs)
@@ -1103,6 +1146,12 @@ def dos2unix(contents):
     return contents.replace("\r\n", "\n")
 
 
+HostnameFqdnInfo = namedtuple(
+    "HostnameFqdnInfo",
+    ["hostname", "fqdn", "is_default"],
+)
+
+
 def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     """Get hostname and fqdn from config if present and fallback to cloud.
 
@@ -1110,9 +1159,17 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     @param cloud: Cloud instance from init.cloudify().
     @param metadata_only: Boolean, set True to only query cloud meta-data,
         returning None if not present in meta-data.
-    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+    @return: a namedtuple of
+        <hostname>, <fqdn>, <is_default> (str, str, bool).
+        Values can be none when
         metadata_only is True and no cfg or metadata provides hostname info.
+        is_default is a bool and
+        it's true only if hostname is localhost and was
+        returned by util.get_hostname() as a default.
+        This is used to differentiate with a user-defined
+        localhost hostname.
     """
+    is_default = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg["fqdn"]
@@ -1126,12 +1183,16 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
+            fqdn = cloud.get_hostname(
+                fqdn=True, metadata_only=metadata_only
+            ).hostname
             if "hostname" in cfg:
                 hostname = cfg["hostname"]
             else:
-                hostname = cloud.get_hostname(metadata_only=metadata_only)
-    return (hostname, fqdn)
+                hostname, is_default = cloud.get_hostname(
+                    metadata_only=metadata_only
+                )
+    return HostnameFqdnInfo(hostname, fqdn, is_default)
 
 
 def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
@@ -1174,8 +1235,8 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     return fqdn
 
 
-def is_resolvable(name):
-    """determine if a url is resolvable, return a boolean
+def is_resolvable(url) -> bool:
+    """determine if a url's network address is resolvable, return a boolean
     This also attempts to be resilent against dns redirection.
 
     Note, that normal nsswitch resolution is used here.  So in order
@@ -1187,6 +1248,8 @@ def is_resolvable(name):
     be resolved inside the search list.
     """
     global _DNS_REDIRECT_IP
+    parsed_url = parse.urlparse(url)
+    name = parsed_url.hostname
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
@@ -1194,7 +1257,7 @@ def is_resolvable(name):
             "example.invalid.",
             "__cloud_init_expected_not_found__",
         )
-        badresults = {}
+        badresults: dict = {}
         for iname in badnames:
             try:
                 result = socket.getaddrinfo(
@@ -1211,12 +1274,14 @@ def is_resolvable(name):
             LOG.debug("detected dns redirection: %s", badresults)
 
     try:
+        # ip addresses need no resolution
+        with suppress(ValueError):
+            if net.is_ip_address(parsed_url.netloc.strip("[]")):
+                return True
         result = socket.getaddrinfo(name, None)
         # check first result's sockaddr field
         addr = result[0][4][0]
-        if addr in _DNS_REDIRECT_IP:
-            return False
-        return True
+        return addr not in _DNS_REDIRECT_IP
     except (socket.gaierror, socket.error):
         return False
 
@@ -1239,7 +1304,7 @@ def is_resolvable_url(url):
         logfunc=LOG.debug,
         msg="Resolving URL: " + url,
         func=is_resolvable,
-        args=(parse.urlparse(url).hostname,),
+        args=(url,),
     )
 
 
@@ -1456,12 +1521,6 @@ def blkid(devs=None, disable_cache=False):
         ret[dev]["DEVNAME"] = dev
 
     return ret
-
-
-def peek_file(fname, max_bytes):
-    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
-    with open(fname, "rb") as ifh:
-        return ifh.read(max_bytes)
 
 
 def uniq_list(in_list):
@@ -1723,45 +1782,52 @@ def json_serialize_default(_obj):
         return "Warning: redacted unserializable type {0}".format(type(_obj))
 
 
-def json_preserialize_binary(data):
-    """Preserialize any discovered binary values to avoid json.dumps issues.
-
-    Used only on python 2.7 where default type handling is not honored for
-    failure to encode binary data. LP: #1801364.
-    TODO(Drop this function when py2.7 support is dropped from cloud-init)
-    """
-    data = obj_copy.deepcopy(data)
-    for key, value in data.items():
-        if isinstance(value, (dict)):
-            data[key] = json_preserialize_binary(value)
-        if isinstance(value, bytes):
-            data[key] = "ci-b64:{0}".format(b64e(value))
-    return data
-
-
 def json_dumps(data):
     """Return data in nicely formatted json."""
-    try:
-        return json.dumps(
-            data,
-            indent=1,
-            sort_keys=True,
-            separators=(",", ": "),
-            default=json_serialize_default,
-        )
-    except UnicodeDecodeError:
-        if sys.version_info[:2] == (2, 7):
-            data = json_preserialize_binary(data)
-            return json.dumps(data)
-        raise
+    return json.dumps(
+        data,
+        indent=1,
+        sort_keys=True,
+        separators=(",", ": "),
+        default=json_serialize_default,
+    )
 
 
-def ensure_dir(path, mode=None):
+def get_non_exist_parent_dir(path):
+    """Get the last directory in a path that does not exist.
+
+    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    return /usr/a
+    """
+    p_path = os.path.dirname(path)
+    # Check if parent directory of path is root
+    if p_path == os.path.dirname(p_path):
+        return path
+    else:
+        if os.path.isdir(p_path):
+            return path
+        else:
+            return get_non_exist_parent_dir(p_path)
+
+
+def ensure_dir(path, mode=None, user=None, group=None):
     if not os.path.isdir(path):
+        # Get non existed parent dir first before they are created.
+        non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
+        # Change the ownership
+        if user or group:
+            chownbyname(non_existed_parent_dir, user, group)
+            # if path=/usr/a/b/c and non_existed_parent_dir=/usr,
+            # then sub_relative_dir=PosixPath('a/b/c')
+            sub_relative_dir = Path(path.split(non_existed_parent_dir)[1][1:])
+            sub_path = Path(non_existed_parent_dir)
+            for part in sub_relative_dir.parts:
+                sub_path = sub_path.joinpath(part)
+                chownbyname(sub_path, user, group)
     else:
         # Just adjust the mode
         chmod(path, mode)
@@ -2098,6 +2164,8 @@ def write_file(
     preserve_mode=False,
     *,
     ensure_dir_exists=True,
+    user=None,
+    group=None,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2112,6 +2180,8 @@ def write_file(
     @param ensure_dir_exists: If True (the default), ensure that the directory
                               containing `filename` exists before writing to
                               the file.
+    @param user: The user to set on the file.
+    @param group: The group to set on the file.
     """
 
     if preserve_mode:
@@ -2121,7 +2191,7 @@ def write_file(
             pass
 
     if ensure_dir_exists:
-        ensure_dir(os.path.dirname(filename))
+        ensure_dir(os.path.dirname(filename), user=user, group=group)
     if "b" in omode.lower():
         content = encode_text(content)
         write_type = "bytes"
@@ -2618,6 +2688,11 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
         return parse_mount(path)
 
 
+def has_mount_opt(path, opt: str) -> bool:
+    *_, mnt_opts = get_mount_info(path, get_mnt_opts=True)
+    return opt in mnt_opts.split(",")
+
+
 T = TypeVar("T")
 
 
@@ -2728,11 +2803,25 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
 
 def human2bytes(size):
     """Convert human string or integer to size in bytes
+
+    In the original implementation, SI prefixes parse to IEC values
+    (1KB=1024B). Later, support for parsing IEC prefixes was added,
+    also parsing to IEC values (1KiB=1024B). To maintain backwards
+    compatibility for the long-used implementation, no fix is provided for SI
+    prefixes (to make 1KB=1000B may now violate user expectations).
+
+    Future prospective callers of this function should consider implementing a
+    new function with more standard expectations (1KB=1000B and 1KiB=1024B)
+
+    Examples:
     10M => 10485760
-    .5G => 536870912
+    10MB => 10485760
+    10MiB => 10485760
     """
     size_in = size
-    if size.endswith("B"):
+    if size.endswith("iB"):
+        size = size[:-2]
+    elif size.endswith("B"):
         size = size[:-1]
 
     mpliers = {"B": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}
@@ -2808,14 +2897,6 @@ def system_is_snappy():
     if os.path.isdir("/etc/system-image/config.d/"):
         return True
     return False
-
-
-def indent(text, prefix):
-    """replacement for indent from textwrap that is not available in 2.7."""
-    lines = []
-    for line in text.splitlines(True):
-        lines.append(prefix + line)
-    return "".join(lines)
 
 
 def rootdev_from_cmdline(cmdline):
@@ -2909,6 +2990,10 @@ def mount_is_read_write(mount_point):
 
 def udevadm_settle(exists=None, timeout=None):
     """Invoke udevadm settle with optional exists and timeout parameters"""
+    if not subp.which("udevadm"):
+        # a distro, such as Alpine, may not have udev installed if
+        # it relies on a udev alternative such as mdev/mdevd.
+        return
     settle_cmd = ["udevadm", "settle"]
     if exists:
         # skip the settle if the requested path already exists
@@ -2928,13 +3013,19 @@ def get_proc_ppid(pid):
     ppid = 0
     try:
         contents = load_file("/proc/%s/stat" % pid, quiet=True)
+        if contents:
+            # see proc.5 for format
+            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKPI] (\d+)", str(contents))
+            if m:
+                ppid = int(m.group(1))
+            else:
+                LOG.warning(
+                    "Unable to match parent pid of process pid=%s input: %s",
+                    pid,
+                    contents,
+                )
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
-    if contents:
-        parts = contents.split(" ", 4)
-        # man proc says
-        #  ppid %d     (4) The PID of the parent.
-        ppid = int(parts[3])
     return ppid
 
 
@@ -2953,4 +3044,138 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
     return rc
 
 
-# vi: ts=4 expandtab
+@total_ordering
+class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
+    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+        """Default of -1 allows us to tiebreak in favor of the most specific
+        number"""
+        return super(Version, cls).__new__(cls, major, minor, patch, rev)
+
+    @classmethod
+    def from_str(cls, version: str):
+        return cls(*(list(map(int, version.split(".")))))
+
+    def __gt__(self, other):
+        return 1 == self._compare_version(other)
+
+    def __eq__(self, other):
+        return (
+            self.major == other.major
+            and self.minor == other.minor
+            and self.patch == other.patch
+            and self.rev == other.rev
+        )
+
+    def __iter__(self):
+        """Iterate over the version (drop sentinels)"""
+        for n in (self.major, self.minor, self.patch, self.rev):
+            if n != -1:
+                yield str(n)
+            else:
+                break
+
+    def __str__(self):
+        return ".".join(self)
+
+    def _compare_version(self, other) -> int:
+        """
+        return values:
+            1: self > v2
+            -1: self < v2
+            0: self == v2
+
+        to break a tie between 3.1.N and 3.1, always treat the more
+        specific number as larger
+        """
+        if self == other:
+            return 0
+        if self.major > other.major:
+            return 1
+        if self.minor > other.minor:
+            return 1
+        if self.patch > other.patch:
+            return 1
+        if self.rev > other.rev:
+            return 1
+        return -1
+
+
+def deprecate(
+    *,
+    deprecated: str,
+    deprecated_version: str,
+    extra_message: Optional[str] = None,
+    schedule: int = 5,
+):
+    """Mark a "thing" as deprecated. Deduplicated deprecations are
+    logged.
+
+    @param deprecated: Noun to be deprecated. Write this as the start
+        of a sentence, with no period. Version and extra message will
+        be appended.
+    @param deprecated_version: The version in which the thing was
+        deprecated
+    @param extra_message: A remedy for the user's problem. A good
+        message will be actionable and specific (i.e., don't use a
+        generic "Use updated key." if the user used a deprecated key).
+        End the string with a period.
+    @param schedule: Manually set the deprecation schedule. Defaults to
+        5 years. Leave a comment explaining your reason for deviation if
+        setting this value.
+
+    Note: uses keyword-only arguments to improve legibility
+    """
+    if not hasattr(deprecate, "_log"):
+        deprecate._log = set()  # type: ignore
+    message = extra_message or ""
+    dedup = hash(deprecated + message + deprecated_version + str(schedule))
+    version = Version.from_str(deprecated_version)
+    version_removed = Version(version.major + schedule, version.minor)
+    if dedup not in deprecate._log:  # type: ignore
+        deprecate._log.add(dedup)  # type: ignore
+        deprecate_msg = (
+            f"{deprecated} is deprecated in "
+            f"{deprecated_version} and scheduled to be removed in "
+            f"{version_removed}. {message}"
+        ).rstrip()
+        if hasattr(LOG, "deprecated"):
+            LOG.deprecated(deprecate_msg)
+        else:
+            LOG.warning(deprecate_msg)
+
+
+def deprecate_call(
+    *, deprecated_version: str, extra_message: str, schedule: int = 5
+):
+    """Mark a "thing" as deprecated. Deduplicated deprecations are
+    logged.
+
+    @param deprecated_version: The version in which the thing was
+        deprecated
+    @param extra_message: A remedy for the user's problem. A good
+        message will be actionable and specific (i.e., don't use a
+        generic "Use updated key." if the user used a deprecated key).
+        End the string with a period.
+    @param schedule: Manually set the deprecation schedule. Defaults to
+        5 years. Leave a comment explaining your reason for deviation if
+        setting this value.
+
+    Note: uses keyword-only arguments to improve legibility
+    """
+
+    def wrapper(func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            # don't log message multiple times
+            out = func(*args, **kwargs)
+            deprecate(
+                deprecated_version=deprecated_version,
+                deprecated=func.__name__,
+                extra_message=extra_message,
+                schedule=schedule,
+            )
+            return out
+
+        return decorator
+
+    return wrapper

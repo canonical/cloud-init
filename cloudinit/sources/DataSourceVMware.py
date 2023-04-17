@@ -1,9 +1,10 @@
 # Cloud-Init DataSource for VMware
 #
-# Copyright (c) 2018-2021 VMware, Inc. All Rights Reserved.
+# Copyright (c) 2018-2022 VMware, Inc. All Rights Reserved.
 #
 # Authors: Anish Swaminathan <anishs@vmware.com>
 #          Andrew Kutz <akutz@vmware.com>
+#          Pengpeng Sun <pengpengs@vmware.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -14,6 +15,7 @@ multiple transports types, including:
 
     * EnvVars
     * GuestInfo
+    * IMC (Guest Customization)
 
 Netifaces (https://github.com/al45tair/netifaces)
 
@@ -73,7 +75,8 @@ import netifaces
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources, util
+from cloudinit import net, sources, util
+from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
 PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
@@ -81,8 +84,10 @@ PRODUCT_UUID_FILE_PATH = "/sys/class/dmi/id/product_uuid"
 LOG = logging.getLogger(__name__)
 NOVAL = "No value found"
 
+# Data transports names
 DATA_ACCESS_METHOD_ENVVAR = "envvar"
 DATA_ACCESS_METHOD_GUESTINFO = "guestinfo"
+DATA_ACCESS_METHOD_IMC = "imc"
 
 VMWARE_RPCTOOL = which("vmware-rpctool")
 REDACT = "redact"
@@ -116,14 +121,22 @@ class DataSourceVMware(sources.DataSource):
             Network Config Version 2 - http://bit.ly/cloudinit-net-conf-v2
 
         For example, CentOS 7's official cloud-init package is version
-        0.7.9 and does not support Network Config Version 2. However,
-        this datasource still supports supplying Network Config Version 2
-        data as long as the Linux distro's cloud-init package is new
-        enough to parse the data.
+        0.7.9 and does not support Network Config Version 2.
 
-        The metadata key "network.encoding" may be used to indicate the
-        format of the metadata key "network". Valid encodings are base64
-        and gzip+base64.
+        imc transport:
+            Either Network Config Version 1 or Network Config Version 2 is
+            supported which depends on the customization type.
+            For LinuxPrep customization, Network config Version 1 data is
+            parsed from the customization specification.
+            For CloudinitPrep customization, Network config Version 2 data
+            is parsed from the customization specification.
+
+        envvar and guestinfo tranports:
+            Network Config Version 2 data is supported as long as the Linux
+            distro's cloud-init package is new enough to parse the data.
+            The metadata key "network.encoding" may be used to indicate the
+            format of the metadata key "network". Valid encodings are base64
+            and gzip+base64.
     """
 
     dsname = "VMware"
@@ -131,8 +144,26 @@ class DataSourceVMware(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
 
+        self.cfg = {}
         self.data_access_method = None
         self.vmware_rpctool = VMWARE_RPCTOOL
+
+        # A list includes all possible data transports, each tuple represents
+        # one data transport type. This datasource will try to get data from
+        # each of transports follows the tuples order in this list.
+        # A tuple has 3 elements which are:
+        # 1. The transport name
+        # 2. The function name to get data for the transport
+        # 3. A boolean tells whether the transport requires VMware platform
+        self.possible_data_access_method_list = [
+            (DATA_ACCESS_METHOD_ENVVAR, self.get_envvar_data_fn, False),
+            (DATA_ACCESS_METHOD_GUESTINFO, self.get_guestinfo_data_fn, True),
+            (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
+        ]
+
+    def __str__(self):
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s]" % (root, self.data_access_method)
 
     def _get_data(self):
         """
@@ -141,6 +172,7 @@ class DataSourceVMware(sources.DataSource):
 
             * envvars
             * guestinfo
+            * imc
 
         Please note when updating this function with support for new data
         transports, the order should match the order in the dscheck_VMware
@@ -152,35 +184,18 @@ class DataSourceVMware(sources.DataSource):
         # access method.
         md, ud, vd = None, None, None
 
-        # First check to see if there is data via env vars.
-        if os.environ.get(VMX_GUESTINFO, ""):
-            md = guestinfo_envvar("metadata")
-            ud = guestinfo_envvar("userdata")
-            vd = guestinfo_envvar("vendordata")
-
+        # Crawl data from all possible data transports
+        for (
+            data_access_method,
+            get_data_fn,
+            require_vmware_platform,
+        ) in self.possible_data_access_method_list:
+            if require_vmware_platform and not is_vmware_platform():
+                continue
+            (md, ud, vd) = get_data_fn()
             if md or ud or vd:
-                self.data_access_method = DATA_ACCESS_METHOD_ENVVAR
-
-        # At this point, all additional data transports are valid only on
-        # a VMware platform.
-        if not self.data_access_method:
-            system_type = dmi.read_dmi_data("system-product-name")
-            if system_type is None:
-                LOG.debug("No system-product-name found")
-                return False
-            if "vmware" not in system_type.lower():
-                LOG.debug("Not a VMware platform")
-                return False
-
-        # If no data was detected, check the guestinfo transport next.
-        if not self.data_access_method:
-            if self.vmware_rpctool:
-                md = guestinfo("metadata", self.vmware_rpctool)
-                ud = guestinfo("userdata", self.vmware_rpctool)
-                vd = guestinfo("vendordata", self.vmware_rpctool)
-
-                if md or ud or vd:
-                    self.data_access_method = DATA_ACCESS_METHOD_GUESTINFO
+                self.data_access_method = data_access_method
+                break
 
         if not self.data_access_method:
             LOG.error("failed to find a valid data access method")
@@ -241,6 +256,8 @@ class DataSourceVMware(sources.DataSource):
             get_key_name_fn = get_guestinfo_envvar_key_name
         elif self.data_access_method == DATA_ACCESS_METHOD_GUESTINFO:
             get_key_name_fn = get_guestinfo_key_name
+        elif self.data_access_method == DATA_ACCESS_METHOD_IMC:
+            get_key_name_fn = get_imc_key_name
         else:
             return sources.METADATA_UNKNOWN
 
@@ -248,6 +265,12 @@ class DataSourceVMware(sources.DataSource):
             self.data_access_method,
             get_key_name_fn("metadata"),
         )
+
+    # The data sources' config_obj is a cloud-config formatted
+    # object that came to it from ways other than cloud-config
+    # because cloud-config content would be handled elsewhere
+    def get_config_obj(self):
+        return self.cfg
 
     @property
     def network_config(self):
@@ -291,6 +314,98 @@ class DataSourceVMware(sources.DataSource):
 
         if self.data_access_method == DATA_ACCESS_METHOD_GUESTINFO:
             guestinfo_redact_keys(keys_to_redact, self.vmware_rpctool)
+
+    def get_envvar_data_fn(self):
+        """
+        check to see if there is data via env vars
+        """
+        md, ud, vd = None, None, None
+        if os.environ.get(VMX_GUESTINFO, ""):
+            md = guestinfo_envvar("metadata")
+            ud = guestinfo_envvar("userdata")
+            vd = guestinfo_envvar("vendordata")
+
+        return (md, ud, vd)
+
+    def get_guestinfo_data_fn(self):
+        """
+        check to see if there is data via the guestinfo transport
+        """
+        md, ud, vd = None, None, None
+        if self.vmware_rpctool:
+            md = guestinfo("metadata", self.vmware_rpctool)
+            ud = guestinfo("userdata", self.vmware_rpctool)
+            vd = guestinfo("vendordata", self.vmware_rpctool)
+
+        return (md, ud, vd)
+
+    def get_imc_data_fn(self):
+        """
+        check to see if there is data via vmware guest customization
+        """
+        md, ud, vd = None, None, None
+
+        # Check if vmware guest customization is enabled.
+        allow_vmware_cust = guestcust_util.is_vmware_cust_enabled(self.sys_cfg)
+        allow_raw_data_cust = guestcust_util.is_raw_data_cust_enabled(
+            self.ds_cfg
+        )
+        if not allow_vmware_cust and not allow_raw_data_cust:
+            LOG.debug("Customization for VMware platform is disabled")
+            return (md, ud, vd)
+
+        # Check if "VMware Tools" plugin is available.
+        if not guestcust_util.is_cust_plugin_available():
+            return (md, ud, vd)
+
+        # Wait for vmware guest customization configuration file.
+        cust_cfg_file = guestcust_util.get_cust_cfg_file(self.ds_cfg)
+        if cust_cfg_file is None:
+            return (md, ud, vd)
+
+        # Check what type of guest customization is this.
+        cust_cfg_dir = os.path.dirname(cust_cfg_file)
+        cust_cfg = guestcust_util.parse_cust_cfg(cust_cfg_file)
+        (
+            is_vmware_cust_cfg,
+            is_raw_data_cust_cfg,
+        ) = guestcust_util.get_cust_cfg_type(cust_cfg)
+
+        # Get data only if guest customization type and flag matches.
+        if is_vmware_cust_cfg and allow_vmware_cust:
+            LOG.debug("Getting data via VMware customization configuration")
+            (md, ud, vd, self.cfg) = guestcust_util.get_data_from_imc_cust_cfg(
+                self.paths.cloud_dir,
+                self.paths.get_cpath("scripts"),
+                cust_cfg,
+                cust_cfg_dir,
+                self.distro,
+            )
+        elif is_raw_data_cust_cfg and allow_raw_data_cust:
+            LOG.debug(
+                "Getting data via VMware raw cloudinit data "
+                "customization configuration"
+            )
+            (md, ud, vd) = guestcust_util.get_data_from_imc_raw_data_cust_cfg(
+                cust_cfg
+            )
+        else:
+            LOG.debug("No allowed customization configuration data found")
+
+        # Clean customization configuration file and directory
+        util.del_dir(cust_cfg_dir)
+        return (md, ud, vd)
+
+
+def is_vmware_platform():
+    system_type = dmi.read_dmi_data("system-product-name")
+    if system_type is None:
+        LOG.debug("No system-product-name found")
+        return False
+    elif "vmware" not in system_type.lower():
+        LOG.debug("Not a VMware platform")
+        return False
+    return True
 
 
 def decode(key, enc_type, data):
@@ -365,6 +480,10 @@ def handle_returned_guestinfo_val(key, val):
         return val
     LOG.debug("No value found for key %s", key)
     return None
+
+
+def get_imc_key_name(key):
+    return "vmware-tools"
 
 
 def get_guestinfo_key_name(key):
@@ -512,6 +631,9 @@ def load_json_or_yaml(data):
     """
     if not data:
         return {}
+    # If data is already a dictionary, here will return it directly.
+    if isinstance(data, dict):
+        return data
     try:
         return util.load_json(data)
     except (json.JSONDecodeError, TypeError):
@@ -523,6 +645,8 @@ def process_metadata(data):
     process_metadata processes metadata and loads the optional network
     configuration.
     """
+    if not data:
+        return {}
     network = None
     if "network" in data:
         network = data["network"]
@@ -685,20 +809,10 @@ def is_valid_ip_addr(val):
     Returns false if the address is loopback, link local or unspecified;
     otherwise true is returned.
     """
-    # TODO(extend cloudinit.net.is_ip_addr exclude link_local/loopback etc)
-    # TODO(migrate to use cloudinit.net.is_ip_addr)#
-
-    addr = None
-    try:
-        addr = ipaddress.ip_address(val)
-    except ipaddress.AddressValueError:
-        addr = ipaddress.ip_address(str(val))
-    except Exception:
-        return None
-
-    if addr.is_link_local or addr.is_loopback or addr.is_unspecified:
-        return False
-    return True
+    addr = net.maybe_get_address(ipaddress.ip_address, val)
+    return addr and not (
+        addr.is_link_local or addr.is_loopback or addr.is_unspecified
+    )
 
 
 def get_host_info():
@@ -810,7 +924,7 @@ def wait_on_network(metadata):
                 wait_on_ipv6 = util.translate_bool(wait_on_ipv6_val)
 
     # Get information about the host.
-    host_info = None
+    host_info, ipv4_ready, ipv6_ready = None, False, False
     while host_info is None:
         # This loop + sleep results in two logs every second while waiting
         # for either ipv4 or ipv6 up. Do we really need to log each iteration
@@ -855,7 +969,10 @@ def main():
     except Exception:
         pass
     metadata = {
-        "wait-on-network": {"ipv4": True, "ipv6": "false"},
+        WAIT_ON_NETWORK: {
+            WAIT_ON_NETWORK_IPV4: True,
+            WAIT_ON_NETWORK_IPV6: False,
+        },
         "network": {"config": {"dhcp": True}},
     }
     host_info = wait_on_network(metadata)

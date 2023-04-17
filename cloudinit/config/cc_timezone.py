@@ -9,8 +9,11 @@
 """Timezone: Set the system timezone"""
 
 from os.path import exists
+import logging
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -29,19 +32,21 @@ meta: MetaSchema = {
     "examples": [
         "timezone: US/Eastern",
     ],
+    "activate_by_schema_keys": ["timezone"],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         timezone = args[0]
     else:
         timezone = util.get_cfg_option_str(cfg, "timezone", False)
 
     if not timezone:
-        log.debug("Skipping module named %s, no 'timezone' specified", name)
+        LOG.debug("Skipping module named %s, no 'timezone' specified", name)
         return
 
     # Let the distro handle settings its timezone

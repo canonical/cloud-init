@@ -7,9 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Scripts Per Instance: Run per instance scripts"""
 
+import logging
 import os
 
 from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -31,22 +34,23 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
-
+LOG = logging.getLogger(__name__)
 
 SCRIPT_SUBDIR = "per-instance"
 
 
-def handle(name, _cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
     runparts_path = os.path.join(cloud.get_cpath(), "scripts", SCRIPT_SUBDIR)
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning(
+        LOG.warning(
             "Failed to run module %s (%s in %s)",
             name,
             SCRIPT_SUBDIR,

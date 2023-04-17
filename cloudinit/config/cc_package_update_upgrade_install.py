@@ -12,6 +12,8 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -47,9 +49,17 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": [
+        "apt_update",
+        "package_update",
+        "apt_upgrade",
+        "package_upgrade",
+        "packages",
+    ],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _multi_cfg_bool_get(cfg, *keys):
@@ -59,7 +69,7 @@ def _multi_cfg_bool_get(cfg, *keys):
     return False
 
 
-def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
+def _fire_reboot(wait_attempts=6, initial_sleep=1, backoff=2):
     subp.subp(REBOOT_CMD)
     start = time.time()
     wait_time = initial_sleep
@@ -67,7 +77,7 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
         time.sleep(wait_time)
         wait_time *= backoff
         elapsed = time.time() - start
-        log.debug("Rebooted, but still running after %s seconds", int(elapsed))
+        LOG.debug("Rebooted, but still running after %s seconds", int(elapsed))
     # If we got here, not good
     elapsed = time.time() - start
     raise RuntimeError(
@@ -75,7 +85,7 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
     )
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Handle the old style + new config names
     update = _multi_cfg_bool_get(cfg, "apt_update", "package_update")
     upgrade = _multi_cfg_bool_get(cfg, "package_upgrade", "apt_upgrade")
@@ -89,21 +99,21 @@ def handle(_name, cfg, cloud, log, _args):
         try:
             cloud.distro.update_package_sources()
         except Exception as e:
-            util.logexc(log, "Package update failed")
+            util.logexc(LOG, "Package update failed")
             errors.append(e)
 
     if upgrade:
         try:
             cloud.distro.package_command("upgrade")
         except Exception as e:
-            util.logexc(log, "Package upgrade failed")
+            util.logexc(LOG, "Package upgrade failed")
             errors.append(e)
 
     if len(pkglist):
         try:
             cloud.distro.install_packages(pkglist)
         except Exception as e:
-            util.logexc(log, "Failed to install packages: %s", pkglist)
+            util.logexc(LOG, "Failed to install packages: %s", pkglist)
             errors.append(e)
 
     # TODO(smoser): handle this less violently
@@ -113,18 +123,18 @@ def handle(_name, cfg, cloud, log, _args):
     reboot_fn_exists = os.path.isfile(REBOOT_FILE)
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            log.warning(
+            LOG.warning(
                 "Rebooting after upgrade or install per %s", REBOOT_FILE
             )
             # Flush the above warning + anything else out...
-            logging.flushLoggers(log)
-            _fire_reboot(log)
+            logging.flushLoggers(LOG)
+            _fire_reboot()
         except Exception as e:
-            util.logexc(log, "Requested reboot did not happen!")
+            util.logexc(LOG, "Requested reboot did not happen!")
             errors.append(e)
 
     if len(errors):
-        log.warning(
+        LOG.warning(
             "%s failed with exceptions, re-raising the last one", len(errors)
         )
         raise errors[-1]

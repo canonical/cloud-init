@@ -8,15 +8,10 @@ import argparse
 import json
 import sys
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.status import UXAppStatus, get_status_details
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    METADATA_UNKNOWN,
-    canonical_cloud_id,
-)
+from cloudinit.sources import METADATA_UNKNOWN, canonical_cloud_id
 from cloudinit.util import error
-
-DEFAULT_INSTANCE_JSON = "/run/cloud-init/%s" % INSTANCE_JSON_FILE
 
 NAME = "cloud-id"
 
@@ -30,6 +25,7 @@ def get_parser(parser=None):
 
     @returns: ArgumentParser with proper argument configuration.
     """
+    default_instance_json = read_cfg_paths().get_runpath("instance_data")
     if not parser:
         parser = argparse.ArgumentParser(
             prog=NAME,
@@ -53,9 +49,11 @@ def get_parser(parser=None):
         "-i",
         "--instance-data",
         type=str,
-        default=DEFAULT_INSTANCE_JSON,
-        help="Path to instance-data.json file. Default is %s"
-        % DEFAULT_INSTANCE_JSON,
+        default=default_instance_json,
+        help=(
+            "Path to instance-data.json file. "
+            f"Default is {default_instance_json}"
+        ),
     )
     return parser
 
@@ -67,16 +65,17 @@ def handle_args(name, args):
 
     @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not run.
     """
-    status, _status_details, _time = get_status_details()
-    if status == UXAppStatus.DISABLED:
-        sys.stdout.write("{0}\n".format(status.value))
+    status_details = get_status_details()
+    if status_details.status == UXAppStatus.DISABLED:
+        sys.stdout.write("{0}\n".format(status_details.status.value))
         return 2
-    elif status == UXAppStatus.NOT_RUN:
-        sys.stdout.write("{0}\n".format(status.value))
+    elif status_details.status == UXAppStatus.NOT_RUN:
+        sys.stdout.write("{0}\n".format(status_details.status.value))
         return 3
 
     try:
-        instance_data = json.load(open(args.instance_data))
+        with open(args.instance_data) as file:
+            instance_data = json.load(file)
     except IOError:
         return error(
             "File not found '%s'. Provide a path to instance data json file"
@@ -93,6 +92,7 @@ def handle_args(name, args):
         v1.get("platform", METADATA_UNKNOWN),
     )
     if args.json:
+        sys.stderr.write("DEPRECATED: Use: cloud-init query v1\n")
         v1["cloud_id"] = cloud_id
         response = json.dumps(  # Pretty, sorted json
             v1, indent=1, sort_keys=True, separators=(",", ": ")

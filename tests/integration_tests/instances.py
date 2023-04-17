@@ -60,6 +60,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self._ip = ""
 
     def destroy(self):
         self.instance.delete()
@@ -74,7 +75,7 @@ class IntegrationInstance:
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == "root" and use_sudo is False:
-            raise Exception("Root user cannot run unprivileged")
+            raise RuntimeError("Root user cannot run unprivileged")
         return self.instance.execute(command, use_sudo=use_sudo)
 
     def pull_file(self, remote_path, local_path):
@@ -138,7 +139,7 @@ class IntegrationInstance:
         elif source == CloudInitSource.UPGRADE:
             self.upgrade_cloud_init()
         else:
-            raise Exception(
+            raise RuntimeError(
                 "Specified to install {} which isn't supported here".format(
                     source
                 )
@@ -193,9 +194,20 @@ class IntegrationInstance:
         assert self.execute("apt-get update -q").ok
         assert self.execute("apt-get install -qy cloud-init").ok
 
+    def ip(self) -> str:
+        if self._ip:
+            return self._ip
+        try:
+            self._ip = self.instance.ip
+        except NotImplementedError:
+            self._ip = "Unknown"
+        return self._ip
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
+        else:
+            log.info("Keeping Instance, public ip: %s", self.ip())

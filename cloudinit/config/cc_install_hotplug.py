@@ -1,9 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Install hotplug udev rules if supported and enabled"""
+import logging
 import os
 from textwrap import dedent
 
 from cloudinit import stages, subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
@@ -49,9 +52,11 @@ meta: MetaSchema = {
         """
         ),
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
@@ -64,7 +69,7 @@ LABEL="cloudinit_end"
 """
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     network_hotplug_enabled = (
         "updates" in cfg
         and "network" in cfg["updates"]
@@ -84,19 +89,19 @@ def handle(_name, cfg, cloud, log, _args):
     )
     if not (hotplug_supported and hotplug_enabled):
         if os.path.exists(HOTPLUG_UDEV_PATH):
-            log.debug("Uninstalling hotplug, not enabled")
+            LOG.debug("Uninstalling hotplug, not enabled")
             util.del_file(HOTPLUG_UDEV_PATH)
             subp.subp(["udevadm", "control", "--reload-rules"])
         elif network_hotplug_enabled:
-            log.warning(
+            LOG.warning(
                 "Hotplug is unsupported by current datasource. "
                 "Udev rules will NOT be installed."
             )
         else:
-            log.debug("Skipping hotplug install, not enabled")
+            LOG.debug("Skipping hotplug install, not enabled")
         return
     if not subp.which("udevadm"):
-        log.debug("Skipping hotplug install, udevadm not found")
+        LOG.debug("Skipping hotplug install, udevadm not found")
         return
 
     # This may need to turn into a distro property at some point

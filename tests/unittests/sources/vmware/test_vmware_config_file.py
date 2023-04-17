@@ -1,5 +1,5 @@
 # Copyright (C) 2015 Canonical Ltd.
-# Copyright (C) 2016 VMware INC.
+# Copyright (C) 2016-2022 VMware INC.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
 #         Pengpeng Sun <pengpengs@vmware.com>
@@ -12,10 +12,6 @@ import sys
 import tempfile
 import textwrap
 
-from cloudinit.sources.DataSourceOVF import (
-    get_network_config_from_conf,
-    read_vmware_imc,
-)
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import (
@@ -24,6 +20,10 @@ from cloudinit.sources.helpers.vmware.imc.config_file import (
 from cloudinit.sources.helpers.vmware.imc.config_nic import (
     NicConfigurator,
     gen_subnet,
+)
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    get_network_data_from_vmware_cust_cfg,
+    get_non_network_data_from_vmware_cust_cfg,
 )
 from tests.unittests.helpers import CiTestCase, cloud_init_project_dir
 
@@ -50,36 +50,32 @@ class TestVmwareConfigFile(CiTestCase):
         self.assertEqual(2, len(cf), "insert size")
         self.assertEqual("foo", cf["PASSWORD|-PASS"], "password")
         self.assertTrue("PASSWORD|-PASS" in cf, "hasPassword")
-        self.assertFalse(
-            cf.should_keep_current_value("PASSWORD|-PASS"), "keepPassword"
-        )
-        self.assertFalse(
-            cf.should_remove_current_value("PASSWORD|-PASS"), "removePassword"
-        )
         self.assertFalse("FOO" in cf, "hasFoo")
-        self.assertTrue(cf.should_keep_current_value("FOO"), "keepFoo")
-        self.assertFalse(cf.should_remove_current_value("FOO"), "removeFoo")
         self.assertTrue("BAR" in cf, "hasBar")
-        self.assertFalse(cf.should_keep_current_value("BAR"), "keepBar")
-        self.assertTrue(cf.should_remove_current_value("BAR"), "removeBar")
 
-    def test_datasource_instance_id(self):
-        """Tests instance id for the DatasourceOVF"""
+    def test_configfile_without_instance_id(self):
+        """
+        Tests instance id is None when configuration file has no instance id
+        """
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
-
-        instance_id_prefix = "iid-vmware-"
-
         conf = Config(cf)
 
-        (md1, _, _) = read_vmware_imc(conf)
-        self.assertIn(instance_id_prefix, md1["instance-id"])
-        self.assertEqual(md1["instance-id"], "iid-vmware-imc")
+        (md1, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        self.assertFalse("instance-id" in md1)
 
-        (md2, _, _) = read_vmware_imc(conf)
-        self.assertIn(instance_id_prefix, md2["instance-id"])
-        self.assertEqual(md2["instance-id"], "iid-vmware-imc")
+        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        self.assertFalse("instance-id" in md2)
 
-        self.assertEqual(md2["instance-id"], md1["instance-id"])
+    def test_configfile_with_instance_id(self):
+        """Tests instance id get from configuration file"""
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic-instance-id.cfg")
+        conf = Config(cf)
+
+        (md1, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        self.assertEqual(md1["instance-id"], conf.instance_id, "instance-id")
+
+        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        self.assertEqual(md2["instance-id"], conf.instance_id, "instance-id")
 
     def test_configfile_static_2nics(self):
         """Tests Config class for a configuration with two static NICs."""
@@ -89,7 +85,6 @@ class TestVmwareConfigFile(CiTestCase):
 
         self.assertEqual("myhost1", conf.host_name, "hostName")
         self.assertEqual("Africa/Abidjan", conf.timezone, "tz")
-        self.assertTrue(conf.utc, "utc")
 
         self.assertEqual(
             ["10.20.145.1", "10.20.145.2"], conf.name_servers, "dns"
@@ -166,7 +161,7 @@ class TestVmwareConfigFile(CiTestCase):
 
         config = Config(cf)
 
-        network_config = get_network_config_from_conf(config, False)
+        network_config = get_network_data_from_vmware_cust_cfg(config, False)
 
         self.assertEqual(1, network_config.get("version"))
 
@@ -201,14 +196,14 @@ class TestVmwareConfigFile(CiTestCase):
             )
 
     def test_get_config_dns_suffixes(self):
-        """Tests if get_network_config_from_conf properly
+        """Tests if get_network_from_vmware_cust_cfg properly
         generates nameservers and dns settings from a
         specified configuration"""
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
 
         config = Config(cf)
 
-        network_config = get_network_config_from_conf(config, False)
+        network_config = get_network_data_from_vmware_cust_cfg(config, False)
 
         self.assertEqual(1, network_config.get("version"))
 

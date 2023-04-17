@@ -3,12 +3,13 @@ import json
 import pytest
 import yaml
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.util import lxd_has_nocloud, verify_clean_log
 
 
-def _customize_envionment(client: IntegrationInstance):
+def _customize_environment(client: IntegrationInstance):
     # Assert our platform can detect LXD during systemd generator timeframe.
     ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
     assert "check for 'LXD' returned found" in ds_id_log
@@ -36,7 +37,7 @@ def _customize_envionment(client: IntegrationInstance):
         "datasource_list: [LXD, NoCloud]\n",
     )
     # This is also to ensure that NoCloud can be detected
-    if ImageSpecification.from_os_image().release == "jammy":
+    if CURRENT_RELEASE.series == "jammy":
         # Add nocloud-net seed files because Jammy no longer delivers NoCloud
         # (LP: #1958460).
         client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
@@ -48,13 +49,15 @@ def _customize_envionment(client: IntegrationInstance):
     client.restart()
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
-@pytest.mark.ubuntu  # Because netplan
+@pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm"],
+    reason="Test is LXD specific",
+)
 def test_lxd_datasource_discovery(client: IntegrationInstance):
     """Test that DataSourceLXD is detected instead of NoCloud."""
 
-    _customize_envionment(client)
+    _customize_environment(client)
     result = client.execute("cloud-init status --wait --long")
     if not result.ok:
         raise AssertionError("cloud-init failed:\n%s", result.stderr)
@@ -86,12 +89,16 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "lxd" == v1["platform"]
     assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == v1["subplatform"]
     ds_cfg = json.loads(client.execute("cloud-init query ds").stdout)
-    assert ["_doc", "_metadata_api_version", "config", "meta-data"] == sorted(
-        list(ds_cfg.keys())
-    )
+    assert [
+        "_doc",
+        "_metadata_api_version",
+        "config",
+        "devices",
+        "meta-data",
+    ] == sorted(list(ds_cfg.keys()))
     if (
         client.settings.PLATFORM == "lxd_vm"
-        and ImageSpecification.from_os_image().release == "bionic"
+        and CURRENT_RELEASE.series == "bionic"
     ):
         # pycloudlib injects user.vendor_data for lxd_vm on bionic
         # to start the lxd-agent.
@@ -109,12 +116,8 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     )
     assert "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
 
-    # Jammy not longer provides nocloud-net seed files (LP: #1958460)
-    if ImageSpecification.from_os_image().release in [
-        "bionic",
-        "focal",
-        "impish",
-    ]:
+    # Some series no longer provide nocloud-net seed files (LP: #1958460)
+    if lxd_has_nocloud(client):
         # Assert NoCloud seed files are still present in non-Jammy images
         # and that NoCloud seed files provide the same content as LXD socket.
         nocloud_metadata = yaml.safe_load(

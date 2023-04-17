@@ -10,7 +10,8 @@ import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 LOG = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ class DataSourceHetzner(sources.DataSource):
 
         _net_config = self.metadata["network-config"]
         if not _net_config:
-            raise Exception("Unable to get meta-data from server....")
+            raise RuntimeError("Unable to get meta-data from server....")
 
         self._network_config = _net_config
 

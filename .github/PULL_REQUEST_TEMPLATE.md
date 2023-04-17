@@ -27,6 +27,6 @@ setup, and teardown. Scripts used may be attached directly to this PR. -->
 ## Checklist:
 <!-- Go over all the following points, and put an `x` in all the boxes
 that apply. -->
- - [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/topics/contributing.html)
+ - [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/development/contributing.html)
  - [ ] I have updated or added any unit tests accordingly
  - [ ] I have updated or added any documentation accordingly

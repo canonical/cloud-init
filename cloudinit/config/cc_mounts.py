@@ -9,12 +9,15 @@
 """Mounts: Configure mount points and swap files"""
 
 import logging
+import math
 import os
 import re
 from string import whitespace
 from textwrap import dedent
 
 from cloudinit import subp, type_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -97,6 +100,7 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -110,6 +114,8 @@ NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
+MB = 2**20
+GB = 2**30
 
 LOG = logging.getLogger(__name__)
 
@@ -156,15 +162,15 @@ def _is_block_device(device_path, partition_path=None):
     return os.path.exists(sys_path)
 
 
-def sanitize_devname(startname, transformer, log, aliases=None):
-    log.debug("Attempting to determine the real name of %s", startname)
+def sanitize_devname(startname, transformer, aliases=None):
+    LOG.debug("Attempting to determine the real name of %s", startname)
 
     # workaround, allow user to specify 'ephemeral'
     # rather than more ec2 correct 'ephemeral0'
     devname = startname
     if devname == "ephemeral":
         devname = "ephemeral0"
-        log.debug("Adjusted mount option from ephemeral to ephemeral0")
+        LOG.debug("Adjusted mount option from ephemeral to ephemeral0")
 
     if is_network_device(startname):
         return startname
@@ -175,7 +181,7 @@ def sanitize_devname(startname, transformer, log, aliases=None):
     if aliases:
         device_path = aliases.get(device_path, device_path)
         if orig != device_path:
-            log.debug("Mapped device alias %s to %s", orig, device_path)
+            LOG.debug("Mapped device alias %s to %s", orig, device_path)
 
     if is_meta_device_name(device_path):
         device_path = transformer(device_path)
@@ -183,7 +189,7 @@ def sanitize_devname(startname, transformer, log, aliases=None):
             return None
         if not device_path.startswith("/"):
             device_path = "/dev/%s" % (device_path,)
-        log.debug("Mapped metadata name %s to %s", orig, device_path)
+        LOG.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
         if DEVICE_NAME_RE.match(startname):
             device_path = "/dev/%s" % (device_path,)
@@ -210,13 +216,12 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     if memsize is None:
         memsize = util.read_meminfo()["total"]
 
-    GB = 2**30
-    sugg_max = 8 * GB
+    sugg_max = memsize * 2
 
     info = {"avail": "na", "max_in": maxsize, "mem": memsize}
 
     if fsys is None and maxsize is None:
-        # set max to 8GB default if no filesystem given
+        # set max to default if no filesystem given
         maxsize = sugg_max
     elif fsys:
         statvfs = os.statvfs(fsys)
@@ -234,35 +239,17 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     info["max"] = maxsize
 
-    formulas = [
-        # < 1G: swap = double memory
-        (1 * GB, lambda x: x * 2),
-        # < 2G: swap = 2G
-        (2 * GB, lambda x: 2 * GB),
-        # < 4G: swap = memory
-        (4 * GB, lambda x: x),
-        # < 16G: 4G
-        (16 * GB, lambda x: 4 * GB),
-        # < 64G: 1/2 M up to max
-        (64 * GB, lambda x: x / 2),
-    ]
+    if memsize < 4 * GB:
+        minsize = memsize
+    elif memsize < 16 * GB:
+        minsize = 4 * GB
+    else:
+        minsize = round(math.sqrt(memsize / GB)) * GB
 
-    size = None
-    for top, func in formulas:
-        if memsize <= top:
-            size = min(func(memsize), maxsize)
-            # if less than 1/2 memory and not much, return 0
-            if size < (memsize / 2) and size < 4 * GB:
-                size = 0
-                break
-            break
-
-    if size is not None:
-        size = maxsize
+    size = min(minsize, maxsize)
 
     info["size"] = size
 
-    MB = 2**20
     pinfo = {}
     for k, v in info.items():
         if isinstance(v, int):
@@ -419,7 +406,7 @@ def handle_swapcfg(swapcfg):
     return None
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     def_mnt_opts = "defaults,nobootwait"
     uses_systemd = cloud.distro.uses_systemd()
@@ -432,7 +419,7 @@ def handle(_name, cfg, cloud, log, _args):
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
-    defmnts = [
+    defmnts: list = [
         ["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
         ["swap", "none", "swap", "sw", "0", "0"],
     ]
@@ -465,7 +452,7 @@ def handle(_name, cfg, cloud, log, _args):
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
-            log.warning(
+            LOG.warning(
                 "Mount option %s not a list, got a %s instead",
                 (i + 1),
                 type_utils.obj_name(cfgmnt[i]),
@@ -474,16 +461,16 @@ def handle(_name, cfg, cloud, log, _args):
 
         start = str(cfgmnt[i][0])
         sanitized = sanitize_devname(
-            start, cloud.device_name_to_device, log, aliases=device_aliases
+            start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            log.debug("changed %s => %s" % (start, sanitized))
+            LOG.debug("changed %s => %s", start, sanitized)
 
         if sanitized is None:
-            log.debug("Ignoring nonexistent named mount %s", start)
+            LOG.debug("Ignoring nonexistent named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.info(
+            LOG.info(
                 "Device %s already defined in fstab: %s",
                 sanitized,
                 fstab_devs[sanitized],
@@ -521,16 +508,16 @@ def handle(_name, cfg, cloud, log, _args):
     for defmnt in defmnts:
         start = defmnt[0]
         sanitized = sanitize_devname(
-            start, cloud.device_name_to_device, log, aliases=device_aliases
+            start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            log.debug("changed default device %s => %s" % (start, sanitized))
+            LOG.debug("changed default device %s => %s", start, sanitized)
 
         if sanitized is None:
-            log.debug("Ignoring nonexistent default named mount %s", start)
+            LOG.debug("Ignoring nonexistent default named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.debug(
+            LOG.debug(
                 "Device %s already defined in fstab: %s",
                 sanitized,
                 fstab_devs[sanitized],
@@ -546,7 +533,7 @@ def handle(_name, cfg, cloud, log, _args):
                 break
 
         if cfgmnt_has:
-            log.debug("Not including %s, already previously included", start)
+            LOG.debug("Not including %s, already previously included", start)
             continue
         cfgmnt.append(defmnt)
 
@@ -555,7 +542,7 @@ def handle(_name, cfg, cloud, log, _args):
     actlist = []
     for x in cfgmnt:
         if x[1] is None:
-            log.debug("Skipping nonexistent device named %s", x[0])
+            LOG.debug("Skipping nonexistent device named %s", x[0])
         else:
             actlist.append(x)
 
@@ -564,7 +551,7 @@ def handle(_name, cfg, cloud, log, _args):
         actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
-        log.debug("No modifications to fstab needed")
+        LOG.debug("No modifications to fstab needed")
         return
 
     cc_lines = []
@@ -587,7 +574,7 @@ def handle(_name, cfg, cloud, log, _args):
         try:
             util.ensure_dir(d)
         except Exception:
-            util.logexc(log, "Failed to make '%s' config-mount", d)
+            util.logexc(LOG, "Failed to make '%s' config-mount", d)
         # dirs is list of directories on which a volume should be mounted.
         # If any of them does not already show up in the list of current
         # mount points, we will definitely need to do mount -a.
@@ -610,9 +597,9 @@ def handle(_name, cfg, cloud, log, _args):
         activate_cmds.append(["swapon", "-a"])
 
     if len(sops) == 0:
-        log.debug("No changes to /etc/fstab made.")
+        LOG.debug("No changes to /etc/fstab made.")
     else:
-        log.debug("Changes to fstab: %s", sops)
+        LOG.debug("Changes to fstab: %s", sops)
         need_mount_all = True
 
     if need_mount_all:
@@ -625,10 +612,10 @@ def handle(_name, cfg, cloud, log, _args):
         fmt = "Activate mounts: %s:" + " ".join(cmd)
         try:
             subp.subp(cmd)
-            log.debug(fmt, "PASS")
+            LOG.debug(fmt, "PASS")
         except subp.ProcessExecutionError:
-            log.warning(fmt, "FAIL")
-            util.logexc(log, fmt, "FAIL")
+            LOG.warning(fmt, "FAIL")
+            util.logexc(LOG, fmt, "FAIL")
 
 
 # vi: ts=4 expandtab

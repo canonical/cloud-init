@@ -1,9 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 from cloudinit import cloud, distros, helpers
+from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
 
-def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
+def get_cloud(
+    distro=None, paths=None, sys_cfg=None, metadata=None, mocked_distro=False
+):
     """Obtain a "cloud" that can be used for testing.
 
     Modules take a 'cloud' parameter to call into things that are
@@ -17,6 +22,8 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
     sys_cfg = sys_cfg or {}
     cls = distros.fetch(distro) if distro else MockDistro
     mydist = cls(distro, sys_cfg, paths)
+    if mocked_distro:
+        mydist = mock.MagicMock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
         myds.metadata.update(metadata)
@@ -37,7 +44,7 @@ def abstract_to_concrete(abclass):
 
 class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return "hostname"
+        return DataSourceHostname("hostname", False)
 
     def persist_instance_data(self):
         return True
@@ -140,3 +147,35 @@ class MockDistro(distros.Distro):
 
     def update_package_sources(self):
         return (True, "yay")
+
+    def do_as(self, command, args=None, **kwargs):
+        return ("stdout", "stderr")
+
+
+TEST_INSTANCE_ID = "i-testing"
+
+
+class FakeDataSource(DataSource):
+    def __init__(
+        self,
+        userdata=None,
+        vendordata=None,
+        vendordata2=None,
+        network_config="",
+        paths=None,
+    ):
+        DataSource.__init__(self, {}, None, paths=paths)
+        self.metadata = {"instance-id": TEST_INSTANCE_ID}
+        self.userdata_raw = userdata
+        self.vendordata_raw = vendordata
+        self.vendordata2_raw = vendordata2
+        self._network_config = None
+        if network_config:  # Permit for None value to setup attribute
+            self._network_config = network_config
+
+    @property
+    def network_config(self):
+        return self._network_config
+
+    def _get_data(self):
+        return True

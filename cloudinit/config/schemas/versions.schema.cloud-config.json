@@ -7,11 +7,15 @@
         {
           "properties": {
             "version": {
-              "enum": ["22.2", "v1"]
+              "enum": [
+                "v1"
+              ]
             }
           }
         },
-        {"$ref": "./schema-cloud-config-v1.json"}
+        {
+          "$ref": "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/schema-cloud-config-v1.json"
+        }
       ]
     }
   ]

@@ -19,7 +19,8 @@ from cloudinit import net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -29,25 +30,29 @@ SKIP_METADATA_URL_CODES = frozenset([uhelp.NOT_FOUND])
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
-API_TOKEN_ROUTE = "latest/api/token"
-AWS_TOKEN_TTL_SECONDS = "21600"
-AWS_TOKEN_PUT_HEADER = "X-aws-ec2-metadata-token"
-AWS_TOKEN_REQ_HEADER = AWS_TOKEN_PUT_HEADER + "-ttl-seconds"
-AWS_TOKEN_REDACT = [AWS_TOKEN_PUT_HEADER, AWS_TOKEN_REQ_HEADER]
 
-
-class CloudNames(object):
+class CloudNames:
     ALIYUN = "aliyun"
     AWS = "aws"
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
+    OUTSCALE = "outscale"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
     # NO_EC2_METADATA indicates this platform does not have a Ec2 metadata
     # service available. No attempt at the Ec2 Metadata service will be made.
     NO_EC2_METADATA = "no-ec2-metadata"
+
+
+# Drop when LP: #1988157 tag handling is fixed
+def skip_404_tag_errors(exception):
+    return exception.code == 404 and "meta-data/tags/" in exception.url
+
+
+# Cloud platforms that support IMDSv2 style metadata server
+IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS, CloudNames.ALIYUN]
 
 
 class DataSourceEc2(sources.DataSource):
@@ -125,12 +130,18 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
-                with EphemeralDHCPv4(self.fallback_interface):
+                with EphemeralIPNetwork(
+                    self.fallback_interface,
+                    ipv4=True,
+                    ipv6=True,
+                ) as netw:
+                    state_msg = f" {netw.state_msg}" if netw.state_msg else ""
                     self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
+                        msg=f"Crawl of metadata service{state_msg}",
                         func=self.crawl_metadata,
                     )
+
             except NoDHCPLeaseError:
                 return False
         else:
@@ -178,6 +189,27 @@ class DataSourceEc2(sources.DataSource):
             self._platform_type = DataSourceEc2.dsname.lower()
         return self._platform_type
 
+    # IMDSv2 related parameters from the ec2 metadata api document
+    @property
+    def api_token_route(self):
+        return "latest/api/token"
+
+    @property
+    def imdsv2_token_ttl_seconds(self):
+        return "21600"
+
+    @property
+    def imdsv2_token_put_header(self):
+        return "X-aws-ec2-metadata-token"
+
+    @property
+    def imdsv2_token_req_header(self):
+        return self.imdsv2_token_put_header + "-ttl-seconds"
+
+    @property
+    def imdsv2_token_redact(self):
+        return [self.imdsv2_token_put_header, self.imdsv2_token_req_header]
+
     def get_metadata_api_version(self):
         """Get the best supported api version from the metadata service.
 
@@ -194,7 +226,9 @@ class DataSourceEc2(sources.DataSource):
             url = url_tmpl.format(self.metadata_address, api_ver)
             try:
                 resp = uhelp.readurl(
-                    url=url, headers=headers, headers_redact=AWS_TOKEN_REDACT
+                    url=url,
+                    headers=headers,
+                    headers_redact=self.imdsv2_token_redact,
                 )
             except uhelp.UrlError as e:
                 LOG.debug("url %s raised exception %s", url, e)
@@ -218,7 +252,7 @@ class DataSourceEc2(sources.DataSource):
                     api_version,
                     self.metadata_address,
                     headers_cb=self._get_headers,
-                    headers_redact=AWS_TOKEN_REDACT,
+                    headers_redact=self.imdsv2_token_redact,
                     exception_cb=self._refresh_stale_aws_token_cb,
                 ).get("document", {})
             return self.identity.get(
@@ -234,12 +268,12 @@ class DataSourceEc2(sources.DataSource):
         the instance owner has disabled the IMDS HTTP endpoint or
         the network topology conflicts with the configured hop-limit.
         """
-        if self.cloud_name != CloudNames.AWS:
+        if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             return
 
         urls = []
         url2base = {}
-        url_path = API_TOKEN_ROUTE
+        url_path = self.api_token_route
         request_method = "PUT"
         for url in mdurls:
             cur = "{0}/{1}".format(url, url_path)
@@ -261,7 +295,7 @@ class DataSourceEc2(sources.DataSource):
                 headers_cb=self._get_headers,
                 exception_cb=self._imds_exception_cb,
                 request_method=request_method,
-                headers_redact=AWS_TOKEN_REDACT,
+                headers_redact=self.imdsv2_token_redact,
                 connect_synchronously=False,
             )
         except uhelp.UrlError:
@@ -306,7 +340,10 @@ class DataSourceEc2(sources.DataSource):
         # If we could not get an API token, then we assume the IMDS
         # endpoint was disabled and we move on without a data source.
         # Fallback to IMDSv1 if not running on EC2
-        if not metadata_address and self.cloud_name != CloudNames.AWS:
+        if (
+            not metadata_address
+            and self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS
+        ):
             # if we can't get a token, use instance-id path
             urls = []
             url2base = {}
@@ -325,7 +362,7 @@ class DataSourceEc2(sources.DataSource):
                 max_wait=url_params.max_wait_seconds,
                 timeout=url_params.timeout_seconds,
                 status_cb=LOG.warning,
-                headers_redact=AWS_TOKEN_REDACT,
+                headers_redact=self.imdsv2_token_redact,
                 headers_cb=self._get_headers,
                 request_method=request_method,
             )
@@ -336,7 +373,7 @@ class DataSourceEc2(sources.DataSource):
         if metadata_address:
             self.metadata_address = metadata_address
             LOG.debug("Using metadata source: '%s'", self.metadata_address)
-        elif self.cloud_name == CloudNames.AWS:
+        elif self.cloud_name in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             LOG.warning("IMDS's HTTP endpoint is probably disabled")
         else:
             LOG.critical(
@@ -477,12 +514,6 @@ class DataSourceEc2(sources.DataSource):
                 ),
             )
 
-            # RELEASE_BLOCKER: xenial should drop the below if statement,
-            # because the issue being addressed doesn't exist pre-netplan.
-            # (This datasource doesn't implement check_instance_id() so the
-            # datasource object is recreated every boot; this means we don't
-            # need to modify update_events on cloud-init upgrade.)
-
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
@@ -523,13 +554,17 @@ class DataSourceEc2(sources.DataSource):
         if not self.wait_for_metadata_service():
             return {}
         api_version = self.get_metadata_api_version()
-        redact = AWS_TOKEN_REDACT
+        redact = self.imdsv2_token_redact
         crawled_metadata = {}
-        if self.cloud_name == CloudNames.AWS:
+        if self.cloud_name in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             exc_cb = self._refresh_stale_aws_token_cb
             exc_cb_ud = self._skip_or_refresh_stale_aws_token_cb
-        else:
+            skip_cb = None
+        elif self.cloud_name == CloudNames.OUTSCALE:
             exc_cb = exc_cb_ud = None
+            skip_cb = skip_404_tag_errors
+        else:
+            exc_cb = exc_cb_ud = skip_cb = None
         try:
             crawled_metadata["user-data"] = ec2.get_instance_userdata(
                 api_version,
@@ -544,6 +579,7 @@ class DataSourceEc2(sources.DataSource):
                 headers_cb=self._get_headers,
                 headers_redact=redact,
                 exception_cb=exc_cb,
+                retrieval_exception_ignore_cb=skip_cb,
             )
             if self.cloud_name == CloudNames.AWS:
                 identity = ec2.get_instance_identity(
@@ -564,22 +600,26 @@ class DataSourceEc2(sources.DataSource):
         crawled_metadata["_metadata_api_version"] = api_version
         return crawled_metadata
 
-    def _refresh_api_token(self, seconds=AWS_TOKEN_TTL_SECONDS):
+    def _refresh_api_token(self, seconds=None):
         """Request new metadata API token.
         @param seconds: The lifetime of the token in seconds
 
         @return: The API token or None if unavailable.
         """
-        if self.cloud_name != CloudNames.AWS:
+        if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             return None
+
+        if seconds is None:
+            seconds = self.imdsv2_token_ttl_seconds
+
         LOG.debug("Refreshing Ec2 metadata API token")
-        request_header = {AWS_TOKEN_REQ_HEADER: seconds}
-        token_url = "{}/{}".format(self.metadata_address, API_TOKEN_ROUTE)
+        request_header = {self.imdsv2_token_req_header: seconds}
+        token_url = "{}/{}".format(self.metadata_address, self.api_token_route)
         try:
             response = uhelp.readurl(
                 token_url,
                 headers=request_header,
-                headers_redact=AWS_TOKEN_REDACT,
+                headers_redact=self.imdsv2_token_redact,
                 request_method="PUT",
             )
         except uhelp.UrlError as e:
@@ -640,20 +680,22 @@ class DataSourceEc2(sources.DataSource):
         If _api_token is unset on AWS, attempt to refresh the token via a PUT
         and then return the updated token header.
         """
-        if self.cloud_name != CloudNames.AWS:
+        if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             return {}
-        # Request a 6 hour token if URL is API_TOKEN_ROUTE
-        request_token_header = {AWS_TOKEN_REQ_HEADER: AWS_TOKEN_TTL_SECONDS}
-        if API_TOKEN_ROUTE in url:
+        # Request a 6 hour token if URL is api_token_route
+        request_token_header = {
+            self.imdsv2_token_req_header: self.imdsv2_token_ttl_seconds
+        }
+        if self.api_token_route in url:
             return request_token_header
         if not self._api_token:
             # If we don't yet have an API token, get one via a PUT against
-            # API_TOKEN_ROUTE. This _api_token may get unset by a 403 due
+            # api_token_route. This _api_token may get unset by a 403 due
             # to an invalid or expired token
             self._api_token = self._refresh_api_token()
             if not self._api_token:
                 return {}
-        return {AWS_TOKEN_PUT_HEADER: self._api_token}
+        return {self.imdsv2_token_put_header: self._api_token}
 
 
 class DataSourceEc2Local(DataSourceEc2):
@@ -668,7 +710,7 @@ class DataSourceEc2Local(DataSourceEc2):
     perform_dhcp_setup = True  # Use dhcp before querying metadata
 
     def get_data(self):
-        supported_platforms = (CloudNames.AWS,)
+        supported_platforms = (CloudNames.AWS, CloudNames.OUTSCALE)
         if self.cloud_name not in supported_platforms:
             LOG.debug(
                 "Local Ec2 mode only supported on %s, not %s",
@@ -733,6 +775,11 @@ def warn_if_necessary(cfgval, cfg):
     warnings.show_warning("non_ec2_md", cfg, mode=True, sleep=sleep)
 
 
+def identify_aliyun(data):
+    if data["product_name"] == "Alibaba Cloud ECS":
+        return CloudNames.ALIYUN
+
+
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
     if data["uuid"].startswith("ec2") and (
@@ -758,6 +805,14 @@ def identify_e24cloud(data):
         return CloudNames.E24CLOUD
 
 
+def identify_outscale(data):
+    if (
+        data["product_name"] == "3DS Outscale VM".lower()
+        and data["vendor"] == "3DS Outscale".lower()
+    ):
+        return CloudNames.OUTSCALE
+
+
 def identify_platform():
     # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
@@ -766,6 +821,8 @@ def identify_platform():
         identify_brightbox,
         identify_zstack,
         identify_e24cloud,
+        identify_outscale,
+        identify_aliyun,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:
@@ -788,6 +845,7 @@ def _collect_platform_data():
        serial: dmi 'system-serial-number' (/sys/.../product_serial)
        asset_tag: 'dmidecode -s chassis-asset-tag'
        vendor: dmi 'system-manufacturer' (/sys/.../sys_vendor)
+       product_name: dmi 'system-product-name' (/sys/.../system-manufacturer)
 
     On Ec2 instances experimentation is that product_serial is upper case,
     and product_uuid is lower case.  This returns lower case values for both.
@@ -818,6 +876,9 @@ def _collect_platform_data():
 
     vendor = dmi.read_dmi_data("system-manufacturer")
     data["vendor"] = (vendor if vendor else "").lower()
+
+    product_name = dmi.read_dmi_data("system-product-name")
+    data["product_name"] = (product_name if product_name else "").lower()
 
     return data
 

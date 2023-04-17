@@ -10,14 +10,15 @@ from requests import exceptions
 from cloudinit import dmi
 from cloudinit import log as log
 from cloudinit import net, netinfo, subp, url_helper, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 # Get LOG
 LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between, agent):
+def get_metadata(url, timeout, retries, sec_between, agent, tmp_dir=None):
     # Bring up interface (and try untill one works)
     exception = RuntimeError("Failed to DHCP")
 
@@ -34,7 +35,9 @@ def get_metadata(url, timeout, retries, sec_between, agent):
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
-                return json.loads(v1)
+                metadata = json.loads(v1)
+                refactor_metadata(metadata)
+                return metadata
         except (
             NoDHCPLeaseError,
             subp.ProcessExecutionError,
@@ -44,6 +47,16 @@ def get_metadata(url, timeout, retries, sec_between, agent):
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
     raise exception
+
+
+# Refactor metadata into acceptable format
+def refactor_metadata(metadata):
+    metadata["instance-id"] = metadata["instance-v2-id"]
+    metadata["local-hostname"] = metadata["hostname"]
+    region = metadata["region"]["regioncode"]
+    if "countrycode" in metadata["region"]:
+        region = metadata["region"]["countrycode"]
+    metadata["region"] = region.lower()
 
 
 # Get interface list, sort, and clean
@@ -261,17 +274,17 @@ def generate_interface_additional_addresses(interface, netcfg):
 
 
 # Make required adjustments to the network configs provided
-def add_interface_names(interfaces):
-    for interface in interfaces:
-        interface_name = get_interface_name(interface["mac"])
+def add_interface_names(netcfg):
+    for interface in netcfg["config"]:
+        if interface["type"] != "physical":
+            continue
+        interface_name = get_interface_name(interface["mac_address"])
         if not interface_name:
             raise RuntimeError(
                 "Interface: %s could not be found on the system"
-                % interface["mac"]
+                % interface["mac_address"]
             )
         interface["name"] = interface_name
-
-    return interfaces
 
 
 # vi: ts=4 expandtab

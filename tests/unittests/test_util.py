@@ -14,16 +14,20 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from pathlib import Path
 from textwrap import dedent
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 import yaml
 
-from cloudinit import importer, subp, util
+from cloudinit import features, importer, subp, url_helper, util
+from cloudinit.helpers import Paths
+from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -266,6 +270,36 @@ OS_RELEASE_OPENEULER_20 = dedent(
 """
 )
 
+OS_RELEASE_OPENCLOUDOS_8 = dedent(
+    """\
+    NAME="OpenCloudOS"
+    VERSION="8.6"
+    ID="OpenCloudOS"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.6"
+    PLATFORM_ID="platform:oc8"
+    PRETTY_NAME="OpenCloudOS 8.6"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:opencloudos:opencloudos:8"
+    HOME_URL="https://www.opencloudos.org/"
+    BUG_REPORT_URL="https://bugs.opencloudos.tech/"
+"""
+)
+
+OS_RELEASE_TENCENTOS_3 = dedent(
+    """\
+    NAME="TencentOS"
+    VERSION="3.1"
+    ID="TencentOS"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="3.1"
+    PLATFORM_ID="platform:el3"
+    PRETTY_NAME="TencentOS 3.1"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:tencentos:tencentos:3"
+"""
+)
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -320,25 +354,53 @@ OS_RELEASE_PHOTON = """\
         BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """
 
+OS_RELEASE_OPENMANDRIVA = dedent(
+    """\
+    NAME="OpenMandriva Lx"\n
+    VERSION="4.90 (Nickel) Cooker"\n
+    ID="openmandriva"\n
+    VERSION_ID="4.90"\n
+    PRETTY_NAME="OpenMandriva Lx 4.90 (Nickel) Cooker"\n
+    BUILD_ID="20220606.19"\n
+    VERSION_CODENAME="nickel"\n
+    ANSI_COLOR="1;43"\n
+    LOGO="openmandriva"\n
+    CPE_NAME="cpe:/o:openmandriva:openmandriva_lx:4.90"\n
+    HOME_URL="http://openmandriva.org/"\n
+    BUG_REPORT_URL="http://issues.openmandriva.org/"\n
+    SUPPORT_URL="https://forum.openmandriva.org"\n
+    PRIVACY_POLICY_URL="https://www.openmandriva.org/tos"\n
+"""
+)
 
-class FakeCloud(object):
-    def __init__(self, hostname, fqdn):
-        self.hostname = hostname
-        self.fqdn = fqdn
-        self.calls = []
+OS_RELEASE_COS = dedent(
+    """\
+    NAME="Container-Optimized OS"
+    ID=cos
+    PRETTY_NAME="Container-Optimized OS from Google"
+    HOME_URL="https://cloud.google.com/container-optimized-os/docs"
+    BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
+    VERSION=93
+    VERSION_ID=93
+"""
+)
 
-    def get_hostname(self, fqdn=None, metadata_only=None):
-        myargs = {}
-        if fqdn is not None:
-            myargs["fqdn"] = fqdn
-        if metadata_only is not None:
-            myargs["metadata_only"] = metadata_only
-        self.calls.append(myargs)
-        if fqdn:
-            return self.fqdn
-        return self.hostname
+OS_RELEASE_MARINER = dedent(
+    """\
+    NAME="CBL-Mariner"
+    VERSION="2.0.20221004"
+    ID=mariner
+    VERSION_ID=2.0
+    PRETTY_NAME="CBL-Mariner/Linux"
+    ANSI_COLOR="1;34"
+    HOME_URL="https://aka.ms/cbl-mariner"
+    BUG_REPORT_URL="https://aka.ms/cbl-mariner"
+    SUPPORT_URL="https://aka.ms/cbl-mariner"
+"""
+)
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
     def test_parse_mount_info_no_opts_no_arg(self):
         result = util.parse_mount_info("/home", MOUNT_INFO, LOG)
@@ -352,6 +414,22 @@ class TestUtil:
         result = util.parse_mount_info("/", MOUNT_INFO, LOG, True)
         assert ("/dev/sda1", "btrfs", "/", "ro,relatime") == result
 
+    @pytest.mark.parametrize(
+        "opt, expected_result",
+        [
+            ("rw", True),
+            ("relatime", True),
+            ("idmapped", True),
+            ("noexec", False),
+        ],
+    )
+    @mock.patch(
+        M_PATH + "get_mount_info",
+        return_value=("/dev/sda", "ext4", "/", "rw,relatime,idmapped"),
+    )
+    def test_has_mount_opt(self, m_get_mount_info, opt, expected_result):
+        assert expected_result == util.has_mount_opt("/", opt)
+
     @mock.patch(M_PATH + "get_mount_info")
     def test_mount_is_rw(self, m_mount_info):
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "rw,relatime")
@@ -363,6 +441,59 @@ class TestUtil:
         m_mount_info.return_value = ("/dev/sda1", "btrfs", "/", "ro,relatime")
         is_rw = util.mount_is_read_write("/")
         assert is_rw is False
+
+    def test_read_conf(self, mocker):
+        mocker.patch("cloudinit.util.load_file", return_value='{"a": "b"}')
+        assert util.read_conf("any") == {"a": "b"}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert conf == {"a": "d"}
+        assert (
+            "Applied instance data in 'vars_path' to configuration loaded "
+            "from 'cfg_path'"
+        ) in caplog.text
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_template(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"',  # missing }
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Failed loading yaml blob" in caplog.text
+        assert conf == {}
+
+    @skipUnlessJinja()
+    def test_read_conf_with_failed_vars(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"',  # missing }
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Could not apply Jinja template" in caplog.text
+        assert conf == {"a": "{{c}}"}
 
     @mock.patch(
         M_PATH + "read_conf",
@@ -439,8 +570,27 @@ class TestUtil:
         assert not out
         assert not err
         if create_confd:
-            assert [mock.call(confd_fn)] == m_read_confd.call_args_list
+            assert [
+                mock.call(confd_fn, instance_data_file=None)
+            ] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
+
+    @pytest.mark.parametrize("custom_cloud_dir", [True, False])
+    @mock.patch(M_PATH + "os.path.isfile", return_value=True)
+    @mock.patch(M_PATH + "os.path.isdir", return_value=True)
+    def test_fetch_ssl_details(
+        self, m_isdir, m_isfile, custom_cloud_dir, tmpdir
+    ):
+        cloud_dir = "/var/lib/cloud"
+        if custom_cloud_dir:
+            cloud_dir = tmpdir.join("cloud")
+        cert = os.path.join(cloud_dir, "instance", "data", "ssl", "cert.pem")
+        key = os.path.join(cloud_dir, "instance", "data", "ssl", "key.pem")
+
+        paths = Paths({"cloud_dir": cloud_dir})
+        ssl_details = util.fetch_ssl_details(paths)
+        assert {"cert_file": cert, "key_file": key} == ssl_details
+        assert 2 == m_isdir.call_count == m_isfile.call_count
 
 
 class TestSymlink(CiTestCase):
@@ -551,7 +701,7 @@ class TestShellify(CiTestCase):
 class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_only_cfg_fqdn(self):
         """When cfg only has the fqdn key, derive hostname and fqdn from it."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -559,7 +709,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_fqdn_and_hostname(self):
         """When cfg has both fqdn and hostname keys, return them."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"fqdn": "myhost.domain.com", "hostname": "other"}, cloud=None
         )
         self.assertEqual("other", hostname)
@@ -567,7 +717,7 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_with_domain(self):
         """When cfg has only hostname key which represents a fqdn, use that."""
-        hostname, fqdn = util.get_hostname_fqdn(
+        hostname, fqdn, _ = util.get_hostname_fqdn(
             cfg={"hostname": "myhost.domain.com"}, cloud=None
         )
         self.assertEqual("myhost", hostname)
@@ -575,37 +725,48 @@ class TestGetHostnameFqdn(CiTestCase):
 
     def test_get_hostname_fqdn_from_cfg_hostname_without_domain(self):
         """When cfg has a hostname without a '.' query cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(
-            cfg={"hostname": "myhost"}, cloud=mycloud
+        cloud = mock.MagicMock()
+        cloud.get_hostname.return_value = DataSourceHostname(
+            "cloudhost.mycloud.com", False
+        )
+        hostname, fqdn, _ = util.get_hostname_fqdn(
+            cfg={"hostname": "myhost"}, cloud=cloud
         )
         self.assertEqual("myhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}], mycloud.calls
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False)
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_without_fqdn_or_hostname(self):
         """When cfg has neither hostname nor fqdn cloud.get_hostname."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        hostname, fqdn = util.get_hostname_fqdn(cfg={}, cloud=mycloud)
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
+        )
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg={}, cloud=cloud)
         self.assertEqual("cloudhost", hostname)
         self.assertEqual("cloudhost.mycloud.com", fqdn)
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": False}, {"metadata_only": False}],
-            mycloud.calls,
-        )
+        assert [
+            mock.call(fqdn=True, metadata_only=False),
+            mock.call(metadata_only=False),
+        ] == cloud.get_hostname.call_args_list
 
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
-        mycloud = FakeCloud("cloudhost", "cloudhost.mycloud.com")
-        _hn, _fqdn = util.get_hostname_fqdn(
-            cfg={}, cloud=mycloud, metadata_only=True
+        cloud = mock.MagicMock()
+        cloud.get_hostname.side_effect = (
+            DataSourceHostname("cloudhost.mycloud.com", False),
+            DataSourceHostname("cloudhost", False),
         )
-        self.assertEqual(
-            [{"fqdn": True, "metadata_only": True}, {"metadata_only": True}],
-            mycloud.calls,
+        _hn, _fqdn, _def_hostname = util.get_hostname_fqdn(
+            cfg={}, cloud=cloud, metadata_only=True
         )
+        assert [
+            mock.call(fqdn=True, metadata_only=True),
+            mock.call(metadata_only=True),
+        ] == cloud.get_hostname.call_args_list
 
 
 class TestBlkid(CiTestCase):
@@ -693,50 +854,66 @@ class TestBlkid(CiTestCase):
         )
 
 
-@mock.patch("cloudinit.subp.subp")
+@mock.patch("cloudinit.util.subp.which")
+@mock.patch("cloudinit.util.subp.subp")
 class TestUdevadmSettle(CiTestCase):
-    def test_with_no_params(self, m_subp):
+    def test_with_no_params(self, m_subp, m_which):
         """called with no parameters."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         util.udevadm_settle()
-        m_subp.called_once_with(mock.call(["udevadm", "settle"]))
+        m_subp.assert_called_once_with(["udevadm", "settle"])
 
-    def test_with_exists_and_not_exists(self, m_subp):
+    def test_udevadm_not_present(self, m_subp, m_which):
+        """where udevadm program does not exist should not invoke subp."""
+        m_which.side_effect = lambda m: m in ("",)
+        util.udevadm_settle()
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
+
+    def test_with_exists_and_not_exists(self, m_subp, m_which):
         """with exists=file where file does not exist should invoke subp."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--exit-if-exists=%s" % mydev]
         )
 
-    def test_with_exists_and_file_exists(self, m_subp):
-        """with exists=file where file does exist should not invoke subp."""
+    def test_with_exists_and_file_exists(self, m_subp, m_which):
+        """with exists=file where file does exist should only invoke subp
+        once for 'which' call."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.write_file(mydev, "foo\n")
         util.udevadm_settle(exists=mydev)
-        self.assertIsNone(m_subp.call_args)
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
 
-    def test_with_timeout_int(self, m_subp):
+    def test_with_timeout_int(self, m_subp, m_which):
         """timeout can be an integer."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = 9
         util.udevadm_settle(timeout=timeout)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_timeout_string(self, m_subp):
+    def test_with_timeout_string(self, m_subp, m_which):
         """timeout can be a string."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = "555"
         util.udevadm_settle(timeout=timeout)
         m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_exists_and_timeout(self, m_subp):
+    def test_with_exists_and_timeout(self, m_subp, m_which):
         """test call with both exists and timeout."""
+        m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         timeout = "3"
-        util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        util.udevadm_settle(exists=mydev, timeout=timeout)
+        m_subp.assert_called_once_with(
             [
                 "udevadm",
                 "settle",
@@ -745,7 +922,8 @@ class TestUdevadmSettle(CiTestCase):
             ]
         )
 
-    def test_subp_exception_raises_to_caller(self, m_subp):
+    def test_subp_exception_raises_to_caller(self, m_subp, m_which):
+        m_which.side_effect = lambda m: m in ("udevadm",)
         m_subp.side_effect = subp.ProcessExecutionError("BOOM")
         self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
 
@@ -753,9 +931,7 @@ class TestUdevadmSettle(CiTestCase):
 @mock.patch("os.path.exists")
 class TestGetLinuxDistro(CiTestCase):
     def setUp(self):
-        # python2 has no lru_cache, and therefore, no cache_clear()
-        if hasattr(util.get_linux_distro, "cache_clear"):
-            util.get_linux_distro.cache_clear()
+        util.get_linux_distro.cache_clear()
 
     @classmethod
     def os_release_exists(self, path):
@@ -987,6 +1163,22 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(("openEuler", "20.03", "LTS-SP2"), dist)
 
     @mock.patch(M_PATH + "load_file")
+    def test_get_linux_opencloudos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on OpenCloudOS."""
+        m_os_release.return_value = OS_RELEASE_OPENCLOUDOS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("OpenCloudOS", "8.6", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_tencentos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on TencentOS."""
+        m_os_release.return_value = OS_RELEASE_TENCENTOS_3
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("TencentOS", "3.1", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -1025,6 +1217,30 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(("photon", "4.0", "VMware Photon OS/Linux"), dist)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_get_linux_mariner_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on MarinerOS"""
+        m_os_release.return_value = OS_RELEASE_MARINER
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("mariner", "2.0", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on OpenMandriva"""
+        m_os_release.return_value = OS_RELEASE_OPENMANDRIVA
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("openmandriva", "4.90", "nickel"), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_cos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on COS"""
+        m_os_release.return_value = OS_RELEASE_COS
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("cos", "93", ""), dist)
 
     @mock.patch("platform.system")
     @mock.patch("platform.dist", create=True)
@@ -1076,11 +1292,14 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("debian",)}, "debian"),
             ({"system": "linux", "dist": ("eurolinux",)}, "eurolinux"),
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
+            ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
+            ({"system": "linux", "dist": ("OpenCloudOS",)}, "opencloudos"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
+            ({"system": "linux", "dist": ("TencentOS",)}, "tencentos"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
             ({"system": "linux", "dist": ("linuxmint",)}, "ubuntu"),
@@ -1457,7 +1676,7 @@ class TestRedirectOutputPreexecFn:
         assert 0 == m_setgid.call_count
 
 
-class FakeSelinux(object):
+class FakeSelinux:
     def __init__(self, match_what):
         self.match_what = match_what
         self.restored = []
@@ -1538,6 +1757,25 @@ class TestWriteFile(helpers.TestCase):
 
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
+
+    def test_dir_ownership(self):
+        """Verifiy that directories is created with appropriate ownership."""
+        dirname = os.path.join(self.tmp, "subdir", "subdir2")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+        user = "foo"
+        group = "foo"
+
+        with mock.patch.object(
+            util, "chownbyname", return_value=None
+        ) as mockobj:
+            util.write_file(path, contents, user=user, group=group)
+
+        calls = [
+            mock.call(os.path.join(self.tmp, "subdir"), user, group),
+            mock.call(Path(dirname), user, group),
+        ]
+        mockobj.assert_has_calls(calls, any_order=False)
 
     def test_dir_is_not_created_if_ensure_dir_false(self):
         """Verify directories are not created if ensure_dir_exists is False."""
@@ -2044,7 +2282,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self._createConsole(self.root)
         logged_string = "something very important"
         util.multi_log(logged_string)
-        self.assertEqual(logged_string, open("/dev/console").read())
+        with open("/dev/console") as f:
+            self.assertEqual(logged_string, f.read())
 
     def test_logs_dont_go_to_stdout_if_console_exists(self):
         self._createConsole(self.root)
@@ -2119,25 +2358,107 @@ class TestMessageFromString(helpers.TestCase):
         self.assertNotIn("\x00", roundtripped)
 
 
-class TestReadSeeded(helpers.TestCase):
-    def setUp(self):
-        super(TestReadSeeded, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
-    def test_unicode_not_messed_up(self):
+class TestReadSeeded:
+    def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
         vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp,
+            tmpdir.strpath,
             {"meta-data": "key1: val1", "user-data": ud, "vendor-data": vd},
         )
-        sdir = self.tmp + os.path.sep
-        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(
+            tmpdir.strpath + os.path.sep
+        )
+        assert found_md == {"key1": "val1"}
+        assert found_ud == ud
+        assert found_vd == vd
 
-        self.assertEqual(found_md, {"key1": "val1"})
-        self.assertEqual(found_ud, ud)
-        self.assertEqual(found_vd, vd)
+    @pytest.mark.parametrize(
+        "base, feature_flag, req_urls",
+        (
+            pytest.param(
+                "http://10.0.0.1/%s?qs=1",
+                True,
+                [
+                    "http://10.0.0.1/meta-data?qs=1",
+                    "http://10.0.0.1/user-data?qs=1",
+                    "http://10.0.0.1/vendor-data?qs=1",
+                ],
+                id="expand_percent_s_to_data_route",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008/",
+                True,
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="no_duplicate_forward_slash_when_already_present",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008",
+                True,
+                [
+                    "https://10.0.0.1:8008/meta-data",
+                    "https://10.0.0.1:8008/user-data",
+                    "https://10.0.0.1:8008/vendor-data",
+                ],
+                id="append_fwd_slash_on_routes_when_absent_and_no_query_str",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008",
+                False,
+                [
+                    "https://10.0.0.1:8008meta-data",
+                    "https://10.0.0.1:8008user-data",
+                    "https://10.0.0.1:8008vendor-data",
+                ],
+                id="feature_off_append_fwd_slash_when_absent_and_no_query_str",
+            ),
+            pytest.param(
+                "https://10.0.0.1:8008?qs=",
+                True,
+                [
+                    "https://10.0.0.1:8008?qs=meta-data",
+                    "https://10.0.0.1:8008?qs=user-data",
+                    "https://10.0.0.1:8008?qs=vendor-data",
+                ],
+                id="avoid_trailing_forward_slash_on_routes_with_query_strings",
+            ),
+        ),
+    )
+    @mock.patch(M_PATH + "url_helper.read_file_or_url")
+    def test_handle_http_urls(
+        self, m_read, base, feature_flag, req_urls, tmpdir
+    ):
+        def fake_response(url, timeout, retries):
+            parsed_url = urlparse(url)
+            path = parsed_url.path
+            if not path:
+                if parsed_url.query:
+                    _key, _, md_type = parsed_url.query.partition("=")
+                else:
+                    _url, _, md_type = parsed_url.netloc.partition("8008")
+                path = f"/{md_type}"
+            return url_helper.StringResponse(f"{path}: 1")
+
+        m_read.side_effect = fake_response
+
+        with mock.patch.object(
+            features,
+            "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH",
+            feature_flag,
+        ):
+            (found_md, found_ud, found_vd) = util.read_seeded(base)
+        # Meta-data treated as YAML
+        assert found_md == {"/meta-data": 1}
+        # user-data, vendor-data read raw. It could be scripts or other format
+        assert found_ud == "/user-data: 1"
+        assert found_vd == "/vendor-data: 1"
+        assert [
+            mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
+        ] == m_read.call_args_list
 
 
 class TestReadSeededWithoutVendorData(helpers.TestCase):
@@ -2426,6 +2747,65 @@ class TestGetProcEnv(helpers.TestCase):
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
+    def test_get_proc_ppid_mocked(self):
+        for ppid, proc_data in (
+            (
+                0,
+                "1 (systemd) S 0 1 1 0 -1 4194560 112664 14612195 153 18014"
+                "274 237 756828 152754 20 0 1 0 3 173809664 3736"
+                "18446744073709551615 1 1 0 0 0 0 671173123 4096 1260 0 0 0 17"
+                "8 0 0 0 0 123974 0 0 0 0 0 0 0 0",
+            ),
+            (
+                180771,
+                "180781 ([pytest-xdist r) R 180771 180598 167240 34825 "
+                "180598 4194304 128712 7570 0 0 1061 34 8 1 20 0 2 0 6551540 "
+                "351993856 25173 18446744073709551615 93907896635392 "
+                "93907899455533 140725724279536 0 0 0 0 16781312 17642 0 0 0 "
+                "17 1 0 0 0 0 0 93907901810800 93907902095288 93907928788992 "
+                "140725724288007 140725724288074 140725724288074 "
+                "140725724291047 0",
+            ),
+            (
+                5620,
+                "8723 (Utility Process) S 5620 5191 5191 0 -1 4194304 3219 "
+                "0 50 0 1045 431 0 0 20 0 3 0 9007 220585984 8758 "
+                "18446744073709551615 94469734690816 94469735319392 "
+                "140728350183632 0 0 0 0 69634 1073745144 0 0 0 17 10 0 0 0 0 "
+                "0 94469735327152 94469735331056 94469763170304 "
+                "140728350189012 140728350189221 140728350189221 "
+                "140728350195661 0",
+            ),
+            (
+                4946,
+                "4947 ((sd-pam)) S 4946 4946 4946 0 -1 1077936448 54 0 0 0 "
+                "0 0 0 0 20 0 1 0 4136 175616000 1394 18446744073709551615 1 1"
+                "0 0 0 0 0 4096 0 0 0 0 17 8 0 0 0 0 0 0 0 0 0 0 0 0 0",
+            ),
+        ):
+            with mock.patch(
+                "cloudinit.util.load_file", return_value=proc_data
+            ):
+                assert ppid == util.get_proc_ppid("mocked")
+
+
+class TestHuman2Bytes:
+    """test util.human2bytes() function"""
+
+    def test_human2bytes(self):
+        assert util.human2bytes("0.5G") == 536870912
+        assert util.human2bytes("100B") == 100
+        assert util.human2bytes("100MB") == 104857600
+
+        for test_i in ["-100MB", "100b", "100mB"]:
+            with pytest.raises(ValueError):
+                util.human2bytes(test_i)
+
+    def test_ibibytes2bytes(self):
+
+        assert util.human2bytes("0.5GiB") == 536870912
+        assert util.human2bytes("100MiB") == 104857600
+
 
 class TestKernelVersion:
     """test kernel version function"""
@@ -2499,7 +2879,7 @@ class TestFindDevs:
                 return msdos
             elif pattern == "/dev/iso9660/*":
                 return iso9660
-            raise Exception
+            raise RuntimeError
 
         m_glob.side_effect = fake_glob
 
@@ -2578,4 +2958,88 @@ class TestFindDevs:
         assert devlist == expected_devlist
 
 
-# vi: ts=4 expandtab
+class TestVersion:
+    @pytest.mark.parametrize(
+        ("v1", "v2", "eq"),
+        (
+            ("3.1.0", "3.1.0", True),
+            ("3.1.0", "3.1.1", False),
+            ("3.1", "3.1.0.0", False),
+        ),
+    )
+    def test_eq(self, v1, v2, eq):
+        if eq:
+            assert util.Version.from_str(v1) == util.Version.from_str(v2)
+        if not eq:
+            assert util.Version.from_str(v1) != util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("v1", "v2", "gt"),
+        (
+            ("3.1.0", "3.1.0", False),
+            ("3.1.0", "3.1.1", False),
+            ("3.1", "3.1.0.0", False),
+            ("3.1.0.0", "3.1", True),
+            ("3.1.1", "3.1.0", True),
+        ),
+    )
+    def test_gt(self, v1, v2, gt):
+        if gt:
+            assert util.Version.from_str(v1) > util.Version.from_str(v2)
+        if not gt:
+            assert util.Version.from_str(v1) < util.Version.from_str(
+                v2
+            ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+
+    @pytest.mark.parametrize(
+        ("version"),
+        (
+            ("3.1.0"),
+            ("3.0.1"),
+            ("3.1"),
+            ("3.1.0.0"),
+            ("3.1.1"),
+        ),
+    )
+    def test_to_version_and_back_to_str(self, version):
+        """Verify __str__, __iter__, and Version.from_str()"""
+        assert version == str(util.Version.from_str(version))
+
+    @pytest.mark.parametrize(
+        ("str_ver", "cls_ver"),
+        (
+            (
+                "0.0.0.0",
+                util.Version(0, 0, 0, 0),
+            ),
+            (
+                "1.0.0.0",
+                util.Version(1, 0, 0, 0),
+            ),
+            (
+                "1.0.2.0",
+                util.Version(1, 0, 2, 0),
+            ),
+            (
+                "9.8.2.0",
+                util.Version(9, 8, 2, 0),
+            ),
+        ),
+    )
+    def test_from_str(self, str_ver, cls_ver):
+        assert util.Version.from_str(str_ver) == cls_ver
+
+
+@pytest.mark.allow_dns_lookup
+class TestResolvable:
+    @mock.patch.object(util, "_DNS_REDIRECT_IP", return_value=True)
+    @mock.patch.object(util.socket, "getaddrinfo")
+    def test_ips_need_not_be_resolved(self, m_getaddr, m_dns):
+        """Optimization test: dns resolution may timeout during early boot, and
+        often the urls being checked use IP addresses rather than dns names.
+        Therefore, the fast path checks if the address contains an IP and exits
+        early if the path is a valid IP.
+        """
+        assert util.is_resolvable("http://169.254.169.254/") is True
+        assert util.is_resolvable("http://[fd00:ec2::254]/") is True
+        assert not m_getaddr.called

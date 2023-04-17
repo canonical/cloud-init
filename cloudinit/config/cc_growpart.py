@@ -14,6 +14,7 @@ import os
 import os.path
 import re
 import stat
+from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
 from textwrap import dedent
@@ -21,8 +22,10 @@ from typing import Tuple
 
 from cloudinit import log as logging
 from cloudinit import subp, temp_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_ALWAYS
 
 MODULE_DESCRIPTION = """\
@@ -81,6 +84,7 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -94,7 +98,7 @@ DEFAULT_CONFIG = {
 KEYDATA_PATH = Path("/cc_growpart_keydata")
 
 
-class RESIZE(object):
+class RESIZE:
     SKIPPED = "SKIPPED"
     CHANGED = "CHANGED"
     NOCHANGE = "NOCHANGE"
@@ -104,11 +108,11 @@ class RESIZE(object):
 LOG = logging.getLogger(__name__)
 
 
-def resizer_factory(mode):
+def resizer_factory(mode: str, distro: Distro):
     resize_class = None
     if mode == "auto":
         for (_name, resizer) in RESIZERS:
-            cur = resizer()
+            cur = resizer(distro)
             if cur.available():
                 resize_class = cur
                 break
@@ -124,7 +128,7 @@ def resizer_factory(mode):
         if mode not in mmap:
             raise TypeError("unknown resize mode %s" % mode)
 
-        mclass = mmap[mode]()
+        mclass = mmap[mode](distro)
         if mclass.available():
             resize_class = mclass
 
@@ -138,7 +142,20 @@ class ResizeFailedException(Exception):
     pass
 
 
-class ResizeGrowPart(object):
+class Resizer(ABC):
+    def __init__(self, distro: Distro):
+        self._distro = distro
+
+    @abstractmethod
+    def available(self) -> bool:
+        ...
+
+    @abstractmethod
+    def resize(self, diskdev, partnum, partdev):
+        ...
+
+
+class ResizeGrowPart(Resizer):
     def available(self):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
@@ -159,7 +176,8 @@ class ResizeGrowPart(object):
 
         # growpart uses tmp dir to store intermediate states
         # and may conflict with systemd-tmpfiles-clean
-        with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmp_dir = self._distro.get_tmp_exec_path()
+        with temp_utils.tempdir(dir=tmp_dir, needs_exe=True) as tmpd:
             growpart_tmp = os.path.join(tmpd, "growpart")
             if not os.path.exists(growpart_tmp):
                 os.mkdir(growpart_tmp, 0o700)
@@ -188,7 +206,7 @@ class ResizeGrowPart(object):
         return (before, get_size(partdev))
 
 
-class ResizeGpart(object):
+class ResizeGpart(Resizer):
     def available(self):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
@@ -547,58 +565,59 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "growpart" not in cfg:
-        log.debug(
-            "No 'growpart' entry in cfg.  Using default: %s" % DEFAULT_CONFIG
+        LOG.debug(
+            "No 'growpart' entry in cfg.  Using default: %s", DEFAULT_CONFIG
         )
         cfg["growpart"] = DEFAULT_CONFIG
 
     mycfg = cfg.get("growpart")
     if not isinstance(mycfg, dict):
-        log.warning("'growpart' in config was not a dict")
+        LOG.warning("'growpart' in config was not a dict")
         return
 
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
         if mode != "off":
-            log.warning(
-                f"DEPRECATED: growpart mode '{mode}' is deprecated. "
-                "Use 'off' instead."
+            util.deprecate(
+                deprecated="Growpart's 'mode' key with value '{mode}'",
+                deprecated_version="22.2",
+                extra_message="Use 'off' instead.",
             )
-        log.debug("growpart disabled: mode=%s" % mode)
+        LOG.debug("growpart disabled: mode=%s", mode)
         return
 
     if util.is_false(mycfg.get("ignore_growroot_disabled", False)):
         if os.path.isfile("/etc/growroot-disabled"):
-            log.debug("growpart disabled: /etc/growroot-disabled exists")
-            log.debug("use ignore_growroot_disabled to ignore")
+            LOG.debug("growpart disabled: /etc/growroot-disabled exists")
+            LOG.debug("use ignore_growroot_disabled to ignore")
             return
 
     devices = util.get_cfg_option_list(mycfg, "devices", ["/"])
     if not len(devices):
-        log.debug("growpart: empty device list")
+        LOG.debug("growpart: empty device list")
         return
 
     try:
-        resizer = resizer_factory(mode)
+        resizer = resizer_factory(mode, cloud.distro)
     except (ValueError, TypeError) as e:
-        log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
+        LOG.debug("growpart unable to find resizer for '%s': %s", mode, e)
         if mode != "auto":
             raise e
         return
 
     resized = util.log_time(
-        logfunc=log.debug,
+        logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
         args=(resizer, devices),
     )
     for (entry, action, msg) in resized:
         if action == RESIZE.CHANGED:
-            log.info("'%s' resized: %s" % (entry, msg))
+            LOG.info("'%s' resized: %s", entry, msg)
         else:
-            log.debug("'%s' %s: %s" % (entry, action, msg))
+            LOG.debug("'%s' %s: %s", entry, action, msg)
 
 
 RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))

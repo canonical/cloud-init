@@ -8,6 +8,7 @@
 
 """install and configure landscape client"""
 
+import logging
 import os
 from io import BytesIO
 from textwrap import dedent
@@ -15,6 +16,8 @@ from textwrap import dedent
 from configobj import ConfigObj
 
 from cloudinit import subp, type_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -91,12 +94,14 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["landscape"],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in
@@ -129,7 +134,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     util.ensure_dir(os.path.dirname(LSC_CLIENT_CFG_FILE))
     util.write_file(LSC_CLIENT_CFG_FILE, contents.getvalue())
-    log.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
+    LOG.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
 
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
     subp.subp(["service", "landscape-client", "restart"])

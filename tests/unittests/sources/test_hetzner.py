@@ -66,8 +66,10 @@ class TestDataSourceHetzner(CiTestCase):
         self.tmp = self.tmp_dir()
 
     def get_ds(self):
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceHetzner.DataSourceHetzner(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         return ds
 
@@ -116,7 +118,7 @@ class TestDataSourceHetzner(CiTestCase):
 
         self.assertTrue(m_readmd.called)
 
-        self.assertEqual(METADATA.get("hostname"), ds.get_hostname())
+        self.assertEqual(METADATA.get("hostname"), ds.get_hostname().hostname)
 
         self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
 

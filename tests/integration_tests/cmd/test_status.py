@@ -3,8 +3,10 @@ from time import sleep
 
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 
 
 # We're implementing our own here in case cloud-init status --wait
@@ -32,11 +34,16 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     # On Impish and below, NoCloud will be detected on an LXD container.
     # If we remove this directory, it will no longer be detected.
     client.execute("rm -rf /var/lib/cloud/seed/nocloud-net")
+    old_boot_id = client.instance.get_boot_id()
     client.execute("cloud-init clean --logs --reboot")
+    client.instance._wait_for_execute(old_boot_id=old_boot_id)
 
 
-@pytest.mark.ubuntu
-@pytest.mark.lxd_container
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container",
+    reason="Test is LXD specific",
+)
 def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
     """Ensure that when no datasource is found, we get status: disabled
 
@@ -57,13 +64,8 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
         # No ubuntu user if cloud-init didn't run
         client.instance.username = "root"
         # Jammy and above will use LXD datasource by default
-        if ImageSpecification.from_os_image().release in [
-            "bionic",
-            "focal",
-            "impish",
-        ]:
+        if CURRENT_RELEASE < JAMMY:
             _remove_nocloud_dir_and_reboot(client)
         status_out = _wait_for_cloud_init(client).stdout.strip()
         assert "status: disabled" in status_out
-        assert "Cloud-init disabled by cloud-init-generator" in status_out
         assert client.execute("cloud-init status --wait").ok

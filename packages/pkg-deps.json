@@ -3,7 +3,7 @@
       "build-requires" : [
          "debhelper",
          "dh-python",
-         "dh-systemd"
+         "python3-debconf"
       ],
       "renames" : {
          "pyyaml" : "python3-yaml",

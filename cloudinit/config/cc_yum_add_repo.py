@@ -7,11 +7,14 @@
 "Yum Add Repo: Add yum repository configuration to the system"
 
 import io
+import logging
 import os
 from configparser import ConfigParser
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -28,10 +31,14 @@ distros = [
     "cloudlinux",
     "eurolinux",
     "fedora",
+    "mariner",
     "openEuler",
+    "OpenCloudOS",
+    "openmandriva",
     "photon",
     "rhel",
     "rocky",
+    "TencentOS",
     "virtuozzo",
 ]
 
@@ -99,8 +106,8 @@ meta: MetaSchema = {
             # the repository file created. See: man yum.conf for supported
             # config keys.
             #
-            # Write /etc/yum.conf.d/my_package_stream.repo with gpgkey checks
-            # on the repo data of the repositoy enabled.
+            # Write /etc/yum.conf.d/my-package-stream.repo with gpgkey checks
+            # on the repo data of the repository enabled.
             yum_repos:
               my package stream:
                 baseurl: http://blah.org/pub/epel/testing/5/$basearch/
@@ -112,15 +119,24 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["yum_repos"],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def _canonicalize_id(repo_id):
-    repo_id = repo_id.lower().replace("-", "_")
-    repo_id = repo_id.replace(" ", "_")
-    return repo_id
+def _canonicalize_id(repo_id: str) -> str:
+    """Canonicalize repo id.
+
+    The sole name convention for repo ids is to not contain namespaces,
+    and typically the separator used is `-`. More info:
+    https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sec-setting_repository_options
+
+    :param repo_id: Repo id to convert.
+    :return: Canonical repo id.
+    """
+    return repo_id.replace(" ", "-")
 
 
 def _format_repo_value(val):
@@ -154,10 +170,10 @@ def _format_repository_config(repo_id, repo_config):
     return "".join(lines)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     repos = cfg.get("yum_repos")
     if not repos:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'yum_repos' configuration found",
             name,
         )
@@ -171,14 +187,14 @@ def handle(name, cfg, _cloud, log, _args):
         canon_repo_id = _canonicalize_id(repo_id)
         repo_fn_pth = os.path.join(repo_base_path, "%s.repo" % (canon_repo_id))
         if os.path.exists(repo_fn_pth):
-            log.info(
+            LOG.info(
                 "Skipping repo %s, file %s already exists!",
                 repo_id,
                 repo_fn_pth,
             )
             continue
         elif canon_repo_id in repo_locations:
-            log.info(
+            LOG.info(
                 "Skipping repo %s, file %s already pending!",
                 repo_id,
                 repo_fn_pth,
@@ -196,7 +212,7 @@ def handle(name, cfg, _cloud, log, _args):
         missing_required = 0
         for req_field in ["baseurl"]:
             if req_field not in repo_config:
-                log.warning(
+                LOG.warning(
                     "Repository %s does not contain a %s"
                     " configuration 'required' entry",
                     repo_id,
@@ -207,7 +223,7 @@ def handle(name, cfg, _cloud, log, _args):
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
         else:
-            log.warning(
+            LOG.warning(
                 "Repository %s is missing %s required fields, skipping!",
                 repo_id,
                 missing_required,

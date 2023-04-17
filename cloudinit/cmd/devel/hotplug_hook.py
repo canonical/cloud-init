@@ -10,7 +10,7 @@ import time
 
 from cloudinit import log, reporting, stages
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators, read_sys_net_safe
+from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.sources import DataSource, DataSourceNotFoundException
@@ -132,7 +132,7 @@ class NetHandler(UeventHandler):
             bring_up=False,
         )
         interface_name = os.path.basename(self.devpath)
-        activator = activators.select_activator()
+        activator = self.datasource.distro.network_activator()
         if self.action == "add":
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
@@ -168,7 +168,7 @@ def is_enabled(hotplug_init, subsystem):
     try:
         scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
     except KeyError as e:
-        raise Exception(
+        raise RuntimeError(
             "hotplug-hook: cannot handle events for subsystem: {}".format(
                 subsystem
             )
@@ -182,7 +182,7 @@ def is_enabled(hotplug_init, subsystem):
     )
 
 
-def initialize_datasource(hotplug_init, subsystem):
+def initialize_datasource(hotplug_init: Init, subsystem: str):
     LOG.debug("Fetching datasource")
     datasource = hotplug_init.fetch(existing="trust")
 
@@ -220,8 +220,9 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         try:
             LOG.debug("Refreshing metadata")
             event_handler.update_metadata()
-            LOG.debug("Detecting device in updated metadata")
-            event_handler.detect_hotplugged_device()
+            if not datasource.skip_hotplug_detect:
+                LOG.debug("Detecting device in updated metadata")
+                event_handler.detect_hotplugged_device()
             LOG.debug("Applying config change")
             event_handler.apply()
             LOG.debug("Updating cache")

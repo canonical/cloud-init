@@ -8,9 +8,12 @@
 
 """Phone Home: Post data to url"""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, url_helper, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -88,10 +91,11 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": ["phone_home"],
 }
 
 __doc__ = get_meta_doc(meta)
-
+LOG = logging.getLogger(__name__)
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/
 #  post: all
@@ -104,12 +108,12 @@ __doc__ = get_meta_doc(meta)
 #
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
         if "phone_home" not in cfg:
-            log.debug(
+            LOG.debug(
                 "Skipping module named %s, "
                 "no 'phone_home' configuration found",
                 name,
@@ -118,7 +122,7 @@ def handle(name, cfg, cloud, log, args):
         ph_cfg = cfg["phone_home"]
 
     if "url" not in ph_cfg:
-        log.warning(
+        LOG.warning(
             "Skipping module named %s, "
             "no 'url' found in 'phone_home' configuration",
             name,
@@ -129,11 +133,11 @@ def handle(name, cfg, cloud, log, args):
     post_list = ph_cfg.get("post", "all")
     tries = ph_cfg.get("tries")
     try:
-        tries = int(tries)  # pyright: ignore
-    except ValueError:
+        tries = int(tries)  # type: ignore
+    except (ValueError, TypeError):
         tries = 10
         util.logexc(
-            log,
+            LOG,
             "Configuration entry 'tries' is not an integer, using %s instead",
             tries,
         )
@@ -141,10 +145,11 @@ def handle(name, cfg, cloud, log, args):
     if post_list == "all":
         post_list = POST_LIST_ALL
 
-    all_keys = {}
-    all_keys["instance_id"] = cloud.get_instance_id()
-    all_keys["hostname"] = cloud.get_hostname()
-    all_keys["fqdn"] = cloud.get_hostname(fqdn=True)
+    all_keys = {
+        "instance_id": cloud.get_instance_id(),
+        "hostname": cloud.get_hostname().hostname,
+        "fqdn": cloud.get_hostname(fqdn=True).hostname,
+    }
 
     pubkeys = {
         "pub_key_dsa": "/etc/ssh/ssh_host_dsa_key.pub",
@@ -158,7 +163,7 @@ def handle(name, cfg, cloud, log, args):
             all_keys[n] = util.load_file(path)
         except Exception:
             util.logexc(
-                log, "%s: failed to open, can not phone home that data!", path
+                LOG, "%s: failed to open, can not phone home that data!", path
             )
 
     submit_keys = {}
@@ -167,7 +172,7 @@ def handle(name, cfg, cloud, log, args):
             submit_keys[k] = all_keys[k]
         else:
             submit_keys[k] = None
-            log.warning(
+            LOG.warning(
                 "Requested key %s from 'post'"
                 " configuration list not available",
                 k,
@@ -190,13 +195,13 @@ def handle(name, cfg, cloud, log, args):
         url_helper.read_file_or_url(
             url,
             data=real_submit_keys,
-            retries=tries,
+            retries=tries - 1,
             sec_between=3,
             ssl_details=util.fetch_ssl_details(cloud.paths),
         )
     except Exception:
         util.logexc(
-            log, "Failed to post phone home data to %s in %s tries", url, tries
+            LOG, "Failed to post phone home data to %s in %s tries", url, tries
         )
 
 

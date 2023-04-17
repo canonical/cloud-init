@@ -557,6 +557,10 @@ class TestDsIdentify(DsIdentifyBase):
         """SAP Converged Cloud identification"""
         self._test_ds_found("OpenStack-SAPCCloud")
 
+    def test_openstack_huawei_cloud(self):
+        """Open Huawei Cloud identification."""
+        self._test_ds_found("OpenStack-HuaweiCloud")
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found("OpenStack-AssetTag-Nova")
@@ -617,51 +621,6 @@ class TestDsIdentify(DsIdentifyBase):
     def test_ovf_on_vmware_guestinfo_found(self):
         """OVF guest info is found on vmware."""
         self._test_ds_found("OVF-guestinfo")
-
-    def test_ovf_on_vmware_iso_found_when_vmware_customization(self):
-        """OVF is identified when vmware customization is enabled."""
-        self._test_ds_found("OVF-vmware-customization")
-
-    def test_ovf_on_vmware_iso_found_open_vm_tools_64(self):
-        """OVF is identified when open-vm-tools installed in /usr/lib64."""
-        cust64 = copy.deepcopy(VALID_CFG["OVF-vmware-customization"])
-        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
-        open64 = "usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so"
-        cust64["files"][open64] = cust64["files"][p32]
-        del cust64["files"][p32]
-        return self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
-        )
-
-    def test_ovf_on_vmware_iso_found_open_vm_tools_x86_64_linux_gnu(self):
-        """OVF is identified when open-vm-tools installed in
-        /usr/lib/x86_64-linux-gnu."""
-        cust64 = copy.deepcopy(VALID_CFG["OVF-vmware-customization"])
-        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
-        x86 = (
-            "usr/lib/x86_64-linux-gnu/open-vm-tools/plugins/vmsvc/"
-            "libdeployPkgPlugin.so"
-        )
-        cust64["files"][x86] = cust64["files"][p32]
-        del cust64["files"][p32]
-        return self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
-        )
-
-    def test_ovf_on_vmware_iso_found_open_vm_tools_aarch64_linux_gnu(self):
-        """OVF is identified when open-vm-tools installed in
-        /usr/lib/aarch64-linux-gnu."""
-        cust64 = copy.deepcopy(VALID_CFG["OVF-vmware-customization"])
-        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
-        aarch64 = (
-            "usr/lib/aarch64-linux-gnu/open-vm-tools/plugins/vmsvc/"
-            "libdeployPkgPlugin.so"
-        )
-        cust64["files"][aarch64] = cust64["files"][p32]
-        del cust64["files"][p32]
-        return self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
-        )
 
     def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
         """OVF is identified by well-known iso9660 labels."""
@@ -753,6 +712,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Hetzner cloud is identified in sys_vendor."""
         self._test_ds_found("Hetzner")
 
+    def test_nwcs_found(self):
+        """NWCS is identified in sys_vendor."""
+        self._test_ds_found("NWCS")
+
     def test_smartos_bhyve(self):
         """SmartOS cloud identified by SmartDC in dmi."""
         self._test_ds_found("SmartOS-bhyve")
@@ -808,9 +771,66 @@ class TestDsIdentify(DsIdentifyBase):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found("Ec2-E24Cloud-negative")
 
+    def test_outscale_is_ec2(self):
+        """EC2: outscale identified by sys_vendor and product_name"""
+        self._test_ds_found("Ec2-Outscale")
+
+    def test_outscale_not_active_sysvendor(self):
+        """EC2: outscale in sys_vendor is not outscale'"""
+        self._test_ds_not_found("Ec2-Outscale-negative-sysvendor")
+
+    def test_outscale_not_active_productname(self):
+        """EC2: outscale in product_name is not outscale'"""
+        self._test_ds_not_found("Ec2-Outscale-negative-productname")
+
     def test_vmware_no_valid_transports(self):
         """VMware: no valid transports"""
         self._test_ds_not_found("VMware-NoValidTransports")
+
+    def test_vmware_on_vmware_when_vmware_customization_is_enabled(self):
+        """VMware is identified when vmware customization is enabled."""
+        self._test_ds_found("VMware-vmware-customization")
+
+    def test_vmware_on_vmware_open_vm_tools_64(self):
+        """VMware is identified when open-vm-tools installed in /usr/lib64."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        open64 = "usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        cust64["files"][open64] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
+
+    def test_vmware_on_vmware_open_vm_tools_x86_64_linux_gnu(self):
+        """VMware is identified when open-vm-tools installed in
+        /usr/lib/x86_64-linux-gnu."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        x86 = (
+            "usr/lib/x86_64-linux-gnu/open-vm-tools/plugins/vmsvc/"
+            "libdeployPkgPlugin.so"
+        )
+        cust64["files"][x86] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
+
+    def test_vmware_on_vmware_open_vm_tools_aarch64_linux_gnu(self):
+        """VMware is identified when open-vm-tools installed in
+        /usr/lib/aarch64-linux-gnu."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        aarch64 = (
+            "usr/lib/aarch64-linux-gnu/open-vm-tools/plugins/vmsvc/"
+            "libdeployPkgPlugin.so"
+        )
+        cust64["files"][aarch64] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
 
     def test_vmware_envvar_no_data(self):
         """VMware: envvar transport no data"""
@@ -1212,6 +1232,12 @@ VALID_CFG = {
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
         "mocks": [MOCK_VIRT_IS_VMWARE],
     },
+    "OpenStack-HuaweiCloud": {
+        # Huawei Cloud hosts use OpenStack
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "HUAWEICLOUD\n"},
+        "mocks": [MOCK_VIRT_IS_KVM],
+    },
     "OpenStack-AssetTag-Nova": {
         # VMware vSphere can't modify product-name, LP: #1669875
         "ds": "OpenStack",
@@ -1228,26 +1254,6 @@ VALID_CFG = {
         "ds": "OVF",
         "files": {
             os.path.join(P_SEED_DIR, "ovf", "ovf-env.xml"): "present\n",
-        },
-    },
-    "OVF-vmware-customization": {
-        "ds": "OVF",
-        "mocks": [
-            # Include a mockes iso9660 potential, even though content not ovf
-            {
-                "name": "blkid",
-                "ret": 0,
-                "out": blkid_out(
-                    [{"DEVNAME": "sr0", "TYPE": "iso9660", "LABEL": ""}]
-                ),
-            },
-            MOCK_VIRT_IS_VMWARE,
-        ],
-        "files": {
-            "dev/sr0": "no match",
-            # Setup vmware customization enabled
-            "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so": "here",
-            "etc/cloud/cloud.cfg": "disable_vmware_customization: false\n",
         },
     },
     "OVF": {
@@ -1425,6 +1431,21 @@ VALID_CFG = {
         "ds": "Hetzner",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Hetzner"}],
     },
+    "NWCS": {
+        "ds": "NWCS",
+        "files": {P_SYS_VENDOR: "NWCS\n"},
+    },
+    "NWCS-kenv": {
+        "ds": "NWCS",
+        "mocks": [
+            MOCK_UNAME_IS_FREEBSD,
+            {"name": "get_kenv_field", "ret": 0, "RET": "NWCS"},
+        ],
+    },
+    "NWCS-dmidecode": {
+        "ds": "NWCS",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "NWCS"}],
+    },
     "IBMCloud-metadata": {
         "ds": "IBMCloud",
         "mocks": [
@@ -1582,6 +1603,22 @@ VALID_CFG = {
         "mocks": [
             MOCK_VIRT_IS_VMWARE,
         ],
+    },
+    "VMware-vmware-customization": {
+        "ds": "VMware",
+        "mocks": [
+            MOCK_VIRT_IS_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 0,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+        ],
+        "files": {
+            # Setup vmware customization enabled
+            "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so": "here",
+            "etc/cloud/cloud.cfg": "disable_vmware_customization: false\n",
+        },
     },
     "VMware-EnvVar-NoData": {
         "ds": "VMware",
@@ -1809,6 +1846,27 @@ VALID_CFG = {
             },
             MOCK_VIRT_IS_VMWARE,
         ],
+    },
+    "Ec2-Outscale": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "3DS Outscale VM\n",
+            P_SYS_VENDOR: "3DS Outscale\n",
+        },
+    },
+    "Ec2-Outscale-negative-sysvendor": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "3DS Outscale VM\n",
+            P_SYS_VENDOR: "Not 3DS Outscale\n",
+        },
+    },
+    "Ec2-Outscale-negative-productname": {
+        "ds": "Ec2",
+        "files": {
+            P_PRODUCT_NAME: "Not 3DS Outscale VM\n",
+            P_SYS_VENDOR: "3DS Outscale\n",
+        },
     },
 }
 

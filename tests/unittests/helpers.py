@@ -16,8 +16,9 @@ from pathlib import Path
 from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
+from urllib.parse import urlsplit, urlunsplit
 
-import httpretty
+import responses
 
 import cloudinit
 from cloudinit import cloud, distros
@@ -29,6 +30,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
 
@@ -72,6 +74,13 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
+def random_string(length=8):
+    """return a random lowercase string with default length of 8"""
+    return "".join(
+        random.choice(string.ascii_lowercase) for _ in range(length)
+    )
+
+
 class TestCase(unittest.TestCase):
     def reset_global_state(self):
         """Reset any global state to its original settings.
@@ -86,9 +95,7 @@ class TestCase(unittest.TestCase):
         In the future this should really be done with some registry that
         can then be cleaned in a more obvious way.
         """
-        util.PROC_CMDLINE = None
         util._DNS_REDIRECT_IP = None
-        util._LSB_RELEASE = {}
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -167,7 +174,7 @@ class CiTestCase(TestCase):
             )
         if pass_through:
             return _real_subp(*args, **kwargs)
-        raise Exception(
+        raise RuntimeError(
             "called subp. set self.allowed_subp=True to allow\n subp(%s)"
             % ", ".join(
                 [str(repr(a)) for a in args]
@@ -227,10 +234,7 @@ class CiTestCase(TestCase):
 
     @classmethod
     def random_string(cls, length=8):
-        """return a random lowercase string with default length of 8"""
-        return "".join(
-            random.choice(string.ascii_lowercase) for _ in range(length)
-        )
+        return random_string(length)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -370,30 +374,49 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.close()
 
 
-class HttprettyTestCase(CiTestCase):
-    # necessary as http_proxy gets in the way of httpretty
-    # https://github.com/gabrielfalcao/HTTPretty/issues/122
-    # Also make sure that allow_net_connect is set to False.
-    # And make sure reset and enable/disable are done.
+class CiRequestsMock(responses.RequestsMock):
+    def assert_call_count(self, url: str, count: int) -> bool:
+        """Focal and older have a version of responses which does
+        not carry this attribute. This can be removed when focal
+        is no longer supported.
+        """
+        if hasattr(super(), "_ensure_url_default_path"):
+            return super().assert_call_count(url, count)
 
+        def _ensure_url_default_path(url):
+            if isinstance(url, str):
+                url_parts = list(urlsplit(url))
+                if url_parts[2] == "":
+                    url_parts[2] = "/"
+                    url = urlunsplit(url_parts)
+            return url
+
+        call_count = len(
+            [
+                1
+                for call in self.calls
+                if call.request.url == _ensure_url_default_path(url)
+            ]
+        )
+        if call_count == count:
+            return True
+        else:
+            raise AssertionError(
+                f"Expected URL '{url}' to be called {count} times. "
+                f"Called {call_count} times."
+            )
+
+
+class ResponsesTestCase(CiTestCase):
     def setUp(self):
-        self.restore_proxy = os.environ.get("http_proxy")
-        if self.restore_proxy is not None:
-            del os.environ["http_proxy"]
-        super(HttprettyTestCase, self).setUp()
-        httpretty.HTTPretty.allow_net_connect = False
-        httpretty.reset()
-        httpretty.enable()
-        # Stop the logging from HttpPretty so our logs don't get mixed
-        # up with its logs
-        logging.getLogger("httpretty.core").setLevel(logging.CRITICAL)
+        super().setUp()
+        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
+        self.responses.start()
 
     def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
-        if self.restore_proxy:
-            os.environ["http_proxy"] = self.restore_proxy
-        super(HttprettyTestCase, self).tearDown()
+        self.responses.stop()
+        self.responses.reset()
+        super().tearDown()
 
 
 class SchemaTestCaseMixin(unittest.TestCase):
@@ -500,9 +523,23 @@ try:
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
+    _jsonschema_version = tuple(
+        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+    )
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
+    _jsonschema_version = (0, 0, 0)
+
+
+def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
+    return skipIf(
+        _jsonschema_version <= version,
+        reason=(
+            f"python3-jsonschema {_jsonschema_version} not greater than"
+            f" {version}"
+        ),
+    )
 
 
 def skipUnlessJsonSchema():
@@ -517,6 +554,13 @@ def skipUnlessJinja():
 
 def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
+
+
+def skipUnlessHypothesisJsonSchema():
+    return skipIf(
+        not HAS_HYPOTHESIS_JSONSCHEMA,
+        "No python-hypothesis-jsonschema dependency present.",
+    )
 
 
 # older versions of mock do not have the useful 'assert_not_called'
@@ -550,6 +594,31 @@ def cloud_init_project_dir(sub_path: str) -> str:
     Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
     """
     return str(get_top_level_dir() / sub_path)
+
+
+@contextmanager
+def does_not_raise():
+    """Context manager to parametrize tests raising and not raising exceptions
+
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    More info:
+    https://docs.pytest.org/en/6.2.x/example/parametrize.html?highlight=does_not_raise#parametrizing-conditional-raising
+
+    Example:
+    --------
+    >>> @pytest.mark.parametrize(
+    >>>     "example_input,expectation",
+    >>>     [
+    >>>         (1, does_not_raise()),
+    >>>         (0, pytest.raises(ZeroDivisionError)),
+    >>>     ],
+    >>> )
+    >>> def test_division(example_input, expectation):
+    >>>     with expectation:
+    >>>         assert (0 / example_input) is not None
+
+    """
+    yield
 
 
 # vi: ts=4 expandtab

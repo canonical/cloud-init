@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Type
+from typing import Dict, Iterable, List, Optional, Type, Union
 
 from cloudinit import subp, util
 from cloudinit.net.eni import available as eni_available
@@ -32,7 +32,7 @@ def _alter_interface(cmd, device_name) -> bool:
 class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
-    def available() -> bool:
+    def available(target: Optional[str] = None) -> bool:
         """Return True if activator is available, otherwise return False."""
         raise NotImplementedError()
 
@@ -72,24 +72,6 @@ class NetworkActivator(ABC):
             [i["name"] for i in network_state.iter_interfaces()]
         )
 
-    @classmethod
-    def bring_down_interfaces(cls, device_names: Iterable[str]) -> bool:
-        """Bring down specified list of interfaces.
-
-        Return True is successful, otherwise return False
-        """
-        return all(cls.bring_down_interface(device) for device in device_names)
-
-    @classmethod
-    def bring_down_all_interfaces(cls, network_state: NetworkState) -> bool:
-        """Bring down all interfaces.
-
-        Return True is successful, otherwise return False
-        """
-        return cls.bring_down_interfaces(
-            [i["name"] for i in network_state.iter_interfaces()]
-        )
-
 
 class IfUpDownActivator(NetworkActivator):
     # Note that we're not overriding bring_up_interfaces to pass something
@@ -97,7 +79,7 @@ class IfUpDownActivator(NetworkActivator):
     # E.g., NetworkManager has a ifupdown plugin that requires the name
     # of a specific connection.
     @staticmethod
-    def available(target=None) -> bool:
+    def available(target: Optional[str] = None) -> bool:
         """Return true if ifupdown can be used on this system."""
         return eni_available(target=target)
 
@@ -205,26 +187,6 @@ class NetplanActivator(NetworkActivator):
         )
         return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
 
-    @staticmethod
-    def bring_down_interfaces(device_names: Iterable[str]) -> bool:
-        """Apply netplan config.
-
-        Return True is successful, otherwise return False
-        """
-        LOG.debug(
-            "Calling 'netplan apply' rather than "
-            "altering individual interfaces"
-        )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
-
-    @staticmethod
-    def bring_down_all_interfaces(network_state: NetworkState) -> bool:
-        """Apply netplan config.
-
-        Return True is successful, otherwise return False
-        """
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
-
 
 class NetworkdActivator(NetworkActivator):
     @staticmethod
@@ -254,33 +216,43 @@ class NetworkdActivator(NetworkActivator):
 # This section is mostly copied and pasted from renderers.py. An abstract
 # version to encompass both seems overkill at this point
 DEFAULT_PRIORITY = [
-    IfUpDownActivator,
-    NetplanActivator,
-    NetworkManagerActivator,
-    NetworkdActivator,
+    "eni",
+    "netplan",
+    "network-manager",
+    "networkd",
 ]
+
+NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
+    "eni": IfUpDownActivator,
+    "netplan": NetplanActivator,
+    "network-manager": NetworkManagerActivator,
+    "networkd": NetworkdActivator,
+}
 
 
 def search_activator(
-    priority=None, target=None
+    priority: List[str], target: Union[str, None]
 ) -> List[Type[NetworkActivator]]:
-    if priority is None:
-        priority = DEFAULT_PRIORITY
-
     unknown = [i for i in priority if i not in DEFAULT_PRIORITY]
     if unknown:
         raise ValueError(
             "Unknown activators provided in priority list: %s" % unknown
         )
+    activator_classes = [NAME_TO_ACTIVATOR[name] for name in priority]
+    return [
+        activator_cls
+        for activator_cls in activator_classes
+        if activator_cls.available(target)
+    ]
 
-    return [activator for activator in priority if activator.available(target)]
 
-
-def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
+def select_activator(
+    priority: Optional[List[str]] = None, target: Optional[str] = None
+) -> Type[NetworkActivator]:
+    if priority is None:
+        priority = DEFAULT_PRIORITY
     found = search_activator(priority, target)
     if not found:
-        if priority is None:
-            priority = DEFAULT_PRIORITY
         tmsg = ""
         if target and target != "/":
             tmsg = " in target=%s" % target
@@ -289,5 +261,7 @@ def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
             "through list: %s" % (tmsg, priority)
         )
     selected = found[0]
-    LOG.debug("Using selected activator: %s", selected)
+    LOG.debug(
+        "Using selected activator: %s from priority: %s", selected, priority
+    )
     return selected

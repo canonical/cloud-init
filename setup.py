@@ -73,7 +73,13 @@ def in_virtualenv():
 def get_version():
     cmd = [sys.executable, "tools/read-version"]
     ver = subprocess.check_output(cmd)
-    return ver.decode("utf-8").strip()
+    version = ver.decode("utf-8").strip()
+    # read-version can spit out something like 22.4-15-g7f97aee24
+    # which is invalid under PEP440. If we replace the first - with a +
+    # that should give us a valid version.
+    if "-" in version:
+        version = version.replace("-", "+", 1)
+    return version
 
 
 def read_requires():
@@ -91,9 +97,8 @@ def render_tmpl(template, mode=None):
     in that file if user had something there. b.) debuild will complain
     that files are different outside of the debian directory."""
 
-    # older versions of tox use bdist (xenial), and then install from there.
     # newer versions just use install.
-    if not (sys.argv[1] == "install" or sys.argv[1].startswith("bdist*")):
+    if not (sys.argv[1] == "install"):
         return template
 
     tmpl_ext = ".tmpl"
@@ -142,7 +147,6 @@ INITSYS_FILES = {
     "sysvinit_netbsd": [f for f in glob("sysvinit/netbsd/*") if is_f(f)],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
-    "sysvinit_suse": [f for f in glob("sysvinit/suse/*") if is_f(f)],
     "systemd": [
         render_tmpl(f)
         for f in (
@@ -165,7 +169,6 @@ INITSYS_ROOTS = {
     "sysvinit_netbsd": "usr/local/etc/rc.d",
     "sysvinit_deb": "etc/init.d",
     "sysvinit_openrc": "etc/init.d",
-    "sysvinit_suse": "etc/init.d",
     "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"
@@ -277,6 +280,7 @@ if not in_virtualenv():
 
 data_files = [
     (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl")]),
+    (ETC + "/cloud/clean.d", glob("config/clean.d/*")),
     (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
     (ETC + "/cloud/templates", glob("templates/*")),
     (
@@ -303,14 +307,14 @@ data_files = [
     ),
 ]
 if not platform.system().endswith("BSD"):
+
+    RULES_PATH = LIB
+    if os.path.isfile("/etc/redhat-release"):
+        RULES_PATH = "/usr/lib"
+
     data_files.extend(
         [
-            (
-                ETC + "/NetworkManager/dispatcher.d/",
-                ["tools/hook-network-manager"],
-            ),
-            (ETC + "/dhcp/dhclient-exit-hooks.d/", ["tools/hook-dhclient"]),
-            (LIB + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
+            (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],

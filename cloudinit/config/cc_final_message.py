@@ -7,9 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Final Message: Output final message when cloud-init has finished"""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, util, version
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
@@ -23,7 +26,12 @@ specified as a jinja template with the following variables set:
     - ``datasource``: cloud-init data source
     - ``uptime``: system uptime
 
-Upon exit, this module writes ``/var/lib/cloud/instance/boot-finished``.
+This message is written to the cloud-init log (usually /var/log/cloud-init.log)
+as well as stderr (which usually redirects to /var/log/cloud-init-output.log).
+
+Upon exit, this module writes the system uptime, timestamp, and cloud-init
+version to ``/var/lib/cloud/instance/boot-finished`` independent of any
+user data specified for this module.
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {
@@ -45,8 +53,10 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": [],
 }
 
+LOG = logging.getLogger(__name__)
 __doc__ = get_meta_doc(meta)
 
 # Jinja formated default message
@@ -57,7 +67,7 @@ FINAL_MESSAGE_DEF = (
 )
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     msg_in = ""
     if len(args) != 0:
@@ -84,20 +94,20 @@ def handle(_name, cfg, cloud, log, args):
             "%s\n" % (templater.render_string(msg_in, subs)),
             console=False,
             stderr=True,
-            log=log,
+            log=LOG,
         )
     except Exception:
-        util.logexc(log, "Failed to render final message template")
+        util.logexc(LOG, "Failed to render final message template")
 
     boot_fin_fn = cloud.paths.boot_finished
     try:
         contents = "%s - %s - v. %s\n" % (uptime, ts, cver)
         util.write_file(boot_fin_fn, contents, ensure_dir_exists=False)
     except Exception:
-        util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
+        util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
 
     if cloud.datasource.is_disconnected:
-        log.warning("Used fallback datasource")
+        LOG.warning("Used fallback datasource")
 
 
 # vi: ts=4 expandtab

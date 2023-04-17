@@ -12,10 +12,21 @@ import configobj
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
-distros = ["opensuse", "sles"]
+distros = [
+    "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
+    "sle_hpc",
+    "sle-micro",
+    "sles",
+]
+
 MODULE_DESCRIPTION = """\
 Zypper behavior can be configured using the ``config`` key, which will modify
 ``/etc/zypp/zypp.conf``. The configuration writer will only append the
@@ -28,7 +39,8 @@ options will be resolved by the way the zypp.conf INI file is parsed.
 The ``repos`` key may be used to add repositories to the system. Beyond the
 required ``id`` and ``baseurl`` attributions, no validation is performed
 on the ``repos`` entries. It is assumed the user is familiar with the
-zypper repository file format.
+zypper repository file format. This configuration is also applicable for
+systems with transactional-updates.
 """
 meta: MetaSchema = {
     "id": "cc_zypper_add_repo",
@@ -61,6 +73,7 @@ meta: MetaSchema = {
         )
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": ["zypper"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -176,7 +189,7 @@ def _write_zypp_config(zypper_config):
     util.write_file(zypp_config, new_config)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     zypper_section = cfg.get("zypper")
     if not zypper_section:
         LOG.debug(

@@ -143,17 +143,6 @@ bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 
-# cloud_config_modules:
-# default:
-# cloud_config_modules:
-# - mounts
-# - ssh
-# - apt-update-upgrade
-# - puppet
-# - updates-check
-# - disable-ec2-metadata
-# - runcmd
-#
 # This is an array of arrays or strings.
 # if item is a string, then it is read as a module name
 # if the item is an array it is of the form:
@@ -171,7 +160,6 @@ cloud_config_modules:
  - grub-dpkg
  - [ apt-update-upgrade, always ]
  - puppet
- - updates-check
  - disable-ec2-metadata
  - runcmd
  - byobu
@@ -428,10 +416,15 @@ syslog_fix_perms: syslog:root
 # to set hashed password, here account 'user3' has a password it set to
 # 'cloud-init', hashed with SHA-256:
 # chpasswd:
-#   list: |
-#     user1:password1
-#     user2:RANDOM
-#     user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#   users:
+#    - name: user1
+#      password: password1
+#      type: text
+#    - user2
+#      type: RANDOM
+#    - user3
+#      password: $5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#      type: hash
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #

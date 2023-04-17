@@ -8,7 +8,8 @@
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources.helpers import upcloud as uc_helper
 
 LOG = logging.getLogger(__name__)
@@ -125,7 +126,9 @@ class DataSourceUpCloud(sources.DataSource):
 
         raw_network_config = self.metadata.get("network")
         if not raw_network_config:
-            raise Exception("Unable to get network meta-data from server....")
+            raise RuntimeError(
+                "Unable to get network meta-data from server...."
+            )
 
         self._network_config = uc_helper.convert_network_config(
             raw_network_config,

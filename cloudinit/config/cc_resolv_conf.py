@@ -12,6 +12,8 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import templater, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
@@ -23,17 +25,23 @@ RESOLVE_CONFIG_TEMPLATE_MAP = {
 }
 
 MODULE_DESCRIPTION = """\
+Unless manually editing :file:`/etc/resolv.conf` is the correct way to manage
+nameserver information on your operating system, you do not want to use
+this module. Many distros have moved away from manually editing ``resolv.conf``
+so please verify that this is the preferred nameserver management method for
+your distro before using this module.
+
+Note that using :ref:`network_config` is preferred, rather than using this
+module, when possible.
+
 This module is intended to manage resolv.conf in environments where early
 configuration of resolv.conf is necessary for further bootstrapping and/or
 where configuration management such as puppet or chef own DNS configuration.
-As Debian/Ubuntu will, by default, utilize resolvconf, and similarly Red Hat
-will use sysconfig, this module is likely to be of little use unless those
-are configured correctly.
 
 When using a :ref:`datasource_config_drive` and a RHEL-like system,
 resolv.conf will also be managed automatically due to the available
 information provided for DNS servers in the :ref:`network_config_v2` format.
-For those that with to have different settings, use this module.
+For those that wish to have different settings, use this module.
 
 In order for the ``resolv_conf`` section to be applied, ``manage_resolv_conf``
 must be set ``true``.
@@ -41,10 +49,6 @@ must be set ``true``.
 .. note::
     For Red Hat with sysconfig, be sure to set PEERDNS=no for all DHCP
     enabled NICs.
-
-.. note::
-    And, in Ubuntu/Debian it is recommended that DNS be configured via the
-    standard /etc/network/interfaces configuration file.
 """
 
 meta: MetaSchema = {
@@ -52,7 +56,20 @@ meta: MetaSchema = {
     "name": "Resolv Conf",
     "title": "Configure resolv.conf",
     "description": MODULE_DESCRIPTION,
-    "distros": ["alpine", "fedora", "opensuse", "photon", "rhel", "sles"],
+    "distros": [
+        "alpine",
+        "fedora",
+        "mariner",
+        "opensuse",
+        "opensuse-leap",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
+        "photon",
+        "rhel",
+        "sle_hpc",
+        "sle-micro",
+        "sles",
+    ],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(
@@ -75,6 +92,7 @@ meta: MetaSchema = {
             """
         )
     ],
+    "activate_by_schema_keys": ["manage_resolv_conf"],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -103,7 +121,7 @@ def generate_resolv_conf(template_fn, params, target_fname):
     templater.render_to_file(template_fn, target_fname, params)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Handler for resolv.conf
 
@@ -114,7 +132,7 @@ def handle(name, cfg, cloud, log, _args):
     @param args: Any module arguments from cloud.cfg
     """
     if "manage_resolv_conf" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no 'manage_resolv_conf' key in configuration",
             name,
@@ -122,7 +140,7 @@ def handle(name, cfg, cloud, log, _args):
         return
 
     if not util.get_cfg_option_bool(cfg, "manage_resolv_conf", False):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " 'manage_resolv_conf' present but set to False",
             name,
@@ -130,7 +148,7 @@ def handle(name, cfg, cloud, log, _args):
         return
 
     if "resolv_conf" not in cfg:
-        log.warning("manage_resolv_conf True but no parameters provided!")
+        LOG.warning("manage_resolv_conf True but no parameters provided!")
         return
 
     try:
@@ -138,7 +156,7 @@ def handle(name, cfg, cloud, log, _args):
             RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolve_conf_fn]
         )
     except KeyError:
-        log.warning("No template found, not rendering resolve configs")
+        LOG.warning("No template found, not rendering resolve configs")
         return
 
     generate_resolv_conf(

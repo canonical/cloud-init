@@ -1,7 +1,5 @@
 # Copyright (C) 2020 Canonical Ltd.
 #
-# Author: Daniel Watkins <oddbloke@ubuntu.com>
-#
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Upgrade testing for cloud-init.
@@ -18,8 +16,15 @@ import pathlib
 
 import pytest
 
-from cloudinit.stages import _pkl_load
+from cloudinit.sources import pkl_load
+from cloudinit.sources.DataSourceAzure import DataSourceAzure
+from cloudinit.sources.DataSourceNoCloud import DataSourceNoCloud
 from tests.unittests.helpers import resourceLocation
+
+DSNAME_TO_CLASS = {
+    "Azure": DataSourceAzure,
+    "NoCloud": DataSourceNoCloud,
+}
 
 
 class TestUpgrade:
@@ -34,7 +39,26 @@ class TestUpgrade:
         Test implementations _must not_ modify the ``previous_obj_pkl`` which
         they are passed, as that will affect tests that run after them.
         """
-        return _pkl_load(str(request.param))
+        return pkl_load(str(request.param))
+
+    def test_pkl_load_defines_all_init_side_effect_attributes(
+        self, previous_obj_pkl
+    ):
+        """Any attrs as side-effects of __init__ exist in unpickled obj."""
+        ds_class = DSNAME_TO_CLASS[previous_obj_pkl.dsname]
+        sys_cfg = previous_obj_pkl.sys_cfg
+        distro = previous_obj_pkl.distro
+        paths = previous_obj_pkl.paths
+        ds = ds_class(sys_cfg, distro, paths)
+        if ds.dsname == "NoCloud" and previous_obj_pkl.__dict__:
+            expected = (
+                set({"seed_dirs"}),  # LP: #1568150 handled with getattr checks
+                set(),
+            )
+        else:
+            expected = (set(),)
+        missing_attrs = ds.__dict__.keys() - previous_obj_pkl.__dict__.keys()
+        assert missing_attrs in expected
 
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""

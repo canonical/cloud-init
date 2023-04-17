@@ -12,10 +12,11 @@ from textwrap import dedent
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
 DEFAULT_DEFER = False
 TEXT_PLAIN_ENC = "text/plain"
@@ -35,15 +36,18 @@ meta: MetaSchema = {
         before being written. For empty file creation, content can be omitted.
 
     .. note::
-        if multiline data is provided, care should be taken to ensure that it
-        follows yaml formatting standards. to specify binary data, use the yaml
+        If multiline data is provided, care should be taken to ensure that it
+        follows yaml formatting standards. To specify binary data, use the yaml
         option ``!!binary``
 
     .. note::
         Do not write files under /tmp during boot because of a race with
         systemd-tmpfiles-clean that can cause temp files to get cleaned during
         the early boot process. Use /run/somedir instead to avoid race
-        LP:1707222."""
+        LP:1707222.
+
+    .. warning::
+       Existing files will be overridden."""
     ),
     "distros": ["all"],
     "examples": [
@@ -108,12 +112,13 @@ meta: MetaSchema = {
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["write_files"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -121,13 +126,13 @@ def handle(name, cfg, _cloud, log, _args):
         if not util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no/empty 'write_files' key in configuration",
             name,
         )
         return
-    write_files(name, filtered_files)
+    write_files(name, filtered_files, cloud.distro.default_owner)
 
 
 def canonicalize_extraction(encoding_type):
@@ -155,7 +160,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files):
+def write_files(name, files, owner: str):
     if not files:
         return
 
@@ -171,10 +176,12 @@ def write_files(name, files):
         path = os.path.abspath(path)
         extractions = canonicalize_extraction(f_info.get("encoding"))
         contents = extract_contents(f_info.get("content", ""), extractions)
-        (u, g) = util.extract_usergroup(f_info.get("owner", DEFAULT_OWNER))
+        (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
-        util.write_file(path, contents, omode=omode, mode=perms)
+        util.write_file(
+            path, contents, omode=omode, mode=perms, user=u, group=g
+        )
         util.chownbyname(path, u, g)
 
 

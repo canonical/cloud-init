@@ -48,11 +48,6 @@ BuildRequires:  {{r}}
 Requires:       dmidecode
 %endif
 
-# python2.6 needs argparse
-%if "%{?el6}" == "1"
-Requires:  python-argparse
-%endif
-
 
 # Install 'dynamic' runtime reqs from *requirements.txt and pkg-deps.json.
 # Install them as BuildRequires too as they're used for testing.
@@ -171,7 +166,7 @@ fi
 
 %files
 
-/lib/udev/rules.d/66-azure-ephemeral.rules
+%{_udevrulesdir}/66-azure-ephemeral.rules
 
 %if "%{init_system}" == "systemd"
 /usr/lib/systemd/system-generators/cloud-init-generator
@@ -184,9 +179,6 @@ fi
 %attr(0755, root, root) %{_initddir}/cloud-init
 %endif
 
-%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
-%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
-
 # Program binaries
 %{_bindir}/cloud-init*
 %{_bindir}/cloud-id*
@@ -197,6 +189,8 @@ fi
 
 # Configs
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
+%dir                    %{_sysconfdir}/cloud/clean.d
+%config(noreplace)      %{_sysconfdir}/cloud/clean.d/README
 %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README

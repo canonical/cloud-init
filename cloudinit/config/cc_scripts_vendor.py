@@ -5,10 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Scripts Vendor: Run vendor scripts"""
 
+import logging
 import os
 from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -52,15 +55,17 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 SCRIPT_SUBDIR = "vendor"
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # This is written to by the vendor data handlers
     # any vendor data shell scripts get placed in runparts_path
     runparts_path = os.path.join(
@@ -72,7 +77,7 @@ def handle(name, cfg, cloud, log, _args):
     try:
         subp.runparts(runparts_path, exe_prefix=prefix)
     except Exception:
-        log.warning(
+        LOG.warning(
             "Failed to run module %s (%s in %s)",
             name,
             SCRIPT_SUBDIR,

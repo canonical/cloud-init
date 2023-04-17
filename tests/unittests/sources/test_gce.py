@@ -11,11 +11,13 @@ from base64 import b64decode, b64encode
 from unittest import mock
 from urllib.parse import urlparse
 
-import httpretty
+import responses
 
 from cloudinit import distros, helpers, settings
 from cloudinit.sources import DataSourceGCE
 from tests.unittests import helpers as test_helpers
+
+M_PATH = "cloudinit.sources.DataSourceGCE."
 
 GCE_META = {
     "instance/id": "123",
@@ -58,32 +60,7 @@ GUEST_ATTRIBUTES_URL = (
 )
 
 
-def _set_mock_metadata(gce_meta=None):
-    if gce_meta is None:
-        gce_meta = GCE_META
-
-    def _request_callback(method, uri, headers):
-        url_path = urlparse(uri).path
-        if url_path.startswith("/computeMetadata/v1/"):
-            path = url_path.split("/computeMetadata/v1/")[1:][0]
-            recursive = path.endswith("/")
-            path = path.rstrip("/")
-        else:
-            path = None
-        if path in gce_meta:
-            response = gce_meta.get(path)
-            if recursive:
-                response = json.dumps(response)
-            return (200, headers, response)
-        else:
-            return (404, headers, "")
-
-    # reset is needed. https://github.com/gabrielfalcao/HTTPretty/issues/316
-    httpretty.register_uri(httpretty.GET, MD_URL_RE, body=_request_callback)
-
-
-@httpretty.activate
-class TestDataSourceGCE(test_helpers.HttprettyTestCase):
+class TestDataSourceGCE(test_helpers.ResponsesTestCase):
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)
         cfg["system_info"]["distro"] = dtype
@@ -99,34 +76,67 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": tmp})
         )
+
         ppatch = self.m_platform_reports_gce = mock.patch(
-            "cloudinit.sources.DataSourceGCE.platform_reports_gce"
+            M_PATH + "platform_reports_gce"
         )
         self.m_platform_reports_gce = ppatch.start()
         self.m_platform_reports_gce.return_value = True
         self.addCleanup(ppatch.stop)
+
+        pppatch = self.m_is_resolvable_url = mock.patch(
+            M_PATH + "util.is_resolvable_url", return_value=True
+        )
+        self.m_is_resolvable_url = pppatch.start()
+        self.addCleanup(pppatch.stop)
+
         self.add_patch("time.sleep", "m_sleep")  # just to speed up tests
         super(TestDataSourceGCE, self).setUp()
 
+    def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
+        if gce_meta is None:
+            gce_meta = GCE_META
+
+        def _request_callback(request):
+            url_path = urlparse(request.url).path
+            if url_path.startswith("/computeMetadata/v1/"):
+                path = url_path.split("/computeMetadata/v1/")[1:][0]
+                recursive = path.endswith("/")
+                path = path.rstrip("/")
+            else:
+                path = None
+            if path in gce_meta:
+                response = gce_meta.get(path)
+                if recursive:
+                    response = json.dumps(response)
+                if check_headers is not None:
+                    for k in check_headers.keys():
+                        self.assertEqual(check_headers[k], request.headers[k])
+                return (200, request.headers, response)
+            else:
+                return (404, request.headers, "")
+
+        self.responses.add_callback(
+            responses.GET,
+            MD_URL_RE,
+            callback=_request_callback,
+        )
+
     def test_connection(self):
-        _set_mock_metadata()
+        self._set_mock_metadata(check_headers=HEADERS)
         success = self.ds.get_data()
         self.assertTrue(success)
-
-        req_header = httpretty.last_request().headers
-        for header_name, expected_value in HEADERS.items():
-            self.assertEqual(expected_value, req_header.get(header_name))
 
     def test_metadata(self):
         # UnicodeDecodeError if set to ds.userdata instead of userdata_raw
         meta = GCE_META.copy()
         meta["instance/attributes/user-data"] = b"/bin/echo \xff\n"
 
-        _set_mock_metadata()
+        self._set_mock_metadata()
         self.ds.get_data()
 
         shostname = GCE_META.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname())
+        self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
         self.assertEqual(
             GCE_META.get("instance/id"), self.ds.get_instance_id()
@@ -137,9 +147,9 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
             self.ds.get_userdata_raw(),
         )
 
-    # test partial metadata (missing user-data in particular)
     def test_metadata_partial(self):
-        _set_mock_metadata(GCE_META_PARTIAL)
+        """test partial metadata (missing user-data in particular)"""
+        self._set_mock_metadata(GCE_META_PARTIAL)
         self.ds.get_data()
 
         self.assertEqual(
@@ -147,11 +157,11 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         )
 
         shostname = GCE_META_PARTIAL.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname())
+        self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
     def test_userdata_no_encoding(self):
         """check that user-data is read."""
-        _set_mock_metadata(GCE_USER_DATA_TEXT)
+        self._set_mock_metadata(GCE_USER_DATA_TEXT)
         self.ds.get_data()
         self.assertEqual(
             GCE_USER_DATA_TEXT["instance/attributes"]["user-data"].encode(),
@@ -160,7 +170,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
 
     def test_metadata_encoding(self):
         """user-data is base64 encoded if user-data-encoding is 'base64'."""
-        _set_mock_metadata(GCE_META_ENCODING)
+        self._set_mock_metadata(GCE_META_ENCODING)
         self.ds.get_data()
 
         instance_data = GCE_META_ENCODING.get("instance/attributes")
@@ -175,12 +185,12 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         ]:
             meta = GCE_META_PARTIAL.copy()
             del meta[required_key]
-            _set_mock_metadata(meta)
+            self._set_mock_metadata(meta)
             self.assertEqual(False, self.ds.get_data())
-            httpretty.reset()
+            self.responses.reset()
 
     def test_no_ssh_keys_metadata(self):
-        _set_mock_metadata()
+        self._set_mock_metadata()
         self.ds.get_data()
         self.assertEqual([], self.ds.get_public_ssh_keys())
 
@@ -215,13 +225,13 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         meta["project/attributes"] = project_attributes
         meta["instance/attributes"] = instance_attributes
 
-        _set_mock_metadata(meta)
+        self._set_mock_metadata(meta)
         self.ds.get_data()
 
         expected = [valid_key.format(key) for key in range(3)]
         self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
 
-    @mock.patch("cloudinit.sources.DataSourceGCE.ug_util")
+    @mock.patch(M_PATH + "ug_util")
     def test_default_user_ssh_keys(self, mock_ug_util):
         mock_ug_util.normalize_users_groups.return_value = None, None
         mock_ug_util.extract_default.return_value = "ubuntu", None
@@ -261,7 +271,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         meta["project/attributes"] = project_attributes
         meta["instance/attributes"] = instance_attributes
 
-        _set_mock_metadata(meta)
+        self._set_mock_metadata(meta)
         ubuntu_ds.get_data()
 
         expected = [valid_key.format(key) for key in range(3)]
@@ -284,7 +294,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         meta["project/attributes"] = project_attributes
         meta["instance/attributes"] = instance_attributes
 
-        _set_mock_metadata(meta)
+        self._set_mock_metadata(meta)
         self.ds.get_data()
 
         expected = [valid_key.format(key) for key in range(2)]
@@ -306,14 +316,14 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         meta["project/attributes"] = project_attributes
         meta["instance/attributes"] = instance_attributes
 
-        _set_mock_metadata(meta)
+        self._set_mock_metadata(meta)
         self.ds.get_data()
 
         expected = [valid_key.format(0)]
         self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
 
     def test_only_last_part_of_zone_used_for_availability_zone(self):
-        _set_mock_metadata()
+        self._set_mock_metadata()
         r = self.ds.get_data()
         self.assertEqual(True, r)
         self.assertEqual("bar", self.ds.availability_zone)
@@ -388,26 +398,26 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         m_readurl.assert_has_calls(readurl_expected_calls, any_order=True)
 
     @mock.patch(
-        "cloudinit.sources.DataSourceGCE.EphemeralDHCPv4",
+        M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
-    @mock.patch(
-        "cloudinit.sources.DataSourceGCE.DataSourceGCELocal.fallback_interface"
-    )
+    @mock.patch(M_PATH + "DataSourceGCELocal.fallback_interface")
     def test_local_datasource_uses_ephemeral_dhcp(self, _m_fallback, m_dhcp):
-        _set_mock_metadata()
+        self._set_mock_metadata()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceGCE.DataSourceGCELocal(
-            sys_cfg={}, distro=None, paths=None
+            sys_cfg={}, distro=distro, paths=None
         )
         ds._get_data()
         assert m_dhcp.call_count == 1
 
     @mock.patch(
-        "cloudinit.sources.DataSourceGCE.EphemeralDHCPv4",
+        M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
     def test_datasource_doesnt_use_ephemeral_dhcp(self, m_dhcp):
-        _set_mock_metadata()
+        self._set_mock_metadata()
         ds = DataSourceGCE.DataSourceGCE(sys_cfg={}, distro=None, paths=None)
         ds._get_data()
         assert m_dhcp.call_count == 0

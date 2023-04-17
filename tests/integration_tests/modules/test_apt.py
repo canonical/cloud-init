@@ -5,8 +5,9 @@ import pytest
 
 from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 
 USER_DATA = """\
 #cloud-config
@@ -78,6 +79,24 @@ apt:
         pb0uBy+g0oxJQg15
         =uy53
         -----END PGP PUBLIC KEY BLOCK-----
+    test_write:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+      append: false
+    test_write.list:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/devel/ubuntu $RELEASE main"
+      append: false
+    test_append:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+    test_append.list:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/devel/ubuntu $RELEASE main"
 apt_pipelining: os
 """  # noqa: E501
 
@@ -96,7 +115,7 @@ TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 @pytest.mark.user_data(USER_DATA)
 class TestApt:
     def get_keys(self, class_client: IntegrationInstance):
@@ -147,10 +166,11 @@ class TestApt:
         Ported from
         tests/cloud_tests/testcases/modules/apt_configure_sources_ppa.py
         """
-        release = ImageSpecification.from_os_image().release
         ppa_path_contents = class_client.read_from_file(
             "/etc/apt/sources.list.d/"
-            "simplestreams-dev-ubuntu-trunk-{}.list".format(release)
+            "simplestreams-dev-ubuntu-trunk-{}.list".format(
+                CURRENT_RELEASE.series
+            )
         )
         assert (
             "://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
@@ -163,11 +183,10 @@ class TestApt:
 
     def test_signed_by(self, class_client: IntegrationInstance):
         """Test the apt signed-by functionality."""
-        release = ImageSpecification.from_os_image().release
         source = (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
             "http://ppa.launchpad.net/juju/stable/ubuntu"
-            " {} main".format(release)
+            " {} main".format(CURRENT_RELEASE.series)
         )
         path_contents = class_client.read_from_file(
             "/etc/apt/sources.list.d/test_signed_by.list"
@@ -231,6 +250,32 @@ class TestApt:
         ).ok
         assert conf_exists is False
 
+    def test_sources_write(self, class_client: IntegrationInstance):
+        """Test overwrite or append to sources file"""
+        test_write_content = class_client.read_from_file(
+            "/etc/apt/sources.list.d/test_write.list"
+        )
+        expected_contents = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_write.gpg] "
+            "http://ppa.launchpad.net/juju/devel/ubuntu "
+            f"{CURRENT_RELEASE.series} main"
+        )
+        assert expected_contents.strip() == test_write_content.strip()
+
+    def test_sources_append(self, class_client: IntegrationInstance):
+        series = CURRENT_RELEASE.series
+        test_append_content = class_client.read_from_file(
+            "/etc/apt/sources.list.d/test_append.list"
+        )
+
+        expected_contents = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_append.gpg] "
+            f"http://ppa.launchpad.net/juju/stable/ubuntu {series} main\n"
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_append.gpg] "
+            f"http://ppa.launchpad.net/juju/devel/ubuntu {series} main"
+        )
+        assert expected_contents.strip() == test_append_content.strip()
+
 
 _DEFAULT_DATA = """\
 #cloud-config
@@ -246,10 +291,12 @@ apt:
 DEFAULT_DATA = _DEFAULT_DATA.format(uri="")
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 @pytest.mark.user_data(DEFAULT_DATA)
 class TestDefaults:
-    @pytest.mark.openstack
+    @pytest.mark.skipif(
+        PLATFORM != "openstack", reason="Test is Openstack specific"
+    )
     def test_primary_on_openstack(self, class_client: IntegrationInstance):
         """Test apt default primary source on openstack.
 
@@ -268,12 +315,12 @@ class TestDefaults:
         sources_list = class_client.read_from_file("/etc/apt/sources.list")
 
         # 3 lines from main, universe, and multiverse
-        release = ImageSpecification.from_os_image().release
-        sec_url = f"deb http://security.ubuntu.com/ubuntu {release}-security"
+        series = CURRENT_RELEASE.series
+        sec_url = f"deb http://security.ubuntu.com/ubuntu {series}-security"
         if class_client.settings.PLATFORM == "azure":
             sec_url = (
                 f"deb http://azure.archive.ubuntu.com/ubuntu/"
-                f" {release}-security"
+                f" {series}-security"
             )
         sec_src_url = sec_url.replace("deb ", "# deb-src ")
         assert 3 == sources_list.count(sec_url)
@@ -310,7 +357,7 @@ apt_pipelining: false
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 @pytest.mark.user_data(DISABLED_DATA)
 class TestDisabled:
     def test_disable_suites(self, class_client: IntegrationInstance):
@@ -346,7 +393,7 @@ apt:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 @pytest.mark.user_data(APT_PROXY_DATA)
 def test_apt_proxy(client: IntegrationInstance):
     """Test the apt proxy data gets written correctly."""

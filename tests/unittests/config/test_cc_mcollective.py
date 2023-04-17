@@ -149,7 +149,7 @@ class TestHandler(t_help.TestCase):
         cc.distro = t_help.mock.MagicMock()
         mock_util.load_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
-        cc_mcollective.handle("cc_mcollective", mycfg, cc, LOG, [])
+        cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEqual(install_pkg, ("mcollective",))
@@ -172,6 +172,11 @@ class TestMcollectiveSchema:
             ),
             # Allow undocumented keys client keys below 'conf' without error
             ({"mcollective": {"conf": {"customkey": 1}}}, None),
+            # Don't allow undocumented keys that don't match expected type
+            (
+                {"mcollective": {"conf": {"": {"test": None}}}},
+                "does not match any of the regexes:",
+            ),
             (
                 {"mcollective": {"conf": {"public-cert": 1}}},
                 "mcollective.conf.public-cert: 1 is not of type 'string'",

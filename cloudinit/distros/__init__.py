@@ -16,17 +16,25 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping, Type
+from typing import Any, Mapping, MutableMapping, Optional, Type
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net, persistence, ssh_util, subp, type_utils, util
+from cloudinit import (
+    net,
+    persistence,
+    ssh_util,
+    subp,
+    temp_utils,
+    type_utils,
+    util,
+)
+from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
-
-from .networking import LinuxNetworking, Networking
+from cloudinit.net.renderer import Renderer
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
 # The value 'all' is surfaced in module documentation for distro support.
@@ -36,8 +44,10 @@ OSFAMILIES = {
     "alpine": ["alpine"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
-    "freebsd": ["freebsd"],
-    "gentoo": ["gentoo"],
+    "freebsd": ["freebsd", "dragonfly"],
+    "gentoo": ["gentoo", "cos"],
+    "netbsd": ["netbsd"],
+    "openbsd": ["openbsd"],
     "redhat": [
         "almalinux",
         "amazon",
@@ -45,14 +55,25 @@ OSFAMILIES = {
         "cloudlinux",
         "eurolinux",
         "fedora",
+        "mariner",
         "miraclelinux",
-        "openEuler",
+        "openmandriva",
         "photon",
         "rhel",
         "rocky",
         "virtuozzo",
     ],
-    "suse": ["opensuse", "sles"],
+    "suse": [
+        "opensuse",
+        "opensuse-leap",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
+        "sle_hpc",
+        "sle-micro",
+        "sles",
+    ],
+    "openEuler": ["openEuler"],
+    "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
 }
 
 LOG = logging.getLogger(__name__)
@@ -69,14 +90,15 @@ LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-
+    pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
-    renderer_configs: Mapping[str, Mapping[str, Any]] = {}
+    renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
@@ -86,6 +108,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     _ci_pkl_version = 1
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
+
+    osfamily: str
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -116,7 +140,18 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "_write_network_config needs implementation.\n" % self.name
         )
 
-    def _write_network_state(self, network_state):
+    @property
+    def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
+        """Return the configured network activator for this environment."""
+        priority = util.get_cfg_by_path(
+            self._cfg, ("network", "activators"), None
+        )
+        try:
+            return activators.select_activator(priority=priority)
+        except activators.NoActivatorException:
+            return None
+
+    def _get_renderer(self) -> Renderer:
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "renderers"), None
         )
@@ -126,6 +161,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "Selected renderer '%s' from priority list: %s", name, priority
         )
         renderer = render_cls(config=self.renderer_configs.get(name))
+        return renderer
+
+    def _write_network_state(self, network_state, renderer: Renderer):
         renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
@@ -228,21 +266,22 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
-        network_state = parse_net_config_data(netconfig)
         try:
-            self._write_network_state(network_state)
+            renderer = self._get_renderer()
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(
                 netconfig, bring_up=bring_up
             )
 
+        network_state = parse_net_config_data(netconfig, renderer=renderer)
+        self._write_network_state(network_state, renderer)
+
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
-            try:
-                network_activator = activators.select_activator()
-            except activators.NoActivatorException:
+            network_activator = self.network_activator
+            if not network_activator:
                 LOG.warning(
                     "No network activator found, not bringing up "
                     "network interfaces"
@@ -509,6 +548,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if isinstance(groups, str):
                 groups = groups.split(",")
 
+            if isinstance(groups, dict):
+                util.deprecate(
+                    deprecated=f"The user {name} has a 'groups' config value "
+                    "of type dict",
+                    deprecated_version="22.3",
+                    extra_message="Use a comma-delimited string or "
+                    "array instead: group1,group2.",
+                )
+
             # remove any white spaces in group names, most likely
             # that came in as a string like: groups: group1, group2
             groups = [g.strip() for g in groups]
@@ -630,8 +678,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if "sudo" in kwargs and kwargs["sudo"] is not False:
-            self.write_sudo_rules(name, kwargs["sudo"])
+        if "sudo" in kwargs:
+            if kwargs["sudo"]:
+                self.write_sudo_rules(name, kwargs["sudo"])
+            elif kwargs["sudo"] is False:
+                util.deprecate(
+                    deprecated=f"The value of 'false' in user {name}'s "
+                    "'sudo' config",
+                    deprecated_version="22.3",
+                    extra_message="Use 'null' instead.",
+                )
 
         # Import SSH keys
         if "ssh_authorized_keys" in kwargs:
@@ -715,6 +771,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             raise e
 
         return True
+
+    def chpasswd(self, plist_in: list, hashed: bool):
+        payload = (
+            "\n".join(
+                (":".join([name, password]) for name, password in plist_in)
+            )
+            + "\n"
+        )
+        cmd = ["chpasswd"] + (["-e"] if hashed else [])
+        subp.subp(cmd, payload)
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
@@ -864,6 +930,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": ["stop", service],
                 "start": ["start", service],
                 "enable": ["enable", service],
+                "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
                 "try-reload": ["reload-or-try-restart", service],
@@ -874,6 +941,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "stop": [service, "stop"],
                 "start": [service, "start"],
                 "enable": [service, "start"],
+                "disable": [service, "stop"],
                 "restart": [service, "restart"],
                 "reload": [service, "restart"],
                 "try-reload": [service, "restart"],
@@ -896,6 +964,33 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         else:
             raise NotImplementedError()
+
+    def get_tmp_exec_path(self) -> str:
+        tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
+        if not util.has_mount_opt(tmp_dir, "noexec"):
+            return tmp_dir
+        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
+
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
+        """
+        Perform a command as the requested user. Behaves like subp()
+
+        Note: We pass `PATH` to the user env by using `env`. This could be
+        probably simplified after bionic EOL by using
+        `su --whitelist-environment=PATH ...`, more info on:
+        https://lore.kernel.org/all/20180815110445.4qefy5zx5gfgbqly@ws.net.home/T/
+        """
+        directory = f"cd {cwd} && " if cwd else ""
+        return subp.subp(
+            [
+                "su",
+                "-",
+                user,
+                "-c",
+                directory + "env PATH=$PATH " + " ".join(command),
+            ],
+            **kwargs,
+        )
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -1063,7 +1158,7 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
     return default
 
 
-def fetch(name) -> Type[Distro]:
+def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
         raise ImportError(

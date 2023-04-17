@@ -42,7 +42,7 @@ class TestHandle:
         m_path_exists.return_value = True
         m_subp.return_value = ("", "")
 
-        cc_keys_to_console.handle("name", cfg, mock.Mock(), mock.Mock(), ())
+        cc_keys_to_console.handle("name", cfg, mock.Mock(), ())
 
         assert subp_called == (m_subp.call_count == 1)
 

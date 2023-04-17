@@ -1,79 +1,96 @@
 .. _index:
 
-cloud-init Documentation
+Cloud-init documentation
 ########################
 
-Cloud-init is the *industry standard* multi-distribution method for
-cross-platform cloud instance initialization. It is supported across all
-major public cloud providers, provisioning systems for private cloud
-infrastructure, and bare-metal installations.
+``Cloud-init`` is the *industry standard* multi-distribution method for
+cross-platform cloud instance initialisation. It is supported across all major
+public cloud providers, provisioning systems for private cloud infrastructure,
+and bare-metal installations.
 
-On instance boot, cloud-init will identify the cloud it is running on, read
-any provided metadata from the cloud, and initialize the system accordingly.
-This may involve setting up the network and storage devices, configuring SSH
-access keys, and setting up many other aspects of a system. Later,
-cloud-init will parse and process any optional user or vendor data that was
-passed to the instance.
+During boot, ``cloud-init`` identifies the cloud it is running on and
+initialises the system accordingly. Cloud instances will automatically be
+provisioned during first boot with networking, storage, SSH keys, packages
+and various other system aspects already configured.
 
-Getting help
-************
+``Cloud-init`` provides the necessary glue between launching a cloud instance
+and connecting to it so that it works as expected.
+
+For cloud users, ``cloud-init`` provides no-install first-boot configuration
+management of a cloud instance. For cloud providers, it provides instance setup
+that can be integrated with your cloud.
+
+-----
+
+.. grid:: 1 1 2 2
+   :gutter: 3
+
+   .. grid-item-card:: **Tutorials**
+       :link: tutorial/index
+       :link-type: doc
+
+       Get started - a hands-on introduction to ``cloud-init`` for new users
+
+   .. grid-item-card:: **How-to guides**
+       :link: howto/index
+       :link-type: doc
+
+       Step-by-step guides covering key operations and common tasks
+
+.. grid:: 1 1 2 2
+   :gutter: 3
+   :reverse:
+
+   .. grid-item-card:: **Reference**
+       :link: reference/index
+       :link-type: doc
+
+       Technical information - specifications, APIs, architecture
+
+   .. grid-item-card:: **Explanation**
+       :link: explanation/index
+       :link-type: doc
+
+       Discussion and clarification of key topics
+
+-----
 
 Having trouble? We would like to help!
+======================================
 
-- Check out the :ref:`lxd_tutorial` if you're new to cloud-init
-- Try the :ref:`FAQ` for answers to some common questions
-- Ask a question in the ``#cloud-init`` IRC channel on Libera
-- Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
-- Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
+- :ref:`Check out our tutorials<tutorial_index>` if you're new to
+  ``cloud-init``
+- :ref:`Try the FAQ<faq>` for answers to some common questions
+- You can also search the ``cloud-init`` `mailing list archive`_
+- Find a bug? `Report bugs on Launchpad`_
 
-.. toctree::
-   :hidden:
-   :titlesonly:
-   :caption: Getting Started
+Project and community
+=====================
 
-   topics/tutorial.rst
-   topics/availability.rst
-   topics/boot.rst
-   topics/cli.rst
-   topics/faq.rst
-   topics/bugs.rst
+``Cloud-init`` is an open source project that warmly welcomes community
+projects, contributions, suggestions, fixes and constructive feedback.
 
-.. toctree::
-   :hidden:
-   :titlesonly:
-   :caption: User Data
-
-   topics/format.rst
-   topics/examples.rst
-   topics/events.rst
-   topics/modules.rst
-   topics/merging.rst
+* Read our `Code of Conduct`_
+* Ask questions in the ``#cloud-init`` `IRC channel on Libera`_
+* Join the `cloud-init mailing list`_
+* :ref:`Contribute on GitHub<contributing>`
+* `Release schedule`_
 
 .. toctree::
    :hidden:
-   :titlesonly:
-   :caption: Instance Data
+   :maxdepth: 2
 
-   topics/instancedata.rst
-   topics/datasources.rst
-   topics/vendordata.rst
-   topics/network-config.rst
+   tutorial/index
+   howto/index
+   explanation/index
+   reference/index
+   development/index
 
-.. toctree::
-   :hidden:
-   :titlesonly:
-   :caption: Development
 
-   topics/contributing.rst
-   topics/module_creation.rst
-   topics/code_review.rst
-   topics/security.rst
-   topics/debugging.rst
-   topics/logging.rst
-   topics/dir_layout.rst
-   topics/analyze.rst
-   topics/docs.rst
-   topics/testing.rst
-   topics/integration_tests.rst
-
-.. vi: textwidth=79
+.. LINKS
+.. _Code of Conduct: https://ubuntu.com/community/code-of-conduct
+.. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
+.. _cloud-init mailing list: https://launchpad.net/~cloud-init
+.. _mailing list archive: https://lists.launchpad.net/cloud-init/
+.. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
+.. _Report bugs on Launchpad: https://bugs.launchpad.net/cloud-init/+filebug

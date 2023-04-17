@@ -1,6 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+import re
 from collections import namedtuple
+from typing import Optional
 
 from cloudinit import log as logging
 from cloudinit import subp
@@ -58,7 +60,7 @@ DMIDECODE_TO_KERNEL = {
 }
 
 
-def _read_dmi_syspath(key):
+def _read_dmi_syspath(key: str) -> Optional[str]:
     """
     Reads dmi data from /sys/class/dmi/id
     """
@@ -96,7 +98,7 @@ def _read_dmi_syspath(key):
     return None
 
 
-def _read_kenv(key):
+def _read_kenv(key: str) -> Optional[str]:
     """
     Reads dmi data from FreeBSD's kenv(1)
     """
@@ -114,12 +116,11 @@ def _read_kenv(key):
         return result
     except subp.ProcessExecutionError as e:
         LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
-        return None
 
     return None
 
 
-def _call_dmidecode(key, dmidecode_path):
+def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
     """
     Calls out to dmidecode to get the data out. This is mostly for supporting
     OS's without /sys/class/dmi/id support.
@@ -137,7 +138,7 @@ def _call_dmidecode(key, dmidecode_path):
         return None
 
 
-def read_dmi_data(key):
+def read_dmi_data(key: str) -> Optional[str]:
     """
     Wrapper for reading DMI data.
 
@@ -180,6 +181,33 @@ def read_dmi_data(key):
 
     LOG.debug("did not find either path %s or dmidecode command", DMI_SYS_PATH)
     return None
+
+
+def sub_dmi_vars(src: str) -> str:
+    """Replace __dmi.VARNAME__ with DMI values from either sysfs or kenv."""
+    if "__" not in src:
+        return src
+    valid_dmi_keys = DMIDECODE_TO_KERNEL.keys()
+    for match in re.findall(r"__dmi\.([^_]+)__", src):
+        if match not in valid_dmi_keys:
+            LOG.warning(
+                "Ignoring invalid __dmi.%s__ in %s. Expected one of: %s.",
+                match,
+                src,
+                valid_dmi_keys,
+            )
+            continue
+        dmi_value = read_dmi_data(match)
+        if not dmi_value:
+            dmi_value = ""
+        LOG.debug(
+            "Replacing __dmi.%s__ in '%s' with '%s'.",
+            match,
+            src,
+            dmi_value,
+        )
+        src = src.replace(f"__dmi.{match}__", dmi_value)
+    return src
 
 
 # vi: ts=4 expandtab

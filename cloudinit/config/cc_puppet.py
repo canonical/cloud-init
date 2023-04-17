@@ -8,6 +8,7 @@
 
 """Puppet: Install, configure and start puppet"""
 
+import logging
 import os
 import socket
 from io import StringIO
@@ -16,12 +17,15 @@ from textwrap import dedent
 import yaml
 
 from cloudinit import helpers, subp, temp_utils, url_helper, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
+PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
 
 MODULE_DESCRIPTION = """\
 This module handles puppet installation and configuration. If the ``puppet``
@@ -98,14 +102,20 @@ meta: MetaSchema = {
             """
         ),
     ],
+    "activate_by_schema_keys": ["puppet"],
 }
 
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
 
-class PuppetConstants(object):
+
+class PuppetConstants:
     def __init__(
-        self, puppet_conf_file, puppet_ssl_dir, csr_attributes_path, log
+        self,
+        puppet_conf_file,
+        puppet_ssl_dir,
+        csr_attributes_path,
     ):
         self.conf_path = puppet_conf_file
         self.ssl_dir = puppet_ssl_dir
@@ -114,26 +124,21 @@ class PuppetConstants(object):
         self.csr_attributes_path = csr_attributes_path
 
 
-def _autostart_puppet(log):
-    # Set puppet to automatically start
-    if os.path.exists("/etc/default/puppet"):
-        subp.subp(
-            [
-                "sed",
-                "-i",
-                "-e",
-                "s/^START=.*/START=yes/",
-                "/etc/default/puppet",
-            ],
-            capture=False,
-        )
-    elif subp.which("systemctl"):
-        subp.subp(["systemctl", "enable", "puppet.service"], capture=False)
-    elif os.path.exists("/sbin/chkconfig"):
-        subp.subp(["/sbin/chkconfig", "puppet", "on"], capture=False)
-    else:
-        log.warning(
-            "Sorry we do not know how to enable puppet services on this system"
+def _manage_puppet_services(cloud: Cloud, action: str):
+    """Attempts to perform action on one of the puppet services"""
+    service_managed: str = ""
+    for puppet_name in PUPPET_PACKAGE_NAMES:
+        try:
+            cloud.distro.manage_service(action, f"{puppet_name}.service")
+            service_managed = puppet_name
+            break
+        except subp.ProcessExecutionError:
+            pass
+    if not service_managed:
+        LOG.warning(
+            "Could not '%s' any of the following services: %s",
+            action,
+            ", ".join(PUPPET_PACKAGE_NAMES),
         )
 
 
@@ -147,11 +152,16 @@ def get_config_value(puppet_bin, setting):
 
 
 def install_puppet_aio(
-    url=AIO_INSTALL_URL, version=None, collection=None, cleanup=True
+    distro: Distro,
+    url=AIO_INSTALL_URL,
+    version=None,
+    collection=None,
+    cleanup=True,
 ):
     """Install puppet-agent from the puppetlabs repositories using the one-shot
     shell script
 
+    :param distro: Instance of Distro
     :param url: URL from where to download the install script
     :param version: version to install, blank defaults to latest
     :param collection: collection to install, blank defaults to latest
@@ -169,16 +179,18 @@ def install_puppet_aio(
     content = url_helper.readurl(url=url, retries=5).contents
 
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-    with temp_utils.tempdir(needs_exe=True) as tmpd:
+    with temp_utils.tempdir(
+        dir=distro.get_tmp_exec_path(), needs_exe=True
+    ) as tmpd:
         tmpf = os.path.join(tmpd, "puppet-install")
         util.write_file(tmpf, content, mode=0o700)
         return subp.subp([tmpf] + args, capture=False)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there isn't a puppet key in the configuration don't do anything
     if "puppet" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'puppet' configuration found", name
         )
         return
@@ -208,28 +220,45 @@ def handle(name, cfg, cloud, log, _args):
     else:  # default to 'packages'
         puppet_user = "puppet"
         puppet_bin = "puppet"
-        puppet_package = "puppet"
+        puppet_package = None  # changes with distro
 
     package_name = util.get_cfg_option_str(
         puppet_cfg, "package_name", puppet_package
     )
     if not install and version:
-        log.warning(
+        LOG.warning(
             "Puppet install set to false but version supplied, doing nothing."
         )
     elif install:
-        log.debug(
+        LOG.debug(
             "Attempting to install puppet %s from %s",
             version if version else "latest",
             install_type,
         )
 
         if install_type == "packages":
-            cloud.distro.install_packages((package_name, version))
+            if package_name is None:  # conf has no package_nam
+                for puppet_name in PUPPET_PACKAGE_NAMES:
+                    try:
+                        cloud.distro.install_packages((puppet_name, version))
+                        package_name = puppet_name
+                        break
+                    except subp.ProcessExecutionError:
+                        pass
+                if not package_name:
+                    LOG.warning(
+                        "No installable puppet package in any of: %s",
+                        ", ".join(PUPPET_PACKAGE_NAMES),
+                    )
+            else:
+                cloud.distro.install_packages((package_name, version))
+
         elif install_type == "aio":
-            install_puppet_aio(aio_install_url, version, collection, cleanup)
+            install_puppet_aio(
+                cloud.distro, aio_install_url, version, collection, cleanup
+            )
         else:
-            log.warning("Unknown puppet install type '%s'", install_type)
+            LOG.warning("Unknown puppet install type '%s'", install_type)
             run = False
 
     conf_file = util.get_cfg_option_str(
@@ -244,7 +273,7 @@ def handle(name, cfg, cloud, log, _args):
         get_config_value(puppet_bin, "csr_attributes"),
     )
 
-    p_constants = PuppetConstants(conf_file, ssl_dir, csr_attributes_path, log)
+    p_constants = PuppetConstants(conf_file, ssl_dir, csr_attributes_path)
 
     # ... and then update the puppet configuration
     if "conf" in puppet_cfg:
@@ -257,7 +286,6 @@ def handle(name, cfg, cloud, log, _args):
         # (TODO(harlowja) is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = "\n".join(cleaned_lines)
-        # Move to puppet_config.read_file when dropping py2.7
         puppet_config.read_file(
             StringIO(cleaned_contents), source=p_constants.conf_path
         )
@@ -302,13 +330,13 @@ def handle(name, cfg, cloud, log, _args):
             yaml.dump(puppet_cfg["csr_attributes"], default_flow_style=False),
         )
 
-    # Set it up so it autostarts
     if start_puppetd:
-        _autostart_puppet(log)
+        # Enables the services
+        _manage_puppet_services(cloud, "enable")
 
     # Run the agent if needed
     if run:
-        log.debug("Running puppet-agent")
+        LOG.debug("Running puppet-agent")
         cmd = [puppet_bin, "agent"]
         if "exec_args" in puppet_cfg:
             cmd_args = puppet_cfg["exec_args"]
@@ -317,7 +345,7 @@ def handle(name, cfg, cloud, log, _args):
             elif isinstance(cmd_args, str):
                 cmd.extend(cmd_args.split())
             else:
-                log.warning(
+                LOG.warning(
                     "Unknown type %s provided for puppet"
                     " 'exec_args' expected list, tuple,"
                     " or string",
@@ -330,7 +358,7 @@ def handle(name, cfg, cloud, log, _args):
 
     if start_puppetd:
         # Start puppetd
-        subp.subp(["service", "puppet", "start"], capture=False)
+        _manage_puppet_services(cloud, "start")
 
 
 # vi: ts=4 expandtab

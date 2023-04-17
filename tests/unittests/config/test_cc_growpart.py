@@ -20,7 +20,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    TestCase,
+    does_not_raise,
+    skipUnlessJsonSchema,
+)
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -97,8 +101,7 @@ class TestDisabled(unittest.TestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
         self.name = "growpart"
-        self.cloud_init = None
-        self.log = logging.getLogger("TestDisabled")
+        self.cloud = None
         self.args = []
 
         self.handle = cc_growpart.handle
@@ -110,9 +113,7 @@ class TestDisabled(unittest.TestCase):
         config = {"growpart": {"mode": "off"}}
 
         with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
-            self.handle(
-                self.name, config, self.cloud_init, self.log, self.args
-            )
+            self.handle(self.name, config, self.cloud, self.args)
             self.assertEqual(mockobj.call_count, 0)
 
 
@@ -121,11 +122,11 @@ class TestConfig(TestCase):
         super(TestConfig, self).setUp()
         self.name = "growpart"
         self.paths = None
-        self.cloud = cloud.Cloud(None, self.paths, None, None, None)
+        self.distro = mock.Mock()
+        self.cloud = cloud.Cloud(None, self.paths, None, self.distro, None)
         self.log = logging.getLogger("TestConfig")
         self.args = []
 
-        self.cloud_init = None
         self.handle = cc_growpart.handle
         self.tmppath = "/tmp/cloudinit-test-file"
         self.tmpdir = os.scandir("/tmp")
@@ -142,9 +143,7 @@ class TestConfig(TestCase):
         ) as mockobj:
 
             config = {"growpart": {"mode": "auto"}}
-            self.handle(
-                self.name, config, self.cloud_init, self.log, self.args
-            )
+            self.handle(self.name, config, self.cloud, self.args)
 
             mockobj.assert_has_calls(
                 [
@@ -166,8 +165,7 @@ class TestConfig(TestCase):
                 self.handle,
                 self.name,
                 config,
-                self.cloud_init,
-                self.log,
+                self.cloud,
                 self.args,
             )
 
@@ -180,7 +178,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
@@ -206,7 +204,7 @@ class TestConfig(TestCase):
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
 
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
             partnum = 1
@@ -230,7 +228,7 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=("", HELP_GPART)
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto")
+            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)
 
             mockobj.assert_has_calls(
@@ -271,9 +269,9 @@ class TestConfig(TestCase):
                 )
             )
 
-            self.handle(self.name, {}, self.cloud_init, self.log, self.args)
+            self.handle(self.name, {}, self.cloud, self.args)
 
-            factory.assert_called_once_with("auto")
+            factory.assert_called_once_with("auto", self.distro)
             rsdevs.assert_called_once_with(myresizer, ["/"])
 
 
@@ -304,7 +302,7 @@ class TestResize(unittest.TestCase):
         real_stat = os.stat
         resize_calls = []
 
-        class myresizer(object):
+        class myresizer:
             def resize(self, diskdev, partnum, partdev):
                 resize_calls.append((diskdev, partnum, partdev))
                 if partdev == "/dev/YYda2":
@@ -381,7 +379,7 @@ class TestEncrypted:
             return "/dev/vdz"
         elif value.startswith("/dev"):
             return value
-        raise Exception(f"unexpected value {value}")
+        raise RuntimeError(f"unexpected value {value}")
 
     def _realpath_side_effect(self, value):
         return "/dev/dm-1" if value.startswith("/dev/mapper") else value
@@ -584,44 +582,73 @@ def simple_device_part_info(devpath):
     return x
 
 
-class Bunch(object):
+class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
 
 class TestGrowpartSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         (
-            ({"growpart": {"mode": "off"}}, None),
-            ({"growpart": {"mode": False}}, None),
+            ({"growpart": {"mode": "off"}}, does_not_raise()),
+            (
+                {"growpart": {"mode": False}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "Cloud config schema deprecations: "
+                        "growpart.mode:  Changed in version 22.3. "
+                        "Specifying a boolean ``false`` value for "
+                        "``mode`` is deprecated. Use ``off`` instead."
+                    ),
+                ),
+            ),
             (
                 {"growpart": {"mode": "false"}},
-                "'false' is not one of "
-                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "growpart.mode: 'false' is not valid under any of the"
+                        " given schemas"
+                    ),
+                ),
             ),
             (
                 {"growpart": {"mode": "a"}},
-                "'a' is not one of "
-                r"\[False, 'auto', 'growpart', 'gpart', 'off'\]",
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "growpart.mode: 'a' is not valid under any of the"
+                        " given schemas"
+                    ),
+                ),
             ),
-            ({"growpart": {"devices": "/"}}, "'/' is not of type 'array'"),
+            (
+                {"growpart": {"devices": "/"}},
+                pytest.raises(
+                    SchemaValidationError, match="'/' is not of type 'array'"
+                ),
+            ),
             (
                 {"growpart": {"ignore_growroot_disabled": "off"}},
-                "'off' is not of type 'boolean'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="'off' is not of type 'boolean'",
+                ),
             ),
             (
                 {"growpart": {"a": "b"}},
-                "Additional properties are not allowed",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="Additional properties are not allowed",
+                ),
             ),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(self, config, expectation):
         """Assert expected schema validation and error messages."""
         schema = get_schema()
-        if error_msg is None:
+        with expectation:
             validate_cloudconfig_schema(config, schema, strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, schema, strict=True)

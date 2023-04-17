@@ -8,15 +8,16 @@
 """SSH: Configure SSH and SSH keys"""
 
 import glob
+import logging
 import os
 import re
 import sys
-from logging import Logger
 from textwrap import dedent
 from typing import List, Optional, Sequence
 
 from cloudinit import ssh_util, subp, util
 from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS, ug_util
 from cloudinit.settings import PER_INSTANCE
@@ -165,9 +166,11 @@ meta: MetaSchema = {
             """  # noqa: E501
         )
     ],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
 pattern_unsupported_config_keys = re.compile(
@@ -185,8 +188,8 @@ for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update(
         {
             f"{k}_private": (KEY_FILE_TPL % k, 0o600),
-            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o600),
-            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o600),
+            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o644),
+            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o644),
         }
     )
     PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
@@ -194,7 +197,7 @@ for k in GENERATE_KEY_NAMES:
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
 
-def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
@@ -203,25 +206,28 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
             try:
                 util.del_file(f)
             except Exception:
-                util.logexc(log, "Failed deleting key file %s", f)
+                util.logexc(LOG, "Failed deleting key file %s", f)
 
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
+        cert_config = []
         for (key, val) in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
                 if pattern_unsupported_config_keys.match(key):
                     reason = "unsupported"
                 else:
                     reason = "unrecognized"
-                log.warning("Skipping %s ssh_keys" ' entry: "%s"', reason, key)
+                LOG.warning('Skipping %s ssh_keys entry: "%s"', reason, key)
                 continue
             tgt_fn = CONFIG_KEY_TO_FILE[key][0]
             tgt_perms = CONFIG_KEY_TO_FILE[key][1]
             util.write_file(tgt_fn, val, tgt_perms)
             # set server to present the most recently identified certificate
             if "_certificate" in key:
-                cert_config = {"HostCertificate": tgt_fn}
-                ssh_util.update_ssh_config(cert_config)
+                cert_config.append(("HostCertificate", str(tgt_fn)))
+
+        if cert_config:
+            ssh_util.append_ssh_config(cert_config)
 
         for private_type, public_type in PRIV_TO_PUB.items():
             if (
@@ -238,12 +244,12 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     subp.subp(cmd, capture=False)
-                log.debug(
-                    f"Generated a key for {public_file} from {private_file}"
+                LOG.debug(
+                    "Generated a key for %s from %s", public_file, private_file
                 )
             except Exception:
                 util.logexc(
-                    log,
+                    LOG,
                     "Failed generating a key for "
                     f"{public_file} from {private_file}",
                 )
@@ -273,18 +279,22 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
                     gid = util.get_group_id("ssh_keys")
                     if gid != -1:
                         # perform same "sanitize permissions" as sshd-keygen
+                        permissions_private = 0o600
+                        ssh_version = ssh_util.get_opensshd_upstream_version()
+                        if ssh_version and ssh_version < util.Version(9, 0):
+                            permissions_private = 0o640
                         os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, 0o640)
-                        os.chmod(keyfile + ".pub", 0o644)
+                        os.chmod(keyfile, permissions_private)
+                        os.chmod(f"{keyfile}.pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if e.exit_code == 1 and err.lower().startswith(
                         "unknown key"
                     ):
-                        log.debug("ssh-keygen: unknown key type '%s'", keytype)
+                        LOG.debug("ssh-keygen: unknown key type '%s'", keytype)
                     else:
                         util.logexc(
-                            log,
+                            LOG,
                             "Failed generating key type %s to file %s",
                             keytype,
                             keyfile,
@@ -308,7 +318,7 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
         try:
             cloud.datasource.publish_host_keys(hostkeys)
         except Exception:
-            util.logexc(log, "Publishing host keys failed!")
+            util.logexc(LOG, "Publishing host keys failed!")
 
     try:
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
@@ -322,7 +332,7 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
         if util.get_cfg_option_bool(cfg, "allow_public_ssh_keys", True):
             keys = cloud.get_public_ssh_keys() or []
         else:
-            log.debug(
+            LOG.debug(
                 "Skipping import of publish SSH keys per "
                 "config setting: allow_public_ssh_keys=False"
             )
@@ -333,7 +343,7 @@ def handle(_name, cfg, cloud: Cloud, log: Logger, _args):
 
         apply_credentials(keys, user, disable_root, disable_root_opts)
     except Exception:
-        util.logexc(log, "Applying SSH credentials failed!")
+        util.logexc(LOG, "Applying SSH credentials failed!")
 
 
 def apply_credentials(keys, user, disable_root, disable_root_opts):

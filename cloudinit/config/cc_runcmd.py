@@ -8,10 +8,13 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
+import logging
 import os
 from textwrap import dedent
 
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -24,15 +27,18 @@ from cloudinit.settings import PER_INSTANCE
 
 
 MODULE_DESCRIPTION = """\
-Run arbitrary commands at a rc.local like level with output to the
-console. Each item can be either a list or a string. If the item is a
-list, it will be properly quoted. Each item is written to
-``/var/lib/cloud/instance/runcmd`` to be later interpreted using
-``sh``.
+Run arbitrary commands at a rc.local like time-frame with output to the
+console. Each item can be either a list or a string. The item type affects
+how it is executed:
+
+
+* If the item is a string, it will be interpreted by ``sh``.
+* If the item is a list, the items will be executed as if passed to execve(3)
+  (with the first arg as the command).
 
 Note that the ``runcmd`` module only writes the script to be run
 later. The module that actually runs the script is ``scripts-user``
-in the :ref:`topics/boot:Final` boot stage.
+in the :ref:`Final<boot-Final>` boot stage.
 
 .. note::
 
@@ -64,14 +70,17 @@ meta: MetaSchema = {
     """
         )
     ],
+    "activate_by_schema_keys": ["runcmd"],
 }
 
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
 
-def handle(name, cfg, cloud, log, _args):
+
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "runcmd" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'runcmd' key in configuration", name
         )
         return

@@ -9,12 +9,17 @@
 
 """Bootcmd: run arbitrary commands early in the boot process."""
 
+import logging
 import os
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
+
+LOG = logging.getLogger(__name__)
 
 frequency = PER_ALWAYS
 
@@ -54,15 +59,16 @@ meta: MetaSchema = {
         )
     ],
     "frequency": PER_ALWAYS,
+    "activate_by_schema_keys": ["bootcmd"],
 }
 
 __doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if "bootcmd" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'bootcmd' key in configuration", name
         )
         return
@@ -73,7 +79,7 @@ def handle(name, cfg, cloud, log, _args):
             tmpf.write(util.encode_text(content))
             tmpf.flush()
         except Exception as e:
-            util.logexc(log, "Failed to shellify bootcmd: %s", str(e))
+            util.logexc(LOG, "Failed to shellify bootcmd: %s", str(e))
             raise
 
         try:
@@ -84,7 +90,7 @@ def handle(name, cfg, cloud, log, _args):
             cmd = ["/bin/sh", tmpf.name]
             subp.subp(cmd, env=env, capture=False)
         except Exception:
-            util.logexc(log, "Failed to run bootcmd module %s", name)
+            util.logexc(LOG, "Failed to run bootcmd module %s", name)
             raise
 
 

@@ -7,8 +7,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-from collections import namedtuple
-from typing import List
+from inspect import signature
+from types import ModuleType
+from typing import Dict, List, NamedTuple, Optional
 
 from cloudinit import config, importer
 from cloudinit import log as logging
@@ -26,9 +27,13 @@ LOG = logging.getLogger(__name__)
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
-ModuleDetails = namedtuple(
-    "ModuleDetails", ["module", "name", "frequency", "run_args"]
-)
+
+
+class ModuleDetails(NamedTuple):
+    module: ModuleType
+    name: str
+    frequency: str
+    run_args: List[str]
 
 
 def form_module_name(name):
@@ -65,12 +70,23 @@ def validate_module(mod, name):
         )
 
 
-class Modules(object):
+def _is_active(module_details: ModuleDetails, cfg: dict) -> bool:
+    activate_by_schema_keys_keys = frozenset(
+        module_details.module.meta.get("activate_by_schema_keys", {})
+    )
+    if not activate_by_schema_keys_keys:
+        return True
+    if not activate_by_schema_keys_keys.intersection(cfg.keys()):
+        return False
+    return True
+
+
+class Modules:
     def __init__(self, init: Init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
-        self._cached_cfg = None
+        self._cached_cfg: Optional[config.Config] = None
         if reporter is None:
             reporter = ReportEventStack(
                 name="module-reporter",
@@ -80,7 +96,7 @@ class Modules(object):
         self.reporter = reporter
 
     @property
-    def cfg(self):
+    def cfg(self) -> config.Config:
         # None check to avoid empty case causing re-reading
         if self._cached_cfg is None:
             merger = ConfigMerger(
@@ -93,21 +109,21 @@ class Modules(object):
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
 
-    def _read_modules(self, name):
+    def _read_modules(self, name) -> List[Dict]:
         """Read the modules from the config file given the specified name.
 
         Returns a list of module definitions. E.g.,
         [
             {
                 "mod": "bootcmd",
-                "freq": "always"
+                "freq": "always",
                 "args": "some_arg",
             }
         ]
 
         Note that in the default case, only "mod" will be set.
         """
-        module_list = []
+        module_list: List[dict] = []
         if name not in self.cfg:
             return module_list
         cfg_mods = self.cfg.get(name)
@@ -155,7 +171,7 @@ class Modules(object):
     def _fixup_modules(self, raw_mods) -> List[ModuleDetails]:
         """Convert list of returned from _read_modules() into new format.
 
-        Invalid modules and arguments are ingnored.
+        Invalid modules and arguments are ignored.
         Also ensures that the module has the required meta fields.
         """
         mostly_mods = []
@@ -206,17 +222,12 @@ class Modules(object):
         # and which ones failed + the exception of why it failed
         failures = []
         which_ran = []
-        for (mod, name, freq, args) in mostly_mods:
+        for mod, name, freq, args in mostly_mods:
             try:
                 LOG.debug(
                     "Running module %s (%s) with frequency %s", name, mod, freq
                 )
 
-                # Use the configs logger and not our own
-                # TODO(harlowja): possibly check the module
-                # for having a LOG attr and just give it back
-                # its own logger?
-                func_args = [name, self.cfg, cc, LOG, args]
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created
@@ -226,8 +237,22 @@ class Modules(object):
                 myrep = ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter
                 )
+                func_args = {
+                    "name": name,
+                    "cfg": self.cfg,
+                    "cloud": cc,
+                    "args": args,
+                }
 
                 with myrep:
+                    func_signature = signature(mod.handle)
+                    func_params = func_signature.parameters
+                    if len(func_params) == 5:
+                        util.deprecate(
+                            deprecated="Config modules with a `log` parameter",
+                            deprecated_version="23.2",
+                        )
+                        func_args.update({"log": LOG})
                     ran, _r = cc.run(
                         run_name, mod.handle, func_args, freq=freq
                     )
@@ -269,12 +294,16 @@ class Modules(object):
         skipped = []
         forced = []
         overridden = self.cfg.get("unverified_modules", [])
+        inapplicable_mods = []
         active_mods = []
-        for (mod, name, _freq, _args) in mostly_mods:
+        for module_details in mostly_mods:
+            (mod, name, _freq, _args) = module_details
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]
-
+            if not _is_active(module_details, self.cfg):
+                inapplicable_mods.append(name)
+                continue
             # Skip only when the following conditions are all met:
             #  - distros are defined in the module != ALL_DISTROS
             #  - the current d_name isn't in distros
@@ -288,6 +317,12 @@ class Modules(object):
                     forced.append(name)
             active_mods.append([mod, name, _freq, _args])
 
+        if inapplicable_mods:
+            LOG.info(
+                "Skipping modules '%s' because no applicable config "
+                "is provided.",
+                ",".join(inapplicable_mods),
+            )
         if skipped:
             LOG.info(
                 "Skipping modules '%s' because they are not verified "

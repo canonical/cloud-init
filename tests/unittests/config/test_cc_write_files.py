@@ -65,6 +65,7 @@ VALID_SCHEMA = {
 class TestWriteFiles(FilesystemMockingTestCase):
 
     with_logs = True
+    owner = "root:root"
 
     def setUp(self):
         super(TestWriteFiles, self).setUp()
@@ -75,7 +76,11 @@ class TestWriteFiles(FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         expected = "hello world\n"
         filename = "/tmp/my.file"
-        write_files("test_simple", [{"content": expected, "path": filename}])
+        write_files(
+            "test_simple",
+            [{"content": expected, "path": filename}],
+            self.owner,
+        )
         self.assertEqual(util.load_file(filename), expected)
 
     def test_append(self):
@@ -88,13 +93,14 @@ class TestWriteFiles(FilesystemMockingTestCase):
         write_files(
             "test_append",
             [{"content": added, "path": filename, "append": "true"}],
+            self.owner,
         )
         self.assertEqual(util.load_file(filename), expected)
 
     def test_yaml_binary(self):
         self.patchUtils(self.tmp)
         data = util.load_yaml(YAML_TEXT)
-        write_files("testname", data["write_files"])
+        write_files("testname", data["write_files"], self.owner)
         for path, content in YAML_CONTENT_EXPECTED.items():
             self.assertEqual(util.load_file(path), content)
 
@@ -128,7 +134,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                     files.append(cur)
                     expected.append((cur["path"], data))
 
-        write_files("test_decoding", files)
+        write_files("test_decoding", files, self.owner)
 
         for path, content in expected:
             self.assertEqual(util.load_file(path, decode=False), content)
@@ -154,7 +160,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
             ]
         }
         cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, LOG, [])
+        handle("ignored", cfg, cc, [])
         assert content == util.load_file(file_path)
         self.assertNotIn(
             "Unknown encoding type text/plain", self.logs.getvalue()
@@ -165,7 +171,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         file_path = "/tmp/deferred.file"
         config = {"write_files": [{"path": file_path, "defer": True}]}
         cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_file", config, cc, LOG, [])
+        handle("cc_write_file", config, cc, [])
         with self.assertRaises(FileNotFoundError):
             util.load_file(file_path)
 

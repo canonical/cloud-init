@@ -37,23 +37,17 @@ class DataSourceVultr(sources.DataSource):
             ]
         )
 
+    @staticmethod
+    def ds_detect():
+        return vultr.is_vultr()
+
     # Initiate data and check if Vultr
     def _get_data(self):
-        LOG.debug("Detecting if machine is a Vultr instance")
-        if not vultr.is_vultr():
-            LOG.debug("Machine is not a Vultr instance")
-            return False
 
         LOG.debug("Machine is a Vultr instance")
 
         # Fetch metadata
         self.metadata = self.get_metadata()
-        self.metadata["instance-id"] = self.metadata["instance-v2-id"]
-        self.metadata["local-hostname"] = self.metadata["hostname"]
-        region = self.metadata["region"]["regioncode"]
-        if "countrycode" in self.metadata["region"]:
-            region = self.metadata["region"]["countrycode"]
-        self.metadata["region"] = region.lower()
         self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
@@ -76,10 +70,10 @@ class DataSourceVultr(sources.DataSource):
         if "cloud_interfaces" in md:
             # In the future we will just drop pre-configured
             # network configs into the array. They need names though.
-            self.netcfg = vultr.add_interface_names(md["cloud_interfaces"])
+            vultr.add_interface_names(md["cloud_interfaces"])
+            self.netcfg = md["cloud_interfaces"]
         else:
             self.netcfg = vultr.generate_network_config(md["interfaces"])
-
         # Grab vendordata
         self.vendordata_raw = md["vendor-data"]
 
@@ -99,6 +93,7 @@ class DataSourceVultr(sources.DataSource):
             self.ds_cfg["retries"],
             self.ds_cfg["wait"],
             self.ds_cfg["user-agent"],
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
 
     # Compare subid as instance id

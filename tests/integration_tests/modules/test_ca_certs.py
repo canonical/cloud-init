@@ -10,6 +10,10 @@ import os.path
 
 import pytest
 
+from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import IS_UBUNTU
+from tests.integration_tests.util import get_inactive_modules, verify_clean_log
+
 USER_DATA = """\
 #cloud-config
 ca_certs:
@@ -54,10 +58,12 @@ ca_certs:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="CA cert functionality is distro specific"
+)
 @pytest.mark.user_data(USER_DATA)
 class TestCaCerts:
-    def test_certs_updated(self, class_client):
+    def test_certs_updated(self, class_client: IntegrationInstance):
         """Test that /etc/ssl/certs is updated as we expect."""
         root = "/etc/ssl/certs"
         filenames = class_client.execute(["ls", "-1", root]).splitlines()
@@ -73,13 +79,13 @@ class TestCaCerts:
                 unlinked_files.append(filename)
 
         assert ["ca-certificates.crt"] == unlinked_files
-        assert "cloud-init-ca-certs.pem" == links["a535c1f3.0"]
+        assert "cloud-init-ca-cert-1.pem" == links["a535c1f3.0"]
         assert (
-            "/usr/share/ca-certificates/cloud-init-ca-certs.crt"
-            == links["cloud-init-ca-certs.pem"]
+            "/usr/local/share/ca-certificates/cloud-init-ca-cert-1.crt"
+            == links["cloud-init-ca-cert-1.pem"]
         )
 
-    def test_cert_installed(self, class_client):
+    def test_cert_installed(self, class_client: IntegrationInstance):
         """Test that our specified cert has been installed"""
         checksum = class_client.execute(
             "sha256sum /etc/ssl/certs/ca-certificates.crt"
@@ -88,3 +94,58 @@ class TestCaCerts:
             "78e875f18c73c1aab9167ae0bd323391e52222cc2dbcda42d129537219300062"
             in checksum
         )
+
+    def test_clean_log(self, class_client: IntegrationInstance):
+        """Verify no errors, no deprecations and correct inactive modules in
+        log.
+        """
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log, ignore_deprecations=False)
+
+        expected_inactive = {
+            "apt-pipelining",
+            "ansible",
+            "bootcmd",
+            "chef",
+            "disable-ec2-metadata",
+            "disk_setup",
+            "fan",
+            "keyboard",
+            "landscape",
+            "lxd",
+            "mcollective",
+            "ntp",
+            "package-update-upgrade-install",
+            "phone-home",
+            "power-state-change",
+            "puppet",
+            "rsyslog",
+            "runcmd",
+            "salt-minion",
+            "snap",
+            "timezone",
+            "ubuntu_autoinstall",
+            "ubuntu-advantage",
+            "ubuntu-drivers",
+            "update_etc_hosts",
+            "wireguard",
+            "write-files",
+            "write-files-deferred",
+        }
+
+        # Remove modules that run independent from user-data
+        if class_client.settings.PLATFORM == "azure":
+            expected_inactive.discard("disk_setup")
+        elif class_client.settings.PLATFORM == "gce":
+            expected_inactive.discard("ntp")
+        elif class_client.settings.PLATFORM == "lxd_vm":
+            if class_client.settings.OS_IMAGE == "bionic":
+                expected_inactive.discard("write-files")
+                expected_inactive.discard("write-files-deferred")
+
+        diff = expected_inactive.symmetric_difference(
+            get_inactive_modules(log)
+        )
+        assert (
+            not diff
+        ), f"Expected inactive modules do not match, diff: {diff}"

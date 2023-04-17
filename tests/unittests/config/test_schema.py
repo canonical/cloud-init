@@ -7,26 +7,31 @@ import itertools
 import json
 import logging
 import os
+import re
 import sys
-from copy import copy, deepcopy
+import unittest
+from collections import namedtuple
+from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
-from typing import List
+from typing import List, Optional, Sequence, Set
 
-import jsonschema
 import pytest
 
+from cloudinit import log, stages
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
+    SchemaProblem,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
     get_schema,
     get_schema_dir,
+    handle_schema_args,
     load_doc,
     main,
     validate_cloudconfig_file,
@@ -37,12 +42,21 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.util import load_file, write_file
+from tests.hypothesis import given
+from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
     cloud_init_project_dir,
+    does_not_raise,
     mock,
+    skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
 )
+from tests.unittests.util import FakeDataSource
+
+M_PATH = "cloudinit.config.schema."
+DEPRECATED_LOG_LEVEL = 35
 
 
 def get_schemas() -> dict:
@@ -96,16 +110,6 @@ def get_module_variable(var_name) -> dict:
 
 
 class TestVersionedSchemas:
-    def _relative_ref_to_local_file_path(self, source_schema):
-        """Replace known relative ref URLs with full file path."""
-        # jsonschema 2.6.0 doesn't support relative URLs in $refs (bionic)
-        full_path_schema = deepcopy(source_schema)
-        relative_ref = full_path_schema["oneOf"][0]["allOf"][1]["$ref"]
-        full_local_filepath = get_schema_dir() + relative_ref[1:]
-        file_ref = f"file://{full_local_filepath}"
-        full_path_schema["oneOf"][0]["allOf"][1]["$ref"] = file_ref
-        return full_path_schema
-
     @pytest.mark.parametrize(
         "schema,error_msg",
         (
@@ -119,39 +123,78 @@ class TestVersionedSchemas:
     def test_versioned_cloud_config_schema_is_valid_json(
         self, schema, error_msg
     ):
+        schema_dir = get_schema_dir()
         version_schemafile = os.path.join(
-            get_schema_dir(), VERSIONED_USERDATA_SCHEMA_FILE
+            schema_dir, VERSIONED_USERDATA_SCHEMA_FILE
         )
-        version_schema = json.loads(load_file(version_schemafile))
-        # To avoid JSON resolver trying to pull the reference from our
-        # upstream raw file in github.
-        version_schema["$id"] = f"file://{version_schemafile}"
+        # Point to local schema files avoid JSON resolver trying to pull the
+        # reference from our upstream raw file in github.
+        version_schema = json.loads(
+            re.sub(
+                r"https:\/\/raw.githubusercontent.com\/canonical\/"
+                r"cloud-init\/main\/cloudinit\/config\/schemas\/",
+                f"file://{schema_dir}/",
+                load_file(version_schemafile),
+            )
+        )
         if error_msg:
             with pytest.raises(SchemaValidationError) as context_mgr:
-                try:
-                    validate_cloudconfig_schema(
-                        schema, schema=version_schema, strict=True
-                    )
-                except jsonschema.exceptions.RefResolutionError:
-                    full_path_schema = self._relative_ref_to_local_file_path(
-                        version_schema
-                    )
-                    validate_cloudconfig_schema(
-                        schema, schema=full_path_schema, strict=True
-                    )
-            assert error_msg in str(context_mgr.value)
-        else:
-            try:
                 validate_cloudconfig_schema(
                     schema, schema=version_schema, strict=True
                 )
-            except jsonschema.exceptions.RefResolutionError:
-                full_path_schema = self._relative_ref_to_local_file_path(
-                    version_schema
-                )
-                validate_cloudconfig_schema(
-                    schema, schema=full_path_schema, strict=True
-                )
+            assert error_msg in str(context_mgr.value)
+        else:
+            validate_cloudconfig_schema(
+                schema, schema=version_schema, strict=True
+            )
+
+
+class TestCheckSchema(unittest.TestCase):
+    def test_schema_bools_have_dates(self):
+        """ensure that new/changed/deprecated keys have an associated
+        version key
+        """
+
+        def check_deprecation_keys(schema, search_key):
+            if search_key in schema:
+                assert f"{search_key}_version" in schema
+            for sub_item in schema.values():
+                if isinstance(sub_item, dict):
+                    check_deprecation_keys(sub_item, search_key)
+            return True
+
+        # ensure that check_deprecation_keys works as expected
+        assert check_deprecation_keys(
+            {"changed": True, "changed_version": "22.3"}, "changed"
+        )
+        assert check_deprecation_keys(
+            {"properties": {"deprecated": True, "deprecated_version": "22.3"}},
+            "deprecated",
+        )
+        assert check_deprecation_keys(
+            {
+                "properties": {
+                    "properties": {"new": True, "new_version": "22.3"}
+                }
+            },
+            "new",
+        )
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys({"changed": True}, "changed")
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys(
+                {"properties": {"deprecated": True}}, "deprecated"
+            )
+        with self.assertRaises(AssertionError):
+            check_deprecation_keys(
+                {"properties": {"properties": {"new": True}}}, "new"
+            )
+
+        # test the in-repo schema
+        schema = get_schema()
+        assert check_deprecation_keys(schema, "new")
+        assert check_deprecation_keys(schema, "changed")
+        assert check_deprecation_keys(schema, "deprecated")
 
 
 class TestGetSchema:
@@ -172,14 +215,16 @@ class TestGetSchema:
         assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
+            {"$ref": "#/$defs/base_config"},
+            {"$ref": "#/$defs/cc_ansible"},
             {"$ref": "#/$defs/cc_apk_configure"},
             {"$ref": "#/$defs/cc_apt_configure"},
             {"$ref": "#/$defs/cc_apt_pipelining"},
+            {"$ref": "#/$defs/cc_ubuntu_autoinstall"},
             {"$ref": "#/$defs/cc_bootcmd"},
             {"$ref": "#/$defs/cc_byobu"},
             {"$ref": "#/$defs/cc_ca_certs"},
             {"$ref": "#/$defs/cc_chef"},
-            {"$ref": "#/$defs/cc_debug"},
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_fan"},
@@ -221,9 +266,11 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_users_groups"},
+            {"$ref": "#/$defs/cc_wireguard"},
             {"$ref": "#/$defs/cc_write_files"},
             {"$ref": "#/$defs/cc_yum_add_repo"},
             {"$ref": "#/$defs/cc_zypper_add_repo"},
+            {"$ref": "#/$defs/reporting_config"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
@@ -258,10 +305,12 @@ class SchemaValidationErrorTest(CiTestCase):
 
     def test_schema_validation_error_expects_schema_errors(self):
         """SchemaValidationError is initialized from schema_errors."""
-        errors = (
-            ("key.path", 'unexpected key "junk"'),
-            ("key2.path", '"-123" is not a valid "hostname" format'),
-        )
+        errors = [
+            SchemaProblem("key.path", 'unexpected key "junk"'),
+            SchemaProblem(
+                "key2.path", '"-123" is not a valid "hostname" format'
+            ),
+        ]
         exception = SchemaValidationError(schema_errors=errors)
         self.assertIsInstance(exception, Exception)
         self.assertEqual(exception.schema_errors, errors)
@@ -283,7 +332,7 @@ class TestValidateCloudConfigSchema:
         ((None, 1), ({"properties": {"p1": {"type": "string"}}}, 0)),
     )
     @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.schema.get_schema")
+    @mock.patch(M_PATH + "get_schema")
     def test_validateconfig_schema_use_full_schema_when_no_schema_param(
         self, get_schema, schema, call_count
     ):
@@ -306,6 +355,27 @@ class TestValidateCloudConfigSchema:
         assert (
             "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
             == log_msg
+        )
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_sensitive(self, caplog):
+        """When log_details=False, ensure details are omitted"""
+        schema = {
+            "properties": {"hashed_password": {"type": "string"}},
+            "additionalProperties": False,
+        }
+        validate_cloudconfig_schema(
+            {"hashed-password": "secret"},
+            schema,
+            strict=False,
+            log_details=False,
+        )
+        [(module, log_level, log_msg)] = caplog.record_tuples
+        assert "cloudinit.config.schema" == module
+        assert logging.WARNING == log_level
+        assert (
+            "Invalid cloud-config provided: Please run 'sudo cloud-init "
+            "schema --system' to see the schema errors." == log_msg
         )
 
     @skipUnlessJsonSchema()
@@ -353,7 +423,7 @@ class TestValidateCloudConfigSchema:
             context_mgr.value
         )
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validateconfig_strict_metaschema_do_not_raise_exception(
         self, caplog
     ):
@@ -370,6 +440,227 @@ class TestValidateCloudConfigSchema:
             "Meta-schema validation failed, attempting to validate config"
             in caplog.text
         )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("log_deprecations", [True, False])
+    @pytest.mark.parametrize(
+        "schema,config,expected_msg",
+        [
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "a-b": {
+                            "type": "string",
+                            "deprecated": True,
+                            "deprecated_version": "22.1",
+                            "new": True,
+                            "new_version": "22.1",
+                            "description": "<desc>",
+                        },
+                        "a_b": {"type": "string", "description": "noop"},
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 22.1.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "oneOf": [
+                                {"type": "integer", "description": "noop"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "deprecated_version": "22.1",
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {"type": "string", "description": "noop"},
+                                {
+                                    "deprecated": True,
+                                    "deprecated_version": "22.1",
+                                    "deprecated_description": "<dep desc>",
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1. <dep desc>",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "anyOf": [
+                                {"type": "integer", "description": "noop"},
+                                {
+                                    "type": "string",
+                                    "deprecated": True,
+                                    "deprecated_version": "22.1",
+                                    "description": "<desc>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                {"x": "5"},
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "type": "string",
+                            "deprecated": True,
+                            "deprecated_version": "22.1",
+                            "description": "<desc>",
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 22.1.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "x": {
+                            "type": "string",
+                            "deprecated": False,
+                            "description": "<desc>",
+                        },
+                    },
+                },
+                {"x": "+5"},
+                None,
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                            "deprecated_version": "32.3",
+                            "description": "<desc>",
+                        }
+                    },
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {"type": "string", "description": "noop"},
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated in version 32.3.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                            "deprecated_version": "27.2",
+                        }
+                    },
+                    "properties": {
+                        "x": {
+                            "allOf": [
+                                {
+                                    "type": "string",
+                                    "description": "noop",
+                                },
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        },
+                    },
+                },
+                {"x": "+5"},
+                "Deprecated cloud-config provided:\nx:  Deprecated in "
+                "version 27.2.",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                            "deprecated_version": "27.2",
+                            "description": "<desc>",
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated in version 27.2.",
+            ),
+            pytest.param(
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "patternProperties": {
+                        "^.+$": {
+                            "minItems": 1,
+                            "deprecated": True,
+                            "deprecated_version": "27.2",
+                            "changed": True,
+                            "changed_version": "22.2",
+                            "changed_description": "Drop ballast.",
+                        }
+                    },
+                },
+                {"a-b": "asdf"},
+                "Deprecated cloud-config provided:\na-b:  Deprecated "
+                "in version 27.2.\na-b:  Changed in version 22.2. "
+                "Drop ballast.",
+                id="deprecated_pattern_property_without_description",
+            ),
+        ],
+    )
+    def test_validateconfig_logs_deprecations(
+        self, schema, config, expected_msg, log_deprecations, caplog
+    ):
+        log.setupLogging()
+        validate_cloudconfig_schema(
+            config,
+            schema,
+            strict_metaschema=True,
+            log_deprecations=log_deprecations,
+        )
+        if expected_msg is None:
+            return
+        log_record = (M_PATH[:-1], DEPRECATED_LOG_LEVEL, expected_msg)
+        if log_deprecations:
+            assert log_record == caplog.record_tuples[-1]
+        else:
+            assert log_record not in caplog.record_tuples
 
 
 class TestCloudConfigExamples:
@@ -418,16 +709,9 @@ class TestCloudConfigExamples:
         validate_cloudconfig_schema(config_load, schema, strict=True)
 
 
+@pytest.mark.usefixtures("fake_filesystem")
 class TestValidateCloudConfigFile:
     """Tests for validate_cloudconfig_file."""
-
-    @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_error_on_absent_file(self, annotate):
-        """On absent config_path, validate_cloudconfig_file errors."""
-        with pytest.raises(
-            RuntimeError, match="Configfile /not/here does not exist"
-        ):
-            validate_cloudconfig_file("/not/here", {}, annotate)
 
     @pytest.mark.parametrize("annotate", (True, False))
     def test_validateconfig_file_error_on_invalid_header(
@@ -478,7 +762,7 @@ class TestValidateCloudConfigFile:
 
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_sctrictly_validates_schema(
+    def test_validateconfig_file_strictly_validates_schema(
         self, annotate, tmpdir
     ):
         """validate_cloudconfig_file raises errors on invalid schema."""
@@ -490,6 +774,32 @@ class TestValidateCloudConfigFile:
         )
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_file(config_file.strpath, schema, annotate)
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("annotate", (True, False))
+    @mock.patch("cloudinit.url_helper.time.sleep")
+    def test_validateconfig_file_no_cloud_cfg(
+        self, m_sleep, annotate, capsys, mocker
+    ):
+        """validate_cloudconfig_file does noop with empty user-data."""
+        schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
+        blob = ""
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        mocker.patch(M_PATH + "Init", return_value=ci)
+        cloud_config_file = ci.paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"")
+
+        with pytest.raises(
+            SchemaValidationError,
+            match=re.escape(
+                "Cloud config schema errors: format-l1.c1:"
+                f" File {cloud_config_file} needs to begin with"
+                ' "#cloud-config"'
+            ),
+        ):
+            validate_cloudconfig_file(cloud_config_file, schema, annotate)
 
 
 class TestSchemaDocMarkdown:
@@ -511,14 +821,22 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
         "examples": [
-            'ex1:\n    [don\'t, expand, "this"]',
-            "ex2: true",
+            'prop1:\n    [don\'t, expand, "this"]',
+            "prop2: true",
         ],
     }
 
-    def test_get_meta_doc_returns_restructured_text(self):
+    @pytest.mark.parametrize(
+        "meta_update",
+        [
+            None,
+            {"activate_by_schema_keys": None},
+            {"activate_by_schema_keys": []},
+        ],
+    )
+    def test_get_meta_doc_returns_restructured_text(self, meta_update):
         """get_meta_doc returns restructured text for a cloudinit schema."""
-        full_schema = copy(self.required_schema)
+        full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
                 "properties": {
@@ -530,8 +848,11 @@ class TestSchemaDocMarkdown:
                 }
             }
         )
+        meta = deepcopy(self.meta)
+        if meta_update:
+            meta.update(meta_update)
 
-        doc = get_meta_doc(self.meta, full_schema)
+        doc = get_meta_doc(meta, full_schema)
         assert (
             dedent(
                 """
@@ -552,10 +873,65 @@ class TestSchemaDocMarkdown:
 
             **Examples**::
 
-                ex1:
+                prop1:
                     [don't, expand, "this"]
                 # --- Example2 ---
-                ex2: true
+                prop2: true
+        """
+            )
+            == doc
+        )
+
+    def test_get_meta_doc_full_with_activate_by_schema_keys(self):
+        full_schema = deepcopy(self.required_schema)
+        full_schema.update(
+            {
+                "properties": {
+                    "prop1": {
+                        "type": "array",
+                        "description": "prop-description.",
+                        "items": {"type": "string"},
+                    },
+                    "prop2": {
+                        "type": "boolean",
+                        "description": "prop2-description.",
+                    },
+                },
+            }
+        )
+
+        meta = deepcopy(self.meta)
+        meta["activate_by_schema_keys"] = ["prop1", "prop2"]
+
+        doc = get_meta_doc(meta, full_schema)
+        assert (
+            dedent(
+                """
+            name
+            ----
+            **Summary:** title
+
+            description
+
+            **Internal name:** ``id``
+
+            **Module frequency:** frequency
+
+            **Supported distros:** debian, rhel
+
+            **Activate only on keys:** ``prop1``, ``prop2``
+
+            **Config schema**:
+                **prop1:** (array of string) prop-description.
+
+                **prop2:** (boolean) prop2-description.
+
+            **Examples**::
+
+                prop1:
+                    [don't, expand, "this"]
+                # --- Example2 ---
+                prop2: true
         """
             )
             == doc
@@ -565,6 +941,23 @@ class TestSchemaDocMarkdown:
         """get_meta_doc delimits multiple property types with a '/'."""
         schema = {"properties": {"prop1": {"type": ["string", "integer"]}}}
         assert "**prop1:** (string/integer)" in get_meta_doc(self.meta, schema)
+
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_multiple_types_recursive(self, multi_key):
+        """get_meta_doc delimits multiple property types with a '/'."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    multi_key: [
+                        {"type": ["string", "null"]},
+                        {"type": "integer"},
+                    ]
+                }
+            }
+        }
+        assert "**prop1:** (string/null/integer)" in get_meta_doc(
+            self.meta, schema
+        )
 
     def test_references_are_flattened_in_schema_docs(self):
         """get_meta_doc flattens and renders full schema definitions."""
@@ -576,7 +969,7 @@ class TestSchemaDocMarkdown:
                     "patternProperties": {
                         "^.+$": {
                             "label": "<opaque_label>",
-                            "description": "List of cool strings",
+                            "description": "List of cool strings.",
                             "type": "array",
                             "items": {"type": "string"},
                             "minItems": 1,
@@ -591,7 +984,7 @@ class TestSchemaDocMarkdown:
                 """\
             **prop1:** (string/object) Objects support the following keys:
 
-                    **<opaque_label>:** (array of string) List of cool strings
+                    **<opaque_label>:** (array of string) List of cool strings.
             """
             )
             in get_meta_doc(self.meta, schema)
@@ -665,14 +1058,17 @@ class TestSchemaDocMarkdown:
         """
         assert expected in get_meta_doc(self.meta, schema)
 
-    def test_get_meta_doc_handles_nested_oneof_property_types(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_nested_multi_schema_property_types(
+        self, multi_key
+    ):
         """get_meta_doc describes array items oneOf declarations in type."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": "array",
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -681,14 +1077,15 @@ class TestSchemaDocMarkdown:
             self.meta, schema
         )
 
-    def test_get_meta_doc_handles_types_as_list(self):
+    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
+    def test_get_meta_doc_handles_types_as_list(self, multi_key):
         """get_meta_doc renders types which have a list value."""
         schema = {
             "properties": {
                 "prop1": {
                     "type": ["boolean", "array"],
                     "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                        multi_key: [{"type": "string"}, {"type": "integer"}]
                     },
                 }
             }
@@ -716,7 +1113,7 @@ class TestSchemaDocMarkdown:
 
     def test_get_meta_doc_handles_string_examples(self):
         """get_meta_doc properly indented examples as a list of strings."""
-        full_schema = copy(self.required_schema)
+        full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
                 "examples": [
@@ -726,7 +1123,7 @@ class TestSchemaDocMarkdown:
                 "properties": {
                     "prop1": {
                         "type": "array",
-                        "description": "prop-description",
+                        "description": "prop-description.",
                         "items": {"type": "integer"},
                     }
                 },
@@ -736,14 +1133,14 @@ class TestSchemaDocMarkdown:
             dedent(
                 """
             **Config schema**:
-                **prop1:** (array of integer) prop-description
+                **prop1:** (array of integer) prop-description.
 
             **Examples**::
 
-                ex1:
+                prop1:
                     [don't, expand, "this"]
                 # --- Example2 ---
-                ex2: true
+                prop2: true
             """
             )
             in get_meta_doc(self.meta, full_schema)
@@ -789,7 +1186,8 @@ class TestSchemaDocMarkdown:
             in get_meta_doc(self.meta, schema)
         )
 
-    def test_get_meta_doc_raises_key_errors(self):
+    @pytest.mark.parametrize("key", meta.keys())
+    def test_get_meta_doc_raises_key_errors(self, key):
         """get_meta_doc raises KeyErrors on missing keys."""
         schema = {
             "properties": {
@@ -801,18 +1199,51 @@ class TestSchemaDocMarkdown:
                 }
             }
         }
-        for key in self.meta:
-            invalid_meta = copy(self.meta)
-            invalid_meta.pop(key)
-            with pytest.raises(KeyError) as context_mgr:
-                get_meta_doc(invalid_meta, schema)
-            assert key in str(context_mgr.value)
+        invalid_meta = deepcopy(self.meta)
+        invalid_meta.pop(key)
+        with pytest.raises(
+            KeyError,
+            match=f"Missing required keys in module meta: {{'{key}'}}",
+        ):
+            get_meta_doc(invalid_meta, schema)
+
+    @pytest.mark.parametrize(
+        "key,expectation",
+        [
+            ("activate_by_schema_keys", does_not_raise()),
+            (
+                "additional_key",
+                pytest.raises(
+                    KeyError,
+                    match=(
+                        "Additional unexpected keys found in module meta:"
+                        " {'additional_key'}"
+                    ),
+                ),
+            ),
+        ],
+    )
+    def test_get_meta_doc_additional_keys(self, key, expectation):
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [{"type": "string"}, {"type": "integer"}]
+                    },
+                }
+            }
+        }
+        invalid_meta = deepcopy(self.meta)
+        invalid_meta[key] = []
+        with expectation:
+            get_meta_doc(invalid_meta, schema)
 
     def test_label_overrides_property_name(self):
         """get_meta_doc overrides property name with label."""
         schema = {
             "properties": {
-                "prop1": {
+                "old_prop1": {
                     "type": "string",
                     "label": "label1",
                 },
@@ -843,8 +1274,228 @@ class TestSchemaDocMarkdown:
         assert "**prop_no_label:** (string)" in meta_doc
         assert "Each object in **array_label** list" in meta_doc
 
-        assert "prop1" not in meta_doc
+        assert "old_prop1" not in meta_doc
         assert ".*" not in meta_doc
+
+    @pytest.mark.parametrize(
+        "schema,expected_doc",
+        [
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "deprecated": True,
+                            "description": "<description>",
+                        }
+                    }
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "description": "<description>",
+                            "deprecated": True,
+                            "deprecated_version": "2",
+                            "changed": True,
+                            "changed_version": "1",
+                            "new": True,
+                            "new_version": "1",
+                        },
+                    },
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2.*\n\n    *Changed in version"
+                " 1.*\n\n    *New in version 1.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "type": ["string", "integer"],
+                            "description": "<description>",
+                            "deprecated": True,
+                            "deprecated_version": "2",
+                            "deprecated_description": "dep",
+                            "changed": True,
+                            "changed_version": "1",
+                            "changed_description": "chg",
+                            "new": True,
+                            "new_version": "1",
+                            "new_description": "new",
+                        },
+                    },
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version 2. dep*\n\n    *Changed in "
+                "version 1. chg*\n\n    *New in version 1. new*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {"my_ref": {"deprecated": True}},
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description>",
+                                },
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        }
+                    },
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "$defs": {
+                        "my_ref": {
+                            "deprecated": True,
+                            "description": "<description>",
+                        }
+                    },
+                    "properties": {
+                        "prop1": {
+                            "allOf": [
+                                {"type": ["string", "integer"]},
+                                {"$ref": "#/$defs/my_ref"},
+                            ]
+                        }
+                    },
+                },
+                "**prop1:** (string/integer) <description>\n\n    "
+                "*Deprecated in version <missing deprecated_version "
+                "key, please file a bug report>.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "description": "<description>",
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>.",
+                                    "deprecated": True,
+                                },
+                            ],
+                        },
+                    },
+                },
+                "**prop1:** (UNDEFINED) <description>. "
+                "<deprecated_description>.\n\n    *Deprecated in "
+                "version <missing deprecated_version key, please "
+                "file a bug report>.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>.",
+                                    "deprecated": True,
+                                },
+                                {
+                                    "type": "number",
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (number) <deprecated_description>.\n\n"
+                "    *Deprecated in version <missing "
+                "deprecated_version key, please file a bug report>.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<deprecated_description>",
+                                    "deprecated": True,
+                                    "deprecated_version": "22.1",
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (``none``/``unchanged``/``os``) "
+                "<description>. <deprecated_description>\n\n    "
+                "*Deprecated in version 22.1.*",
+            ),
+            (
+                {
+                    "$schema": "http://json-schema.org/draft-04/schema#",
+                    "properties": {
+                        "prop1": {
+                            "anyOf": [
+                                {
+                                    "type": ["string", "integer"],
+                                    "description": "<description_1>",
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["none", "unchanged", "os"],
+                                    "description": "<description>_2",
+                                },
+                            ]
+                        },
+                    },
+                },
+                "**prop1:** (string/integer/``none``/"
+                "``unchanged``/``os``) <description_1>. "
+                "<description>_2\n",
+            ),
+            (
+                {
+                    "properties": {
+                        "prop1": {
+                            "description": "<desc_1>",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "anyOf": [
+                                    {
+                                        "properties": {
+                                            "sub_prop1": {"type": "string"},
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+                "**prop1:** (array of object) <desc_1>\n",
+            ),
+        ],
+    )
+    def test_get_meta_doc_render_deprecated_info(self, schema, expected_doc):
+        assert expected_doc in get_meta_doc(self.meta, schema)
 
 
 class TestAnnotatedCloudconfigFile:
@@ -853,7 +1504,10 @@ class TestAnnotatedCloudconfigFile:
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
         parse_cfg, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            parse_cfg, content, schema_errors=[], schemamarks=schemamarks
+            parse_cfg,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=[],
         )
 
     def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
@@ -875,8 +1529,8 @@ class TestAnnotatedCloudconfigFile:
         assert expected == annotated_cloudconfig_file(
             None,
             content,
-            schema_errors=[("", "None is not of type 'object'")],
             schemamarks={},
+            schema_errors=[SchemaProblem("", "None is not of type 'object'")],
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -905,12 +1559,15 @@ class TestAnnotatedCloudconfigFile:
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
-            ("ntp", "Some type error"),
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
+            SchemaProblem("ntp", "Some type error"),
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected == annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
@@ -935,11 +1592,14 @@ class TestAnnotatedCloudconfigFile:
         )
         parsed_config, schemamarks = load_with_marks(content[13:])
         schema_errors = [
-            ("ntp.pools.0", "-99 is not a string"),
-            ("ntp.pools.1", "75 is not a string"),
+            SchemaProblem("ntp.pools.0", "-99 is not a string"),
+            SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected in annotated_cloudconfig_file(
-            parsed_config, content, schema_errors, schemamarks=schemamarks
+            parsed_config,
+            content,
+            schemamarks=schemamarks,
+            schema_errors=schema_errors,
         )
 
 
@@ -987,7 +1647,7 @@ class TestMain:
                 main()
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
-        assert "Error:\nConfigfile NOT_A_FILE does not exist\n" == err
+        assert "Error: Config file NOT_A_FILE does not exist\n" == err
 
     def test_main_invalid_flag_combo(self, capsys):
         """Main exits non-zero when invalid flag combo used."""
@@ -1019,24 +1679,48 @@ class TestMain:
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: {0}\n".format(myyaml) == out
+        assert f"Valid cloud-config: {myyaml}\n" == out
 
-    @mock.patch("cloudinit.config.schema.read_cfg_paths")
-    @mock.patch("cloudinit.config.schema.os.getuid", return_value=0)
-    def test_main_validates_system_userdata(
-        self, m_getuid, m_read_cfg_paths, capsys, paths
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_main_validates_system_userdata_and_vendordata(
+        self, _getuid, capsys, mocker, paths
     ):
         """When --system is provided, main validates system userdata."""
-        m_read_cfg_paths.return_value = paths
-        ud_file = paths.get_ipath_cur("userdata_raw")
-        write_file(ud_file, b"#cloud-config\nntp:")
+        m_init = mocker.patch(M_PATH + "Init")
+        m_init.return_value.paths.get_ipath = paths.get_ipath_cur
+        cloud_config_file = paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"#cloud-config\nntp:")
+        vd_file = paths.get_ipath_cur("vendor_cloud_config")
+        write_file(vd_file, b"#cloud-config\nssh_import_id: [me]")
+        vd2_file = paths.get_ipath_cur("vendor2_cloud_config")
+        write_file(vd2_file, b"#cloud-config\nssh_pw_auth: true")
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
+            main()
         out, _err = capsys.readouterr()
-        assert "Valid cloud-config: system userdata\n" == out
 
-    @mock.patch("cloudinit.config.schema.os.getuid", return_value=1000)
+        expected = dedent(
+            """\
+        Found cloud-config data types: user-data, vendor-data, vendor2-data
+
+        1. user-data at {ud_file}:
+          Valid cloud-config: user-data
+
+        2. vendor-data at {vd_file}:
+          Valid cloud-config: vendor-data
+
+        3. vendor2-data at {vd2_file}:
+          Valid cloud-config: vendor2-data
+        """
+        )
+        assert (
+            expected.format(
+                ud_file=cloud_config_file, vd_file=vd_file, vd2_file=vd2_file
+            )
+            == out
+        )
+
+    @mock.patch(M_PATH + "os.getuid", return_value=1000)
     def test_main_system_userdata_requires_root(self, m_getuid, capsys, paths):
         """Non-root user can't use --system param"""
         myargs = ["mycmd", "--system"]
@@ -1046,8 +1730,8 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         expected = (
-            "Error:\nUnable to read system userdata as non-root user. "
-            "Try using sudo\n"
+            "Error:\nUnable to read system userdata or vendordata as non-root"
+            " user. Try using sudo.\n"
         )
         assert expected == err
 
@@ -1087,7 +1771,7 @@ class TestStrictMetaschema:
             else:
                 logging.warning("module %s has no schema definition", name)
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validate_bad_module(self):
         """Throw exception by default, don't throw if throw=False
 
@@ -1122,3 +1806,130 @@ class TestMeta:
             assert "distros" in module.meta
             assert {module.meta["frequency"]}.issubset(FREQUENCIES)
             assert set(module.meta["distros"]).issubset(all_distros)
+
+
+def remove_modules(schema, modules: Set[str]) -> dict:
+    indices_to_delete = set()
+    for module in set(modules):
+        for index, ref_dict in enumerate(schema["allOf"]):
+            if ref_dict["$ref"] == f"#/$defs/{module}":
+                indices_to_delete.add(index)
+                continue  # module found
+    for index in indices_to_delete:
+        schema["allOf"].pop(index)
+    return schema
+
+
+def remove_defs(schema, defs: Set[str]) -> dict:
+    defs_to_delete = set(schema["$defs"].keys()).intersection(set(defs))
+    for key in defs_to_delete:
+        del schema["$defs"][key]
+    return schema
+
+
+def clean_schema(
+    schema=None,
+    modules: Optional[Sequence[str]] = None,
+    defs: Optional[Sequence[str]] = None,
+):
+    schema = deepcopy(schema or get_schema())
+    if modules:
+        remove_modules(schema, set(modules))
+    if defs:
+        remove_defs(schema, set(defs))
+    return schema
+
+
+@pytest.mark.hypothesis_slow
+class TestSchemaFuzz:
+
+    # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
+    SCHEMA = clean_schema(
+        modules=["cc_users_groups"],
+        defs=["users_groups.groups_by_groupname", "users_groups.user"],
+    )
+
+    @skipUnlessHypothesisJsonSchema()
+    @given(from_schema(SCHEMA))
+    def test_validate_full_schema(self, config):
+        try:
+            validate_cloudconfig_schema(config, strict=True)
+        except SchemaValidationError as ex:
+            if ex.has_errors():
+                raise
+
+
+class TestHandleSchemaArgs:
+
+    Args = namedtuple("Args", "config_file docs system annotate")
+
+    @pytest.mark.parametrize(
+        "annotate, expected_output",
+        [
+            (
+                True,
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true                # D1
+                    apt_upgrade: true               # D2
+                    apt_reboot_if_required: true            # D3
+
+                    # Deprecations: -------------
+                    # D1: Default: ``false``. Deprecated in version 22.2. Use ``package_update`` instead.
+                    # D2: Default: ``false``. Deprecated in version 22.2. Use ``package_upgrade`` instead.
+                    # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+
+                    Valid cloud-config: {cfg_file}
+                    """  # noqa: E501
+                ),
+            ),
+            (
+                False,
+                dedent(
+                    """\
+                    Cloud config schema deprecations: \
+apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
+ Use ``package_reboot_if_required`` instead., apt_update: Default: \
+``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
+ apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
+``package_upgrade`` instead.\
+                    Valid cloud-config: {cfg_file}
+                    """  # noqa: E501
+                ),
+            ),
+        ],
+    )
+    def test_handle_schema_args_annotate_deprecated_config(
+        self, annotate, expected_output, caplog, capsys, tmpdir
+    ):
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true
+                    apt_upgrade: true
+                    apt_reboot_if_required: true
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=annotate,
+            docs=None,
+            system=None,
+        )
+        handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        assert (
+            expected_output.format(cfg_file=user_data_fn).split()
+            == out.split()
+        )
+        assert not err
+        assert "deprec" not in caplog.text

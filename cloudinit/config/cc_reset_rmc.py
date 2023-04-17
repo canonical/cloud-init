@@ -10,6 +10,8 @@ import os
 
 from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -43,6 +45,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [],
+    "activate_by_schema_keys": [],
 }
 
 # This module is undocumented in our schema docs
@@ -61,7 +64,7 @@ LOG = logging.getLogger(__name__)
 NODE_ID_FILE = "/etc/ct_node_id"
 
 
-def handle(name, _cfg, cloud, _log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Ensuring node id has to be generated only once during first boot
     if cloud.datasource.platform_type == "none":
         LOG.debug("Skipping creation of new ct_node_id node")
@@ -143,4 +146,4 @@ def reset_rmc():
     if node_id_after == node_id_before:
         msg = "New node ID did not get generated."
         LOG.error(msg)
-        raise Exception(msg)
+        raise RuntimeError(msg)

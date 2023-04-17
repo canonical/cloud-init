@@ -5,10 +5,14 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from functools import lru_cache
+from itertools import chain
 from pathlib import Path
+from typing import Set
 
 import pytest
 
+from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 
 log = logging.getLogger("integration_testing")
@@ -35,8 +39,22 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         index = matched.start()
 
 
-def verify_clean_log(log):
+def verify_clean_log(log: str, ignore_deprecations: bool = True):
     """Assert no unexpected tracebacks or warnings in logs"""
+    if ignore_deprecations:
+        is_deprecated = re.compile("deprecat", flags=re.IGNORECASE)
+        log_lines = log.split("\n")
+        log_lines = list(
+            filter(lambda line: not is_deprecated.search(line), log_lines)
+        )
+        log = "\n".join(log_lines)
+
+    error_logs = re.findall("CRITICAL.*", log) + re.findall("ERROR.*", log)
+    if error_logs:
+        raise AssertionError(
+            "Found unexpected errors: %s" % "\n".join(error_logs)
+        )
+
     warning_count = log.count("WARN")
     expected_warnings = 0
     traceback_count = log.count("Traceback")
@@ -45,7 +63,10 @@ def verify_clean_log(log):
     warning_texts = [
         # Consistently on all Azure launches:
         # azure.py[WARNING]: No lease found; using default endpoint
-        "No lease found; using default endpoint"
+        "No lease found; using default endpoint",
+        # Ubuntu lxd storage
+        "thinpool by default on Ubuntu due to LP #1982780",
+        "WARNING]: Could not match supplied host pattern, ignoring:",
     ]
     traceback_texts = []
     if "oracle" in log:
@@ -80,6 +101,19 @@ def verify_clean_log(log):
         f"{re.findall('WARNING.*', log)}"
     )
     assert traceback_count == expected_tracebacks
+
+
+def get_inactive_modules(log: str) -> Set[str]:
+    matches = re.findall(
+        r"Skipping modules '(.*)' because no applicable config is provided.",
+        log,
+    )
+    return set(
+        map(
+            lambda module: module.strip(),
+            chain(*map(lambda match: match.split(","), matches)),
+        )
+    )
 
 
 @contextmanager
@@ -129,3 +163,22 @@ def get_console_log(client: IntegrationInstance):
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
     return console_log
+
+
+@lru_cache()
+def lxd_has_nocloud(client: IntegrationInstance) -> bool:
+    # Bionic or Focal may be detected as NoCloud rather than LXD
+    lxd_image_metadata = subp(
+        ["lxc", "config", "metadata", "show", client.instance.name]
+    )
+    return "/var/lib/cloud/seed/nocloud" in lxd_image_metadata.stdout
+
+
+def get_feature_flag_value(client: IntegrationInstance, key):
+    value = client.execute(
+        'python3 -c "from cloudinit import features; '
+        f'print(features.{key})"'
+    ).strip()
+    if "NameError" in value:
+        raise NameError(f"name '{key}' is not defined")
+    return value

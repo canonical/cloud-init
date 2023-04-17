@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import json
 import os
 from collections import namedtuple
-from io import StringIO
 from textwrap import dedent
 from typing import Callable, Dict, Optional, Union
 from unittest import mock
@@ -18,7 +18,7 @@ M_NAME = "cloudinit.cmd.status"
 M_PATH = f"{M_NAME}."
 
 MyPaths = namedtuple("MyPaths", "run_dir")
-MyArgs = namedtuple("MyArgs", "long wait")
+MyArgs = namedtuple("MyArgs", "long wait format")
 Config = namedtuple(
     "Config", "new_root, status_file, disable_file, result_file, paths"
 )
@@ -36,13 +36,49 @@ def config(tmpdir):
 
 
 class TestStatus:
+    maxDiff = None
+
+    @mock.patch(
+        M_PATH + "load_file",
+        return_value=(
+            '{"v1": {"datasource": null, "init": {"errors": [], "finished": '
+            'null, "start": null}, "init-local": {"errors": [], "finished": '
+            'null, "start": 1669231096.9621563}, "modules-config": '
+            '{"errors": [], "finished": null, "start": null},'
+            '"modules-final": {"errors": [], "finished": null, '
+            '"start": null}, "modules-init": {"errors": [], "finished": '
+            'null, "start": null}, "stage": "init-local"} }'
+        ),
+    )
+    @mock.patch(M_PATH + "os.path.exists", return_value=True)
+    @mock.patch(
+        M_PATH + "get_bootstatus",
+        return_value=(
+            status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
+            "Cloud-init enabled by systemd cloud-init-generator",
+        ),
+    )
+    def test_get_status_details_ds_none(
+        self, m_get_boot_status, m_p_exists, m_load_json, tmpdir
+    ):
+        paths = mock.Mock()
+        paths.run_dir = str(tmpdir)
+        assert status.StatusDetails(
+            status.UXAppStatus.RUNNING,
+            status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
+            "Running in stage: init-local",
+            [],
+            "Wed, 23 Nov 2022 19:18:16 +0000",
+            None,  # datasource
+        ) == status.get_status_details(paths)
+
     @pytest.mark.parametrize(
         [
             "ensured_file",
             "uses_systemd",
             "get_cmdline",
-            "expected_is_disabled",
-            "is_disabled_msg",
+            "expected_bootstatus",
+            "failure_msg",
             "expected_reason",
         ],
         [
@@ -51,7 +87,7 @@ class TestStatus:
                 lambda config: config.disable_file,
                 False,
                 "root=/dev/my-root not-important",
-                False,
+                status.UXAppBootStatusCode.ENABLED_BY_SYSVINIT,
                 "expected enabled cloud-init on sysvinit",
                 "Cloud-init enabled on sysvinit",
                 id="false_on_sysvinit",
@@ -61,7 +97,7 @@ class TestStatus:
                 lambda config: config.disable_file,
                 True,
                 "root=/dev/my-root not-important",
-                True,
+                status.UXAppBootStatusCode.DISABLED_BY_MARKER_FILE,
                 "expected disabled cloud-init",
                 lambda config: f"Cloud-init disabled by {config.disable_file}",
                 id="true_on_disable_file",
@@ -71,7 +107,7 @@ class TestStatus:
                 lambda config: config.disable_file,
                 True,
                 "something cloud-init=enabled else",
-                False,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
                 "expected enabled cloud-init",
                 "Cloud-init enabled by kernel command line cloud-init=enabled",
                 id="false_on_kernel_cmdline_enable",
@@ -81,7 +117,7 @@ class TestStatus:
                 None,
                 True,
                 "something cloud-init=disabled else",
-                True,
+                status.UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE,
                 "expected disabled cloud-init",
                 "Cloud-init disabled by kernel parameter cloud-init=disabled",
                 id="true_on_kernel_cmdline",
@@ -91,7 +127,7 @@ class TestStatus:
                 lambda config: os.path.join(config.paths.run_dir, "disabled"),
                 True,
                 "something",
-                True,
+                status.UXAppBootStatusCode.DISABLED_BY_GENERATOR,
                 "expected disabled cloud-init",
                 "Cloud-init disabled by cloud-init-generator",
                 id="true_when_generator_disables",
@@ -101,63 +137,65 @@ class TestStatus:
                 lambda config: os.path.join(config.paths.run_dir, "enabled"),
                 True,
                 "something ignored",
-                False,
+                status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
                 "expected enabled cloud-init",
                 "Cloud-init enabled by systemd cloud-init-generator",
                 id="false_when_enabled_in_systemd",
             ),
         ],
     )
-    def test__is_cloudinit_disabled(
+    def test_get_bootstatus(
         self,
         ensured_file: Optional[Callable],
         uses_systemd: bool,
         get_cmdline: str,
-        expected_is_disabled: bool,
-        is_disabled_msg: str,
+        expected_bootstatus: bool,
+        failure_msg: str,
         expected_reason: Union[str, Callable],
         config: Config,
     ):
         if ensured_file is not None:
             ensure_file(ensured_file(config))
-        (is_disabled, reason) = wrap_and_call(
+        (code, reason) = wrap_and_call(
             M_NAME,
             {
                 "uses_systemd": uses_systemd,
                 "get_cmdline": get_cmdline,
             },
-            status._is_cloudinit_disabled,
+            status.get_bootstatus,
             config.disable_file,
             config.paths,
         )
-        assert is_disabled == expected_is_disabled, is_disabled_msg
+        assert code == expected_bootstatus, failure_msg
         if isinstance(expected_reason, str):
             assert reason == expected_reason
         else:
             assert reason == expected_reason(config)
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    def test_status_returns_not_run(self, m_read_cfg_paths, config: Config):
+    def test_status_returns_not_run(
+        self, m_read_cfg_paths, config: Config, capsys
+    ):
         """When status.json does not exist yet, return 'not run'."""
         m_read_cfg_paths.return_value = config.paths
         assert not os.path.exists(
             config.status_file
         ), "Unexpected status.json found"
-        cmdargs = MyArgs(long=False, wait=False)
-        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            retcode = wrap_and_call(
-                M_NAME,
-                {"_is_cloudinit_disabled": (False, "")},
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
+        cmdargs = MyArgs(long=False, wait=False, format="tabular")
+        retcode = wrap_and_call(
+            M_NAME,
+            {"get_bootstatus": (status.UXAppBootStatusCode.UNKNOWN, "")},
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
         assert retcode == 0
-        assert m_stdout.getvalue() == "status: not run\n"
+        out, _err = capsys.readouterr()
+        assert out == "status: not run\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
     def test_status_returns_disabled_long_on_presence_of_disable_file(
-        self, m_read_cfg_paths, config: Config
+        self, m_read_cfg_paths, config: Config, capsys
     ):
         """When cloudinit is disabled, return disabled reason."""
         m_read_cfg_paths.return_value = config.paths
@@ -168,21 +206,20 @@ class TestStatus:
             status_file = os.path.join(config.paths.run_dir, "status.json")
             return bool(not filepath == status_file)
 
-        cmdargs = MyArgs(long=True, wait=False)
-        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            retcode = wrap_and_call(
-                M_NAME,
-                {
-                    "os.path.exists": {"side_effect": fakeexists},
-                    "_is_cloudinit_disabled": (
-                        True,
-                        "disabled for some reason",
-                    ),
-                },
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
+        cmdargs = MyArgs(long=True, wait=False, format="tabular")
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "os.path.exists": {"side_effect": fakeexists},
+                "get_bootstatus": (
+                    status.UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE,
+                    "disabled for some reason",
+                ),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
         assert retcode == 0
         assert checked_files == [
             os.path.join(config.paths.run_dir, "status.json")
@@ -190,15 +227,18 @@ class TestStatus:
         expected = dedent(
             """\
             status: disabled
+            boot_status_code: disabled-by-kernel-cmdline
             detail:
             disabled for some reason
         """
         )
-        assert m_stdout.getvalue() == expected
+        out, _err = capsys.readouterr()
+        assert out == expected
 
     @pytest.mark.parametrize(
         [
             "ensured_file",
+            "bootstatus",
             "status_content",
             "assert_file",
             "cmdargs",
@@ -209,9 +249,10 @@ class TestStatus:
             # Report running when status.json exists but result.json does not.
             pytest.param(
                 None,
+                status.UXAppBootStatusCode.UNKNOWN,
                 {},
                 lambda config: config.result_file,
-                MyArgs(long=False, wait=False),
+                MyArgs(long=False, wait=False, format="tabular"),
                 0,
                 "status: running\n",
                 id="running_on_no_results_json",
@@ -219,9 +260,10 @@ class TestStatus:
             # Report running when status exists with an unfinished stage.
             pytest.param(
                 lambda config: config.result_file,
+                status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
                 {"v1": {"init": {"start": 1, "finished": None}}},
                 None,
-                MyArgs(long=False, wait=False),
+                MyArgs(long=False, wait=False, format="tabular"),
                 0,
                 "status: running\n",
                 id="running",
@@ -229,6 +271,7 @@ class TestStatus:
             # Report done results.json exists no stages are unfinished.
             pytest.param(
                 lambda config: config.result_file,
+                status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
                 {
                     "v1": {
                         "stage": None,  # No current stage running
@@ -247,7 +290,7 @@ class TestStatus:
                     }
                 },
                 None,
-                MyArgs(long=False, wait=False),
+                MyArgs(long=False, wait=False, format="tabular"),
                 0,
                 "status: done\n",
                 id="done",
@@ -255,6 +298,7 @@ class TestStatus:
             # Long format of done status includes datasource info.
             pytest.param(
                 lambda config: config.result_file,
+                status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
                 {
                     "v1": {
                         "stage": None,
@@ -268,12 +312,13 @@ class TestStatus:
                     }
                 },
                 None,
-                MyArgs(long=True, wait=False),
+                MyArgs(long=True, wait=False, format="tabular"),
                 0,
                 dedent(
                     """\
                     status: done
-                    time: Thu, 01 Jan 1970 00:02:05 +0000
+                    boot_status_code: enabled-by-generator
+                    last_update: Thu, 01 Jan 1970 00:02:05 +0000
                     detail:
                     DataSourceNoCloud [seed=/var/.../seed/nocloud-net]\
 [dsmode=net]
@@ -284,6 +329,7 @@ class TestStatus:
             # Reports error when any stage has errors.
             pytest.param(
                 None,
+                status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
                 {
                     "v1": {
                         "stage": None,
@@ -297,7 +343,7 @@ class TestStatus:
                     }
                 },
                 None,
-                MyArgs(long=False, wait=False),
+                MyArgs(long=False, wait=False, format="tabular"),
                 1,
                 "status: error\n",
                 id="on_errors",
@@ -305,6 +351,7 @@ class TestStatus:
             # Long format of error status includes all error messages.
             pytest.param(
                 None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
                 {
                     "v1": {
                         "stage": None,
@@ -326,12 +373,13 @@ class TestStatus:
                     }
                 },
                 None,
-                MyArgs(long=True, wait=False),
+                MyArgs(long=True, wait=False, format="tabular"),
                 1,
                 dedent(
                     """\
                     status: error
-                    time: Thu, 01 Jan 1970 00:02:05 +0000
+                    boot_status_code: enabled-by-kernel-cmdline
+                    last_update: Thu, 01 Jan 1970 00:02:05 +0000
                     detail:
                     error1
                     error2
@@ -343,6 +391,7 @@ class TestStatus:
             # Long format reports the stage in which we are running.
             pytest.param(
                 None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
                 {
                     "v1": {
                         "stage": "init",
@@ -351,17 +400,89 @@ class TestStatus:
                     }
                 },
                 None,
-                MyArgs(long=True, wait=False),
+                MyArgs(long=True, wait=False, format="tabular"),
                 0,
                 dedent(
                     """\
                     status: running
-                    time: Thu, 01 Jan 1970 00:02:04 +0000
+                    boot_status_code: enabled-by-kernel-cmdline
+                    last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     detail:
                     Running in stage: init
                     """
                 ),
                 id="running_long_format",
+            ),
+            pytest.param(
+                None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": "init",
+                        "init": {"start": 124.456, "finished": None},
+                        "init-local": {"start": 123.45, "finished": 123.46},
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="yaml"),
+                0,
+                dedent(
+                    """\
+                   ---
+                   _schema_version: '1'
+                   boot_status_code: enabled-by-kernel-cmdline
+                   datasource: ''
+                   detail: 'Running in stage: init'
+                   errors: []
+                   last_update: Thu, 01 Jan 1970 00:02:04 +0000
+                   schemas:
+                       '1':
+                           boot_status_code: enabled-by-kernel-cmdline
+                           datasource: ''
+                           detail: 'Running in stage: init'
+                           errors: []
+                           last_update: Thu, 01 Jan 1970 00:02:04 +0000
+                           status: running
+                   status: running
+                   ...
+
+                   """
+                ),
+                id="running_yaml_format",
+            ),
+            pytest.param(
+                None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": "init",
+                        "init": {"start": 124.456, "finished": None},
+                        "init-local": {"start": 123.45, "finished": 123.46},
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="json"),
+                0,
+                {
+                    "_schema_version": "1",
+                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "datasource": "",
+                    "detail": "Running in stage: init",
+                    "errors": [],
+                    "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
+                    "schemas": {
+                        "1": {
+                            "boot_status_code": "enabled-by-kernel-cmdline",
+                            "datasource": "",
+                            "detail": "Running in stage: init",
+                            "errors": [],
+                            "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
+                            "status": "running",
+                        }
+                    },
+                    "status": "running",
+                },
+                id="running_json_format",
             ),
         ],
     )
@@ -370,12 +491,14 @@ class TestStatus:
         self,
         m_read_cfg_paths,
         ensured_file: Optional[Callable],
+        bootstatus: status.UXAppBootStatusCode,
         status_content: Dict,
         assert_file,
         cmdargs: MyArgs,
         expected_retcode: int,
         expected_status: str,
         config: Config,
+        capsys,
     ):
         m_read_cfg_paths.return_value = config.paths
         if ensured_file:
@@ -388,20 +511,23 @@ class TestStatus:
             assert not os.path.exists(
                 config.result_file
             ), f"Unexpected {config.result_file} found"
-        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            retcode = wrap_and_call(
-                M_NAME,
-                {"_is_cloudinit_disabled": (False, "")},
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
+        retcode = wrap_and_call(
+            M_NAME,
+            {"get_bootstatus": (bootstatus, "")},
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
         assert retcode == expected_retcode
-        assert m_stdout.getvalue() == expected_status
+        out, _err = capsys.readouterr()
+        if isinstance(expected_status, dict):
+            assert json.loads(out) == expected_status
+        else:
+            assert out == expected_status
 
     @mock.patch(M_PATH + "read_cfg_paths")
     def test_status_wait_blocks_until_done(
-        self, m_read_cfg_paths, config: Config
+        self, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until done state."""
         m_read_cfg_paths.return_value = config.paths
@@ -433,25 +559,25 @@ class TestStatus:
                 result_file = config.result_file
                 ensure_file(result_file)
 
-        cmdargs = MyArgs(long=False, wait=True)
-        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            retcode = wrap_and_call(
-                M_NAME,
-                {
-                    "sleep": {"side_effect": fake_sleep},
-                    "_is_cloudinit_disabled": (False, ""),
-                },
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
+        cmdargs = MyArgs(long=False, wait=True, format="tabular")
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "sleep": {"side_effect": fake_sleep},
+                "get_bootstatus": (status.UXAppBootStatusCode.UNKNOWN, ""),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
         assert retcode == 0
         assert sleep_calls == 4
-        assert m_stdout.getvalue() == "....\nstatus: done\n"
+        out, _err = capsys.readouterr()
+        assert out == "....\nstatus: done\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
     def test_status_wait_blocks_until_error(
-        self, m_read_cfg_paths, config: Config
+        self, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until error state."""
         m_read_cfg_paths.return_value = config.paths
@@ -485,24 +611,24 @@ class TestStatus:
             elif sleep_calls == 3:
                 write_json(config.status_file, error_json)
 
-        cmdargs = MyArgs(long=False, wait=True)
-        with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            retcode = wrap_and_call(
-                M_NAME,
-                {
-                    "sleep": {"side_effect": fake_sleep},
-                    "_is_cloudinit_disabled": (False, ""),
-                },
-                status.handle_status_args,
-                "ignored",
-                cmdargs,
-            )
+        cmdargs = MyArgs(long=False, wait=True, format="tabular")
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "sleep": {"side_effect": fake_sleep},
+                "get_bootstatus": (status.UXAppBootStatusCode.UNKNOWN, ""),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
         assert retcode == 1
         assert sleep_calls == 4
-        assert m_stdout.getvalue() == "....\nstatus: error\n"
+        out, _err = capsys.readouterr()
+        assert out == "....\nstatus: error\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    def test_status_main(self, m_read_cfg_paths, config: Config):
+    def test_status_main(self, m_read_cfg_paths, config: Config, capsys):
         """status.main can be run as a standalone script."""
         m_read_cfg_paths.return_value = config.paths
         write_json(
@@ -510,17 +636,17 @@ class TestStatus:
             {"v1": {"init": {"start": 1, "finished": None}}},
         )
         with pytest.raises(SystemExit) as e:
-            with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-                wrap_and_call(
-                    M_NAME,
-                    {
-                        "sys.argv": {"new": ["status"]},
-                        "_is_cloudinit_disabled": (False, ""),
-                    },
-                    status.main,
-                )
+            wrap_and_call(
+                M_NAME,
+                {
+                    "sys.argv": {"new": ["status"]},
+                    "get_bootstatus": (status.UXAppBootStatusCode.UNKNOWN, ""),
+                },
+                status.main,
+            )
         assert e.value.code == 0
-        assert m_stdout.getvalue() == "status: running\n"
+        out, _err = capsys.readouterr()
+        assert out == "status: running\n"
 
 
 # vi: ts=4 expandtab syntax=python

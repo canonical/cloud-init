@@ -11,6 +11,9 @@ name="cloudinitlocal"
 start_cmd="start_cloud_init_local"
 start_cloud_init_local()
 {
+    test -e /etc/cloud/cloud-init.disabled \
+      && warn "cloud-init disabled by cloud-init.disabled file" \
+      && exit 0
     /usr/pkg/bin/cloud-init init -l
 }
 

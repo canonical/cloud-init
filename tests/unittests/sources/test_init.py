@@ -10,13 +10,12 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
     EXPERIMENTAL_TEXT,
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
     METADATA_UNKNOWN,
     REDACT_SENSITIVE_VALUE,
     UNSET,
     DataSource,
     canonical_cloud_id,
+    pkl_load,
     redact_sensitive_keys,
 )
 from cloudinit.user_data import UserDataProcessor
@@ -272,9 +271,11 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             "test-subclass-hostname", datasource.metadata["local-hostname"]
         )
-        self.assertEqual("test-subclass-hostname", datasource.get_hostname())
+        self.assertEqual(
+            "test-subclass-hostname", datasource.get_hostname().hostname
+        )
         datasource.metadata["local-hostname"] = "hostname.my.domain.com"
-        self.assertEqual("hostname", datasource.get_hostname())
+        self.assertEqual("hostname", datasource.get_hostname().hostname)
 
     def test_get_hostname_with_fqdn_returns_local_hostname_with_domain(self):
         """Datasource.get_hostname with fqdn set gets qualified hostname."""
@@ -285,7 +286,8 @@ class TestDataSource(CiTestCase):
         self.assertTrue(datasource.get_data())
         datasource.metadata["local-hostname"] = "hostname.my.domain.com"
         self.assertEqual(
-            "hostname.my.domain.com", datasource.get_hostname(fqdn=True)
+            "hostname.my.domain.com",
+            datasource.get_hostname(fqdn=True).hostname,
         )
 
     def test_get_hostname_without_metadata_uses_system_hostname(self):
@@ -300,10 +302,12 @@ class TestDataSource(CiTestCase):
             with mock.patch(mock_fqdn) as m_fqdn:
                 m_gethost.return_value = "systemhostname.domain.com"
                 m_fqdn.return_value = None  # No maching fqdn in /etc/hosts
-                self.assertEqual("systemhostname", datasource.get_hostname())
+                self.assertEqual(
+                    "systemhostname", datasource.get_hostname().hostname
+                )
                 self.assertEqual(
                     "systemhostname.domain.com",
-                    datasource.get_hostname(fqdn=True),
+                    datasource.get_hostname(fqdn=True).hostname,
                 )
 
     def test_get_hostname_without_metadata_returns_none(self):
@@ -316,9 +320,13 @@ class TestDataSource(CiTestCase):
         mock_fqdn = "cloudinit.sources.util.get_fqdn_from_hosts"
         with mock.patch("cloudinit.sources.util.get_hostname") as m_gethost:
             with mock.patch(mock_fqdn) as m_fqdn:
-                self.assertIsNone(datasource.get_hostname(metadata_only=True))
                 self.assertIsNone(
-                    datasource.get_hostname(fqdn=True, metadata_only=True)
+                    datasource.get_hostname(metadata_only=True).hostname
+                )
+                self.assertIsNone(
+                    datasource.get_hostname(
+                        fqdn=True, metadata_only=True
+                    ).hostname
                 )
         self.assertEqual([], m_gethost.call_args_list)
         self.assertEqual([], m_fqdn.call_args_list)
@@ -335,25 +343,28 @@ class TestDataSource(CiTestCase):
             with mock.patch(mock_fqdn) as m_fqdn:
                 m_gethost.return_value = "systemhostname.domain.com"
                 m_fqdn.return_value = "fqdnhostname.domain.com"
-                self.assertEqual("fqdnhostname", datasource.get_hostname())
+                self.assertEqual(
+                    "fqdnhostname", datasource.get_hostname().hostname
+                )
                 self.assertEqual(
                     "fqdnhostname.domain.com",
-                    datasource.get_hostname(fqdn=True),
+                    datasource.get_hostname(fqdn=True).hostname,
                 )
 
     def test_get_data_does_not_write_instance_data_on_failure(self):
         """get_data does not write INSTANCE_JSON_FILE on get_data False."""
         tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            paths,
             get_data_retval=False,
         )
         self.assertFalse(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         self.assertFalse(
-            os.path.exists(json_file), "Found unexpected file %s" % json_file
+            os.path.exists(json_file), f"Found unexpected file {json_file}"
         )
 
     def test_get_data_writes_json_instance_data_on_success(self):
@@ -383,7 +394,7 @@ class TestDataSource(CiTestCase):
                 return_value="canonical_cloud_id",
             ):
                 datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
         content = util.load_file(json_file)
         expected = {
             "base64_encoded_keys": [],
@@ -473,7 +484,7 @@ class TestDataSource(CiTestCase):
         }
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
             datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
         redacted = util.load_json(util.load_file(json_file))
         expected = {
             "base64_encoded_keys": [],
@@ -572,7 +583,9 @@ class TestDataSource(CiTestCase):
                 return_value="canonical-cloud-id",
             ):
                 datasource.get_data()
-        sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
+        sensitive_json_file = Paths({"run_dir": tmp}).get_runpath(
+            "instance_data_sensitive"
+        )
         content = util.load_file(sensitive_json_file)
         expected = {
             "base64_encoded_keys": [],
@@ -637,14 +650,15 @@ class TestDataSource(CiTestCase):
     def test_get_data_handles_redacted_unserializable_content(self):
         """get_data warns unserializable content in INSTANCE_JSON_FILE."""
         tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            paths,
             custom_metadata={"key1": "val1", "key2": {"key2.1": self.paths}},
         )
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         content = util.load_file(json_file)
         expected_metadata = {
             "key1": "val1",
@@ -661,12 +675,17 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_ec2_metadata_when_set(self):
         """When ec2_metadata class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
+        paths = Paths({"run_dir": tmp, "cloud_dir": cloud_dir})
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            paths,
         )
         datasource.ec2_metadata = UNSET
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         instance_data = util.load_json(util.load_file(json_file))
         self.assertNotIn("ec2_metadata", instance_data["ds"])
         datasource.ec2_metadata = {"ec2stuff": "is good"}
@@ -679,8 +698,12 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_canonical_cloud_id_and_symlink(self):
         """canonical-cloud-id class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
         )
         cloud_id_link = os.path.join(tmp, "cloud-id")
         cloud_id_file = os.path.join(tmp, "cloud-id-my-cloud")
@@ -693,9 +716,13 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
         ):
             datasource.get_data()
-        self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
-        # A symlink with the generic /run/cloud-init/cloud-id link is present
-        self.assertTrue(util.is_link(cloud_id_link))
+            self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
+            # A symlink with the generic /run/cloud-init/cloud-id
+            # link is present
+            self.assertTrue(util.is_link(cloud_id_link))
+            datasource.persist_instance_data()
+            # cloud-id<cloud-type> not deleted: no cloud-id change
+            self.assertTrue(os.path.exists(cloud_id_file))
         # When cloud-id changes, symlink and content change
         with mock.patch(
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud2"
@@ -711,11 +738,16 @@ class TestDataSource(CiTestCase):
     def test_persist_instance_data_writes_network_json_when_set(self):
         """When network_data.json class attribute is set, persist to json."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
+        paths = Paths({"run_dir": tmp, "cloud_dir": cloud_dir})
         datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({"run_dir": tmp})
+            self.sys_cfg,
+            self.distro,
+            paths,
         )
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         instance_data = util.load_json(util.load_file(json_file))
         self.assertNotIn("network_json", instance_data["ds"])
         datasource.network_json = {"network_json": "is good"}
@@ -725,17 +757,46 @@ class TestDataSource(CiTestCase):
             {"network_json": "is good"}, instance_data["ds"]["network_json"]
         )
 
-    def test_get_data_base64encodes_unserializable_bytes(self):
-        """On py3, get_data base64encodes any unserializable content."""
+    def test_persist_instance_serializes_datasource_pickle(self):
+        """obj.pkl is written when instance link present and write_cache."""
         tmp = self.tmp_dir()
+        cloud_dir = os.path.join(tmp, "cloud")
+        util.ensure_dir(cloud_dir)
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg,
             self.distro,
-            Paths({"run_dir": tmp}),
+            Paths({"run_dir": tmp, "cloud_dir": cloud_dir}),
+        )
+        pkl_cache_file = os.path.join(cloud_dir, "instance/obj.pkl")
+        self.assertFalse(os.path.exists(pkl_cache_file))
+        datasource.network_json = {"network_json": "is good"}
+        # No /var/lib/cloud/instance symlink
+        datasource.persist_instance_data(write_cache=True)
+        self.assertFalse(os.path.exists(pkl_cache_file))
+
+        # Symlink /var/lib/cloud/instance but write_cache=False
+        util.sym_link(cloud_dir, os.path.join(cloud_dir, "instance"))
+        datasource.persist_instance_data(write_cache=False)
+        self.assertFalse(os.path.exists(pkl_cache_file))
+
+        # Symlink /var/lib/cloud/instance and write_cache=True
+        datasource.persist_instance_data(write_cache=True)
+        self.assertTrue(os.path.exists(pkl_cache_file))
+        ds = pkl_load(pkl_cache_file)
+        self.assertEqual(datasource.network_json, ds.network_json)
+
+    def test_get_data_base64encodes_unserializable_bytes(self):
+        """On py3, get_data base64encodes any unserializable content."""
+        tmp = self.tmp_dir()
+        paths = Paths({"run_dir": tmp})
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg,
+            self.distro,
+            paths,
             custom_metadata={"key1": "val1", "key2": {"key2.1": b"\x123"}},
         )
         self.assertTrue(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        json_file = paths.get_runpath("instance_data")
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
         self.assertCountEqual(
@@ -750,7 +811,9 @@ class TestDataSource(CiTestCase):
         """Validate get_hostname signature on all subclasses of DataSource."""
         base_args = inspect.getfullargspec(DataSource.get_hostname)
         # Import all DataSource subclasses so we can inspect them.
-        modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
+        modules = util.get_modules_from_dir(
+            os.path.dirname(os.path.dirname(__file__))
+        )
         for _loc, name in modules.items():
             mod_locs, _ = importer.find_module(name, ["cloudinit.sources"], [])
             if mod_locs:
@@ -831,15 +894,14 @@ class TestDataSource(CiTestCase):
             self.datasource.default_update_events,
         )
 
-        def fake_get_data():
-            raise Exception("get_data should not be called")
-
+        fake_get_data = mock.Mock()
         self.datasource.get_data = fake_get_data
         self.assertFalse(
             self.datasource.update_metadata_if_supported(
                 source_event_types=[EventType.BOOT]
             )
         )
+        self.assertEqual([], fake_get_data.call_args_list)
 
     @mock.patch.dict(
         DataSource.supported_update_events,

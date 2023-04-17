@@ -14,6 +14,8 @@ import tempfile
 from unittest import TestCase, mock
 from unittest.mock import call
 
+import pytest
+
 from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
 from tests.unittests import helpers as t_help
@@ -43,20 +45,6 @@ MOCK_LSB_RELEASE_DATA = {
     "release": "18.04",
     "codename": "bionic",
 }
-
-
-class FakeDatasource:
-    """Fake Datasource helper object"""
-
-    def __init__(self):
-        self.region = "region"
-
-
-class FakeCloud:
-    """Fake Cloud helper object"""
-
-    def __init__(self):
-        self.datasource = FakeDatasource()
 
 
 class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
@@ -690,7 +678,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         fromfn = "%s/%s_%s" % (pre, archive, post)
         tofn = "%s/test.ubuntu.com_%s" % (pre, post)
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, FakeCloud(), arch)
+        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, get_cloud(), arch)
 
         self.assertEqual(
             mirrors["MIRROR"], "http://test.ubuntu.com/%s/" % component
@@ -785,7 +773,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         }
 
         mirrors = cc_apt_configure.find_apt_mirror_info(
-            cfg, FakeCloud(), "amd64"
+            cfg, get_cloud(), "amd64"
         )
 
         self.assertEqual(mirrors["MIRROR"], pmir)
@@ -821,7 +809,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             ],
         }
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, FakeCloud(), arch)
+        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, get_cloud(), arch)
 
         self.assertEqual(mirrors["PRIMARY"], pmir)
         self.assertEqual(mirrors["MIRROR"], pmir)
@@ -843,7 +831,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         }
 
         mirrors = cc_apt_configure.find_apt_mirror_info(
-            cfg, FakeCloud(), "amd64"
+            cfg, get_cloud(), "amd64"
         )
 
         self.assertEqual(mirrors["MIRROR"], pmir)
@@ -911,7 +899,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             side_effect=[pmir, smir],
         ) as mocksearch:
             mirrors = cc_apt_configure.find_apt_mirror_info(
-                cfg, FakeCloud(), "amd64"
+                cfg, get_cloud(), "amd64"
             )
 
         calls = [call(["pfailme", pmir]), call(["sfailme", smir])]
@@ -961,7 +949,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             cc_apt_configure.util, "search_for_mirror"
         ) as mockse:
             mirrors = cc_apt_configure.find_apt_mirror_info(
-                cfg, FakeCloud(), arch
+                cfg, get_cloud(), arch
             )
         mockse.assert_not_called()
 
@@ -969,16 +957,17 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(mirrors["PRIMARY"], pmir)
         self.assertEqual(mirrors["SECURITY"], smir)
 
+    @pytest.mark.allow_dns_lookup
     def test_apt_v3_url_resolvable(self):
         """test_apt_v3_url_resolvable - Test resolving urls"""
 
         with mock.patch.object(util, "is_resolvable") as mockresolve:
             util.is_resolvable_url("http://1.2.3.4/ubuntu")
-        mockresolve.assert_called_with("1.2.3.4")
+        mockresolve.assert_called_with("http://1.2.3.4/ubuntu")
 
         with mock.patch.object(util, "is_resolvable") as mockresolve:
             util.is_resolvable_url("http://us.archive.ubuntu.com/ubuntu")
-        mockresolve.assert_called_with("us.archive.ubuntu.com")
+        mockresolve.assert_called_with("http://us.archive.ubuntu.com/ubuntu")
 
         # former tests can leave this set (or not if the test is ran directly)
         # do a hard reset to ensure a stable result
@@ -995,7 +984,6 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         )
         mocksock.assert_any_call("example.invalid.", None, 0, 0, 1, 2)
         mocksock.assert_any_call("us.archive.ubuntu.com", None)
-        mocksock.assert_any_call("1.2.3.4", None)
 
         self.assertTrue(ret)
         self.assertTrue(ret2)

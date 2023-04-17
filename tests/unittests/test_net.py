@@ -8,11 +8,12 @@ import json
 import os
 import re
 import textwrap
+from typing import Optional
 
 import pytest
 from yaml.serializer import Serializer
 
-from cloudinit import distros, net
+from cloudinit import distros, log, net
 from cloudinit import safeyaml as yaml
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
@@ -33,6 +34,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     dir2dict,
+    does_not_raise,
     mock,
     populate_dir,
 )
@@ -379,7 +381,6 @@ network:
         bondM:
             addresses:
             - 10.101.10.47/23
-            gateway4: 10.101.11.254
             interfaces:
             - eno1
             - eno3
@@ -401,6 +402,9 @@ network:
                 mode: 802.3ad
                 transmit-hash-policy: layer3+4
                 up-delay: 0
+            routes:
+            -   to: default
+                via: 10.101.11.254
     vlans:
         bond0.3502:
             addresses:
@@ -443,7 +447,7 @@ network:
             macaddress: 68:05:ca:64:d3:6c
             mtu: 9000
             parameters:
-                gratuitious-arp: 1
+                gratuitous-arp: 1
         bond1:
             interfaces:
             - ens4
@@ -1248,9 +1252,8 @@ NETWORK_CONFIGS = {
                 may-fail=false
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1278,6 +1281,7 @@ NETWORK_CONFIGS = {
             DHCP=no
             [Address]
             Address=192.168.14.2/24
+            [Address]
             Address=2001:1::1/64
         """
         ).rstrip(" "),
@@ -1383,7 +1387,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/64
 
                 """
@@ -1416,9 +1419,8 @@ NETWORK_CONFIGS = {
                 [ethernet]
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 [ipv4]
                 method=auto
@@ -1517,9 +1519,8 @@ NETWORK_CONFIGS = {
                 [ethernet]
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1750,7 +1751,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -1862,7 +1862,6 @@ NETWORK_CONFIGS = {
                 [ipv6]
                 method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -2252,7 +2251,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         addresses:
                         - 192.168.0.2/24
                         - 192.168.2.10/24
-                        gateway4: 192.168.0.1
                         id: 101
                         link: eth0
                         macaddress: aa:bb:cc:dd:ee:11
@@ -2265,6 +2263,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                             - barley.maas
                             - sacchromyces.maas
                             - brettanomyces.maas
+                        routes:
+                        -   to: default
+                            via: 192.168.0.1
         """
         ).rstrip(" "),
         "expected_sysconfig_opensuse": {
@@ -2683,7 +2684,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/64
                 route1=::/0,2001:4800:78ff:1b::1
 
@@ -2736,9 +2736,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 xmit_hash_policy=layer3+4
 
                 [ipv6]
-                method=dhcp
+                method=auto
                 may-fail=false
-                addr-gen-mode=stable-privacy
 
                 """
             ),
@@ -2978,7 +2977,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      - 192.168.0.2/24
                      - 192.168.1.2/24
                      - 2001:1::1/92
-                     gateway4: 192.168.0.1
                      interfaces:
                      - bond0s0
                      - bond0s1
@@ -2987,7 +2985,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      parameters:
                          down-delay: 10
                          fail-over-mac-policy: active
-                         gratuitious-arp: 5
+                         gratuitous-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
                          primary: bond0s0
@@ -2995,6 +2993,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          transmit-hash-policy: layer3+4
                          up-delay: 20
                      routes:
+                     -   to: default
+                         via: 192.168.0.1
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
                      -   to: 2001:67c::/32
@@ -3095,7 +3095,7 @@ iface bond0 inet6 static
                 parameters:
                     down-delay: 10
                     fail-over-mac-policy: active
-                    gratuitious-arp: 5
+                    gratuitous-arp: 5
                     mii-monitor-interval: 100
                     mode: active-backup
                     primary: bond0s0
@@ -3128,7 +3128,7 @@ iface bond0 inet6 static
                      parameters:
                          down-delay: 10
                          fail-over-mac-policy: active
-                         gratuitious-arp: 5
+                         gratuitous-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
                          primary: bond0s0
@@ -3342,7 +3342,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::1/92
                 route1=2001:67c::/32,2001:67c:1562::1
                 route2=3001:67c::/32,3001:67c:15::1
@@ -3463,7 +3462,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::bbbb/96
                 route1=::/0,2001:1::1
 
@@ -3641,7 +3639,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::100/96
 
                 """
@@ -3666,7 +3663,6 @@ iface bond0 inet6 static
                 [ipv6]
                 method=manual
                 may-fail=false
-                addr-gen-mode=stable-privacy
                 address1=2001:1::101/96
 
                 """
@@ -5230,10 +5226,11 @@ USERCTL=no
                 # Created by cloud-init on instance boot automatically, do not edit.
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
-                ::0/64 via 2a00:1730:fff9:100::1  dev eth0
+                ::0/0 via 2a00:1730:fff9:100::1  dev eth0
                 """  # noqa: E501
             ),
         }
+        log.setupLogging()
 
         found = self._render_and_read(network_config=v2_data)
         self._compare_files_to_expected(expected, found)
@@ -6004,26 +6001,368 @@ iface eth0 inet dhcp
             )
 
 
-class TestNetplanNetRendering(CiTestCase):
+class TestNetplanNetRendering:
+    @pytest.mark.parametrize(
+        "network_cfg,expected",
+        [
+            pytest.param(
+                None,
+                """
+                network:
+                  ethernets:
+                    eth1000:
+                      dhcp4: true
+                      match:
+                        macaddress: 07-1c-c6-75-a4-be
+                      set-name: eth1000
+                  version: 2
+                """,
+                id="default_generation",
+            ),
+            # Asserts a netconf v1 with a physical device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      set-name: interface0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                """,
+                id="physical_gateway46",
+            ),
+            # Asserts a netconf v1 with a bond device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: bond
+                    name: bond0
+                    bond_interfaces:
+                    - eth0
+                    - eth1
+                    params: {}
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  bonds:
+                    bond0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      interfaces:
+                      - eth0
+                      - eth1
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                    eth0: {}
+                    eth1: {}
+                """,
+                id="bond_gateway46",
+            ),
+            # Asserts a netconf v1 with a bridge device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: bridge
+                    name: bridge0
+                    bridge_interfaces:
+                    - eth0
+                    params: {}
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  bridges:
+                    bridge0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      interfaces:
+                      - eth0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                """,
+                id="bridge_gateway46",
+            ),
+            # Asserts a netconf v1 with a vlan device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: vlan
+                    name: vlan0
+                    vlan_link: eth0
+                    vlan_id: 101
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  vlans:
+                    vlan0:
+                      addresses:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                      id: 101
+                      link: eth0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                        - to: default
+                          via: 11.0.0.1
+                """,
+                id="vlan_gateway46",
+            ),
+            # Asserts a netconf v1 with a nameserver device and two gateways
+            # does not produce deprecated keys, `gateway{46}`, in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                  - type: nameserver
+                    address:
+                      - 192.168.23.14/27
+                      - 11.0.0.11/24
+                    search:
+                    - exemplary
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/27
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 11.0.0.11/24
+                        gateway: 11.0.0.1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/27
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      nameservers:
+                        addresses:
+                        - 192.168.23.14/27
+                        - 11.0.0.11/24
+                        search:
+                        - exemplary
+                      set-name: interface0
+                      routes:
+                        - to: default
+                          via: 192.168.23.1
+                """,
+                id="nameserver_gateway4",
+            ),
+            # Asserts a netconf v1 with two subnets with two gateways does
+            # not clash
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.23.1
+                      - type: static
+                        address: 10.184.225.122
+                        routes:
+                          - network: 10.176.0.0
+                            gateway: 10.184.225.121
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      - 10.184.225.122/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.23.1
+                      -   to: 10.176.0.0/24
+                          via: 10.184.225.121
+                      set-name: interface0
+                """,
+                id="two_subnets_old_new_gateway46",
+            ),
+            # Asserts a netconf v1 with one subnet with two gateways does
+            # not clash
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.23.1
+                        routes:
+                          - network: 192.167.225.122
+                            gateway: 192.168.23.1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.23.1
+                      -   to: 192.167.225.122/24
+                          via: 192.168.23.1
+                      set-name: interface0
+                """,
+                id="one_subnet_old_new_gateway46",
+            ),
+            # Assert gateways outside of the subnet's network are added with
+            # the on-link flag
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: interface0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.23.14/24
+                        gateway: 192.168.255.1
+                      - type: static
+                        address: 2001:cafe::/64
+                        gateway: 2001:ffff::1
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    interface0:
+                      addresses:
+                      - 192.168.23.14/24
+                      - 2001:cafe::/64
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                      -   to: default
+                          via: 192.168.255.1
+                          on-link: true
+                      -   to: default
+                          via: 2001:ffff::1
+                          on-link: true
+                      set-name: interface0
+                """,
+                id="onlink_gateways",
+            ),
+        ],
+    )
+    @mock.patch(
+        "cloudinit.net.netplan.Renderer.features",
+        new_callable=mock.PropertyMock(return_value=[]),
+    )
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.netplan._clean_default")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
-    def test_default_generation(
+    def test_render(
         self,
         mock_get_devicelist,
         mock_read_sys_net,
         mock_sys_dev_path,
         mock_clean_default,
         m_get_cmdline,
+        m_renderer_features,
+        network_cfg: Optional[str],
+        expected: str,
+        tmpdir,
     ):
-        tmp_dir = self.tmp_dir()
+        tmp_dir = str(tmpdir)
         _setup_test(
             tmp_dir, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
         )
 
-        network_cfg = net.generate_fallback_config()
+        if network_cfg is None:
+            network_cfg = net.generate_fallback_config()
+        else:
+            network_cfg = yaml.load(network_cfg)
+        assert isinstance(network_cfg, dict)
+
         ns = network_state.parse_net_config_data(
             network_cfg, skip_broken=False
         )
@@ -6037,25 +6376,13 @@ class TestNetplanNetRendering(CiTestCase):
         )
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(
-            os.path.exists(os.path.join(render_dir, render_target))
-        )
+        assert os.path.exists(os.path.join(render_dir, render_target))
         with open(os.path.join(render_dir, render_target)) as fh:
             contents = fh.read()
             print(contents)
 
-        expected = """
-network:
-    ethernets:
-        eth1000:
-            dhcp4: true
-            match:
-                macaddress: 07-1c-c6-75-a4-be
-            set-name: eth1000
-    version: 2
-"""
-        self.assertEqual(expected.lstrip(), contents.lstrip())
-        self.assertEqual(1, mock_clean_default.call_count)
+        assert yaml.load(expected) == yaml.load(contents)
+        assert 1, mock_clean_default.call_count
 
 
 class TestNetplanCleanDefault(CiTestCase):
@@ -6782,7 +7109,7 @@ class TestNetplanRoundTrip(CiTestCase):
         entry = {
             "yaml": NETPLAN_BOND_GRAT_ARP,
             "expected_netplan": NETPLAN_BOND_GRAT_ARP.replace(
-                "gratuitous", "gratuitious"
+                "gratuitious", "gratuitous"
             ),
         }
         network_config = yaml.load(entry["yaml"]).get("network")
@@ -7683,6 +8010,7 @@ class TestInterfaceHasOwnMac(CiTestCase):
     mock.Mock(return_value=False),
 )
 class TestGetInterfacesByMac(CiTestCase):
+    with_logs = True
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -7694,6 +8022,10 @@ class TestGetInterfacesByMac(CiTestCase):
             "bridge1",
             "bond1.101",
             "lo",
+            "netvsc0-vf",
+            "netvsc0",
+            "netvsc1",
+            "netvsc1-vf",
         ],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
@@ -7704,13 +8036,26 @@ class TestGetInterfacesByMac(CiTestCase):
             "bridge1-nic": "aa:aa:aa:aa:aa:03",
             "lo": "00:00:00:00:00:00",
             "greptap0": "00:00:00:00:00:00",
+            "netvsc0-vf": "aa:aa:aa:aa:aa:04",
+            "netvsc0": "aa:aa:aa:aa:aa:04",
+            "netvsc1-vf": "aa:aa:aa:aa:aa:05",
+            "netvsc1": "aa:aa:aa:aa:aa:05",
             "tun0": None,
+        },
+        "drivers": {
+            "netvsc0": "hv_netvsc",
+            "netvsc0-vf": "foo",
+            "netvsc1": "hv_netvsc",
+            "netvsc1-vf": "bar",
         },
     }
     data: dict = {}
 
     def _se_get_devicelist(self):
         return list(self.data["devices"])
+
+    def _se_device_driver(self, name):
+        return self.data["drivers"].get(name, None)
 
     def _se_get_interface_mac(self, name):
         return self.data["macs"][name]
@@ -7733,6 +8078,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["devices"] = set(list(self.data["macs"].keys()))
         mocks = (
             "get_devicelist",
+            "device_driver",
             "get_interface_mac",
             "is_bridge",
             "interface_has_own_mac",
@@ -7750,6 +8096,11 @@ class TestGetInterfacesByMac(CiTestCase):
     def test_raise_exception_on_duplicate_macs(self):
         self._mock_setup()
         self.data["macs"]["bridge1-nic"] = self.data["macs"]["enp0s1"]
+        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+
+    def test_raise_exception_on_duplicate_netvsc_macs(self):
+        self._mock_setup()
+        self.data["macs"]["netvsc0"] = self.data["macs"]["netvsc1"]
         self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
 
     def test_excludes_any_without_mac_address(self):
@@ -7770,6 +8121,8 @@ class TestGetInterfacesByMac(CiTestCase):
                 "aa:aa:aa:aa:aa:02": "enp0s2",
                 "aa:aa:aa:aa:aa:03": "bridge1-nic",
                 "00:00:00:00:00:00": "lo",
+                "aa:aa:aa:aa:aa:04": "netvsc0",
+                "aa:aa:aa:aa:aa:05": "netvsc1",
             },
             ret,
         )
@@ -7869,6 +8222,40 @@ class TestGetInterfacesByMac(CiTestCase):
             ib_addr: "ib0",
         }
         self.assertEqual(expected, result)
+
+
+@pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
+@mock.patch("cloudinit.net.get_sys_class_path")
+@mock.patch("cloudinit.util.system_info", return_value={"variant": "ubuntu"})
+class TestDuplicateMac:
+    def test_duplicate_ignored_macs(
+        self, _get_system_info, get_sys_class_path, driver, tmpdir, caplog
+    ):
+        # Create sysfs representation of network devices and drivers in tmpdir
+        sys_net_path = tmpdir.join("class/net")
+        get_sys_class_path.return_value = sys_net_path.strpath + "/"
+        net_data = {
+            "swp0/address": "9a:57:7d:78:47:c0",
+            "swp0/addr_assign_type": "0",
+            "swp0/device/dev_id": "something",
+            "swp1/address": "9a:57:7d:78:47:c0",
+            "swp1/addr_assign_type": "0",
+            "swp1/device/dev_id": "something else",
+        }
+        populate_dir(sys_net_path.strpath, net_data)
+        # Symlink for device driver
+        driver_path = tmpdir.join(f"module/{driver}")
+        driver_path.ensure_dir()
+        sys_net_path.join("swp0/device/driver").mksymlinkto(driver_path)
+        sys_net_path.join("swp1/device/driver").mksymlinkto(driver_path)
+
+        with does_not_raise():
+            net.get_interfaces_by_mac()
+        pattern = (
+            "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
+            f"driver '{driver}'."
+        )
+        assert re.search(pattern, caplog.text)
 
 
 class TestInterfacesSorting(CiTestCase):

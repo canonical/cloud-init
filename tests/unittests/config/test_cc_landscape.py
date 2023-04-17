@@ -42,7 +42,7 @@ class TestLandscape(FilesystemMockingTestCase):
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
         cfg = {"landscape": {}}
-        cc_landscape.handle("notimportant", cfg, mycloud, LOG, None)
+        cc_landscape.handle("notimportant", cfg, mycloud, None)
         self.assertFalse(mycloud.distro.install_packages.called)
 
     def test_handler_error_on_invalid_landscape_type(self):
@@ -50,7 +50,7 @@ class TestLandscape(FilesystemMockingTestCase):
         mycloud = get_cloud("ubuntu")
         cfg = {"landscape": "wrongtype"}
         with self.assertRaises(RuntimeError) as context_manager:
-            cc_landscape.handle("notimportant", cfg, mycloud, LOG, None)
+            cc_landscape.handle("notimportant", cfg, mycloud, None)
         self.assertIn(
             "'landscape' key existed in config, but not a dict",
             str(context_manager.exception),
@@ -68,7 +68,6 @@ class TestLandscape(FilesystemMockingTestCase):
             "notimportant",
             cfg,
             mycloud,
-            LOG,
             None,
         )
         self.assertEqual(
@@ -99,7 +98,6 @@ class TestLandscape(FilesystemMockingTestCase):
             "notimportant",
             cfg,
             mycloud,
-            LOG,
             None,
         )
         self.assertEqual(
@@ -136,7 +134,6 @@ class TestLandscape(FilesystemMockingTestCase):
             "notimportant",
             cfg,
             mycloud,
-            LOG,
             None,
         )
         self.assertEqual(expected, dict(ConfigObj(self.conf)))
@@ -167,7 +164,6 @@ class TestLandscape(FilesystemMockingTestCase):
             "notimportant",
             cfg,
             mycloud,
-            LOG,
             None,
         )
         self.assertEqual(expected, dict(ConfigObj(self.conf)))
@@ -186,6 +182,15 @@ class TestLandscapeSchema:
             # tags are comma-delimited
             ({"landscape": {"client": {"tags": "1,2,3"}}}, None),
             ({"landscape": {"client": {"tags": "1"}}}, None),
+            (
+                {
+                    "landscape": {
+                        "client": {},
+                        "random-config-value": {"tags": "1"},
+                    }
+                },
+                "Additional properties are not allowed",
+            ),
             # Require client key
             ({"landscape": {}}, "'client' is a required property"),
             # tags are not whitespace-delimited

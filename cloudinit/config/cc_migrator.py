@@ -6,10 +6,13 @@
 
 """Migrator: Migrate old versions of cloud-init data to new"""
 
+import logging
 import os
 import shutil
 
 from cloudinit import helpers, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_ALWAYS
 
@@ -32,9 +35,11 @@ meta: MetaSchema = {
     "distros": distros,
     "examples": ["# Do not migrate cloud-init semaphores\nmigrate: false\n"],
     "frequency": frequency,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _migrate_canon_sems(cloud):
@@ -55,7 +60,7 @@ def _migrate_canon_sems(cloud):
     return am_adjusted
 
 
-def _migrate_legacy_sems(cloud, log):
+def _migrate_legacy_sems(cloud):
     legacy_adjust = {
         "apt-update-upgrade": [
             "apt-configure",
@@ -78,23 +83,23 @@ def _migrate_legacy_sems(cloud, log):
                 util.del_file(os.path.join(sem_path, p))
                 (_name, freq) = os.path.splitext(p)
                 for m in migrate_to:
-                    log.debug(
+                    LOG.debug(
                         "Migrating %s => %s with the same frequency", p, m
                     )
                     with sem_helper.lock(m, freq):
                         pass
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     do_migrate = util.get_cfg_option_str(cfg, "migrate", True)
     if not util.translate_bool(do_migrate):
-        log.debug("Skipping module named %s, migration disabled", name)
+        LOG.debug("Skipping module named %s, migration disabled", name)
         return
     sems_moved = _migrate_canon_sems(cloud)
-    log.debug(
+    LOG.debug(
         "Migrated %s semaphore files to there canonicalized names", sems_moved
     )
-    _migrate_legacy_sems(cloud, log)
+    _migrate_legacy_sems(cloud)
 
 
 # vi: ts=4 expandtab

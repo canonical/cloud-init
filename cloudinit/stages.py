@@ -6,7 +6,6 @@
 
 import copy
 import os
-import pickle
 import sys
 from collections import namedtuple
 from typing import Dict, Iterable, List, Optional, Set
@@ -44,7 +43,7 @@ def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: EventScope = None,
+    scope: Optional[EventScope] = None,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -95,7 +94,7 @@ def update_event_enabled(
     return False
 
 
-class Init(object):
+class Init:
     def __init__(self, ds_deps: Optional[List[str]] = None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
@@ -235,11 +234,14 @@ class Init(object):
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
+        instance_data_file = no_cfg_paths.get_runpath(
+            "instance_data_sensitive"
+        )
         merger = helpers.ConfigMerger(
             paths=no_cfg_paths,
             datasource=self.datasource,
             additional_fns=extra_fns,
-            base_cfg=fetch_base_config(),
+            base_cfg=fetch_base_config(instance_data_file=instance_data_file),
         )
         return merger.cfg
 
@@ -247,7 +249,7 @@ class Init(object):
         # We try to restore from a current link and static path
         # by using the instance link, if purge_cache was called
         # the file wont exist.
-        return _pkl_load(self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
         if self.datasource is None:
@@ -260,7 +262,9 @@ class Init(object):
                 omode="w",
                 content="",
             )
-        return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_store(
+            self.datasource, self.paths.get_ipath_cur("obj_pkl")
+        )
 
     def _get_datasources(self):
         # Any config provided???
@@ -505,7 +509,7 @@ class Init(object):
             self._get_ipath(datasource), str(processed_data), 0o600
         )
 
-    def _default_handlers(self, opts=None):
+    def _default_handlers(self, opts=None) -> List[handlers.Handler]:
         if opts is None:
             opts = {}
 
@@ -525,15 +529,11 @@ class Init(object):
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             BootHookPartHandler(**opts),
+            JinjaTemplatePartHandler(
+                **opts, sub_handlers=[cloudconfig_handler, shellscript_handler]
+            ),
         ]
-        opts.update(
-            {"sub_handlers": [cloudconfig_handler, shellscript_handler]}
-        )
-        def_handlers.append(JinjaTemplatePartHandler(**opts))
         return def_handlers
-
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
 
     def _default_vendordata_handlers(self):
         return self._default_handlers(
@@ -576,7 +576,7 @@ class Init(object):
             # Attempts to register any handler modules under the given path.
             if not path or not os.path.isdir(path):
                 return
-            potential_handlers = util.find_modules(path)
+            potential_handlers = util.get_modules_from_dir(path)
             for (fname, mod_name) in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
@@ -755,10 +755,11 @@ class Init(object):
             return
 
         if isinstance(enabled, str):
-            LOG.debug(
-                "Use of string '%s' for 'vendor_data:enabled' field "
-                "is deprecated. Use boolean value instead",
-                enabled,
+            util.deprecate(
+                deprecated=f"Use of string '{enabled}' for "
+                "'vendor_data:enabled' field",
+                deprecated_version="23.1",
+                extra_message="Use boolean value instead.",
             )
 
         LOG.debug(
@@ -798,11 +799,10 @@ class Init(object):
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
-    def _remove_top_level_network_key(self, cfg):
-        """If network-config contains top level 'network' key, then remove it.
-
-        Some providers of network configuration skip the top-level network
-        key, so ensure both methods works.
+    def _get_network_key_contents(self, cfg) -> dict:
+        """
+        Network configuration can be passed as a dict under a "network" key, or
+        optionally at the top level. In both cases, return the config.
         """
         if cfg and "network" in cfg:
             return cfg["network"]
@@ -845,14 +845,14 @@ class Init(object):
                     cfg_source,
                 )
                 continue
-            ncfg = self._remove_top_level_network_key(
-                available_cfgs[cfg_source]
-            )
+            ncfg = self._get_network_key_contents(available_cfgs[cfg_source])
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)
             if ncfg:
                 return (ncfg, cfg_source)
+        if not self.cfg.get("network", True):
+            LOG.warning("Empty network config found")
         return (
             self.distro.generate_fallback_config(),
             NetworkConfigSource.FALLBACK,
@@ -957,13 +957,15 @@ def read_runtime_config():
     return util.read_conf(RUN_CLOUD_CONFIG)
 
 
-def fetch_base_config():
+def fetch_base_config(*, instance_data_file=None) -> dict:
     return util.mergemanydict(
         [
             # builtin config, hardcoded in settings.py.
             util.get_builtin_cfg(),
             # Anything in your conf.d or 'default' cloud.cfg location.
-            util.read_conf_with_confd(CLOUD_CONFIG),
+            util.read_conf_with_confd(
+                CLOUD_CONFIG, instance_data_file=instance_data_file
+            ),
             # runtime config. I.e., /run/cloud-init/cloud.cfg
             read_runtime_config(),
             # Kernel/cmdline parameters override system config
@@ -971,40 +973,3 @@ def fetch_base_config():
         ],
         reverse=True,
     )
-
-
-def _pkl_store(obj, fname):
-    try:
-        pk_contents = pickle.dumps(obj)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource %s", obj)
-        return False
-    try:
-        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource to %s", fname)
-        return False
-    return True
-
-
-def _pkl_load(fname):
-    pickle_contents = None
-    try:
-        pickle_contents = util.load_file(fname, decode=False)
-    except Exception as e:
-        if os.path.isfile(fname):
-            LOG.warning("failed loading pickle in %s: %s", fname, e)
-
-    # This is allowed so just return nothing successfully loaded...
-    if not pickle_contents:
-        return None
-    try:
-        return pickle.loads(pickle_contents)
-    except sources.DatasourceUnpickleUserDataError:
-        return None
-    except Exception:
-        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
-        return None
-
-
-# vi: ts=4 expandtab

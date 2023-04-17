@@ -9,11 +9,13 @@
 from textwrap import dedent
 
 from cloudinit import log as logging
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.cloud import Cloud
 
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
 # is a list of distros that are supported, not a sub-module
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
@@ -141,11 +143,12 @@ meta: MetaSchema = {
         ssh_import_id: [chad.smith]
         user:
           name: mynewdefault
-          sudo: false
+          sudo: null
         """
         ),
     ],
     "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
@@ -157,7 +160,7 @@ NO_HOME = ("no_create_home", "system")
 NEED_HOME = ("ssh_authorized_keys", "ssh_import_id", "ssh_redirect_user")
 
 
-def handle(name, cfg, cloud, _log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []

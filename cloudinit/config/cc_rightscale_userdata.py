@@ -6,11 +6,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 from urllib.parse import parse_qs
 
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
@@ -44,9 +47,11 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [],
+    "activate_by_schema_keys": [],
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 #
 # The purpose of this script is to allow cloud-init to consume
@@ -66,17 +71,17 @@ __doc__ = get_meta_doc(meta)
 #
 
 
-def handle(name, _cfg, cloud, log, _args):
-    try:
-        ud = cloud.get_userdata_raw()
-    except Exception:
-        log.debug("Failed to get raw userdata in module %s", name)
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    get_userdata_raw = getattr(cloud, "get_userdata_raw", None)
+    if not get_userdata_raw or not callable(get_userdata_raw):
+        LOG.debug("Failed to get raw userdata in module %s", name)
         return
 
+    ud = get_userdata_raw()
     try:
         mdict = parse_qs(ud)
         if not mdict or MY_HOOKNAME not in mdict:
-            log.debug(
+            LOG.debug(
                 "Skipping module %s, did not find %s in parsed raw userdata",
                 name,
                 MY_HOOKNAME,
@@ -84,7 +89,7 @@ def handle(name, _cfg, cloud, log, _args):
             return
     except Exception:
         util.logexc(
-            log, "Failed to parse query string %s into a dictionary", ud
+            LOG, "Failed to parse query string %s into a dictionary", ud
         )
         raise
 
@@ -107,18 +112,18 @@ def handle(name, _cfg, cloud, log, _args):
         except Exception as e:
             captured_excps.append(e)
             util.logexc(
-                log, "%s failed to read %s and write %s", MY_NAME, url, fname
+                LOG, "%s failed to read %s and write %s", MY_NAME, url, fname
             )
 
     if wrote_fns:
-        log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
+        LOG.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
 
     if len(wrote_fns) != len(urls):
         skipped = len(urls) - len(wrote_fns)
-        log.debug("%s urls were skipped or failed", skipped)
+        LOG.debug("%s urls were skipped or failed", skipped)
 
     if captured_excps:
-        log.warning(
+        LOG.warning(
             "%s failed with exceptions, re-raising the last one",
             len(captured_excps),
         )

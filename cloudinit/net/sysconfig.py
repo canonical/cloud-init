@@ -4,7 +4,7 @@ import copy
 import io
 import os
 import re
-from typing import Mapping
+from typing import Mapping, Optional
 
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -13,11 +13,10 @@ from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     is_ipv6_address,
     net_prefix_to_ipv4_mask,
+    renderer,
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NetworkState
-
-from . import renderer
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
@@ -28,9 +27,12 @@ KNOWN_DISTROS = [
     "fedora",
     "miraclelinux",
     "openEuler",
+    "OpenCloudOS",
+    "openmandriva",
     "rhel",
     "rocky",
     "suse",
+    "TencentOS",
     "virtuozzo",
 ]
 
@@ -64,7 +66,7 @@ def _quote_value(value):
         return value
 
 
-class ConfigMap(object):
+class ConfigMap:
     """Sysconfig like dictionary object."""
 
     # Why does redhat prefer yes/no to true/false??
@@ -979,8 +981,11 @@ class Renderer(renderer.Renderer):
         return contents
 
     def render_network_state(
-        self, network_state: NetworkState, templates=None, target=None
-    ):
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         if not templates:
             templates = self.templates
         file_mode = 0o644
@@ -1008,7 +1013,12 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
-            util.write_file(netrules_path, netrules_content, file_mode)
+            util.write_file(
+                netrules_path,
+                content=netrules_content,
+                mode=file_mode,
+                preserve_mode=True,
+            )
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos

@@ -5,7 +5,6 @@ from functools import partial
 from threading import Event
 from time import process_time
 
-import httpretty
 import pytest
 import requests
 import responses
@@ -15,6 +14,7 @@ from cloudinit.url_helper import (
     NOT_FOUND,
     REDACTED,
     UrlError,
+    UrlResponse,
     dual_stack,
     oauth_headers,
     read_file_or_url,
@@ -50,7 +50,7 @@ class TestOAuthHeaders(CiTestCase):
     def test_oauth_headers_calls_oathlibclient_when_available(self, m_client):
         """oauth_headers calls oaut1.hClient.sign with the provided url."""
 
-        class fakeclient(object):
+        class fakeclient:
             def sign(self, url):
                 # The first and 3rd item of the client.sign tuple are ignored
                 return ("junk", url, "junk2")
@@ -81,44 +81,61 @@ class TestReadFileOrUrl(CiTestCase):
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode("utf-8"))
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url(self):
         """Test that str(result.contents) on url is text version of contents.
         It should not be "b'data'", but just "'data'" """
         url = "http://hostname/path"
         data = b"This is my url content\n"
-        httpretty.register_uri(httpretty.GET, url, data)
+        responses.add(responses.GET, url, data)
         result = read_file_or_url(url)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode("utf-8"))
 
-    @httpretty.activate
+    @responses.activate
+    def test_read_file_or_url_str_from_url_streamed(self):
+        """Test that str(result.contents) on url is text version of contents.
+        It should not be "b'data'", but just "'data'" """
+        url = "http://hostname/path"
+        data = b"This is my url content\n"
+        responses.add(responses.GET, url, data)
+        result = read_file_or_url(url, stream=True)
+        assert isinstance(result, UrlResponse)
+        self.assertEqual(result.contents, data)
+        self.assertEqual(str(result), data.decode("utf-8"))
+
+    @responses.activate
     def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
         """Headers are redacted from logs but unredacted in requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        httpretty.register_uri(httpretty.GET, url)
-        # By default, httpretty will log our request along with the header,
-        # so if we don't change this the secret will show up in the logs
-        logging.getLogger("httpretty.core").setLevel(logging.CRITICAL)
+
+        def _request_callback(request):
+            for k in headers.keys():
+                self.assertEqual(headers[k], request.headers[k])
+            return (200, request.headers, "does_not_matter")
+
+        responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers, headers_redact=["sensitive"])
         logs = self.logs.getvalue()
-        for k in headers.keys():
-            self.assertEqual(headers[k], httpretty.last_request().headers[k])
         self.assertIn(REDACTED, logs)
         self.assertNotIn("sekret", logs)
 
-    @httpretty.activate
+    @responses.activate
     def test_read_file_or_url_str_from_url_redacts_noheaders(self):
         """When no headers_redact, header values are in logs and requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
-        httpretty.register_uri(httpretty.GET, url)
+
+        def _request_callback(request):
+            for k in headers.keys():
+                self.assertEqual(headers[k], request.headers[k])
+            return (200, request.headers, "does_not_matter")
+
+        responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers)
-        for k in headers.keys():
-            self.assertEqual(headers[k], httpretty.last_request().headers[k])
         logs = self.logs.getvalue()
         self.assertNotIn(REDACTED, logs)
         self.assertIn("sekret", logs)
@@ -146,6 +163,7 @@ class TestReadFileOrUrl(CiTestCase):
                             "User-Agent": "Cloud-Init/%s"
                             % (version.version_string())
                         },
+                        "stream": False,
                     },
                     kwargs,
                 )
@@ -186,6 +204,7 @@ class TestReadFileOrUrlParameters:
             "ssl_details": {"cert_file": "/path/cert.pem"},
             "headers_cb": "headers_cb",
             "exception_cb": "exception_cb",
+            "stream": True,
         }
 
         assert response == read_file_or_url(**params)
@@ -222,6 +241,7 @@ class TestReadFileOrUrlParameters:
                         % (version.version_string())
                     },
                     "timeout": request_timeout,
+                    "stream": False,
                 }
                 if request_timeout is None:
                     expected_kwargs.pop("timeout")
@@ -282,7 +302,7 @@ class TestDualStack:
     """
 
     @pytest.mark.parametrize(
-        "func," "addresses," "stagger_delay," "timeout," "expected_val,",
+        ["func", "addresses", "stagger_delay", "timeout", "expected_val"],
         [
             # Assert order based on timeout
             (lambda x, _: x, ("one", "two"), 1, 1, "one"),
@@ -346,12 +366,14 @@ class TestDualStack:
         event.set()
 
     @pytest.mark.parametrize(
-        "func,"
-        "addresses,"
-        "stagger_delay,"
-        "timeout,"
-        "message,"
-        "expected_exc",
+        [
+            "func",
+            "addresses",
+            "stagger_delay",
+            "timeout",
+            "message",
+            "expected_exc",
+        ],
         [
             (
                 lambda _a, _b: 1 / 0,
@@ -370,7 +392,7 @@ class TestDualStack:
                 ZeroDivisionError,
             ),
             (
-                lambda _a, _b: [][0],
+                lambda _a, _b: [][0],  # pylint: disable=E0643
                 ("matter", "these"),
                 0,
                 1,
@@ -479,7 +501,7 @@ class TestUrlHelper:
         return (200, {"request-id": "0"}, cls.success)
 
     @pytest.mark.parametrize(
-        "addresses," "expected_address_index," "response,",
+        ["addresses", "expected_address_index", "response"],
         [
             # Use timeout to test ordering happens as expected
             ((ADDR1, SLEEP1), 0, "SUCCESS"),
@@ -496,7 +518,7 @@ class TestUrlHelper:
         If this test proves flaky, increase wait time. Since it is async,
         increasing wait time for the non-responding endpoint should not
         increase total test time, assuming async_delay=0 is used and at least
-        one non-waiting endpoint is registered with httpretty.
+        one non-waiting endpoint is registered with responses.
         Subsequent tests will continue execution after the first response is
         received.
         """

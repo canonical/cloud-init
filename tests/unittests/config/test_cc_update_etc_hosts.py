@@ -2,7 +2,6 @@
 
 import logging
 import os
-import re
 import shutil
 
 import pytest
@@ -45,7 +44,7 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_update_etc_hosts.handle("test", cfg, cc, LOG, [])
+        cc_update_etc_hosts.handle("test", cfg, cc, [])
         contents = util.load_file("%s/etc/hosts" % self.tmp)
         if "127.0.1.1\tcloud-init.test.us\tcloud-init" not in contents:
             self.assertIsNone("No entry for 127.0.1.1 in etc/hosts")
@@ -68,7 +67,7 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        cc_update_etc_hosts.handle("test", cfg, cc, LOG, [])
+        cc_update_etc_hosts.handle("test", cfg, cc, [])
         contents = util.load_file("%s/etc/hosts" % self.tmp)
         if "127.0.1.1 cloud-init.test.us cloud-init" not in contents:
             self.assertIsNone("No entry for 127.0.1.1 in etc/hosts")
@@ -78,21 +77,36 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
 
 class TestUpdateEtcHosts:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         [
+            ({"manage_etc_hosts": True}, t_help.does_not_raise()),
+            ({"manage_etc_hosts": False}, t_help.does_not_raise()),
+            ({"manage_etc_hosts": "localhost"}, t_help.does_not_raise()),
+            (
+                {"manage_etc_hosts": "template"},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "Cloud config schema deprecations: "
+                        "manage_etc_hosts:  Changed in version 22.3. "
+                        "Use of ``template`` is deprecated, use "
+                        "``true`` instead."
+                    ),
+                ),
+            ),
             (
                 {"manage_etc_hosts": "templatey"},
-                re.escape(
-                    "manage_etc_hosts: 'templatey' is not one of"
-                    " [True, False, 'template', 'localhost']"
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "manage_etc_hosts: 'templatey' is not valid under any"
+                        " of the given schemas"
+                    ),
                 ),
             ),
         ],
     )
     @t_help.skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        if error_msg is None:
+    def test_schema_validation(self, config, expectation):
+        with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, get_schema(), strict=True)

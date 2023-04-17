@@ -2,7 +2,6 @@
 # /parametrize.html#parametrizing-conditional-raising
 
 import textwrap
-from contextlib import ExitStack as does_not_raise
 from unittest import mock
 
 import pytest
@@ -14,6 +13,7 @@ from cloudinit.distros.networking import (
     LinuxNetworking,
     Networking,
 )
+from tests.unittests.helpers import does_not_raise, readResource
 
 
 @pytest.fixture
@@ -47,6 +47,17 @@ def generic_networking_cls():
 
 
 @pytest.fixture
+def bsd_networking_cls(asset="netinfo/freebsd-ifconfig-output"):
+    """Returns a patched BSDNetworking class which already comes pre-loaded
+    with output for ``ifconfig -a``"""
+    ifs_txt = readResource(asset)
+    with mock.patch(
+        "cloudinit.distros.networking.subp.subp", return_value=(ifs_txt, None)
+    ):
+        yield BSDNetworking
+
+
+@pytest.fixture
 def sys_class_net(tmpdir):
     sys_class_net_path = tmpdir.join("sys/class/net")
     sys_class_net_path.ensure_dir()
@@ -58,9 +69,33 @@ def sys_class_net(tmpdir):
 
 
 class TestBSDNetworkingIsPhysical:
-    def test_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().is_physical("eth0")
+    def test_is_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_physical("vtnet0")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_physical("re0.33")
+
+
+class TestBSDNetworkingIsVLAN:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_vlan("re0.33")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_vlan("vtnet0")
+
+
+class TestBSDNetworkingIsBridge:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_bridge("bridge0")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_bridge("vtnet0")
 
 
 class TestLinuxNetworkingIsPhysical:
@@ -83,10 +118,20 @@ class TestLinuxNetworkingIsPhysical:
         assert LinuxNetworking().is_physical(devname)
 
 
+@mock.patch("cloudinit.distros.networking.BSDNetworking.is_up")
 class TestBSDNetworkingTrySetLinkUp:
-    def test_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().try_set_link_up("eth0")
+    def test_calls_subp_return_true(self, m_is_up, bsd_networking_cls):
+        devname = "vtnet0"
+        networking = bsd_networking_cls()
+        m_is_up.return_value = True
+
+        with mock.patch("cloudinit.subp.subp") as m_subp:
+            is_success = networking.try_set_link_up(devname)
+            assert (
+                mock.call(["ifconfig", devname, "up"])
+                == m_subp.call_args_list[-1]
+            )
+        assert is_success
 
 
 @mock.patch("cloudinit.net.is_up")
@@ -116,9 +161,9 @@ class TestLinuxNetworkingTrySetLinkUp:
 
 
 class TestBSDNetworkingSettle:
-    def test_settle_doesnt_error(self):
-        # This also implicitly tests that it doesn't use subp.subp
-        BSDNetworking().settle()
+    def test_settle_doesnt_error(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        networking.settle()
 
 
 @pytest.mark.usefixtures("sys_class_net")

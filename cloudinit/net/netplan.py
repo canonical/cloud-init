@@ -1,20 +1,22 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import ipaddress
 import os
-from typing import cast
+import textwrap
+from typing import Optional, cast
 
+from cloudinit import features
 from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
 from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     SYS_CLASS_NET,
     get_devicelist,
+    renderer,
     subnet_is_ipv6,
 )
-
-from . import renderer
-from .network_state import NET_CONFIG_TO_V2, NetworkState
+from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
 
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.
@@ -43,10 +45,10 @@ def _get_params_dict_by_match(config, match):
     )
 
 
-def _extract_addresses(config, entry, ifname, features=None):
+def _extract_addresses(config: dict, entry: dict, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
-       netplan yaml.
+       netplan yaml. (config v1 -> netplan)
 
     An example config dictionary might look like:
 
@@ -81,8 +83,10 @@ def _extract_addresses(config, entry, ifname, features=None):
     """
 
     def _listify(obj, token=" "):
-        "Helper to convert strings to list of strings, handle single string"
-        if not obj or type(obj) not in [str]:
+        """
+        Helper to convert strings to list of strings, handle single string
+        """
+        if not obj or not isinstance(obj, str):
             return obj
         if token in obj:
             return obj.split(token)
@@ -112,12 +116,34 @@ def _extract_addresses(config, entry, ifname, features=None):
             addr = "%s" % subnet.get("address")
             if "prefix" in subnet:
                 addr += "/%d" % subnet.get("prefix")
-            if "gateway" in subnet and subnet.get("gateway"):
-                gateway = subnet.get("gateway")
-                if ":" in gateway:
-                    entry.update({"gateway6": gateway})
-                else:
-                    entry.update({"gateway4": gateway})
+            if subnet.get("gateway"):
+                new_route = {
+                    "via": subnet.get("gateway"),
+                    "to": "default",
+                }
+                try:
+                    subnet_gateway = ipaddress.ip_address(subnet["gateway"])
+                    subnet_network = ipaddress.ip_network(addr, strict=False)
+                    # If the gateway is not contained within the subnet's
+                    # network, mark it as on-link so that it can still be
+                    # reached.
+                    if subnet_gateway not in subnet_network:
+                        LOG.debug(
+                            "Gateway %s is not contained within subnet %s,"
+                            " adding on-link flag",
+                            subnet["gateway"],
+                            addr,
+                        )
+                        new_route["on-link"] = True
+                except ValueError as e:
+                    LOG.warning(
+                        "Failed to check whether gateway %s"
+                        " is contained within subnet %s: %s",
+                        subnet["gateway"],
+                        addr,
+                        e,
+                    )
+                routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
             if "dns_search" in subnet:
@@ -239,7 +265,12 @@ class Renderer(renderer.Renderer):
                 LOG.debug("Failed to list features from netplan info: %s", e)
         return self._features
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state
@@ -253,7 +284,14 @@ class Renderer(renderer.Renderer):
 
         if not header.endswith("\n"):
             header += "\n"
-        util.write_file(fpnplan, header + content)
+
+        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+        if os.path.exists(fpnplan):
+            current_mode = util.get_permissions(fpnplan)
+            if current_mode & mode == current_mode:
+                # preserve mode if existing perms are more strict than default
+                mode = current_mode
+        util.write_file(fpnplan, header + content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
@@ -275,14 +313,29 @@ class Renderer(renderer.Renderer):
             LOG.debug("netplan net_setup_link postcmd disabled")
             return
         setup_lnk = ["udevadm", "test-builtin", "net_setup_link"]
-        for cmd in [
-            setup_lnk + [SYS_CLASS_NET + iface]
-            for iface in get_devicelist()
-            if os.path.islink(SYS_CLASS_NET + iface)
-        ]:
-            subp.subp(cmd, capture=True)
 
-    def _render_content(self, network_state: NetworkState):
+        # It's possible we can race a udev rename and attempt to run
+        # net_setup_link on a device that no longer exists. When this happens,
+        # we don't know what the device was renamed to, so re-gather the
+        # entire list of devices and try again.
+        last_exception = Exception
+        for _ in range(5):
+            try:
+                for iface in get_devicelist():
+                    if os.path.islink(SYS_CLASS_NET + iface):
+                        subp.subp(
+                            setup_lnk + [SYS_CLASS_NET + iface], capture=True
+                        )
+                break
+            except subp.ProcessExecutionError as e:
+                last_exception = e
+        else:
+            raise RuntimeError(
+                "'udevadm test-builtin net_setup_link' unable to run "
+                "successfully for all devices."
+            ) from last_exception
+
+    def _render_content(self, network_state: NetworkState) -> str:
 
         # if content already in netplan format, pass it back
         if network_state.version == 2:
@@ -308,11 +361,7 @@ class Renderer(renderer.Renderer):
         for config in network_state.iter_interfaces():
             ifname = config.get("name")
             # filter None (but not False) entries up front
-            ifcfg = dict(
-                (key, value)
-                for (key, value) in config.items()
-                if value is not None
-            )
+            ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
             if_type = ifcfg.get("type")
             if if_type == "physical":
@@ -430,7 +479,7 @@ class Renderer(renderer.Renderer):
                     explicit_end=False,
                     noalias=True,
                 )
-                txt = util.indent(dump, " " * 4)
+                txt = textwrap.indent(dump, " " * 4)
                 return [txt]
             return []
 
@@ -451,23 +500,3 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
-
-
-def network_state_to_netplan(network_state, header=None):
-    # render the provided network state, return a string of equivalent eni
-    netplan_path = "etc/network/50-cloud-init.yaml"
-    renderer = Renderer(
-        {
-            "netplan_path": netplan_path,
-            "netplan_header": header,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_content(network_state)
-    return header + contents
-
-
-# vi: ts=4 expandtab
