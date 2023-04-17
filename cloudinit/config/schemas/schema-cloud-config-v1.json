@@ -3079,8 +3079,7 @@
                 "$ref": "#/$defs/users_groups.user"
               }
             ]
-          },
-          "minItems": 1
+          }
         }
       }
     },
