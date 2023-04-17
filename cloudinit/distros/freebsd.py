@@ -38,7 +38,9 @@ class Distro(cloudinit.distros.bsd.BSD):
     home_dir = "/usr/home"
 
     @classmethod
-    def manage_service(cls, action: str, service: str, rcs=None):
+    def manage_service(
+            cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles FreeBSD's
         'service' case. The FreeBSD 'service' is closer in features to
@@ -56,7 +58,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             "try-reload": [service, "restart"],
             "status": [service, "status"],
         }
-        cmd = list(init_cmd) + list(cmds[action])
+        cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):

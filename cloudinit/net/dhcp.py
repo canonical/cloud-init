@@ -147,7 +147,8 @@ class DhcpClient(abc.ABC):
 
     @classmethod
     def start_service(cls, dhcp_interface: str, distro):
-        distro.manage_service("start", cls.client_name, rcs=[0, 1])
+        distro.manage_service(
+            "start", cls.client_name, dhcp_interface, rcs=[0, 1])
 
     @classmethod
     def stop_service(cls, dhcp_interface: str, distro):

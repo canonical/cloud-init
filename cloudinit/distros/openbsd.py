@@ -26,7 +26,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
         return ["usermod", "-G", group_name, member_name]
 
     @classmethod
-    def manage_service(cls, action: str, service: str, rcs=None):
+    def manage_service(cls, action: str, service: str, *extra_args, rcs=None):
         """
         Perform the requested action on a service. This handles OpenBSD's
         'rcctl'.

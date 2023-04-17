@@ -920,7 +920,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
-    def manage_service(cls, action: str, service: str, rcs=None):
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses

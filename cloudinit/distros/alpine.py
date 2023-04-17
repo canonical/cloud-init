@@ -181,7 +181,9 @@ class Distro(distros.Distro):
         return False
 
     @classmethod
-    def manage_service(self, action: str, service: str, rcs=None):
+    def manage_service(
+        self, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles OpenRC
         specific implementation details.
