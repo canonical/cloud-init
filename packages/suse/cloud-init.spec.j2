@@ -51,10 +51,9 @@ end for
 %{__python} setup.py build
 
 %install
-%{__python} setup.py install \
-            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
-            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
-            --init-system=systemd
+%{__python3} setup.py install -O1 \
+            --skip-build --root $RPM_BUILD_ROOT \
+            --init-system=%{init_system}
 
 # Move udev rules
 mkdir -p %{buildroot}/usr/lib/udev/rules.d/
