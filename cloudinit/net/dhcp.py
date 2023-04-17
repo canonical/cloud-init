@@ -148,7 +148,8 @@ class DhcpClient(abc.ABC):
     @classmethod
     def start_service(cls, dhcp_interface: str, distro):
         distro.manage_service(
-            "start", cls.client_name, dhcp_interface, rcs=[0, 1])
+            "start", cls.client_name, dhcp_interface, rcs=[0, 1]
+        )
 
     @classmethod
     def stop_service(cls, dhcp_interface: str, distro):
@@ -167,7 +168,7 @@ class IscDhclient(DhcpClient):
             raise NoDHCPLeaseMissingDhclientError()
 
     @staticmethod
-    def parse_dhcp_lease_file(lease_file):
+    def parse_dhcp_lease_file(lease_file: str) -> list:
         """Parse the given dhcp lease file for the most recent lease.
 
         Return a list of dicts of dhcp options. Each dict contains key value
