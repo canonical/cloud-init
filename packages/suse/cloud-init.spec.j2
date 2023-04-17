@@ -52,8 +52,10 @@ end for
 
 %install
 %{__python3} setup.py install -O1 \
-            --skip-build --root $RPM_BUILD_ROOT \
-            --init-system=%{init_system}
+            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
+            --install-lib=%{python_sitelib} \
+            --init-system=systemd
+
 
 # Move udev rules
 mkdir -p %{buildroot}/usr/lib/udev/rules.d/
@@ -104,6 +106,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 /usr/lib/%{name}/uncloud-init
 /usr/lib/%{name}/write-ssh-key-fingerprints
 /usr/lib/%{name}/ds-identify
+/usr/lib/%{name}/hook-hotplug
 
 # udev rules
 /usr/lib/udev/rules.d/66-azure-ephemeral.rules
