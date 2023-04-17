@@ -16,7 +16,6 @@ from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 
-from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
@@ -27,12 +26,11 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.reporting import events
-from cloudinit.sources.azure import imds
+from cloudinit.sources.azure import identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
     BrokenAzureDataSource,
-    ChassisAssetTag,
     NonAzureDataSource,
     OvfEnvXml,
     azure_ds_reporter,
@@ -43,7 +41,6 @@ from cloudinit.sources.helpers.azure import (
     get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
-    is_byte_swapped,
     push_log_to_kvp,
     report_diagnostic_event,
     report_failure_to_fabric,
@@ -695,7 +692,7 @@ class DataSourceAzure(sources.DataSource):
         """Check platform environment to report if this datasource may
         run.
         """
-        chassis_tag = ChassisAssetTag.query_system()
+        chassis_tag = identity.ChassisAssetTag.query_system()
         if chassis_tag is not None:
             return True
 
@@ -857,24 +854,18 @@ class DataSourceAzure(sources.DataSource):
         prev_iid_path = os.path.join(
             self.paths.get_cpath("data"), "instance-id"
         )
-        # Older kernels than 4.15 will have UPPERCASE product_uuid.
-        # We don't want Azure to react to an UPPER/lower difference as a new
-        # instance id as it rewrites SSH host keys.
-        # LP: #1835584
-        system_uuid = dmi.read_dmi_data("system-uuid")
-        if system_uuid is None:
-            raise RuntimeError("failed to read system-uuid")
-
-        iid = system_uuid.lower()
+        system_uuid = identity.query_system_uuid()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
-            if previous.lower() == iid:
-                # If uppercase/lowercase equivalent, return the previous value
-                # to avoid new instance id.
+            swapped_id = identity.byte_swap_system_uuid(system_uuid)
+
+            # Older kernels than 4.15 will have UPPERCASE product_uuid.
+            # We don't want Azure to react to an UPPER/lower difference as
+            # a new instance id as it rewrites SSH host keys.
+            # LP: #1835584
+            if previous.lower() in [system_uuid, swapped_id]:
                 return previous
-            if is_byte_swapped(previous.lower(), iid):
-                return previous
-        return iid
+        return system_uuid
 
     @azure_ds_telemetry_reporter
     def _wait_for_nic_detach(self, nl_sock):
