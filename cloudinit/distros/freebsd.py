@@ -39,7 +39,7 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     @classmethod
     def manage_service(
-            cls, action: str, service: str, *extra_args: str, rcs=None
+        cls, action: str, service: str, *extra_args: str, rcs=None
     ):
         """
         Perform the requested action on a service. This handles FreeBSD's
