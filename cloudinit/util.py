@@ -1725,7 +1725,7 @@ def logexc(log, msg, *args):
     log.debug(msg, exc_info=exc_info, *args)
 
 
-def hash_blob(blob, routine, mlen=None):
+def hash_blob(blob, routine: str, mlen=None) -> str:
     hasher = hashlib.new(routine)
     hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
@@ -1734,6 +1734,13 @@ def hash_blob(blob, routine, mlen=None):
         return digest[0:mlen]
     else:
         return digest
+
+
+def hash_buffer(f: io.BufferedIOBase) -> bytes:
+    hasher = hashlib.sha1()
+    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
+        hasher.update(chunk)
+    return hasher.digest()
 
 
 def is_user(name):

@@ -1,7 +1,6 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
-import hashlib
 import io
 import ipaddress
 import os
@@ -235,17 +234,6 @@ def _clean_default(target=None):
         os.unlink(f)
 
 
-def _hash_content(f: io.BufferedIOBase) -> bytes:
-    BUF_SIZE = 65536  # 64kb
-    sha1 = hashlib.sha1()
-    while True:
-        data = f.read(BUF_SIZE)
-        if not data:
-            break
-        sha1.update(data)
-    return sha1.digest()
-
-
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
@@ -290,31 +278,22 @@ class Renderer(renderer.Renderer):
         fpnplan = os.path.join(subp.target_path(target), self.netplan_path)
 
         util.ensure_dir(os.path.dirname(fpnplan))
-        header = self.netplan_header if self.netplan_header else ""
 
         # render from state
         content = self._render_content(network_state)
 
+        # normalize header
+        header = self.netplan_header if self.netplan_header else ""
         if not header.endswith("\n"):
             header += "\n"
         content = header + content
 
-        # note: optimization for boot activate TODO
+        # determine if existing config files have the same content
         same_content = False
         if os.path.exists(fpnplan):
-            hashed_content = _hash_content(io.BytesIO(content.encode()))
+            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
             with open(fpnplan, "rb") as f:
-                hashed_original_content = _hash_content(f)
-            LOG.debug(
-                "hashed values:\n%s\n%s",
-                hashed_original_content,
-                hashed_content,
-            )
-
-            with open(fpnplan, "r") as f:
-                orig_content = f.read()
-            LOG.debug("Original content:\n%s", orig_content)
-            LOG.debug("Content:\n%s", content)
+                hashed_original_content = util.hash_buffer(f)
             if hashed_content == hashed_original_content:
                 same_content = True
 
@@ -337,7 +316,8 @@ class Renderer(renderer.Renderer):
             return
         if same_content:
             LOG.debug(
-                "skipping netplan generate. reason: identical network config"
+                "skipping call to `netplan generate`."
+                " reason: identical netplan config"
             )
             return
         subp.subp(self.NETPLAN_GENERATE, capture=True)

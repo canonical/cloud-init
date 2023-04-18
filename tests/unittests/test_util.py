@@ -3043,3 +3043,24 @@ class TestResolvable:
         assert util.is_resolvable("http://169.254.169.254/") is True
         assert util.is_resolvable("http://[fd00:ec2::254]/") is True
         assert not m_getaddr.called
+
+
+class TestHashBuffer:
+    def test_in_memory(self):
+        buf = io.BytesIO(b"hola")
+        assert (
+            util.hash_buffer(buf)
+            == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+        )
+
+    def test_file(self, tmp_path):
+        content = b"hola"
+        file = tmp_path / "file.txt"
+        with file.open("wb") as f:
+            f.write(content)
+
+        with file.open("rb") as f:
+            assert (
+                util.hash_buffer(f)
+                == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+            )
