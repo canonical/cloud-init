@@ -18,6 +18,14 @@ IMDS_URL = "http://169.254.169.254/metadata"
 
 
 class ReadUrlRetryHandler:
+    """Manager for readurl retry behavior using exception_callback().
+
+    :param logging_backoff: Backoff to limit logging.
+    :param max_connection_errors: Number of connection errors to retry on.
+    :param retry_codes: Set of http codes to retry on.
+    :param retry_deadline: Optional time()-based deadline to retry until.
+    """
+
     def __init__(
         self,
         *,
@@ -29,12 +37,12 @@ class ReadUrlRetryHandler:
             429,  # rate-limited/throttled
             500,  # server error
         ),
-        retry_timeout: Optional[float] = None,
+        retry_deadline: Optional[float] = None,
     ) -> None:
         self.logging_backoff = logging_backoff
         self.max_connection_errors = max_connection_errors
         self.retry_codes = retry_codes
-        self.retry_timeout = retry_timeout
+        self.retry_deadline = retry_deadline
         self._logging_threshold = 1.0
         self._request_count = 0
 
@@ -49,7 +57,7 @@ class ReadUrlRetryHandler:
             return False
 
         log = True
-        if self.retry_timeout is not None and time() >= self.retry_timeout:
+        if self.retry_deadline is not None and time() >= self.retry_deadline:
             retry = False
         else:
             retry = True
@@ -84,7 +92,7 @@ class ReadUrlRetryHandler:
 def _fetch_url(
     url: str,
     *,
-    retry_timeout: float,
+    retry_deadline: float,
     log_response: bool = True,
     timeout: int = 2,
 ) -> bytes:
@@ -92,7 +100,7 @@ def _fetch_url(
 
     :raises UrlError: on error fetching metadata.
     """
-    handler = ReadUrlRetryHandler(retry_timeout=retry_timeout)
+    handler = ReadUrlRetryHandler(retry_deadline=retry_deadline)
 
     try:
         response = readurl(
@@ -115,14 +123,14 @@ def _fetch_url(
 
 def _fetch_metadata(
     url: str,
-    retry_timeout: float,
+    retry_deadline: float,
 ) -> Dict:
     """Fetch IMDS metadata.
 
     :raises UrlError: on error fetching metadata.
     :raises ValueError: on error parsing metadata.
     """
-    metadata = _fetch_url(url, retry_timeout=retry_timeout)
+    metadata = _fetch_url(url, retry_deadline=retry_deadline)
 
     try:
         return util.load_json(metadata)
@@ -134,7 +142,7 @@ def _fetch_metadata(
         raise
 
 
-def fetch_metadata_with_api_fallback(retry_timeout: float) -> Dict:
+def fetch_metadata_with_api_fallback(retry_deadline: float) -> Dict:
     """Fetch extended metadata, falling back to non-extended as required.
 
     :raises UrlError: on error fetching metadata.
@@ -142,7 +150,7 @@ def fetch_metadata_with_api_fallback(retry_timeout: float) -> Dict:
     """
     try:
         url = IMDS_URL + "/instance?api-version=2021-08-01&extended=true"
-        return _fetch_metadata(url, retry_timeout=retry_timeout)
+        return _fetch_metadata(url, retry_deadline=retry_deadline)
     except UrlError as error:
         if error.code == 400:
             report_diagnostic_event(
@@ -150,7 +158,7 @@ def fetch_metadata_with_api_fallback(retry_timeout: float) -> Dict:
                 logger_func=LOG.warning,
             )
             url = IMDS_URL + "/instance?api-version=2019-06-01"
-            return _fetch_metadata(url, retry_timeout=retry_timeout)
+            return _fetch_metadata(url, retry_deadline=retry_deadline)
         raise
 
 
@@ -168,7 +176,7 @@ def fetch_reprovision_data() -> bytes:
             404,
             410,
         ),
-        retry_timeout=None,
+        retry_deadline=None,
     )
     response = readurl(
         url,

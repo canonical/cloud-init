@@ -673,10 +673,10 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_metadata_from_imds(self) -> Dict:
-        retry_timeout = time() + 300
+        retry_deadline = time() + 300
         try:
             return imds.fetch_metadata_with_api_fallback(
-                retry_timeout=retry_timeout
+                retry_deadline=retry_deadline
             )
         except (UrlError, ValueError) as error:
             report_diagnostic_event(

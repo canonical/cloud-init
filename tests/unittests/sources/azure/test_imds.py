@@ -78,12 +78,12 @@ class TestFetchMetadataWithApiFallback:
     headers = {"Metadata": "true"}
     timeout = 2
 
-    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_basic(
         self,
         caplog,
         mock_requests_session_request,
-        retry_timeout,
+        retry_deadline,
         wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
@@ -91,7 +91,9 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
         assert wrapped_readurl.mock_calls == [
@@ -117,12 +119,12 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
-    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_basic_fallback(
         self,
         caplog,
         mock_requests_session_request,
-        retry_timeout,
+        retry_deadline,
         wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
@@ -131,7 +133,9 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
         assert wrapped_readurl.mock_calls == [
@@ -192,12 +196,12 @@ class TestFetchMetadataWithApiFallback:
             requests.Timeout("Fake connection timeout"),
         ],
     )
-    @pytest.mark.parametrize("max_attempts,retry_timeout", [(2, 1.0)])
+    @pytest.mark.parametrize("max_attempts,retry_deadline", [(2, 1.0)])
     def test_will_retry_errors(
         self,
         caplog,
         max_attempts,
-        retry_timeout,
+        retry_deadline,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
         error,
@@ -208,7 +212,9 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
         assert len(mock_requests_session_request.mock_calls) == max_attempts
@@ -244,11 +250,11 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
-    @pytest.mark.parametrize("retry_timeout", [3.0, 30.0])
+    @pytest.mark.parametrize("retry_deadline", [3.0, 30.0])
     def test_will_retry_errors_on_fallback(
         self,
         caplog,
-        retry_timeout,
+        retry_deadline,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
     ):
@@ -261,7 +267,9 @@ class TestFetchMetadataWithApiFallback:
         ]
         max_attempts = len(mock_requests_session_request.side_effect)
 
-        md = imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
         assert len(mock_requests_session_request.mock_calls) == max_attempts
@@ -332,13 +340,13 @@ class TestFetchMetadataWithApiFallback:
         ],
     )
     @pytest.mark.parametrize(
-        "max_attempts,retry_timeout", [(1, 0.0), (2, 1.0), (301, 300.0)]
+        "max_attempts,retry_deadline", [(1, 0.0), (2, 1.0), (301, 300.0)]
     )
     def test_retry_until_failure(
         self,
         error,
         max_attempts,
-        retry_timeout,
+        retry_deadline,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
@@ -346,7 +354,9 @@ class TestFetchMetadataWithApiFallback:
         mock_requests_session_request.side_effect = error
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
         assert exc_info.value.cause == error
 
@@ -388,11 +398,11 @@ class TestFetchMetadataWithApiFallback:
             fake_http_error_for_code(501),
         ],
     )
-    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_will_not_retry_errors(
         self,
         error,
-        retry_timeout,
+        retry_deadline,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
@@ -404,7 +414,9 @@ class TestFetchMetadataWithApiFallback:
         ]
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
         assert exc_info.value.cause == error
         assert len(mock_requests_session_request.mock_calls) == 1
@@ -431,10 +443,10 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
-    @pytest.mark.parametrize("retry_timeout", [0.0, 1.0, 60.0])
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_non_json_repsonse(
         self,
-        retry_timeout,
+        retry_deadline,
         caplog,
         mock_requests_session_request,
         wrapped_readurl,
@@ -444,7 +456,9 @@ class TestFetchMetadataWithApiFallback:
         ]
 
         with pytest.raises(ValueError):
-            imds.fetch_metadata_with_api_fallback(retry_timeout=retry_timeout)
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
         assert wrapped_readurl.mock_calls == [
             mock.call(
