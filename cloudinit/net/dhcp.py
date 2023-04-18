@@ -13,6 +13,7 @@ import re
 import signal
 import time
 from io import StringIO
+from typing import Any, Dict, List
 
 import configobj
 
@@ -168,8 +169,8 @@ class IscDhclient(DhcpClient):
             raise NoDHCPLeaseMissingDhclientError()
 
     @staticmethod
-    def parse_dhcp_lease_file(lease_file: str) -> list:
-        """Parse the given dhcp lease file for the most recent lease.
+    def parse_dhcp_lease_file(lease_file: str) -> List[Dict[str, Any]]:
+        """Parse the given dhcp lease file returning all leases as dicts.
 
         Return a list of dicts of dhcp options. Each dict contains key value
         pairs a specific lease in order from oldest to newest.

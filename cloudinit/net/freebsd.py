@@ -51,7 +51,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         for dhcp_interface in self.dhcp_interfaces():
             # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
             # the routes are not recreated.
-            net.dhcp.IscDhclient.start_service(
+            net.dhcp.IscDhclient.stop_service(
                 dhcp_interface, distros.freebsd.Distro
             )
 
@@ -65,7 +65,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         subp.subp(["service", "routing", "restart"], capture=True, rcs=[0, 1])
 
         for dhcp_interface in self.dhcp_interfaces():
-            net.dhcp.IscDhclient.stop_service(
+            net.dhcp.IscDhclient.start_service(
                 dhcp_interface, distros.freebsd.Distro
             )
 
