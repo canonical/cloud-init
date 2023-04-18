@@ -98,6 +98,11 @@ def _fetch_url(
 ) -> bytes:
     """Fetch URL from IMDS.
 
+    :param url: url to fetch.
+    :param log_response: log responses in readurl().
+    :param retry_deadline: time()-based deadline to retry until.
+    :param timeout: Read/connection timeout in seconds for readurl().
+
     :raises UrlError: on error fetching metadata.
     """
     handler = ReadUrlRetryHandler(retry_deadline=retry_deadline)
@@ -127,6 +132,9 @@ def _fetch_metadata(
 ) -> Dict:
     """Fetch IMDS metadata.
 
+    :param url: url to fetch.
+    :param retry_deadline: time()-based deadline to retry until.
+
     :raises UrlError: on error fetching metadata.
     :raises ValueError: on error parsing metadata.
     """
@@ -144,6 +152,8 @@ def _fetch_metadata(
 
 def fetch_metadata_with_api_fallback(retry_deadline: float) -> Dict:
     """Fetch extended metadata, falling back to non-extended as required.
+
+    :param retry_deadline: time()-based deadline to retry until.
 
     :raises UrlError: on error fetching metadata.
     :raises ValueError: on error parsing metadata.
