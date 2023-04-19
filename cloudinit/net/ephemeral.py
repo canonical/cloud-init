@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Optional
 import cloudinit.net as net
 from cloudinit import subp
 from cloudinit.net.dhcp import (
+    IscDhclient,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
-    parse_static_routes,
 )
 
 LOG = logging.getLogger(__name__)
@@ -305,6 +305,7 @@ class EphemeralIPv6Network:
 class EphemeralDHCPv4:
     def __init__(
         self,
+        distro,
         iface=None,
         connectivity_url_data: Optional[Dict[str, Any]] = None,
         dhcp_log_func=None,
@@ -314,6 +315,7 @@ class EphemeralDHCPv4:
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
+        self.distro = distro
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
@@ -351,7 +353,9 @@ class EphemeralDHCPv4:
         """
         if self.lease:
             return self.lease
-        leases = maybe_perform_dhcp_discovery(self.iface, self.dhcp_log_func)
+        leases = maybe_perform_dhcp_discovery(
+            self.distro, self.iface, self.dhcp_log_func
+        )
         if not leases:
             raise NoDHCPLeaseError()
         self.lease = leases[-1]
@@ -378,7 +382,7 @@ class EphemeralDHCPv4:
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
+            kwargs["static_routes"] = IscDhclient.parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:
@@ -412,6 +416,7 @@ class EphemeralIPNetwork:
 
     def __init__(
         self,
+        distro,
         interface,
         ipv6: bool = False,
         ipv4: bool = True,
@@ -421,13 +426,16 @@ class EphemeralIPNetwork:
         self.ipv6 = ipv6
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
+        self.distro = distro
 
     def __enter__(self):
         # ipv6 dualstack might succeed when dhcp4 fails
         # therefore catch exception unless only v4 is used
         try:
             if self.ipv4:
-                self.stack.enter_context(EphemeralDHCPv4(self.interface))
+                self.stack.enter_context(
+                    EphemeralDHCPv4(self.distro, self.interface)
+                )
             if self.ipv6:
                 self.stack.enter_context(EphemeralIPv6Network(self.interface))
         # v6 link local might be usable

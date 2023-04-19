@@ -154,7 +154,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
 
-                with EphemeralDHCPv4(self.fallback_interface):
+                with EphemeralDHCPv4(self.distro, self.fallback_interface):
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",
@@ -290,6 +290,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

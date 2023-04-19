@@ -131,6 +131,7 @@ class DataSourceEc2(sources.DataSource):
                 return False
             try:
                 with EphemeralIPNetwork(
+                    self.distro,
                     self.fallback_interface,
                     ipv4=True,
                     ipv6=True,
@@ -1019,6 +1020,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

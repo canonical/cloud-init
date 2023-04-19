@@ -1,8 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import cloudinit.net.bsd
+from cloudinit import distros
 from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -50,10 +51,8 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         for dhcp_interface in self.dhcp_interfaces():
             # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
             # the routes are not recreated.
-            subp.subp(
-                ["service", "dhclient", "stop", dhcp_interface],
-                rcs=[0, 1],
-                capture=True,
+            net.dhcp.IscDhclient.stop_service(
+                dhcp_interface, distros.freebsd.Distro
             )
 
         subp.subp(["service", "netif", "restart"], capture=True)
@@ -66,10 +65,8 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         subp.subp(["service", "routing", "restart"], capture=True, rcs=[0, 1])
 
         for dhcp_interface in self.dhcp_interfaces():
-            subp.subp(
-                ["service", "dhclient", "start", dhcp_interface],
-                rcs=[0, 1],
-                capture=True,
+            net.dhcp.IscDhclient.start_service(
+                dhcp_interface, distros.freebsd.Distro
             )
 
     def set_route(self, network, netmask, gateway):

@@ -384,6 +384,7 @@ class DataSourceAzure(sources.DataSource):
 
         LOG.debug("Requested ephemeral networking (iface=%s)", iface)
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+            self.distro,
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
         )
@@ -1942,6 +1943,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

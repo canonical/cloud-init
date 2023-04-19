@@ -84,6 +84,7 @@ class DataSourceGCE(sources.DataSource):
         network_context = noop()
         if self.perform_dhcp_setup:
             network_context = EphemeralDHCPv4(
+                self.distro,
                 self.fallback_interface,
             )
         with network_context:
@@ -353,5 +354,3 @@ if __name__ == "__main__":
             data["user-data-b64"] = b64encode(data["user-data"]).decode()
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

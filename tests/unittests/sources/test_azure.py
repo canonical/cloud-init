@@ -3232,6 +3232,7 @@ class TestEphemeralNetworking:
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
             mock.call(
+                azure_ds.distro,
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
             ),
@@ -3258,6 +3259,7 @@ class TestEphemeralNetworking:
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
             mock.call(
+                azure_ds.distro,
                 iface=iface,
                 dhcp_log_func=dsaz.dhcp_log_cb,
             ),
@@ -3300,6 +3302,7 @@ class TestEphemeralNetworking:
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
             mock.call(
+                azure_ds.distro,
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
             ),
@@ -3334,6 +3337,7 @@ class TestEphemeralNetworking:
 
         assert mock_ephemeral_dhcp_v4.mock_calls == [
             mock.call(
+                azure_ds.distro,
                 iface=None,
                 dhcp_log_func=dsaz.dhcp_log_cb,
             ),
@@ -3372,6 +3376,7 @@ class TestEphemeralNetworking:
             mock_ephemeral_dhcp_v4.mock_calls
             == [
                 mock.call(
+                    azure_ds.distro,
                     iface=None,
                     dhcp_log_func=dsaz.dhcp_log_cb,
                 ),
@@ -3539,6 +3544,7 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             )
@@ -3628,10 +3634,12 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             ),
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             ),
@@ -3747,10 +3755,12 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             ),
             mock.call(
+                self.azure_ds.distro,
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
             ),
@@ -3904,10 +3914,12 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             ),
             mock.call(
+                self.azure_ds.distro,
                 "ethAttached1",
                 dsaz.dhcp_log_cb,
             ),
@@ -4008,6 +4020,7 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             ),
@@ -4111,6 +4124,7 @@ class TestProvisioning:
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
+                self.azure_ds.distro,
                 None,
                 dsaz.dhcp_log_cb,
             )
@@ -4356,6 +4370,3 @@ class TestValidateIMDSMetadata:
         }
 
         assert azure_ds.validate_imds_network_metadata(imds_md) is False
-
-
-# vi: ts=4 expandtab

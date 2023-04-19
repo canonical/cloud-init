@@ -398,7 +398,7 @@ class TestDataSourceVultr(CiTestCase):
 
     # Override ephemeral for proper unit testing
     def ephemeral_init(
-        self, iface="", connectivity_url_data=None, tmp_dir=None
+        self, distro, iface="", connectivity_url_data=None, tmp_dir=None
     ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
@@ -492,6 +492,3 @@ class TestDataSourceVultr(CiTestCase):
             pass
 
         self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
-
-
-# vi: ts=4 expandtab
