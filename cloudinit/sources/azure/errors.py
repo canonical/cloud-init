@@ -87,7 +87,7 @@ class ReportableErrorUnhandledException(ReportableError):
                 type(exception), exception, exception.__traceback__
             )
         )
-        trace_base64 = base64.b64encode(trace.encode("utf-8"))
+        trace_base64 = base64.b64encode(trace.encode("utf-8")).decode("utf-8")
 
         self.supporting_data["exception"] = repr(exception)
         self.supporting_data["traceback_base64"] = trace_base64

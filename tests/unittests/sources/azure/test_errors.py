@@ -126,12 +126,14 @@ def test_unhandled_exception():
         source_error = exception
 
     error = errors.ReportableErrorUnhandledException(source_error)
-    trace = base64.b64decode(error.supporting_data["traceback_base64"]).decode(
-        "utf-8"
-    )
 
-    quoted_value = quote_csv_value(f"exception={source_error!r}")
-    assert f"|{quoted_value}|" in error.as_description()
+    traceback_base64 = error.supporting_data["traceback_base64"]
+    assert isinstance(traceback_base64, str)
+
+    trace = base64.b64decode(traceback_base64).decode("utf-8")
     assert trace.startswith("Traceback")
     assert "raise ValueError" in trace
     assert trace.endswith("ValueError: my value error\n")
+
+    quoted_value = quote_csv_value(f"exception={source_error!r}")
+    assert f"|{quoted_value}|" in error.as_description()
