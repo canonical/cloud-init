@@ -864,7 +864,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         """
 
         def side_effect(args, **kwargs):
-            if args[3] == "append" and args[4] == "3.3.3.3/32":
+            if args[3] == "add" and args[4] == "3.3.3.3/32":
                 raise subp.ProcessExecutionError("oh no!")
 
         m_subp.side_effect = side_effect
@@ -1167,7 +1167,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "ip",
                     "-4",
                     "route",
-                    "append",
+                    "add",
                     "192.168.2.1/32",
                     "dev",
                     "eth0",
@@ -1179,7 +1179,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "ip",
                     "-4",
                     "route",
-                    "append",
+                    "add",
                     "169.254.169.254/32",
                     "via",
                     "192.168.2.1",
@@ -1193,7 +1193,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "ip",
                     "-4",
                     "route",
-                    "append",
+                    "add",
                     "0.0.0.0/0",
                     "via",
                     "192.168.2.1",

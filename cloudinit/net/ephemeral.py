@@ -198,7 +198,7 @@ class EphemeralIPv4Network:
             if gateway != "0.0.0.0":
                 via_arg = ["via", gateway]
             subp.subp(
-                ["ip", "-4", "route", "append", net_address]
+                ["ip", "-4", "route", "add", net_address]
                 + via_arg
                 + ["dev", self.interface],
                 capture=True,
