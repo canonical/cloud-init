@@ -90,6 +90,6 @@ Then, have the following content at that url:
 
 .. note::
 
-   The ``cloud-config-url=`` is un-authed http GET, and may contain
+   The ``cloud-config-url=`` is unencrypted http GET, and may contain
    credentials. Care must be taken to ensure this data is only
-   transferred via trusted channels.
+   transferred via trusted channels (i.e., within a closed system).
