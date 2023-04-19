@@ -6,21 +6,21 @@ NoCloud
 The data source ``NoCloud`` is a flexible datasource that can be used in
 multiple different ways. With NoCloud, the user can provide user data and
 metadata to the instance without running a network service (or even without
-having a network at all). It is also possible to use a custom webserver to 
+having a network at all). Alternatively, one may use a custom webserver to
 provide configurations.
 
 Configuration Methods:
 ======================
 
-Local filesystem: labeled filesystem
--------------------------------------
+Method 1: Local filesystem, labeled filesystem
+----------------------------------------------
 To provide cloud-init configurations from the local filesystem, a labeled
 `vfat`_ or `iso9660`_ filesystem containing user data and metadata may
 be used. For this method to work, the filesystem volume must be labeled
 ``CIDATA``.
 
-Local filesystem: kernel commandline or SMBIOS
-----------------------------------------------
+Method 2: Local filesystem, kernel commandline or SMBIOS
+--------------------------------------------------------
 Configuration files can be provided on the local filesystem without a label
 using kernel commandline arguments or SMBIOS serial number to tell cloud-init
 where on the filesystem to look.
@@ -30,8 +30,8 @@ Alternatively, one can provide metadata via the kernel command line or SMBIOS
 
   ds=nocloud s=file://path/to/directory/;h=node-42
 
-Custom webserver: kernel commandline or SMBIOS
-----------------------------------------------
+Method 3: Custom webserver: kernel commandline or SMBIOS
+--------------------------------------------------------
 In a similar fashion, configuration files can be provided to cloud-init using a
 custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
 serial number. This argument might look like: ::
@@ -49,10 +49,15 @@ The permitted keys are:
 
 A valid ``seedfrom`` values consist of:
 
-Filesystem: a filesystem path starting with ``/`` or ``file://`` that points to
-            a directory containing files: ``user-data``, ``meta-data``, and
-            (optionally) ``vendor-data``
-Http server: an ``http`` or ``https`` url (a trailing ``/`` is required).
+Filesystem
+----------
+A filesystem path starting with ``/`` or ``file://`` that points to a directory
+containing files: ``user-data``, ``meta-data``, and (optionally)
+``vendor-data``
+
+Http server
+-----------
+An ``http`` or ``https`` url (a trailing ``/`` is required)
 
 
 File formats
