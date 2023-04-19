@@ -3,16 +3,40 @@
 Kernel command line
 *******************
 
+Providing configuration data via the kernel command line is somewhat of a last
+resort, as it often requires modifying the boot loader to work. Despite the
+limitations of using the kernel commandline, cloud-init supports some
+use-cases.
+
+Note that this page describes kernel commandline behavior that applies
+to all clouds. To provide a local configuration with an image using kernel
+commandline, see :ref:`datasource NoCloud<datasource_nocloud>` which provides
+more configuration options.
+
+.. _kernel_datasource_override:
+
+Datasource discovery override
+=============================
+
+During boot, cloud-init must identify which datasource it is running on
+(OpenStack, AWS, Azure, GCP, etc). This discovery step can be optionally
+overriden by specifying the datasource name, such as:
+
+.. code-block:: text
+
+   root=/dev/sda ro ds=openstack
+
+Kernel cloud-config-url configuration
+=====================================
+
 In order to allow an ephemeral, or otherwise pristine image to receive some
 configuration, ``cloud-init`` can read a URL directed by the kernel command
 line and proceed as if its data had previously existed.
 
 This allows for configuring a metadata service, or some other data.
 
-.. note::
-   Usage of the kernel command line is somewhat of a last resort,
-   as it requires knowing in advance the correct command line or modifying
-   the boot loader to append data.
+This method is different from the standard way that most datasources receive
+configuration.
 
 When :ref:`the local stage<boot-Local>` runs, it will check to see if
 ``cloud-config-url`` appears in key/value fashion in the kernel command line,
@@ -32,8 +56,6 @@ and consider it as part of the config from that point forward.
    cloud-init will not overwrite the file, and the ``cloud-config-url``
    parameter is completely ignored.
 
-
-# TODO: say something about datasource detection override
 
 This is useful, for example, to be able to configure the MAAS datasource by
 controlling the kernel command line from outside the image, you can append:
