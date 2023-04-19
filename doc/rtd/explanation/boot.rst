@@ -7,36 +7,11 @@ To be able to provide the functionality that it does, ``cloud-init`` must be
 integrated into the boot in a fairly controlled way. There are five
 stages to boot:
 
-1. Generator
-2. Local
-3. Network
-4. Config
-5. Final
+1. Local
+2. Network
+3. Config
+4. Final
 
-.. _boot-Generator:
-
-Generator
-=========
-
-# TODO: This entire stage is really just an implementation detail of systemd
-# systems - as long as we document how to disable cloud-init somewhere else
-# I think we can probably remove this information - unless we think it is
-# somehow actionable for the average user?
-
-When booting under ``systemd``, a `generator`_ will run that determines if
-``cloud-init.target`` should be included in the boot goals. By default, this
-generator will enable ``cloud-init``. It will not enable ``cloud-init``
-if either:
-
-- The file :file:`/etc/cloud/cloud-init.disabled` exists, or
-- The kernel command line as found in :file:`/proc/cmdline` contains
-  ``cloud-init=disabled``. When running in a container, the kernel command
-  line is not honored, but ``cloud-init`` will read an environment
-  variable named ``KERNEL_CMDLINE`` in its place.
-
-.. note::
-   These mechanisms for disabling ``cloud-init`` at runtime currently only
-   exist in ``systemd``.
 
 .. _boot-Local:
 

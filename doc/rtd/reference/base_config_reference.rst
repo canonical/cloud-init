@@ -229,8 +229,8 @@ are two primary use cases for modifying the ``datasource_list``:
    type than would typically be prioritised.
 
 If ``datasource_list`` has only a single entry (or a single entry + ``None``),
-:ref:`cloud-init's generator script<boot-Generator>` will automatically assume
-and use this datasource without attempting detection.
+`cloud-init` will automatically assume and use this datasource without
+attempting detection.
 
 ``vendor_data``/``vendor_data2``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
