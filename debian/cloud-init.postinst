@@ -371,6 +371,56 @@ change_cloud_init_output_log_permissions() {
     fi
 }
 
+fix_lp2013967() {
+    # Ensure sensitive user data and vendor data gets redacted from instance-data.json
+    local oldver="$1" last_bad_ver="23.1.1-0ubuntu0~20.04.1"
+    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
+
+    if ! python3 -c '
+import json
+import os
+from pathlib import Path
+
+from cloudinit.atomic_helper import write_json
+from cloudinit.sources import (
+    DataSource,
+    process_instance_metadata,
+    redact_sensitive_keys,
+)
+from cloudinit.sources.DataSourceLXD import DataSourceLXD
+from cloudinit.sources.DataSourceVultr import DataSourceVultr
+from cloudinit.stages import Init
+
+init = Init()
+log_file = init.cfg["def_log_file"]
+if os.path.exists(log_file):
+    os.chmod(log_file, 0o640)
+
+rundir = init.paths.run_dir
+instance_data_path = Path(rundir, "instance-data.json")
+
+instance_json = json.load(instance_data_path.open(encoding="utf-8"))
+
+if Path(rundir, "cloud-id-lxd").exists():
+    sensitive_keys = DataSourceLXD.sensitive_metadata_keys
+elif Path(rundir, "cloud-id-vultr").exists():
+    sensitive_keys = DataSourceVultr.sensitive_metadata_keys
+else:
+    sensitive_keys = DataSource.sensitive_metadata_keys
+
+processed_json = process_instance_metadata(
+    instance_json, sensitive_keys=sensitive_keys
+)
+redacted_json = redact_sensitive_keys(processed_json)
+
+write_json(str(instance_data_path), redacted_json)' >/dev/null 2>&1; then
+        # instance-data.json will get regenerated on boot. Try to remove it for now and signal reboot required.
+        rm -f /run/cloud-init/instance-data.json
+        [ -x /usr/share/update-notifier/notify-reboot-required ] && \
+            /usr/share/update-notifier/notify-reboot-required || true
+    fi
+}
+
 
 if [ "$1" = "configure" ]; then
    if db_get cloud-init/datasources; then
@@ -406,6 +456,8 @@ EOF
 
    # Redact schema sensitive warning logs on invalid user-data
    fix_1978422_redact_sensitive_logs_on_invalid_userdata_schema "$2"
+
+   fix_lp2013967 "$2"
 fi
 
 #DEBHELPER#
