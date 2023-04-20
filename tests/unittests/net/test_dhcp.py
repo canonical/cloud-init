@@ -442,9 +442,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
     def test_dhcp_discovery_warns_invalid_pid(
-        self, m_wait, m_subp, m_kill, m_remove
+        self, m_wait, m_which, m_subp, m_kill, m_remove
     ):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
 
@@ -491,9 +492,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     def test_dhcp_discovery_waits_on_lease_and_pid(
-        self, m_subp, m_wait, m_kill, m_getppid, m_remove
+        self, m_subp, m_which, m_wait, m_kill, m_getppid, m_remove
     ):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
         m_subp.return_value = ("", "")
@@ -501,9 +503,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         # Don't create pid or leases file
         m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-        self.assertEqual(
-            [], IscDhclient().dhcp_discovery("/sbin/dhclient", "eth9")
-        )
+        self.assertEqual([], IscDhclient().dhcp_discovery("eth9"))
         self.assertEqual(
             mock.call([PID_F, LEASE_F], maxwait=5, naplen=0.01),
             m_wait.call_args_list[0],
@@ -683,9 +683,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.util.wait_for_files")
     def test_dhcp_output_error_stream(
-        self, m_wait, m_subp, m_kill, m_getppid, m_remove
+        self, m_wait, m_which, m_subp, m_kill, m_getppid, m_remove
     ):
         """ "dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
