@@ -197,6 +197,14 @@ class EphemeralIPv4Network:
             via_arg = []
             if gateway != "0.0.0.0":
                 via_arg = ["via", gateway]
+
+            # Use "append" rather than "add" since the DHCP server may provide
+            # rfc3442 classless static routes with multiple routes to the same
+            # subnet via different routers or local interface addresses.
+            #
+            # In this scenario, `ip r add` fails.
+            #
+            # RHBZ: #2003231
             subp.subp(
                 ["ip", "-4", "route", "append", net_address]
                 + via_arg
