@@ -1,3 +1,11 @@
+cloud-init (23.1.2-0ubuntu0~22.10.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 23.1.2.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.1.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 21 Apr 2023 14:13:05 -0500
+
 cloud-init (23.1.1-0ubuntu0~22.10.1) kinetic; urgency=medium
 
   * d/patches/retain-netplan-world-readable.patch:
