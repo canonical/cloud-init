@@ -23,10 +23,10 @@ have to configure ``cloud-init`` to specify which datasource cloud-init is
 running on; ``cloud-init`` should "figure it out".
 
 There are exceptions, however, when the :ref:`datasource does not
-identify<datasource_ironic>` itself to ``cloud-init``.
-
-- mention datasource_list in /etc/cloud/cloud.cfg.d/
-- mention kernel commandline (include a map of datasource <-> dsname)
+identify<datasource_ironic>` itself to ``cloud-init``. For these
+exceptions, one can override datasource detection either by configuring a
+single datasource in the :ref:`datasource_list<base_config_datasource_list>`,
+or by using :ref:`kernel commandline arguments<kernel_datasource_override>`.
 
 Datasources:
 ============

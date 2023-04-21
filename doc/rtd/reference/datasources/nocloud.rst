@@ -71,7 +71,7 @@ same base URL: ::
 
 Both files must be present for it to be considered a valid seed ISO.
 
-Basically, ``user-data`` is simply :ref:`user data<user_data_formats>` and
+The ``user-data`` file uses :ref:`user data format<user_data_formats>` and
 ``meta-data`` is a YAML-formatted file representing what you'd find in the EC2
 metadata service.
 

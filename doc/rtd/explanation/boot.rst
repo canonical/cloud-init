@@ -7,11 +7,19 @@ To be able to provide the functionality that it does, ``cloud-init`` must be
 integrated into the boot in a fairly controlled way. There are five
 stages to boot:
 
-1. Local
-2. Network
-3. Config
-4. Final
+1. Generator
+2. Local
+3. Network
+4. Config
+5. Final
 
+.. _boot-Generator:
+
+Generator
+=========
+When booting under systemd, a generator will run that determines if
+cloud-init.target should be included in the boot goals. ``ds-identify``
+runs at this stage.
 
 .. _boot-Local:
 

@@ -19,3 +19,4 @@ matrices and so on.
    datasources.rst
    network-config.rst
    base_config_reference.rst
+   datasource_dsname_map.rst

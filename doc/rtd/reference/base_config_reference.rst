@@ -215,6 +215,8 @@ instance.
 Prioritised list of python packages to search when finding a datasource.
 Automatically includes ``cloudinit.sources``.
 
+.. _base_config_datasource_list:
+
 ``datasource_list``
 ^^^^^^^^^^^^^^^^^^^
 
