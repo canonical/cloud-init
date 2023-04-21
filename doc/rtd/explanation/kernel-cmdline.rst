@@ -4,9 +4,13 @@ Kernel command line
 *******************
 
 Providing configuration data via the kernel command line is somewhat of a last
-resort, as it often requires modifying the boot loader to work. Despite the
-limitations of using the kernel commandline, cloud-init supports some
-use-cases.
+resort, since this method supports only a subset of the
+:ref:`cloud config<user_data_cloud_config>` format, and many datasources
+do not support injecting kernel commandline arguments without modifying
+the bootloader.
+
+Despite the limitations of using the kernel commandline, cloud-init supports
+some use-cases.
 
 Note that this page describes kernel commandline behavior that applies
 to all clouds. To provide a local configuration with an image using kernel
@@ -84,8 +88,8 @@ Then, have the following content at that url:
 .. note::
 
    Since ``cloud-config-url=`` is so generic, in order to avoid false
-   positives, ``cloud-init`` requires the content to start with
-   ``#cloud-config`` for it to be considered.
+   positives, only :ref:`cloud config<user_data_cloud_config>` user data
+   starting with ``#cloud-config`` is supported.
 
 
 .. note::
