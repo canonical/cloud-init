@@ -1,3 +1,7 @@
+23.1.2
+ - Make user/vendor data sensitive and remove log permissions
+   (LP: #2013967) (CVE-2023-1786)
+
 23.1.1
  - source: Force OpenStack when it is only option (#2045)
  - sources/azure: fix regressions in IMDS behavior (#2041)
