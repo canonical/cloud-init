@@ -371,7 +371,7 @@ change_cloud_init_output_log_permissions() {
 
 fix_lp2013967() {
     # Ensure sensitive user data and vendor data gets redacted from instance-data.json
-    local oldver="$1" last_bad_ver="23.1.1-0ubuntu0~22.04.1"
+    local oldver="$1" last_bad_ver="23.1.1-0ubuntu0~18.04.1"
     dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
 
     if ! python3 -c '
