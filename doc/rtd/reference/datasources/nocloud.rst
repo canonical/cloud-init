@@ -47,7 +47,7 @@ The permitted keys are:
 * ``i`` or ``instance-id``
 * ``s`` or ``seedfrom``
 
-A valid ``seedfrom`` values consist of:
+A valid ``seedfrom`` value consists of:
 
 Filesystem
 ----------
