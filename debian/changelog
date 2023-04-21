@@ -1,3 +1,9 @@
+cloud-init (23.1.1-0ubuntu0~18.04.2) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 34637a49.
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 21 Apr 2023 14:41:53 -0500
+
 cloud-init (23.1.1-0ubuntu0~18.04.1) bionic; urgency=medium
 
   * d/patches/netplan99-cannot-use-default.patch:
