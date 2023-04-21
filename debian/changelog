@@ -1,4 +1,4 @@
-cloud-init (23.1.2-0ubuntu0~22.10.1) UNRELEASED; urgency=medium
+cloud-init (23.1.2-0ubuntu0~22.10.1) kinetic; urgency=medium
 
   * SECURITY UPDATE: Make user/vendor data sensitive and remove log permissions
     Because user data and vendor data may contain sensitive information,
@@ -18,7 +18,7 @@ cloud-init (23.1.2-0ubuntu0~22.10.1) UNRELEASED; urgency=medium
       Redact sensitive Vultr messages from /var/log/cloud-init.log
     - (CVE-2023-1786)
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 21 Apr 2023 14:20:48 -0500
+ -- James Falcon <james.falcon@canonical.com>  Fri, 21 Apr 2023 14:21:43 -0500
 
 cloud-init (23.1.1-0ubuntu0~22.10.1) kinetic; urgency=medium
 
