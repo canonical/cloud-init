@@ -46,7 +46,10 @@ def pkg_config_read(library, var):
             "systemdsystemconfdir": "/etc/systemd/system",
             "systemdsystemunitdir": "/lib/systemd/system",
             "systemdsystemgeneratordir": "/lib/systemd/system-generators",
-        }
+        },
+        "udev": {
+            "udevdir": "/lib/udev",
+        },
     }
     cmd = ["pkg-config", "--variable=%s" % var, library]
     try:
@@ -307,14 +310,11 @@ data_files = [
     ),
 ]
 if not platform.system().endswith("BSD"):
-
-    RULES_PATH = LIB
-    if os.path.isfile("/etc/redhat-release"):
-        RULES_PATH = "/usr/lib"
+    RULES_PATH = pkg_config_read("udev", "udevdir")
 
     data_files.extend(
         [
-            (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
+            (RULES_PATH + "/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],
