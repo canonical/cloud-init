@@ -1,13 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import crypt
 import json
 import os
 import stat
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import passlib.hash
 import pytest
 import requests
 
@@ -1561,10 +1561,10 @@ scbus-1 on xpt0 bus 0
         # passwd is crypt formated string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
         # should equal that after the '$'
-        pos = defuser["hashed_passwd"].rfind("$") + 1
-        self.assertEqual(
-            defuser["hashed_passwd"],
-            crypt.crypt("mypass", defuser["hashed_passwd"][0:pos]),
+        self.assertTrue(
+            passlib.hash.sha512_crypt.verify(
+                "mypass", defuser["hashed_passwd"]
+            )
         )
 
         assert dsrc.cfg["ssh_pwauth"] is True
