@@ -83,8 +83,9 @@ You may also optionally provide a vendor data file adhering to
   /vendor-data
 
 
-DMI-Specific Kernel Commandline
+DMI-specific kernel commandline
 ===============================
+
 Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
 kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).
 Your ``seedfrom`` URL can contain variable names of the format
