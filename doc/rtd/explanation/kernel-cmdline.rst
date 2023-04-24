@@ -5,7 +5,7 @@ Kernel command line
 
 Providing configuration data via the kernel command line is somewhat of a last
 resort, since this method supports only a subset of the
-:ref:`cloud config<user_data_cloud_config>` format, and many datasources
+:ref:`cloud config<user_data_formats-cloud_config>` format, and many datasources
 do not support injecting kernel commandline arguments without modifying
 the bootloader.
 
