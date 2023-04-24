@@ -137,6 +137,7 @@ Cloud-init provides two methods to do this:
 
 Method 1:
 ---------
+
 Explicitly set ``datasource_list`` to only ``openstack``, such as:
 
 .. code-block:: yaml
