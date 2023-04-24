@@ -1,3 +1,28 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+
+  * SECURITY UPDATE: Make user/vendor data sensitive and remove log permissions
+    Because user data and vendor data may contain sensitive information,
+    this commit ensures that any user data or vendor data written to
+    instance-data.json gets redacted and is only available to root user.
+
+    Also, modify the permissions of cloud-init.log to be 640, so that
+    sensitive data leaked to the log isn't world readable.
+    Additionally, remove the logging of user data and vendor data to
+    cloud-init.log from the Vultr datasource.
+
+    This is a backport based on security release of 23.1.2 [(LP: #2013967)]
+
+    - d/cloud-init.postinst: postinst fixes for LP: #2013967
+      Redact sensitive keys from world-readable instance-data.json on upgrade.
+      Set perms 640 for /var/log/cloud-init.log on pkg upgrade.
+    - d/patches/backport-redact-sensitive-json-keys-cloud-init-log-640.patch
+      Backport of runtime changes to redact nested sensitive keys from
+      /run/cloud-init/instance-data.json and set /var/log/cloud-init.log
+      permissions to 640.
+    - (CVE-2023-1786)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 06 Apr 2023 14:09:32 -0500
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.2) xenial; urgency=medium
 
   * cherry-pick 83f6bbfb: Fix unpickle for source paths missing run_dir
