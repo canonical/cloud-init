@@ -1,4 +1,4 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.3) xenial; urgency=medium
 
   * SECURITY UPDATE: Make user/vendor data sensitive and remove log permissions
     Because user data and vendor data may contain sensitive information,
@@ -21,7 +21,7 @@ cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
       permissions to 640.
     - (CVE-2023-1786)
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 06 Apr 2023 14:09:32 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 24 Apr 2023 17:44:02 -0500
 
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.2) xenial; urgency=medium
 
