@@ -32,6 +32,7 @@ Alternatively, one can provide metadata via the kernel command line or SMBIOS
 
 Method 3: Custom webserver: kernel commandline or SMBIOS
 --------------------------------------------------------
+
 In a similar fashion, configuration files can be provided to cloud-init using a
 custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
 serial number. This argument might look like: ::
