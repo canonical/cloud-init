@@ -37,7 +37,7 @@ The mechanism used to identify the platform will be required for the
 Add datasource module cloudinit/sources/DataSource<CloudPlatform>.py
 ====================================================================
 
-It is suggested that you start by copying one of the simpler datasources
+We suggest you start by copying one of the simpler datasources
 such as ``DataSourceHetzner``.
 
 Add tests for datasource module
