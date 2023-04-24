@@ -62,7 +62,7 @@ containing files: ``user-data``, ``meta-data``, and (optionally)
 HTTP server
 -----------
 
-An ``http`` or ``https`` url (a trailing ``/`` is required)
+An ``http`` or ``https`` URL (a trailing ``/`` is required)
 
 
 File formats

@@ -9,12 +9,12 @@ resort, since this method supports only a subset of the
 do not support injecting kernel commandline arguments without modifying
 the bootloader.
 
-Despite the limitations of using the kernel commandline, cloud-init supports
+Despite the limitations of using the kernel command line, cloud-init supports
 some use-cases.
 
-Note that this page describes kernel commandline behavior that applies
+Note that this page describes kernel command line behavior that applies
 to all clouds. To provide a local configuration with an image using kernel
-commandline, see :ref:`datasource NoCloud<datasource_nocloud>` which provides
+command line, see :ref:`datasource NoCloud<datasource_nocloud>` which provides
 more configuration options.
 
 .. _kernel_datasource_override:
