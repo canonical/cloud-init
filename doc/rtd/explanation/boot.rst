@@ -17,7 +17,7 @@ stages to boot:
 
 Generator
 =========
-When booting under systemd, a generator will run that determines if
+When booting under ``systemd``, a generator will run that determines if
 cloud-init.target should be included in the boot goals. ``ds-identify``
 runs at this stage.
 
