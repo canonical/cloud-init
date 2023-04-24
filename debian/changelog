@@ -1,4 +1,4 @@
-cloud-init (23.1.2-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
+cloud-init (23.1.2-0ubuntu0~23.04.1) lunar; urgency=medium
 
   * d/changelog: updating 23.1.1-0ubuntu2 changelog entry deleting
     mention of a snapshot that was not performed
@@ -20,7 +20,7 @@ cloud-init (23.1.2-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
       Redact sensitive Vultr messages from /var/log/cloud-init.log
     - (CVE-2023-1786)
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 06 Apr 2023 14:09:32 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 24 Apr 2023 15:45:43 -0500
 
 cloud-init (23.1.1-0ubuntu2) lunar; urgency=medium
 
