@@ -1,3 +1,27 @@
+cloud-init (23.1.2-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
+
+  * d/changelog: updating 23.1.1-0ubuntu2 changelog entry deleting
+    mention of a snapshot that was not performed
+  * SECURITY UPDATE: Make user/vendor data sensitive and remove log permissions
+    Because user data and vendor data may contain sensitive information,
+    this commit ensures that any user data or vendor data written to
+    instance-data.json gets redacted and is only available to root user.
+
+    Also, modify the permissions of cloud-init.log to be 640, so that
+    sensitive data leaked to the log isn't world readable.
+    Additionally, remove the logging of user data and vendor data to
+    cloud-init.log from the Vultr datasource.
+
+    This is based on upstream release of 23.1.2 [(LP: #2013967)]
+
+    - d/cloud-init.postinst: postinst fixes for LP: #2013967
+      Redact sensitive keys from world-readable instance-data.json on upgrade.
+      Set perms 640 for /var/log/cloud-init.log on pkg upgrade.
+      Redact sensitive Vultr messages from /var/log/cloud-init.log
+    - (CVE-2023-1786)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 06 Apr 2023 14:09:32 -0500
+
 cloud-init (23.1.1-0ubuntu2) lunar; urgency=medium
 
   * d/apport-general-hook.py: Add general apport hook to append cloud type,
