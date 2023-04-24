@@ -3,10 +3,11 @@
 Datasource dsname
 *****************
 
-Each datasource has an attribute called ``dsname``, which may be used in the
+Each datasource has an attribute called dsname. This may be used in the
 kernel commandline to
-:ref:`override datasource detection<kernel_datasource_override>` using a
-case-insensitive match with the following mapping:
+:ref:`override datasource detection<kernel_datasource_override>`. The
+``dsname`` on the kernel command line may be a case-insensitive match. See the
+mapping between datasource module names and ``dsname`` in the table below.
 
 
 ..
@@ -17,9 +18,8 @@ case-insensitive match with the following mapping:
        | awk -F '[/:"]' '{print $3 ", " $5}'
 
 
-.. csv-table::
+.. csv-table:: Datasource module -> dsname
    :align: left
-   :header: "Datasource", "dsname"
 
     DataSourceRbxCloud.py, RbxCloud
     DataSourceConfigDrive.py, ConfigDrive
