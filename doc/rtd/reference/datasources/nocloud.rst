@@ -17,7 +17,7 @@ Method 1: Local filesystem, labeled filesystem
 
 To provide cloud-init configurations from the local filesystem, a labeled
 `vfat`_ or `iso9660`_ filesystem containing user data and metadata may
-be used. For this method to work, the filesystem volume must be labeled
+be used. For this method to work, the filesystem volume must be labelled
 ``CIDATA``.
 
 Method 2: Local filesystem, kernel commandline or SMBIOS
