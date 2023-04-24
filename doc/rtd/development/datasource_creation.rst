@@ -3,7 +3,7 @@
 Datasource creation
 *******************
 
-There are multiple ways to provide `user data`, `meta data`, and
+There are multiple ways to provide `user data`, `metadata`, and
 `vendor data`, and each cloud solution prefers its own way. A datasource
 abstract class was internally created to allow for a single way to access the
 different cloud systems methods, providing this data through the typical usage
