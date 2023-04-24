@@ -7,6 +7,7 @@ There are two cross-platform methods of disabling ``cloud-init``.
 
 Method 1: text file
 ====================
+
 To disable cloud-init, create the empty file
 :file:`/etc/cloud/cloud-init.disabled`. During boot the operating system's init
 system will check for the existence of this file. If it exists, cloud-init will
