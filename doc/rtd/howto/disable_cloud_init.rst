@@ -21,6 +21,7 @@ Example:
 
 Method 2: kernel commandline
 ============================
+
 To disable cloud-init, add ``cloud-init=disabled`` to the kernel commandline.
 
 Example (using GRUB2 with Ubuntu):
