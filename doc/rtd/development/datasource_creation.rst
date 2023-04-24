@@ -4,7 +4,7 @@ Datasource creation
 *******************
 
 Since there are multiple ways to provide `user data`, `meta data`, and
-`vendor data` (each cloud solution seems to prefer its own way), a datasource
+`vendor data`, and each cloud solution prefers its own way. A datasource
 abstract class was internally created to allow for a single way to access the
 different cloud systems methods, providing this data through the typical usage
 of subclasses. See :file:`cloud-init/sources/__init__.py` as a starting
