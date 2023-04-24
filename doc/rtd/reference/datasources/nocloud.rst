@@ -21,6 +21,7 @@ be used. For this method to work, the filesystem volume must be labeled
 
 Method 2: Local filesystem, kernel commandline or SMBIOS
 --------------------------------------------------------
+
 Configuration files can be provided on the local filesystem without a label
 using kernel commandline arguments or SMBIOS serial number to tell cloud-init
 where on the filesystem to look.
