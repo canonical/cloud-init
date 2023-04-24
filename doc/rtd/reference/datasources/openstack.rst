@@ -145,6 +145,7 @@ Explicitly set ``datasource_list`` to only ``openstack``, such as:
 
 Method 2:
 ---------
+
 Set the kernel commandline to configure
 :ref:`datasource override <kernel_datasource_override>`.
 
