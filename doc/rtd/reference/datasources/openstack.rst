@@ -133,7 +133,7 @@ During boot, cloud-init typically has to identify which platform it is running
 on. Since OpenStack Ironic bare metal doesn't provide a method for cloud-init
 to discover that it is running on Ironic, extra user configuration is required.
 
-Cloud-init provides two method to do this:
+Cloud-init provides two methods to do this:
 
 Method 1:
 ---------
