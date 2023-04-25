@@ -5,8 +5,9 @@ Description:  Make user/vendor data sensitive and remove log permissions
 
   Also, modify the permissions of cloud-init.log to be 640, so that
   sensitive data leaked to the log isn't world readable.
-  Additionally, remove the logging of user data and vendor data to
-  cloud-init.log from the Vultr datasource.
+
+  Sync upstream unittest fix to avoid testing invalid \r \n and \t characters
+  because newer python3 urllib.split automatically redacts the chars.
 
   CVE: CVE-2023-1786
 Author: james.falon@canonical.com
@@ -251,3 +252,25 @@ Index: cloud-init/cloudinit/tests/test_stages.py
 +        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
  
  # vi: ts=4 expandtab
+Index: cloud-init/cloudinit/distros/tests/test_init.py
+===================================================================
+--- cloud-init.orig/cloudinit/distros/tests/test_init.py
++++ cloud-init/cloudinit/distros/tests/test_init.py
+@@ -12,9 +12,16 @@ import pytest
+ from cloudinit.distros import _get_package_mirror_info, LDH_ASCII_CHARS
+ 
+ 
++# In newer versions of Python, these characters will be omitted instead
++# of substituted because of security concerns.
++# See https://bugs.python.org/issue43882
++SECURITY_URL_CHARS = "\n\r\t"
++
+ # Define a set of characters we would expect to be replaced
+ INVALID_URL_CHARS = [
+-    chr(x) for x in range(127) if chr(x) not in LDH_ASCII_CHARS
++    chr(x)
++    for x in range(127)
++    if chr(x) not in LDH_ASCII_CHARS + SECURITY_URL_CHARS
+ ]
+ for separator in [":", ".", "/", "#", "?", "@", "[", "]"]:
+     # Remove from the set characters that either separate hostname parts (":",
