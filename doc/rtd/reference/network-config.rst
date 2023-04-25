@@ -64,7 +64,7 @@ Disabling network activation
 Some datasources may not be initialised until after the network has been
 brought up. In this case, ``cloud-init`` will attempt to bring up the
 interfaces specified by the datasource metadata using a network activator
-discovered by `cloudinit.net.activators.select_activators`_.
+discovered by `cloudinit.net.activators.select_activator`_.
 
 This behaviour can be disabled in the ``cloud-init`` configuration dictionary,
 merged from :file:`/etc/cloud/cloud.cfg` and
@@ -325,5 +325,5 @@ Example output:
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
 .. _Vultr JSON metadata: https://www.vultr.com/metadata/
-.. _cloudinit.net.activators.select_activators: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L279
-.. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L28
+.. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
+.. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46
