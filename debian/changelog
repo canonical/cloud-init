@@ -1,4 +1,4 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4) UNRELEASED; urgency=medium
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4) xenial; urgency=medium
 
   * d/patches/backport-redact-sensitive-json-keys-cloud-init-log-640.patch
     Backport unittest fixes to avoid testing \r \t \n on newer versions
