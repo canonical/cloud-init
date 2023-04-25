@@ -43,6 +43,7 @@ class ReportableError(Exception):
         self, *, delimiter: str = "|", quotechar: str = "'"
     ) -> str:
         data = [
+            "result=error",
             f"reason={self.reason}",
             f"agent={self.agent}",
         ]
@@ -64,7 +65,7 @@ class ReportableError(Exception):
             # strip trailing \r\n
             csv_data = io.getvalue().rstrip()
 
-        return f"PROVISIONING_ERROR: {csv_data}"
+        return csv_data
 
     def __eq__(self, other) -> bool:
         return (
