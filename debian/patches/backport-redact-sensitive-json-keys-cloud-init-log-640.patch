@@ -1,0 +1,253 @@
+Description:  Make user/vendor data sensitive and remove log permissions
+  Because user data and vendor data may contain sensitive information,
+  this commit ensures that any user data or vendor data written to
+  instance-data.json gets redacted and is only available to root user.
+
+  Also, modify the permissions of cloud-init.log to be 640, so that
+  sensitive data leaked to the log isn't world readable.
+  Additionally, remove the logging of user data and vendor data to
+  cloud-init.log from the Vultr datasource.
+
+  CVE: CVE-2023-1786
+Author: james.falon@canonical.com
+Origin: backport
+Bug: https://bugs.launchpad.net/cloud-init/+bug/2013967
+Reviewed-by: chad.smith@canonical.com
+Last-Update: 2023-04-24 <YYYY-MM-DD, last update of the meta-information, optional>
+Index: cloud-init/cloudinit/sources/__init__.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/__init__.py
++++ cloud-init/cloudinit/sources/__init__.py
+@@ -97,7 +97,10 @@ def process_instance_metadata(metadata,
+             sub_key_path = key_path + '/' + key
+         else:
+             sub_key_path = key
+-        if key in sensitive_keys or sub_key_path in sensitive_keys:
++        if (
++            key.lower() in sensitive_keys
++            or sub_key_path.lower() in sensitive_keys
++        ):
+             sens_keys.append(sub_key_path)
+         if isinstance(val, str) and val.startswith('ci-b64:'):
+             base64_encoded_keys.append(sub_key_path)
+@@ -118,6 +121,12 @@ def redact_sensitive_keys(metadata, reda
+ 
+     Replace any keys values listed in 'sensitive_keys' with redact_value.
+     """
++    # While 'sensitive_keys' should already sanitized to only include what
++    # is in metadata, it is possible keys will overlap. For example, if
++    # "merged_cfg" and "merged_cfg/ds/userdata" both match, it's possible that
++    # "merged_cfg" will get replaced first, meaning "merged_cfg/ds/userdata"
++    # no longer represents a valid key.
++    # Thus, we still need to do membership checks in this function.
+     if not metadata.get('sensitive_keys', []):
+         return metadata
+     md_copy = copy.deepcopy(metadata)
+@@ -125,9 +134,14 @@ def redact_sensitive_keys(metadata, reda
+         path_parts = key_path.split('/')
+         obj = md_copy
+         for path in path_parts:
+-            if isinstance(obj[path], dict) and path != path_parts[-1]:
++            if (
++                path in obj
++                and isinstance(obj[path], dict)
++                and path != path_parts[-1]
++            ):
+                 obj = obj[path]
+-        obj[path] = redact_value
++        if path in obj:
++            obj[path] = redact_value
+     return md_copy
+ 
+ 
+@@ -195,7 +209,18 @@ class DataSource(CloudInitPickleMixin, m
+ 
+     # N-tuple of keypaths or keynames redact from instance-data.json for
+     # non-root users
+-    sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
++    sensitive_metadata_keys = (
++        'merged_cfg',
++        'security-credentials',
++        'userdata',
++        'user-data',
++        'user_data',
++        'vendordata',
++        'vendor-data',
++        # Provide ds/vendor_data to avoid redacting top-level
++        #  "vendor_data": {enabled: True}
++        'ds/vendor_data',
++    )
+ 
+     _ci_pkl_version = 1
+ 
+Index: cloud-init/cloudinit/sources/tests/test_init.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/tests/test_init.py
++++ cloud-init/cloudinit/sources/tests/test_init.py
+@@ -349,9 +349,26 @@ class TestDataSource(CiTestCase):
+                 'local-hostname': 'test-subclass-hostname',
+                 'region': 'myregion',
+                 'some': {'security-credentials': {
+-                    'cred1': 'sekret', 'cred2': 'othersekret'}}})
++                    'cred1': 'sekret', 'cred2': 'othersekret'}},
++                "someother": {
++                    "nested": {
++                        "userData": "HIDE ME",
++                    }
++                },
++                "VENDOR-DAta": "HIDE ME TOO",
++            }
++        )
+         self.assertCountEqual(
+-            ('merged_cfg', 'security-credentials',),
++            (
++                'merged_cfg',
++                'security-credentials',
++                "userdata",
++                "user-data",
++                "user_data",
++                "vendordata",
++                "vendor-data",
++                "ds/vendor_data",
++            ),
+             datasource.sensitive_metadata_keys)
+         sys_info = {
+             "python": "3.7",
+@@ -368,7 +385,11 @@ class TestDataSource(CiTestCase):
+             'base64_encoded_keys': [],
+             'merged_cfg': REDACT_SENSITIVE_VALUE,
+             'sensitive_keys': [
+-                'ds/meta_data/some/security-credentials', 'merged_cfg'],
++                "ds/meta_data/VENDOR-DAta",
++                'ds/meta_data/some/security-credentials',
++                "ds/meta_data/someother/nested/userData",
++                'merged_cfg'
++            ],
+             'sys_info': sys_info,
+             'v1': {
+                 '_beta_keys': ['subplatform'],
+@@ -396,12 +417,18 @@ class TestDataSource(CiTestCase):
+             'ds': {
+                 '_doc': EXPERIMENTAL_TEXT,
+                 'meta_data': {
++                    "VENDOR-DAta": REDACT_SENSITIVE_VALUE,
+                     'availability_zone': 'myaz',
+                     'local-hostname': 'test-subclass-hostname',
+                     'region': 'myregion',
+-                    'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
++                    'some': {'security-credentials': REDACT_SENSITIVE_VALUE},
++                    "someother": {
++                        "nested": {"userData": REDACT_SENSITIVE_VALUE}
++                    }
++                }
++            }
+         }
+-        self.assertCountEqual(expected, redacted)
++        self.assertEqual(expected, redacted)
+         file_stat = os.stat(json_file)
+         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
+ 
+@@ -427,7 +454,16 @@ class TestDataSource(CiTestCase):
+             "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
+ 
+         self.assertCountEqual(
+-            ('merged_cfg', 'security-credentials',),
++            (
++                'merged_cfg',
++                'security-credentials',
++                "userdata",
++                "user-data",
++                "user_data",
++                "vendordata",
++                "vendor-data",
++                "ds/vendor_data",
++            ),
+             datasource.sensitive_metadata_keys)
+         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+             datasource.get_data()
+Index: cloud-init/cloudinit/stages.py
+===================================================================
+--- cloud-init.orig/cloudinit/stages.py
++++ cloud-init/cloudinit/stages.py
+@@ -148,7 +148,9 @@ class Init(object):
+         util.ensure_dirs(self._initial_subdirs())
+         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
+         if log_file:
+-            util.ensure_file(log_file, preserve_mode=True)
++            # At this point the log file should have already been created
++            # in the setupLogging function of log.py
++            util.ensure_file(log_file, mode=0o640, preserve_mode=False)
+             perms = self.cfg.get('syslog_fix_perms')
+             if not perms:
+                 perms = {}
+Index: cloud-init/cloudinit/tests/test_stages.py
+===================================================================
+--- cloud-init.orig/cloudinit/tests/test_stages.py
++++ cloud-init/cloudinit/tests/test_stages.py
+@@ -358,21 +358,17 @@ class TestInit_InitializeFilesystem:
+         As it is replaced with a mock, consumers of this fixture can set
+         `init.cfg` if the default empty dict configuration is not appropriate.
+         """
+-        with mock.patch(
+-            "cloudinit.stages.Init.cfg", mock.PropertyMock(return_value={})
+-        ):
+-            with mock.patch("cloudinit.stages.util.ensure_dirs"):
+-                init = stages.Init()
+-                init._paths = paths
+-                yield init
++        with mock.patch("cloudinit.stages.util.ensure_dirs"):
++            init = stages.Init()
++            init._cfg = {}
++            init._paths = paths
++            yield init
+ 
+     @mock.patch("cloudinit.stages.util.ensure_file")
+     def test_ensure_file_not_called_if_no_log_file_configured(
+         self, m_ensure_file, init
+     ):
+         """If no log file is configured, we should not ensure its existence."""
+-        init.cfg = {}
+-
+         init._initialize_filesystem()
+ 
+         assert 0 == m_ensure_file.call_count
+@@ -380,27 +376,29 @@ class TestInit_InitializeFilesystem:
+     def test_log_files_existence_is_ensured_if_configured(self, init, tmpdir):
+         """If a log file is configured, we should ensure its existence."""
+         log_file = tmpdir.join("cloud-init.log")
+-        init.cfg = {"def_log_file": str(log_file)}
++        init._cfg = {"def_log_file": str(log_file)}
+ 
+         init._initialize_filesystem()
+ 
+         assert log_file.exists
+ 
+-    def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
+-        """If the log file already exists, we should not modify its permissions
+-
++    def test_existing_file_permissions(self, init, tmpdir):
++        """Test file permissions are set as expected.
++        CIS Hardening requires 640 permissions. These permissions are
++        currently hardcoded on every boot, but if there's ever a reason
++        to change this, we need to then ensure that they
++        are *not* set every boot.
+         See https://bugs.launchpad.net/cloud-init/+bug/1900837.
+         """
+-        # Use a mode that will never be made the default so this test will
+-        # always be valid
+-        mode = 0o606
+         log_file = tmpdir.join("cloud-init.log")
+         log_file.ensure()
+-        log_file.chmod(mode)
+-        init.cfg = {"def_log_file": str(log_file)}
++        # Use a mode that will never be made the default so this test will
++        # always be valid
++        log_file.chmod(0o606)
++        init._cfg = {"def_log_file": str(log_file)}
+ 
+         init._initialize_filesystem()
+ 
+-        assert mode == stat.S_IMODE(log_file.stat().mode)
++        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
+ 
+ # vi: ts=4 expandtab
