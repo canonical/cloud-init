@@ -14,13 +14,15 @@ mapping between datasource module names and ``dsname`` in the table below.
     generate the following map with the following one-liner:
 
     find cloudinit/sources -name 'DataSource*.py' \
-       | xargs grep 'dsname =' \
-       | awk -F '[/:"]' '{print $3 ", " $5}'
+    |  xargs grep 'dsname =' \
+    | awk -F '[/:"]' 'BEGIN { print "**Datasource Module**, **dsname**" }\
+      {print $3 ", " $5}'
 
 
-.. csv-table:: Datasource module -> dsname
+.. csv-table::
    :align: left
 
+    **Datasource Module**, **dsname**
     DataSourceRbxCloud.py, RbxCloud
     DataSourceConfigDrive.py, ConfigDrive
     DataSourceNoCloud.py, NoCloud

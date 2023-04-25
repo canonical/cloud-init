@@ -1,7 +1,10 @@
 .. _disable-Cloud_init:
 
-Disable cloud-init
-******************
+How to disable cloud-init
+*************************
+
+One may wish to disable cloud-init to ensure that it doesn't do anything on
+subsequent boots. Some parts of cloud-init may run once per boot otherwise.
 
 There are two cross-platform methods of disabling ``cloud-init``.
 

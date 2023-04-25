@@ -4,10 +4,10 @@ Kernel command line
 *******************
 
 Providing configuration data via the kernel command line is somewhat of a last
-resort, since this method supports only a subset of the
-:ref:`cloud config<user_data_formats-cloud_config>` format, and many
-datasources do not support injecting kernel commandline arguments without
-modifying the bootloader.
+resort, since this method only supports
+:ref:`cloud config<user_data_formats-cloud_config>` starting with
+`#cloud-config`, and many datasources do not support injecting kernel
+command line arguments without modifying the bootloader.
 
 Despite the limitations of using the kernel command line, cloud-init supports
 some use-cases.
@@ -38,9 +38,6 @@ configuration, ``cloud-init`` can read a URL directed by the kernel command
 line and proceed as if its data had previously existed.
 
 This allows for configuring a metadata service, or some other data.
-
-This method is different from the standard way that most datasources receive
-configuration.
 
 When :ref:`the local stage<boot-Local>` runs, it will check to see if
 ``cloud-config-url`` appears in key/value fashion in the kernel command line,

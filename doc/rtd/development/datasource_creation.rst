@@ -5,14 +5,13 @@ Datasource creation
 
 There are multiple ways to provide `user data`, `metadata`, and
 `vendor data`, and each cloud solution prefers its own way. A datasource
-abstract class was internally created to allow for a single way to access the
-different cloud systems methods, providing this data through the typical usage
-of subclasses. See :file:`cloud-init/sources/__init__.py` as a starting
-point for understanding the datastructures used.
+abstract base class defines a single interface to interact with the different
+clouds. Each cloud implementation must inherit from this base class to use this
+shared functionality and interface. See :file:`cloud-init/sources/__init__.py`
+to see this class.
 
-The datasource objects have a few touch points with ``cloud-init``. If you
-are interested in adding a new datasource for your cloud platform you will
-need to take care of the following items:
+If you are interested in adding a new datasource for your cloud platform you
+will need to do all of the following:
 
 Identify a mechanism for positive identification of the platform
 ================================================================
@@ -20,7 +19,7 @@ Identify a mechanism for positive identification of the platform
 It is good practice for a cloud platform to positively identify itself to
 the guest. This allows the guest to make educated decisions based on the
 platform on which it is running. On the x86 and arm64 architectures, many
-clouds identify themselves through DMI data. For example, Oracle's public
+clouds identify themselves through `DMI`_ data. For example, Oracle's public
 cloud provides the string ``'OracleCloud.com'`` in the DMI chassis-asset
 field.
 
@@ -87,3 +86,4 @@ Add documentation for your datasource
 You should add a new file in :file:`doc/datasources/<cloudplatform>.rst`.
 
 .. _make-mime: https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html#storage-locations
+.. _DMI: https://www.dmtf.org/sites/default/files/standards/documents/DSP0005.pdf
