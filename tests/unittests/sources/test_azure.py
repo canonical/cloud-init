@@ -13,6 +13,7 @@ import requests
 
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.net import dhcp
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
@@ -299,6 +300,17 @@ def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
         azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
+
+
+@pytest.fixture
+def telemetry_reporter(tmp_path):
+    kvp_file_path = tmp_path / "kvp_pool_file"
+    kvp_file_path.write_bytes(b"")
+    reporter = HyperVKvpReportingHandler(kvp_file_path=str(kvp_file_path))
+
+    dsaz.instantiated_handler_registry.register_item("telemetry", reporter)
+    yield reporter
+    dsaz.instantiated_handler_registry.unregister_item("telemetry")
 
 
 def fake_http_error_for_code(status_code: int):
@@ -4378,3 +4390,24 @@ class TestValidateIMDSMetadata:
         }
 
         assert azure_ds.validate_imds_network_metadata(imds_md) is False
+
+
+class TestReportFailureToHost:
+    def test_report(self, azure_ds, caplog, telemetry_reporter):
+        error = errors.ReportableError(reason="test")
+        assert azure_ds._report_failure_to_host(error) is True
+        assert (
+            "KVP handler not enabled, skipping host report." not in caplog.text
+        )
+
+        report = {
+            "key": "PROVISIONING_REPORT",
+            "value": error.as_description(),
+        }
+        assert report in list(telemetry_reporter._iterate_kvps(0))
+
+    def test_report_skipped_without_telemtry(self, azure_ds, caplog):
+        error = errors.ReportableError(reason="test")
+
+        assert azure_ds._report_failure_to_host(error) is False
+        assert "KVP handler not enabled, skipping host report." in caplog.text
