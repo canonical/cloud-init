@@ -16,6 +16,7 @@ Contributing
 
    contributing.rst
    module_creation.rst
+   datasource_creation.rst
    code_review.rst
    dir_layout.rst
 
