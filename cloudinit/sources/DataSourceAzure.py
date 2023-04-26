@@ -1592,6 +1592,7 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
                 count_files,
                 mtype="ntfs",
                 update_env_for_mount={"LANG": "C"},
+                log_error=False,
             )
         except util.MountFailedError as e:
             evt.description = "cannot mount ntfs"

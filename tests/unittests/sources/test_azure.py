@@ -2287,7 +2287,9 @@ class TestCanDevBeReformatted(CiTestCase):
             # return sorted by partition number
             return sorted(ret, key=lambda d: d[0])
 
-        def mount_cb(device, callback, mtype, update_env_for_mount):
+        def mount_cb(
+            device, callback, mtype, update_env_for_mount, log_error=False
+        ):
             self.assertEqual("ntfs", mtype)
             self.assertEqual("C", update_env_for_mount.get("LANG"))
             p = self.tmp_dir()

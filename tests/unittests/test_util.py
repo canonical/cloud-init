@@ -1571,6 +1571,33 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
+    @mock.patch(M_PATH + "subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    def test_mount_cb_does_not_log(self, m_subp, m_tmpdir, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/sda1' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "unknown filesystem type 'ntfs'"
+        )
+        m_tmpdir.return_value.__enter__ = mock.Mock(
+            autospec=True, return_value="/tmp/fake"
+        )
+        m_tmpdir.return_value.__exit__ = mock.Mock(
+            autospec=True, return_value=True
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(IOError):
+            util.mount_cb(
+                "/dev/sda1",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=False,
+            )
+        assert log_msg not in caplog.text
+
 
 @mock.patch(M_PATH + "write_file")
 class TestEnsureFile:
