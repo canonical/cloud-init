@@ -2626,38 +2626,36 @@ def get_device_info_from_zpool(zpool):
             return disk
 
 
-def parse_mount(path):
+def parse_mount(path, get_mnt_opts=False):
     (mountoutput, _err) = subp.subp(["mount"])
     mount_locs = mountoutput.splitlines()
     # there are 2 types of mount outputs we have to parse therefore
     # the regex is a bit complex. to better understand this regex see:
-    # https://regex101.com/r/2F6c1k/1
-    # https://regex101.com/r/T2en7a/1
+    # https://regex101.com/r/L51Td8/1
     regex = (
-        r"^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) "
-        r"(?=(?:type)[\s]+([\S]+)|\(([^,]*))"
+        r"^(?P<devpth>[\S]+?) on (?P<mountpoint>[\S]+?) "
+        r"(\(|type )(?P<type>[^,\(\) ]+)( \()?(?P<options>.*?)\)$"
     )
-    if is_DragonFlyBSD():
-        regex = (
-            r"^(/dev/[\S]+|\S*?) on (/[\S]*) "
-            r"(?=(?:type)[\s]+([\S]+)|\(([^,]*))"
-        )
+
+    mountpoints = []
     for line in mount_locs:
         m = re.search(regex, line)
         if not m:
             continue
-        devpth = m.group(1)
-        mount_point = m.group(2)
-        # above regex will either fill the fs_type in group(3)
-        # or group(4) depending on the format we have.
-        fs_type = m.group(3)
-        if fs_type is None:
-            fs_type = m.group(4)
+        devpth = m.group("devpth")
+        mount_point = m.group("mountpoint")
+        mountpoints.append(mount_point)
+        fs_type = m.group("type")
+        options = m.group("options")
+        if options is not None:
+            options = ",".join(m.group("options").strip().split(", "))
         LOG.debug(
-            "found line in mount -> devpth: %s, mount_point: %s, fs_type: %s",
+            "found line in mount -> devpth: %s, mount_point: %s, fs_type: %s"
+            ", options: %s",
             devpth,
             mount_point,
             fs_type,
+            options,
         )
         # check whether the dev refers to a label on FreeBSD
         # for example, if dev is '/dev/label/rootfs', we should
