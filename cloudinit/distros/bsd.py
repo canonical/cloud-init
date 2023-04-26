@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from cloudinit import distros, helpers
 from cloudinit import log as logging
-from cloudinit import net, subp, util
+from cloudinit import net, subp, temp_utils, util
 from cloudinit.distros import bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 
@@ -138,3 +138,6 @@ class BSD(distros.Distro):
     def chpasswd(self, plist_in: list, hashed: bool):
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
+
+    def get_tmp_exec_path(self) -> str:
+        return temp_utils.get_tmp_ancestor(needs_exe=True)
