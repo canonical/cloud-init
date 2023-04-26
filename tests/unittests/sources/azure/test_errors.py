@@ -116,7 +116,7 @@ def test_reportable_errors(
         "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    assert error.as_description() == "|".join(data)
+    assert error.as_encoded_report() == "|".join(data)
 
 
 def test_unhandled_exception():
@@ -137,4 +137,4 @@ def test_unhandled_exception():
     assert trace.endswith("ValueError: my value error\n")
 
     quoted_value = quote_csv_value(f"exception={source_error!r}")
-    assert f"|{quoted_value}|" in error.as_description()
+    assert f"|{quoted_value}|" in error.as_encoded_report()

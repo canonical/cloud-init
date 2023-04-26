@@ -38,32 +38,32 @@ def telemetry_reporter(tmp_path):
     kvp.instantiated_handler_registry.unregister_item("telemetry")
 
 
-class TestReportFailureViaKvp:
-    def test_report_failure_via_kvp(self, caplog, telemetry_reporter):
+class TestReportFailureToHost:
+    def test_report_failure_to_host(self, caplog, telemetry_reporter):
         error = errors.ReportableError(reason="test")
-        assert kvp.report_failure_via_kvp(error) is True
+        assert kvp.report_failure_to_host(error) is True
         assert (
             "KVP handler not enabled, skipping host report." not in caplog.text
         )
 
         report = {
             "key": "PROVISIONING_REPORT",
-            "value": error.as_description(),
+            "value": error.as_encoded_report(),
         }
         assert report in list(telemetry_reporter._iterate_kvps(0))
 
     def test_report_skipped_without_telemetry(self, caplog):
         error = errors.ReportableError(reason="test")
 
-        assert kvp.report_failure_via_kvp(error) is False
+        assert kvp.report_failure_to_host(error) is False
         assert "KVP handler not enabled, skipping host report." in caplog.text
 
 
-class TestReportSuccessViaKvp:
-    def test_report_success_via_kvp(
+class TestReportSuccessToHost:
+    def test_report_success_to_host(
         self, caplog, fake_utcnow, fake_vm_id, telemetry_reporter
     ):
-        assert kvp.report_success_via_kvp() is True
+        assert kvp.report_success_to_host() is True
         assert (
             "KVP handler not enabled, skipping host report." not in caplog.text
         )
@@ -84,5 +84,5 @@ class TestReportSuccessViaKvp:
         assert report in list(telemetry_reporter._iterate_kvps(0))
 
     def test_report_skipped_without_telemetry(self, caplog):
-        assert kvp.report_success_via_kvp() is False
+        assert kvp.report_success_to_host() is False
         assert "KVP handler not enabled, skipping host report." in caplog.text

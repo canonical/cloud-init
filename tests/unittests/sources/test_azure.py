@@ -136,9 +136,9 @@ def mock_ephemeral_dhcp_v4():
 
 
 @pytest.fixture
-def mock_kvp_report_failure_via_kvp():
+def mock_kvp_report_failure_to_host():
     with mock.patch(
-        MOCKPATH + "kvp.report_failure_via_kvp",
+        MOCKPATH + "kvp.report_failure_to_host",
         return_value=True,
         autospec=True,
     ) as m:
@@ -146,9 +146,9 @@ def mock_kvp_report_failure_via_kvp():
 
 
 @pytest.fixture
-def mock_kvp_report_success_via_kvp():
+def mock_kvp_report_success_to_host():
     with mock.patch(
-        MOCKPATH + "kvp.report_success_via_kvp",
+        MOCKPATH + "kvp.report_success_to_host",
         return_value=True,
         autospec=True,
     ) as m:
@@ -3502,8 +3502,8 @@ class TestProvisioning:
         mock_dmi_read_dmi_data,
         mock_get_interfaces,
         mock_get_interface_mac,
-        mock_kvp_report_failure_via_kvp,
-        mock_kvp_report_success_via_kvp,
+        mock_kvp_report_failure_to_host,
+        mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
         mock_subp_subp,
@@ -3532,8 +3532,8 @@ class TestProvisioning:
         self.mock_dmi_read_dmi_data = mock_dmi_read_dmi_data
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
-        self.mock_kvp_report_failure_via_kvp = mock_kvp_report_failure_via_kvp
-        self.mock_kvp_report_success_via_kvp = mock_kvp_report_success_via_kvp
+        self.mock_kvp_report_failure_to_host = mock_kvp_report_failure_to_host
+        self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
@@ -3637,8 +3637,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 0
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 1
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     def test_running_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Running"
@@ -3745,8 +3745,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 0
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 2
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     def test_savable_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
@@ -3868,8 +3868,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 0
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 2
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -4109,8 +4109,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 0
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 1
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
     def test_source_pps_fails_initial_dhcp(self, pps_type):
@@ -4141,8 +4141,8 @@ class TestProvisioning:
         assert self.mock_netlink.mock_calls == []
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 1
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 0
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
 
     @pytest.mark.parametrize(
         "subp_side_effect",
@@ -4213,8 +4213,8 @@ class TestProvisioning:
         assert self.wrapped_util_write_file.mock_calls == []
 
         # Verify reports via KVP. Ignore failure reported after sleep().
-        assert len(self.mock_kvp_report_failure_via_kvp.mock_calls) == 1
-        assert len(self.mock_kvp_report_success_via_kvp.mock_calls) == 1
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
 
 class TestValidateIMDSMetadata:

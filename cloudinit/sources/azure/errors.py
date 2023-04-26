@@ -55,7 +55,7 @@ class ReportableError(Exception):
         except Exception as id_error:
             self.vm_id = f"failed to read vm id: {id_error!r}"
 
-    def as_description(
+    def as_encoded_report(
         self,
     ) -> str:
         data = [
@@ -81,7 +81,7 @@ class ReportableError(Exception):
         )
 
     def __repr__(self) -> str:
-        return self.as_description()
+        return self.as_encoded_report()
 
 
 class ReportableErrorUnhandledException(ReportableError):

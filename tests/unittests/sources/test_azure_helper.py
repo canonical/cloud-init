@@ -1382,7 +1382,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=error.as_description(),
+            description=error.as_encoded_report(),
         )
 
     def test_instantiates_shim_with_kwargs(self):

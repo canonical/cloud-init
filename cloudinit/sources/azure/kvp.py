@@ -35,11 +35,11 @@ def report_via_kvp(report: str) -> bool:
     return True
 
 
-def report_failure_via_kvp(error: errors.ReportableError) -> bool:
-    return report_via_kvp(error.as_description())
+def report_failure_to_host(error: errors.ReportableError) -> bool:
+    return report_via_kvp(error.as_encoded_report())
 
 
-def report_success_via_kvp() -> bool:
+def report_success_to_host() -> bool:
     try:
         vm_id = identity.query_vm_id()
     except Exception as id_error:
