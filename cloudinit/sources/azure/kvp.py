@@ -3,10 +3,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from datetime import datetime
 from typing import Optional
 
+from cloudinit import version
 from cloudinit.reporting import handlers, instantiated_handler_registry
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import errors, identity
 
 LOG = logging.getLogger(__name__)
 
@@ -17,7 +19,6 @@ def get_kvp_handler() -> Optional[handlers.HyperVKvpReportingHandler]:
         "telemetry"
     )
     if not isinstance(kvp_handler, handlers.HyperVKvpReportingHandler):
-        LOG.debug("KVP handler not enabled, skipping host report.")
         return None
 
     return kvp_handler
@@ -39,4 +40,18 @@ def report_failure_via_kvp(error: errors.ReportableError) -> bool:
 
 
 def report_success_via_kvp() -> bool:
-    return report_via_kvp("result=success")
+    try:
+        vm_id = identity.query_vm_id()
+    except Exception as id_error:
+        vm_id = f"failed to read vm id: {id_error!r}"
+
+    report = errors.encode_report(
+        [
+            "result=success",
+            f"agent=Cloud-Init/{version.version_string()}",
+            f"timestamp={datetime.utcnow().isoformat()}",
+            f"vm_id={vm_id}",
+        ]
+    )
+
+    return report_via_kvp(report)

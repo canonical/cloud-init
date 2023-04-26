@@ -1,9 +1,28 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from datetime import datetime
+from unittest import mock
 
 import pytest
 
+from cloudinit import version
 from cloudinit.sources.azure import errors, kvp
+
+
+@pytest.fixture()
+def fake_utcnow():
+    timestamp = datetime.utcnow()
+    with mock.patch.object(kvp, "datetime", autospec=True) as m:
+        m.utcnow.return_value = timestamp
+        yield timestamp
+
+
+@pytest.fixture()
+def fake_vm_id():
+    vm_id = "fake-vm-id"
+    with mock.patch.object(kvp.identity, "query_vm_id", autospec=True) as m:
+        m.return_value = vm_id
+        yield vm_id
 
 
 @pytest.fixture
@@ -41,15 +60,26 @@ class TestReportFailureViaKvp:
 
 
 class TestReportSuccessViaKvp:
-    def test_report_success_via_kvp(self, caplog, telemetry_reporter):
+    def test_report_success_via_kvp(
+        self, caplog, fake_utcnow, fake_vm_id, telemetry_reporter
+    ):
         assert kvp.report_success_via_kvp() is True
         assert (
             "KVP handler not enabled, skipping host report." not in caplog.text
         )
 
+        report_value = errors.encode_report(
+            [
+                "result=success",
+                f"agent=Cloud-Init/{version.version_string()}",
+                f"timestamp={fake_utcnow.isoformat()}",
+                f"vm_id={fake_vm_id}",
+            ]
+        )
+
         report = {
             "key": "PROVISIONING_REPORT",
-            "value": "result=success",
+            "value": report_value,
         }
         assert report in list(telemetry_reporter._iterate_kvps(0))
 

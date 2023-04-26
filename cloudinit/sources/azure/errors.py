@@ -8,12 +8,28 @@ import logging
 import traceback
 from datetime import datetime
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from cloudinit import version
 from cloudinit.sources.azure import identity
 
 LOG = logging.getLogger(__name__)
+
+
+def encode_report(
+    data: List[str], delimiter: str = "|", quotechar: str = "'"
+) -> str:
+    """Encode report data with csv."""
+    with StringIO() as io:
+        csv.writer(
+            io,
+            delimiter=delimiter,
+            quotechar=quotechar,
+            quoting=csv.QUOTE_MINIMAL,
+        ).writerow(data)
+
+        # strip trailing \r\n
+        return io.getvalue().rstrip()
 
 
 class ReportableError(Exception):
@@ -40,7 +56,7 @@ class ReportableError(Exception):
             self.vm_id = f"failed to read vm id: {id_error!r}"
 
     def as_description(
-        self, *, delimiter: str = "|", quotechar: str = "'"
+        self,
     ) -> str:
         data = [
             "result=error",
@@ -54,18 +70,7 @@ class ReportableError(Exception):
             f"documentation_url={self.documentation_url}",
         ]
 
-        with StringIO() as io:
-            csv.writer(
-                io,
-                delimiter=delimiter,
-                quotechar=quotechar,
-                quoting=csv.QUOTE_MINIMAL,
-            ).writerow(data)
-
-            # strip trailing \r\n
-            csv_data = io.getvalue().rstrip()
-
-        return csv_data
+        return encode_report(data)
 
     def __eq__(self, other) -> bool:
         return (
