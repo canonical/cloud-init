@@ -28,8 +28,7 @@ def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
 
 
 @pytest.mark.skipif(
-    PLATFORM
-    not in ["lxd_container", "lxd_vm", "ec2", "gce", "oci", "openstack"],
+    PLATFORM not in ["lxd_container", "lxd_vm", "ec2", "oci", "openstack"],
     reason="Default boot events testing is datasource specific",
 )
 def test_boot_event_disabled_by_default(client: IntegrationInstance):
@@ -93,7 +92,7 @@ def _test_network_config_applied_on_reboot(client: IntegrationInstance):
 
 
 @pytest.mark.skipif(
-    PLATFORM != "azure",
+    PLATFORM not in ("azure", "gce"),
     reason=(
         f"{PLATFORM} doesn't support updates every boot event by default "
         "(or hasn't been testing for it)."
