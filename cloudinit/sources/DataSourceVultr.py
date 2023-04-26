@@ -8,7 +8,7 @@
 from typing import Tuple
 
 import cloudinit.sources.helpers.vultr as vultr
-from cloudinit import log as log 
+from cloudinit import log as log
 from cloudinit import sources, stages, util, version
 
 LOG = log.getLogger(__name__)
