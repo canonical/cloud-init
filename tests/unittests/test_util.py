@@ -1572,23 +1572,16 @@ class TestMountCb:
         ] == callback.call_args_list
 
     @mock.patch(M_PATH + "subp.subp")
-    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
-    def test_mount_cb_does_not_log(self, m_subp, m_tmpdir, caplog):
+    def test_mount_cb_does_not_log(self, m_subp, caplog):
         log_msg = (
             "Failed to mount device: '/dev/sda1' with type: "
             "'ntfs' using mount command:"
         )
         m_subp.side_effect = subp.ProcessExecutionError(
-            "unknown filesystem type 'ntfs'"
-        )
-        m_tmpdir.return_value.__enter__ = mock.Mock(
-            autospec=True, return_value="/tmp/fake"
-        )
-        m_tmpdir.return_value.__exit__ = mock.Mock(
-            autospec=True, return_value=True
+            "", "unknown filesystem type 'ntfs'"
         )
         callback = mock.Mock(autospec=True)
-        with pytest.raises(IOError):
+        with pytest.raises(Exception):
             util.mount_cb(
                 "/dev/sda1",
                 callback,
@@ -1597,6 +1590,26 @@ class TestMountCb:
                 log_error=False,
             )
         assert log_msg not in caplog.text
+
+    @mock.patch(M_PATH + "subp.subp")
+    def test_mount_cb_does_log(self, m_subp, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/sda1' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "", "unknown filesystem type 'ntfs'"
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(Exception):
+            util.mount_cb(
+                "/dev/sda1",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=True,
+            )
+        assert log_msg in caplog.text
 
 
 @mock.patch(M_PATH + "write_file")
