@@ -2592,7 +2592,7 @@ def get_path_dev_freebsd(path, mnt_list):
     return path_found
 
 
-def get_mount_info_freebsd(path):
+def get_freebsd_devpth(path):
     (result, err) = subp.subp(["mount", "-p", path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
@@ -2603,7 +2603,7 @@ def get_mount_info_freebsd(path):
         result = path_found
     ret = result.split()
     label_part = find_freebsd_part(ret[0])
-    return "/dev/" + label_part, ret[2], ret[1]
+    return "/dev/" + label_part
 
 
 def get_device_info_from_zpool(zpool):
@@ -2628,7 +2628,7 @@ def get_device_info_from_zpool(zpool):
 
 def parse_mount(path, get_mnt_opts=False):
     (mountoutput, _err) = subp.subp(["mount"])
-    mount_locs = mountoutput.splitlines()
+
     # there are 2 types of mount outputs we have to parse therefore
     # the regex is a bit complex. to better understand this regex see:
     # https://regex101.com/r/L51Td8/1
@@ -2637,25 +2637,49 @@ def parse_mount(path, get_mnt_opts=False):
         r"(\(|type )(?P<type>[^,\(\) ]+)( \()?(?P<options>.*?)\)$"
     )
 
-    mountpoints = []
-    for line in mount_locs:
+    path_elements = [e for e in path.split("/") if e]
+    match_mount_point = None
+    match_mount_point_elements = None
+    for line in mountoutput.splitlines():
         m = re.search(regex, line)
         if not m:
             continue
         devpth = m.group("devpth")
         mount_point = m.group("mountpoint")
-        mountpoints.append(mount_point)
+        mount_point_elements = [e for e in mount_point.split("/") if e]
+
+        # Ignore mounts deeper than the path in question.
+        if len(mount_point_elements) > len(path_elements):
+            continue
+
+        # Ignore mounts where the common path is not the same.
+        x = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:x] != path_elements[0:x]:
+            continue
+
+        # Ignore mount points higher than an already seen mount
+        # point.
+        if match_mount_point_elements is not None and len(
+            match_mount_point_elements
+        ) > len(mount_point_elements):
+            continue
+
+        match_mount_point = mount_point
+        match_mount_point_elements = mount_point_elements
+
         fs_type = m.group("type")
-        options = m.group("options")
-        if options is not None:
-            options = ",".join(m.group("options").strip().split(", "))
+        mount_options = m.group("options")
+        if mount_options is not None:
+            mount_options = ",".join(
+                m.group("options").strip(",").strip().split(", ")
+            )
         LOG.debug(
             "found line in mount -> devpth: %s, mount_point: %s, fs_type: %s"
-            ", options: %s",
+            ", options: '%s'",
             devpth,
             mount_point,
             fs_type,
-            options,
+            mount_options,
         )
         # check whether the dev refers to a label on FreeBSD
         # for example, if dev is '/dev/label/rootfs', we should
@@ -2664,9 +2688,17 @@ def parse_mount(path, get_mnt_opts=False):
         # can have gpt labels as disk.
         devm = re.search("^(/dev/.+)p([0-9])$", devpth)
         if not devm and is_FreeBSD() and fs_type != "zfs":
-            return get_mount_info_freebsd(path)
-        elif mount_point == path:
-            return devpth, fs_type, mount_point
+            devpth = get_freebsd_devpth(path)
+
+        if match_mount_point == path:
+            break
+
+    if get_mnt_opts:
+        if devpth and fs_type and match_mount_point and mount_options:
+            return (devpth, fs_type, match_mount_point, mount_options)
+    else:
+        if devpth and fs_type and match_mount_point:
+            return (devpth, fs_type, match_mount_point)
     return None
 
 
@@ -2706,7 +2738,7 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
     elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
     else:
-        return parse_mount(path)
+        return parse_mount(path, get_mnt_opts)
 
 
 def has_mount_opt(path, opt: str) -> bool:
