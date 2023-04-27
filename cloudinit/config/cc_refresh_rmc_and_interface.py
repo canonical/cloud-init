@@ -14,7 +14,6 @@ from cloudinit import netinfo, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
-from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
 MODULE_DESCRIPTION = """\
@@ -41,7 +40,7 @@ meta: MetaSchema = {
     "name": "Refresh IPv6 Interface and RMC",
     "title": "Ensure Network Manager is not managing IPv6 interface",
     "description": MODULE_DESCRIPTION,
-    "distros": [ALL_DISTROS],
+    "distros": ["fedora", "rhel"],
     "frequency": PER_ALWAYS,
     "examples": [],
     "activate_by_schema_keys": [],
