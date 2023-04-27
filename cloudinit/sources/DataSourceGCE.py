@@ -11,6 +11,7 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.distros import ug_util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceHostname
 
@@ -63,6 +64,12 @@ class DataSourceGCE(sources.DataSource):
 
     dsname = "GCE"
     perform_dhcp_setup = False
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)

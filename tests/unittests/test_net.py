@@ -6470,7 +6470,7 @@ class TestNetplanPostcommands(CiTestCase):
     @mock.patch.object(netplan.Renderer, "_net_setup_link")
     @mock.patch("cloudinit.subp.subp")
     def test_netplan_render_calls_postcmds(
-        self, mock_subp, mock_netplan_generate, mock_net_setup_link
+        self, mock_subp, mock_net_setup_link, mock_netplan_generate
     ):
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg, skip_broken=False)
@@ -6485,7 +6485,7 @@ class TestNetplanPostcommands(CiTestCase):
         mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
-        mock_netplan_generate.assert_called_with(run=True)
+        mock_netplan_generate.assert_called_with(run=True, same_content=False)
         mock_net_setup_link.assert_called_with(run=True)
 
     @mock.patch("cloudinit.util.SeLinuxGuard")
