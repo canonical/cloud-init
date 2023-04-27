@@ -4,7 +4,7 @@ import platform
 
 import cloudinit.net.bsd
 from cloudinit import log as logging
-from cloudinit import net, subp, util
+from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 mtu = v.get("mtu")
                 if mtu:
                     content += " mtu %d" % mtu
-                content += "\n"
+                content += "\n" + self.interface_routes
             util.write_file(fn, content)
 
     def start_services(self, run=False):
@@ -43,7 +43,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     ["dhcpleasectl", "-w", "30", interface], capture=True
                 )
         else:
-            net.dhcp.IscDhclient.kill_dhcp_client()
+            subp.subp(["pkill", "dhclient"], capture=True, rcs=[0, 1])
             subp.subp(["route", "del", "default"], capture=True, rcs=[0, 1])
             subp.subp(["route", "flush", "default"], capture=True, rcs=[0, 1])
             subp.subp(["sh", "/etc/netstart"], capture=True)
@@ -54,6 +54,12 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             fn = subp.target_path(self.target, if_file)
             content = gateway + "\n"
             util.write_file(fn, content)
+        else:
+            try:
+                self.interface_routes += ""
+            except AttributeError:
+                self.interface_routes = ""
+            self.interface_routes = self.interface_routes + "!route add " + network + " -netmask " + netmask + " " + gateway + "\n"
 
 
 def available(target=None):
