@@ -138,23 +138,25 @@ class SchemaValidationError(ValueError):
             ((flat.config.key, msg),)
         """
         message = ""
-        if schema_errors:
-            self.schema_errors = sorted(set(schema_errors))
-            message += _format_schema_problems(
-                self.schema_errors, prefix="Cloud config schema errors: "
-            )
-        else:
-            self.schema_errors = schema_errors
-        if schema_deprecations:
-            self.schema_deprecations = sorted(set(schema_deprecations))
+
+        def handle_problems(problems, prefix):
+            if not problems:
+                return problems
+            nonlocal message
             if message:
                 message += "\n\n"
-            message += _format_schema_problems(
-                self.schema_deprecations,
-                prefix="Cloud config schema deprecations: ",
-            )
-        else:
-            self.schema_deprecations = schema_deprecations
+            problems = sorted(list(set(problems)))
+            message += _format_schema_problems(problems, prefix=prefix)
+            return problems
+
+        self.schema_errors = handle_problems(
+            schema_errors,
+            prefix="Cloud config schema errors: ",
+        )
+        self.schema_deprecations = handle_problems(
+            schema_deprecations,
+            prefix="Cloud config schema deprecations: ",
+        )
         super().__init__(message)
 
     def has_errors(self) -> bool:
@@ -702,7 +704,7 @@ def validate_cloudconfig_file(
             content = render_jinja_payload_from_file(
                 decode_binary(content), config_path, instance_data_path
             ).encode()
-        except NotJinjaError:
+        except NotJinjaError as e:
             raise SchemaValidationError(
                 [
                     SchemaProblem(
@@ -711,7 +713,7 @@ def validate_cloudconfig_file(
                         "But, content is not a jinja template",
                     )
                 ]
-            )
+            ) from e
         except JinjaLoadError as e:
             error(str(e), sys_exit=True)
         schema_position = "format-l2.c1"
@@ -754,7 +756,7 @@ def validate_cloudconfig_file(
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, {}, schema_errors=errors
+                    {}, content, {}, schema_errors=schema_error.schema_errors
                 )
             )
         raise schema_error from e
