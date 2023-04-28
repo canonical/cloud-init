@@ -136,6 +136,26 @@ def mock_ephemeral_dhcp_v4():
 
 
 @pytest.fixture
+def mock_kvp_report_failure_to_host():
+    with mock.patch(
+        MOCKPATH + "kvp.report_failure_to_host",
+        return_value=True,
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_kvp_report_success_to_host():
+    with mock.patch(
+        MOCKPATH + "kvp.report_success_to_host",
+        return_value=True,
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
@@ -308,9 +328,9 @@ def telemetry_reporter(tmp_path):
     kvp_file_path.write_bytes(b"")
     reporter = HyperVKvpReportingHandler(kvp_file_path=str(kvp_file_path))
 
-    dsaz.instantiated_handler_registry.register_item("telemetry", reporter)
+    dsaz.kvp.instantiated_handler_registry.register_item("telemetry", reporter)
     yield reporter
-    dsaz.instantiated_handler_registry.unregister_item("telemetry")
+    dsaz.kvp.instantiated_handler_registry.unregister_item("telemetry")
 
 
 def fake_http_error_for_code(status_code: int):
@@ -3482,6 +3502,8 @@ class TestProvisioning:
         mock_dmi_read_dmi_data,
         mock_get_interfaces,
         mock_get_interface_mac,
+        mock_kvp_report_failure_to_host,
+        mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
         mock_subp_subp,
@@ -3510,6 +3532,8 @@ class TestProvisioning:
         self.mock_dmi_read_dmi_data = mock_dmi_read_dmi_data
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
+        self.mock_kvp_report_failure_to_host = mock_kvp_report_failure_to_host
+        self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
@@ -3611,6 +3635,10 @@ class TestProvisioning:
         # Verify no reported_ready marker written.
         assert self.wrapped_util_write_file.mock_calls == []
         assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     def test_running_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Running"
@@ -3715,6 +3743,10 @@ class TestProvisioning:
             self.patched_reported_ready_marker_path.as_posix(), mock.ANY
         )
         assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     def test_savable_pps(self):
         self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
@@ -3834,6 +3866,10 @@ class TestProvisioning:
             self.patched_reported_ready_marker_path.as_posix(), mock.ANY
         )
         assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -4072,6 +4108,10 @@ class TestProvisioning:
         ]
         assert self.patched_reported_ready_marker_path.exists() is False
 
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
     def test_source_pps_fails_initial_dhcp(self, pps_type):
         self.imds_md["extended"]["compute"]["ppsType"] = pps_type
@@ -4089,17 +4129,20 @@ class TestProvisioning:
             dhcp.NoDHCPLeaseError()
         ]
 
-        with mock.patch.object(self.azure_ds, "_report_failure") as m_report:
-            self.azure_ds._get_data()
-
-        assert m_report.mock_calls == [mock.call(mock.ANY)]
+        assert self.azure_ds._get_data() is False
 
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20),
+            # Second round for _report_failure().
             mock.call(timeout_minutes=20),
         ]
         assert self.mock_readurl.mock_calls == []
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
         assert self.mock_netlink.mock_calls == []
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
 
     @pytest.mark.parametrize(
         "subp_side_effect",
@@ -4168,6 +4211,10 @@ class TestProvisioning:
         # boot will behave like a typical provisioning boot.
         assert self.patched_reported_ready_marker_path.exists() is False
         assert self.wrapped_util_write_file.mock_calls == []
+
+        # Verify reports via KVP. Ignore failure reported after sleep().
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
 
 class TestValidateIMDSMetadata:
@@ -4390,24 +4437,3 @@ class TestValidateIMDSMetadata:
         }
 
         assert azure_ds.validate_imds_network_metadata(imds_md) is False
-
-
-class TestReportFailureToHost:
-    def test_report(self, azure_ds, caplog, telemetry_reporter):
-        error = errors.ReportableError(reason="test")
-        assert azure_ds._report_failure_to_host(error) is True
-        assert (
-            "KVP handler not enabled, skipping host report." not in caplog.text
-        )
-
-        report = {
-            "key": "PROVISIONING_REPORT",
-            "value": error.as_description(),
-        }
-        assert report in list(telemetry_reporter._iterate_kvps(0))
-
-    def test_report_skipped_without_telemtry(self, azure_ds, caplog):
-        error = errors.ReportableError(reason="test")
-
-        assert azure_ds._report_failure_to_host(error) is False
-        assert "KVP handler not enabled, skipping host report." in caplog.text

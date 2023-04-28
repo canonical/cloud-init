@@ -25,8 +25,8 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseMissingDhclientError,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.reporting import events, handlers, instantiated_handler_registry
-from cloudinit.sources.azure import errors, identity, imds
+from cloudinit.reporting import events
+from cloudinit.sources.azure import errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -1175,20 +1175,6 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure_to_host(self, error: errors.ReportableError) -> bool:
-        """Report failure to host via well-known key."""
-        value = error.as_description()
-        kvp_handler = instantiated_handler_registry.registered_items.get(
-            "telemetry"
-        )
-        if not isinstance(kvp_handler, handlers.HyperVKvpReportingHandler):
-            LOG.debug("KVP handler not enabled, skipping host report.")
-            return False
-
-        kvp_handler.write_key("PROVISIONING_REPORT", value)
-        return True
-
-    @azure_ds_telemetry_reporter
     def _report_failure(self, error: errors.ReportableError) -> bool:
         """Tells the Azure fabric that provisioning has failed.
 
@@ -1196,9 +1182,10 @@ class DataSourceAzure(sources.DataSource):
         @return: The success status of sending the failure signal.
         """
         report_diagnostic_event(
-            f"Azure datasource failure occurred: {error.as_description()}",
+            f"Azure datasource failure occurred: {error.as_encoded_report()}",
             logger_func=LOG.error,
         )
+        kvp.report_failure_to_host(error)
 
         if self._is_ephemeral_networking_up():
             try:
@@ -1253,6 +1240,8 @@ class DataSourceAzure(sources.DataSource):
 
         :returns: List of SSH keys, if requested.
         """
+        kvp.report_success_to_host()
+
         try:
             data = get_metadata_from_fabric(
                 endpoint=self._wireserver_endpoint,

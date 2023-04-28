@@ -8,12 +8,28 @@ import logging
 import traceback
 from datetime import datetime
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from cloudinit import version
 from cloudinit.sources.azure import identity
 
 LOG = logging.getLogger(__name__)
+
+
+def encode_report(
+    data: List[str], delimiter: str = "|", quotechar: str = "'"
+) -> str:
+    """Encode report data with csv."""
+    with StringIO() as io:
+        csv.writer(
+            io,
+            delimiter=delimiter,
+            quotechar=quotechar,
+            quoting=csv.QUOTE_MINIMAL,
+        ).writerow(data)
+
+        # strip trailing \r\n
+        return io.getvalue().rstrip()
 
 
 class ReportableError(Exception):
@@ -39,10 +55,11 @@ class ReportableError(Exception):
         except Exception as id_error:
             self.vm_id = f"failed to read vm id: {id_error!r}"
 
-    def as_description(
-        self, *, delimiter: str = "|", quotechar: str = "'"
+    def as_encoded_report(
+        self,
     ) -> str:
         data = [
+            "result=error",
             f"reason={self.reason}",
             f"agent={self.agent}",
         ]
@@ -53,18 +70,7 @@ class ReportableError(Exception):
             f"documentation_url={self.documentation_url}",
         ]
 
-        with StringIO() as io:
-            csv.writer(
-                io,
-                delimiter=delimiter,
-                quotechar=quotechar,
-                quoting=csv.QUOTE_MINIMAL,
-            ).writerow(data)
-
-            # strip trailing \r\n
-            csv_data = io.getvalue().rstrip()
-
-        return f"PROVISIONING_ERROR: {csv_data}"
+        return encode_report(data)
 
     def __eq__(self, other) -> bool:
         return (
@@ -75,7 +81,7 @@ class ReportableError(Exception):
         )
 
     def __repr__(self) -> str:
-        return self.as_description()
+        return self.as_encoded_report()
 
 
 class ReportableErrorUnhandledException(ReportableError):

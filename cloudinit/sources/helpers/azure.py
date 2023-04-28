@@ -1023,7 +1023,7 @@ def get_metadata_from_fabric(
 @azure_ds_telemetry_reporter
 def report_failure_to_fabric(endpoint: str, error: "errors.ReportableError"):
     shim = WALinuxAgentShim(endpoint=endpoint)
-    description = error.as_description()
+    description = error.as_encoded_report()
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:
