@@ -311,6 +311,8 @@ data_files = [
 ]
 if not platform.system().endswith("BSD"):
     RULES_PATH = pkg_config_read("udev", "udevdir")
+    if not in_virtualenv():
+        RULES_PATH = "/" + RULES_PATH
 
     data_files.extend(
         [
