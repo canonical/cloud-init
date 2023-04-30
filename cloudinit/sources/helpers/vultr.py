@@ -9,7 +9,7 @@ from requests import exceptions
 
 from cloudinit import dmi
 from cloudinit import log as log
-from cloudinit import net, netinfo, subp, url_helper, util
+from cloudinit import net, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -32,10 +32,6 @@ def get_metadata(
                 iface=iface,
                 connectivity_url_data={"url": url},
             ):
-                # Check for the metadata route, skip if not there
-                if not check_route(url):
-                    continue
-
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
@@ -73,24 +69,6 @@ def get_interface_list():
         ifaces.append(iface)
 
     return ifaces
-
-
-# Check for /32 route that our dhcp servers inject
-# in order to determine if this a customer-run dhcp server
-def check_route(url):
-    # Get routes, confirm entry exists
-    routes = netinfo.route_info()
-
-    # If no tools exist and empty dict is returned
-    if "ipv4" not in routes:
-        return False
-
-    # Parse each route into a more searchable format
-    for route in routes["ipv4"]:
-        if route.get("destination", None) in url:
-            return True
-
-    return False
 
 
 # Read the system information from SMBIOS
