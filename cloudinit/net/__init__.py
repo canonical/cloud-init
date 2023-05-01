@@ -11,7 +11,7 @@ import ipaddress
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from cloudinit import subp, util
@@ -994,40 +994,11 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret: dict = {}
-    driver_map: dict = {}
+
     for name, mac, driver, _devid in get_interfaces(
         blacklist_drivers=blacklist_drivers
     ):
         if mac in ret:
-            raise_duplicate_mac_error = True
-            msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
-                name,
-                ret[mac],
-                mac,
-            )
-            # Hyper-V netvsc driver will register a VF with the same mac
-            #
-            # The VF will be enslaved to the master nic shortly after
-            # registration. If cloud-init starts enumerating the interfaces
-            # before the completion of the enslaving process, it will see
-            # two different nics with duplicate mac. Cloud-init should ignore
-            # the slave nic (which does not have hv_netvsc driver).
-            if driver != driver_map[mac]:
-                if driver_map[mac] == "hv_netvsc":
-                    LOG.warning(
-                        msg + " Ignoring '%s' due to driver '%s' and "
-                        "'%s' having driver hv_netvsc."
-                        % (name, driver, ret[mac])
-                    )
-                    continue
-                if driver == "hv_netvsc":
-                    raise_duplicate_mac_error = False
-                    LOG.warning(
-                        msg + " Ignoring '%s' due to driver '%s' and "
-                        "'%s' having driver hv_netvsc."
-                        % (ret[mac], driver_map[mac], name)
-                    )
-
             # This is intended to be a short-term fix of LP: #1997922
             # Long term, we should better handle configuration of virtual
             # devices where duplicate MACs are expected early in boot if
@@ -1044,11 +1015,14 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
                 )
                 continue
 
-            if raise_duplicate_mac_error:
-                raise RuntimeError(msg)
+            msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
+                name,
+                ret[mac],
+                mac,
+            )
+            raise RuntimeError(msg)
 
         ret[mac] = name
-        driver_map[mac] = driver
 
         # Pretend that an Infiniband GUID is an ethernet address for Openstack
         # configuration purposes
@@ -1090,6 +1064,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
 
 def get_interfaces(
     blacklist_drivers=None,
+    filter_hyperv_vf_with_synthetic: bool = True,
     filter_openvswitch_internal: bool = True,
     filter_slave_if_master_not_bridge_bond_openvswitch: bool = True,
     filter_vlan: bool = True,
@@ -1147,8 +1122,57 @@ def get_interfaces(
                 "Ignoring interface with %s driver: %s", driver, name
             )
             continue
+
         ret.append((name, mac, driver, device_devid(name)))
+
+    # Last-pass filter(s) which need the full device list to perform properly.
+    if filter_hyperv_vf_with_synthetic:
+        filter_hyperv_vf_with_synthetic_interface(ret)
+
     return ret
+
+
+def filter_hyperv_vf_with_synthetic_interface(
+    interfaces: List[Tuple[str, str, str, str]]
+) -> None:
+    """Filter Hyper-V SR-IOV/VFs when used with synthetic hv_netvsc.
+
+    Hyper-V's netvsc driver may register an SR-IOV/VF interface with a mac
+    that matches the synthetic (hv_netvsc) interface.  This VF will be
+    enslaved to the synthetic interface, but cloud-init may be racing this
+    process.  The [perhaps-yet-to-be-enslaved] VF should never be directly
+    configured, so we filter interfaces that duplicate any hv_netvsc mac
+    address, as this the most reliable indicator that it is meant to be
+    paired (and configured only through hv_netvsc).
+
+    The driver will be mlx4_core, mlx5_core, or mana.  However, given that
+    this list of drivers has changed over time and mana's dependency on
+    hv_netvsc is expected to be removed in the future, we will simply
+    filter any interface that matches hv_netvsc mac.  If there's no matching
+    hv_netvsc interface, future mana interfaces will remain unfiltered.
+    Similarly, this does not affect mlx4/5 instances outside of Hyper-V
+    usage as this filter only affects scenarios where hv_netvsc is present.
+    """
+    hv_netvsc_mac_to_name = {
+        i[1]: i[0] for i in interfaces if i[2] == "hv_netvsc"
+    }
+    interfaces_to_remove = [
+        i
+        for i in interfaces
+        if i[1] in hv_netvsc_mac_to_name and i[2] != "hv_netvsc"
+    ]
+
+    for interface in interfaces_to_remove:
+        name, mac, driver, _ = interface
+        LOG.debug(
+            "Ignoring %r VF interface with driver %r due to "
+            "synthetic hv_netvsc interface %r with mac address %r.",
+            name,
+            driver,
+            hv_netvsc_mac_to_name[mac],
+            mac,
+        )
+        interfaces.remove(interface)
 
 
 def get_ib_hwaddrs_by_interface():
