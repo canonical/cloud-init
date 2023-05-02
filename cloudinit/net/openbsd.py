@@ -28,7 +28,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 mtu = v.get("mtu")
                 if mtu:
                     content += " mtu %d" % mtu
-                content += "\n"
+                content += "\n" + self.interface_routes
             util.write_file(fn, content)
 
     def start_services(self, run=False):
@@ -54,6 +54,8 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             fn = subp.target_path(self.target, if_file)
             content = gateway + "\n"
             util.write_file(fn, content)
+        else:
+            self.interface_routes = self.interface_routes + "!route add " + network + " -netmask " + netmask + " " + gateway + "\n"
 
 
 def available(target=None):

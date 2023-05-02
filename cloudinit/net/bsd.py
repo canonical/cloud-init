@@ -16,6 +16,7 @@ LOG = logging.getLogger(__name__)
 class BSDRenderer(renderer.Renderer):
     resolv_conf_fn = "etc/resolv.conf"
     rc_conf_fn = "etc/rc.conf"
+    interface_routes = ""
 
     def get_rc_config_value(self, key):
         fn = subp.target_path(self.target, self.rc_conf_fn)
