@@ -1583,7 +1583,7 @@ class TestMountCb:
         callback = mock.Mock(autospec=True)
         with pytest.raises(Exception):
             util.mount_cb(
-                "/dev/sda1",
+                "/dev/fake0",
                 callback,
                 mtype="ntfs",
                 update_env_for_mount={"LANG": "C"},
