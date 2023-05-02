@@ -519,6 +519,7 @@ def find_candidate_nics_on_linux(
     for interface, _, _, _ in get_interfaces(
         blacklist_drivers=blacklist_drivers,
         filter_openvswitch_internal=False,
+        filter_slave_if_master_not_bridge_bond_openvswitch=False,
         filter_vlan=False,
         filter_without_own_mac=False,
         filter_zero_mac=False,
@@ -1090,6 +1091,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
 def get_interfaces(
     blacklist_drivers=None,
     filter_openvswitch_internal: bool = True,
+    filter_slave_if_master_not_bridge_bond_openvswitch: bool = True,
     filter_vlan: bool = True,
     filter_without_own_mac: bool = True,
     filter_zero_mac: bool = True,
@@ -1116,11 +1118,13 @@ def get_interfaces(
         if is_bond(name):
             filtered_logger("Ignoring bond interface: %s", name)
             continue
-        if get_master(name) is not None:
-            if not master_is_bridge_or_bond(
-                name
-            ) and not master_is_openvswitch(name):
-                continue
+        if (
+            filter_slave_if_master_not_bridge_bond_openvswitch
+            and get_master(name) is not None
+            and not master_is_bridge_or_bond(name)
+            and not master_is_openvswitch(name)
+        ):
+            continue
         if is_netfailover(name):
             filtered_logger("Ignoring failover interface: %s", name)
             continue
