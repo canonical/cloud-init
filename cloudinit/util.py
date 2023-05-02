@@ -1578,6 +1578,18 @@ def get_cmdline():
     return _get_cmdline()
 
 
+def fips_enabled() -> bool:
+    fips_proc = "/proc/sys/crypto/fips_enabled"
+    try:
+        contents = load_file(fips_proc).strip()
+        return contents == "1"
+    except (IOError, OSError):
+        # for BSD systems and Linux systems where the proc entry is not
+        # available, we assume FIPS is disabled to retain the old behavior
+        # for now.
+        return False
+
+
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
     while True:

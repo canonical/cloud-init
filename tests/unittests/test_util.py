@@ -1947,6 +1947,31 @@ class TestGetCmdline(helpers.TestCase):
         self.assertEqual("abcd 123", ret)
 
 
+class TestFipsEnabled:
+    @pytest.mark.parametrize(
+        "fips_enabled_content,expected",
+        (
+            pytest.param(None, False, id="false_when_no_fips_enabled_file"),
+            pytest.param("0\n", False, id="false_when_fips_disabled"),
+            pytest.param("1\n", True, id="true_when_fips_enabled"),
+            pytest.param("1", True, id="true_when_fips_enabled_no_newline"),
+        ),
+    )
+    @mock.patch(M_PATH + "load_file")
+    def test_fips_enabled_based_on_proc_crypto(
+        self, load_file, fips_enabled_content, expected, tmpdir
+    ):
+        def fake_load_file(path):
+            assert path == "/proc/sys/crypto/fips_enabled"
+            if fips_enabled_content is None:
+                raise IOError("No file exists Bob")
+            return fips_enabled_content
+
+        load_file.side_effect = fake_load_file
+
+        assert expected is util.fips_enabled()
+
+
 class TestLoadYaml(helpers.CiTestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
     with_logs = True
