@@ -1574,7 +1574,7 @@ class TestMountCb:
     @mock.patch(M_PATH + "subp.subp")
     def test_mount_cb_does_not_log(self, m_subp, caplog):
         log_msg = (
-            "Failed to mount device: '/dev/sda1' with type: "
+            "Failed to mount device: '/dev/fake0' with type: "
             "'ntfs' using mount command:"
         )
         m_subp.side_effect = subp.ProcessExecutionError(
@@ -1594,7 +1594,7 @@ class TestMountCb:
     @mock.patch(M_PATH + "subp.subp")
     def test_mount_cb_does_log(self, m_subp, caplog):
         log_msg = (
-            "Failed to mount device: '/dev/sda1' with type: "
+            "Failed to mount device: '/dev/fake0' with type: "
             "'ntfs' using mount command:"
         )
         m_subp.side_effect = subp.ProcessExecutionError(
@@ -1603,7 +1603,7 @@ class TestMountCb:
         callback = mock.Mock(autospec=True)
         with pytest.raises(Exception):
             util.mount_cb(
-                "/dev/sda1",
+                "/dev/fake0",
                 callback,
                 mtype="ntfs",
                 update_env_for_mount={"LANG": "C"},
