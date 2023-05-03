@@ -1,16 +1,17 @@
 from typing import Optional
 
 import cloudinit.net.netops as netops
+from cloudinit import subp
 
 
 class BsdNetOps(netops.NetOps):
     @staticmethod
     def link_up(interface: str):
-        pass
+        subp.subp(["ifconfig", interface, "up"])
 
     @staticmethod
     def link_down(interface: str):
-        pass
+        subp.subp(["ifconfig", interface, "down"])
 
     @staticmethod
     def add_route(
