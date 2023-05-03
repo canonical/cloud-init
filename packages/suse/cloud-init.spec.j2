@@ -3,21 +3,24 @@
 # See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
+%global configver 0.7
 
 Name:           cloud-init
 Version:        {{rpm_upstream_version}}
-Release:        1{{subrelease}}%{?dist}
-Summary:        Cloud instance init scripts
+Release:        0
+Summary:        Cloud node initialization tool
+
+Source0:        %{name}-%{version}.tar.gz
+Source1:        rsyslog-cloud-init.cfg
+Source2:        hidesensitivedata
 
 Group:          System/Management
 License:        Dual licensed GPLv3 or Apache 2.0
-URL:            http://launchpad.net/cloud-init
+URL:            https://github.com/Cray-HPE/cloud-init
 
 Source0:        {{archive_name}}
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-
 BuildArch:      noarch
-
 
 {% for r in buildrequires %}
 BuildRequires:        {{r}}
@@ -29,108 +32,193 @@ Requires:       {{r}}
 {% endfor %}
 
 # Custom patches
-{% for p in patches %}
-Patch{{loop.index0}}: {{p}}
-{% endfor %}
+Patch1:        datasourceLocalDisk.patch
+# FIXME (lp#1849296)
+Patch2:        cloud-init-break-resolv-symlink.patch
+# FIXME no proposed solution
+Patch3:        cloud-init-sysconf-path.patch
+# FIXME (lp#1860164)
+Patch4:        cloud-init-no-tempnet-oci.patch
+# FIXME https://github.com/canonical/cloud-init/pull/2036
+Patch5:        cloud-init-fix-ca-test.patch
+# FIXME (lp#1812117)
+Patch6:        cloud-init-write-routes.patch
+Patch7:        cloud-init-cve-2023-1786-redact-instance-data-json-main.patch
+# FIXME https://github.com/canonical/cloud-init/pull/2148
+Patch8:        cloud-init-power-rhel-only.patch
+
+%if 0%{?suse_version} && 0%{?suse_version} <= 1500
+Requires:       wicked-service
+%endif
+Requires:       cloud-init-config = %configver
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+%define         docdir %{_defaultdocdir}/%{name}
+%ifarch %ix86 x86_64
+Requires:       dmidecode
+%endif
+%define initsys systemd
+BuildRequires: pkgconfig(systemd)
+%{?systemd_requires}
+%if 0%{?suse_version} && 0%{?suse_version} == 1220
+%define systemd_prefix /lib
+%else
+%define systemd_prefix /usr/lib
+%endif
 
 %description
 Cloud-init is a set of init scripts for cloud instances.  Cloud instances
 need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
-%prep
-%setup -q -n {{source_name}}
+%package config-suse
+Summary:        Configuration file for Cloud node initialization tool
+Provides:	    cloud-init-config = %configver
+Group:          System/Management
+Conflicts:	    otherproviders(cloud-init-config)
 
-# Custom patches activation
-{% for p in patches %}
-%patch{{loop.index0}} -p1
-end for
-{% endfor %}
+%description config-suse
+This package contains the product specific configuration file
+for cloud-init.
+
+%package doc
+Summary:        Cloud node initialization tool - Documentation
+Group:          System/Management
+Recommends:     cloud-init = %{version}
+
+%description doc
+Cloud-init is an init script that initializes a cloud node (VM)
+according to the fetched configuration data from the admin node.
+
+Documentation and examples for cloud-init tools
+
+%prep
+%setup -q
+%patch1 -p0
+%patch2
+%patch3
+%patch4
+%patch5
+%patch6
+%patch7
+%patch8
+
+# patch in the full version to version.py
+version_pys=$(find . -name version.py -type f)
+[ -n "$version_pys" ] ||
+   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
+sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys
 
 %build
-%{__python} setup.py build
+python3 setup.py build
+
+%check
+make unittest
 
 %install
-%{__python3} setup.py install -O1 \
-            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
-            --install-lib=%{python_sitelib} \
-            --init-system=systemd
-
-
-# Move udev rules
+python3 setup.py install --root=%{buildroot} --prefix=%{_prefix} --install-lib=%{python3_sitelib} --init-system=%{initsys}
+find %{buildroot} \( -name .gitignore -o -name .placeholder \) -delete
+# from debian install script
+for x in "%{buildroot}%{_bindir}/"*.py; do
+   [ -f "${x}" ] && mv "${x}" "${x%.py}"
+done
+mkdir -p %{buildroot}%{_localstatedir}/lib/cloud
+# move documentation
+mkdir -p %{buildroot}%{_defaultdocdir}
+mv %{buildroot}%{_datadir}/doc/%{name} %{buildroot}%{_defaultdocdir}
+# man pages
+mkdir -p %{buildroot}%{_mandir}/man1
+mv doc/man/* %{buildroot}%{_mandir}/man1
+# copy the LICENSE
+mkdir -p %{buildroot}%{_defaultlicensedir}/%{name}
+cp LICENSE %{buildroot}%{_defaultlicensedir}/%{name}
+cp LICENSE-GPLv3 %{buildroot}%{_defaultlicensedir}/%{name}
+# Set the distribution indicator
+%if 0%{?suse_version}
+%if 0%{?is_opensuse}
+sed -i s/suse/opensuse/ %{buildroot}/%{_sysconfdir}/cloud/cloud.cfg
+%else
+sed -i s/suse/sles/ %{buildroot}/%{_sysconfdir}/cloud/cloud.cfg
+%endif
+%endif
+mkdir -p %{buildroot}/%{_sysconfdir}/rsyslog.d
 mkdir -p %{buildroot}/usr/lib/udev/rules.d/
-mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
+cp -a %{SOURCE1} %{buildroot}/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+mv %{buildroot}/lib/udev/rules.d/66-azure-ephemeral.rules %{buildroot}/usr/lib/udev/rules.d/
+mkdir -p %{buildroot}%{_sbindir}
+install -m 755 %{SOURCE2} %{buildroot}%{_sbindir}
+
+# remove debian/ubuntu specific profile.d file (bnc#779553)
+rm -f %{buildroot}%{_sysconfdir}/profile.d/Z99-cloud-locale-test.sh
 
 # Remove non-SUSE templates
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
 
-# Move documentation
-mkdir -p %{buildroot}/%{_defaultdocdir}
-mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
-for doc in LICENSE ChangeLog requirements.txt; do
-   cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
-done
+%post
+/usr/sbin/hidesensitivedata
 
-# Remove duplicate files
+# remove duplicate files
 %if 0%{?suse_version}
-   %fdupes %{buildroot}/%{python_sitelib}
+%fdupes %{buildroot}%{python3_sitelib}
 %endif
-
-mkdir -p %{buildroot}/var/lib/cloud
-
-# patch in the full version to version.py
-version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
-[ -n "$version_pys" ] ||
-   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
-( cd "%{buildroot}" &&
-  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
 
 %postun
 %insserv_cleanup
 
 %files
-
-# Program binaries
-%{_bindir}/cloud-init*
-%{_bindir}/cloud-id*
-
-# systemd files
-/usr/lib/systemd/system-generators/*
-/usr/lib/systemd/system/*
-
-# There doesn't seem to be an agreed upon place for these
-# although it appears the standard says /usr/lib but rpmbuild
-# will try /usr/lib64 ??
-/usr/lib/%{name}/uncloud-init
-/usr/lib/%{name}/write-ssh-key-fingerprints
-/usr/lib/%{name}/ds-identify
-/usr/lib/%{name}/hook-hotplug
-
-# udev rules
-/usr/lib/udev/rules.d/66-azure-ephemeral.rules
-
-
-# Docs
-%doc %{_defaultdocdir}/cloud-init/*
-
-# Configs
-%dir                    %{_sysconfdir}/cloud/clean.d
-%config(noreplace)      %{_sysconfdir}/cloud/clean.d/README
-%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
-%dir               %{_sysconfdir}/cloud/cloud.cfg.d
-%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
-%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/README
-%dir               %{_sysconfdir}/cloud/templates
-%config(noreplace) %{_sysconfdir}/cloud/templates/*
-
-# Bash completion script
-%{_datadir}/bash-completion/completions/cloud-init
-
+%defattr(-,root,root)
+%license LICENSE LICENSE-GPLv3
+%{_bindir}/cloud-id
+%{_bindir}/cloud-init
+%{_bindir}/cloud-init-per
+%{_sbindir}/hidesensitivedata
+%dir %{_sysconfdir}/cloud
+%dir %{_sysconfdir}/cloud/clean.d
+%{_sysconfdir}/cloud/clean.d/README
+%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d
+%config(noreplace) %{_sysconfdir}/cloud/templates
+%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
+%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
 %{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+%{_mandir}/man*/*
+%if 0%{?suse_version} && 0%{?suse_version} < 1500
+%dir %{_datadir}/bash-completion
+%dir %{_datadir}/bash-completion/completions
+%endif
+%{_datadir}/bash-completion/completions/cloud-init
+%{python3_sitelib}/cloudinit
+%{python3_sitelib}/cloud_init-%{version}*.egg-info
+%{_prefix}/lib/cloud-init
+%{systemd_prefix}/systemd/system-generators/cloud-init-generator
+%{systemd_prefix}/systemd/system/cloud-config.service
+%{systemd_prefix}/systemd/system/cloud-config.target
+%{systemd_prefix}/systemd/system/cloud-init-local.service
+%{systemd_prefix}/systemd/system/cloud-init.service
+%{systemd_prefix}/systemd/system/cloud-init.target
+%{systemd_prefix}/systemd/system/cloud-final.service
+%dir %{_sysconfdir}/rsyslog.d
+%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+/usr/lib/udev/rules.d/66-azure-ephemeral.rules
+# We use cloud-netconfig to handle new interfaces added to the instance
+%exclude %{systemd_prefix}/systemd/system/cloud-init-hotplugd.service
+%exclude %{systemd_prefix}/systemd/system/cloud-init-hotplugd.socket
+%dir %attr(0755, root, root) %{_localstatedir}/lib/cloud
+%dir %{docdir}
+%dir /etc/NetworkManager
+%dir /etc/NetworkManager/dispatcher.d
+%dir /etc/dhcp
+%dir /etc/dhcp/dhclient-exit-hooks.d
+%dir /etc/systemd/system/sshd-keygen@.service.d
 
-# Python code is here...
-%{python_sitelib}/*
+%files config-suse
+%defattr(-,root,root)
+%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
 
-/var/lib/cloud
+%files doc
+%defattr(-,root,root)
+%{docdir}/examples/*
+%{docdir}/*.txt
+%dir %{docdir}/examples
+
+
