@@ -21,7 +21,7 @@ _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 KERNEL_CMDLINE_NETWORK_CONFIG_DISABLED = "disabled"
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 
 class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
