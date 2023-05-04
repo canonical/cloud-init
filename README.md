@@ -33,7 +33,7 @@ If you need additional help consider reaching out with one of the following opti
 
 ## Distribution and cloud support
 
-The majority of [clouds](https://cloudinit.readthedocs.io/en/latest/reference/datasources.html#id2)
+The majority of [clouds](https://cloudinit.readthedocs.io/en/latest/reference/datasources.html#datasources_supported)
 and [Linux / Unix OSes](https://cloudinit.readthedocs.io/en/latest/reference/distros.html)
 are supported by and ship with cloud-init. If your distribution or cloud is not
 supported, please get in contact with that distribution and send them our way!
