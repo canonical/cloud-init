@@ -9,13 +9,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import collections.abc
+import copy
 import io
+import json
 import logging
 import logging.config
 import logging.handlers
 import os
 import sys
 import time
+from collections import defaultdict
+from typing import Dict
 
 # Logging levels for easy access
 CRITICAL = logging.CRITICAL
@@ -130,6 +134,17 @@ def setupLogging(cfg=None):
         setupBasicLogging()
 
 
+class LogExporter(logging.StreamHandler):
+    holder = defaultdict(list)
+
+    def emit(self, record: logging.LogRecord):
+        if record.levelno > 29:
+            self.holder[record.levelname].append(record.getMessage())
+
+    def export_logs(self):
+        return copy.deepcopy(self.holder)
+
+
 def getLogger(name="cloudinit"):
     return logging.getLogger(name)
 
@@ -157,5 +172,3 @@ def resetLogging():
 
 
 resetLogging()
-
-# vi: ts=4 expandtab

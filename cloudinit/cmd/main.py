@@ -22,6 +22,7 @@ import sys
 import time
 import traceback
 from typing import Tuple
+import logging
 
 from cloudinit import patcher
 from cloudinit.config.modules import Modules
@@ -29,7 +30,7 @@ from cloudinit.config.modules import Modules
 patcher.patch_logging()
 
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import log as logging
+from cloudinit.log import LogExporter, setupLogging
 from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
@@ -67,7 +68,10 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
+# handler must be added to the top level module such that child Loggers pass
+# events via propagate=True
 LOG = logging.getLogger(__name__)
+LOG.addHandler(LogExporter())
 
 
 # Used for when a logger may not be active
@@ -339,7 +343,7 @@ def main_init(name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         logging.resetLogging()
-    logging.setupLogging(init.cfg)
+    setupLogging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setupLogging above did not have local user log
@@ -499,7 +503,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    logging.setupLogging(mods.cfg)
+    setupLogging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -605,7 +609,7 @@ def main_modules(action_name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+    setupLogging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -667,7 +671,7 @@ def main_single(name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+    setupLogging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -756,6 +760,15 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1 = status["v1"]
     v1["stage"] = mode
     v1[mode]["start"] = time.time()
+
+    # Get the first LogExporter instance in LOG.handlers, run export_logs()
+    # This is currently equivalent to LOG.handlers[0].export_logs(), but
+    # defensive against future handler additions.
+    v1[mode]["exported_errors"] = next(
+        filter(
+            lambda h: isinstance(h, LogExporter), LOG.handlers
+        )
+    ).export_logs()  # type: ignore
 
     atomic_helper.write_json(status_path, status)
     util.sym_link(

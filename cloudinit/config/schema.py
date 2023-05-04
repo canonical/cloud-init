@@ -494,7 +494,7 @@ def validate_cloudconfig_schema(
         )
         # This warning doesn't fit the standardized util.deprecated() utility
         # format, but it is a deprecation log, so log it directly.
-        LOG.deprecated(message)  # type: ignore
+        LOG.deprecated(message)
     if strict and (errors or deprecations):
         raise SchemaValidationError(errors, deprecations)
     if errors:
