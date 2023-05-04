@@ -40,21 +40,35 @@ class BsdNetOps(netops.NetOps):
         source_address: Optional[str] = None
     ):
         subp.subp(
-            ["route", "-4", "del"]
-            + (["-net", address] if "/" in address else ["-host", address])
-            + ["-interface", interface]
+            ["route", "del", address]
             + ([gateway] if gateway and gateway != "0.0.0.0" else []),
         )
 
     @staticmethod
     def get_default_route() -> str:
-        std, _ = subp.subp(["route", "-4v", "get", "0.0.0.0/0"])
+        std, _ = subp.subp(["route", "-nv", "get", "0.0.0.0/0"])
         return std.splitlines()[-1].strip()
 
     @staticmethod
     def add_addr(interface: str, address: str, broadcast: str):
-        pass
+        subp.subp(
+            [
+                "ifconfig",
+                interface,
+                address,
+                "broadcast",
+                broadcast,
+                "alias",
+            ],
+        )
 
     @staticmethod
     def del_addr(interface: str, address: str):
-        pass
+        subp.subp(
+            [
+                "ifconfig",
+                interface,
+                address,
+                "-alias",
+            ],
+        )
