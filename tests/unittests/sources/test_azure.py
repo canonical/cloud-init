@@ -3367,8 +3367,8 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
         error_reasons = [
-            c.args[0].reason
-            for c in mock_kvp_report_failure_to_host.mock_calls
+            c[0][0].reason
+            for c in mock_kvp_report_failure_to_host.call_args_list
         ]
         assert error_reasons == ["failure to find DHCP interface"]
 
@@ -3453,8 +3453,8 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
         error_reasons = [
-            c.args[0].reason
-            for c in mock_kvp_report_failure_to_host.mock_calls
+            c[0][0].reason
+            for c in mock_kvp_report_failure_to_host.call_args_list
         ]
         assert error_reasons == [error_reason] * 10
 
@@ -3500,8 +3500,8 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx is None
 
         error_reasons = [
-            c.args[0].reason
-            for c in mock_kvp_report_failure_to_host.mock_calls
+            c[0][0].reason
+            for c in mock_kvp_report_failure_to_host.call_args_list
         ]
         assert error_reasons == [error_reason] * 3
 
