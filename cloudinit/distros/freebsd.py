@@ -203,6 +203,6 @@ class Distro(cloudinit.distros.bsd.BSD):
         interface: str,
         config_file: str,
     ) -> list:
-        return ["-l", lease_file, "-p", pid_file] + (
+        return [path, "-l", lease_file, "-p", pid_file] + (
             ["-c", config_file, interface] if config_file else [interface]
         )
