@@ -32,6 +32,9 @@ Unix family of operating systems. See the complete list below.
 * Ubuntu
 * Virtuozzo
 
+If you would like to add support for another distributions, start by
+taking a look at another distro module in ``cloudinit/distros/``.
+
 .. note::
 
     While BSD variants are not typically referred to as "distributions",
