@@ -3340,6 +3340,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
+        mock_kvp_report_failure_to_host,
         mock_sleep,
     ):
         lease = {
@@ -3364,6 +3365,12 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)]
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
+
+        error_reasons = [
+            c.args[0].reason
+            for c in mock_kvp_report_failure_to_host.mock_calls
+        ]
+        assert error_reasons == ["failure to find DHCP interface"]
 
     def test_retry_process_error(
         self,
@@ -3406,14 +3413,20 @@ class TestEphemeralNetworking:
         ]
 
     @pytest.mark.parametrize(
-        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+        "error_class,error_reason",
+        [
+            (dhcp.NoDHCPLeaseInterfaceError, "failure to find DHCP interface"),
+            (dhcp.NoDHCPLeaseError, "failure to obtain DHCP lease"),
+        ],
     )
     def test_retry_sleeps(
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
+        mock_kvp_report_failure_to_host,
         mock_sleep,
         error_class,
+        error_reason,
     ):
         lease = {
             "interface": "fakeEth0",
@@ -3439,30 +3452,41 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
+        error_reasons = [
+            c.args[0].reason
+            for c in mock_kvp_report_failure_to_host.mock_calls
+        ]
+        assert error_reasons == [error_reason] * 10
+
     @pytest.mark.parametrize(
-        "error_class", [dhcp.NoDHCPLeaseInterfaceError, dhcp.NoDHCPLeaseError]
+        "error_class,error_reason",
+        [
+            (dhcp.NoDHCPLeaseInterfaceError, "failure to find DHCP interface"),
+            (dhcp.NoDHCPLeaseError, "failure to obtain DHCP lease"),
+        ],
     )
     def test_retry_times_out(
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
+        mock_kvp_report_failure_to_host,
         mock_sleep,
         mock_time,
         error_class,
+        error_reason,
     ):
         mock_time.side_effect = [
             0.0,  # start
-            60.1,  # first
-            120.1,  # third
-            180.1,  # timeout
+            60.1,  # duration check for host error report
+            60.11,  # loop check
+            120.1,  # duration check for host error report
+            120.11,  # loop check
+            180.1,  # duration check for host error report
+            180.11,  # loop check timeout
         ]
         mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
             error_class()
-        ] * 10 + [
-            {
-                "interface": "fakeEth0",
-            }
-        ]
+        ] * 3
 
         with pytest.raises(dhcp.NoDHCPLeaseError):
             azure_ds._setup_ephemeral_networking(timeout_minutes=3)
@@ -3474,6 +3498,12 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)] * 2
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx is None
+
+        error_reasons = [
+            c.args[0].reason
+            for c in mock_kvp_report_failure_to_host.mock_calls
+        ]
+        assert error_reasons == [error_reason] * 3
 
 
 class TestInstanceId:
@@ -4141,7 +4171,7 @@ class TestProvisioning:
         assert self.mock_netlink.mock_calls == []
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 2
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
 
     @pytest.mark.parametrize(
@@ -4215,6 +4245,26 @@ class TestProvisioning:
         # Verify reports via KVP. Ignore failure reported after sleep().
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+
+class TestReportFailure:
+    @pytest.mark.parametrize("kvp_enabled", [False, True])
+    def report_host_only_kvp_enabled(
+        self,
+        azure_ds,
+        kvp_enabled,
+        mock_azure_report_failure_to_fabric,
+        mock_kvp_report_failure_to_host,
+        mock_kvp_report_success_to_host,
+    ):
+        mock_kvp_report_failure_to_host.return_value = kvp_enabled
+        error = errors.ReportableError(reason="foo")
+
+        assert azure_ds._report_failure(error, host_only=True) == kvp_enabled
+
+        assert mock_kvp_report_failure_to_host.mock_calls == [mock.call(error)]
+        assert mock_kvp_report_success_to_host.mock_calls == []
+        assert mock_azure_report_failure_to_fabric.mock_calls == []
 
 
 class TestValidateIMDSMetadata:
