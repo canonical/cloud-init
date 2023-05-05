@@ -31,5 +31,5 @@ Supported distros
 .. note::
 
     While BSD variants are not typically referred to as "distributions",
-    cloud-init has an abstraction for operating system differences, which
+    cloud-init has an abstraction to account for operating system differences, which
     should be contained in `cloudinit/distros/ <https://github.com/canonical/cloud-init/tree/main/cloudinit/distros>`_.
