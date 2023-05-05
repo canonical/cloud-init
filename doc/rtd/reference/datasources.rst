@@ -28,6 +28,8 @@ exceptions, one can override datasource detection either by configuring a
 single datasource in the :ref:`datasource_list<base_config_datasource_list>`,
 or by using :ref:`kernel commandline arguments<kernel_datasource_override>`.
 
+.. _datasources_supported:
+
 Datasources:
 ============
 
