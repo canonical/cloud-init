@@ -1,6 +1,10 @@
 Supported distros
 =================
 
+Cloud-init has support for multiple different operating systems.
+Currently support includes various different distributions within the
+Unix family of operating systems. See the complete list below.
+
 * AlmaLinux
 * Alpine Linux
 * Arch Linux
