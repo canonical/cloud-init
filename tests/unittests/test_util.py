@@ -1571,26 +1571,6 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
-    @mock.patch(M_PATH + "subp.subp")
-    def test_mount_cb_does_not_log(self, m_subp, caplog):
-        log_msg = (
-            "Failed to mount device: '/dev/fake0' with type: "
-            "'ntfs' using mount command:"
-        )
-        m_subp.side_effect = subp.ProcessExecutionError(
-            "", "unknown filesystem type 'ntfs'"
-        )
-        callback = mock.Mock(autospec=True)
-        with pytest.raises(Exception):
-            util.mount_cb(
-                "/dev/fake0",
-                callback,
-                mtype="ntfs",
-                update_env_for_mount={"LANG": "C"},
-                log_error=False,
-            )
-        assert log_msg not in caplog.text
-
     @pytest.mark.parametrize("log_error", [True, False])
     @mock.patch(M_PATH + "subp.subp")
     def test_mount_cb_log(self, m_subp, log_error, caplog):
