@@ -1144,15 +1144,13 @@ def filter_hyperv_vf_with_synthetic_interface(
     process.  The [perhaps-yet-to-be-enslaved] VF should never be directly
     configured, so we filter interfaces that duplicate any hv_netvsc mac
     address, as this the most reliable indicator that it is meant to be
-    paired (and configured only through hv_netvsc).
+    subordinate to the synthetic interface.
 
-    The driver will be mlx4_core, mlx5_core, or mana.  However, given that
+    VF drivers will be mlx4_core, mlx5_core, or mana.  However, given that
     this list of drivers has changed over time and mana's dependency on
-    hv_netvsc is expected to be removed in the future, we will simply
-    filter any interface that matches hv_netvsc mac.  If there's no matching
-    hv_netvsc interface, future mana interfaces will remain unfiltered.
-    Similarly, this does not affect mlx4/5 instances outside of Hyper-V
-    usage as this filter only affects scenarios where hv_netvsc is present.
+    hv_netvsc is expected to be removed in the future, we no longer rely
+    on these names. Note that this will not affect mlx4/5 instances outside
+    of Hyper-V, as it only affects environments where hv_netvsc is present.
     """
     hv_netvsc_mac_to_name = {
         i[1]: i[0] for i in interfaces if i[2] == "hv_netvsc"
