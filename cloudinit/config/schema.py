@@ -31,10 +31,25 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
+
+# Note versions.schema.json is publicly consumed by schemastore.org.
+# If we change the location of versions.schema.json in github, we need
+# to provide an updated PR to
+# https://github.com/SchemaStore/schemastore.
 VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
-# Bump this file when introducing incompatible schema changes.
-# Also add new version definition to versions.schema.json.
+
+# When bumping schema version due to incompatible changes:
+# 1. Add a new schema-cloud-config-v#.json
+# 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
+# 3. Add the new version definition to versions.schema.cloud-config.json
 USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
+NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
+
+SCHEMA_FILES_BY_TYPE = {
+    "cloud-config": {"v1": USERDATA_SCHEMA_FILE},
+    "network-config": {"v1": NETWORK_CONFIG_V1_SCHEMA_FILE},
+}
+
 _YAML_MAP = {True: "true", False: "false", None: "null"}
 SCHEMA_DOC_TMPL = """
 {name}
@@ -249,9 +264,11 @@ def _anyOf(
     external processing. Useful to process schema annotations, as `deprecated`.
     """
     from jsonschema import ValidationError
+    from jsonschema.exceptions import best_match
 
     all_errors = []
     all_deprecations = []
+    errors_for_declared_type = []
     for index, subschema in enumerate(anyOf):
         all_errs = list(
             validator.descend(instance, subschema, schema_path=index)
@@ -263,8 +280,10 @@ def _anyOf(
         if not errs:
             all_deprecations.extend(deprecations)
             break
+
         all_errors.extend(errs)
     else:
+        yield best_match(all_errors)
         yield ValidationError(
             "%r is not valid under any of the given schemas" % (instance,),
             context=all_errors,
@@ -285,6 +304,7 @@ def _oneOf(
     external processing. Useful to process schema annotations, as `deprecated`.
     """
     from jsonschema import ValidationError
+    from jsonschema.exceptions import best_match
 
     subschemas = enumerate(oneOf)
     all_errors = []
@@ -303,6 +323,7 @@ def _oneOf(
             break
         all_errors.extend(errs)
     else:
+        yield best_match(all_errors)
         yield ValidationError(
             "%r is not valid under any of the given schemas" % (instance,),
             context=all_errors,
@@ -433,6 +454,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,
+    schema_type: Optional[str] = "cloud-config",
     strict: bool = False,
     strict_metaschema: bool = False,
     log_details: bool = True,
@@ -445,6 +467,8 @@ def validate_cloudconfig_schema(
     @param schema: jsonschema dict describing the supported schema definition
        for the cloud config module (config.cc_*). If None, validate against
        global schema.
+    @param schema_type: Optional string. One of: userdata, network_config
+       Default: userdata.
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
     @param strict_metaschema: Boolean, when True validates schema using strict
@@ -457,9 +481,10 @@ def validate_cloudconfig_schema(
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
+    @raises: ValueError on invalid schema_type not in userdata or network_config
     """
     if schema is None:
-        schema = get_schema()
+        schema = get_schema(schema_type)
     try:
         (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
         if strict_metaschema:
@@ -749,6 +774,7 @@ def validate_cloudconfig_file(
     config_path: str,
     schema: dict,
     annotate: bool = False,
+    #   schema_type: Optional[str]: "user-data",
     instance_data_path: str = None,
 ):
     """Validate cloudconfig file adheres to a specific jsonschema.
@@ -1213,34 +1239,24 @@ def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
 
 
-def get_schema() -> dict:
-    """Return jsonschema coalesced from all cc_* cloud-config modules."""
-    # Note versions.schema.json is publicly consumed by schemastore.org.
-    # If we change the location of versions.schema.json in github, we need
-    # to provide an updated PR to
-    # https://github.com/SchemaStore/schemastore.
+def get_schema(schema_type: Optional[str] = "cloud-config") -> dict:
+    """Return jsonschema for a specific type.
 
-    # When bumping schema version due to incompatible changes:
-    # 1. Add a new schema-cloud-config-v#.json
-    # 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
-    # 3. Add the new version definition to versions.schema.cloud-config.json
-    schema_file = os.path.join(get_schema_dir(), USERDATA_SCHEMA_FILE)
+    Return empty schema when no specific schema file exists.
+    """
+    schema_file = os.path.join(
+        get_schema_dir(), SCHEMA_FILES_BY_TYPE[schema_type]["v1"]
+    )
     full_schema = None
     try:
         full_schema = json.loads(load_file(schema_file))
-    except Exception as e:
-        LOG.warning("Cannot parse JSON schema file %s. %s", schema_file, e)
-    if not full_schema:
+    except (IOError, OSError):
         LOG.warning(
-            "No base JSON schema files found at %s."
-            " Setting default empty schema",
+            "Skipping %s schema valiation. No JSON schema file found %s.",
+            schema_type,
             schema_file,
         )
-        full_schema = {
-            "$defs": {},
-            "$schema": "http://json-schema.org/draft-04/schema#",
-            "allOf": [],
-        }
+        return {}
     return full_schema
 
 
