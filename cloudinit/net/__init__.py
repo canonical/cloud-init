@@ -1127,13 +1127,14 @@ def get_interfaces(
 
     # Last-pass filter(s) which need the full device list to perform properly.
     if filter_hyperv_vf_with_synthetic:
-        filter_hyperv_vf_with_synthetic_interface(ret)
+        filter_hyperv_vf_with_synthetic_interface(filtered_logger, ret)
 
     return ret
 
 
 def filter_hyperv_vf_with_synthetic_interface(
-    interfaces: List[Tuple[str, str, str, str]]
+    filtered_logger: Callable[..., None],
+    interfaces: List[Tuple[str, str, str, str]],
 ) -> None:
     """Filter Hyper-V SR-IOV/VFs when used with synthetic hv_netvsc.
 
@@ -1164,7 +1165,7 @@ def filter_hyperv_vf_with_synthetic_interface(
 
     for interface in interfaces_to_remove:
         name, mac, driver, _ = interface
-        LOG.debug(
+        filtered_logger(
             "Ignoring %r VF interface with driver %r due to "
             "synthetic hv_netvsc interface %r with mac address %r.",
             name,
