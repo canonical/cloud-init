@@ -111,7 +111,7 @@ LOG = logging.getLogger(__name__)
 def resizer_factory(mode: str, distro: Distro):
     resize_class = None
     if mode == "auto":
-        for (_name, resizer) in RESIZERS:
+        for _name, resizer in RESIZERS:
             cur = resizer(distro)
             if cur.available():
                 resize_class = cur
@@ -122,7 +122,7 @@ def resizer_factory(mode: str, distro: Distro):
 
     else:
         mmap = {}
-        for (k, v) in RESIZERS:
+        for k, v in RESIZERS:
             mmap[k] = v
 
         if mode not in mmap:
@@ -263,16 +263,20 @@ def device_part_info(devpath):
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
 
-    # FreeBSD doesn't know of sysfs so just get everything we need from
-    # the device, like /dev/vtbd0p2.
-    if util.is_FreeBSD():
-        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
-        m = re.search("^(/dev/.+)p([0-9])$", freebsd_part)
-        return (m.group(1), m.group(2))
-    elif util.is_DragonFlyBSD():
-        dragonflybsd_part = "/dev/" + util.find_dragonflybsd_part(devpath)
-        m = re.search("^(/dev/.+)s([0-9])$", dragonflybsd_part)
-        return (m.group(1), m.group(2))
+    if util.is_BSD():
+        # FreeBSD doesn't know of sysfs so just get everything we need from
+        # the device, like /dev/vtbd0p2.
+        fpart = "/dev/" + util.find_freebsd_part(devpath)
+        m = re.search("^(/dev/.+)p([0-9])$", fpart)
+        if m:
+            return m.group(1), m.group(2)
+
+        # alternatively, we could be dealing with MBR slices,
+        # or we're on DragonFly
+        fslice = "/dev/" + util.find_dragonflybsd_part(devpath)
+        m = re.search("^(/dev/.+)s([0-9])$", fslice)
+        if m:
+            return m.group(1), m.group(2)
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -613,7 +617,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         func=resize_devices,
         args=(resizer, devices),
     )
-    for (entry, action, msg) in resized:
+    for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
             LOG.info("'%s' resized: %s", entry, msg)
         else:
@@ -621,5 +625,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
 
 RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))
-
-# vi: ts=4 expandtab
