@@ -1573,6 +1573,30 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
+    @pytest.mark.parametrize("log_error", [True, False])
+    @mock.patch(M_PATH + "subp.subp")
+    def test_mount_cb_log(self, m_subp, log_error, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/fake0' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "", "unknown filesystem type 'ntfs'"
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(Exception):
+            util.mount_cb(
+                "/dev/fake0",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=log_error,
+            )
+        if log_error:
+            assert log_msg in caplog.text
+        else:
+            assert log_msg not in caplog.text
+
 
 @mock.patch(M_PATH + "write_file")
 class TestEnsureFile:
@@ -2073,7 +2097,6 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
             self.assertEqual(expected, util.parse_mount_info("/", lines))
 
     def test_precise_ext4_root(self):
-
         lines = helpers.readResource("mountinfo_precise_ext4.txt").splitlines()
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
@@ -2516,7 +2539,6 @@ class TestEncode(helpers.TestCase):
 
 
 class TestProcessExecutionError(helpers.TestCase):
-
     template = (
         "{description}\n"
         "Command: {cmd}\n"
@@ -2827,7 +2849,6 @@ class TestHuman2Bytes:
                 util.human2bytes(test_i)
 
     def test_ibibytes2bytes(self):
-
         assert util.human2bytes("0.5GiB") == 536870912
         assert util.human2bytes("100MiB") == 104857600
 
