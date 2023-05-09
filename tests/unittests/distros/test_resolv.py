@@ -30,16 +30,22 @@ class TestResolvHelper(TestCase):
 
     def test_nameservers(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
+
+        # Start with two nameservers that already appear in the configuration.
         self.assertIn("10.15.44.14", rp.nameservers)
         self.assertIn("10.15.30.92", rp.nameservers)
+
+        # Add a third nameserver and verify it appears in the resolv.conf.
         rp.add_nameserver("10.2")
         self.assertIn("10.2", rp.nameservers)
         self.assertIn("nameserver 10.2", str(rp))
-        self.assertNotIn("10.3", rp.nameservers)
         self.assertEqual(len(rp.nameservers), 3)
-        rp.add_nameserver("10.2")
+
+        # Add a fourth nameserver and verify it appears in the resolv.conf.
         rp.add_nameserver("10.3")
-        self.assertNotIn("10.3", rp.nameservers)
+        self.assertIn("10.3", rp.nameservers)
+        self.assertIn("nameserver 10.3", str(rp))
+        self.assertEqual(len(rp.nameservers), 4)
 
     def test_search_domains(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
