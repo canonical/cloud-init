@@ -516,29 +516,19 @@ def find_candidate_nics_on_linux(
     # and ignore interfaces that are definitely disconnected
     connected = []
     possibly_connected = []
-    for interface in get_devicelist():
+    for interface, _, _, _ in get_interfaces(
+        blacklist_drivers=blacklist_drivers,
+        filter_openvswitch_internal=False,
+        filter_slave_if_master_not_bridge_bond_openvswitch=False,
+        filter_vlan=False,
+        filter_without_own_mac=False,
+        filter_zero_mac=False,
+        log_filtered_reasons=True,
+    ):
         if interface == "lo":
-            continue
-        driver = device_driver(interface)
-        if driver in blacklist_drivers:
-            LOG.debug(
-                "Ignoring interface with %s driver: %s", driver, interface
-            )
-            continue
-        if not read_sys_net_safe(interface, "address"):
-            LOG.debug("Ignoring interface without mac: %s", interface)
             continue
         if interface.startswith("veth"):
             LOG.debug("Ignoring veth interface: %s", interface)
-            continue
-        if is_bridge(interface):
-            LOG.debug("Ignoring bridge interface: %s", interface)
-            continue
-        if is_bond(interface):
-            LOG.debug("Ignoring bond interface: %s", interface)
-            continue
-        if is_netfailover(interface):
-            LOG.debug("Ignoring failover interface: %s", interface)
             continue
         carrier = read_sys_net_int(interface, "carrier")
         if carrier:
@@ -1098,10 +1088,19 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     return ret
 
 
-def get_interfaces(blacklist_drivers=None) -> list:
+def get_interfaces(
+    blacklist_drivers=None,
+    filter_openvswitch_internal: bool = True,
+    filter_slave_if_master_not_bridge_bond_openvswitch: bool = True,
+    filter_vlan: bool = True,
+    filter_without_own_mac: bool = True,
+    filter_zero_mac: bool = True,
+    log_filtered_reasons: bool = False,
+) -> list:
     """Return list of interface tuples (name, mac, driver, device_id)
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
+    filtered_logger = LOG.debug if log_filtered_reasons else lambda *args: None
     ret = []
     if blacklist_drivers is None:
         blacklist_drivers = []
@@ -1109,33 +1108,44 @@ def get_interfaces(blacklist_drivers=None) -> list:
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
     zero_mac = ":".join(("00",) * 16)
     for name in devs:
-        if not interface_has_own_mac(name):
+        if filter_without_own_mac and not interface_has_own_mac(name):
             continue
         if is_bridge(name):
+            filtered_logger("Ignoring bridge interface: %s", name)
             continue
-        if is_vlan(name):
+        if filter_vlan and is_vlan(name):
             continue
         if is_bond(name):
+            filtered_logger("Ignoring bond interface: %s", name)
             continue
-        if get_master(name) is not None:
-            if not master_is_bridge_or_bond(
-                name
-            ) and not master_is_openvswitch(name):
-                continue
+        if (
+            filter_slave_if_master_not_bridge_bond_openvswitch
+            and get_master(name) is not None
+            and not master_is_bridge_or_bond(name)
+            and not master_is_openvswitch(name)
+        ):
+            continue
         if is_netfailover(name):
+            filtered_logger("Ignoring failover interface: %s", name)
             continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)
         if not mac:
+            filtered_logger("Ignoring interface without mac: %s", name)
             continue
         # skip nics that have no mac (00:00....)
-        if name != "lo" and mac == zero_mac[: len(mac)]:
+        if filter_zero_mac and name != "lo" and mac == zero_mac[: len(mac)]:
             continue
-        if is_openvswitch_internal_interface(name):
+        if filter_openvswitch_internal and is_openvswitch_internal_interface(
+            name
+        ):
             continue
         # skip nics that have drivers blacklisted
         driver = device_driver(name)
         if driver in blacklist_drivers:
+            filtered_logger(
+                "Ignoring interface with %s driver: %s", driver, name
+            )
             continue
         ret.append((name, mac, driver, device_devid(name)))
     return ret
