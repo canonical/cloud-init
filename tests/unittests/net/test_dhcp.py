@@ -8,6 +8,7 @@ import pytest
 import responses
 
 from cloudinit.net.dhcp import (
+    Dhcpcd,
     InvalidDHCPLeaseFileError,
     IscDhclient,
     NoDHCPLeaseError,
@@ -17,7 +18,7 @@ from cloudinit.net.dhcp import (
     networkd_load_leases,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.util import ensure_file, subp, write_file
+from cloudinit.util import ensure_file, load_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
@@ -37,7 +38,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
         empty_file = self.tmp_path("leases")
         ensure_file(empty_file)
         with self.assertRaises(InvalidDHCPLeaseFileError) as context_manager:
-            IscDhclient.parse_dhcp_lease_file(empty_file)
+            IscDhclient.parse_dhcp_lease_file(empty_file, "eth0")
         error = context_manager.exception
         self.assertIn("Cannot parse empty dhcp lease file", str(error))
 
@@ -48,7 +49,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
         non_lease_file = self.tmp_path("leases")
         write_file(non_lease_file, "hi mom.")
         with self.assertRaises(InvalidDHCPLeaseFileError) as context_manager:
-            IscDhclient.parse_dhcp_lease_file(non_lease_file)
+            IscDhclient.parse_dhcp_lease_file(non_lease_file, "eth0")
         error = context_manager.exception
         self.assertIn("Cannot parse dhcp lease file", str(error))
 
@@ -77,27 +78,16 @@ class TestParseDHCPLeasesFile(CiTestCase):
             }
         """
         )
-        expected = [
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-                "renew": "4 2017/07/27 18:02:30",
-                "expire": "5 2017/07/28 07:08:15",
-                "filename": "http://192.168.2.50/boot.php?mac=${netX}",
-            },
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "filename": "http://192.168.2.50/boot.php?mac=${netX}",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-            },
-        ]
+        expected = {
+            "interface": "wlp3s0",
+            "fixed-address": "192.168.2.74",
+            "filename": "http://192.168.2.50/boot.php?mac=${netX}",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+        }
         write_file(lease_file, content)
         self.assertCountEqual(
-            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file, "eth0")
         )
 
 
@@ -120,20 +110,18 @@ class TestDHCPRFC3442(CiTestCase):
             }
         """
         )
-        expected = [
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-                "rfc3442-classless-static-routes": "0,130,56,240,1",
-                "renew": "4 2017/07/27 18:02:30",
-                "expire": "5 2017/07/28 07:08:15",
-            }
-        ]
+        expected = {
+            "interface": "wlp3s0",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "rfc3442-classless-static-routes": "0,130,56,240,1",
+            "renew": "4 2017/07/27 18:02:30",
+            "expire": "5 2017/07/28 07:08:15",
+        }
         write_file(lease_file, content)
         self.assertCountEqual(
-            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file, "eth0")
         )
 
     def test_parse_lease_finds_classless_static_routes(self):
@@ -155,37 +143,33 @@ class TestDHCPRFC3442(CiTestCase):
             }
         """
         )
-        expected = [
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-                "classless-static-routes": "0 130.56.240.1",
-                "renew": "4 2017/07/27 18:02:30",
-                "expire": "5 2017/07/28 07:08:15",
-            }
-        ]
+        expected = {
+            "interface": "wlp3s0",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "classless-static-routes": "0 130.56.240.1",
+            "renew": "4 2017/07/27 18:02:30",
+            "expire": "5 2017/07/28 07:08:15",
+        }
         write_file(lease_file, content)
         self.assertCountEqual(
-            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file, "eth0")
         )
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_parses_static_routes(self, m_maybe, m_ipv4):
         """EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network"""
-        lease = [
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-                "rfc3442-classless-static-routes": "0,130,56,240,1",
-                "renew": "4 2017/07/27 18:02:30",
-                "expire": "5 2017/07/28 07:08:15",
-            }
-        ]
+        lease = {
+            "interface": "wlp3s0",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "rfc3442-classless-static-routes": "0,130,56,240,1",
+            "renew": "4 2017/07/27 18:02:30",
+            "expire": "5 2017/07/28 07:08:15",
+        }
         m_maybe.return_value = lease
         eph = EphemeralDHCPv4(
             MockDistro(),
@@ -208,17 +192,15 @@ class TestDHCPRFC3442(CiTestCase):
         EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network
         for Centos Lease format
         """
-        lease = [
-            {
-                "interface": "wlp3s0",
-                "fixed-address": "192.168.2.74",
-                "subnet-mask": "255.255.255.0",
-                "routers": "192.168.2.1",
-                "classless-static-routes": "0 130.56.240.1",
-                "renew": "4 2017/07/27 18:02:30",
-                "expire": "5 2017/07/28 07:08:15",
-            }
-        ]
+        lease = {
+            "interface": "wlp3s0",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "classless-static-routes": "0 130.56.240.1",
+            "renew": "4 2017/07/27 18:02:30",
+            "expire": "5 2017/07/28 07:08:15",
+        }
         m_maybe.return_value = lease
         eph = EphemeralDHCPv4(
             MockDistro(),
@@ -392,16 +374,21 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which")
-    def test_dhcp_client_failover(self, m_which, m_subp, m_remove, m_fallback):
+    @mock.patch(
+        "cloudinit.net.dhcp.get_interface_mac", return_value="00:00:00:00"
+    )
+    def test_dhcp_client_failover(
+        self, m_get_mac, m_which, m_subp, m_remove, m_fallback
+    ):
         """Log and do nothing when nic is absent and no fallback is found."""
         m_subp.side_effect = [
             ("", ""),
             subp.ProcessExecutionError(exit_code=-5),
         ]
 
-        m_which.side_effect = [False, True]
+        m_which.side_effect = [False, False]
         with pytest.raises(NoDHCPLeaseError):
-            maybe_perform_dhcp_discovery(MockDistro())
+            maybe_perform_dhcp_discovery(MockDistro)
 
         self.assertIn(
             "DHCP client not found: dhclient",
@@ -468,15 +455,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
             "cloudinit.util.load_file", return_value=lease_content
         ):
             self.assertCountEqual(
-                [
-                    {
-                        "interface": "eth9",
-                        "fixed-address": "192.168.2.74",
-                        "subnet-mask": "255.255.255.0",
-                        "routers": "192.168.2.1",
-                    }
-                ],
-                IscDhclient.parse_dhcp_lease_file("lease"),
+                {
+                    "interface": "eth9",
+                    "fixed-address": "192.168.2.74",
+                    "subnet-mask": "255.255.255.0",
+                    "routers": "192.168.2.1",
+                },
+                IscDhclient.parse_dhcp_lease_file("lease", "eth0"),
             )
         with self.assertRaises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.util.load_file", return_value=""):
@@ -503,7 +488,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         # Don't create pid or leases file
         m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-        self.assertEqual([], IscDhclient().dhcp_discovery("eth9"))
+        self.assertEqual(None, IscDhclient().dhcp_discovery("eth9"))
         self.assertEqual(
             mock.call([PID_F, LEASE_F], maxwait=5, naplen=0.01),
             m_wait.call_args_list[0],
@@ -553,14 +538,12 @@ class TestDHCPDiscoveryClean(CiTestCase):
             "cloudinit.util.load_file", side_effect=["1", lease_content]
         ):
             self.assertCountEqual(
-                [
-                    {
-                        "interface": "eth9",
-                        "fixed-address": "192.168.2.74",
-                        "subnet-mask": "255.255.255.0",
-                        "routers": "192.168.2.1",
-                    }
-                ],
+                {
+                    "interface": "eth9",
+                    "fixed-address": "192.168.2.74",
+                    "subnet-mask": "255.255.255.0",
+                    "routers": "192.168.2.1",
+                },
                 IscDhclient().dhcp_discovery("eth9"),
             )
         # Interface was brought up before dhclient called
@@ -634,14 +617,12 @@ class TestDHCPDiscoveryClean(CiTestCase):
             "cloudinit.util.load_file", side_effect=["1", lease_content]
         ):
             self.assertCountEqual(
-                [
-                    {
-                        "interface": "ib0",
-                        "fixed-address": "192.168.2.74",
-                        "subnet-mask": "255.255.255.0",
-                        "routers": "192.168.2.1",
-                    }
-                ],
+                {
+                    "interface": "ib0",
+                    "fixed-address": "192.168.2.74",
+                    "subnet-mask": "255.255.255.0",
+                    "routers": "192.168.2.1",
+                },
                 IscDhclient().dhcp_discovery("ib0"),
             )
         # Interface was brought up before dhclient called
@@ -863,7 +844,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
             "fixed-address": "192.168.2.2",
             "subnet-mask": "255.255.0.0",
         }
-        m_dhcp.return_value = [fake_lease]
+        m_dhcp.return_value = fake_lease
         m_subp.return_value = ("", "")
 
         self.responses.add(responses.GET, url, body=b"", status=404)
@@ -928,3 +909,19 @@ class TestEphemeralDhcpLeaseErrors:
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
+
+
+class TestDhcpCd:
+    @mock.patch(
+        "cloudinit.net.dhcp.util.load_file",
+        return_value=load_file("tests/data/eth0.lease", decode=False),
+    )
+    def test_parse_lease(self, m_load):
+        """Check that parsing a binary lease file works."""
+        assert Dhcpcd.parse_dhcp_lease_file("", "eth0") == {
+            "interface": "eth0",
+            "fixed-address": "172.31.37.48",
+            "subnet-mask": "255.255.240.0",
+            "routers": "172.31.32.1",
+            "broadcast-address": "172.31.47.255",
+        }

@@ -361,12 +361,11 @@ class EphemeralDHCPv4:
         """
         if self.lease:
             return self.lease
-        leases = maybe_perform_dhcp_discovery(
+        self.lease = maybe_perform_dhcp_discovery(
             self.distro, self.iface, self.dhcp_log_func
         )
-        if not leases:
+        if not self.lease:
             raise NoDHCPLeaseError()
-        self.lease = leases[-1]
         LOG.debug(
             "Received dhcp lease on %s for %s/%s",
             self.lease["interface"],
