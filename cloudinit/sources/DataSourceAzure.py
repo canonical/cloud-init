@@ -79,25 +79,6 @@ UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
     "/run/network/interfaces.ephemeral.d",
 ]
 
-# This list is used to blacklist devices that will be considered
-# for renaming or fallback interfaces.
-#
-# On Azure network devices using these drivers are automatically
-# configured by the platform and should not be configured by
-# cloud-init's network configuration.
-#
-# Note:
-# Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
-# https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series
-# https://docs.microsoft.com/en-us/azure/virtual-machines/ev4-esv4-series
-# Earlier D and E series VMs (such as Dv2, Dv3, and Ev3 series VMs)
-# can have either mlx4 or mlx5 hardware, with the older series VMs
-# having a higher chance of coming with mlx4 hardware.
-# https://docs.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series
-# https://docs.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series
-# https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
-BLACKLIST_DRIVERS = ["mlx4_core", "mlx5_core"]
-
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
     # extract the 'X' from dev.storvsc.X. if deviceid matches
@@ -182,7 +163,7 @@ def determine_device_driver_for_mac(mac: str) -> Optional[str]:
     """Determine the device driver to match on, if any."""
     drivers = [
         i[2]
-        for i in net.get_interfaces(blacklist_drivers=BLACKLIST_DRIVERS)
+        for i in net.get_interfaces()
         if mac == normalize_mac_address(i[1])
     ]
     if "hv_netvsc" in drivers:
@@ -722,8 +703,6 @@ class DataSourceAzure(sources.DataSource):
             get_system_info()
         except Exception as e:
             LOG.warning("Failed to get system information: %s", e)
-
-        self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
 
         try:
             crawled_data = util.log_time(
@@ -1888,13 +1867,11 @@ def generate_network_config_from_instance_network_metadata(
 
 @azure_ds_telemetry_reporter
 def _generate_network_config_from_fallback_config() -> dict:
-    """Generate fallback network config excluding blacklisted devices.
+    """Generate fallback network config.
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    cfg = net.generate_fallback_config(
-        blacklist_drivers=BLACKLIST_DRIVERS, config_driver=True
-    )
+    cfg = net.generate_fallback_config(config_driver=True)
     if cfg is None:
         return {}
     return cfg

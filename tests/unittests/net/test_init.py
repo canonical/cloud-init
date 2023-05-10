@@ -482,13 +482,27 @@ class TestNetFindCandidateNics:
             operstate="testing",
         )
         self.create_fake_interface(
-            name="blacklistedDriverIgnored",
-            driver="bad",
+            name="hv",
+            driver="hv_netvsc",
+            address="00:11:22:00:00:f0",
+        )
+        self.create_fake_interface(
+            name="hv_vf_mlx4",
+            driver="mlx4_core",
+            address="00:11:22:00:00:f0",
+        )
+        self.create_fake_interface(
+            name="hv_vf_mlx5",
+            driver="mlx5_core",
+            address="00:11:22:00:00:f0",
+        )
+        self.create_fake_interface(
+            name="hv_vf_mana",
+            driver="mana",
+            address="00:11:22:00:00:f0",
         )
 
-        assert (
-            net.find_candidate_nics_on_linux(blacklist_drivers=["bad"]) == []
-        )
+        assert net.find_candidate_nics_on_linux() == ["hv"]
 
     def test_carrier_preferred(self):
         self.create_fake_interface(name="eth0", carrier=False, dormant=True)

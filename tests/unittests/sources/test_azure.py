@@ -804,7 +804,7 @@ class TestNetworkConfig:
                 "type": "physical",
                 "name": "eth0",
                 "mac_address": "00:11:22:33:44:55",
-                "params": {"driver": "hv_netsvc"},
+                "params": {"driver": "hv_netvsc"},
                 "subnets": [{"type": "dhcp"}],
             }
         ],
@@ -2004,14 +2004,9 @@ scbus-1 on xpt0 bus 0
         distro = distro_cls("ubuntu", {}, self.paths)
         dsrc = self._get_ds(data, distro=distro)
         dsrc.get_data()
-        self.assertEqual(
-            distro.networking.blacklist_drivers, dsaz.BLACKLIST_DRIVERS
-        )
 
         distro.networking.get_interfaces_by_mac()
-        m_net_get_interfaces.assert_called_with(
-            blacklist_drivers=dsaz.BLACKLIST_DRIVERS
-        )
+        m_net_get_interfaces.assert_called_with()
 
     @mock.patch(
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
