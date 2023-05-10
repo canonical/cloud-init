@@ -159,15 +159,13 @@ def mock_kvp_report_success_to_host():
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
-        return_value=[
-            {
-                "unknown-245": "0a:0b:0c:0d",
-                "interface": "ethBoot0",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-            }
-        ],
+        return_value={
+            "unknown-245": "0a:0b:0c:0d",
+            "interface": "ethBoot0",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+        },
         autospec=True,
     ) as m:
         yield m
@@ -2992,7 +2990,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             "subnet-mask": "255.255.255.0",
             "unknown-245": "624c3620",
         }
-        m_dhcp.return_value = [lease]
+        m_dhcp.return_value = lease
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
@@ -3091,14 +3089,12 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
     ):
         """The _poll_imds method should return the ovf_env.xml."""
         m_media_switch.return_value = None
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+        }
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         dsa._ephemeral_dhcp_ctx = None
         self.assertTrue(len(dsa._poll_imds()) > 0)
@@ -3118,15 +3114,13 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
     ):
         """The _reprovision method should call poll IMDS."""
         m_media_switch.return_value = None
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "unknown-245": "624c3620",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "unknown-245": "624c3620",
+        }
         hostname = "myhost"
         username = "myuser"
         content = construct_ovf_env(username=username, hostname=hostname)

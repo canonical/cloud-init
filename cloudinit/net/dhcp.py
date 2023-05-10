@@ -607,7 +607,7 @@ class Dhcpcd:
             else:
                 ppid = util.get_proc_ppid(pid)
                 if ppid == 1:
-                    LOG.debug("killing dhclient with pid=%s", pid)
+                    LOG.debug("killing dhcpcd with pid=%s", pid)
                     os.kill(pid, signal.SIGKILL)
                     daemonized = True
                     break
@@ -615,7 +615,7 @@ class Dhcpcd:
 
         if not daemonized:
             LOG.error(
-                "dhclient(pid=%s, parentpid=%s) failed to daemonize after %s "
+                "dhcpcd(pid=%s, parentpid=%s) failed to daemonize after %s "
                 "seconds",
                 pid_content,
                 ppid,
@@ -629,27 +629,15 @@ class Dhcpcd:
     def parse_dhcp_lease_file(
         cls, lease_file: str, interface: str
     ) -> Dict[str, Any]:
-        """Parse the given dhcp lease file returning all leases as dicts.
+        """Parse the given dhcp lease file returning lease as a dict.
 
-        Return a dicts of the newest dhcp lease. Each dict contains key value
+        Return a dict of the newest dhcp lease. The dict contains key value
         pairs including lease options, interface, and IP address
 
         @raises: InvalidDHCPLeaseFileError on empty of unparseable leasefile
             content.
         """
 
-        # Required fields
-        #
-        #  interface
-        #  fixed-address
-        #
-        # Required options / fields
-        #
-        #  1 subnet-mask
-        #  3 routers
-        #  28 broadcast-address
-        #  121 classless-static-routes
-        #  254 unknown-245
         def iter_options(data: bytes, index: int):
             """options are variable length, and consist of the following format
 
@@ -667,11 +655,14 @@ class Dhcpcd:
         def delim_bytes(data: bytes, delim: Optional[str] = None) -> str:
             return (delim if delim else ".").join([str(byte) for byte in data])
 
-        def parse_classless_route(data: bytes) -> List[tuple]:
-            return DhcpClient.parse_static_routes(delim_bytes(data, delim=","))
-
         def validate_lease(lease):
-            # Dhcp leases are type response
+            """https://www.ietf.org/rfc/rfc2132.txt"""
+            if len(lease) == 0:
+                raise InvalidDHCPLeaseFileError(
+                    "Cannot parse empty dhcp lease file {}".format(lease_file)
+                )
+
+            # Dhcp leases are type response, 0x1 should never happen
             if 0x2 != lease[0]:
                 raise InvalidDHCPLeaseFileError(
                     "Cannot parse invalid dhcp lease file: type {}".format(
@@ -679,8 +670,8 @@ class Dhcpcd:
                     )
                 )
 
-            # Magic Cookie comes right before variable length dhcp options
-            # Make sure the magic cookie is the expected value
+            # Magic Cookie is immediately before variable length dhcp options
+            # Make sure the magic cookie is the expected value. See rfc2132.
             expected = bytes.fromhex("63825363")
             found = lease[236:240]
             if found != expected:
@@ -690,26 +681,33 @@ class Dhcpcd:
                     )
                 )
 
+        # load lease file, which is a binary file containing the dhcp response
+        # as it was received
         lease: bytes
         lease = util.load_file(lease_file, decode=False)  # type: ignore
-        if len(lease) == 0:
-            raise InvalidDHCPLeaseFileError(
-                "Cannot parse empty dhcp lease file {}".format(lease_file)
-            )
 
         validate_lease(lease)
         out: Dict[str, Any] = {
             "interface": interface,
             "fixed-address": delim_bytes(lease[16:20]),
         }
+
+        # gather the options the are used by cloud-init, process from raw bytes
+        # into a format that matches isc-dhclient's parsed format
         for code, option in iter_options(lease, 240):
             name = OPT_MAP.get(code)
+
             if name:
-                out[name] = delim_bytes(option)
                 if "classless-static-routes" == name:
+
+                    # The format used by isc-dhcp is a slightly modified format
+                    # of the bytes in the dhcp response packet. Format
+                    # accordingly and let parse_static_routes do the work.
                     out[name] = DhcpClient.parse_static_routes(
                         delim_bytes(option, delim=",")
                     )
                 elif "unknown-245" == name:
                     out[name] = True
+                else:
+                    out[name] = delim_bytes(option)
         return out
