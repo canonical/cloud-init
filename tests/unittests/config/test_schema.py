@@ -1756,24 +1756,38 @@ class TestMain:
         assert expected == err
 
 
-def _get_meta_doc_examples():
+def _get_meta_doc_examples(
+    file_glob="cloud-config*.txt", exclusion_match=r"^cloud-config-archive.*"
+):
     examples_dir = Path(cloud_init_project_dir("doc/examples"))
     assert examples_dir.is_dir()
-
     return (
         str(f)
-        for f in examples_dir.glob("cloud-config*.txt")
-        if not f.name.startswith("cloud-config-archive")
+        for f in examples_dir.glob(file_glob)
+        if not re.match(exclusion_match, f.name)
     )
 
 
 class TestSchemaDocExamples:
     schema = get_schema()
+    net_schema = get_schema(schema_type="network-config")
 
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
-    def test_schema_doc_examples(self, example_path):
+    def test_cloud_config_schema_doc_examples(self, example_path):
         validate_cloudconfig_file(example_path, self.schema)
+
+    @pytest.mark.parametrize(
+        "example_path",
+        _get_meta_doc_examples(file_glob="network-config-v1*yaml"),
+    )
+    @skipUnlessJsonSchema()
+    def test_network_config_schema_v1_doc_examples(self, example_path):
+        validate_cloudconfig_schema(
+            config=load(open(example_path)),
+            schema=self.net_schema,
+            strict=True,
+        )
 
 
 VALID_PHYSICAL_CONFIG = {
