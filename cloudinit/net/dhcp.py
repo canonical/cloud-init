@@ -13,7 +13,7 @@ import re
 import signal
 import time
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import configobj
 
@@ -684,7 +684,7 @@ class Dhcpcd:
         # load lease file, which is a binary file containing the dhcp response
         # as it was received
         lease: bytes
-        lease = util.load_file(lease_file, decode=False)  # type: ignore
+        lease = util.load_file(lease_file, decode=False)
 
         validate_lease(lease)
         out: Dict[str, Any] = {
