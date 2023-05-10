@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$defs": {
-        "config_type_physical": {
+        "anyOf_type_physical": {
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "name"],
@@ -30,7 +30,7 @@
             }
           }
         },
-        "config_type_bond": {
+        "anyOf_type_bond": {
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "name"],
@@ -49,7 +49,10 @@
             },
             "bond_interfaces": {
               "type": "array",
-              "description": "The list of network device ``name``s associated with this bond. This list may be empty."
+              "description": "The list of network device ``name``s associated with this bond. This list may be empty.",
+              "items": {
+                "type": "string"
+              }
             },
             "mtu": {
               "type": "integer",
@@ -163,6 +166,111 @@
                 },
                 "bond_xmit_has_policy": {
                   "type": "string"
+                },
+                "bond-active-slave": {
+                  "type": "string"
+                },
+                "bond-ad-actor-key": {
+                  "type": "string"
+                },
+                "bond-ad-actor-sys-prio": {
+                  "type": "string"
+                },
+                "bond-ad-actor-system": {
+                  "type": "string"
+                },
+                "bond-ad-aggregator": {
+                  "type": "string"
+                },
+                "bond-ad-num-ports": {
+                  "type": "integer"
+                },
+                "bond-ad-partner-key": {
+                  "type": "string"
+                },
+                "bond-ad-partner-mac": {
+                  "type": "string"
+                },
+                "bond-ad-select": {
+                  "type": "string"
+                },
+                "bond-ad-user-port-key": {
+                  "type": "string"
+                },
+                "bond-all-slaves-active": {
+                  "type": "string"
+                },
+                "bond-arp-all-targets": {
+                  "type": "string"
+                },
+                "bond-arp_interval": {
+                  "type": "integer"
+                },
+                "bond-arp-ip-target": {
+                  "type": "string"
+                },
+                "bond-arp-validate": {
+                  "type": "boolean"
+                },
+                "bond-downdelay": {
+                  "type": "string"
+                },
+                "bond-fail-over-mac": {
+                  "type": "string"
+                },
+                "bond-lacp-rate": {
+                  "type": "string"
+                },
+                "bond-lp-interval": {
+                  "type": "string"
+                },
+                "bond-miimon": {
+                  "type": "string"
+                },
+                "bond-mii-status": {
+                  "type": "string"
+                },
+                "bond-mii-links": {
+                  "type": "integer"
+                },
+                "bond-mode": {
+                  "type": "string"
+                },
+                "bond-num-grat-arp": {
+                  "type": "integer"
+                },
+                "bond-num-unsol-na": {
+                  "type": "integer"
+                },
+                "bond-packets-per-slave": {
+                  "type": "integer"
+                },
+                "bond-primary": {
+                  "type": "string"
+                },
+                "bond-primary-reselect": {
+                  "type": "string"
+                },
+                "bond-queue-id": {
+                  "type": "string"
+                },
+                "bond-resend-igpm": {
+                  "type": "string"
+                },
+                "bond-slaves": {
+                  "type": "string"
+                },
+                "bond-tlb-dynamic-lb": {
+                  "type": "string"
+                },
+                "bond-updelay": {
+                  "type": "string"
+                },
+                "bond-use-carrier": {
+                  "type": "string"
+                },
+                "bond-xmit-has-policy": {
+                  "type": "string"
                 }
               }
             },
@@ -174,7 +282,7 @@
             }
           }
         },
-        "config_type_bridge": {
+        "anyOf_type_bridge": {
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "name", "bridge_interfaces", "params"],
@@ -270,14 +378,14 @@
             }
           }
         },
-        "config_type_vlan": {
+        "anyOf_type_vlan": {
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "name", "vlan_link", "vlan_id"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["bridge"]
+              "enum": ["vlan"]
             },
             "name": {
               "type": "string",
@@ -303,7 +411,7 @@
             }
           }
         },
-        "config_type_nameserver": {
+        "anyOf_type_nameserver": {
           "type": "object",
           "additionalProperties": false,
           "required": ["type", "address", "search"],
@@ -332,22 +440,33 @@
             }
           }
         },
-        "config_type_route": {
+        "anyOf_type_route": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["type", "destination", "gateway"],
+	  "anyOf": [
+	      {"required": ["network", "gateway"]},
+	      {"required": ["destination", "gateway"]}
+          ],
           "properties": {
             "type": {
               "type": "string",
               "enum": ["route"]
             },
+            "network": {
+              "type": "string",
+              "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent."
+            },
             "destination": {
               "type": "string",
-              "description": "IPv4 network address with CIDR netmask notation."
+              "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``network`` and preferred above the ``network`` key."
+            },
+            "netmask": {
+              "type": "string",
+              "description": "IPv4 subnet mask in dotted format or CIDR notation"
             },
             "gateway": {
               "type": "string",
-              "description": "IPv4 gateway address with CIDR netmask notation."
+              "description": "IPv4 or IPv6 gateway address."
             },
             "metric": {
               "type": "integer",
@@ -398,7 +517,7 @@
               "type": "array",
               "description": "Specify a list of routes for a given interface.",
               "items": {
-                "$ref": "#/$defs/config_type_route"
+                "$ref": "#/$defs/anyOf_type_route"
               }
             }
           }
@@ -419,8 +538,12 @@
                 "type": "array",
                 "items": {
 		    "anyOf": [
-			    {"$ref": "#/$defs/config_type_physical"},
-			    {"$ref": "#/$defs/config_type_bond"}
+			    {"$ref": "#/$defs/anyOf_type_bond"},
+			    {"$ref": "#/$defs/anyOf_type_bridge"},
+			    {"$ref": "#/$defs/anyOf_type_physical"},
+			    {"$ref": "#/$defs/anyOf_type_nameserver"},
+			    {"$ref": "#/$defs/anyOf_type_route"},
+			    {"$ref": "#/$defs/anyOf_type_vlan"}
                     ]
                 }
               }

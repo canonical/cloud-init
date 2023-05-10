@@ -269,6 +269,7 @@ def _anyOf(
     all_errors = []
     all_deprecations = []
     errors_for_declared_type = []
+    skip_best_match = False
     for index, subschema in enumerate(anyOf):
         all_errs = list(
             validator.descend(instance, subschema, schema_path=index)
@@ -280,10 +281,16 @@ def _anyOf(
         if not errs:
             all_deprecations.extend(deprecations)
             break
-
+        if "type" in instance and "anyOf_type" in subschema.get("$ref", ""):
+            if f"anyOf_type_{instance['type']}" in subschema["$ref"]:
+                # A matching anyOf_type_XXX $ref indicates this is likely the
+                # best_match ValidationError. Skip best_match below.
+                skip_best_match = True
+                yield from errs
         all_errors.extend(errs)
     else:
-        yield best_match(all_errors)
+        if not skip_best_match:
+            yield best_match(all_errors)
         yield ValidationError(
             "%r is not valid under any of the given schemas" % (instance,),
             context=all_errors,
