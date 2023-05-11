@@ -609,7 +609,7 @@ def route_pformat():
                             r["flags"],
                         ]
                     )
-                except Exception as e:
+                except KeyError as e:
                     util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v4.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
@@ -638,7 +638,7 @@ def route_pformat():
                             r["flags"],
                         ]
                     )
-                except Exception as e:
+                except KeyError as e:
                     util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v6.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
