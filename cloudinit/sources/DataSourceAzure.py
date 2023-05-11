@@ -371,7 +371,8 @@ class DataSourceAzure(sources.DataSource):
         )
 
         lease = None
-        timeout = timeout_minutes * 60 + time()
+        start_time = time()
+        deadline = start_time + timeout_minutes * 60
         with events.ReportEventStack(
             name="obtain-dhcp-lease",
             description="obtain dhcp lease",
@@ -385,6 +386,12 @@ class DataSourceAzure(sources.DataSource):
                     report_diagnostic_event(
                         "Interface not found for DHCP", logger_func=LOG.warning
                     )
+                    self._report_failure(
+                        errors.ReportableErrorDhcpInterfaceNotFound(
+                            duration=time() - start_time
+                        ),
+                        host_only=True,
+                    )
                 except NoDHCPLeaseMissingDhclientError:
                     # No dhclient, no point in retrying.
                     report_diagnostic_event(
@@ -397,6 +404,12 @@ class DataSourceAzure(sources.DataSource):
                     report_diagnostic_event(
                         "Failed to obtain DHCP lease (iface=%s)" % iface,
                         logger_func=LOG.error,
+                    )
+                    self._report_failure(
+                        errors.ReportableErrorDhcpLease(
+                            duration=time() - start_time, interface=iface
+                        ),
+                        host_only=True,
                     )
                 except subp.ProcessExecutionError as error:
                     # udevadm settle, ip link set dev eth0 up, etc.
@@ -412,8 +425,8 @@ class DataSourceAzure(sources.DataSource):
                         logger_func=LOG.error,
                     )
 
-                # Sleep before retrying, otherwise break if we're past timeout.
-                if lease is None and time() + retry_sleep < timeout:
+                # Sleep before retrying, otherwise break if past deadline.
+                if lease is None and time() + retry_sleep < deadline:
                     sleep(retry_sleep)
                 else:
                     break
@@ -1154,17 +1167,26 @@ class DataSourceAzure(sources.DataSource):
         return reprovision_data
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, error: errors.ReportableError) -> bool:
-        """Tells the Azure fabric that provisioning has failed.
+    def _report_failure(
+        self, error: errors.ReportableError, host_only: bool = False
+    ) -> bool:
+        """Report failure to Azure host and fabric.
 
-        @param description: A description of the error encountered.
+        For errors that may be recoverable (e.g. DHCP), host_only provides a
+        mechanism to report the failure that can be updated later with success.
+        DHCP will not be attempted if host_only=True and networking is down.
+
+        @param error: Error to report.
+        @param host_only: Only report to host (error may be recoverable).
         @return: The success status of sending the failure signal.
         """
         report_diagnostic_event(
             f"Azure datasource failure occurred: {error.as_encoded_report()}",
             logger_func=LOG.error,
         )
-        kvp.report_failure_to_host(error)
+        reported = kvp.report_failure_to_host(error)
+        if host_only:
+            return reported
 
         if self._is_ephemeral_networking_up():
             try:

@@ -84,6 +84,21 @@ class ReportableError(Exception):
         return self.as_encoded_report()
 
 
+class ReportableErrorDhcpInterfaceNotFound(ReportableError):
+    def __init__(self, duration: float) -> None:
+        super().__init__("failure to find DHCP interface")
+
+        self.supporting_data["duration"] = duration
+
+
+class ReportableErrorDhcpLease(ReportableError):
+    def __init__(self, duration: float, interface: Optional[str]) -> None:
+        super().__init__("failure to obtain DHCP lease")
+
+        self.supporting_data["duration"] = duration
+        self.supporting_data["interface"] = interface
+
+
 class ReportableErrorUnhandledException(ReportableError):
     def __init__(self, exception: Exception) -> None:
         super().__init__("unhandled exception")

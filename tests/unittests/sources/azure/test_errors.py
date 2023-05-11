@@ -119,6 +119,21 @@ def test_reportable_errors(
     assert error.as_encoded_report() == "|".join(data)
 
 
+def test_dhcp_lease():
+    error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
+
+    assert error.reason == "failure to obtain DHCP lease"
+    assert error.supporting_data["duration"] == 5.6
+    assert error.supporting_data["interface"] == "foo"
+
+
+def test_dhcp_interface_not_found():
+    error = errors.ReportableErrorDhcpInterfaceNotFound(duration=5.6)
+
+    assert error.reason == "failure to find DHCP interface"
+    assert error.supporting_data["duration"] == 5.6
+
+
 def test_unhandled_exception():
     source_error = None
     try:
