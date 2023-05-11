@@ -598,16 +598,19 @@ def route_pformat():
             tbl_v4 = SimpleTable(fields_v4)
             for (n, r) in enumerate(routes.get("ipv4")):
                 route_id = str(n)
-                tbl_v4.add_row(
-                    [
-                        route_id,
-                        r["destination"],
-                        r["gateway"],
-                        r["genmask"],
-                        r["iface"],
-                        r["flags"],
-                    ]
-                )
+                try:
+                    tbl_v4.add_row(
+                        [
+                            route_id,
+                            r["destination"],
+                            r.get("gateway", "0.0.0.0"),
+                            r["genmask"],
+                            r["iface"],
+                            r["flags"],
+                        ]
+                    )
+                except Exception as e:
+                    util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v4.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv4 info", "+", max_len)
@@ -625,15 +628,18 @@ def route_pformat():
                 route_id = str(n)
                 if r["iface"] == "lo":
                     continue
-                tbl_v6.add_row(
-                    [
-                        route_id,
-                        r["destination"],
-                        r["gateway"],
-                        r["iface"],
-                        r["flags"],
-                    ]
-                )
+                try:
+                    tbl_v6.add_row(
+                        [
+                            route_id,
+                            r["destination"],
+                            r.get("gateway", "::"),
+                            r["iface"],
+                            r["flags"],
+                        ]
+                    )
+                except Exception as e:
+                    util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v6.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv6 info", "+", max_len)
