@@ -6,7 +6,7 @@ Reporting bugs
 In this guide, we will show you how to:
 
 1) Collect logs to support your bug report.
-2) File bugs to the upstream ``cloud-init`` project via `Launchpad`_.
+2) File bugs to the upstream ``cloud-init`` project via `GitHub`_.
 3) Report issues for distro-specific packages.
 
 Collect logs
@@ -40,20 +40,20 @@ following:
 Report upstream bugs
 ====================
 
-Bugs for upstream ``cloud-init`` are tracked using Launchpad. To file a bug:
+Bugs for upstream ``cloud-init`` are tracked using GitHub Issues. To file a
+bug:
 
 1. Collect the necessary debug logs as described above.
-2. `Create a Launchpad account`_ or login to your existing account.
-3. `Report an upstream cloud-init bug`_.
+2. `Report an upstream cloud-init bug`_ on GitHub.
 
 If debug logs are not provided, you will be asked for them before any
 further time is spent debugging. If you are unable to obtain the required
 logs please explain why in the bug.
 
 If your bug is for a specific distro using ``cloud-init``, please first
-consider reporting it with the upstream distro or confirm that it still occurs
-with the latest upstream ``cloud-init`` code. See the following section for
-details on specific distro reporting.
+consider reporting it with the downstream distro or confirm that it still
+occurs with the latest upstream ``cloud-init`` code. See the following section
+for details on specific distro reporting.
 
 Distro-specific issues
 ======================
@@ -103,9 +103,8 @@ To file a bug against the Arch package of ``cloud-init`` please use the
 details.
 
 .. LINKS:
-.. _Launchpad: https://launchpad.net/
-.. _Create a Launchpad account: https://help.launchpad.net/YourAccount/NewAccount
-.. _Report an upstream cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
+.. _GitHub: https://github.com/canonical/cloud-init/issues
+.. _Report an upstream cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
 .. _Debian bug reporting wiki: https://www.debian.org/Bugs/Reporting

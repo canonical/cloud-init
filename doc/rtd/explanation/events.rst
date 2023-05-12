@@ -73,7 +73,7 @@ metadata, ``cloud-init`` will also bring up/down the newly added interface.
 .. warning::
    Due to its use of ``systemd`` sockets, ``hotplug`` functionality is
    currently incompatible with SELinux. This issue is being `tracked
-   on Launchpad`_. Additionally, ``hotplug`` support is considered
+   here`_. Additionally, ``hotplug`` support is considered
    experimental for non-Debian-based systems.
 
 Example
@@ -92,4 +92,4 @@ On every boot, apply network configuration found in the datasource.
        when: ['boot']
 
 .. _Cloud-init: https://launchpad.net/cloud-init
-.. _tracked on Launchpad: https://bugs.launchpad.net/cloud-init/+bug/1936229
+.. _tracked here: https://github.com/canonical/cloud-init/issues/3890

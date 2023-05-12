@@ -62,7 +62,7 @@ Having trouble? We would like to help!
   ``cloud-init``
 - :ref:`Try the FAQ<faq>` for answers to some common questions
 - You can also search the ``cloud-init`` `mailing list archive`_
-- Find a bug? `Report bugs on Launchpad`_
+- Find a bug? `Report bugs on GitHub Issues`_
 
 Project and community
 =====================
@@ -93,4 +93,4 @@ projects, contributions, suggestions, fixes and constructive feedback.
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
 .. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
-.. _Report bugs on Launchpad: https://bugs.launchpad.net/cloud-init/+filebug
+.. _Report bugs on GitHub Issues: https://github.com/canonical/cloud-init/issues

@@ -11,7 +11,7 @@ no particular length requirements.
 
 If you need to write multiple paragraphs, feel free.
 
-LP: #NNNNNNN (replace with the appropriate bug reference or remove
+Fixes: #NNNNN (replace with the appropriate bug reference or remove
 this line entirely if there is no associated bug)
 ```
 
