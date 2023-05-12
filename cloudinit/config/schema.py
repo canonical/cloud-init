@@ -1264,7 +1264,7 @@ def handle_schema_args(name, args):
     if args.docs:
         print(load_doc(args.docs))
         return
-    paths = read_cfg_paths()
+    paths = read_cfg_paths(fetch_existing_datasource="trust")
     if args.instance_data:
         instance_data_path = args.instance_data
     elif os.getuid() != 0:
