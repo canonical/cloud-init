@@ -2060,3 +2060,6 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
+        assert read_cfg_paths.call_args_list == [
+            mock.call(fetch_existing_datasource="trust")
+        ]
