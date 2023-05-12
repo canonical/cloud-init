@@ -21,6 +21,8 @@ _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 KERNEL_CMDLINE_NETWORK_CONFIG_DISABLED = "disabled"
 
+LOG = logging.getLogger(__name__)
+
 
 class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     """ABC for net config sources that read config written by initramfses"""
@@ -258,7 +260,7 @@ def _b64dgz(data):
     try:
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
-        logging.error(
+        LOG.error(
             "Expected base64 encoded kernel commandline parameter"
             " network-config. Ignoring network-config=%s.",
             data,

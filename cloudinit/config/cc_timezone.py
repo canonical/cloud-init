@@ -7,7 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Timezone: Set the system timezone"""
 
-from logging import Logger
+import logging
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
@@ -34,18 +34,17 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         timezone = args[0]
     else:
         timezone = util.get_cfg_option_str(cfg, "timezone", False)
 
     if not timezone:
-        log.debug("Skipping module named %s, no 'timezone' specified", name)
+        LOG.debug("Skipping module named %s, no 'timezone' specified", name)
         return
 
     # Let the distro handle settings its timezone

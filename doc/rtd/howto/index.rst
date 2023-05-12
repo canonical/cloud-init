@@ -20,4 +20,5 @@ How do I...?
 
    Test cloud-init locally before deploying <predeploy_testing.rst>
    Change how often a module runs <module_run_frequency.rst>
+   Disable cloud-init <disable_cloud_init.rst>
    Report a bug <bugs.rst>

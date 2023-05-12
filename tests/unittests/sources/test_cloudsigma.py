@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 
-from cloudinit import distros, helpers, sources
+import copy
+from unittest import mock
+
+from cloudinit import distros, helpers, importer, sources
 from cloudinit.sources import DataSourceCloudSigma
 from cloudinit.sources.helpers.cloudsigma import Cepko
 from tests.unittests import helpers as test_helpers
@@ -43,7 +45,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         super(DataSourceCloudSigmaTest, self).setUp()
         self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.add_patch(
-            DS_PATH + ".is_running_in_cloudsigma",
+            DS_PATH + ".override_ds_detect",
             "m_is_container",
             return_value=True,
         )
@@ -98,6 +100,7 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         )
 
     def test_encoded_user_data(self):
+
         encoded_context = copy.deepcopy(SERVER_CONTEXT)
         encoded_context["meta"]["base64_fields"] = "cloudinit-user-data"
         encoded_context["meta"]["cloudinit-user-data"] = "aGkgd29ybGQK"
@@ -136,11 +139,15 @@ class DsLoads(test_helpers.TestCase):
         ds_list = DataSourceCloudSigma.get_datasource_list(deps)
         self.assertEqual(ds_list, [DataSourceCloudSigma.DataSourceCloudSigma])
 
+    @mock.patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
+            ["CloudSigma"],
+            (sources.DEP_FILESYSTEM,),
+            ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)
-
-
-# vi: ts=4 expandtab

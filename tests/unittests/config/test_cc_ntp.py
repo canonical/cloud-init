@@ -357,7 +357,7 @@ class TestNtp(FilesystemMockingTestCase):
 
     def test_no_ntpcfg_does_nothing(self):
         """When no ntp section is defined handler logs a warning and noops."""
-        cc_ntp.handle("cc_ntp", {}, None, None, [])
+        cc_ntp.handle("cc_ntp", {}, None, [])
         self.assertEqual(
             "DEBUG: Skipping module named cc_ntp, "
             "not present or disabled by cfg\n",
@@ -380,7 +380,7 @@ class TestNtp(FilesystemMockingTestCase):
                 ntpconfig = self._mock_ntp_client_config(distro=distro)
                 confpath = ntpconfig["confpath"]
                 m_select.return_value = ntpconfig
-                cc_ntp.handle("cc_ntp", valid_empty_config, mycloud, None, [])
+                cc_ntp.handle("cc_ntp", valid_empty_config, mycloud, [])
                 if distro == "alpine":
                     # _mock_ntp_client_config call above did not specify a
                     # client value and so it defaults to "ntp" which on
@@ -415,7 +415,7 @@ class TestNtp(FilesystemMockingTestCase):
             )
             confpath = ntpconfig["confpath"]
             m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", cfg, mycloud, None, [])
+            cc_ntp.handle("cc_ntp", cfg, mycloud, [])
             self.assertEqual(
                 "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
                 util.load_file(confpath),
@@ -427,7 +427,7 @@ class TestNtp(FilesystemMockingTestCase):
         cfg = {"ntp": {"enabled": False}}
         for distro in cc_ntp.distros:
             mycloud = self._get_cloud(distro)
-            cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+            cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(0, m_select.call_count)
 
     @mock.patch("cloudinit.subp.subp")
@@ -502,8 +502,10 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_BSD.return_value = is_FreeBSD or is_OpenBSD
                 m_util.is_FreeBSD.return_value = is_FreeBSD
                 m_util.is_OpenBSD.return_value = is_OpenBSD
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
-                m_subp.assert_called_with(expected_service_call, capture=True)
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
+                m_subp.assert_called_with(
+                    expected_service_call, capture=True, rcs=None
+                )
 
             self.assertEqual(expected_content, util.load_file(confpath))
 
@@ -610,7 +612,7 @@ class TestNtp(FilesystemMockingTestCase):
             with mock.patch.object(
                 mycloud.distro, "install_packages"
             ) as m_install:
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
             m_install.assert_called_with([client])
             m_which.assert_called_with(client)
 
@@ -667,7 +669,7 @@ class TestNtp(FilesystemMockingTestCase):
             mycloud = self._get_cloud(distro)
             mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
             with mock.patch(mock_path, self.new_root):
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
                 util.load_file(confpath),
@@ -707,9 +709,7 @@ class TestNtp(FilesystemMockingTestCase):
             m_select.return_value = ntpconfig
             mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
             with mock.patch(mock_path, self.new_root):
-                cc_ntp.handle(
-                    "notimportant", {"ntp": cfg}, mycloud, None, None
-                )
+                cc_ntp.handle("notimportant", {"ntp": cfg}, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
                 util.load_file(confpath),
@@ -839,6 +839,3 @@ class TestNTPSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

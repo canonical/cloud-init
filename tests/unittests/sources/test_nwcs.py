@@ -47,16 +47,16 @@ class TestDataSourceNWCS(CiTestCase):
     @mock.patch("cloudinit.sources.DataSourceNWCS.EphemeralDHCPv4")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceNWCS.read_metadata")
-    @mock.patch("cloudinit.sources.DataSourceNWCS.get_nwcs_data")
+    @mock.patch("cloudinit.sources.DataSourceNWCS.DataSourceNWCS.ds_detect")
     def test_read_data(
         self,
-        m_get_nwcs_data,
+        m_ds_detect,
         m_readmd,
         m_fallback_nic,
         m_net,
         m_dhcp,
     ):
-        m_get_nwcs_data.return_value = True
+        m_ds_detect.return_value = True
         m_readmd.return_value = METADATA.copy()
         m_fallback_nic.return_value = "eth0"
         m_dhcp.return_value = [
@@ -74,6 +74,7 @@ class TestDataSourceNWCS(CiTestCase):
         self.assertTrue(ret)
 
         m_net.assert_called_once_with(
+            ds.distro,
             iface="eth0",
             connectivity_url_data={
                 "url": "http://169.254.169.254/api/v1/metadata/instance-id"
@@ -92,13 +93,13 @@ class TestDataSourceNWCS(CiTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceNWCS.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
-    @mock.patch("cloudinit.sources.DataSourceNWCS.get_nwcs_data")
+    @mock.patch("cloudinit.sources.DataSourceNWCS.DataSourceNWCS.ds_detect")
     def test_not_on_nwcs_returns_false(
-        self, m_get_nwcs_data, m_find_fallback, m_read_md
+        self, m_ds_detect, m_find_fallback, m_read_md
     ):
-        """If helper 'get_nwcs_data' returns False,
+        """If 'ds_detect' returns False,
         return False from get_data."""
-        m_get_nwcs_data.return_value = False
+        m_ds_detect.return_value = False
         ds = self.get_ds()
         ret = ds.get_data()
 

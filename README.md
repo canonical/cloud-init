@@ -1,6 +1,8 @@
 # cloud-init
 
-[![Build Status](https://travis-ci.com/canonical/cloud-init.svg?branch=main)](https://travis-ci.com/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
+![Unit Tests](https://github.com/canonical/cloud-init/actions/workflows/unit.yml/badge.svg)
+![Integration Tests](https://github.com/canonical/cloud-init/actions/workflows/integration.yml/badge.svg)
+![Documentation](https://github.com/canonical/cloud-init/actions/workflows/check_format.yml/badge.svg)
 
 Cloud-init is the *industry standard* multi-distribution method for
 cross-platform cloud instance initialization. It is supported across all
@@ -33,13 +35,10 @@ If you need additional help consider reaching out with one of the following opti
 
 ## Distribution and cloud support
 
-Below are a list of the many OSes and clouds that contain and ship with cloud-init. If your
-distribution or cloud is not listed or does not have a recent version of cloud-init, please
-get in contact with that distribution and send them our way!
-
-| Supported OSes                                                                                                                                                                                                                                                                                                                                                                      | Supported Public Clouds | Supported Private Clouds |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| --- | --- |
-| Alpine Linux<br />Arch Linux<br />Container-Optimized OS<br />Debian<br />DragonFlyBSD<br />Fedora<br />FreeBSD<br />Gentoo Linux<br />NetBSD<br />OpenBSD<br />openEuler<br />OpenCloudOS<br />OpenMandriva<br />RHEL/CentOS/AlmaLinux/Rocky/PhotonOS/Virtuozzo/EuroLinux/CloudLinux/MIRACLE LINUX/MarinerOS<br />SLES/openSUSE<br />TencentOS<br />Ubuntu<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /> | Amazon Web Services<br />Microsoft Azure<br />Google Cloud Platform<br />Oracle Cloud Infrastructure<br />Softlayer<br />Rackspace Public Cloud<br />IBM Cloud<br />DigitalOcean<br />Bigstep<br />Hetzner<br />Joyent<br />CloudSigma<br />Alibaba Cloud<br />Huawei Cloud<br />OVH<br />OpenNebula<br />Exoscale<br />Scaleway<br />CloudStack<br />AltCloud<br />SmartOS<br />HyperOne<br />Vultr<br />Rootbox<br /> | Bare metal installs<br />OpenStack<br />LXD<br />KVM<br />Metal-as-a-Service (MAAS)<br />VMware<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />|
+The majority of [clouds](https://cloudinit.readthedocs.io/en/latest/reference/datasources.html#datasources_supported)
+and [Linux / Unix OSes](https://cloudinit.readthedocs.io/en/latest/reference/distros.html)
+are supported by and ship with cloud-init. If your distribution or cloud is not
+supported, please get in contact with that distribution and send them our way!
 
 ## To start developing cloud-init
 

@@ -1578,6 +1578,18 @@ def get_cmdline():
     return _get_cmdline()
 
 
+def fips_enabled() -> bool:
+    fips_proc = "/proc/sys/crypto/fips_enabled"
+    try:
+        contents = load_file(fips_proc).strip()
+        return contents == "1"
+    except (IOError, OSError):
+        # for BSD systems and Linux systems where the proc entry is not
+        # available, we assume FIPS is disabled to retain the old behavior
+        # for now.
+        return False
+
+
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
     while True:
@@ -1725,7 +1737,7 @@ def logexc(log, msg, *args):
     log.debug(msg, exc_info=exc_info, *args)
 
 
-def hash_blob(blob, routine, mlen=None):
+def hash_blob(blob, routine: str, mlen=None) -> str:
     hasher = hashlib.new(routine)
     hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
@@ -1734,6 +1746,18 @@ def hash_blob(blob, routine, mlen=None):
         return digest[0:mlen]
     else:
         return digest
+
+
+def hash_buffer(f: io.BufferedIOBase) -> bytes:
+    """Hash the content of a binary buffer using SHA1.
+
+    @param f: buffered binary stream to hash.
+    @return: digested data as bytes.
+    """
+    hasher = hashlib.sha1()
+    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
+        hasher.update(chunk)
+    return hasher.digest()
 
 
 def is_user(name):
@@ -1884,7 +1908,12 @@ def mounts():
 
 
 def mount_cb(
-    device, callback, data=None, mtype=None, update_env_for_mount=None
+    device,
+    callback,
+    data=None,
+    mtype=None,
+    update_env_for_mount=None,
+    log_error=True,
 ):
     """
     Mount the device, call method 'callback' passing the directory
@@ -1944,15 +1973,16 @@ def mount_cb(
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug(
-                        "Failed to mount device: '%s' with type: '%s' "
-                        "using mount command: '%s', "
-                        "which caused exception: %s",
-                        device,
-                        mtype,
-                        " ".join(mountcmd),
-                        exc,
-                    )
+                    if log_error:
+                        LOG.debug(
+                            "Failed to mount device: '%s' with type: '%s' "
+                            "using mount command: '%s', "
+                            "which caused exception: %s",
+                            device,
+                            mtype,
+                            " ".join(mountcmd),
+                            exc,
+                        )
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError(

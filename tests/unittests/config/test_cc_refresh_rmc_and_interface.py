@@ -129,7 +129,7 @@ class TestRsctNodeFile(t_help.CiTestCase):
         correct things?
         """
         m_netdev_info.return_value = NET_INFO
-        ccrmci.handle("refresh_rmc_and_interface", None, None, None, None)
+        ccrmci.handle("refresh_rmc_and_interface", None, None, None)
         self.assertEqual(1, m_netdev_info.call_count)
         m_refresh_ipv6.assert_called_with("env5")
         m_disable_ipv6.assert_called_with(

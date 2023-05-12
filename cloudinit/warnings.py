@@ -7,7 +7,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 WARNINGS = {
     "non_ec2_md": """

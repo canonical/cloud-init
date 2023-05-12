@@ -32,7 +32,7 @@ from cloudinit import (
 from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net import activators, dhcp, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -110,12 +110,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
+        self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -185,7 +187,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
@@ -916,15 +919,18 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
         as necessary.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
-        if self.uses_systemd() or "systemctl" in init_cmd:
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
             init_cmd = ["systemctl"]
             cmds = {
                 "stop": ["stop", service],
@@ -948,7 +954,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "status": [service, "status"],
             }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout, model, variant, options):
         if self.uses_systemd():
@@ -1193,6 +1199,3 @@ def uses_systemd():
         return stat.S_ISDIR(res.st_mode)
     except Exception:
         return False
-
-
-# vi: ts=4 expandtab

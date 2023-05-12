@@ -5,7 +5,6 @@
 """CA Certs: Add ca certificates."""
 
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -25,6 +24,13 @@ DEFAULT_CONFIG = {
     "ca_cert_update_cmd": ["update-ca-certificates"],
 }
 DISTRO_OVERRIDES = {
+    "fedora": {
+        "ca_cert_path": "/etc/pki/ca-trust/",
+        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["update-ca-trust"],
+    },
     "rhel": {
         "ca_cert_path": "/etc/pki/ca-trust/",
         "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
@@ -68,6 +74,7 @@ configuration option ``remove_defaults``.
 distros = [
     "alpine",
     "debian",
+    "fedora",
     "rhel",
     "opensuse",
     "opensuse-microos",
@@ -177,14 +184,20 @@ def disable_system_ca_certs(distro_cfg):
 
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_cfg["ca_cert_config"] is None:
+
+    ca_cert_cfg_fn = distro_cfg["ca_cert_config"]
+
+    if not ca_cert_cfg_fn or not os.path.exists(ca_cert_cfg_fn):
         return
+
     header_comment = (
         "# Modified by cloud-init to deselect certs due to user-data"
     )
+
     added_header = False
-    if os.stat(distro_cfg["ca_cert_config"]).st_size != 0:
-        orig = util.load_file(distro_cfg["ca_cert_config"])
+
+    if os.stat(ca_cert_cfg_fn).st_size:
+        orig = util.load_file(ca_cert_cfg_fn)
         out_lines = []
         for line in orig.splitlines():
             if line == header_comment:
@@ -197,9 +210,10 @@ def disable_system_ca_certs(distro_cfg):
                     out_lines.append(header_comment)
                     added_header = True
                 out_lines.append("!" + line)
-    util.write_file(
-        distro_cfg["ca_cert_config"], "\n".join(out_lines) + "\n", omode="wb"
-    )
+
+        util.write_file(
+            ca_cert_cfg_fn, "\n".join(out_lines) + "\n", omode="wb"
+        )
 
 
 def remove_default_ca_certs(distro_cfg):
@@ -216,9 +230,7 @@ def remove_default_ca_certs(distro_cfg):
     util.delete_dir_contents(distro_cfg["ca_cert_local_path"])
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle ca_cert sections in cloud-config file.
 

@@ -18,7 +18,7 @@ from cloudinit import subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 # Example netdev format:
 # {'eth0': {'hwaddr': '00:16:3e:16:db:54',

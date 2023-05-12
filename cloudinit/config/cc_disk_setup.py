@@ -10,7 +10,6 @@
 import logging
 import os
 import shlex
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -112,9 +111,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
@@ -128,14 +125,14 @@ def handle(
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
         update_disk_setup_devices(disk_setup, alias_to_device)
-        log.debug("Partitioning disks: %s", str(disk_setup))
+        LOG.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
-                log.warning("Invalid disk definition for %s" % disk)
+                LOG.warning("Invalid disk definition for %s", disk)
                 continue
 
             try:
-                log.debug("Creating new partition table/disk")
+                LOG.debug("Creating new partition table/disk")
                 util.log_time(
                     logfunc=LOG.debug,
                     msg="Creating partition on %s" % disk,
@@ -147,15 +144,15 @@ def handle(
 
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
-        log.debug("setting up filesystems: %s", str(fs_setup))
+        LOG.debug("setting up filesystems: %s", str(fs_setup))
         update_fs_setup_devices(fs_setup, alias_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
-                log.warning("Invalid file system definition: %s" % definition)
+                LOG.warning("Invalid file system definition: %s", definition)
                 continue
 
             try:
-                log.debug("Creating new filesystem.")
+                LOG.debug("Creating new filesystem.")
                 device = definition.get("device")
                 util.log_time(
                     logfunc=LOG.debug,

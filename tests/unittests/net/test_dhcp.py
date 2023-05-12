@@ -9,23 +9,22 @@ import responses
 
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError,
+    IscDhclient,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
-    dhcp_discovery,
     maybe_perform_dhcp_discovery,
     networkd_load_leases,
-    parse_dhcp_lease_file,
-    parse_static_routes,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.util import ensure_file, write_file
+from cloudinit.util import ensure_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
     mock,
     populate_dir,
 )
+from tests.unittests.util import MockDistro
 
 PID_F = "/run/dhclient.pid"
 LEASE_F = "/run/dhclient.lease"
@@ -38,21 +37,25 @@ class TestParseDHCPLeasesFile(CiTestCase):
         empty_file = self.tmp_path("leases")
         ensure_file(empty_file)
         with self.assertRaises(InvalidDHCPLeaseFileError) as context_manager:
-            parse_dhcp_lease_file(empty_file)
+            IscDhclient.parse_dhcp_lease_file(empty_file)
         error = context_manager.exception
         self.assertIn("Cannot parse empty dhcp lease file", str(error))
 
     def test_parse_malformed_lease_file_content_errors(self):
-        """parse_dhcp_lease_file errors when file content isn't dhcp leases."""
+        """IscDhclient.parse_dhcp_lease_file errors when file content isn't
+        dhcp leases.
+        """
         non_lease_file = self.tmp_path("leases")
         write_file(non_lease_file, "hi mom.")
         with self.assertRaises(InvalidDHCPLeaseFileError) as context_manager:
-            parse_dhcp_lease_file(non_lease_file)
+            IscDhclient.parse_dhcp_lease_file(non_lease_file)
         error = context_manager.exception
         self.assertIn("Cannot parse dhcp lease file", str(error))
 
     def test_parse_multiple_leases(self):
-        """parse_dhcp_lease_file returns a list of all leases within."""
+        """IscDhclient.parse_dhcp_lease_file returns a list of all leases
+        within.
+        """
         lease_file = self.tmp_path("leases")
         content = dedent(
             """
@@ -93,12 +96,16 @@ class TestParseDHCPLeasesFile(CiTestCase):
             },
         ]
         write_file(lease_file, content)
-        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+        )
 
 
 class TestDHCPRFC3442(CiTestCase):
     def test_parse_lease_finds_rfc3442_classless_static_routes(self):
-        """parse_dhcp_lease_file returns rfc3442-classless-static-routes."""
+        """IscDhclient.parse_dhcp_lease_file returns
+        rfc3442-classless-static-routes.
+        """
         lease_file = self.tmp_path("leases")
         content = dedent(
             """
@@ -125,11 +132,13 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         write_file(lease_file, content)
-        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+        )
 
     def test_parse_lease_finds_classless_static_routes(self):
         """
-        parse_dhcp_lease_file returns classless-static-routes
+        IscDhclient.parse_dhcp_lease_file returns classless-static-routes
         for Centos lease format.
         """
         lease_file = self.tmp_path("leases")
@@ -158,7 +167,9 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         write_file(lease_file, content)
-        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(
+            expected, IscDhclient.parse_dhcp_lease_file(lease_file)
+        )
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
@@ -176,7 +187,9 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4()
+        eph = EphemeralDHCPv4(
+            MockDistro(),
+        )
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -207,7 +220,9 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4()
+        eph = EphemeralDHCPv4(
+            MockDistro(),
+        )
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -221,44 +236,45 @@ class TestDHCPRFC3442(CiTestCase):
 
 
 class TestDHCPParseStaticRoutes(CiTestCase):
-
     with_logs = True
 
-    def parse_static_routes_empty_string(self):
-        self.assertEqual([], parse_static_routes(""))
+    def test_parse_static_routes_empty_string(self):
+        self.assertEqual([], IscDhclient.parse_static_routes(""))
 
     def test_parse_static_routes_invalid_input_returns_empty_list(self):
         rfc3442 = "32,169,254,169,254,130,56,248"
-        self.assertEqual([], parse_static_routes(rfc3442))
+        self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
 
     def test_parse_static_routes_bogus_width_returns_empty_list(self):
         rfc3442 = "33,169,254,169,254,130,56,248"
-        self.assertEqual([], parse_static_routes(rfc3442))
+        self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
 
     def test_parse_static_routes_single_ip(self):
         rfc3442 = "32,169,254,169,254,130,56,248,255"
         self.assertEqual(
             [("169.254.169.254/32", "130.56.248.255")],
-            parse_static_routes(rfc3442),
+            IscDhclient.parse_static_routes(rfc3442),
         )
 
     def test_parse_static_routes_single_ip_handles_trailing_semicolon(self):
         rfc3442 = "32,169,254,169,254,130,56,248,255;"
         self.assertEqual(
             [("169.254.169.254/32", "130.56.248.255")],
-            parse_static_routes(rfc3442),
+            IscDhclient.parse_static_routes(rfc3442),
         )
 
     def test_parse_static_routes_default_route(self):
         rfc3442 = "0,130,56,240,1"
         self.assertEqual(
-            [("0.0.0.0/0", "130.56.240.1")], parse_static_routes(rfc3442)
+            [("0.0.0.0/0", "130.56.240.1")],
+            IscDhclient.parse_static_routes(rfc3442),
         )
 
     def test_unspecified_gateway(self):
         rfc3442 = "32,169,254,169,254,0,0,0,0"
         self.assertEqual(
-            [("169.254.169.254/32", "0.0.0.0")], parse_static_routes(rfc3442)
+            [("169.254.169.254/32", "0.0.0.0")],
+            IscDhclient.parse_static_routes(rfc3442),
         )
 
     def test_parse_static_routes_class_c_b_a(self):
@@ -274,7 +290,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
                     ("10.0.0.0/8", "10.0.0.4"),
                 ]
             ),
-            sorted(parse_static_routes(rfc3442)),
+            sorted(IscDhclient.parse_static_routes(rfc3442)),
         )
 
     def test_parse_static_routes_logs_error_truncated(self):
@@ -286,7 +302,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             "netlen": "33,0",
         }
         for rfc3442 in bad_rfc3442.values():
-            self.assertEqual([], parse_static_routes(rfc3442))
+            self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
 
         logs = self.logs.getvalue()
         self.assertEqual(len(bad_rfc3442.keys()), len(logs.splitlines()))
@@ -303,7 +319,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
                     ("172.16.0.0/16", "172.16.0.4"),
                 ]
             ),
-            sorted(parse_static_routes(rfc3442)),
+            sorted(IscDhclient.parse_static_routes(rfc3442)),
         )
 
         logs = self.logs.getvalue()
@@ -318,7 +334,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
                     ("0.0.0.0/0", "192.168.128.1"),
                 ]
             ),
-            sorted(parse_static_routes(redhat_format)),
+            sorted(IscDhclient.parse_static_routes(redhat_format)),
         )
 
     def test_redhat_format_with_a_space_too_much_after_comma(self):
@@ -330,12 +346,13 @@ class TestDHCPParseStaticRoutes(CiTestCase):
                     ("0.0.0.0/0", "192.168.128.1"),
                 ]
             ),
-            sorted(parse_static_routes(redhat_format)),
+            sorted(IscDhclient.parse_static_routes(redhat_format)),
         )
 
 
 class TestDHCPDiscoveryClean(CiTestCase):
     with_logs = True
+    ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
     @mock.patch("cloudinit.net.dhcp.find_fallback_nic")
     def test_no_fallback_nic_found(self, m_fallback_nic):
@@ -343,10 +360,55 @@ class TestDHCPDiscoveryClean(CiTestCase):
         m_fallback_nic.return_value = None  # No fallback nic found
 
         with pytest.raises(NoDHCPLeaseInterfaceError):
-            maybe_perform_dhcp_discovery()
+            maybe_perform_dhcp_discovery(MockDistro())
 
         self.assertIn(
             "Skip dhcp_discovery: Unable to find fallback nic.",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value="eth9")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhclient_exits_with_error(
+        self, m_which, m_subp, m_remove, m_fallback
+    ):
+        """Log and do nothing when nic is absent and no fallback is found."""
+        m_subp.side_effect = [
+            ("", ""),
+            subp.ProcessExecutionError(exit_code=-5),
+        ]
+
+        with pytest.raises(NoDHCPLeaseError):
+            maybe_perform_dhcp_discovery(MockDistro())
+
+        self.assertIn(
+            "DHCP client selected: dhclient",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic", return_value="eth9")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhcp_client_failover(self, m_which, m_subp, m_remove, m_fallback):
+        """Log and do nothing when nic is absent and no fallback is found."""
+        m_subp.side_effect = [
+            ("", ""),
+            subp.ProcessExecutionError(exit_code=-5),
+        ]
+
+        m_which.side_effect = [False, True]
+        with pytest.raises(NoDHCPLeaseError):
+            maybe_perform_dhcp_discovery(MockDistro())
+
+        self.assertIn(
+            "DHCP client not found: dhclient",
+            self.logs.getvalue(),
+        )
+        self.assertIn(
+            "DHCP client not found: dhcpcd",
             self.logs.getvalue(),
         )
 
@@ -354,7 +416,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
     def test_provided_nic_does_not_exist(self, m_fallback_nic):
         """When the provided nic doesn't exist, log a message and no-op."""
         with pytest.raises(NoDHCPLeaseInterfaceError):
-            maybe_perform_dhcp_discovery("idontexist")
+            maybe_perform_dhcp_discovery(MockDistro(), "idontexist")
 
         self.assertIn(
             "Skip dhcp_discovery: nic idontexist not found in get_devicelist.",
@@ -369,7 +431,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         m_which.return_value = None  # dhclient isn't found
 
         with pytest.raises(NoDHCPLeaseMissingDhclientError):
-            maybe_perform_dhcp_discovery()
+            maybe_perform_dhcp_discovery(MockDistro())
 
         self.assertIn(
             "Skip dhclient configuration: No dhclient command found.",
@@ -380,9 +442,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
     def test_dhcp_discovery_warns_invalid_pid(
-        self, m_wait, m_subp, m_kill, m_remove
+        self, m_wait, m_which, m_subp, m_kill, m_remove
     ):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
 
@@ -413,11 +476,11 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                parse_dhcp_lease_file("lease"),
+                IscDhclient.parse_dhcp_lease_file("lease"),
             )
         with self.assertRaises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.util.load_file", return_value=""):
-                dhcp_discovery(DHCLIENT, "eth9")
+                IscDhclient().dhcp_discovery("eth9")
         self.assertIn(
             "dhclient(pid=, parentpid=unknown) failed "
             "to daemonize after 10.0 seconds",
@@ -429,9 +492,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     def test_dhcp_discovery_waits_on_lease_and_pid(
-        self, m_subp, m_wait, m_kill, m_getppid, m_remove
+        self, m_subp, m_which, m_wait, m_kill, m_getppid, m_remove
     ):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
         m_subp.return_value = ("", "")
@@ -439,7 +503,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         # Don't create pid or leases file
         m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-        self.assertEqual([], dhcp_discovery("/sbin/dhclient", "eth9"))
+        self.assertEqual([], IscDhclient().dhcp_discovery("eth9"))
         self.assertEqual(
             mock.call([PID_F, LEASE_F], maxwait=5, naplen=0.01),
             m_wait.call_args_list[0],
@@ -450,12 +514,23 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         m_kill.assert_not_called()
 
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=False)
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.util.wait_for_files", return_value=False)
-    def test_dhcp_discovery(self, m_wait, m_subp, m_kill, m_getppid, m_remove):
+    def test_dhcp_discovery(
+        self,
+        m_wait,
+        m_which,
+        m_subp,
+        m_kill,
+        m_getppid,
+        m_remove,
+        mocked_is_ib_interface,
+    ):
         """dhcp_discovery brings up the interface and runs dhclient.
 
         It also returns the parsed dhcp.leases file.
@@ -486,7 +561,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                dhcp_discovery("/sbin/dhclient", "eth9"),
+                IscDhclient().dhcp_discovery("eth9"),
             )
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
@@ -512,14 +587,106 @@ class TestDHCPDiscoveryClean(CiTestCase):
             ]
         )
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+        mocked_is_ib_interface.assert_called_once_with("eth9")
+
+    @mock.patch("cloudinit.temp_utils.get_tmp_ancestor", return_value="/tmp")
+    @mock.patch("cloudinit.util.write_file")
+    @mock.patch(
+        "cloudinit.net.dhcp.get_interface_mac",
+        return_value="%s:AA:AA:AA:00:00:AA:AA:AA" % ib_address_prefix,
+    )
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid", return_value=1)
+    @mock.patch("cloudinit.net.dhcp.os.kill")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
+    @mock.patch("cloudinit.net.dhcp.subp.subp", return_value=("", ""))
+    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    def test_dhcp_discovery_ib(
+        self,
+        m_wait,
+        m_subp,
+        m_which,
+        m_kill,
+        m_getppid,
+        m_remove,
+        mocked_is_ib_interface,
+        get_interface_mac,
+        mocked_write_file,
+        mocked_get_tmp_ancestor,
+    ):
+        """dhcp_discovery brings up the interface and runs dhclient.
+
+        It also returns the parsed dhcp.leases file.
+        """
+        lease_content = dedent(
+            """
+            lease {
+              interface "ib0";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+            }
+        """
+        )
+        my_pid = 1
+        with mock.patch(
+            "cloudinit.util.load_file", side_effect=["1", lease_content]
+        ):
+            self.assertCountEqual(
+                [
+                    {
+                        "interface": "ib0",
+                        "fixed-address": "192.168.2.74",
+                        "subnet-mask": "255.255.255.0",
+                        "routers": "192.168.2.1",
+                    }
+                ],
+                IscDhclient().dhcp_discovery("ib0"),
+            )
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "ib0", "up"], capture=True
+                ),
+                mock.call(
+                    [
+                        DHCLIENT,
+                        "-1",
+                        "-v",
+                        "-lf",
+                        LEASE_F,
+                        "-pf",
+                        PID_F,
+                        "ib0",
+                        "-sf",
+                        "/bin/true",
+                        "-cf",
+                        "/tmp/ib0-dhclient.conf",
+                    ],
+                    capture=True,
+                ),
+            ]
+        )
+        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
+        mocked_is_ib_interface.assert_called_once_with("ib0")
+        get_interface_mac.assert_called_once_with("ib0")
+        mocked_get_tmp_ancestor.assert_called_once_with(needs_exe=True)
+        mocked_write_file.assert_called_once_with(
+            "/tmp/ib0-dhclient.conf",
+            'interface "ib0" {send dhcp-client-identifier '
+            "20:AA:AA:AA:00:00:AA:AA:AA;}",
+        )
 
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.util.wait_for_files")
     def test_dhcp_output_error_stream(
-        self, m_wait, m_subp, m_kill, m_getppid, m_remove
+        self, m_wait, m_which, m_subp, m_kill, m_getppid, m_remove
     ):
         """ "dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
@@ -548,11 +715,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.assertEqual(out, dhclient_out)
             self.assertEqual(err, dhclient_err)
 
-        dhcp_discovery(DHCLIENT, "eth9", dhcp_log_func=dhcp_log_func)
+        IscDhclient().dhcp_discovery("eth9", dhcp_log_func=dhcp_log_func)
 
 
 class TestSystemdParseLeases(CiTestCase):
-
     lxd_lease = dedent(
         """\
     # This is private data. Do not parse.
@@ -678,6 +844,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
 
         self.responses.add(responses.GET, url)
         with EphemeralDHCPv4(
+            MockDistro(),
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertIsNone(lease)
@@ -701,11 +868,12 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
 
         self.responses.add(responses.GET, url, body=b"", status=404)
         with EphemeralDHCPv4(
+            MockDistro(),
             connectivity_url_data={"url": url},
         ) as lease:
             self.assertEqual(fake_lease, lease)
         # Ensure that dhcp discovery occurs
-        m_dhcp.called_once_with()
+        m_dhcp.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -722,7 +890,9 @@ class TestEphemeralDhcpLeaseErrors:
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4(
+                MockDistro(),
+            ).obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
@@ -730,7 +900,9 @@ class TestEphemeralDhcpLeaseErrors:
     def test_obtain_lease_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            EphemeralDHCPv4().obtain_lease()
+            EphemeralDHCPv4(
+                MockDistro(),
+            ).obtain_lease()
 
         assert len(m_dhcp.mock_calls) == 1
 
@@ -739,7 +911,9 @@ class TestEphemeralDhcpLeaseErrors:
         m_dhcp.side_effect = [error_class()]
 
         with pytest.raises(error_class):
-            with EphemeralDHCPv4():
+            with EphemeralDHCPv4(
+                MockDistro(),
+            ):
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
@@ -748,10 +922,9 @@ class TestEphemeralDhcpLeaseErrors:
     def test_ctx_mgr_umbrella_error(self, m_dhcp, error_class):
         m_dhcp.side_effect = [error_class()]
         with pytest.raises(NoDHCPLeaseError):
-            with EphemeralDHCPv4():
+            with EphemeralDHCPv4(
+                MockDistro(),
+            ):
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
-
-
-# vi: ts=4 expandtab

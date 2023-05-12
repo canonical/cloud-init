@@ -19,9 +19,8 @@ from typing import List, Optional, Sequence, Set
 
 import pytest
 
-from cloudinit import log, stages
+from cloudinit import log
 from cloudinit.config.schema import (
-    CLOUD_CONFIG_HEADER,
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
     SchemaProblem,
@@ -51,8 +50,8 @@ from tests.unittests.helpers import (
     mock,
     skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
 )
-from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.config.schema."
 DEPRECATED_LOG_LEVEL = 35
@@ -422,7 +421,7 @@ class TestValidateCloudConfigSchema:
             context_mgr.value
         )
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validateconfig_strict_metaschema_do_not_raise_exception(
         self, caplog
     ):
@@ -719,14 +718,14 @@ class TestValidateCloudConfigFile:
         """On invalid header, validate_cloudconfig_file errors.
 
         A SchemaValidationError is raised when the file doesn't begin with
-        CLOUD_CONFIG_HEADER.
+        known headers.
         """
         config_file = tmpdir.join("my.yaml")
         config_file.write("#junk")
         error_msg = (
-            "Cloud config schema errors: format-l1.c1: File"
-            f" {config_file} needs to begin with"
-            f' "{CLOUD_CONFIG_HEADER.decode()}"'
+            f"No valid cloud-init user-data header in {config_file}.\n"
+            "Expected first line to be one of: #!, ## template: jinja, "
+            "#cloud-boothook, #cloud-config,"
         )
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_file(config_file.strpath, {}, annotate)
@@ -776,28 +775,46 @@ class TestValidateCloudConfigFile:
 
     @skipUnlessJsonSchema()
     @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_squelches_duplicate_errors(
+        self, annotate, tmpdir
+    ):
+        """validate_cloudconfig_file raises only unique errors."""
+        config_file = tmpdir.join("my.yaml")
+        schema = {  # Define duplicate schema definitions in different sections
+            "allOf": [
+                {"properties": {"p1": {"type": "string", "format": "string"}}},
+                {"properties": {"p1": {"type": "string", "format": "string"}}},
+            ]
+        }
+        config_file.write("#cloud-config\np1: -1")
+        error_msg = (  # Strict match of full error
+            "Cloud config schema errors: p1: -1 is not of type 'string'$"
+        )
+        with pytest.raises(SchemaValidationError, match=error_msg):
+            validate_cloudconfig_file(config_file.strpath, schema, annotate)
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("annotate", (True, False))
+    @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch("cloudinit.url_helper.time.sleep")
     def test_validateconfig_file_no_cloud_cfg(
-        self, m_sleep, annotate, capsys, mocker
+        self, m_sleep, read_cfg_paths, annotate, paths, capsys, mocker
     ):
         """validate_cloudconfig_file does noop with empty user-data."""
         schema = {"properties": {"p1": {"type": "string", "format": "string"}}}
-        blob = ""
 
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        mocker.patch(M_PATH + "Init", return_value=ci)
-        cloud_config_file = ci.paths.get_ipath_cur("cloud_config")
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.return_value = paths
+        cloud_config_file = paths.get_ipath_cur("cloud_config")
         write_file(cloud_config_file, b"")
 
-        with pytest.raises(
-            SchemaValidationError,
-            match=re.escape(
-                "Cloud config schema errors: format-l1.c1:"
-                f" File {cloud_config_file} needs to begin with"
-                ' "#cloud-config"'
-            ),
-        ):
+        error_msg = (
+            "Cloud config schema errors: format-l1.c1: "
+            f"No valid cloud-init user-data header in {cloud_config_file}.\n"
+            "Expected first line to be one of: #!, ## template: jinja,"
+            " #cloud-boothook, #cloud-config,"
+        )
+        with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_file(cloud_config_file, schema, annotate)
 
 
@@ -1602,6 +1619,7 @@ class TestAnnotatedCloudconfigFile:
         )
 
 
+@mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
 class TestMain:
 
     exclusive_combinations = itertools.combinations(
@@ -1609,7 +1627,7 @@ class TestMain:
     )
 
     @pytest.mark.parametrize("params", exclusive_combinations)
-    def test_main_exclusive_args(self, params, capsys):
+    def test_main_exclusive_args(self, _read_cfg_paths, params, capsys):
         """Main exits non-zero and error on required exclusive args."""
         params = list(itertools.chain(*[a.split() for a in params]))
         with mock.patch("sys.argv", ["mycmd"] + params):
@@ -1624,7 +1642,7 @@ class TestMain:
         )
         assert expected == err
 
-    def test_main_missing_args(self, capsys):
+    def test_main_missing_args(self, _read_cfg_paths, capsys):
         """Main exits non-zero and reports an error on missing parameters."""
         with mock.patch("sys.argv", ["mycmd"]):
             with pytest.raises(SystemExit) as context_manager:
@@ -1638,7 +1656,7 @@ class TestMain:
         )
         assert expected == err
 
-    def test_main_absent_config_file(self, capsys):
+    def test_main_absent_config_file(self, _read_cfg_paths, capsys):
         """Main exits non-zero when config file is absent."""
         myargs = ["mycmd", "--annotate", "--config-file", "NOT_A_FILE"]
         with mock.patch("sys.argv", myargs):
@@ -1648,7 +1666,7 @@ class TestMain:
         _out, err = capsys.readouterr()
         assert "Error: Config file NOT_A_FILE does not exist\n" == err
 
-    def test_main_invalid_flag_combo(self, capsys):
+    def test_main_invalid_flag_combo(self, _read_cfg_paths, capsys):
         """Main exits non-zero when invalid flag combo used."""
         myargs = ["mycmd", "--annotate", "--docs", "DOES_NOT_MATTER"]
         with mock.patch("sys.argv", myargs):
@@ -1661,7 +1679,7 @@ class TestMain:
             "Cannot use --annotate with --docs\n" == err
         )
 
-    def test_main_prints_docs(self, capsys):
+    def test_main_prints_docs(self, _read_cfg_paths, capsys):
         """When --docs parameter is provided, main generates documentation."""
         myargs = ["mycmd", "--docs", "all"]
         with mock.patch("sys.argv", myargs):
@@ -1670,7 +1688,7 @@ class TestMain:
         assert "\nNTP\n---\n" in out
         assert "\nRuncmd\n------\n" in out
 
-    def test_main_validates_config_file(self, tmpdir, capsys):
+    def test_main_validates_config_file(self, _read_cfg_paths, tmpdir, capsys):
         """When --config-file parameter is provided, main validates schema."""
         myyaml = tmpdir.join("my.yaml")
         myargs = ["mycmd", "--config-file", myyaml.strpath]
@@ -1680,13 +1698,14 @@ class TestMain:
         out, _err = capsys.readouterr()
         assert f"Valid cloud-config: {myyaml}\n" == out
 
+    @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_main_validates_system_userdata_and_vendordata(
-        self, _getuid, capsys, mocker, paths
+        self, _read_cfg_paths, _getuid, read_cfg_paths, capsys, mocker, paths
     ):
         """When --system is provided, main validates system userdata."""
-        m_init = mocker.patch(M_PATH + "Init")
-        m_init.return_value.paths.get_ipath = paths.get_ipath_cur
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.return_value = paths
         cloud_config_file = paths.get_ipath_cur("cloud_config")
         write_file(cloud_config_file, b"#cloud-config\nntp:")
         vd_file = paths.get_ipath_cur("vendor_cloud_config")
@@ -1720,7 +1739,9 @@ class TestMain:
         )
 
     @mock.patch(M_PATH + "os.getuid", return_value=1000)
-    def test_main_system_userdata_requires_root(self, m_getuid, capsys, paths):
+    def test_main_system_userdata_requires_root(
+        self, _read_cfg_paths, m_getuid, capsys, paths
+    ):
         """Non-root user can't use --system param"""
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
@@ -1770,7 +1791,7 @@ class TestStrictMetaschema:
             else:
                 logging.warning("module %s has no schema definition", name)
 
-    @skipUnlessJsonSchema()
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 0, 0))
     def test_validate_bad_module(self):
         """Throw exception by default, don't throw if throw=False
 
@@ -1860,7 +1881,7 @@ class TestSchemaFuzz:
 
 class TestHandleSchemaArgs:
 
-    Args = namedtuple("Args", "config_file docs system annotate")
+    Args = namedtuple("Args", "config_file docs system annotate instance_data")
 
     @pytest.mark.parametrize(
         "annotate, expected_output",
@@ -1901,9 +1922,19 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
             ),
         ],
     )
+    @mock.patch(M_PATH + "read_cfg_paths")
     def test_handle_schema_args_annotate_deprecated_config(
-        self, annotate, expected_output, caplog, capsys, tmpdir
+        self,
+        read_cfg_paths,
+        annotate,
+        expected_output,
+        paths,
+        caplog,
+        capsys,
+        tmpdir,
     ):
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
             f.write(
@@ -1923,6 +1954,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
             annotate=annotate,
             docs=None,
             system=None,
+            instance_data=None,
         )
         handle_schema_args("unused", args)
         out, err = capsys.readouterr()
@@ -1931,4 +1963,100 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
             == out.split()
         )
         assert not err
+        assert "deprec" not in caplog.text
+
+    @pytest.mark.parametrize(
+        "uid, annotate, expected_out, expected_err, expectation",
+        [
+            pytest.param(
+                0,
+                True,
+                dedent(
+                    """\
+                    #cloud-config
+                    hostname: 123		# E1
+
+                    # Errors: -------------
+                    # E1: 123 is not of type 'string'
+
+
+                    """  # noqa: E501
+                ),
+                "",
+                does_not_raise(),
+                id="root_annotate_unique_errors_no_exception",
+            ),
+            pytest.param(
+                0,
+                False,
+                dedent(
+                    """\
+                    Invalid cloud-config {cfg_file}
+                    """  # noqa: E501
+                ),
+                dedent(
+                    """\
+                    Error: Cloud config schema errors: hostname: 123 is not of type 'string'
+
+                    Error: Invalid cloud-config schema: user-data
+
+                    """  # noqa: E501
+                ),
+                pytest.raises(SystemExit),
+                id="root_no_annotate_exception_with_unique_errors",
+            ),
+        ],
+    )
+    @mock.patch(M_PATH + "os.getuid")
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_schema_args_jinja_with_errors(
+        self,
+        read_cfg_paths,
+        getuid,
+        uid,
+        annotate,
+        expected_out,
+        expected_err,
+        expectation,
+        paths,
+        caplog,
+        capsys,
+        tmpdir,
+    ):
+        getuid.return_value = uid
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.return_value = paths
+        user_data_fn = tmpdir.join("user-data")
+        if uid == 0:
+            id_path = paths.get_runpath("instance_data_sensitive")
+        else:
+            id_path = paths.get_runpath("instance_data")
+        with open(id_path, "w") as f:
+            f.write(json.dumps({"ds": {"asdf": 123}}))
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    ## template: jinja
+                    #cloud-config
+                    hostname: {{ ds.asdf }}
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            annotate=annotate,
+            docs=None,
+            system=None,
+            instance_data=None,
+        )
+        with expectation:
+            handle_schema_args("unused", args)
+        out, err = capsys.readouterr()
+        assert (
+            expected_out.format(cfg_file=user_data_fn, id_path=id_path) == out
+        )
+        assert (
+            expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
+        )
         assert "deprec" not in caplog.text

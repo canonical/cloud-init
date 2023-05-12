@@ -305,7 +305,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        with mock.patch.object(ds_os, "ds_detect", return_value=True):
+        with mock.patch.object(ds_os, "override_ds_detect", return_value=True):
             self.assertTrue(ds_os.get_data())
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
@@ -351,7 +351,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
 
         self.assertIsNone(ds_os_local.version)
         with test_helpers.mock.patch.object(
-            ds_os_local, "ds_detect"
+            ds_os_local, "override_ds_detect"
         ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os_local.get_data()
@@ -367,7 +367,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
         self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
-        m_dhcp.assert_called_with("eth9", None)
+        m_dhcp.assert_called_with(distro, "eth9", None)
 
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -383,7 +383,9 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         self.assertIsNone(ds_os.version)
-        with test_helpers.mock.patch.object(ds_os, "ds_detect") as m_detect_os:
+        with test_helpers.mock.patch.object(
+            ds_os, "override_ds_detect"
+        ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -412,7 +414,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        with mock.patch.object(ds_os, "ds_detect", return_value=True):
+        with mock.patch.object(ds_os, "override_ds_detect", return_value=True):
             self.assertFalse(ds_os.get_data())
         self.assertIsNone(ds_os.version)
 
@@ -488,7 +490,9 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             "timeout": 0,
         }
         self.assertIsNone(ds_os.version)
-        with test_helpers.mock.patch.object(ds_os, "ds_detect") as m_detect_os:
+        with test_helpers.mock.patch.object(
+            ds_os, "override_ds_detect"
+        ) as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         self.assertFalse(found)
@@ -869,6 +873,3 @@ class TestMetadataReader(test_helpers.ResponsesTestCase):
         reader._read_ec2_metadata = mock_read_ec2
         self.assertEqual(expected, reader.read_v2())
         self.assertEqual(1, mock_read_ec2.call_count)
-
-
-# vi: ts=4 expandtab

@@ -57,7 +57,7 @@ class TestInstallHotplug:
         else:
             libexecdir = "/usr/lib/cloud-init"
         with mock.patch("os.path.exists", return_value=libexec_exists):
-            handle(None, {}, m_cloud, mock.Mock(), None)
+            handle(None, {}, m_cloud, None)
             mocks.m_write.assert_called_once_with(
                 filename=HOTPLUG_UDEV_PATH,
                 content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
@@ -80,7 +80,7 @@ class TestInstallHotplug:
         m_cloud = mock.MagicMock()
         m_cloud.datasource.get_supported_events.return_value = {}
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_write.call_args_list == []
         assert mocks.m_del.call_args_list == []
         assert mocks.m_subp.call_args_list == []
@@ -92,7 +92,7 @@ class TestInstallHotplug:
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_write.call_args_list == []
         assert mocks.m_del.call_args_list == []
         assert mocks.m_subp.call_args_list == []
@@ -103,7 +103,7 @@ class TestInstallHotplug:
         m_cloud = mock.MagicMock()
         m_cloud.datasource.get_supported_events.return_value = {}
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         mocks.m_del.assert_called_with(HOTPLUG_UDEV_PATH)
         assert mocks.m_subp.call_args_list == [
             mock.call(
@@ -123,7 +123,7 @@ class TestInstallHotplug:
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_del.call_args_list == []
         assert mocks.m_write.call_args_list == []
         assert mocks.m_subp.call_args_list == []

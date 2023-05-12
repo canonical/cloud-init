@@ -13,6 +13,7 @@ import copy
 import json
 import os
 import pickle
+import re
 from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
@@ -110,7 +111,10 @@ def process_instance_metadata(metadata, key_path="", sensitive_keys=()):
             sub_key_path = key_path + "/" + key
         else:
             sub_key_path = key
-        if key in sensitive_keys or sub_key_path in sensitive_keys:
+        if (
+            key.lower() in sensitive_keys
+            or sub_key_path.lower() in sensitive_keys
+        ):
             sens_keys.append(sub_key_path)
         if isinstance(val, str) and val.startswith("ci-b64:"):
             base64_encoded_keys.append(sub_key_path)
@@ -132,6 +136,12 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
     Replace any keys values listed in 'sensitive_keys' with redact_value.
     """
+    # While 'sensitive_keys' should already sanitized to only include what
+    # is in metadata, it is possible keys will overlap. For example, if
+    # "merged_cfg" and "merged_cfg/ds/userdata" both match, it's possible that
+    # "merged_cfg" will get replaced first, meaning "merged_cfg/ds/userdata"
+    # no longer represents a valid key.
+    # Thus, we still need to do membership checks in this function.
     if not metadata.get("sensitive_keys", []):
         return metadata
     md_copy = copy.deepcopy(metadata)
@@ -139,9 +149,14 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
         path_parts = key_path.split("/")
         obj = md_copy
         for path in path_parts:
-            if isinstance(obj[path], dict) and path != path_parts[-1]:
+            if (
+                path in obj
+                and isinstance(obj[path], dict)
+                and path != path_parts[-1]
+            ):
                 obj = obj[path]
-        obj[path] = redact_value
+        if path in obj:
+            obj[path] = redact_value
     return md_copy
 
 
@@ -249,6 +264,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     sensitive_metadata_keys: Tuple[str, ...] = (
         "merged_cfg",
         "security-credentials",
+        "userdata",
+        "user-data",
+        "user_data",
+        "vendordata",
+        "vendor-data",
+        # Provide ds/vendor_data to avoid redacting top-level
+        #  "vendor_data": {enabled: True}
+        "ds/vendor_data",
     )
 
     # True on datasources that may not see hotplugged devices reflected
@@ -311,28 +334,42 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Check if running on this datasource"""
         return True
 
-    def override_ds_detect(self):
+    def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - TODO: commandline argument is used (ci.ds=OpenStack)
+        - commandline argument is used (ci.ds=OpenStack)
+
+        Note: get_cmdline() is required for the general case - when ds-identify
+        does not run, _something_ needs to detect the kernel command line
+        definition.
         """
-        return self.sys_cfg.get("datasource_list", []) in (
+        if self.dsname.lower() == parse_cmdline().lower():
+            LOG.debug(
+                "Machine is configured by the kernel commandline to run on "
+                "single datasource %s.",
+                self,
+            )
+            return True
+        elif self.sys_cfg.get("datasource_list", []) in (
             [self.dsname],
             [self.dsname, "None"],
-        )
+        ):
+            LOG.debug(
+                "Machine is configured to run on single datasource %s.", self
+            )
+            return True
+        return False
 
     def _check_and_get_data(self):
         """Overrides runtime datasource detection"""
         if self.override_ds_detect():
-            LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
-            )
+            return self._get_data()
         elif self.ds_detect():
             LOG.debug("Machine is running on %s.", self)
+            return self._get_data()
         else:
             LOG.debug("Datasource type %s is not detected.", self)
             return False
-        return self._get_data()
 
     def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
@@ -983,11 +1020,12 @@ def find_source(
     raise DataSourceNotFoundException(msg)
 
 
-# Return a list of classes that have the same depends as 'depends'
-# iterate through cfg_list, loading "DataSource*" modules
-# and calling their "get_datasource_list".
-# Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
+    """Return a list of classes that have the same depends as 'depends'
+    iterate through cfg_list, loading "DataSource*" modules
+    and calling their "get_datasource_list".
+    Return an ordered list of classes that match (if any)
+    """
     src_list = []
     LOG.debug(
         "Looking for data source in: %s,"
@@ -996,9 +1034,9 @@ def list_sources(cfg_list, depends, pkg_list):
         pkg_list,
         depends,
     )
-    for ds_name in cfg_list:
-        if not ds_name.startswith(DS_PREFIX):
-            ds_name = "%s%s" % (DS_PREFIX, ds_name)
+
+    for ds in cfg_list:
+        ds_name = importer.match_case_insensitive_module_name(ds)
         m_locs, _looked_locs = importer.find_module(
             ds_name, pkg_list, ["get_datasource_list"]
         )
@@ -1134,4 +1172,27 @@ def pkl_load(fname: str) -> Optional[DataSource]:
         return None
 
 
-# vi: ts=4 expandtab
+def parse_cmdline() -> str:
+    """Check if command line argument for this datasource was passed
+    Passing by command line overrides runtime datasource detection
+    """
+    cmdline = util.get_cmdline()
+    ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds = ds_parse_0 or ds_parse_1 or ds_parse_2
+    deprecated = ds_parse_1 or ds_parse_2
+    if deprecated:
+        dsname = deprecated.group(1).strip()
+        util.deprecate(
+            deprecated=(
+                f"Defining the datasource on the commandline using "
+                f"ci.ds={dsname} or "
+                f"ci.datasource={dsname}"
+            ),
+            deprecated_version="23.2",
+            extra_message=f"Use ds={dsname} instead",
+        )
+    if ds and ds.group(1):
+        return ds.group(1)
+    return ""

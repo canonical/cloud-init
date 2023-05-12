@@ -8,7 +8,7 @@
 
 """Byobu: Enable/disable byobu system wide and for default user."""
 
-from logging import Logger
+import logging
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -36,6 +36,8 @@ Valid configuration options for this module are:
 """
 distros = ["ubuntu", "debian"]
 
+LOG = logging.getLogger(__name__)
+
 meta: MetaSchema = {
     "id": "cc_byobu",
     "name": "Byobu",
@@ -53,16 +55,14 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         value = args[0]
     else:
         value = util.get_cfg_option_str(cfg, "byobu_by_default", "")
 
     if not value:
-        log.debug("Skipping module named %s, no 'byobu' values found", name)
+        LOG.debug("Skipping module named %s, no 'byobu' values found", name)
         return
 
     if value == "user" or value == "system":
@@ -77,7 +77,7 @@ def handle(
         "disable",
     )
     if value not in valid:
-        log.warning("Unknown value %s for byobu_by_default", value)
+        LOG.warning("Unknown value %s for byobu_by_default", value)
 
     mod_user = value.endswith("-user")
     mod_sys = value.endswith("-system")
@@ -97,7 +97,7 @@ def handle(
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if not user:
-            log.warning(
+            LOG.warning(
                 "No default byobu user provided, "
                 "can not launch %s for the default user",
                 bl_inst,
@@ -112,7 +112,7 @@ def handle(
 
     if len(shcmd):
         cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
-        log.debug("Setting byobu to %s", value)
+        LOG.debug("Setting byobu to %s", value)
         subp.subp(cmd, capture=False)
 
 

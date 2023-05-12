@@ -4,7 +4,7 @@
 
 import json
 
-from cloudinit import helpers, settings, sources
+from cloudinit import helpers, importer, settings, sources
 from cloudinit.sources.DataSourceUpCloud import (
     DataSourceUpCloud,
     DataSourceUpCloudLocal,
@@ -242,7 +242,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with("eth1", None)
+        m_dhcp.assert_called_with(ds.distro, "eth1", None)
 
         m_net.assert_called_once_with(
             broadcast="10.6.3.255",
@@ -321,6 +321,11 @@ class TestUpCloudDatasourceLoading(CiTestCase):
         ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
         self.assertEqual(ds_list, [DataSourceUpCloud])
 
+    @mock.patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
             ["UpCloud"],
@@ -328,6 +333,3 @@ class TestUpCloudDatasourceLoading(CiTestCase):
             ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceUpCloud], found)
-
-
-# vi: ts=4 expandtab

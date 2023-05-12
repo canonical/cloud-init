@@ -4,8 +4,8 @@ import paramiko
 import pytest
 from paramiko.ssh_exception import SSHException
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import get_test_rsa_keypair
 
 TEST_USER1_KEYS = get_test_rsa_keypair("test1")
@@ -91,7 +91,7 @@ def common_verify(client, expected_keys):
         home_dir = "/home/{}".format(user)
         # Home permissions aren't consistent between releases. On ubuntu
         # this can change to 750 once focal is unsupported.
-        if ImageSpecification.from_os_image().release in ("bionic", "focal"):
+        if CURRENT_RELEASE.series in ("bionic", "focal"):
             home_perms = "755"
         else:
             home_perms = "750"
@@ -125,7 +125,9 @@ def common_verify(client, expected_keys):
 DEFAULT_KEYS_USERDATA = _USERDATA.format(bootcmd='""')
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="Tests permissions specific to Ubuntu releases"
+)
 @pytest.mark.user_data(DEFAULT_KEYS_USERDATA)
 def test_authorized_keys_default(client: IntegrationInstance):
     expected_keys = [
@@ -154,7 +156,9 @@ AUTHORIZED_KEYS2_USERDATA = _USERDATA.format(
 )
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="Tests permissions specific to Ubuntu releases"
+)
 @pytest.mark.user_data(AUTHORIZED_KEYS2_USERDATA)
 def test_authorized_keys2(client: IntegrationInstance):
     expected_keys = [
@@ -183,7 +187,9 @@ NESTED_KEYS_USERDATA = _USERDATA.format(
 )
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="Tests permissions specific to Ubuntu releases"
+)
 @pytest.mark.user_data(NESTED_KEYS_USERDATA)
 def test_nested_keys(client: IntegrationInstance):
     expected_keys = [
@@ -204,7 +210,9 @@ EXTERNAL_KEYS_USERDATA = _USERDATA.format(
 )
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="Tests permissions specific to Ubuntu releases"
+)
 @pytest.mark.user_data(EXTERNAL_KEYS_USERDATA)
 def test_external_keys(client: IntegrationInstance):
     expected_keys = [

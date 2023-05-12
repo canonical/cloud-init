@@ -12,7 +12,6 @@ import glob
 import os
 import pathlib
 import re
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import gpg
@@ -170,17 +169,12 @@ def get_default_mirrors(arch=None, target=None):
     raise ValueError("No default mirror known for arch %s" % arch)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
     # keeping code close to curtin codebase via entry handler
     target = None
-    if log is not None:
-        global LOG
-        LOG = log
     # feed back converted config, but only work on the subset under 'apt'
     cfg = convert_to_v3_apt_format(cfg)
     apt_cfg = cfg.get("apt", {})

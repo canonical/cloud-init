@@ -126,11 +126,9 @@ class TestCheckCondition(t_help.TestCase):
     def test_cmd_exit_one_false(self):
         self.assertEqual(psc.check_condition(self.cmd_with_exit(1)), False)
 
-    def test_cmd_exit_nonzero_warns(self):
-        mocklog = mock.Mock()
-        self.assertEqual(
-            psc.check_condition(self.cmd_with_exit(2), mocklog), False
-        )
+    @mock.patch("cloudinit.config.cc_power_state_change.LOG")
+    def test_cmd_exit_nonzero_warns(self, mocklog):
+        self.assertEqual(psc.check_condition(self.cmd_with_exit(2)), False)
         self.assertEqual(mocklog.warning.call_count, 1)
 
 

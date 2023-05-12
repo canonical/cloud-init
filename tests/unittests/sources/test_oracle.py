@@ -121,7 +121,7 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
 
     This also performs the mocking required:
         * ``_read_system_uuid`` returns something,
-        * ``_is_platform_viable`` returns True,
+        * ``ds_detect`` returns True,
         * ``DataSourceOracle._is_iscsi_root`` returns True by default or what
           pytest.mark.is_iscsi gives as first param,
         * ``DataSourceOracle._get_iscsi_config`` returns a network cfg if
@@ -144,7 +144,7 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     mocker.patch(DS_PATH + ".net.find_fallback_nic")
     mocker.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
     mocker.patch(DS_PATH + "._read_system_uuid", return_value="someuuid")
-    mocker.patch(DS_PATH + "._is_platform_viable", return_value=True)
+    mocker.patch(DS_PATH + ".DataSourceOracle.ds_detect", return_value=True)
     mocker.patch(DS_PATH + ".read_opc_metadata", return_value=metadata)
     mocker.patch(DS_PATH + ".KlibcOracleNetworkConfigSource")
     ds = oracle.DataSourceOracle(
@@ -170,7 +170,7 @@ class TestDataSourceOracle:
         assert "unknown" == oracle_ds.subplatform
 
     def test_platform_info_after_fetch(self, oracle_ds):
-        oracle_ds._get_data()
+        oracle_ds._check_and_get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v2/)"
             == oracle_ds.subplatform
@@ -178,7 +178,7 @@ class TestDataSourceOracle:
 
     @pytest.mark.parametrize("metadata_version", [1])
     def test_v1_platform_info_after_fetch(self, oracle_ds):
-        oracle_ds._get_data()
+        oracle_ds._check_and_get_data()
         assert (
             "metadata (http://169.254.169.254/opc/v1/)"
             == oracle_ds.subplatform
@@ -206,11 +206,11 @@ class TestIsPlatformViable:
             ("LetsGoCubs", False),
         ],
     )
-    def test_is_platform_viable(self, dmi_data, platform_viable):
+    def test_ds_detect(self, dmi_data, platform_viable):
         with mock.patch(
             DS_PATH + ".dmi.read_dmi_data", return_value=dmi_data
         ) as m_read_dmi_data:
-            assert platform_viable == oracle._is_platform_viable()
+            assert platform_viable == oracle.DataSourceOracle.ds_detect()
         m_read_dmi_data.assert_has_calls([mock.call("chassis-asset-tag")])
 
 
@@ -830,13 +830,13 @@ class TestCommon_GetDataBehaviour:
     """
 
     @mock.patch(
-        DS_PATH + "._is_platform_viable", mock.Mock(return_value=False)
+        DS_PATH + ".DataSourceOracle.ds_detect", mock.Mock(return_value=False)
     )
     def test_false_if_platform_not_viable(
         self,
         oracle_ds,
     ):
-        assert not oracle_ds._get_data()
+        assert not oracle_ds._check_and_get_data()
 
     @pytest.mark.parametrize(
         "keyname,expected_value",
@@ -862,7 +862,7 @@ class TestCommon_GetDataBehaviour:
         expected_value,
         oracle_ds,
     ):
-        assert oracle_ds._get_data()
+        assert oracle_ds._check_and_get_data()
         assert expected_value == oracle_ds.metadata[keyname]
 
     @pytest.mark.parametrize(
@@ -885,7 +885,7 @@ class TestCommon_GetDataBehaviour:
         expected_value,
         oracle_ds,
     ):
-        assert oracle_ds._get_data()
+        assert oracle_ds._check_and_get_data()
         assert expected_value == getattr(oracle_ds, attribute_name)
 
     @pytest.mark.parametrize(
@@ -917,7 +917,7 @@ class TestCommon_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(return_value=metadata),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_ds._check_and_get_data()
             assert expected_value == oracle_ds.get_public_ssh_keys()
 
     def test_missing_user_data_handled_gracefully(self, oracle_ds):
@@ -928,7 +928,7 @@ class TestCommon_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(return_value=metadata),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_ds._check_and_get_data()
 
         assert oracle_ds.userdata_raw is None
 
@@ -940,7 +940,7 @@ class TestCommon_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(return_value=metadata),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_ds._check_and_get_data()
 
         assert oracle_ds.userdata_raw is None
         assert [] == oracle_ds.get_public_ssh_keys()
@@ -978,10 +978,11 @@ class TestNonIscsiRoot_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(side_effect=assert_in_context_manager),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_ds._check_and_get_data()
 
         assert [
             mock.call(
+                oracle_ds.distro,
                 iface=m_find_fallback_nic.return_value,
                 connectivity_url_data={
                     "headers": {"Authorization": "Bearer Oracle"},
@@ -1020,10 +1021,11 @@ class TestNonIscsiRoot_GetDataBehaviour:
             DS_PATH + ".read_opc_metadata",
             mock.Mock(side_effect=assert_in_context_manager),
         ):
-            assert oracle_ds._get_data()
+            assert oracle_ds._check_and_get_data()
 
         assert [
             mock.call(
+                oracle_ds.distro,
                 iface=m_find_fallback_nic.return_value,
                 connectivity_url_data={
                     "headers": {"Authorization": "Bearer Oracle"},
@@ -1209,6 +1211,3 @@ class TestNetworkConfig:
             oracle_ds._network_config["config"]
         ), "Config not added"
         assert "" == caplog.text
-
-
-# vi: ts=4 expandtab

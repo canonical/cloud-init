@@ -88,7 +88,7 @@ class TestUbuntuDrivers:
         debconf_file = tdir.join("nvidia.template")
         m_tmp.return_value = tdir
         myCloud = mock.MagicMock()
-        drivers.handle("ubuntu_drivers", new_config, myCloud, None, None)
+        drivers.handle("ubuntu_drivers", new_config, myCloud, None)
         assert [
             mock.call(drivers.X_LOADTEMPLATEFILE, debconf_file)
         ] == m_debconf.DebconfCommunicator().__enter__().command.call_args_list
@@ -122,7 +122,7 @@ class TestUbuntuDrivers:
         )
 
         with pytest.raises(Exception):
-            drivers.handle("ubuntu_drivers", cfg_accepted, myCloud, None, None)
+            drivers.handle("ubuntu_drivers", cfg_accepted, myCloud, None)
         assert [
             mock.call(drivers.X_LOADTEMPLATEFILE, debconf_file)
         ] == m_debconf.DebconfCommunicator().__enter__().command.call_args_list
@@ -185,19 +185,19 @@ class TestUbuntuDrivers:
     ):
         """Helper to reduce repetition when testing negative cases"""
         myCloud = mock.MagicMock()
-        drivers.handle("ubuntu_drivers", config, myCloud, None, None)
+        drivers.handle("ubuntu_drivers", config, myCloud, None)
         assert 0 == myCloud.distro.install_packages.call_count
         assert 0 == m_subp.call_count
 
     @mock.patch(MPATH + "install_drivers")
+    @mock.patch(MPATH + "LOG")
     def test_handle_no_drivers_does_nothing(
-        self, m_install_drivers, m_debconf, cfg_accepted, install_gpgpu
+        self, m_log, m_install_drivers, m_debconf, cfg_accepted, install_gpgpu
     ):
         """If no 'drivers' key in the config, nothing should be done."""
         myCloud = mock.MagicMock()
-        myLog = mock.MagicMock()
-        drivers.handle("ubuntu_drivers", {"foo": "bzr"}, myCloud, myLog, None)
-        assert "Skipping module named" in myLog.debug.call_args_list[0][0][0]
+        drivers.handle("ubuntu_drivers", {"foo": "bzr"}, myCloud, None)
+        assert "Skipping module named" in m_log.debug.call_args_list[0][0][0]
         assert 0 == m_install_drivers.call_count
 
     @mock.patch(M_TMP_PATH)
@@ -267,7 +267,7 @@ class TestUbuntuDrivers:
         )
 
         with pytest.raises(Exception):
-            drivers.handle("ubuntu_drivers", cfg_accepted, myCloud, None, None)
+            drivers.handle("ubuntu_drivers", cfg_accepted, myCloud, None)
         assert [
             mock.call(drivers.X_LOADTEMPLATEFILE, debconf_file)
         ] == m_debconf.DebconfCommunicator().__enter__().command.call_args_list
@@ -304,9 +304,7 @@ class TestUbuntuDrivers:
             "drivers": {"nvidia": {"license-accepted": True, "version": None}}
         }
         with pytest.raises(AttributeError):
-            drivers.handle(
-                "ubuntu_drivers", version_none_cfg, myCloud, None, None
-            )
+            drivers.handle("ubuntu_drivers", version_none_cfg, myCloud, None)
         assert (
             0 == m_debconf.DebconfCommunicator.__enter__().command.call_count
         )
@@ -335,7 +333,7 @@ class TestUbuntuDriversWithVersion:
         version_none_cfg = {
             "drivers": {"nvidia": {"license-accepted": True, "version": None}}
         }
-        drivers.handle("ubuntu_drivers", version_none_cfg, myCloud, None, None)
+        drivers.handle("ubuntu_drivers", version_none_cfg, myCloud, None)
         assert [
             mock.call(drivers.X_LOADTEMPLATEFILE, debconf_file)
         ] == m_debconf.DebconfCommunicator().__enter__().command.call_args_list
@@ -349,20 +347,19 @@ class TestUbuntuDriversNotRun:
     @mock.patch(MPATH + "HAS_DEBCONF", True)
     @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "install_drivers")
+    @mock.patch(MPATH + "LOG")
     def test_no_cfg_drivers_does_nothing(
         self,
+        m_log,
         m_install_drivers,
         m_tmp,
         m_debconf,
         tmpdir,
     ):
         m_tmp.return_value = tmpdir
-        m_log = mock.MagicMock()
         myCloud = mock.MagicMock()
         version_none_cfg = {}
-        drivers.handle(
-            "ubuntu_drivers", version_none_cfg, myCloud, m_log, None
-        )
+        drivers.handle("ubuntu_drivers", version_none_cfg, myCloud, None)
         assert 0 == m_install_drivers.call_count
         assert (
             mock.call(
@@ -375,20 +372,19 @@ class TestUbuntuDriversNotRun:
     @mock.patch(MPATH + "HAS_DEBCONF", False)
     @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "install_drivers")
+    @mock.patch(MPATH + "LOG")
     def test_has_not_debconf_does_nothing(
         self,
+        m_log,
         m_install_drivers,
         m_tmp,
         m_debconf,
         tmpdir,
     ):
         m_tmp.return_value = tmpdir
-        m_log = mock.MagicMock()
         myCloud = mock.MagicMock()
         version_none_cfg = {"drivers": {"nvidia": {"license-accepted": True}}}
-        drivers.handle(
-            "ubuntu_drivers", version_none_cfg, myCloud, m_log, None
-        )
+        drivers.handle("ubuntu_drivers", version_none_cfg, myCloud, None)
         assert 0 == m_install_drivers.call_count
         assert (
             mock.call(

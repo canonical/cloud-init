@@ -10,7 +10,6 @@
 
 import os
 import re
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -297,11 +296,9 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     return "\n".join(lines) + "\n"
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "rsyslog" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'rsyslog' key in configuration", name
         )
         return
@@ -319,7 +316,7 @@ def handle(
         )
 
     if not mycfg["configs"]:
-        log.debug("Empty config rsyslog['configs'], nothing to do")
+        LOG.debug("Empty config rsyslog['configs'], nothing to do")
         return
 
     changes = apply_rsyslog_changes(
@@ -329,14 +326,14 @@ def handle(
     )
 
     if not changes:
-        log.debug("restart of syslog not necessary, no changes made")
+        LOG.debug("restart of syslog not necessary, no changes made")
         return
 
     try:
         restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
     except subp.ProcessExecutionError as e:
         restarted = False
-        log.warning("Failed to reload syslog", e)
+        LOG.warning("Failed to reload syslog %s", str(e))
 
     if restarted:
         # This only needs to run if we *actually* restarted
@@ -344,7 +341,7 @@ def handle(
         cloud.cycle_logging()
         # This should now use rsyslog if
         # the logging was setup to use it...
-        log.debug("%s configured %s files", name, changes)
+        LOG.debug("%s configured %s files", name, changes)
 
 
 # vi: ts=4 expandtab syntax=python

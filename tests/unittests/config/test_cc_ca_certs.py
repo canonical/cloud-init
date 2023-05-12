@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
 import re
 import shutil
 import tempfile
@@ -27,7 +26,6 @@ class TestNoConfig(unittest.TestCase):
         super(TestNoConfig, self).setUp()
         self.name = "ca-certs"
         self.cloud_init = None
-        self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
     def test_no_config(self):
@@ -43,9 +41,7 @@ class TestNoConfig(unittest.TestCase):
                 mock.patch.object(cc_ca_certs, "update_ca_certs")
             )
 
-            cc_ca_certs.handle(
-                self.name, config, self.cloud_init, self.log, self.args
-            )
+            cc_ca_certs.handle(self.name, config, self.cloud_init, self.args)
 
             self.assertEqual(util_mock.call_count, 0)
             self.assertEqual(certs_mock.call_count, 0)
@@ -56,7 +52,6 @@ class TestConfig(TestCase):
         super(TestConfig, self).setUp()
         self.name = "ca-certs"
         self.paths = None
-        self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
     def _fetch_distro(self, kind):
@@ -93,7 +88,7 @@ class TestConfig(TestCase):
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
             cloud = get_cloud(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
             self.assertEqual(self.mock_update.call_count, 1)
@@ -110,7 +105,7 @@ class TestConfig(TestCase):
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
             cloud = get_cloud(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
             self.assertEqual(self.mock_update.call_count, 1)
@@ -128,7 +123,7 @@ class TestConfig(TestCase):
             self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.mock_add.assert_called_once_with(conf, ["CERT1"])
             self.assertEqual(self.mock_update.call_count, 1)
@@ -146,7 +141,7 @@ class TestConfig(TestCase):
             self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.mock_add.assert_called_once_with(conf, ["CERT1", "CERT2"])
             self.assertEqual(self.mock_update.call_count, 1)
@@ -163,7 +158,7 @@ class TestConfig(TestCase):
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
             cloud = get_cloud(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
             self.assertEqual(self.mock_update.call_count, 1)
@@ -180,7 +175,7 @@ class TestConfig(TestCase):
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
             cloud = get_cloud(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
             self.assertEqual(self.mock_update.call_count, 1)
@@ -200,7 +195,7 @@ class TestConfig(TestCase):
             self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
-            cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
+            cc_ca_certs.handle(self.name, config, cloud, self.args)
 
             self.assertEqual(self.mock_remove.call_count, 1)
             self.mock_add.assert_called_once_with(conf, ["CERT1"])
@@ -367,6 +362,18 @@ class TestRemoveDefaultCaCerts(TestCase):
                     else:
                         assert mock_subp.call_count == 0
 
+    def test_non_existent_cert_cfg(self):
+        self.m_stat.return_value.st_size = 0
+
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
+            with ExitStack() as mocks:
+                mocks.enter_context(
+                    mock.patch.object(util, "delete_dir_contents")
+                )
+                mocks.enter_context(mock.patch.object(subp, "subp"))
+                cc_ca_certs.disable_default_ca_certs(distro_name, conf)
+
 
 class TestCACertsSchema:
     """Directly test schema rather than through handle."""
@@ -429,7 +436,7 @@ class TestCACertsSchema:
         logger.setupLogging()
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
-            "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, None, []
+            "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, []
         )
         expected_warnings = [
             "Key 'ca-certs' is deprecated in",
@@ -451,7 +458,6 @@ class TestCACertsSchema:
                 "ca_certs": {"remove_defaults": False},
             },
             cloud,
-            None,
             [],
         )
         expected_warning = (

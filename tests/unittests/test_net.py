@@ -4045,7 +4045,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
             },
@@ -4078,7 +4078,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                     "set-name": "eth0",
                     "match": {
                         "macaddress": "00:11:22:33:44:55",
-                        "driver": "hv_netsvc",
+                        "driver": "hv_netvsc",
                     },
                 }
             },
@@ -4099,7 +4099,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -4164,7 +4164,7 @@ iface eth0 inet dhcp
         expected_rule = [
             'SUBSYSTEM=="net"',
             'ACTION=="add"',
-            'DRIVERS=="hv_netsvc"',
+            'DRIVERS=="hv_netvsc"',
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth0"',
         ]
@@ -4173,7 +4173,7 @@ iface eth0 inet dhcp
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
-    def test_device_driver_blacklist(
+    def test_hv_netvsc_vf_filter(
         self, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
     ):
         devices = {
@@ -4183,7 +4183,7 @@ iface eth0 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -4195,7 +4195,7 @@ iface eth0 inet dhcp
                 "carrier": False,
                 "dormant": False,
                 "operstate": "down",
-                "address": "00:11:22:33:44:56",
+                "address": "00:11:22:33:44:55",
                 "device/driver": "mlx4_core",
                 "device/device": "0x7",
                 "name_assign_type": "4",
@@ -4214,10 +4214,7 @@ iface eth0 inet dhcp
             dev_attrs=devices,
         )
 
-        blacklist = ["mlx4_core"]
-        network_cfg = net.generate_fallback_config(
-            blacklist_drivers=blacklist, config_driver=True
-        )
+        network_cfg = net.generate_fallback_config(config_driver=True)
         ns = network_state.parse_net_config_data(
             network_cfg, skip_broken=False
         )
@@ -4251,7 +4248,7 @@ iface eth1 inet dhcp
         expected_rule = [
             'SUBSYSTEM=="net"',
             'ACTION=="add"',
-            'DRIVERS=="hv_netsvc"',
+            'DRIVERS=="hv_netvsc"',
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth1"',
         ]
@@ -4278,7 +4275,7 @@ iface eth1 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": False,
             },
@@ -4327,7 +4324,7 @@ iface eth1 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": False,
             },
@@ -5252,7 +5249,7 @@ USERCTL=no
                 "dormant": False,
                 "operstate": "down",
                 "address": "CF:D6:AF:48:E8:80",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -6470,7 +6467,7 @@ class TestNetplanPostcommands(CiTestCase):
     @mock.patch.object(netplan.Renderer, "_net_setup_link")
     @mock.patch("cloudinit.subp.subp")
     def test_netplan_render_calls_postcmds(
-        self, mock_subp, mock_netplan_generate, mock_net_setup_link
+        self, mock_subp, mock_net_setup_link, mock_netplan_generate
     ):
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg, skip_broken=False)
@@ -6485,7 +6482,7 @@ class TestNetplanPostcommands(CiTestCase):
         mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
-        mock_netplan_generate.assert_called_with(run=True)
+        mock_netplan_generate.assert_called_with(run=True, same_content=False)
         mock_net_setup_link.assert_called_with(run=True)
 
     @mock.patch("cloudinit.util.SeLinuxGuard")
@@ -8223,23 +8220,39 @@ class TestGetInterfacesByMac(CiTestCase):
         }
         self.assertEqual(expected, result)
 
-    def test_duplicate_ignored_macs(self):
-        # LP: #199792
-        self._data = copy.deepcopy(self._data)
-        self._data["macs"]["swp0"] = "9a:57:7d:78:47:c0"
-        self._data["macs"]["swp1"] = "9a:57:7d:78:47:c0"
-        self._data["own_macs"].append("swp0")
-        self._data["own_macs"].append("swp1")
-        self._data["drivers"]["swp0"] = "mscc_felix"
-        self._data["drivers"]["swp1"] = "mscc_felix"
-        self._mock_setup()
+
+@pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
+@mock.patch("cloudinit.net.get_sys_class_path")
+@mock.patch("cloudinit.util.system_info", return_value={"variant": "ubuntu"})
+class TestDuplicateMac:
+    def test_duplicate_ignored_macs(
+        self, _get_system_info, get_sys_class_path, driver, tmpdir, caplog
+    ):
+        # Create sysfs representation of network devices and drivers in tmpdir
+        sys_net_path = tmpdir.join("class/net")
+        get_sys_class_path.return_value = sys_net_path.strpath + "/"
+        net_data = {
+            "swp0/address": "9a:57:7d:78:47:c0",
+            "swp0/addr_assign_type": "0",
+            "swp0/device/dev_id": "something",
+            "swp1/address": "9a:57:7d:78:47:c0",
+            "swp1/addr_assign_type": "0",
+            "swp1/device/dev_id": "something else",
+        }
+        populate_dir(sys_net_path.strpath, net_data)
+        # Symlink for device driver
+        driver_path = tmpdir.join(f"module/{driver}")
+        driver_path.ensure_dir()
+        sys_net_path.join("swp0/device/driver").mksymlinkto(driver_path)
+        sys_net_path.join("swp1/device/driver").mksymlinkto(driver_path)
+
         with does_not_raise():
             net.get_interfaces_by_mac()
         pattern = (
             "Ignoring duplicate macs from 'swp[0-1]' and 'swp[0-1]' due to "
-            "driver 'mscc_felix'."
+            f"driver '{driver}'."
         )
-        assert re.search(pattern, self.logs.getvalue())
+        assert re.search(pattern, caplog.text)
 
 
 class TestInterfacesSorting(CiTestCase):
@@ -8474,14 +8487,14 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_duplicate_macs(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", "0x3"),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", "0x5"),
         ]
         current_info = {
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,
@@ -8508,14 +8521,14 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_duplicate_macs_driver_no_devid(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", None),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", None),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", None),
         ]
         current_info = {
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,
@@ -8542,7 +8555,7 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_multi_mac_dups(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", "0x3"),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", "0x5"),
             ("00:11:22:33:44:55", "vf2", "mlx4_core", "0x7"),
         ]
@@ -8550,7 +8563,7 @@ class TestRenameInterfaces(CiTestCase):
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,
