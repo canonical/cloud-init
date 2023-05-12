@@ -543,7 +543,7 @@ class DataSourceAzure(sources.DataSource):
 
         imds_md = {}
         if self._is_ephemeral_networking_up():
-            imds_md = self.get_metadata_from_imds()
+            imds_md = self.get_metadata_from_imds(report_failure=True)
 
         if not imds_md and ovf_source is None:
             msg = "No OVF or IMDS available"
@@ -575,7 +575,7 @@ class DataSourceAzure(sources.DataSource):
 
             md, userdata_raw, cfg, files = self._reprovision()
             # fetch metadata again as it has changed after reprovisioning
-            imds_md = self.get_metadata_from_imds()
+            imds_md = self.get_metadata_from_imds(report_failure=True)
 
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
@@ -667,18 +667,33 @@ class DataSourceAzure(sources.DataSource):
         return crawled_data
 
     @azure_ds_telemetry_reporter
-    def get_metadata_from_imds(self) -> Dict:
-        retry_deadline = time() + 300
+    def get_metadata_from_imds(self, report_failure: bool) -> Dict:
+        start_time = time()
+        retry_deadline = start_time + 300
+        error_string: Optional[str] = None
+        error_report: Optional[errors.ReportableError] = None
         try:
             return imds.fetch_metadata_with_api_fallback(
                 retry_deadline=retry_deadline
             )
-        except (UrlError, ValueError) as error:
-            report_diagnostic_event(
-                "Ignoring IMDS metadata due to: %s" % error,
-                logger_func=LOG.warning,
+        except UrlError as error:
+            error_string = str(error)
+            duration = time() - start_time
+            error_report = errors.ReportableErrorImdsUrlError(
+                exception=error, duration=duration
             )
-            return {}
+        except ValueError as error:
+            error_string = str(error)
+            error_report = errors.ReportableErrorImdsMetadataParsingException(
+                exception=error
+            )
+
+        self._report_failure(error_report, host_only=not report_failure)
+        report_diagnostic_event(
+            "Ignoring IMDS metadata due to: %s" % error_string,
+            logger_func=LOG.warning,
+        )
+        return {}
 
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached class attributes to defaults."""
@@ -976,7 +991,7 @@ class DataSourceAzure(sources.DataSource):
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
-        imds_md = self.get_metadata_from_imds()
+        imds_md = self.get_metadata_from_imds(report_failure=False)
         if imds_md:
             # Only primary NIC will get a response from IMDS.
             LOG.info("%s is the primary nic", ifname)

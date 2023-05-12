@@ -17,7 +17,7 @@ from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
-from cloudinit.sources.azure import errors, identity
+from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -130,6 +130,16 @@ def mock_dmi_read_dmi_data():
 def mock_ephemeral_dhcp_v4():
     with mock.patch(
         MOCKPATH + "EphemeralDHCPv4",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_imds_fetch_metadata_with_api_fallback():
+    with mock.patch.object(
+        imds,
+        "fetch_metadata_with_api_fallback",
         autospec=True,
     ) as m:
         yield m
@@ -4242,6 +4252,59 @@ class TestProvisioning:
         # Verify reports via KVP. Ignore failure reported after sleep().
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+
+class TestGetMetadataFromImds:
+    @pytest.mark.parametrize("report_failure", [False, True])
+    @pytest.mark.parametrize(
+        "exception,reported_error_type",
+        [
+            (
+                url_helper.UrlError(requests.ConnectionError()),
+                errors.ReportableErrorImdsUrlError,
+            ),
+            (
+                ValueError("bad data"),
+                errors.ReportableErrorImdsMetadataParsingException,
+            ),
+        ],
+    )
+    def test_errors(
+        self,
+        azure_ds,
+        exception,
+        mock_azure_report_failure_to_fabric,
+        mock_imds_fetch_metadata_with_api_fallback,
+        mock_kvp_report_failure_to_host,
+        monkeypatch,
+        report_failure,
+        reported_error_type,
+    ):
+        monkeypatch.setattr(
+            azure_ds, "_is_ephemeral_networking_up", lambda: True
+        )
+        mock_imds_fetch_metadata_with_api_fallback.side_effect = exception
+
+        assert (
+            azure_ds.get_metadata_from_imds(report_failure=report_failure)
+            == {}
+        )
+        assert mock_imds_fetch_metadata_with_api_fallback.mock_calls == [
+            mock.call(retry_deadline=mock.ANY)
+        ]
+
+        reported_error = mock_kvp_report_failure_to_host.call_args[0][0]
+        assert isinstance(reported_error, reported_error_type)
+        assert reported_error.supporting_data["exception"] == repr(exception)
+        assert mock_kvp_report_failure_to_host.mock_calls == [
+            mock.call(reported_error)
+        ]
+        if report_failure:
+            assert mock_azure_report_failure_to_fabric.mock_calls == [
+                mock.call(endpoint=mock.ANY, error=reported_error)
+            ]
+        else:
+            assert mock_azure_report_failure_to_fabric.mock_calls == []
 
 
 class TestReportFailure:

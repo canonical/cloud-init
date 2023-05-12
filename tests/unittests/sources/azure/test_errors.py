@@ -5,9 +5,11 @@ import datetime
 from unittest import mock
 
 import pytest
+import requests
 
 from cloudinit import version
 from cloudinit.sources.azure import errors
+from cloudinit.url_helper import UrlError
 
 
 @pytest.fixture()
@@ -132,6 +134,69 @@ def test_dhcp_interface_not_found():
 
     assert error.reason == "failure to find DHCP interface"
     assert error.supporting_data["duration"] == 5.6
+
+
+@pytest.mark.parametrize(
+    "exception,reason",
+    [
+        (
+            UrlError(
+                requests.ConnectionError(),
+            ),
+            "connection error querying IMDS",
+        ),
+        (
+            UrlError(
+                requests.ConnectTimeout(),
+            ),
+            "connection timeout querying IMDS",
+        ),
+        (
+            UrlError(
+                requests.ReadTimeout(),
+            ),
+            "read timeout querying IMDS",
+        ),
+        (
+            UrlError(
+                Exception(),
+                code=500,
+            ),
+            "http error querying IMDS",
+        ),
+        (
+            UrlError(
+                requests.HTTPError(),
+                code=None,
+            ),
+            "unexpected error querying IMDS",
+        ),
+    ],
+)
+def test_imds_url_error(exception, reason):
+    duration = 123.4
+    fake_url = "fake://url"
+
+    exception.url = fake_url
+    error = errors.ReportableErrorImdsUrlError(
+        exception=exception, duration=duration
+    )
+
+    assert error.reason == reason
+    assert error.supporting_data["duration"] == duration
+    assert error.supporting_data["exception"] == repr(exception)
+    assert error.supporting_data["url"] == fake_url
+
+
+def test_imds_metadata_parsing_exception():
+    exception = ValueError("foobar")
+
+    error = errors.ReportableErrorImdsMetadataParsingException(
+        exception=exception
+    )
+
+    assert error.reason == "error parsing IMDS metadata"
+    assert error.supporting_data["exception"] == repr(exception)
 
 
 def test_unhandled_exception():

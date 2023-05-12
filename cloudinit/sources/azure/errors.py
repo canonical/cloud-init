@@ -10,8 +10,11 @@ from datetime import datetime
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from cloudinit import version
 from cloudinit.sources.azure import identity
+from cloudinit.url_helper import UrlError
 
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +84,12 @@ class ReportableError(Exception):
         )
 
     def __repr__(self) -> str:
-        return self.as_encoded_report()
+        return (
+            f"{self.__class__.__name__}("
+            f"reason={self.reason}, "
+            f"timestamp={self.timestamp}, "
+            f"supporting_data={self.supporting_data})"
+        )
 
 
 class ReportableErrorDhcpInterfaceNotFound(ReportableError):
@@ -97,6 +105,37 @@ class ReportableErrorDhcpLease(ReportableError):
 
         self.supporting_data["duration"] = duration
         self.supporting_data["interface"] = interface
+
+
+class ReportableErrorImdsUrlError(ReportableError):
+    def __init__(self, *, exception: UrlError, duration: float) -> None:
+        # ConnectTimeout sub-classes ConnectError so order is important.
+        if isinstance(exception.cause, requests.ConnectTimeout):
+            reason = "connection timeout querying IMDS"
+        elif isinstance(exception.cause, requests.ConnectionError):
+            reason = "connection error querying IMDS"
+        elif isinstance(exception.cause, requests.ReadTimeout):
+            reason = "read timeout querying IMDS"
+        elif exception.code:
+            reason = "http error querying IMDS"
+        else:
+            reason = "unexpected error querying IMDS"
+
+        super().__init__(reason)
+
+        if exception.code:
+            self.supporting_data["http_code"] = exception.code
+
+        self.supporting_data["duration"] = duration
+        self.supporting_data["exception"] = repr(exception)
+        self.supporting_data["url"] = exception.url
+
+
+class ReportableErrorImdsMetadataParsingException(ReportableError):
+    def __init__(self, *, exception: ValueError) -> None:
+        super().__init__("error parsing IMDS metadata")
+
+        self.supporting_data["exception"] = repr(exception)
 
 
 class ReportableErrorUnhandledException(ReportableError):
