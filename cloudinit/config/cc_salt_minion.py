@@ -45,6 +45,11 @@ meta: MetaSchema = {
                 service_name: salt-minion
                 config_dir: /etc/salt
                 conf:
+                    # file_client: local
+                    # fileserver_backend:
+                    #   - gitfs
+                    # gitfs_remotes:
+                    #   - https://github.com/_user_/_repo_.git
                     master: salt.example.com
                 grains:
                     role:
@@ -121,8 +126,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "conf" in s_cfg:
         # Add all sections from the conf object to minion config file
         minion_config = os.path.join(const.conf_dir, "minion")
-        minion_data = safeyaml.dumps(s_cfg.get("conf"))
-        util.write_file(minion_config, minion_data)
+        minion_data = s_cfg.get("conf")
+        util.write_file(minion_config, safeyaml.dumps(minion_data))
 
     if "grains" in s_cfg:
         # add grains to /etc/salt/grains
@@ -149,9 +154,16 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if cloud.distro.osfamily == "freebsd":
         bsd_utils.set_rc_config_value("salt_minion_enable", "YES")
 
-    # restart salt-minion. 'service' will start even if not started. if it
-    # was started, it needs to be restarted for config change.
-    subp.subp(["service", const.srv_name, "restart"], capture=False)
+    if "file_client" in minion_data and minion_data["file_client"] == "local":
+        # if salt-minion was configured as masterless, we should not run
+        # salt-minion as a daemon
+        # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html
+        subp.subp(["systemctl", "disable", "--now", const.srv_name], capture=False)
 
+        subp.subp(["salt-call", "--local", "state.apply"], capture=False)
+    else:
+        # restart salt-minion. 'service' will start even if not started. if it
+        # was started, it needs to be restarted for config change.
+        subp.subp(["systemctl", "restart", const.srv_name], capture=False)
 
 # vi: ts=4 expandtab
