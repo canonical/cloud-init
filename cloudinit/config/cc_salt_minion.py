@@ -159,5 +159,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html
         subp.subp(["salt-call", "--local", "state.apply"], capture=False)
 
-    cloud.distro.manage_service("restart" if minion_daemon else "stop", const.srv_name)
     cloud.distro.manage_service("enable" if minion_daemon else "disable", const.srv_name)
+    cloud.distro.manage_service("restart" if minion_daemon else "stop", const.srv_name)
