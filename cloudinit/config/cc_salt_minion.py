@@ -149,21 +149,15 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             util.write_file(pub_name, s_cfg["public_key"])
             util.write_file(pem_name, s_cfg["private_key"])
 
-    # we need to have the salt minion service enabled in rc in order to be
-    # able to start the service. this does only apply on FreeBSD servers.
-    if cloud.distro.osfamily == "freebsd":
-        bsd_utils.set_rc_config_value("salt_minion_enable", "YES")
+    minion_daemon = True
 
     if "file_client" in minion_data and minion_data["file_client"] == "local":
+        minion_daemon = False
+
         # if salt-minion was configured as masterless, we should not run
         # salt-minion as a daemon
         # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html
-        subp.subp(["systemctl", "disable", "--now", const.srv_name], capture=False)
-
         subp.subp(["salt-call", "--local", "state.apply"], capture=False)
-    else:
-        # restart salt-minion. 'service' will start even if not started. if it
-        # was started, it needs to be restarted for config change.
-        subp.subp(["systemctl", "restart", const.srv_name], capture=False)
 
-# vi: ts=4 expandtab
+    cloud.distro.manage_service("restart" if minion_daemon else "stop", const.srv_name)
+    cloud.distro.manage_service("enable" if minion_daemon else "disable", const.srv_name)
