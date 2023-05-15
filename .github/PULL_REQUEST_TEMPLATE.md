@@ -11,8 +11,8 @@ no particular length requirements.
 
 If you need to write multiple paragraphs, feel free.
 
-Fixes: #NNNNN (replace with the appropriate bug reference or remove
-this line entirely if there is no associated bug)
+Fixes: #NNNNN (GitHub Issue number. Remove line if irrelevant)
+LP: #NNNNNN (Launchpad bug number. Remove line if irrelevant)
 ```
 
 ## Additional Context
