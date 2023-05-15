@@ -19,12 +19,12 @@ be identified.
 
 If you are seeing this message, please file a bug against
 cloud-init at
-   https://bugs.launchpad.net/cloud-init/+filebug?field.tags=dsid
+   https://github.com/canonical/cloud-init/issues
 Make sure to include the cloud provider your instance is
 running on.
 
 For more information see
-  https://bugs.launchpad.net/bugs/1660385
+  https://github.com/canonical/cloud-init/issues/2795
 
 After you have filed a bug, you can disable this warning by
 launching your instance with the cloud-config below, or
@@ -48,7 +48,7 @@ For more information see
 
 If you are seeing this message, please file a bug against
 cloud-init at
-   https://bugs.launchpad.net/cloud-init/+filebug?field.tags=dsid
+   https://github.com/canonical/cloud-init/issues
 Make sure to include the cloud provider your instance is
 running on.
 

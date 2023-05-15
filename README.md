@@ -31,7 +31,7 @@ If you need additional help consider reaching out with one of the following opti
 - Ask a question in the [``#cloud-init`` IRC channel on Libera](https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init)
 - Search the cloud-init [mailing list archive](https://lists.launchpad.net/cloud-init/)
 - Better yet, join the [cloud-init mailing list](https://launchpad.net/~cloud-init) and participate
-- Find a bug? [Report bugs on Launchpad](https://bugs.launchpad.net/cloud-init/+filebug)
+- Find a bug? [Report bugs on GitHub Issues](https://github.com/canonical/cloud-init/issues)
 
 ## Distribution and cloud support
 

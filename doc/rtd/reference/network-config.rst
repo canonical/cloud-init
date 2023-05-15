@@ -316,7 +316,6 @@ Example output:
    USERCTL=no
 
 
-.. _Cloud-init: https://launchpad.net/cloud-init
 .. _LXD: https://linuxcontainers.org/lxd/docs/master/cloud-init/#custom-network-configuration
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
