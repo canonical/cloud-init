@@ -72,7 +72,7 @@ class NMConnection:
             "dhcp6": "auto",
             "ipv6_slaac": "auto",
             "ipv6_dhcpv6-stateless": "auto",
-            "ipv6_dhcpv6-stateful": "auto",
+            "ipv6_dhcpv6-stateful": "dhcp",
             "dhcp4": "auto",
             "dhcp": "auto",
         }
