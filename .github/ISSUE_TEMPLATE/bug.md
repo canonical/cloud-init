@@ -4,18 +4,18 @@ about: Submit a bug report
 labels: bug, new
 ---
 
-<!--
-Thanks for taking the time to improve cloud-init!
-
-Please include the following in your bug report:
-
-1. Your cloud provider
-2. Any appropriate cloud-init configuration you can provide us with
-3. cloud-init logs:
-  Run `sudo cloud-init collect-logs`. Add `--include-userdata` if
-  there is no sensitive information in your user data.
-
-Include a minimal, reproducible example (<https://stackoverflow.com/help/minimal-reproducible-example>), if possible.
--->
-
 # Bug report
+<!-- bug description explaining unmet expectation or use-case -->
+
+## Steps to reproduce the problem
+<!--Provide any applicable user-data, config, commandline or procedure to reproduce this problem -->
+
+## Environment details
+- Cloud-init version:
+- Operating System Distribution:
+- Cloud provider, platform or installer type:
+
+## cloud-init logs
+<!--
+Please provide either the applicable excerpt of /var/log/cloud-init.log representing the failure or attach cloud-init-logs.tar.gz obtained by running `sudo cloud-init collect-logs`. Add `--include-userdata` if there is no sensitive information in your user data.
+-->
