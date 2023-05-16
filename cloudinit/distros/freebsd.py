@@ -148,9 +148,9 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     def lock_passwd(self, name):
         try:
-            subp.subp(["pw", "usermod", name, "-h", "-"])
+            subp.subp(["pw", "usermod", name, "-w", "no"])
         except Exception:
-            util.logexc(LOG, "Failed to lock user %s", name)
+            util.logexc(LOG, "Failed to lock password login for user %s", name)
             raise
 
     def apply_locale(self, locale, out_fn=None):
