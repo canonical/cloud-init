@@ -2638,6 +2638,8 @@ def parse_mount(path, get_mnt_opts=False):
     )
 
     path_elements = [e for e in path.split("/") if e]
+    devpth = None
+    mount_point = None
     match_mount_point = None
     match_mount_point_elements = None
     for line in mountoutput.splitlines():
@@ -2686,19 +2688,20 @@ def parse_mount(path, get_mnt_opts=False):
         # continue finding the real device like '/dev/da0'.
         # this is only valid for non zfs file systems as a zpool
         # can have gpt labels as disk.
-        devm = re.search("^(/dev/.+)p([0-9])$", devpth)
-        if not devm and is_FreeBSD() and fs_type != "zfs":
+        devm = re.search("^(/dev/.+)[sp]([0-9])$", devpth)
+        if not devm and is_FreeBSD() and fs_type not in ["zfs", "nfs"]:
             devpth = get_freebsd_devpth(path)
 
         if match_mount_point == path:
             break
 
-    if get_mnt_opts:
-        if devpth and fs_type and match_mount_point and mount_options:
-            return (devpth, fs_type, match_mount_point, mount_options)
-    else:
-        if devpth and fs_type and match_mount_point:
-            return (devpth, fs_type, match_mount_point)
+    if path in mount_point:
+        if get_mnt_opts:
+            if devpth and fs_type and match_mount_point and mount_options:
+                return (devpth, fs_type, match_mount_point, mount_options)
+        else:
+            if devpth and fs_type and match_mount_point:
+                return (devpth, fs_type, match_mount_point)
     return None
 
 
