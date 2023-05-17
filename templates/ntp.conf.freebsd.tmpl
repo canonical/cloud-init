@@ -36,6 +36,9 @@ tos minclock 3 maxclock 6
 {% for pool in pools -%}
 pool {{pool}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
 
 #
 # To configure a specific server, such as an organization-wide local
