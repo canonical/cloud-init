@@ -11,9 +11,6 @@ import pytest
 
 from cloudinit import util
 from cloudinit.config.cc_rsyslog import (
-    DEF_DIR,
-    DEF_FILENAME,
-    DEF_RELOAD,
     apply_rsyslog_changes,
     load_config,
     parse_remotes_line,
@@ -31,9 +28,9 @@ class TestLoadConfig(TestCase):
     def setUp(self):
         super(TestLoadConfig, self).setUp()
         self.basecfg = {
-            "config_filename": DEF_FILENAME,
-            "config_dir": DEF_DIR,
-            "service_reload_command": DEF_RELOAD,
+            "config_filename": "20-cloud-config.conf",
+            "config_dir": "/etc/rsyslog.d",
+            "service_reload_command": "auto",
             "configs": [],
             "remotes": {},
         }
@@ -291,6 +288,3 @@ class TestInvalidKeyType:
         else:
             with pytest.raises(ValueError, match=re.escape(error_msg)):
                 callable_()
-
-
-# vi: ts=4 expandtab

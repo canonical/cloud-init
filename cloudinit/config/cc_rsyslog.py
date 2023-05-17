@@ -67,18 +67,13 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 
-DEF_FILENAME = "20-cloud-config.conf"
-DEF_DIR = "/etc/rsyslog.d"
-DEF_RELOAD = "auto"
-DEF_REMOTES: dict = {}
-
-KEYNAME_CONFIGS = "configs"
-KEYNAME_FILENAME = "config_filename"
-KEYNAME_DIR = "config_dir"
-KEYNAME_RELOAD = "service_reload_command"
-KEYNAME_LEGACY_FILENAME = "rsyslog_filename"
-KEYNAME_LEGACY_DIR = "rsyslog_dir"
-KEYNAME_REMOTES = "remotes"
+default_config = {
+    "config_dir": "/etc/rsyslog.d",
+    "config_filename": "20-cloud-config.conf",
+    "service_reload_command": "auto",
+    "remotes": {},
+    "configs": {},
+}
 
 LOG = logging.getLogger(__name__)
 
@@ -90,8 +85,8 @@ HOST_PORT_RE = re.compile(
 )
 
 
-def reload_syslog(distro, command=DEF_RELOAD):
-    if command == DEF_RELOAD:
+def reload_syslog(distro, command="auto"):
+    if command == "auto":
         service = distro.get_option("rsyslog_svcname", "rsyslog")
         return distro.manage_service("try-reload", service)
     return subp.subp(command, capture=True)
@@ -110,18 +105,22 @@ def load_config(cfg: dict) -> dict:
             deprecated="The rsyslog key with value of type 'list'",
             deprecated_version="22.2",
         )
-        mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
-        if KEYNAME_LEGACY_FILENAME in cfg:
-            mycfg[KEYNAME_FILENAME] = cfg[KEYNAME_LEGACY_FILENAME]
-        if KEYNAME_LEGACY_DIR in cfg:
-            mycfg[KEYNAME_DIR] = cfg[KEYNAME_LEGACY_DIR]
+        mycfg = {"configs": cfg.get("rsyslog")}
+        if "rsyslog_filename" in cfg:
+            mycfg["config_filename"] = cfg["rsyslog_filename"]
+        if "rsyslog_dir" in cfg:
+            mycfg["config_dir"] = cfg["rsyslog_dir"]
 
     fillup: tuple = (
-        (KEYNAME_CONFIGS, [], list),
-        (KEYNAME_DIR, DEF_DIR, str),
-        (KEYNAME_FILENAME, DEF_FILENAME, str),
-        (KEYNAME_RELOAD, DEF_RELOAD, (str, list)),
-        (KEYNAME_REMOTES, DEF_REMOTES, dict),
+        ("configs", [], list),
+        ("config_dir", default_config["config_dir"], str),
+        ("config_filename", default_config["config_filename"], str),
+        ("remotes", default_config["remotes"], dict),
+        (
+            "service_reload_command",
+            default_config["service_reload_command"],
+            (str, list),
+        ),
     )
 
     for key, default, vtypes in fillup:
@@ -304,12 +303,12 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     mycfg = load_config(cfg)
-    configs = mycfg[KEYNAME_CONFIGS]
+    configs = mycfg["configs"]
 
-    if mycfg[KEYNAME_REMOTES]:
+    if mycfg["remotes"]:
         configs.append(
             remotes_to_rsyslog_cfg(
-                mycfg[KEYNAME_REMOTES],
+                mycfg["remotes"],
                 header="# begin remotes",
                 footer="# end remotes",
             )
@@ -320,9 +319,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     changes = apply_rsyslog_changes(
-        configs=mycfg[KEYNAME_CONFIGS],
-        def_fname=mycfg[KEYNAME_FILENAME],
-        cfg_dir=mycfg[KEYNAME_DIR],
+        configs=mycfg["configs"],
+        def_fname=mycfg["config_filename"],
+        cfg_dir=mycfg["config_dir"],
     )
 
     if not changes:
@@ -330,7 +329,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     try:
-        restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
+        restarted = reload_syslog(
+            cloud.distro, command=mycfg["service_reload_command"]
+        )
     except subp.ProcessExecutionError as e:
         restarted = False
         LOG.warning("Failed to reload syslog %s", str(e))
@@ -342,6 +343,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         # This should now use rsyslog if
         # the logging was setup to use it...
         LOG.debug("%s configured %s files", name, changes)
-
-
-# vi: ts=4 expandtab syntax=python
