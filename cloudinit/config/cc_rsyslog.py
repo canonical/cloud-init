@@ -74,22 +74,29 @@ RSYSLOG_CONFIG = {
     "service_reload_command": "auto",
     "remotes": {},
     "configs": {},
+    "check_exe": "rsyslogd",
+    "packages": ["rsyslog"],
 }
 
 DISTRO_OVERRIDES = {
     "freebsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
+        "packages": ["sysutils/rsyslog"],
     },
     # this one is only necessary because of
     # https://github.com/canonical/cloud-init/issues/4118
     "dragonfly": {
         "config_dir": "/usr/local/etc/rsyslog.d",
+        "check_exe": "rsyslogd",
+        "packages": ["sysutils/rsyslog"],
     },
     "openbsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
+        "packages": ["sysutils/rsyslog"],
     },
     "netbsd": {
         "config_dir": "/usr/pkg/etc/rsyslog.d",
+        "packages": ["sysutils/rsyslog"],
     },
 }
 
@@ -115,6 +122,23 @@ def distro_default_rsyslog_config(distro: Distro):
     if distro.name in dcfg:
         cfg = util.mergemanydict([cfg, dcfg[distro.name]], reverse=True)
     return cfg
+
+
+def install_rsyslog(install_func, packages=None, check_exe="rsyslog"):
+    """Install rsyslog package if not already installed.
+
+    @param install_func: function.  This parameter is invoked with the contents
+    of the packages parameter.
+    @param packages: list.  This parameter defaults to ['rsyslog'].
+    @param check_exe: string.  The name of a binary that indicates the package
+    the specified package is already installed.
+    """
+    if subp.which(check_exe):
+        return
+    if packages is None:
+        packages = ["rsyslog"]
+
+    install_func(packages)
 
 
 def reload_syslog(distro, command="auto"):
@@ -346,6 +370,29 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 footer="# end remotes",
             )
         )
+
+    service = cloud.distro.get_option("rsyslog_svcname", "rsyslog")
+
+    install_rsyslog(
+        cloud.distro.install_packages,
+        packages=mycfg["packages"],
+        check_exe=mycfg["check_exe"],
+    )
+
+    if util.is_BSD():
+        try:
+            cloud.distro.manage_service("stop", "syslogd")
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to stop base syslogd service")
+        try:
+            cloud.distro.manage_service("disable", service)
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to disable base syslogd service")
+        try:
+            cloud.distro.manage_service("enable", service)
+        except subp.ProcessExecutionError as e:
+            LOG.exception("Failed to enable rsyslog service: %s", e)
+            raise
 
     if not mycfg["configs"]:
         LOG.debug("Empty config rsyslog['configs'], nothing to do")

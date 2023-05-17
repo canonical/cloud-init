@@ -103,12 +103,10 @@ cloud_init_modules:
 {% if variant in ["alpine", "photon"] %}
  - resolv_conf
 {% endif %}
-{% if not variant.endswith("bsd") %}
-{% if variant not in ["photon"] %}
- - ca_certs
+{% if not is_bsd or variant not in ["photon"] %}
+ - ca-certs
 {% endif %}
  - rsyslog
-{% endif %}
  - users_groups
  - ssh
 
