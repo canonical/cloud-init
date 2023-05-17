@@ -8,6 +8,7 @@
 
 import copy
 import os
+import socket
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -436,6 +437,7 @@ def generate_server_names(distro):
 def write_ntp_config_template(
     distro_name,
     service_name=None,
+    local_hostname=None,
     servers=None,
     pools=None,
     allow=None,
@@ -448,6 +450,7 @@ def write_ntp_config_template(
 
     @param distro_name: string.  The distro class name.
     @param service_name: string. The name of the NTP client service.
+    @param local_hostname: string. Derived automatically from the hostname.
     @param servers: A list of strings specifying ntp servers. Defaults to empty
     list.
     @param pools: A list of strings specifying ntp pools. Defaults to empty
@@ -465,6 +468,8 @@ def write_ntp_config_template(
     @raises: ValueError when path is None.
     @raises: ValueError when template_fn is None and template is None.
     """
+    if not local_hostname:
+        local_hostname = socket.gethostname()
     if not servers:
         servers = []
     if not pools:
@@ -498,6 +503,7 @@ def write_ntp_config_template(
         raise ValueError("Not template_fn or template provided")
 
     params = {
+        "local_hostname": local_hostname,
         "servers": servers,
         "pools": pools,
         "allow": allow,
@@ -599,6 +605,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("Skipping module named %s, disabled by cfg", name)
         return
 
+    # Set the hostname to the node this is running on if not specified
+    ntp_cfg.setdefault("local_hostname", socket.gethostname())
+    local_hostname = ntp_cfg.get("local_hostname")
+
     # Select which client is going to be used and get the configuration
     ntp_client_config = select_ntp_client(
         ntp_cfg.get("ntp_client"), cloud.distro
@@ -625,6 +635,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise RuntimeError(msg)
 
     LOG.debug("service_name: %s", ntp_client_config.get("service_name"))
+    LOG.debug(
+        "local_hostname: %s", ntp_cfg.get("local_hostname", local_hostname)
+    )
     LOG.debug("servers: %s", ntp_cfg.get("servers", []))
     LOG.debug("pools: %s", ntp_cfg.get("pools", []))
     LOG.debug("allow: %s", ntp_cfg.get("allow", []))

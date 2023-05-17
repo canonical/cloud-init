@@ -1826,6 +1826,15 @@
           ],
           "additionalProperties": false,
           "properties": {
+            "local_hostname": {
+              "type": "string",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "Local hostname to use for ntp. If not provided,\nthe system hostname will be used."
+            },
             "pools": {
               "type": "array",
               "items": {
