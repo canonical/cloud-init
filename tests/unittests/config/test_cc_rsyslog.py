@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from functools import partial
 from typing import Optional
+from unittest import mock
 
 import pytest
 
@@ -22,6 +23,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 
 class TestLoadConfig(TestCase):
@@ -34,14 +36,23 @@ class TestLoadConfig(TestCase):
             "configs": [],
             "remotes": {},
         }
+        self.bsdcfg = {
+            "config_filename": "20-cloud-config.conf",
+            "config_dir": "/usr/local/etc/rsyslog.d",
+            "service_reload_command": "auto",
+            "configs": [],
+            "remotes": {},
+        }
 
-    def test_legacy_full(self):
+    def test_legacy_full(self, distro=None):
+        cloud = get_cloud(distro="ubuntu", metadata={})
         found = load_config(
             {
                 "rsyslog": ["*.* @192.168.1.1"],
                 "rsyslog_dir": "mydir",
                 "rsyslog_filename": "myfilename",
-            }
+            },
+            distro=cloud.distro,
         )
         self.basecfg.update(
             {
@@ -55,18 +66,32 @@ class TestLoadConfig(TestCase):
         self.assertEqual(found, self.basecfg)
 
     def test_legacy_defaults(self):
-        found = load_config({"rsyslog": ["*.* @192.168.1.1"]})
+        cloud = get_cloud(distro="ubuntu", metadata={})
+        found = load_config(
+            {"rsyslog": ["*.* @192.168.1.1"]}, distro=cloud.distro
+        )
         self.basecfg.update({"configs": ["*.* @192.168.1.1"]})
         self.assertEqual(found, self.basecfg)
 
     def test_new_defaults(self):
-        self.assertEqual(load_config({}), self.basecfg)
+        cloud = get_cloud(distro="ubuntu", metadata={})
+        self.assertEqual(load_config({}, distro=cloud.distro), self.basecfg)
+
+    def test_new_bsd_defaults(self):
+        # patch for ifconfig -a
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+        ):
+            cloud = get_cloud(distro="freebsd", metadata={})
+        self.assertEqual(load_config({}, distro=cloud.distro), self.bsdcfg)
 
     def test_new_configs(self):
         cfgs = ["*.* myhost", "*.* my2host"]
+        cloud = get_cloud(distro="ubuntu", metadata={})
         self.basecfg.update({"configs": cfgs})
         self.assertEqual(
-            load_config({"rsyslog": {"configs": cfgs}}), self.basecfg
+            load_config({"rsyslog": {"configs": cfgs}}, distro=cloud.distro),
+            self.basecfg,
         )
 
 
@@ -282,7 +307,8 @@ class TestInvalidKeyType:
         ],
     )
     def test_invalid_key_types(self, config: dict, error_msg: Optional[str]):
-        callable_ = partial(load_config, config)
+        cloud = get_cloud(distro="ubuntu", metadata={})
+        callable_ = partial(load_config, config, cloud.distro)
         if error_msg is None:
             callable_()
         else:

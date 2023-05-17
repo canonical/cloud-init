@@ -8,6 +8,7 @@
 
 """Rsyslog: Configure system logging via rsyslog"""
 
+import copy
 import os
 import re
 from textwrap import dedent
@@ -17,7 +18,7 @@ from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
@@ -67,12 +68,29 @@ meta: MetaSchema = {
 
 __doc__ = get_meta_doc(meta)
 
-default_config = {
+RSYSLOG_CONFIG = {
     "config_dir": "/etc/rsyslog.d",
     "config_filename": "20-cloud-config.conf",
     "service_reload_command": "auto",
     "remotes": {},
     "configs": {},
+}
+
+DISTRO_OVERRIDES = {
+    "freebsd": {
+        "config_dir": "/usr/local/etc/rsyslog.d",
+    },
+    # this one is only necessary because of
+    # https://github.com/canonical/cloud-init/issues/4118
+    "dragonfly": {
+        "config_dir": "/usr/local/etc/rsyslog.d",
+    },
+    "openbsd": {
+        "config_dir": "/usr/local/etc/rsyslog.d",
+    },
+    "netbsd": {
+        "config_dir": "/usr/pkg/etc/rsyslog.d",
+    },
 }
 
 LOG = logging.getLogger(__name__)
@@ -85,6 +103,20 @@ HOST_PORT_RE = re.compile(
 )
 
 
+def distro_default_rsyslog_config(distro: Distro):
+    """Construct a distro-specific rsyslog config dictionary by merging
+       distro specific changes into base config.
+
+    @param distro: String providing the distro class name.
+    @returns: Dict of distro configurations for ntp clients.
+    """
+    dcfg = DISTRO_OVERRIDES
+    cfg = copy.copy(RSYSLOG_CONFIG)
+    if distro.name in dcfg:
+        cfg = util.mergemanydict([cfg, dcfg[distro.name]], reverse=True)
+    return cfg
+
+
 def reload_syslog(distro, command="auto"):
     if command == "auto":
         service = distro.get_option("rsyslog_svcname", "rsyslog")
@@ -92,13 +124,14 @@ def reload_syslog(distro, command="auto"):
     return subp.subp(command, capture=True)
 
 
-def load_config(cfg: dict) -> dict:
+def load_config(cfg: dict, distro: Distro) -> dict:
     """Return an updated config.
 
     Support converting the old top level format into new format.
     Raise a `ValueError` if some top level entry has an incorrect type.
     """
     mycfg = cfg.get("rsyslog", {})
+    default_config = distro_default_rsyslog_config(distro)
 
     if isinstance(cfg.get("rsyslog"), list):
         util.deprecate(
@@ -302,7 +335,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
         return
 
-    mycfg = load_config(cfg)
+    mycfg = load_config(cfg, cloud.distro)
     configs = mycfg["configs"]
 
     if mycfg["remotes"]:
