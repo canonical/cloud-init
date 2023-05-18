@@ -24,7 +24,7 @@ from tests.unittests.util import get_cloud
 class TestNoConfig(unittest.TestCase):
     def setUp(self):
         super(TestNoConfig, self).setUp()
-        self.name = "ca-certs"
+        self.name = "ca_certs"
         self.cloud_init = None
         self.args = []
 
@@ -50,7 +50,7 @@ class TestNoConfig(unittest.TestCase):
 class TestConfig(TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
-        self.name = "ca-certs"
+        self.name = "ca_certs"
         self.paths = None
         self.args = []
 

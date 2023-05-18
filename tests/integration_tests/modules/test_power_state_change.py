@@ -84,10 +84,10 @@ class TestPowerChange:
             log = instance.read_from_file("/var/log/cloud-init.log")
             assert _can_connect(instance)
         lines_to_check = [
-            "Running module power-state-change",
+            "Running module power_state_change",
             expected,
             "running 'init-local'",
-            "config-power-state-change already ran",
+            "config-power_state_change already ran",
         ]
         verify_ordered_items_in_text(lines_to_check, log)
 

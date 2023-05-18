@@ -225,7 +225,6 @@ class TestCombined:
         verify_clean_log(log, ignore_deprecations=False)
         requested_modules = {
             "apt_configure",
-            "apt_pipelining",
             "byobu",
             "final_message",
             "locale",

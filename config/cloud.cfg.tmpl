@@ -1,5 +1,4 @@
 ## template:jinja
-
 # The top level settings are used as module
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
@@ -89,7 +88,7 @@ cloud_init_modules:
  - seed_random
 {% endif %}
  - bootcmd
- - write-files
+ - write_files
 {% if variant not in ["netbsd", "openbsd"] %}
  - growpart
  - resizefs
@@ -106,11 +105,11 @@ cloud_init_modules:
 {% endif %}
 {% if not variant.endswith("bsd") %}
 {% if variant not in ["photon"] %}
- - ca-certs
+ - ca_certs
 {% endif %}
  - rsyslog
 {% endif %}
- - users-groups
+ - users_groups
  - ssh
 
 # The modules that run in the 'config' stage
@@ -125,7 +124,7 @@ cloud_config_modules:
  - ubuntu_autoinstall
 {% endif %}
 {% if variant not in ["photon"] %}
- - ssh-import-id
+ - ssh_import_id
 {% if not is_rhel %}
  - keyboard
 {% endif %}
@@ -139,25 +138,25 @@ cloud_config_modules:
 {% if variant not in ["mariner", "photon"] %}
  - spacewalk
 {% endif %}
- - yum-add-repo
+ - yum_add_repo
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
- - grub-dpkg
- - apt-pipelining
- - apt-configure
+ - grub_dpkg
+ - apt_pipelining
+ - apt_configure
 {% endif %}
 {% if variant in ["ubuntu"] %}
- - ubuntu-advantage
+ - ubuntu_advantage
 {% endif %}
 {% if variant in ["suse"] %}
- - zypper-add-repo
+ - zypper_add_repo
 {% endif %}
 {% if variant in ["alpine"] %}
- - apk-configure
+ - apk_configure
 {% endif %}
  - ntp
  - timezone
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - byobu
@@ -165,16 +164,16 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
- - package-update-upgrade-install
+ - package_update_upgrade_install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
  - landscape
  - lxd
 {% endif %}
 {% if variant in ["ubuntu", "unknown"] %}
- - ubuntu-drivers
+ - ubuntu_drivers
 {% endif %}
- - write-files-deferred
+ - write_files_deferred
  - puppet
  - chef
  - ansible
@@ -183,17 +182,17 @@ cloud_final_modules:
  - reset_rmc
  - refresh_rmc_and_interface
  - rightscale_userdata
- - scripts-vendor
- - scripts-per-once
- - scripts-per-boot
- - scripts-per-instance
- - scripts-user
- - ssh-authkey-fingerprints
- - keys-to-console
- - install-hotplug
- - phone-home
- - final-message
- - power-state-change
+ - scripts_vendor
+ - scripts_per_once
+ - scripts_per_boot
+ - scripts_per_instance
+ - scripts_user
+ - ssh_authkey_fingerprints
+ - keys_to_console
+ - install_hotplug
+ - phone_home
+ - final_message
+ - power_state_change
 
 # System and/or distro specific settings
 # (not accessible to handlers/transforms)
