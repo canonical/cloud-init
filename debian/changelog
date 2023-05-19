@@ -1,5 +1,7 @@
 cloud-init (23.1.2-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
 
+  * d/patches/netplan99-cannot-use-default.patch:
+    - Retain routes' definitions compatible with netplan 0.99 (Fixes: #4133)
   * d/apport-general-hook.py: Add general apport hook to append cloud type,
     image and instance size information to bug reports (LP: #1724623)
   * d/cloud-init.preinst: Oracle to remove vestigial /etc/cloud.cloud.cfg.d/
