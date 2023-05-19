@@ -22,10 +22,10 @@ RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
 CFG_BUILTIN = {
     "datasource_list": [
         "NoCloud",
+        "DigitalOcean",
         "ConfigDrive",
         "LXD",
         "OpenNebula",
-        "DigitalOcean",
         "Azure",
         "AltCloud",
         "OVF",
