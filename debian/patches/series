@@ -1,3 +1,4 @@
 retain-apt-partner-pocket.patch
 expire-on-hashed-users.patch
 retain-netplan-world-readable.patch
+netplan99-cannot-use-default.patch
