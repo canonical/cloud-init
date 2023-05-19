@@ -1,9 +1,9 @@
-cloud-init (23.1.2-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+cloud-init (23.1.2-0ubuntu0~20.04.2) focal; urgency=medium
 
   * d/patches/netplan99-cannot-use-default.patch:
     - Retain routes' definitions compatible with netplan 0.99 (Fixes: #4133)
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 19 May 2023 12:55:45 -0500
+ -- James Falcon <james.falcon@canonical.com>  Fri, 19 May 2023 12:57:02 -0500
 
 cloud-init (23.1.2-0ubuntu0~20.04.1) focal; urgency=medium
 
