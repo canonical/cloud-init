@@ -75,10 +75,10 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         elif network == "::":
             self.set_rc_config_value("ipv6_defaultrouter", gateway)
         else:
-            route_name = "net%d" % self._route_cpt
-            route_cmd = "-net %s -netmask %s %s" % (network, netmask, gateway)
+            route_name = f"net{self._route_cpt}"
+            route_cmd = f"-net {network} -netmask {netmask} {gateway}"
             self.set_rc_config_value("route_" + route_name, route_cmd)
-            self.route_names = "%s %s" % (self.route_names, route_name)
+            self.route_names = f"{self.route_names} {route_name}"
             self.set_rc_config_value("static_routes", self.route_names.strip())
             self._route_cpt += 1
 
