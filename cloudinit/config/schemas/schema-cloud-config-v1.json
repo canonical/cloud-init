@@ -44,8 +44,6 @@
         "power-state-change",
         "power_state_change",
         "puppet",
-        "refresh-rmc-and-interface",
-        "refresh_rmc_and_interface",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
