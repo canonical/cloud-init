@@ -37,6 +37,19 @@ class Distro(cloudinit.distros.bsd.BSD):
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
 
+    @staticmethod
+    def reload_rc() -> None:
+        rc_pid = os.environ.get("RC_PID")
+        if rc_pid is None:
+            LOG.warning("Unable to reload rc(8): no RC_PID in Environment")
+            return
+
+        try:
+            subp.subp(["kill", "-SIGALRM", rc_pid])
+        except subp.ProcessExecutionError as e:
+            LOG.warning("Failed to reload rc(8): %s", e)
+        return
+
     @classmethod
     def manage_service(
         cls, action: str, service: str, *extra_args: str, rcs=None
@@ -52,12 +65,15 @@ class Distro(cloudinit.distros.bsd.BSD):
             "stop": [service, "stop"],
             "start": [service, "start"],
             "enable": [service, "enable"],
+            "enabled": [service, "enabled"],
             "disable": [service, "disable"],
             "onestart": [service, "onestart"],
+            "onestop": [service, "onestop"],
             "restart": [service, "restart"],
             "reload": [service, "restart"],
             "try-reload": [service, "restart"],
             "status": [service, "status"],
+            "onestatus": [service, "onestatus"],
         }
         cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)

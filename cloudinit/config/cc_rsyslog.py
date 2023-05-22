@@ -26,6 +26,11 @@ This module configures remote system logging using rsyslog.
 
 Configuration for remote servers can be specified in ``configs``, but for
 convenience it can be specified as key value pairs in ``remotes``.
+
+This module can install rsyslog if it's not installed, and on BSD
+will attempt to disable and stop the base system syslog daemon.
+This might not work in the first run. We recommend creating images with
+``service syslogd disable``d.
 """
 
 meta: MetaSchema = {
@@ -346,6 +351,45 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     return "\n".join(lines) + "\n"
 
 
+def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
+    """
+    This helper function bundles the mess that we have to perform to disable
+    BSD base systems' syslogd.
+    ``rc(8)`` reads its configuration on start, so after disabling syslogd, we
+    need to tell rc to reload its config
+    """
+    # first off: if enabled...
+    try:
+        cloud.distro.manage_service("enabled", "syslogd")
+    except subp.ProcessExecutionError:
+        return
+    # Disable.
+    try:
+        cloud.distro.manage_service("disable", "syslogd")
+    except subp.ProcessExecutionError:
+        LOG.warning("Failed to disable base syslogd service")
+
+    # Check if it's running: if it isn't we're running before syslogd.
+    # AS WE SHOULD!
+    try:
+        cloud.distro.manage_service("onestatus", "syslogd")
+    except subp.ProcessExecutionError:
+        # we're running before syslogd, make sure to tell rc(8) to reload its
+        # config, so it won't start syslogd
+        if cloud.distro.osfamily == "freebsd":
+            cloud.distro.reload_rc()
+        # Either way, we're done here
+        return
+
+    # for some inexplicable reason we're running after syslogd,
+    # try to stop it:
+    try:
+        cloud.distro.manage_service("onestop", "syslogd")
+        LOG.error("syslogd is running before cloud-init")
+    except subp.ProcessExecutionError as e:
+        LOG.warning("Failed to stop syslogd: %s", e)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "rsyslog" not in cfg:
         LOG.debug(
@@ -374,19 +418,17 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     )
 
     if util.is_BSD():
-        try:
-            cloud.distro.manage_service("stop", "syslogd")
-        except subp.ProcessExecutionError:
-            LOG.warning("Failed to stop base syslogd service")
-        try:
-            cloud.distro.manage_service("disable", service)
-        except subp.ProcessExecutionError:
-            LOG.warning("Failed to disable base syslogd service")
+        disable_and_stop_bsd_base_syslog(cloud)
+
         try:
             cloud.distro.manage_service("enable", service)
-        except subp.ProcessExecutionError as e:
-            LOG.exception("Failed to enable rsyslog service: %s", e)
-            raise
+        except subp.ProcessExecutionError:
+            # This really shouldn't fail..
+            LOG.exception("Failed to enable rsyslog service")
+        try:
+            cloud.distro.manage_service("start", service)
+        except subp.ProcessExecutionError:
+            LOG.exception("Failed to enable rsyslog service")
 
     if not mycfg["configs"]:
         LOG.debug("Empty config rsyslog['configs'], nothing to do")
