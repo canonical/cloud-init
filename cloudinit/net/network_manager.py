@@ -69,6 +69,7 @@ class NMConnection:
 
         method_map = {
             "static": "manual",
+            "static6": "manual",
             "dhcp6": "auto",
             "ipv6_slaac": "auto",
             "ipv6_dhcpv6-stateless": "auto",
