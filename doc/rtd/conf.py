@@ -110,7 +110,8 @@ html_theme_options = {
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_static_path = ["static"]
-html_css_files = ["css/custom.css"]
+html_css_files = ["css/custom.css", "css/github_issue_links.css"]
+html_js_files = ["js/github_issue_links.js"]
 
 html_extra_path = ["googleaf254801a5285c31.html"]
 
