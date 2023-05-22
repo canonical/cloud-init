@@ -81,7 +81,6 @@ RSYSLOG_CONFIG = {
 DISTRO_OVERRIDES = {
     "freebsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
-        "packages": ["sysutils/rsyslog"],
     },
     "openbsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
@@ -171,6 +170,8 @@ def load_config(cfg: dict, distro: Distro) -> dict:
             default_config["service_reload_command"],
             (str, list),
         ),
+        ("check_exe", default_config["check_exe"], str),
+        ("packages", default_config["packages"], list),
     )
 
     for key, default, vtypes in fillup:
