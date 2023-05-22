@@ -585,7 +585,7 @@ def get_linux_distro():
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
-        elif distro_name == "photon":
+        elif distro_name == "alpine" or distro_name == "photon":
             flavor = os_release.get("PRETTY_NAME", "")
         elif distro_name == "virtuozzo" and not os_release_rhel:
             # Only use this if the redhat file is not parsed
