@@ -1,5 +1,6 @@
 cloud-init (23.1.1-0ubuntu3) UNRELEASED; urgency=medium
 
+  * d/control: Remove pep8 dependency. It is no longer used.
   * Upstream snapshot based on upstream/main at d6ac22e1.
     - Bugs fixed in this snapshot: (LP: #2011783, #2008888)
 
