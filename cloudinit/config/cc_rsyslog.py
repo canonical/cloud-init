@@ -83,13 +83,6 @@ DISTRO_OVERRIDES = {
         "config_dir": "/usr/local/etc/rsyslog.d",
         "packages": ["sysutils/rsyslog"],
     },
-    # this one is only necessary because of
-    # https://github.com/canonical/cloud-init/issues/4118
-    "dragonfly": {
-        "config_dir": "/usr/local/etc/rsyslog.d",
-        "check_exe": "rsyslogd",
-        "packages": ["sysutils/rsyslog"],
-    },
     "openbsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
         "packages": ["sysutils/rsyslog"],
@@ -119,7 +112,7 @@ def distro_default_rsyslog_config(distro: Distro):
     """
     dcfg = DISTRO_OVERRIDES
     cfg = copy.copy(RSYSLOG_CONFIG)
-    if distro.name in dcfg:
+    if distro.osfamily in dcfg:
         cfg = util.mergemanydict([cfg, dcfg[distro.name]], reverse=True)
     return cfg
 
