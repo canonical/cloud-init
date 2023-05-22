@@ -22,7 +22,7 @@ NETWORK_FILE_HEADER = """\
 
 class Distro(distros.Distro):
     pip_package_name = "py3-pip"
-    locale_conf_fn = "/etc/profile.d/locale.sh"
+    locale_conf_fn = "/etc/profile.d/50-cloud-init-locale.sh"
     network_conf_fn = "/etc/network/interfaces"
     renderer_configs = {
         "eni": {"eni_path": network_conf_fn, "eni_header": NETWORK_FILE_HEADER}
