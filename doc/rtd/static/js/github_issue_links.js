@@ -6,7 +6,7 @@ window.onload = function () {
   link.href = (
     "https://github.com/canonical/cloud-init/issues/new?"
     + "assignees=&labels=documentation%2C+new&projects=&template=documentation.md&title=%5Bdocs%5D%3A+"
-    + "&body=# Documentation"
+    + "&body=%23 Documentation request"
     + "%0A%0A%0A%0A%0A"
     + "---"
     + "%0A"
