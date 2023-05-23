@@ -82,12 +82,13 @@ RSYSLOG_CONFIG = {
     "remotes": {},
     "configs": {},
     "check_exe": "rsyslogd",
-    "packages": ["rsyslog"],
+    "packages": [],
 }
 
 DISTRO_OVERRIDES = {
     "freebsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
+        "packages": ["rsyslog"],
     },
     "openbsd": {
         "config_dir": "/usr/local/etc/rsyslog.d",
