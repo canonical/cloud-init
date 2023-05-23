@@ -259,4 +259,4 @@ Example config
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
-.. _Grub Quoting: https://www.gnu.org/software/grub/manual/grub/grub.html#Quoting
+.. _GRUB quoting: https://www.gnu.org/software/grub/manual/grub/grub.html#Quoting
