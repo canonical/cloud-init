@@ -35,6 +35,8 @@ class TestLoadConfig(TestCase):
             "service_reload_command": "auto",
             "configs": [],
             "remotes": {},
+            "check_exe": "rsyslogd",
+            "packages": ["rsyslog"],
         }
         self.bsdcfg = {
             "config_filename": "20-cloud-config.conf",
@@ -42,6 +44,8 @@ class TestLoadConfig(TestCase):
             "service_reload_command": "auto",
             "configs": [],
             "remotes": {},
+            "check_exe": "rsyslogd",
+            "packages": ["rsyslog"],
         }
 
     def test_legacy_full(self, distro=None):
