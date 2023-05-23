@@ -1,8 +1,10 @@
 # Copyright (C) 2009-2010 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2023 FreeBSD Foundation
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Mina Galić <FreeBSD@igalic.co>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
