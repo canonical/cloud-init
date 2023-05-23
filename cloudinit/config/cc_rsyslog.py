@@ -376,8 +376,7 @@ def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
     except subp.ProcessExecutionError:
         # we're running before syslogd, make sure to tell rc(8) to reload its
         # config, so it won't start syslogd
-        if cloud.distro.osfamily == "freebsd":
-            cloud.distro.reload_rc()
+        cloud.distro.reload_init()
         # Either way, we're done here
         return
 

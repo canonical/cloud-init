@@ -37,18 +37,19 @@ class Distro(cloudinit.distros.bsd.BSD):
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
 
-    @staticmethod
-    def reload_rc() -> None:
+    @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Tell rc to reload its configuration
+        Note that this only works while we're still in the process of booting.
+        May raise ProcessExecutionError
+        """
         rc_pid = os.environ.get("RC_PID")
         if rc_pid is None:
             LOG.warning("Unable to reload rc(8): no RC_PID in Environment")
             return
 
-        try:
-            subp.subp(["kill", "-SIGALRM", rc_pid])
-        except subp.ProcessExecutionError as e:
-            LOG.warning("Failed to reload rc(8): %s", e)
-        return
+        return subp.subp(["kill", "-SIGALRM", rc_pid], capture=True, rcs=rcs)
 
     @classmethod
     def manage_service(
