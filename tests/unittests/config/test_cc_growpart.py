@@ -610,6 +610,35 @@ class Bunch:
         self.__dict__.update(kwds)
 
 
+class TestDevicePartInfo:
+    @pytest.mark.parametrize(
+        "devpath, is_BSD, expected, raised_exception",
+        (
+            pytest.param(
+                "/dev/vtbd0p2",
+                True,
+                ("/dev/vtbd0", "2"),
+                does_not_raise(),
+                id="gpt_partition",
+            ),
+            pytest.param(
+                "/dev/vbd0s3a",
+                True,
+                ("/dev/vbd0", "3a"),
+                does_not_raise(),
+                id="bsd_mbr_slice_and_partition",
+            ),
+        ),
+    )
+    @mock.patch("cloudinit.util.is_BSD")
+    def test_device_part_into(
+        self, m_is_BSD, is_BSD, devpath, expected, raised_exception
+    ):
+        m_is_BSD.return_value = is_BSD
+        with raised_exception:
+            assert expected == cc_growpart.device_part_info(devpath)
+
+
 class TestGrowpartSchema:
     @pytest.mark.parametrize(
         "config, expectation",
