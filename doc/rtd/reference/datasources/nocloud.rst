@@ -42,7 +42,7 @@ serial number. This argument might look like: ::
   ds=nocloud-net;s=http://10.42.42.42/cloud-init/configs/
 
 .. note::
-   When supplementing kernel parameters in Grub's boot menu take care to single-quote this full value to avoid Grub interpreting the semi-colon as a reserved word. See: `Grub Quoting`_
+   When supplementing kernel parameters in GRUB's boot menu take care to single-quote this full value to avoid GRUB interpreting the semi-colon as a reserved word. See: `GRUB quoting`_
 
 Permitted keys
 ==============
