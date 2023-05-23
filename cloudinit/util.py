@@ -365,7 +365,7 @@ def uniq_merge(*lists):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.items():
+    for k, v in FN_REPLACEMENTS.items():
         fn = fn.replace(k, v)
     removals = []
     for k in fn:
@@ -767,7 +767,6 @@ def fixup_output(cfg, mode):
 #   value then output input will not be closed (useful for debugging).
 #
 def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
-
     if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDOUT")):
         LOG.debug("Not redirecting output due to _CLOUD_INIT_SAVE_STDOUT")
         return
@@ -1264,7 +1263,7 @@ def is_resolvable(url) -> bool:
                     iname, None, 0, 0, socket.SOCK_STREAM, socket.AI_CANONNAME
                 )
                 badresults[iname] = []
-                for (_fam, _stype, _proto, cname, sockaddr) in result:
+                for _fam, _stype, _proto, cname, sockaddr in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
             except (socket.gaierror, socket.error):
@@ -2566,7 +2565,9 @@ def parse_mtab(path):
 
 def find_freebsd_part(fs):
     splitted = fs.split("/")
-    if len(splitted) == 3:
+    if len(splitted) == 1:
+        return splitted[0]
+    elif len(splitted) == 3:
         return splitted[2]
     elif splitted[2] in ["label", "gpt", "ufs"]:
         target_label = fs[5:]
@@ -2579,14 +2580,6 @@ def find_freebsd_part(fs):
         return str(part)
     else:
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
-
-
-def find_dragonflybsd_part(fs):
-    splitted = fs.split("/")
-    if len(splitted) == 3 and splitted[1] == "dev":
-        return splitted[2]
-    else:
-        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
 
 
 def get_path_dev_freebsd(path, mnt_list):

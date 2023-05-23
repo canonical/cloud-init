@@ -305,16 +305,12 @@ def device_part_info(devpath):
         # FreeBSD doesn't know of sysfs so just get everything we need from
         # the device, like /dev/vtbd0p2.
         fpart = "/dev/" + util.find_freebsd_part(devpath)
-        m = re.search("^(/dev/.+)p([0-9])$", fpart)
+        # Handle both GPT partions and MBR slices with partitions
+        m = re.search(
+            r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
+        )
         if m:
-            return m.group(1), m.group(2)
-
-        # alternatively, we could be dealing with MBR slices,
-        # or we're on DragonFly
-        fslice = "/dev/" + util.find_dragonflybsd_part(devpath)
-        m = re.search("^(/dev/.+)s([0-9])$", fslice)
-        if m:
-            return m.group(1), m.group(2)
+            return m["dev"], m["part_slice"]
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
