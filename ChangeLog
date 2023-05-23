@@ -1,3 +1,155 @@
+23.2
+ - BSD: simplify finding MBR partitions by removing duplicate code
+   [Mina Galić]
+ - tests: bump pycloudlib version for mantic builds
+ - network-manager: Set higher autoconnect priority for nm keyfiles (#3671)
+   [Ani Sinha]
+ - alpine.py: change the locale file used (#4139) [dermotbradley]
+ - cc_ntp: Sync up with current FreeBSD ntp.conf (#4122) [Mina Galić]
+ - config: drop refresh_rmc_and_interface as RHEL 7 no longer supported
+   [Robert Schweikert]
+ - docs: Add feedback button to docs
+ - net/sysconfig: enable sysconfig renderer if network manager has ifcfg-rh
+   plugin (#4132) [Ani Sinha]
+ - For Alpine use os-release PRETTY_NAME (#4138) [dermotbradley]
+ - network_manager: add a method for ipv6 static IP configuration (#4127)
+   [Ani Sinha]
+ - correct misnamed template file host.mariner.tmpl (#4124) [dermotbradley]
+ - nm: generate ipv6 stateful dhcp config at par with sysconfig (#4115)
+   [Ani Sinha]
+ - Add templates for GitHub Issues
+ - Add 'peers' and 'allow' directives in cc_ntp (#3124) [Jacob Salmela]
+ - FreeBSD: Fix user account locking (#4114) [Mina Galić] (GH: #1854594)
+ - FreeBSD: add ResizeGrowFS class to cc_growpart (#2334) [Mina Galić]
+ - Update tests in Azure TestCanDevBeReformatted class (#2771)
+   [Ksenija Stanojevic]
+ - Replace Launchpad references with GitHub Issues
+ - Fix KeyError in iproute pformat (#3287) [Dmitry Zykov]
+ - schema: read_cfg_paths call init.fetch to lookup /v/l/c/instance
+ - azure/errors: introduce reportable errors for imds (#3647)
+   [Chris Patterson]
+ - FreeBSD (and friends): better identify MBR slices (#2168)
+   [Mina Galić] (LP: #2016350)
+ - azure/errors: add host reporting for dhcp errors (#2167)
+   [Chris Patterson]
+ - net: purge blacklist_drivers across net and azure (#2160)
+   [Chris Patterson]
+ - net: refactor hyper-v VF filtering and apply to get_interfaces() (#2153)
+   [Chris Patterson]
+ - tests: avoid leaks to underlying filesystem for /etc/cloud/clean.d
+   (#2251)
+ - net: refactor find_candidate_nics_on_linux() to use get_interfaces()
+   (#2159) [Chris Patterson]
+ - resolv_conf: Allow > 3 nameservers (#2152) [Major Hayden]
+ - Remove mount NTFS error message (#2134) [Ksenija Stanojevic]
+ - integration tests: fix image specification parsing (#2166)
+ - ci: add hypothesis scheduled GH check (#2149)
+ - Move supported distros list to docs (#2162)
+ - Fix logger, use instance rather than module function (#2163)
+ - README: Point to Github Actions build status (#2158)
+ - Revert "fix linux-specific code on bsd (#2143)" (#2161)
+ - Do not generate dsa and ed25519 key types when crypto FIPS mode is
+   enabled (#2142) [Ani Sinha] (LP: 2017761)
+ - Add documentation label automatically (#2156)
+ - sources/azure: report success to host and introduce kvp module (#2141)
+   [Chris Patterson]
+ - setup.py: use pkg-config for udev/rules path (#2137) [dankm]
+ - openstack/static: honor the DNS servers associated with a network
+   (#2138) [Gonéri Le Bouder]
+ - fix linux-specific code on bsd (#2143)
+ - cli: schema validation of jinja template user-data (SC-1385) (#2132)
+   (LP: #1881925)
+ - gce: activate network discovery on every boot (#2128)
+ - tests: update integration test to assert 640 across reboots (#2145)
+ - Make user/vendor data sensitive and remove log permissions (#2144)
+   (LP: #2013967)
+ - Update kernel command line docs (SC-1457) (#2133)
+ - docs: update network configuration path links (#2140) [d1r3ct0r]
+ - sources/azure: report failures to host via kvp (#2136) [Chris Patterson]
+ - net: Document use of `ip route append` to add routes (#2130)
+ - dhcp: Add missing mocks (#2135)
+ - azure/imds: retry fetching metadata up to 300 seconds (#2121)
+   [Chris Patterson]
+ - [1/2] DHCP: Refactor dhcp client code  (#2122)
+ - azure/errors: treat traceback_base64 as string (#2131) [Chris Patterson]
+ - azure/errors: introduce reportable errors (#2129) [Chris Patterson]
+ - users: schema permit empty list to indicate create no users
+ - azure: introduce identity module (#2116) [Chris Patterson]
+ - Standardize disabling cloud-init on non-systemd (#2112)
+ - Update .github-cla-signers (#2126) [Rob Tongue]
+ - NoCloud: Use seedfrom protocol to determine mode (#2107)
+ - rhel: Remove sysvinit files. (#2114)
+ - tox.ini: set -vvvv --showlocals for pytest (#2104) [Chris Patterson]
+ - Fix NoCloud kernel commandline semi-colon args
+ - run-container: make the container/VM timeout configurable (#2118)
+   [Paride Legovini]
+ - suse: Remove sysvinit files. (#2115)
+ - test: Backport assert_call_count for old requests (#2119)
+ - Add "licebmi" as contributor (#2113) [Mark Martinez]
+ - Adapt DataSourceScaleway to upcoming IPv6 support (#2033)
+   [Louis Bouchard]
+ - rhel: make sure previous-hostname file ends with a new line (#2108)
+   [Ani Sinha]
+ - Adding contributors for DataSourceAkamai (#2110) [acourdavAkamai]
+ - Cleanup ephemeral IP routes on exception (#2100) [sxt1001]
+ - commit 09a64badfb3f51b1b391fa29be19962381a4bbeb [sxt1001] (LP: #2011291)
+ - Standardize kernel commandline user interface (#2093)
+ - config/cc_resizefs: fix do_resize arguments (#2106) [Chris Patterson]
+ - Fix test_dhclient_exits_with_error (#2105)
+ - net/dhcp: catch dhclient failures and raise NoDHCPLeaseError (#2083)
+   [Chris Patterson]
+ - sources/azure: move pps handling out of _poll_imds() (#2075)
+   [Chris Patterson]
+ - tests: bump pycloudlib version (#2102)
+ - schema: do not manipulate draft4 metaschema for jsonschema 2.6.0 (#2098)
+ - sources/azure/imds: don't count timeout errors as connection errors
+   (#2074) [Chris Patterson]
+ - Fix Python 3.12 unit test failures (#2099)
+ - integration tests: Refactor instance checking (#1989)
+ - ci: migrate remaining jobs from travis to gh (#2085)
+ - missing ending quote in instancedata docs(#2094) [Hong L]
+ - refactor: stop passing log instances to cc_* handlers (#2016) [d1r3ct0r]
+ - tests/vmware: fix test_no_data_access_method failure (#2092)
+   [Chris Patterson]
+ - Don't change permissions of netrules target (#2076) (LP: #2011783)
+ - tests/sources: patch util.get_cmdline() for datasource tests (#2091)
+   [Chris Patterson]
+ - macs: ignore duplicate MAC for devs with driver driver qmi_wwan (#2090)
+   (LP: #2008888)
+ - Fedora: Enable CA handling (#2086) [František Zatloukal]
+ - Add frantisekz as contributor (#2087) [František Zatloukal]
+ - Send dhcp-client-identifier for InfiniBand ports (#2043) [Waleed Mousa]
+ - cc_ansible: complete the examples and doc (#2082) [Yves]
+ - contributor: add bdrung
+ - bddeb: for dev package, derive debhelper-compat from host system
+ - apport: only prompt for cloud_name when instance-data.json is absent
+ - datasource: Optimize datasource detection, fix bugs (#2060)
+ - Handle non existent ca-cert-config situation (#2073) [Shreenidhi Shedi]
+ - sources/azure: add networking check for all source PPS (#2061)
+   [Chris Patterson]
+ - do not attempt dns resolution on ip addresses (#2040)
+ - chore: fix style tip (#2071)
+ - Fix metadata IP in instancedata.rst (#2063) [Brian Haley]
+ - util: Pass deprecation schedule in deprecate_call() (#2064)
+ - config: Update grub-dpkg docs (#2058)
+ - docs: Cosmetic improvements and styling (#2057) [s-makin]
+ - cc_grub_dpkg: Added UEFI support (#2029) [Alexander Birkner]
+ - tests: Write to /var/spool/rsyslog to adhere to apparmor profile (#2059)
+ - oracle-ds: prefer system_cfg over ds network config source (#1998)
+   (LP: #1956788)
+ - Remove dead code (#2038)
+ - Release 23.1.1 (#2052)
+ - source: Force OpenStack when it is only option (#2045) (LP: #2008727)
+ - cc_ubuntu_advantage: improve UA logs discovery
+ - sources/azure: fix regressions in IMDS behavior (#2041) [Chris Patterson]
+ - tests: fix test_schema (#2042)
+ - dhcp: Cleanup unused kwarg (#2037)
+ - sources/vmware/imc: fix-missing-catch-few-negtive-scenarios (#2027)
+   [PengpengSun]
+ - dhclient_hook: remove vestigal dhclient_hook command (#2015)
+ - log: Add standardized deprecation tooling (SC-1312) (#2026)
+ - Enable SUSE based distros for ca handling (#2036) [Robert Schweikert]
+
 23.1.2
  - Make user/vendor data sensitive and remove log permissions
    (LP: #2013967) (CVE-2023-1786)
