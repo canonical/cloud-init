@@ -46,8 +46,12 @@ USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
 
 SCHEMA_FILES_BY_TYPE = {
-    "cloud-config": {"v1": USERDATA_SCHEMA_FILE},
-    "network-config": {"v1": NETWORK_CONFIG_V1_SCHEMA_FILE},
+    "cloud-config": {
+        "latest": USERDATA_SCHEMA_FILE,
+    },
+    "network-config": {
+        "latest": NETWORK_CONFIG_V1_SCHEMA_FILE,
+    },
 }
 
 _YAML_MAP = {True: "true", False: "false", None: "null"}
@@ -268,7 +272,6 @@ def _anyOf(
 
     all_errors = []
     all_deprecations = []
-    errors_for_declared_type = []
     skip_best_match = False
     for index, subschema in enumerate(anyOf):
         all_errs = list(
@@ -461,7 +464,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,
-    schema_type: Optional[str] = "cloud-config",
+    schema_type: str = "cloud-config",
     strict: bool = False,
     strict_metaschema: bool = False,
     log_details: bool = True,
@@ -474,8 +477,8 @@ def validate_cloudconfig_schema(
     @param schema: jsonschema dict describing the supported schema definition
        for the cloud config module (config.cc_*). If None, validate against
        global schema.
-    @param schema_type: Optional string. One of: userdata, network_config
-       Default: userdata.
+    @param schema_type: Optional string. One of: cloud-config, network-config
+       Default: cloud-config.
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
     @param strict_metaschema: Boolean, when True validates schema using strict
@@ -488,7 +491,8 @@ def validate_cloudconfig_schema(
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
-    @raises: ValueError on invalid schema_type not in userdata or network_config
+    @raises: ValueError on invalid schema_type not in cloud-config or
+        network_config
     """
     if schema is None:
         schema = get_schema(schema_type)
@@ -781,7 +785,6 @@ def validate_cloudconfig_file(
     config_path: str,
     schema: dict,
     annotate: bool = False,
-    #   schema_type: Optional[str]: "user-data",
     instance_data_path: str = None,
 ):
     """Validate cloudconfig file adheres to a specific jsonschema.
@@ -1157,7 +1160,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """
 
     if schema is None:
-        schema = get_schema()
+        schema = get_schema(schema_type="cloud-config")
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
@@ -1246,13 +1249,13 @@ def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
 
 
-def get_schema(schema_type: Optional[str] = "cloud-config") -> dict:
+def get_schema(schema_type: str = "cloud-config") -> dict:
     """Return jsonschema for a specific type.
 
     Return empty schema when no specific schema file exists.
     """
     schema_file = os.path.join(
-        get_schema_dir(), SCHEMA_FILES_BY_TYPE[schema_type]["v1"]
+        get_schema_dir(), SCHEMA_FILES_BY_TYPE[schema_type]["latest"]
     )
     full_schema = None
     try:
@@ -1326,7 +1329,7 @@ def handle_schema_args(name, args):
             "Invalid flag combination. Cannot use --annotate with --docs",
             sys_exit=True,
         )
-    full_schema = get_schema()
+    full_schema = get_schema(schema_type="cloud-config")
     if args.docs:
         print(load_doc(args.docs))
         return
