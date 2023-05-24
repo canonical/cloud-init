@@ -36,7 +36,7 @@ class TestLoadConfig(TestCase):
             "configs": [],
             "remotes": {},
             "check_exe": "rsyslogd",
-            "packages": ["rsyslog"],
+            "packages": [],
         }
         self.bsdcfg = {
             "config_filename": "20-cloud-config.conf",

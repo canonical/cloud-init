@@ -157,7 +157,7 @@ def load_config(cfg: dict, distro: Distro) -> dict:
     Raise a `ValueError` if some top level entry has an incorrect type.
     """
     mycfg = cfg.get("rsyslog", {})
-    default_config = distro_default_rsyslog_config(distro)
+    distro_config = distro_default_rsyslog_config(distro)
 
     if isinstance(cfg.get("rsyslog"), list):
         util.deprecate(
@@ -172,16 +172,16 @@ def load_config(cfg: dict, distro: Distro) -> dict:
 
     fillup: tuple = (
         ("configs", [], list),
-        ("config_dir", default_config["config_dir"], str),
-        ("config_filename", default_config["config_filename"], str),
-        ("remotes", default_config["remotes"], dict),
+        ("config_dir", distro_config["config_dir"], str),
+        ("config_filename", distro_config["config_filename"], str),
+        ("remotes", distro_config["remotes"], dict),
         (
             "service_reload_command",
-            default_config["service_reload_command"],
+            distro_config["service_reload_command"],
             (str, list),
         ),
-        ("check_exe", default_config["check_exe"], str),
-        ("packages", default_config["packages"], list),
+        ("check_exe", distro_config["check_exe"], str),
+        ("packages", distro_config["packages"], list),
     )
 
     for key, default, vtypes in fillup:
