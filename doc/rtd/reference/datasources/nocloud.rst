@@ -30,7 +30,7 @@ where on the filesystem to look.
 Alternatively, one can provide metadata via the kernel command line or SMBIOS
 "serial number" option. This argument might look like: ::
 
-  ds=nocloud s=file://path/to/directory/;h=node-42
+  ds=nocloud;s=file://path/to/directory/;h=node-42
 
 Method 3: Custom webserver: kernel commandline or SMBIOS
 --------------------------------------------------------
@@ -39,7 +39,10 @@ In a similar fashion, configuration files can be provided to cloud-init using a
 custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
 serial number. This argument might look like: ::
 
-  ds=nocloud s=http://10.42.42.42/cloud-init/configs/
+  ds=nocloud-net;s=http://10.42.42.42/cloud-init/configs/
+
+.. note::
+   When supplementing kernel parameters in GRUB's boot menu take care to single-quote this full value to avoid GRUB interpreting the semi-colon as a reserved word. See: `GRUB quoting`_
 
 Permitted keys
 ==============
@@ -256,3 +259,4 @@ Example config
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
+.. _GRUB quoting: https://www.gnu.org/software/grub/manual/grub/grub.html#Quoting
