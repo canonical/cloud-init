@@ -1,4 +1,4 @@
-cloud-init (23.2-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.2-0ubuntu1) mantic; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used.
   * Upstream snapshot based on 23.2.
@@ -7,7 +7,7 @@ cloud-init (23.2-0ubuntu1) UNRELEASED; urgency=medium
     - Bugs fixed in this snapshot: (LP: #2011783, #2008888, #1854594, #2016350)
       (LP: #1881925, #2013967, #2011291)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 May 2023 19:05:50 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 May 2023 19:06:03 +0200
 
 cloud-init (23.1.1-0ubuntu2) lunar; urgency=medium
 
