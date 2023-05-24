@@ -2372,6 +2372,18 @@
                   }
                 }
               ]
+            },
+            "check_exe": {
+              "type": "string",
+              "description": "The executable name for the rsyslog daemon.\nFor example, ``rsyslogd``, or ``/opt/sbin/rsyslogd`` if the rsyslog binary is in an unusual path."
+            },
+            "packages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of packages needed to be installed for rsyslog."
             }
           }
         }

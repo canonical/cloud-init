@@ -71,6 +71,15 @@ meta: MetaSchema = {
                 service_reload_command: [your, syslog, restart, command]
             """
         ),
+        dedent(
+            """\
+            # default (no) configuration with package installation on FreeBSD
+            rsyslog:
+                config_dir: /usr/local/etc/rsyslog.d
+                check_exe: "rsyslogd"
+                packages: ["rsyslogd"]
+            """
+        ),
     ],
     "activate_by_schema_keys": ["rsyslog"],
 }
