@@ -32,9 +32,9 @@ convenience it can be specified as key value pairs in ``remotes``.
 This module can install rsyslog if it's not installed.
 
 .. note::
-On BSD cloud-init will attempt to disable and stop the base system syslogd.
-This might not work in the first run.
-We recommend creating images with ``service syslogd disable``.
+    On BSD cloud-init will attempt to disable and stop the base system syslogd.
+    This might not work in the first run on all systems.
+    We recommend creating images with ``service syslogd disable``.
 """
 
 meta: MetaSchema = {
