@@ -66,7 +66,7 @@ class Release:
         """Get the individual parts from an OS_IMAGE definition.
 
         Returns a namedtuple containing id, os, and release of the image."""
-        parts = os_image.split("::", 2)
+        parts = os_image.split("::", 3)
         if len(parts) == 1:
             image_id = None
             os = "ubuntu"
@@ -77,7 +77,7 @@ class Release:
         else:
             raise ValueError(
                 "OS_IMAGE must either contain release name or be in the form "
-                "of <image_id>[::<os>[::<release>[::<version>]]]"
+                "of <image_id>[::<os>::<release>::<version>]"
             )
         return cls(os, series, version, image_id)
 

@@ -503,7 +503,9 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_FreeBSD.return_value = is_FreeBSD
                 m_util.is_OpenBSD.return_value = is_OpenBSD
                 cc_ntp.handle("notimportant", cfg, mycloud, None)
-                m_subp.assert_called_with(expected_service_call, capture=True)
+                m_subp.assert_called_with(
+                    expected_service_call, capture=True, rcs=None
+                )
 
             self.assertEqual(expected_content, util.load_file(confpath))
 
@@ -828,6 +830,17 @@ class TestNTPSchema:
                 "ntp.pools: 123 is not of type 'array'.*"
                 "ntp.servers: 'non-array' is not of type 'array'",
             ),
+            (
+                {
+                    "ntp": {
+                        "peers": [123],
+                        "allow": ["www.example.com", None],
+                    }
+                },
+                "Cloud config schema errors: "
+                "ntp.allow.1: None is not of type 'string',*"
+                ", ntp.peers.0: 123 is not of type 'string'",
+            ),
         ),
     )
     @skipUnlessJsonSchema()
@@ -837,6 +850,3 @@ class TestNTPSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

@@ -24,7 +24,7 @@ def filter_by_attr(match_name):
 filter_by_physical = filter_by_type("physical")
 
 
-class Renderer:
+class Renderer(abc.ABC):
     def __init__(self, config=None):
         pass
 

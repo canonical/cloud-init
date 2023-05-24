@@ -11,6 +11,7 @@ from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.distros import ug_util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceHostname
 
@@ -63,6 +64,12 @@ class DataSourceGCE(sources.DataSource):
 
     dsname = "GCE"
     perform_dhcp_setup = False
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -84,6 +91,7 @@ class DataSourceGCE(sources.DataSource):
         network_context = noop()
         if self.perform_dhcp_setup:
             network_context = EphemeralDHCPv4(
+                self.distro,
                 self.fallback_interface,
             )
         with network_context:
@@ -353,5 +361,3 @@ if __name__ == "__main__":
             data["user-data-b64"] = b64encode(data["user-data"]).decode()
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

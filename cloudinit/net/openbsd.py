@@ -4,7 +4,7 @@ import platform
 
 import cloudinit.net.bsd
 from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     ["dhcpleasectl", "-w", "30", interface], capture=True
                 )
         else:
-            subp.subp(["pkill", "dhclient"], capture=True, rcs=[0, 1])
+            net.dhcp.IscDhclient.kill_dhcp_client()
             subp.subp(["route", "del", "default"], capture=True, rcs=[0, 1])
             subp.subp(["route", "flush", "default"], capture=True, rcs=[0, 1])
             subp.subp(["sh", "/etc/netstart"], capture=True)

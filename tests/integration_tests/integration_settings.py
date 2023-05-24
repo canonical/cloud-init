@@ -33,7 +33,7 @@ INSTANCE_TYPE: Optional[str] = None
 # Determines the base image to use or generate new images from.
 #
 # This can be the name of an Ubuntu release, or in the format
-# <image_id>[::<os>[::<release>[::<version>]].  If given, os and release should
+# <image_id>[::<os>::<release>::<version>].  If given, os and release should
 # describe the image specified by image_id.  (Ubuntu releases are converted
 # to this format internally; in this case, to "None::ubuntu::focal::20.04".)
 OS_IMAGE = "focal"
