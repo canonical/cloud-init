@@ -367,40 +367,27 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
 
 def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
     """
-    This helper function bundles the mess that we have to perform to disable
-    BSD base systems' syslogd.
+    This helper function bundles the necessary steps to disable BSD base syslog
     ``rc(8)`` reads its configuration on start, so after disabling syslogd, we
     need to tell rc to reload its config
     """
-    # first off: if enabled...
     try:
         cloud.distro.manage_service("enabled", "syslogd")
     except subp.ProcessExecutionError:
         return
-    # Disable.
-    try:
-        cloud.distro.manage_service("disable", "syslogd")
-    except subp.ProcessExecutionError:
-        LOG.warning("Failed to disable base syslogd service")
+    cloud.distro.manage_service("disable", "syslogd")
+    cloud.distro.reload_init()
 
-    # Check if it's running: if it isn't we're running before syslogd.
-    # AS WE SHOULD!
     try:
-        cloud.distro.manage_service("onestatus", "syslogd")
-    except subp.ProcessExecutionError:
-        # we're running before syslogd, make sure to tell rc(8) to reload its
-        # config, so it won't start syslogd
-        cloud.distro.reload_init()
-        # Either way, we're done here
-        return
-
-    # for some inexplicable reason we're running after syslogd,
-    # try to stop it:
-    try:
+        # for some inexplicable reason we're running after syslogd,
+        # try to stop it:
         cloud.distro.manage_service("onestop", "syslogd")
-        LOG.error("syslogd is running before cloud-init")
-    except subp.ProcessExecutionError as e:
-        LOG.warning("Failed to stop syslogd: %s", e)
+        LOG.error(
+            "syslogd is running before cloud-init! "
+            "Please report this as bug to the porters!"
+        )
+    except subp.ProcessExecutionError:
+        pass
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -429,19 +416,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         packages=mycfg["packages"],
         check_exe=mycfg["check_exe"],
     )
-
     if util.is_BSD():
+        cloud.distro.manage_service("enable", service)
         disable_and_stop_bsd_base_syslog(cloud)
-
-        try:
-            cloud.distro.manage_service("enable", service)
-        except subp.ProcessExecutionError:
-            # This really shouldn't fail..
-            LOG.exception("Failed to enable rsyslog service")
-        try:
-            cloud.distro.manage_service("start", service)
-        except subp.ProcessExecutionError:
-            LOG.exception("Failed to enable rsyslog service")
 
     if not mycfg["configs"]:
         LOG.debug("Empty config rsyslog['configs'], nothing to do")
