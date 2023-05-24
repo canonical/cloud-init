@@ -122,6 +122,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Ensure we can configure files at the right dir
     util.ensure_dir(const.conf_dir)
 
+    minion_data = None
+
     # ... and then update the salt configuration
     if "conf" in s_cfg:
         # Add all sections from the conf object to minion config file
@@ -151,7 +153,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     minion_daemon = True
 
-    if "file_client" in minion_data and minion_data["file_client"] == "local":
+    if minion_data and minion_data.get("file_client") == "local":
         minion_daemon = False
 
         # if salt-minion was configured as masterless, we should not run
