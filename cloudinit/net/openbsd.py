@@ -55,8 +55,16 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             content = gateway + "\n"
             util.write_file(fn, content)
         else:
-            self.interface_routes = (self.interface_routes + "!route add "
-                + network + " -netmask " + netmask + " " + gateway + "\n")
+            self.interface_routes = (
+                self.interface_routes
+                + "!route add "
+                + network
+                + " -netmask "
+                + netmask
+                + " "
+                + gateway
+                + "\n"
+            )
 
 
 def available(target=None):
