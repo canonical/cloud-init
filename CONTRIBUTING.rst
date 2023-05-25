@@ -57,7 +57,7 @@ Follow these steps to submit your first pull request to ``cloud-init``:
 * Configure ``git`` with your email and name for commit messages.
 
   Your name will appear in commit messages and will also be used in
-  changelogs or release notes. Give yourself credit! ::
+  change logs or release notes. Give yourself credit! ::
 
     git config user.name "Your Name"
     git config user.email "Your Email"
@@ -164,7 +164,7 @@ Do these things for each feature or bug
       it was needed.
 
       This is the message that will be used on the commit when it
-      is sqaushed and merged into main. If there is a related launchpad
+      is squashed and merged into main. If there is a related launchpad
       bug, specify it at the bottom of the commit message.
 
       LP: #NNNNNNN (replace with the appropriate bug reference or remove
@@ -176,7 +176,7 @@ Do these things for each feature or bug
   - Click :guilabel:`Create Pull Request`
 
 Then, a ``cloud-init`` committer will review your changes and
-follow up in the pull request. Look at the :ref:`Code Review Process<code_review_process>` doc to understand the following steps.
+follow up in the pull request. Look at the :ref:`Code Review Process<code_review_process>` documentation to understand the following steps.
 
 Feel free to ping and/or join ``#cloud-init`` on Libera IRC if you
 have any questions.
@@ -223,9 +223,9 @@ details on these requirements.
 Type annotations
 ----------------
 
-The ``cloud-init`` codebase uses Python's annotation support for storing
+The ``cloud-init`` code base uses Python's annotation support for storing
 ``type`` annotations in the style specified by `PEP-484`_ and `PEP-526`_.
-Their use in the codebase is encouraged.
+Their use in the code base is encouraged.
 
 Feature Flags
 -------------
