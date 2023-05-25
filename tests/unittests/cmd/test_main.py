@@ -42,7 +42,7 @@ class TestMain(FilesystemMockingTestCase):
                     "permissions": 0o755,
                 },
             ],
-            "cloud_init_modules": ["write-files", "runcmd"],
+            "cloud_init_modules": ["write_files", "runcmd"],
         }
         cloud_cfg = safeyaml.dumps(self.cfg)
         ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
