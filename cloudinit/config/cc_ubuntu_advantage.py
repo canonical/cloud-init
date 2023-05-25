@@ -412,13 +412,13 @@ def _should_auto_attach(ua_section: dict) -> bool:
 def _attach(ua_section: dict):
     token = ua_section.get("token")
     if not token:
-        msg = "`ubuntu-advantage.token` required in non-Pro Ubuntu instances."
+        msg = "`ubuntu_advantage.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
     enable_beta = ua_section.get("enable_beta")
     if enable_beta:
         LOG.debug(
-            "Ignoring `ubuntu-advantage.enable_beta` services in UA attach:"
+            "Ignoring `ubuntu_advantage.enable_beta` services in UA attach:"
             " %s",
             ", ".join(enable_beta),
         )
