@@ -57,7 +57,7 @@ Follow these steps to submit your first pull request to ``cloud-init``:
 * Configure ``git`` with your email and name for commit messages.
 
   Your name will appear in commit messages and will also be used in
-  change logs or release notes. Give yourself credit! ::
+  changelogs or release notes. Give yourself credit! ::
 
     git config user.name "Your Name"
     git config user.email "Your Email"
@@ -223,9 +223,9 @@ details on these requirements.
 Type annotations
 ----------------
 
-The ``cloud-init`` code base uses Python's annotation support for storing
+The ``cloud-init`` codebase uses Python's annotation support for storing
 ``type`` annotations in the style specified by `PEP-484`_ and `PEP-526`_.
-Their use in the code base is encouraged.
+Their use in the codebase is encouraged.
 
 Feature Flags
 -------------
