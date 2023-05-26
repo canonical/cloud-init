@@ -30,11 +30,14 @@ This module configures remote system logging using rsyslog.
 Configuration for remote servers can be specified in ``configs``, but for
 convenience it can be specified as key value pairs in ``remotes``.
 
-This module can install rsyslog if it's not installed.
+This module can install rsyslog ``packages`` (Default: ``["rsyslog"]``) if
+``check_exe`` (Default: ``"rsyslogd"``) cannot be found.
+On many systems, this may not work, because networking isn't up yet.
+That's why ``install_rsyslog`` defaults to ``False``.
 
 .. note::
     On BSD cloud-init will attempt to disable and stop the base system syslogd.
-    This might not work in the first run on all systems.
+    This may fail on a first run.
     We recommend creating images with ``service syslogd disable``.
 """
 
@@ -79,6 +82,7 @@ meta: MetaSchema = {
                 config_dir: /usr/local/etc/rsyslog.d
                 check_exe: "rsyslogd"
                 packages: ["rsyslogd"]
+                install_rsyslog: True
             """
         ),
     ],
@@ -94,7 +98,8 @@ RSYSLOG_CONFIG = {
     "remotes": {},
     "configs": {},
     "check_exe": "rsyslogd",
-    "packages": [],
+    "packages": ["rsyslog"],
+    "install_rsyslog": False,
 }
 
 DISTRO_OVERRIDES = {
@@ -192,6 +197,7 @@ def load_config(cfg: dict, distro: Distro) -> dict:
         ),
         ("check_exe", distro_config["check_exe"], str),
         ("packages", distro_config["packages"], list),
+        ("install_rsyslog", distro_config["install_rsyslog"], bool),
     )
 
     for key, default, vtypes in fillup:
@@ -411,11 +417,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     service = cloud.distro.get_option("rsyslog_svcname", "rsyslog")
 
-    install_rsyslog(
-        cloud.distro.install_packages,
-        packages=mycfg["packages"],
-        check_exe=mycfg["check_exe"],
-    )
+    if mycfg["install_rsyslog"] is True:
+        install_rsyslog(
+            cloud.distro.install_packages,
+            packages=mycfg["packages"],
+            check_exe=mycfg["check_exe"],
+        )
+
     if util.is_BSD():
         cloud.distro.manage_service("enable", service)
         disable_and_stop_bsd_base_syslog(cloud)

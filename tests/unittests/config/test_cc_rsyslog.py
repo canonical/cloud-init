@@ -36,7 +36,8 @@ class TestLoadConfig(TestCase):
             "configs": [],
             "remotes": {},
             "check_exe": "rsyslogd",
-            "packages": [],
+            "packages": ["rsyslog"],
+            "install_rsyslog": False,
         }
         self.bsdcfg = {
             "config_filename": "20-cloud-config.conf",
@@ -46,6 +47,7 @@ class TestLoadConfig(TestCase):
             "remotes": {},
             "check_exe": "rsyslogd",
             "packages": ["rsyslog"],
+            "install_rsyslog": False,
         }
 
     def test_legacy_full(self, distro=None):

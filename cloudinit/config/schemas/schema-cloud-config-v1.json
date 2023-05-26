@@ -2384,6 +2384,11 @@
               },
               "uniqueItems": true,
               "description": "List of packages needed to be installed for rsyslog."
+            },
+            "install_rsyslog": {
+              "default": false,
+              "description": "Install rsyslog. Default: ``false``",
+              "type": "boolean"
             }
           }
         }
