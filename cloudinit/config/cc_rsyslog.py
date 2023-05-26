@@ -10,6 +10,7 @@
 
 """Rsyslog: Configure system logging via rsyslog"""
 
+import contextlib
 import copy
 import os
 import re
@@ -378,16 +379,15 @@ def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
     cloud.distro.manage_service("disable", "syslogd")
     cloud.distro.reload_init()
 
-    try:
+    with contextlib.suppress(subp.ProcessExecutionError):
         # for some inexplicable reason we're running after syslogd,
-        # try to stop it:
+        # try to stop it, ignoring failures, only log the fact that
+        # syslog is running, which it shouldn't be.
         cloud.distro.manage_service("onestop", "syslogd")
         LOG.error(
             "syslogd is running before cloud-init! "
             "Please report this as bug to the porters!"
         )
-    except subp.ProcessExecutionError:
-        pass
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
