@@ -13,6 +13,7 @@ import pytest
 from cloudinit import util
 from cloudinit.config.cc_rsyslog import (
     apply_rsyslog_changes,
+    handle,
     load_config,
     parse_remotes_line,
     remotes_to_rsyslog_cfg,
@@ -320,3 +321,41 @@ class TestInvalidKeyType:
         else:
             with pytest.raises(ValueError, match=re.escape(error_msg)):
                 callable_()
+
+
+class TestInstallRsyslog(TestCase):
+    @mock.patch("cloudinit.config.cc_rsyslog.subp.which")
+    def test_install_rsyslog_on_freebsd(self, m_which):
+        config = {
+            "install_rsyslog": True,
+            "packages": ["rsyslog"],
+            "check_exe": "rsyslogd",
+        }
+        # patch for ifconfig -a
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+        ):
+            cloud = get_cloud(distro="freebsd", metadata={})
+            m_which.return_value = None
+            with mock.patch.object(
+                cloud.distro, "install_packages"
+            ) as m_install:
+                handle("rsyslog", {"rsyslog": config}, cloud, None)
+            m_which.assert_called_with(config["check_exe"])
+            m_install.assert_called_with(config["packages"])
+
+    @mock.patch("cloudinit.config.cc_rsyslog.util.is_BSD")
+    @mock.patch("cloudinit.config.cc_rsyslog.subp.which")
+    def test_no_install_rsyslog_with_check_exe(self, m_which, m_isbsd):
+        config = {
+            "install_rsyslog": True,
+            "packages": ["rsyslog"],
+            "check_exe": "rsyslogd",
+        }
+        cloud = get_cloud(distro="ubuntu", metadata={})
+        m_isbsd.return_value = False
+        m_which.return_value = "/usr/sbin/rsyslogd"
+        with mock.patch.object(cloud.distro, "install_packages") as m_install:
+            handle("rsyslog", {"rsyslog": config}, cloud, None)
+        m_which.assert_called_with(config["check_exe"])
+        m_install.assert_not_called()
