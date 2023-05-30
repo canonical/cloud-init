@@ -112,7 +112,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle apk_repos sections in cloud-config file.
 
-    @param name: The module name "apk-configure" from cloud.cfg
+    @param name: The module name "apk_configure" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
     @param cloud: The CloudInit object in use.
     @param log: Pre-initialized Python logger object to use for logging.

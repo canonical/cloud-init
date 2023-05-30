@@ -130,7 +130,7 @@ cloud_config_modules:
 {% endif %}
  - locale
 {% endif %}
- - set-passwords
+ - set_passwords
 {% if is_rhel %}
  - rh_subscription
 {% endif %}
@@ -178,7 +178,7 @@ cloud_final_modules:
  - chef
  - ansible
  - mcollective
- - salt-minion
+ - salt_minion
  - reset_rmc
  - rightscale_userdata
  - scripts_vendor

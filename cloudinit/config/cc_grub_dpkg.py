@@ -96,7 +96,7 @@ def fetch_idevs():
             # something bad has happened, continue to log the error
             raise
     except Exception:
-        util.logexc(LOG, "grub-probe failed to execute for grub-dpkg")
+        util.logexc(LOG, "grub-probe failed to execute for grub_dpkg")
 
     if not disk or not os.path.exists(disk):
         # If we failed to detect a disk, we can return early

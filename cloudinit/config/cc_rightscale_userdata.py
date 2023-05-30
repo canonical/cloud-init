@@ -65,7 +65,7 @@ LOG = logging.getLogger(__name__)
 # - read the blob of data from raw user data, and parse it as key/value
 # - for each key that is found, download the content to
 #   the local instance/scripts directory and set them executable.
-# - the files in that directory will be run by the scripts-user module
+# - the files in that directory will be run by the scripts_user module
 #   Therefore, this must run before that.
 #
 #
