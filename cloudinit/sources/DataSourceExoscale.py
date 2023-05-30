@@ -40,11 +40,11 @@ class DataSourceExoscale(sources.DataSource):
         self.extra_config = {}
 
     def activate(self, cfg, is_new_instance):
-        """Adjust set-passwords module to run 'always' during each boot"""
+        """Adjust set_passwords module to run 'always' during each boot"""
         # We run the set password config module on every boot in order to
         # enable resetting the instance's password via the exoscale console
         # (and a subsequent instance reboot).
-        # Exoscale password server only provides set-passwords user-data if
+        # Exoscale password server only provides set_passwords user-data if
         # a user has triggered a password reset. So calling that password
         # service generally results in no additional cloud-config.
         # TODO(Create util functions for overriding merged sys_cfg module freq)
@@ -52,7 +52,7 @@ class DataSourceExoscale(sources.DataSource):
         sem_path = self.paths.get_ipath_cur("sem")
         sem_helper = helpers.FileSemaphores(sem_path)
         if sem_helper.clear("config_" + mod, None):
-            LOG.debug("Overriding module set-passwords with frequency always")
+            LOG.debug("Overriding module set_passwords with frequency always")
 
     def wait_for_metadata_service(self):
         """Wait for the metadata service to be reachable."""
