@@ -2373,9 +2373,14 @@
                 }
               ]
             },
+            "install_rsyslog": {
+              "default": false,
+              "description": "Install rsyslog. Default: ``false``",
+              "type": "boolean"
+            },
             "check_exe": {
               "type": "string",
-              "description": "The executable name for the rsyslog daemon.\nFor example, ``rsyslogd``, or ``/opt/sbin/rsyslogd`` if the rsyslog binary is in an unusual path."
+              "description": "The executable name for the rsyslog daemon.\nFor example, ``rsyslogd``, or ``/opt/sbin/rsyslogd`` if the rsyslog binary is in an unusual path. This is only used if ``install_rsyslog`` is ``true``. Default: ``rsyslogd``"
             },
             "packages": {
               "type": "array",
@@ -2383,12 +2388,7 @@
                 "type": "string"
               },
               "uniqueItems": true,
-              "description": "List of packages needed to be installed for rsyslog."
-            },
-            "install_rsyslog": {
-              "default": false,
-              "description": "Install rsyslog. Default: ``false``",
-              "type": "boolean"
+              "description": "List of packages needed to be installed for rsyslog. This is only used if ``install_rsyslog`` is ``true``. Default: ``[rsyslog]``"
             }
           }
         }
