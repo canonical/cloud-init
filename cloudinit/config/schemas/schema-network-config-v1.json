@@ -69,100 +69,111 @@
           "description": "The MTU size in bytes. This ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
         "params": {
-          "desciption": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the Linux Kernel :file:`Bonding.txt`.",
+          "desciption": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
           "additionalProperties": false,
           "properties": {
-            "bond_active_slave": {
+            "bond-active-slave": {
+              "type": "string",
+              "description": "Specifies active follower interface name for modes that support it (active-backup, balance-alb and balance-tlb)."
+            },
+            "bond-ad-actor-key": {
               "type": "string"
             },
-            "bond_ad_actor_key": {
+            "bond-ad-actor-sys-prio": {
+              "type": "integer",
+              "description": "In an AD system, set the system priority",
+	      "default": 65535
+            },
+            "bond-ad-actor-system": {
+              "type": "string"
+              "description": "In an AD system, set the mac-address for the actor in protocol packet exchanges (LACPDUs)"
+            },
+            "bond-ad-aggregator": {
               "type": "string"
             },
-            "bond_ad_actor_sys_prio": {
-              "type": "string"
-            },
-            "bond_ad_actor_system": {
-              "type": "string"
-            },
-            "bond_ad_aggregator": {
-              "type": "string"
-            },
-            "bond_ad_num_ports": {
+            "bond-ad-num-ports": {
               "type": "integer"
             },
-            "bond_ad_partner_key": {
+            "bond-ad-partner-key": {
               "type": "string"
             },
-            "bond_ad_partner_mac": {
+            "bond-ad-partner-mac": {
               "type": "string"
             },
-            "bond_ad_select": {
+            "bond-ad-select": {
+              "type": "string",
+              "description": "Specifies active follower interface name for modes that support it (active-backup, balance-alb and balance-tlb)."
+            },
+            "bond-ad-user-port-key": {
               "type": "string"
             },
-            "bond_ad_user_port_key": {
+            "bond-all-slaves-active": {
               "type": "string"
             },
-            "bond_all_slaves_active": {
+            "bond-arp-all-targets": {
               "type": "string"
             },
-            "bond_arp_all_targets": {
-              "type": "string"
-            },
-            "bond_arp_interval": {
+            "bond-arp-interval": {
               "type": "integer"
             },
-            "bond_arp_ip_target": {
+            "bond-arp-ip-target": {
               "type": "string"
             },
-            "bond_arp_validate": {
+            "bond-arp-validate": {
               "type": "boolean"
             },
-            "bond_downdelay": {
+            "bond-downdelay": {
+              "type": "integer",
+	      "description": "The time, in milliseconds, to wait before disabling a slave after a link failure has been detected. This option is only valid for the miimon link monitor and should be a multiple of ``bond-miimon` value."
+            },
+            "bond-fail-over-mac": {
+              "type": "string",
+	      "description": "Whether active-backup mode should set all slaves to the same MAC address at enslavement. See: https://www.kernel.org/doc/Documentation/networking/bonding.txt"
+            },
+            "bond-lacp-rate": {
               "type": "string"
             },
-            "bond_fail_over_mac": {
+            "bond-lp-interval": {
               "type": "string"
             },
-            "bond_lacp_rate": {
+            "bond-miimon": {
+              "type": "integer",
+	      "description": "The MII link monitoring frequency in milliseconds",
+	      "default": 0
+
+            },
+            "bond-mii-status": {
               "type": "string"
             },
-            "bond_lp_interval": {
+            "bond-mii-links": {
+              "type": "integer",
+	      "description": "The minimum number of links that must be active before asserting carrier."
+            },
+            "bond-mode": {
               "type": "string"
             },
-            "bond_miimon": {
-              "type": "string"
-            },
-            "bond_mii_status": {
-              "type": "string"
-            },
-            "bond_mii_links": {
+            "bond-num-grat-arp": {
               "type": "integer"
             },
-            "bond_mode": {
-              "type": "string"
-            },
-            "bond_num_grat_arp": {
+            "bond-num-unsol-na": {
               "type": "integer"
             },
-            "bond_num_unsol_na": {
+            "bond-packets-per-slave": {
               "type": "integer"
             },
-            "bond_packets_per_slave": {
-              "type": "integer"
-            },
-            "bond_primary": {
+            "bond-primary": {
               "type": "string"
             },
-            "bond_primary_reselect": {
+            "bond-primary-reselect": {
               "type": "string"
             },
-            "bond_queue_id": {
+            "bond-queue-id": {
               "type": "string"
             },
-            "bond_resend_igpm": {
+            "bond-resend-igpm": {
               "type": "string"
             },
-            "bond_slaves": {
+            "bond-slaves": {
               "type": "string"
             },
             "bond_tlb_dynamic_lb": {
@@ -176,216 +187,6 @@
             },
             "bond_xmit_has_policy": {
               "type": "string"
-            },
-            "bond-active-slave": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_active_slave`` instead."
-            },
-            "bond-ad-actor-key": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_actor_key`` instead."
-            },
-            "bond-ad-actor-sys-prio": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_actor_sys_prio`` instead."
-            },
-            "bond-ad-actor-system": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond-ad-actor-system`` instead."
-            },
-            "bond-ad-aggregator": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond-ad-aggregator`` instead."
-            },
-            "bond-ad-num-ports": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_num_ports`` instead."
-            },
-            "bond-ad-partner-key": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_partner_key`` instead."
-            },
-            "bond-ad-partner-mac": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_partner_mac`` instead."
-            },
-            "bond-ad-select": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_select`` instead."
-            },
-            "bond-ad-user-port-key": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_ad_user_port_key`` instead."
-            },
-            "bond-all-slaves-active": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_all_slaves_active`` instead."
-            },
-            "bond-arp-all-targets": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_arp_all_targets`` instead."
-            },
-            "bond-arp-interval": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_arp_interval`` instead."
-            },
-            "bond-arp-ip-target": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_apr_ip_target`` instead."
-            },
-            "bond-arp-validate": {
-              "type": "boolean",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_apr_validate`` instead."
-            },
-            "bond-downdelay": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_downdelay`` instead."
-            },
-            "bond-fail-over-mac": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_fail_over_mac`` instead."
-            },
-            "bond-lacp-rate": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_lacp_rate`` instead."
-            },
-            "bond-lp-interval": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_lp_interval`` instead."
-            },
-            "bond-miimon": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_miimon`` instead."
-            },
-            "bond-mii-status": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_mii_status`` instead."
-            },
-            "bond-mii-links": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_mii_links`` instead."
-            },
-            "bond-mode": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_mode`` instead."
-            },
-            "bond-num-grat-arp": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_num_grat_arp`` instead."
-            },
-            "bond-num-unsol-na": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_num_unsol_na`` instead."
-            },
-            "bond-packets-per-slave": {
-              "type": "integer",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_packages_per_slave`` instead."
-            },
-            "bond-primary": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_primary`` instead."
-            },
-            "bond-primary-reselect": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_primary_reselect`` instead."
-            },
-            "bond-queue-id": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_queue_id`` instead."
-            },
-            "bond-resend-igpm": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_resend_igpm`` instead."
-            },
-            "bond-slaves": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_slaves`` instead."
-            },
-            "bond-tlb-dynamic-lb": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_tlb_dynamic_lb`` instead."
-            },
-            "bond-updelay": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_updelay`` instead."
-            },
-            "bond-use-carrier": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_use_carrier`` instead."
-            },
-            "bond-xmit-has-policy": {
-              "type": "string",
-              "deprecated": true,
-              "deprecated_version": "23.3",
-              "deprecated_description": "Use ``bond_xmit_has_policy`` instead."
             }
           }
         },
@@ -435,7 +236,7 @@
             },
             "bridge_bridgeprio": {
               "type": "integer",
-              "description": "Set the bridge's device netework prioity."
+              "description": "Set the bridge's device network priority."
             },
             "bridge_fd": {
               "type": "integer",
