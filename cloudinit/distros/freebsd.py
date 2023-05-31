@@ -212,3 +212,15 @@ class Distro(cloudinit.distros.bsd.BSD):
             ["update"],
             freq=PER_INSTANCE,
         )
+
+    @staticmethod
+    def build_dhclient_cmd(
+        path: str,
+        lease_file: str,
+        pid_file: str,
+        interface: str,
+        config_file: str,
+    ) -> list:
+        return [path, "-l", lease_file, "-p", pid_file] + (
+            ["-c", config_file, interface] if config_file else [interface]
+        )

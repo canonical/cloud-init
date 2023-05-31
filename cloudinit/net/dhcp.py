@@ -225,6 +225,7 @@ class IscDhclient(DhcpClient):
         # scripts in /etc/dhcp/dhclient*hooks.d.
         pid_file = "/run/dhclient.pid"
         lease_file = "/run/dhclient.lease"
+        config_file = None
 
         # this function waits for these files to exist, clean previous runs
         # to avoid false positive in wait_for_files
@@ -236,23 +237,11 @@ class IscDhclient(DhcpClient):
         # Generally dhclient relies on dhclient-script PREINIT action to bring
         # the link up before attempting discovery. Since we are using
         # -sf /bin/true, we need to do that "link up" ourselves first.
-        subp.subp(["ip", "link", "set", "dev", interface, "up"], capture=True)
+        distro.net_ops.link_up(interface)
         # For INFINIBAND port the dhlient must be sent with
         # dhcp-client-identifier. So here we are checking if the interface is
         # INFINIBAND or not. If yes, we are generating the the client-id to be
         # used with the dhclient
-        cmd = [
-            self.dhclient_path,
-            "-1",
-            "-v",
-            "-lf",
-            lease_file,
-            "-pf",
-            pid_file,
-            interface,
-            "-sf",
-            "/bin/true",
-        ]
         if is_ib_interface(interface):
             dhcp_client_identifier = (
                 "20:%s" % get_interface_mac(interface)[36:]
@@ -263,13 +252,19 @@ class IscDhclient(DhcpClient):
                 % (interface, dhcp_client_identifier)
             )
             tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
-            file_name = os.path.join(tmp_dir, interface + "-dhclient.conf")
-            util.write_file(file_name, interface_dhclient_content)
-            cmd.append("-cf")
-            cmd.append(file_name)
+            config_file = os.path.join(tmp_dir, interface + "-dhclient.conf")
+            util.write_file(config_file, interface_dhclient_content)
 
         try:
-            out, err = subp.subp(cmd, capture=True)
+            out, err = subp.subp(
+                distro.build_dhclient_cmd(
+                    self.dhclient_path,
+                    lease_file,
+                    pid_file,
+                    interface,
+                    config_file,
+                )
+            )
         except subp.ProcessExecutionError as error:
             LOG.debug(
                 "dhclient exited with code: %s stderr: %r stdout: %r",

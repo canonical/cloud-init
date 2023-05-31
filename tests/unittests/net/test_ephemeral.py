@@ -43,7 +43,7 @@ class TestEphemeralIPNetwork:
                 mock.call(m_ephemeral_ip_v6_network.return_value)
             )
             assert [
-                mock.call(interface)
+                mock.call(distro, interface)
             ] == m_ephemeral_ip_v6_network.call_args_list
         else:
             assert [] == m_ephemeral_ip_v6_network.call_args_list

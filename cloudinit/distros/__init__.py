@@ -18,6 +18,7 @@ import urllib.parse
 from io import StringIO
 from typing import Any, Mapping, MutableMapping, Optional, Type
 
+import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import (
@@ -104,6 +105,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
+    net_ops = iproute2.Iproute2
 
     _ci_pkl_version = 1
     prefer_fqdn = False
@@ -118,6 +120,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.name = name
         self.networking: Networking = self.networking_cls()
         self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
+        self.net_ops = iproute2.Iproute2
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -1007,6 +1010,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ],
             **kwargs,
         )
+
+    @staticmethod
+    def build_dhclient_cmd(
+        path: str,
+        lease_file: str,
+        pid_file: str,
+        interface: str,
+        config_file: str,
+    ) -> list:
+        return [
+            path,
+            "-1",
+            "-v",
+            "-lf",
+            lease_file,
+            "-pf",
+            pid_file,
+            "-sf",
+            "/bin/true",
+        ] + (["-cf", config_file, interface] if config_file else [interface])
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
