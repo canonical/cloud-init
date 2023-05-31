@@ -35,6 +35,7 @@ class BSD(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         cfg["ssh_svcname"] = "sshd"
+        cfg["rsyslog_svcname"] = "rsyslogd"
         self.osfamily = platform.system().lower()
 
     def _read_system_hostname(self):

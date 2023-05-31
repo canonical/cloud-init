@@ -582,7 +582,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Check the values and create the command
         for key, val in sorted(kwargs.items()):
-
             if key in useradd_opts and val and isinstance(val, str):
                 useradd_cmd.extend([useradd_opts[key], val])
 
@@ -920,6 +919,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Reload systemd startup daemon.
+        May raise ProcessExecutionError
+        """
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
+            cmd = [init_cmd, "daemon-reload"]
+            return subp.subp(cmd, capture=True, rcs=rcs)
+
+    @classmethod
     def manage_service(
         cls, action: str, service: str, *extra_args: str, rcs=None
     ):
@@ -1128,10 +1138,10 @@ def _get_package_mirror_info(
         subst["region"] = data_source.region
 
     results = {}
-    for (name, mirror) in mirror_info.get("failsafe", {}).items():
+    for name, mirror in mirror_info.get("failsafe", {}).items():
         results[name] = mirror
 
-    for (name, searchlist) in mirror_info.get("search", {}).items():
+    for name, searchlist in mirror_info.get("search", {}).items():
         mirrors = []
         for tmpl in searchlist:
             try:

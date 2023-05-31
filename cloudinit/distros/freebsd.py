@@ -38,6 +38,20 @@ class Distro(cloudinit.distros.bsd.BSD):
     home_dir = "/usr/home"
 
     @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Tell rc to reload its configuration
+        Note that this only works while we're still in the process of booting.
+        May raise ProcessExecutionError
+        """
+        rc_pid = os.environ.get("RC_PID")
+        if rc_pid is None:
+            LOG.warning("Unable to reload rc(8): no RC_PID in Environment")
+            return
+
+        return subp.subp(["kill", "-SIGALRM", rc_pid], capture=True, rcs=rcs)
+
+    @classmethod
     def manage_service(
         cls, action: str, service: str, *extra_args: str, rcs=None
     ):
@@ -52,12 +66,15 @@ class Distro(cloudinit.distros.bsd.BSD):
             "stop": [service, "stop"],
             "start": [service, "start"],
             "enable": [service, "enable"],
+            "enabled": [service, "enabled"],
             "disable": [service, "disable"],
             "onestart": [service, "onestart"],
+            "onestop": [service, "onestop"],
             "restart": [service, "restart"],
             "reload": [service, "restart"],
             "try-reload": [service, "restart"],
             "status": [service, "status"],
+            "onestatus": [service, "onestatus"],
         }
         cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
