@@ -12,7 +12,7 @@ from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, bsd_utils
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
@@ -45,11 +45,11 @@ meta: MetaSchema = {
                 service_name: salt-minion
                 config_dir: /etc/salt
                 conf:
-                    # file_client: local
-                    # fileserver_backend:
-                    #   - gitfs
-                    # gitfs_remotes:
-                    #   - https://github.com/_user_/_repo_.git
+                    file_client: local
+                    fileserver_backend:
+                      - gitfs
+                    gitfs_remotes:
+                      - https://github.com/_user_/_repo_.git
                     master: salt.example.com
                 grains:
                     role:
@@ -82,7 +82,6 @@ class SaltConstants:
     """
 
     def __init__(self, cfg):
-
         # constants tailored for FreeBSD
         if util.is_FreeBSD():
             self.pkg_name = "py-salt"
@@ -151,10 +150,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             util.write_file(pub_name, s_cfg["public_key"])
             util.write_file(pem_name, s_cfg["private_key"])
 
-    minion_daemon = True
-
-    if minion_data and minion_data.get("file_client") == "local":
-        minion_daemon = False
+    minion_daemon = not bool(
+        minion_data and minion_data.get("file_client") == "local"
+    )
 
     cloud.distro.manage_service(
         "enable" if minion_daemon else "disable", const.srv_name
@@ -166,5 +164,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not minion_daemon:
         # if salt-minion was configured as masterless, we should not run
         # salt-minion as a daemon
-        # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html
+        # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html  # noqa: E501
         subp.subp(["salt-call", "--local", "state.apply"], capture=False)

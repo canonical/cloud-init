@@ -152,6 +152,12 @@ class MockDistro(distros.Distro):
     def do_as(self, command, args=None, **kwargs):
         return ("stdout", "stderr")
 
+    @classmethod
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
+        pass
+
 
 TEST_INSTANCE_ID = "i-testing"
 
