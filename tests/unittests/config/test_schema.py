@@ -723,7 +723,7 @@ class TestValidateCloudConfigFile:
         config_file = tmpdir.join("my.yaml")
         config_file.write("#junk")
         error_msg = (
-            f"No valid cloud-init user-data header in {config_file}.\n"
+            f'Unrecognized user-data header in {config_file}: "#junk".\n'
             "Expected first line to be one of: #!, ## template: jinja, "
             "#cloud-boothook, #cloud-config,"
         )
@@ -810,7 +810,7 @@ class TestValidateCloudConfigFile:
 
         error_msg = (
             "Cloud config schema errors: format-l1.c1: "
-            f"No valid cloud-init user-data header in {cloud_config_file}.\n"
+            f'Unrecognized user-data header in {cloud_config_file}: "".\n'
             "Expected first line to be one of: #!, ## template: jinja,"
             " #cloud-boothook, #cloud-config,"
         )
