@@ -12,6 +12,9 @@ pool {{pool}} iburst
 server {{server}} iburst
 {% endfor %}
 {% for peer in peers -%}
+{% if local_hostname == peer %}
+{# a host should not peer with itself #}
+{% else %}
 peer {{peer}}
 {% endfor %}
 {% for a in allow -%}
