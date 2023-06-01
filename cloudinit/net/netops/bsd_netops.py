@@ -29,7 +29,7 @@ class BsdNetOps(netops.NetOps):
 
     @staticmethod
     def append_route(interface: str, address: str, gateway: str):
-        return BsdNetOps.add_route(interface, address=address, gateway=gateway)
+        return BsdNetOps.add_route(interface, route=address, gateway=gateway)
 
     @staticmethod
     def del_route(
