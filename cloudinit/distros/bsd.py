@@ -39,7 +39,7 @@ class BSD(distros.Distro):
         cfg["ssh_svcname"] = "sshd"
         cfg["rsyslog_svcname"] = "rsyslogd"
         self.osfamily = platform.system().lower()
-        self.net_ops = bsd_netops
+        self.net_ops = bsd_netops.BsdNetOps
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
