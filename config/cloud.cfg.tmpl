@@ -54,11 +54,6 @@ preserve_hostname: false
 
 # If you use datasource_list array, keep array items in a single line.
 # If you use multi line array, ds-identify script won't read array items.
-{% if variant.endswith("bsd") %}
-# This should not be required, but leave it in place until the real cause of
-# not finding -any- datasources is resolved.
-datasource_list: ['NoCloud', 'ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
-{% endif %}
 # Example datasource config
 # datasource:
 #    Ec2:
