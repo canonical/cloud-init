@@ -326,7 +326,7 @@ class TestQuery:
             with mock.patch("os.getuid", return_value=0):
                 assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n '
+            '{\n "combined_cloud_config": null,\n "my-var": "it worked",\n '
             '"userdata": "instance_link_ud",\n '
             '"vendordata": "instance_link_vd"\n}\n'
         )
@@ -358,7 +358,7 @@ class TestQuery:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n '
+            '{\n "combined_cloud_config": null,\n "my-var": "it worked",\n '
             '"userdata": "ud",\n "vendordata": "vd"\n}\n'
         )
         out, _err = capsys.readouterr()
@@ -382,7 +382,9 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n "userdata": "<%s> file:ud",\n'
+            '{\n "combined_cloud_config": "<redacted for non-root user> file:'
+            '/run/cloud-init/combined-cloud-config.json",\n "my-var":'
+            ' "it worked",\n "userdata": "<%s> file:ud",\n'
             ' "vendordata": "<%s> file:vd"\n}\n'
             % (REDACT_SENSITIVE_VALUE, REDACT_SENSITIVE_VALUE)
         )
@@ -460,6 +462,7 @@ class TestQuery:
         expected = dedent(
             """\
             {
+             "combined_cloud_config": "<redacted for non-root user> %s",
              "top": "gun",
              "userdata": "<redacted for non-root user> file:ud",
              "v1": {
@@ -473,6 +476,7 @@ class TestQuery:
              "vendordata": "<redacted for non-root user> file:vd"
             }
         """
+            % "file:/run/cloud-init/combined-cloud-config.json"
         )
         args = self.Args(
             debug=False,
@@ -499,7 +503,10 @@ class TestQuery:
             '{"v1": {"v1_1": "val1.1"}, "v2": {"v2_2": "val2.2"},'
             ' "top": "gun"}'
         )
-        expected = "top\nuserdata\nv1\nv1_1\nv2\nv2_2\nvendordata\n"
+        expected = (
+            "combined_cloud_config\ntop\nuserdata\nv1\nv1_1\nv2\nv2_2\n"
+            "vendordata\n"
+        )
         args = self.Args(
             debug=False,
             dump_all=False,

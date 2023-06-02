@@ -399,7 +399,8 @@ class TestDataSource(CiTestCase):
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
-            "sensitive_keys": ["merged_cfg"],
+            "merged_system_cfg": REDACT_SENSITIVE_VALUE,
+            "sensitive_keys": ["merged_cfg", "merged_system_cfg"],
             "sys_info": sys_info,
             "v1": {
                 "_beta_keys": ["subplatform"],
@@ -468,7 +469,9 @@ class TestDataSource(CiTestCase):
         )
         self.assertCountEqual(
             (
+                "combined_cloud_config",
                 "merged_cfg",
+                "merged_system_cfg",
                 "security-credentials",
                 "userdata",
                 "user-data",
@@ -501,11 +504,13 @@ class TestDataSource(CiTestCase):
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
+            "merged_system_cfg": REDACT_SENSITIVE_VALUE,
             "sensitive_keys": [
                 "ds/meta_data/VENDOR-DAta",
                 "ds/meta_data/some/security-credentials",
                 "ds/meta_data/someother/nested/userData",
                 "merged_cfg",
+                "merged_system_cfg",
             ],
             "sys_info": sys_info,
             "v1": {
@@ -591,7 +596,9 @@ class TestDataSource(CiTestCase):
 
         self.assertCountEqual(
             (
+                "combined_cloud_config",
                 "merged_cfg",
+                "merged_system_cfg",
                 "security-credentials",
                 "userdata",
                 "user-data",
@@ -616,6 +623,13 @@ class TestDataSource(CiTestCase):
             "base64_encoded_keys": [],
             "merged_cfg": {
                 "_doc": (
+                    "DEPRECATED: Use merged_system_config. Will be dropped "
+                    "from 24.1"
+                ),
+                "datasource": {"_undef": {"key1": False}},
+            },
+            "merged_system_cfg": {
+                "_doc": (
                     "Merged cloud-init system config from "
                     "/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/"
                 ),
@@ -624,6 +638,7 @@ class TestDataSource(CiTestCase):
             "sensitive_keys": [
                 "ds/meta_data/some/security-credentials",
                 "merged_cfg",
+                "merged_system_cfg",
             ],
             "sys_info": sys_info,
             "v1": {

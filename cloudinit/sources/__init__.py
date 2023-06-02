@@ -262,7 +262,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
     sensitive_metadata_keys: Tuple[str, ...] = (
+        "combined_cloud_config",
         "merged_cfg",
+        "merged_system_cfg",
         "security-credentials",
         "userdata",
         "user-data",
@@ -478,7 +480,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         instance_data["ds"]["_doc"] = EXPERIMENTAL_TEXT
         # Add merged cloud.cfg and sys info for jinja templates and cli query
         instance_data["merged_cfg"] = copy.deepcopy(self.sys_cfg)
-        instance_data["merged_cfg"]["_doc"] = (
+        instance_data["merged_cfg"][
+            "_doc"
+        ] = "DEPRECATED: Use merged_system_config. Will be dropped from 24.1"
+        # Deprecate merged_cfg to a more specific key name merged_system_cfg
+        instance_data["merged_system_cfg"] = copy.deepcopy(
+            instance_data["merged_cfg"]
+        )
+        instance_data["merged_system_cfg"]["_doc"] = (
             "Merged cloud-init system config from /etc/cloud/cloud.cfg and"
             " /etc/cloud/cloud.cfg.d/"
         )

@@ -175,6 +175,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         vendor_data_fn = vendor_data
     else:
         vendor_data_fn = os.path.join(paths.instance_link, "vendor-data.txt")
+    combined_cloud_config_fn = paths.get_runpath("combined_cloud_config")
 
     try:
         instance_json = util.load_file(instance_data_fn)
@@ -186,6 +187,15 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         raise
 
     instance_data = util.load_json(instance_json)
+    try:
+        combined_cloud_config = util.load_json(
+            util.load_file(combined_cloud_config_fn)
+        )
+    except (IOError, OSError):
+        # File will not yet be present in init-local stage.
+        # It's created in `init` when vendor-data and user-data are processed.
+        combined_cloud_config = None
+
     if uid != 0:
         instance_data["userdata"] = "<%s> file:%s" % (
             REDACT_SENSITIVE_VALUE,
@@ -195,9 +205,14 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
             REDACT_SENSITIVE_VALUE,
             vendor_data_fn,
         )
+        instance_data["combined_cloud_config"] = "<%s> file:%s" % (
+            REDACT_SENSITIVE_VALUE,
+            combined_cloud_config_fn,
+        )
     else:
         instance_data["userdata"] = load_userdata(user_data_fn)
         instance_data["vendordata"] = load_userdata(vendor_data_fn)
+        instance_data["combined_cloud_config"] = combined_cloud_config
     return instance_data
 
 
