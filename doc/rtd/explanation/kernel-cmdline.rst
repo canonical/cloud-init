@@ -24,7 +24,7 @@ Datasource discovery override
 
 During boot, cloud-init must identify which datasource it is running on
 (OpenStack, AWS, Azure, GCP, etc). This discovery step can be optionally
-overriden by specifying the datasource name, such as:
+overridden by specifying the datasource name, such as:
 
 .. code-block:: text
 
