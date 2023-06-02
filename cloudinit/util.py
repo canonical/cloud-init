@@ -2695,7 +2695,7 @@ def parse_mount(path, get_mnt_opts=False):
         if match_mount_point == path:
             break
 
-    if path in mount_point:
+    if mount_point and path in mount_point:
         if get_mnt_opts:
             if devpth and fs_type and match_mount_point and mount_options:
                 return (devpth, fs_type, match_mount_point, mount_options)
