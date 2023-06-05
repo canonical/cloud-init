@@ -25,6 +25,7 @@ ethernets:
 # PermanentMACAdddress on networkd systems. This match clause will
 # not match LXD's veth devices which results in no IPv4 address
 # being allocated via DHCP. As a result, we match container by NIC name.
+# LP: #2022947 represents this netplan behavior
 NETWORK_CONFIG_CONTAINER = NETWORK_CONFIG.format(match_clause="name: eth0")
 
 # Match LXD VM by MAC just to assert plumbing is working by MAC
