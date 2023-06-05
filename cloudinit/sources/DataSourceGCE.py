@@ -5,13 +5,13 @@
 import datetime
 import json
 from base64 import b64decode
-from contextlib import suppress as noop
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit import sources, url_helper, util
+from cloudinit import net, sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.event import EventScope, EventType
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceHostname
 
@@ -26,6 +26,7 @@ GUEST_ATTRIBUTES_URL = (
 )
 HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
+DEFAULT_PRIMARY_INTERFACE = "ens4"
 
 
 class GoogleMetadataFetcher:
@@ -61,7 +62,6 @@ class GoogleMetadataFetcher:
 
 
 class DataSourceGCE(sources.DataSource):
-
     dsname = "GCE"
     perform_dhcp_setup = False
     default_update_events = {
@@ -88,13 +88,39 @@ class DataSourceGCE(sources.DataSource):
 
     def _get_data(self):
         url_params = self.get_url_params()
-        network_context = noop()
         if self.perform_dhcp_setup:
-            network_context = EphemeralDHCPv4(
-                self.distro,
-                self.fallback_interface,
+            candidate_nics = net.find_candidate_nics(
+                default_primary_interface=DEFAULT_PRIMARY_INTERFACE
             )
-        with network_context:
+            assert (
+                len(candidate_nics) >= 1
+            ), "The instance has to have at least one candidate NIC"
+            for candidate_nic in candidate_nics:
+                network_context = EphemeralDHCPv4(
+                    self.distro,
+                    iface=candidate_nic,
+                )
+                try:
+                    with network_context:
+                        ret = util.log_time(
+                            LOG.debug,
+                            "Crawl of GCE metadata service",
+                            read_md,
+                            kwargs={
+                                "address": self.metadata_address,
+                                "url_params": url_params,
+                            },
+                        )
+                    if ret["success"]:
+                        self._fallback_interface = candidate_nic
+                        break
+                except NoDHCPLeaseError:
+                    continue
+            if self._fallback_interface is None:
+                LOG.warning(
+                    "Did not find a fallback interface on %s.", self.cloud_name
+                )
+        else:
             ret = util.log_time(
                 LOG.debug,
                 "Crawl of GCE metadata service",
@@ -221,7 +247,6 @@ def _parse_public_keys(public_keys_data, default_user=None):
 
 
 def read_md(address=None, url_params=None, platform_check=True):
-
     if address is None:
         address = MD_V1_URL
 
@@ -256,7 +281,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     )
     md = {}
     # Iterate over url_map keys to get metadata items.
-    for (mkey, paths, required, is_text, is_recursive) in url_map:
+    for mkey, paths, required, is_text, is_recursive in url_map:
         value = None
         for path in paths:
             new_value = metadata_fetcher.get_value(path, is_text, is_recursive)

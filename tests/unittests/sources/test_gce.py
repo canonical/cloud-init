@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import responses
 
 from cloudinit import distros, helpers, settings
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceGCE
 from tests.unittests import helpers as test_helpers
 
@@ -401,8 +402,11 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
+    @mock.patch(M_PATH + "net.find_candidate_nics", return_value=["ens4"])
     @mock.patch(M_PATH + "DataSourceGCELocal.fallback_interface")
-    def test_local_datasource_uses_ephemeral_dhcp(self, _m_fallback, m_dhcp):
+    def test_local_datasource_uses_ephemeral_dhcp(
+        self, _m_fallback, _m_find_candidate_nics, m_dhcp
+    ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
@@ -411,6 +415,51 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         )
         ds._get_data()
         assert m_dhcp.call_count == 1
+
+    @mock.patch(M_PATH + "util.log_time")
+    @mock.patch(
+        M_PATH + "EphemeralDHCPv4",
+        autospec=True,
+    )
+    @mock.patch(M_PATH + "net.find_candidate_nics")
+    @mock.patch(M_PATH + "DataSourceGCELocal.fallback_interface")
+    def test_local_datasource_tries_on_multi_nic(
+        self, _m_fallback, m_find_candidate_nics, m_dhcp, m_read_md
+    ):
+        self._set_mock_metadata()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        ds = DataSourceGCE.DataSourceGCELocal(
+            sys_cfg={}, distro=distro, paths=None
+        )
+        m_find_candidate_nics.return_value = ["ens0p4", "ens0p5", "ens4"]
+        m_dhcp.return_value.__enter__.side_effect = (
+            None,
+            NoDHCPLeaseError,
+            None,
+        )
+        m_read_md.side_effect = (
+            {"success": False},
+            {
+                "success": True,
+                "platform_reports_gce": True,
+                "reason": "reason",
+                "user-data": "ud",
+                "meta-data": "md",
+            },
+        )
+        assert ds._get_data() is True
+        assert m_find_candidate_nics.call_args_list == [
+            mock.call(default_primary_interface="ens4")
+        ], "DEFAULT_PRIMARY_INTERFACE changed"
+        assert m_dhcp.call_args_list == [
+            mock.call(distro, iface="ens0p4"),
+            mock.call(distro, iface="ens0p5"),
+            mock.call(distro, iface="ens4"),
+        ]
+        assert ds._fallback_interface == "ens4"
+        assert ds.metadata == "md"
+        assert ds.userdata_raw == "ud"
 
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",

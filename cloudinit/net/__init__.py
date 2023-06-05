@@ -399,7 +399,9 @@ def is_disabled_cfg(cfg):
     return cfg.get("config") == "disabled"
 
 
-def find_candidate_nics() -> List[str]:
+def find_candidate_nics(
+    default_primary_interface: Optional[str] = None,
+) -> List[str]:
     """Get the list of network interfaces viable for networking.
 
     @return List of interfaces, sorted naturally.
@@ -409,7 +411,7 @@ def find_candidate_nics() -> List[str]:
     elif util.is_NetBSD() or util.is_OpenBSD():
         return find_candidate_nics_on_netbsd_or_openbsd()
     else:
-        return find_candidate_nics_on_linux()
+        return find_candidate_nics_on_linux(default_primary_interface)
 
 
 def find_fallback_nic() -> Optional[str]:
@@ -469,7 +471,9 @@ def find_fallback_nic_on_freebsd() -> Optional[str]:
     return None
 
 
-def find_candidate_nics_on_linux() -> List[str]:
+def find_candidate_nics_on_linux(
+    default_primary_interface: Optional[str] = None,
+) -> List[str]:
     """Get the names of the candidate network devices on Linux.
 
     @return List of sorted interfaces.
@@ -531,12 +535,14 @@ def find_candidate_nics_on_linux() -> List[str]:
     # 2. Remaining connected interfaces, naturally sorted.
     # 3. DEFAULT_PRIMARY_INTERFACE, if possibly connected.
     # 4. Remaining possibly connected interfaces, naturally sorted.
+    if not default_primary_interface:
+        default_primary_interface = DEFAULT_PRIMARY_INTERFACE
     sorted_interfaces = []
     for interfaces in [connected, possibly_connected]:
         interfaces = sorted(interfaces, key=natural_sort_key)
-        if DEFAULT_PRIMARY_INTERFACE in interfaces:
-            interfaces.remove(DEFAULT_PRIMARY_INTERFACE)
-            interfaces.insert(0, DEFAULT_PRIMARY_INTERFACE)
+        if default_primary_interface in interfaces:
+            interfaces.remove(default_primary_interface)
+            interfaces.insert(0, default_primary_interface)
         sorted_interfaces += interfaces
 
     return sorted_interfaces
@@ -664,7 +670,7 @@ def _get_current_rename_info(check_downable=True):
          }}
     """
     cur_info = {}
-    for (name, mac, driver, device_id) in get_interfaces():
+    for name, mac, driver, device_id in get_interfaces():
         cur_info[name] = {
             "downable": None,
             "device_id": device_id,
@@ -697,7 +703,6 @@ def _get_current_rename_info(check_downable=True):
 def _rename_interfaces(
     renames, strict_present=True, strict_busy=True, current_info=None
 ):
-
     if not len(renames):
         LOG.debug("no interfaces to rename")
         return
@@ -993,7 +998,6 @@ def get_interfaces_by_mac_on_linux() -> dict:
         # TODO: move this format to openstack
         ib_mac = get_ib_interface_hwaddr(name, True)
         if ib_mac:
-
             # If an Ethernet mac address happens to collide with a few bits in
             # an IB GUID, prefer the ethernet address.
             #
