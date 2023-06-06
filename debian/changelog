@@ -1,4 +1,4 @@
-cloud-init (23.1.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (23.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used.
   * d/apport-general-hook.py: Add general apport hook to append cloud type,
@@ -12,9 +12,11 @@ cloud-init (23.1.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
   * Refresh patches against upstream/main
     - d/p/expire-on-hashed-users.patch
     - d/p/retain-netplan-world-readable.patch
-  * Upstream snapshot based on upstream/main at d7bdba6f.
+  * Upstream snapshot based on 23.2. (LP: #2023110).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.2/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 05 Apr 2023 12:40:39 +0200
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 06 Jun 2023 16:08:25 -0600
 
 cloud-init (23.1.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
