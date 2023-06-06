@@ -74,6 +74,7 @@ SAMPLE_NETWORK_MANAGER_CONTENT = """\
 [connection]
 id=cloud-init eth0
 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+autoconnect-priority=120
 type=ethernet
 interface-name=eth0
 

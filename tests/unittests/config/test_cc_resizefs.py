@@ -191,7 +191,7 @@ class TestResizefs(CiTestCase):
             handle("cc_resizefs", cfg, cloud=None, args=[])
             ret = dresize.call_args[0]
 
-        self.assertEqual(("zpool", "online", "-e", "vmzroot", disk), ret)
+        self.assertEqual((("zpool", "online", "-e", "vmzroot", disk),), ret)
 
     @mock.patch("cloudinit.util.is_container", return_value=False)
     @mock.patch("cloudinit.util.get_mount_info")
@@ -224,7 +224,7 @@ class TestResizefs(CiTestCase):
                 m_stat.side_effect = fake_stat
                 handle("cc_resizefs", cfg, cloud=None, args=[])
         self.assertEqual(
-            ("zpool", "online", "-e", "zroot", "/dev/" + disk),
+            (("zpool", "online", "-e", "zroot", "/dev/" + disk),),
             dresize.call_args[0],
         )
 

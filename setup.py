@@ -46,7 +46,10 @@ def pkg_config_read(library, var):
             "systemdsystemconfdir": "/etc/systemd/system",
             "systemdsystemunitdir": "/lib/systemd/system",
             "systemdsystemgeneratordir": "/lib/systemd/system-generators",
-        }
+        },
+        "udev": {
+            "udevdir": "/lib/udev",
+        },
     }
     cmd = ["pkg-config", "--variable=%s" % var, library]
     try:
@@ -147,7 +150,6 @@ INITSYS_FILES = {
     "sysvinit_netbsd": [f for f in glob("sysvinit/netbsd/*") if is_f(f)],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
-    "sysvinit_suse": [f for f in glob("sysvinit/suse/*") if is_f(f)],
     "systemd": [
         render_tmpl(f)
         for f in (
@@ -170,7 +172,6 @@ INITSYS_ROOTS = {
     "sysvinit_netbsd": "usr/local/etc/rc.d",
     "sysvinit_deb": "etc/init.d",
     "sysvinit_openrc": "etc/init.d",
-    "sysvinit_suse": "etc/init.d",
     "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"
@@ -309,14 +310,13 @@ data_files = [
     ),
 ]
 if not platform.system().endswith("BSD"):
-
-    RULES_PATH = LIB
-    if os.path.isfile("/etc/redhat-release"):
-        RULES_PATH = "/usr/lib"
+    RULES_PATH = pkg_config_read("udev", "udevdir")
+    if not in_virtualenv():
+        RULES_PATH = "/" + RULES_PATH
 
     data_files.extend(
         [
-            (RULES_PATH + "/udev/rules.d", [f for f in glob("udev/*.rules")]),
+            (RULES_PATH + "/rules.d", [f for f in glob("udev/*.rules")]),
             (
                 ETC + "/systemd/system/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],

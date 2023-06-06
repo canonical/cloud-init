@@ -66,6 +66,7 @@ class DataSourceNWCS(sources.DataSource):
             LOG.info("Attempting to get metadata via DHCP")
 
             with EphemeralDHCPv4(
+                self.distro,
                 iface=net.find_fallback_nic(),
                 connectivity_url_data={
                     "url": BASE_URL_V1 + "/metadata/instance-id",

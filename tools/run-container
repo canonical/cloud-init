@@ -8,7 +8,7 @@ set -u
 VERBOSITY=0
 KEEP=false
 CONTAINER=""
-DEFAULT_WAIT_MAX=30
+WAIT_MAX=30
 
 error() { echo "$@" 1>&2; }
 fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
@@ -39,6 +39,7 @@ Usage: ${0##*/} [ options ] [images:]image-ref
       -s | --source-package  build source package (debuild -S or srpm)
       -u | --unittest        run unit tests
            --vm              use a VM instead of a container
+           --wait-max        max time to wait or a container or VM to be ready
 
     Example:
       * ${0##*/} --package --source-package --unittest centos/6
@@ -319,7 +320,7 @@ is_done_other() {
 }
 
 wait_inside() {
-    local name="$1" max="${2:-${DEFAULT_WAIT_MAX}}" debug=${3:-0}
+    local name="$1" max="${2:-${WAIT_MAX}}" debug=${3:-0}
     local i=0 check="is_done_other";
     if [ -e /run/systemd ]; then
         check=is_done_systemd
@@ -340,7 +341,7 @@ wait_inside() {
 
 wait_for_boot() {
     local name="$1"
-    local out="" ret="" wtime=$DEFAULT_WAIT_MAX
+    local out="" ret="" wtime=$WAIT_MAX
     local system_up=false
     for i in {0..30}; do
         [ "$i" -gt 1 ] && sleep 5
@@ -400,7 +401,7 @@ run_self_inside_as_cd() {
 
 main() {
     local short_opts="a:hknpsuv"
-    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose,vm"
+    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose,vm,wait-max:"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -425,6 +426,7 @@ main() {
             -u|--unittest) unittest=1;;
             -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
                --vm) use_vm=true;;
+               --wait-max) WAIT_MAX="$next"; shift;;
             --) shift; break;;
         esac
         shift;

@@ -7,6 +7,7 @@ from unittest import mock
 import pytest
 
 from cloudinit import atomic_helper, util
+from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import retarget_many_wrapper
 
 FS_FUNCS = {
@@ -81,3 +82,10 @@ if PYTEST_VERSION_TUPLE < (3, 9, 0):
     @pytest.fixture
     def tmp_path(tmpdir):
         return Path(tmpdir)
+
+
+if HAS_HYPOTHESIS:
+    from hypothesis import settings  # pylint: disable=import-error
+
+    settings.register_profile("ci", max_examples=1000)
+    settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))

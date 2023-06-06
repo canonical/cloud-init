@@ -9,7 +9,7 @@ import logging
 import os
 import re
 
-from cloudinit import subp, util
+from cloudinit import net, subp, util
 from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 
 logger = logging.getLogger(__name__)
@@ -245,10 +245,7 @@ class NicConfigurator:
 
     def clear_dhcp(self):
         logger.info("Clearing DHCP leases")
-
-        # Ignore the return code 1.
-        subp.subp(["pkill", "dhclient"], rcs=[0, 1])
-        subp.subp(["rm", "-f", "/var/lib/dhcp/*"])
+        net.dhcp.IscDhclient.clear_leases()
 
     def configure(self, osfamily=None):
         """
@@ -280,6 +277,3 @@ class NicConfigurator:
         util.write_file(interfaceFile, content="\n".join(lines))
 
         self.clear_dhcp()
-
-
-# vi: ts=4 expandtab

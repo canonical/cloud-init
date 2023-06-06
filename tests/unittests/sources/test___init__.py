@@ -13,11 +13,15 @@ from tests.unittests.helpers import mock
         "ci.ds=OpenStack",
         "aosiejfoij ci.ds=OpenStack blah",
         "aosiejfoij ci.ds=OpenStack faljskebflk",
+        "ci.ds=OpenStack;",
+        "ci.ds=openstack;",
         # test ci.datasource=
         "aosiejfoij ci.datasource=OpenStack ",
         "ci.datasource=OpenStack",
         "aosiejfoij ci.datasource=OpenStack blah",
         "aosiejfoij ci.datasource=OpenStack faljskebflk",
+        "ci.datasource=OpenStack;",
+        "ci.datasource=openstack;",
         # weird whitespace
         "ci.datasource=OpenStack\n",
         "ci.datasource=OpenStack\t",
@@ -36,5 +40,6 @@ def test_ds_detect_kernel_commandline(m_cmdline):
         return_value=m_cmdline,
     ):
         assert (
-            ds.DataSourceOpenStack.dsname == sources.parse_cmdline()
+            ds.DataSourceOpenStack.dsname.lower()
+            == sources.parse_cmdline().lower()
         ), f"could not parse [{m_cmdline}]"

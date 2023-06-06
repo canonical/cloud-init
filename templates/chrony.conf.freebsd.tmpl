@@ -42,6 +42,12 @@ server {{server}} iburst
 pool {{pool}} iburst
 {% endfor %}
 
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
+{% endfor %}
 #######################################################################
 ### AVOIDING POTENTIALLY BOGUS CHANGES TO YOUR CLOCK
 #

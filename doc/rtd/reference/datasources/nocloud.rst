@@ -3,22 +3,43 @@
 NoCloud
 *******
 
-The data source ``NoCloud`` allows the user to provide user data and metadata
-to the instance without running a network service (or even without having a
-network at all).
+The data source ``NoCloud`` is a flexible datasource that can be used in
+multiple different ways. With NoCloud, the user can provide user data and
+metadata to the instance without running a network service (or even without
+having a network at all). Alternatively, one may use a custom webserver to
+provide configurations.
 
-You can provide metadata and user data to a local VM boot via files on a
-`vfat`_ or `iso9660`_ filesystem. The filesystem volume label must be
-``cidata`` or ``CIDATA``.
+Configuration Methods:
+======================
 
-Alternatively, you can provide metadata via the kernel command line or SMBIOS
-"serial number" option. The data must be passed in the form of a string: ::
+Method 1: Local filesystem, labeled filesystem
+----------------------------------------------
 
-  ds=nocloud[;key=val;key=val]
+To provide cloud-init configurations from the local filesystem, a labeled
+`vfat`_ or `iso9660`_ filesystem containing user data and metadata may
+be used. For this method to work, the filesystem volume must be labelled
+``CIDATA``.
 
-or, ::
+Method 2: Local filesystem, kernel commandline or SMBIOS
+--------------------------------------------------------
 
-  ds=nocloud-net[;key=val;key=val]
+Configuration files can be provided on the local filesystem without a label
+using kernel commandline arguments or SMBIOS serial number to tell cloud-init
+where on the filesystem to look.
+
+Alternatively, one can provide metadata via the kernel command line or SMBIOS
+"serial number" option. This argument might look like: ::
+
+  ds=nocloud s=file://path/to/directory/;h=node-42
+
+Method 3: Custom webserver: kernel commandline or SMBIOS
+--------------------------------------------------------
+
+In a similar fashion, configuration files can be provided to cloud-init using a
+custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
+serial number. This argument might look like: ::
+
+  ds=nocloud s=http://10.42.42.42/cloud-init/configs/
 
 Permitted keys
 ==============
@@ -29,9 +50,44 @@ The permitted keys are:
 * ``i`` or ``instance-id``
 * ``s`` or ``seedfrom``
 
-With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
-``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
-with ``http://`` or ``https://`` and end with a trailing ``/``.
+A valid ``seedfrom`` value consists of:
+
+Filesystem
+----------
+
+A filesystem path starting with ``/`` or ``file://`` that points to a directory
+containing files: ``user-data``, ``meta-data``, and (optionally)
+``vendor-data``
+
+HTTP server
+-----------
+
+An ``http`` or ``https`` URL (a trailing ``/`` is required)
+
+
+File formats
+============
+
+These user data and metadata files are required as separate files at the
+same base URL: ::
+
+  /user-data
+  /meta-data
+
+Both files must be present for it to be considered a valid seed ISO.
+
+The ``user-data`` file uses :ref:`user data format<user_data_formats>` and
+``meta-data`` is a YAML-formatted file representing what you'd find in the EC2
+metadata service.
+
+You may also optionally provide a vendor data file adhering to
+:ref:`user data formats<user_data_formats>` at the same base URL: ::
+
+  /vendor-data
+
+
+DMI-specific kernel commandline
+===============================
 
 Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
 kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).
@@ -69,28 +125,9 @@ YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`
 (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data after
 the network initialisation is complete.
 
-File formats
-============
 
-These user data and metadata files are required as separate files at the
-same base URL: ::
-
-  /user-data
-  /meta-data
-
-Both files must be present for it to be considered a valid seed ISO.
-
-Basically, ``user-data`` is simply :ref:`user data<user_data_formats>` and
-``meta-data`` is a YAML-formatted file representing what you'd find in the EC2
-metadata service.
-
-You may also optionally provide a vendor data file adhering to
-:ref:`user data formats<user_data_formats>` at the same base URL: ::
-
-  /vendor-data
-
-Creating a disk
-===============
+Example: Creating a disk
+========================
 
 Given a disk Ubuntu cloud image in :file:`disk.img`, you can create a
 sufficient disk by following the following example.
