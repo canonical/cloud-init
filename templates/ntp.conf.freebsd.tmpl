@@ -22,12 +22,13 @@
 tos minclock 3 maxclock 6
 
 #
-# The following pool statement will give you a random set of NTP servers
-# geographically close to you.  A single pool statement adds multiple
-# servers from the pool, according to the tos minclock/maxclock targets.
+# The following pool statements will give you a random set of IPv4 and IPv6
+# NTP servers geographically close to you.  A single pool statement adds
+# multiple servers from the pool, according to the tos minclock/maxclock
+# targets.
 # See http://www.pool.ntp.org/ for details.  Note, pool.ntp.org encourages
 # users with a static IP and good upstream NTP servers to add a server
-# to the pool. See http://www.pool.ntp.org/join.html if you are interested.
+# to the pool.  See http://www.pool.ntp.org/join.html if you are interested.
 #
 # The option `iburst' is used for faster initial synchronization.
 #
@@ -35,6 +36,9 @@ tos minclock 3 maxclock 6
 {% endif %}
 {% for pool in pools -%}
 pool {{pool}} iburst
+{% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
 {% endfor %}
 
 #

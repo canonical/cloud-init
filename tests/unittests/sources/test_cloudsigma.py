@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 
-from cloudinit import distros, helpers, sources
+import copy
+from unittest import mock
+
+from cloudinit import distros, helpers, importer, sources
 from cloudinit.sources import DataSourceCloudSigma
 from cloudinit.sources.helpers.cloudsigma import Cepko
 from tests.unittests import helpers as test_helpers
@@ -137,8 +139,15 @@ class DsLoads(test_helpers.TestCase):
         ds_list = DataSourceCloudSigma.get_datasource_list(deps)
         self.assertEqual(ds_list, [DataSourceCloudSigma.DataSourceCloudSigma])
 
+    @mock.patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ["CloudSigma"], (sources.DEP_FILESYSTEM,), ["cloudinit.sources"]
+            ["CloudSigma"],
+            (sources.DEP_FILESYSTEM,),
+            ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma], found)

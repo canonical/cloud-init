@@ -632,6 +632,7 @@ dns = none
 [connection]
 id=cloud-init eth0
 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+autoconnect-priority=120
 type=ethernet
 
 [user]
@@ -1123,6 +1124,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init eth1
                 uuid=3c50eb47-7260-5a6d-801d-bd4f587d6b58
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -1140,6 +1142,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init eth99
                 uuid=b1b88000-1f03-5360-8377-1a2205efffb4
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -1239,6 +1242,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1370,6 +1374,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1410,6 +1415,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1510,6 +1516,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1740,6 +1747,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1851,6 +1859,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -1973,6 +1982,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -2049,6 +2059,7 @@ NETWORK_CONFIGS = {
                 [connection]
                 id=cloud-init iface0
                 uuid=8ddfba48-857c-5e86-ac09-1b43eae0bf70
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=iface0
 
@@ -2523,6 +2534,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth3
                 uuid=b7e95dda-7746-5bf8-bf33-6e5f3c926790
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bridge
                 master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
@@ -2542,6 +2554,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth5
                 uuid=5fda13c7-9942-5e90-a41b-1d043bd725dc
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -2563,6 +2576,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init ib0
                 uuid=11a1dda7-78b4-5529-beba-d9b5f549ad7b
+                autoconnect-priority=120
                 type=infiniband
 
                 [user]
@@ -2587,6 +2601,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init bond0.200
                 uuid=88984a9c-ff22-5233-9267-86315e0acaa7
+                autoconnect-priority=120
                 type=vlan
                 interface-name=bond0.200
 
@@ -2610,6 +2625,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth0
                 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -2627,6 +2643,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth4
                 uuid=e27e4959-fb50-5580-b9a4-2073554627b9
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bridge
                 master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
@@ -2646,6 +2663,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth1
                 uuid=3c50eb47-7260-5a6d-801d-bd4f587d6b58
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bond
                 master=54317911-f840-516b-a10d-82cb4c1f075c
@@ -2665,6 +2683,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init br0
                 uuid=dee46ce4-af7a-5e7c-aa08-b25533ae9213
+                autoconnect-priority=120
                 type=bridge
                 interface-name=br0
 
@@ -2696,6 +2715,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth0.101
                 uuid=b5acec5e-db80-5935-8b02-0d5619fc42bf
+                autoconnect-priority=120
                 type=vlan
                 interface-name=eth0.101
 
@@ -2724,6 +2744,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init bond0
                 uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
                 type=bond
                 interface-name=bond0
 
@@ -2748,6 +2769,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [connection]
                 id=cloud-init eth2
                 uuid=5559a242-3421-5fdd-896e-9cb8313d5804
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bond
                 master=54317911-f840-516b-a10d-82cb4c1f075c
@@ -3276,6 +3298,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init bond0s0
                 uuid=09d0b5b9-67e7-5577-a1af-74d1cf17a71e
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bond
                 master=54317911-f840-516b-a10d-82cb4c1f075c
@@ -3295,6 +3318,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init bond0s1
                 uuid=4d9aca96-b515-5630-ad83-d13daac7f9d0
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bond
                 master=54317911-f840-516b-a10d-82cb4c1f075c
@@ -3314,6 +3338,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init bond0
                 uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
                 type=bond
                 interface-name=bond0
 
@@ -3442,6 +3467,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init en0.99
                 uuid=f594e2ed-f107-51df-b225-1dc530a5356b
+                autoconnect-priority=120
                 type=vlan
                 interface-name=en0.99
 
@@ -3474,6 +3500,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init en0
                 uuid=e0ca478b-8d84-52ab-8fae-628482c629b5
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -3602,6 +3629,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init br0
                 uuid=dee46ce4-af7a-5e7c-aa08-b25533ae9213
+                autoconnect-priority=120
                 type=bridge
                 interface-name=br0
 
@@ -3626,6 +3654,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init eth0
                 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bridge
                 master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
@@ -3650,6 +3679,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init eth1
                 uuid=3c50eb47-7260-5a6d-801d-bd4f587d6b58
+                autoconnect-priority=120
                 type=ethernet
                 slave-type=bridge
                 master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
@@ -3807,6 +3837,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init eth0
                 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -3829,6 +3860,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init eth1
                 uuid=3c50eb47-7260-5a6d-801d-bd4f587d6b58
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -3851,6 +3883,7 @@ iface bond0 inet6 static
                 [connection]
                 id=cloud-init eth2
                 uuid=5559a242-3421-5fdd-896e-9cb8313d5804
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -4045,7 +4078,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
             },
@@ -4078,7 +4111,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                     "set-name": "eth0",
                     "match": {
                         "macaddress": "00:11:22:33:44:55",
-                        "driver": "hv_netsvc",
+                        "driver": "hv_netvsc",
                     },
                 }
             },
@@ -4099,7 +4132,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -4164,7 +4197,7 @@ iface eth0 inet dhcp
         expected_rule = [
             'SUBSYSTEM=="net"',
             'ACTION=="add"',
-            'DRIVERS=="hv_netsvc"',
+            'DRIVERS=="hv_netvsc"',
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth0"',
         ]
@@ -4173,7 +4206,7 @@ iface eth0 inet dhcp
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
-    def test_device_driver_blacklist(
+    def test_hv_netvsc_vf_filter(
         self, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
     ):
         devices = {
@@ -4183,7 +4216,7 @@ iface eth0 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -4195,7 +4228,7 @@ iface eth0 inet dhcp
                 "carrier": False,
                 "dormant": False,
                 "operstate": "down",
-                "address": "00:11:22:33:44:56",
+                "address": "00:11:22:33:44:55",
                 "device/driver": "mlx4_core",
                 "device/device": "0x7",
                 "name_assign_type": "4",
@@ -4214,10 +4247,7 @@ iface eth0 inet dhcp
             dev_attrs=devices,
         )
 
-        blacklist = ["mlx4_core"]
-        network_cfg = net.generate_fallback_config(
-            blacklist_drivers=blacklist, config_driver=True
-        )
+        network_cfg = net.generate_fallback_config(config_driver=True)
         ns = network_state.parse_net_config_data(
             network_cfg, skip_broken=False
         )
@@ -4251,7 +4281,7 @@ iface eth1 inet dhcp
         expected_rule = [
             'SUBSYSTEM=="net"',
             'ACTION=="add"',
-            'DRIVERS=="hv_netsvc"',
+            'DRIVERS=="hv_netvsc"',
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth1"',
         ]
@@ -4278,7 +4308,7 @@ iface eth1 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": False,
             },
@@ -4327,7 +4357,7 @@ iface eth1 inet dhcp
                 "dormant": False,
                 "operstate": "down",
                 "address": "00:11:22:33:44:55",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": False,
             },
@@ -5252,7 +5282,7 @@ USERCTL=no
                 "dormant": False,
                 "operstate": "down",
                 "address": "CF:D6:AF:48:E8:80",
-                "device/driver": "hv_netsvc",
+                "device/driver": "hv_netvsc",
                 "device/device": "0x3",
                 "name_assign_type": "4",
                 "addr_assign_type": "0",
@@ -5717,6 +5747,7 @@ class TestNetworkManagerRendering(CiTestCase):
                 [connection]
                 id=cloud-init eth1000
                 uuid=8c517500-0c95-5308-9c8a-3092eebc44eb
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -5771,6 +5802,7 @@ class TestNetworkManagerRendering(CiTestCase):
                 [connection]
                 id=cloud-init interface0
                 uuid=8b6862ed-dbd6-5830-93f7-a91451c13828
+                autoconnect-priority=120
                 type=ethernet
 
                 [user]
@@ -5807,6 +5839,7 @@ class TestNetworkManagerRendering(CiTestCase):
                 [connection]
                 id=cloud-init eth0
                 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
                 type=ethernet
                 interface-name=eth0
 
@@ -6470,7 +6503,7 @@ class TestNetplanPostcommands(CiTestCase):
     @mock.patch.object(netplan.Renderer, "_net_setup_link")
     @mock.patch("cloudinit.subp.subp")
     def test_netplan_render_calls_postcmds(
-        self, mock_subp, mock_netplan_generate, mock_net_setup_link
+        self, mock_subp, mock_net_setup_link, mock_netplan_generate
     ):
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg, skip_broken=False)
@@ -6485,7 +6518,7 @@ class TestNetplanPostcommands(CiTestCase):
         mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
-        mock_netplan_generate.assert_called_with(run=True)
+        mock_netplan_generate.assert_called_with(run=True, same_content=False)
         mock_net_setup_link.assert_called_with(run=True)
 
     @mock.patch("cloudinit.util.SeLinuxGuard")
@@ -8490,14 +8523,14 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_duplicate_macs(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", "0x3"),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", "0x5"),
         ]
         current_info = {
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,
@@ -8524,14 +8557,14 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_duplicate_macs_driver_no_devid(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", None),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", None),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", None),
         ]
         current_info = {
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,
@@ -8558,7 +8591,7 @@ class TestRenameInterfaces(CiTestCase):
     @mock.patch("cloudinit.subp.subp")
     def test_rename_multi_mac_dups(self, mock_subp):
         renames = [
-            ("00:11:22:33:44:55", "eth0", "hv_netsvc", "0x3"),
+            ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
             ("00:11:22:33:44:55", "vf1", "mlx4_core", "0x5"),
             ("00:11:22:33:44:55", "vf2", "mlx4_core", "0x7"),
         ]
@@ -8566,7 +8599,7 @@ class TestRenameInterfaces(CiTestCase):
             "eth0": {
                 "downable": True,
                 "device_id": "0x3",
-                "driver": "hv_netsvc",
+                "driver": "hv_netvsc",
                 "mac": "00:11:22:33:44:55",
                 "name": "eth0",
                 "up": False,

@@ -150,6 +150,7 @@ class DataSourceOracle(sources.DataSource):
         self.system_uuid = _read_system_uuid()
 
         network_context = ephemeral.EphemeralDHCPv4(
+            self.distro,
             iface=net.find_fallback_nic(),
             connectivity_url_data={
                 "url": METADATA_PATTERN.format(version=2, path="instance"),
@@ -409,5 +410,3 @@ if __name__ == "__main__":
             }
         )
     )
-
-# vi: ts=4 expandtab

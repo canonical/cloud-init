@@ -173,6 +173,8 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
+FIPS_UNSUPPORTED_KEY_NAMES = ["dsa", "ed25519"]
+
 pattern_unsupported_config_keys = re.compile(
     "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
 )
@@ -258,9 +260,26 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         genkeys = util.get_cfg_option_list(
             cfg, "ssh_genkeytypes", GENERATE_KEY_NAMES
         )
+        # remove keys that are not supported in fips mode if its enabled
+        key_names = (
+            genkeys
+            if not util.fips_enabled()
+            else [
+                names
+                for names in genkeys
+                if names not in FIPS_UNSUPPORTED_KEY_NAMES
+            ]
+        )
+        skipped_keys = set(genkeys).difference(key_names)
+        if skipped_keys:
+            LOG.debug(
+                "skipping keys that are not supported in fips mode: %s",
+                ",".join(skipped_keys),
+            )
+
         lang_c = os.environ.copy()
         lang_c["LANG"] = "C"
-        for keytype in genkeys:
+        for keytype in key_names:
             keyfile = KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
                 continue
@@ -279,9 +298,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     gid = util.get_group_id("ssh_keys")
                     if gid != -1:
                         # perform same "sanitize permissions" as sshd-keygen
+                        permissions_private = 0o600
+                        ssh_version = ssh_util.get_opensshd_upstream_version()
+                        if ssh_version and ssh_version < util.Version(9, 0):
+                            permissions_private = 0o640
                         os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, 0o640)
-                        os.chmod(keyfile + ".pub", 0o644)
+                        os.chmod(keyfile, permissions_private)
+                        os.chmod(f"{keyfile}.pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if e.exit_code == 1 and err.lower().startswith(

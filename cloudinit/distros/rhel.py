@@ -13,6 +13,7 @@ from cloudinit import distros, helpers
 from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros import rhel_util
+from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -104,7 +105,9 @@ class Distro(distros.Distro):
         # systemd will never update previous-hostname for us, so
         # we need to do it ourselves
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            util.write_file(filename, hostname)
+            conf = HostnameConf("")
+            conf.set_hostname(hostname)
+            util.write_file(filename, str(conf), 0o644)
         elif self.uses_systemd():
             subp.subp(["hostnamectl", "set-hostname", str(hostname)])
         else:

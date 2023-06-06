@@ -1573,6 +1573,30 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
+    @pytest.mark.parametrize("log_error", [True, False])
+    @mock.patch(M_PATH + "subp.subp")
+    def test_mount_cb_log(self, m_subp, log_error, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/fake0' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "", "unknown filesystem type 'ntfs'"
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(Exception):
+            util.mount_cb(
+                "/dev/fake0",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=log_error,
+            )
+        if log_error:
+            assert log_msg in caplog.text
+        else:
+            assert log_msg not in caplog.text
+
 
 @mock.patch(M_PATH + "write_file")
 class TestEnsureFile:
@@ -1947,6 +1971,31 @@ class TestGetCmdline(helpers.TestCase):
         self.assertEqual("abcd 123", ret)
 
 
+class TestFipsEnabled:
+    @pytest.mark.parametrize(
+        "fips_enabled_content,expected",
+        (
+            pytest.param(None, False, id="false_when_no_fips_enabled_file"),
+            pytest.param("0\n", False, id="false_when_fips_disabled"),
+            pytest.param("1\n", True, id="true_when_fips_enabled"),
+            pytest.param("1", True, id="true_when_fips_enabled_no_newline"),
+        ),
+    )
+    @mock.patch(M_PATH + "load_file")
+    def test_fips_enabled_based_on_proc_crypto(
+        self, load_file, fips_enabled_content, expected, tmpdir
+    ):
+        def fake_load_file(path):
+            assert path == "/proc/sys/crypto/fips_enabled"
+            if fips_enabled_content is None:
+                raise IOError("No file exists Bob")
+            return fips_enabled_content
+
+        load_file.side_effect = fake_load_file
+
+        assert expected is util.fips_enabled()
+
+
 class TestLoadYaml(helpers.CiTestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
     with_logs = True
@@ -2048,7 +2097,6 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
             self.assertEqual(expected, util.parse_mount_info("/", lines))
 
     def test_precise_ext4_root(self):
-
         lines = helpers.readResource("mountinfo_precise_ext4.txt").splitlines()
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
@@ -2491,7 +2539,6 @@ class TestEncode(helpers.TestCase):
 
 
 class TestProcessExecutionError(helpers.TestCase):
-
     template = (
         "{description}\n"
         "Command: {cmd}\n"
@@ -2802,7 +2849,6 @@ class TestHuman2Bytes:
                 util.human2bytes(test_i)
 
     def test_ibibytes2bytes(self):
-
         assert util.human2bytes("0.5GiB") == 536870912
         assert util.human2bytes("100MiB") == 104857600
 
@@ -3043,3 +3089,24 @@ class TestResolvable:
         assert util.is_resolvable("http://169.254.169.254/") is True
         assert util.is_resolvable("http://[fd00:ec2::254]/") is True
         assert not m_getaddr.called
+
+
+class TestHashBuffer:
+    def test_in_memory(self):
+        buf = io.BytesIO(b"hola")
+        assert (
+            util.hash_buffer(buf)
+            == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+        )
+
+    def test_file(self, tmp_path):
+        content = b"hola"
+        file = tmp_path / "file.txt"
+        with file.open("wb") as f:
+            f.write(content)
+
+        with file.open("rb") as f:
+            assert (
+                util.hash_buffer(f)
+                == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+            )

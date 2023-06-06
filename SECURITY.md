@@ -4,13 +4,10 @@ The following documents the upstream cloud-init security policy.
 
 ## Reporting
 
-If a user finds a security issue, they are requested to file a [private
-security bug on Launchpad](https://bugs.launchpad.net/cloud-init/+filebug).
-To ensure the information stays private, change the "This bug contains
-information that is:" from "Public" to "Private Security" when filing.
-
-After the bug is received, the issue is triaged within 2 working days of
-being reported and a response is sent to the reporter.
+If a security bug is found, please send an email to
+cloud-init-security@lists.canonical.com . After the bug is received,
+the issue is triaged within 2 working days of being reported and a response
+is sent to the reporter.
 
 ## cloud-init-security
 

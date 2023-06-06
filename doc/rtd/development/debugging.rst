@@ -321,5 +321,5 @@ this will produce no output:
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
-.. _new cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
+.. _new cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _#cloud-init IRC channel: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init

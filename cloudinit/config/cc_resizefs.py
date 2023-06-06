@@ -299,14 +299,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             logfunc=LOG.debug,
             msg="backgrounded Resizing",
             func=do_resize,
-            args=(resize_cmd),
+            args=(resize_cmd,),
         )
     else:
         util.log_time(
             logfunc=LOG.debug,
             msg="Resizing",
             func=do_resize,
-            args=(resize_cmd),
+            args=(resize_cmd,),
         )
 
     action = "Resized"
