@@ -67,7 +67,7 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 
 # Used for when a logger may not be active

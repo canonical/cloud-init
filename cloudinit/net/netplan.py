@@ -1,6 +1,7 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import io
 import ipaddress
 import os
 import textwrap
@@ -277,30 +278,47 @@ class Renderer(renderer.Renderer):
         fpnplan = os.path.join(subp.target_path(target), self.netplan_path)
 
         util.ensure_dir(os.path.dirname(fpnplan))
-        header = self.netplan_header if self.netplan_header else ""
 
         # render from state
         content = self._render_content(network_state)
 
+        # normalize header
+        header = self.netplan_header if self.netplan_header else ""
         if not header.endswith("\n"):
             header += "\n"
+        content = header + content
+
+        # determine if existing config files have the same content
+        same_content = False
+        if os.path.exists(fpnplan):
+            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
+            with open(fpnplan, "rb") as f:
+                hashed_original_content = util.hash_buffer(f)
+            if hashed_content == hashed_original_content:
+                same_content = True
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        if os.path.exists(fpnplan):
+        if not same_content and os.path.exists(fpnplan):
             current_mode = util.get_permissions(fpnplan)
             if current_mode & mode == current_mode:
                 # preserve mode if existing perms are more strict than default
                 mode = current_mode
-        util.write_file(fpnplan, header + content, mode=mode)
+        util.write_file(fpnplan, content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
-        self._netplan_generate(run=self._postcmds)
+        self._netplan_generate(run=self._postcmds, same_content=same_content)
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run=False):
+    def _netplan_generate(self, run: bool = False, same_content: bool = False):
         if not run:
             LOG.debug("netplan generate postcmd disabled")
+            return
+        if same_content:
+            LOG.debug(
+                "skipping call to `netplan generate`."
+                " reason: identical netplan config"
+            )
             return
         subp.subp(self.NETPLAN_GENERATE, capture=True)
 

@@ -44,7 +44,7 @@ class TestUGNormalize(TestCase):
                 {"bob": "users2"},
             ]
         }
-        (_users, groups) = self._norm(g, distro)
+        _users, groups = self._norm(g, distro)
         self.assertIn("ubuntu", groups)
         ub_members = groups["ubuntu"]
         self.assertEqual(sorted(["foo", "bar"]), sorted(ub_members))
@@ -57,7 +57,7 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "groups": ["bob"],
         }
-        (users, groups) = self._norm(ug_cfg, distro)
+        users, groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", groups)
         self.assertEqual({}, users)
 
@@ -66,7 +66,7 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "groups": "bob,joe,steve",
         }
-        (users, groups) = self._norm(ug_cfg, distro)
+        users, groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", groups)
         self.assertIn("joe", groups)
         self.assertIn("steve", groups)
@@ -75,7 +75,7 @@ class TestUGNormalize(TestCase):
     def test_more_groups(self):
         distro = self._make_distro("ubuntu")
         ug_cfg = {"groups": ["bob", "joe", "steve"]}
-        (users, groups) = self._norm(ug_cfg, distro)
+        users, groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", groups)
         self.assertIn("joe", groups)
         self.assertIn("steve", groups)
@@ -90,7 +90,7 @@ class TestUGNormalize(TestCase):
                 "steve": [],
             }
         }
-        (users, groups) = self._norm(ug_cfg, distro)
+        users, groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", groups)
         self.assertEqual(["s"], groups["bob"])
         self.assertEqual([], groups["joe"])
@@ -105,21 +105,21 @@ class TestUGNormalize(TestCase):
                 "default": True,
             }
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         ug_cfg = {
             "users": {
                 "default": "yes",
             }
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         ug_cfg = {
             "users": {
                 "default": "1",
             }
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
 
     def test_users_simple_dict_no(self):
@@ -129,14 +129,14 @@ class TestUGNormalize(TestCase):
                 "default": False,
             }
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertEqual({}, users)
         ug_cfg = {
             "users": {
                 "default": "no",
             }
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertEqual({}, users)
 
     def test_users_simple_csv(self):
@@ -144,7 +144,7 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "users": "joe,bob",
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("joe", users)
         self.assertIn("bob", users)
         self.assertEqual({"default": False}, users["joe"])
@@ -155,29 +155,31 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "users": ["joe", "bob"],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("joe", users)
         self.assertIn("bob", users)
         self.assertEqual({"default": False}, users["joe"])
         self.assertEqual({"default": False}, users["bob"])
+        users, _groups = self._norm({"users": []}, distro)
+        self.assertEqual({}, users)
 
     def test_users_old_user(self):
         distro = self._make_distro("ubuntu", bcfg)
         ug_cfg = {"user": "zetta", "users": "default"}
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertNotIn("bob", users)  # Bob is not the default now, zetta is
         self.assertIn("zetta", users)
         self.assertTrue(users["zetta"]["default"])
         self.assertNotIn("default", users)
         ug_cfg = {"user": "zetta", "users": "default, joe"}
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertNotIn("bob", users)  # Bob is not the default now, zetta is
         self.assertIn("joe", users)
         self.assertIn("zetta", users)
         self.assertTrue(users["zetta"]["default"])
         self.assertNotIn("default", users)
         ug_cfg = {"user": "zetta", "users": ["bob", "joe"]}
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         self.assertIn("joe", users)
         self.assertIn("zetta", users)
@@ -189,7 +191,7 @@ class TestUGNormalize(TestCase):
                 "joe": True,
             },
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         self.assertIn("joe", users)
         self.assertIn("zetta", users)
@@ -197,10 +199,10 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "user": "zetta",
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("zetta", users)
         ug_cfg = {}
-        (users, groups) = self._norm(ug_cfg, distro)
+        users, groups = self._norm(ug_cfg, distro)
         self.assertEqual({}, users)
         self.assertEqual({}, groups)
 
@@ -209,7 +211,7 @@ class TestUGNormalize(TestCase):
         ug_cfg = {
             "users": [{"name": "default", "blah": True}],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         self.assertEqual(
             ",".join(distro.get_default_user()["groups"]),
@@ -225,7 +227,7 @@ class TestUGNormalize(TestCase):
                 "default",
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         (name, config) = ug_util.extract_default(users)
         self.assertEqual(name, "bob")
@@ -252,7 +254,7 @@ class TestUGNormalize(TestCase):
                 "default",
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("bob", users)
         self.assertEqual(
             ",".join(distro.get_default_user()["groups"]),
@@ -268,7 +270,7 @@ class TestUGNormalize(TestCase):
                 {"name": "bob"},
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("joe", users)
         self.assertIn("bob", users)
         self.assertEqual({"tr_me": True, "default": False}, users["joe"])
@@ -282,7 +284,7 @@ class TestUGNormalize(TestCase):
                 {"name": "bob"},
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         self.assertIn("joe", users)
         self.assertIn("bob", users)
         self.assertEqual({"default": False}, users["joe"])
@@ -299,7 +301,7 @@ class TestUGNormalize(TestCase):
                 {"name": "joe", "snapuser": "joe@joe.com"},
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         for (user, config) in users.items():
             print("user=%s config=%s" % (user, config))
             username = distro.create_user(user, **config)
@@ -319,7 +321,7 @@ class TestUGNormalize(TestCase):
                 {"name": "joe", "snapuser": "joe@joe.com", "known": True},
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         for (user, config) in users.items():
             print("user=%s config=%s" % (user, config))
             username = distro.create_user(user, **config)
@@ -350,7 +352,7 @@ class TestUGNormalize(TestCase):
                 {"name": "joe", "groups": "users", "create_groups": True},
             ],
         }
-        (users, _groups) = self._norm(ug_cfg, distro)
+        users, _groups = self._norm(ug_cfg, distro)
         for (user, config) in users.items():
             print("user=%s config=%s" % (user, config))
             distro.add_user(user, **config)

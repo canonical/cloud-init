@@ -203,7 +203,9 @@ class Init:
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
-            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
+            # At this point the log file should have already been created
+            # in the setupLogging function of log.py
+            util.ensure_file(log_file, mode=0o640, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}

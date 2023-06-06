@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import base64
-import enum
 import json
 import logging
 import os
@@ -13,13 +12,16 @@ from contextlib import contextmanager
 from datetime import datetime
 from errno import ENOENT
 from time import sleep, time
-from typing import Callable, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import distros, dmi, subp, temp_utils, url_helper, util, version
+from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
 from cloudinit.settings import CFG_BUILTIN
+
+if TYPE_CHECKING:
+    from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -44,12 +46,6 @@ azure_ds_reporter = events.ReportEventStack(
     reporting_enabled=True,
 )
 
-DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
-    "The VM encountered an error during deployment. "
-    "Please visit https://aka.ms/linuxprovisioningerror "
-    "for more information on remediation."
-)
-
 T = TypeVar("T")
 
 
@@ -63,34 +59,6 @@ def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
             return func(*args, **kwargs)
 
     return impl
-
-
-def is_byte_swapped(previous_id, current_id):
-    """
-    Azure stores the instance ID with an incorrect byte ordering for the
-    first parts. This corrects the byte order such that it is consistent with
-    that returned by the metadata service.
-    """
-    if previous_id == current_id:
-        return False
-
-    def swap_bytestring(s, width=2):
-        dd = [byte for byte in textwrap.wrap(s, 2)]
-        dd.reverse()
-        return "".join(dd)
-
-    parts = current_id.split("-")
-    swapped_id = "-".join(
-        [
-            swap_bytestring(parts[0]),
-            swap_bytestring(parts[1]),
-            swap_bytestring(parts[2]),
-            parts[3],
-            parts[4],
-        ]
-    )
-
-    return previous_id == swapped_id
 
 
 @azure_ds_telemetry_reporter
@@ -1053,9 +1021,9 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(endpoint: str):
+def report_failure_to_fabric(endpoint: str, error: "errors.ReportableError"):
     shim = WALinuxAgentShim(endpoint=endpoint)
-    description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    description = error.as_encoded_report()
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:
@@ -1077,32 +1045,6 @@ class BrokenAzureDataSource(Exception):
 
 class NonAzureDataSource(Exception):
     pass
-
-
-class ChassisAssetTag(enum.Enum):
-    AZURE_CLOUD = "7783-7084-3265-9085-8269-3286-77"
-
-    @classmethod
-    def query_system(cls) -> Optional["ChassisAssetTag"]:
-        """Check platform environment to report if this datasource may run.
-
-        :returns: ChassisAssetTag if matching tag found, else None.
-        """
-        asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-        try:
-            tag = cls(asset_tag)
-        except ValueError:
-            report_diagnostic_event(
-                "Non-Azure chassis asset tag: %r" % asset_tag,
-                logger_func=LOG.debug,
-            )
-            return None
-
-        report_diagnostic_event(
-            "Azure chassis asset tag: %r (%s)" % (asset_tag, tag.name),
-            logger_func=LOG.debug,
-        )
-        return tag
 
 
 class OvfEnvXml:

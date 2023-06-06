@@ -62,7 +62,7 @@ Having trouble? We would like to help!
   ``cloud-init``
 - :ref:`Try the FAQ<faq>` for answers to some common questions
 - You can also search the ``cloud-init`` `mailing list archive`_
-- Find a bug? `Report bugs on Launchpad`_
+- Find a bug? `Report bugs on GitHub Issues`_
 
 Project and community
 =====================
@@ -72,6 +72,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
 
 * Read our `Code of Conduct`_
 * Ask questions in the ``#cloud-init`` `IRC channel on Libera`_
+* Follow announcements or ask a question on `the cloud-init Discourse forum`_
 * Join the `cloud-init mailing list`_
 * :ref:`Contribute on GitHub<contributing>`
 * `Release schedule`_
@@ -90,7 +91,8 @@ projects, contributions, suggestions, fixes and constructive feedback.
 .. LINKS
 .. _Code of Conduct: https://ubuntu.com/community/code-of-conduct
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
+.. _the cloud-init Discourse forum: https://discourse.ubuntu.com/c/server/cloud-init/
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
 .. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
-.. _Report bugs on Launchpad: https://bugs.launchpad.net/cloud-init/+filebug
+.. _Report bugs on GitHub Issues: https://github.com/canonical/cloud-init/issues

@@ -1,7 +1,6 @@
 import abc
 import logging
 import os
-from typing import List, Optional
 
 from cloudinit import net, subp, util
 from cloudinit.distros.parsers import ifconfig
@@ -23,9 +22,6 @@ class Networking(metaclass=abc.ABCMeta):
     Hierarchy" in CONTRIBUTING.rst for full details.
     """
 
-    def __init__(self):
-        self.blacklist_drivers: Optional[List[str]] = None
-
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
 
@@ -45,15 +41,11 @@ class Networking(metaclass=abc.ABCMeta):
     def extract_physdevs(self, netcfg: NetworkConfig) -> list:
         return net.extract_physdevs(netcfg)
 
-    def find_fallback_nic(self, *, blacklist_drivers=None):
-        return net.find_fallback_nic(blacklist_drivers=blacklist_drivers)
+    def find_fallback_nic(self):
+        return net.find_fallback_nic()
 
-    def generate_fallback_config(
-        self, *, blacklist_drivers=None, config_driver: bool = False
-    ):
-        return net.generate_fallback_config(
-            blacklist_drivers=blacklist_drivers, config_driver=config_driver
-        )
+    def generate_fallback_config(self, *, config_driver: bool = False):
+        return net.generate_fallback_config(config_driver=config_driver)
 
     def get_devicelist(self) -> list:
         return net.get_devicelist()
@@ -73,9 +65,7 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_interfaces()
 
     def get_interfaces_by_mac(self) -> dict:
-        return net.get_interfaces_by_mac(
-            blacklist_drivers=self.blacklist_drivers
-        )
+        return net.get_interfaces_by_mac()
 
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)

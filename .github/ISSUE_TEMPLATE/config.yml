@@ -1,0 +1,4 @@
+contact_links:
+  - name: "Get Help"
+    about: "Links to documentation and community support"
+    url: "https://cloudinit.readthedocs.io/en/latest/#project-and-community"

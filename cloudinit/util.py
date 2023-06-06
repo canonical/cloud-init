@@ -365,7 +365,7 @@ def uniq_merge(*lists):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.items():
+    for k, v in FN_REPLACEMENTS.items():
         fn = fn.replace(k, v)
     removals = []
     for k in fn:
@@ -585,7 +585,7 @@ def get_linux_distro():
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
-        elif distro_name == "photon":
+        elif distro_name == "alpine" or distro_name == "photon":
             flavor = os_release.get("PRETTY_NAME", "")
         elif distro_name == "virtuozzo" and not os_release_rhel:
             # Only use this if the redhat file is not parsed
@@ -767,7 +767,6 @@ def fixup_output(cfg, mode):
 #   value then output input will not be closed (useful for debugging).
 #
 def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
-
     if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDOUT")):
         LOG.debug("Not redirecting output due to _CLOUD_INIT_SAVE_STDOUT")
         return
@@ -1264,7 +1263,7 @@ def is_resolvable(url) -> bool:
                     iname, None, 0, 0, socket.SOCK_STREAM, socket.AI_CANONNAME
                 )
                 badresults[iname] = []
-                for (_fam, _stype, _proto, cname, sockaddr) in result:
+                for _fam, _stype, _proto, cname, sockaddr in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
             except (socket.gaierror, socket.error):
@@ -1578,6 +1577,18 @@ def get_cmdline():
     return _get_cmdline()
 
 
+def fips_enabled() -> bool:
+    fips_proc = "/proc/sys/crypto/fips_enabled"
+    try:
+        contents = load_file(fips_proc).strip()
+        return contents == "1"
+    except (IOError, OSError):
+        # for BSD systems and Linux systems where the proc entry is not
+        # available, we assume FIPS is disabled to retain the old behavior
+        # for now.
+        return False
+
+
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
     while True:
@@ -1725,7 +1736,7 @@ def logexc(log, msg, *args):
     log.debug(msg, exc_info=exc_info, *args)
 
 
-def hash_blob(blob, routine, mlen=None):
+def hash_blob(blob, routine: str, mlen=None) -> str:
     hasher = hashlib.new(routine)
     hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
@@ -1734,6 +1745,18 @@ def hash_blob(blob, routine, mlen=None):
         return digest[0:mlen]
     else:
         return digest
+
+
+def hash_buffer(f: io.BufferedIOBase) -> bytes:
+    """Hash the content of a binary buffer using SHA1.
+
+    @param f: buffered binary stream to hash.
+    @return: digested data as bytes.
+    """
+    hasher = hashlib.sha1()
+    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
+        hasher.update(chunk)
+    return hasher.digest()
 
 
 def is_user(name):
@@ -1884,7 +1907,12 @@ def mounts():
 
 
 def mount_cb(
-    device, callback, data=None, mtype=None, update_env_for_mount=None
+    device,
+    callback,
+    data=None,
+    mtype=None,
+    update_env_for_mount=None,
+    log_error=True,
 ):
     """
     Mount the device, call method 'callback' passing the directory
@@ -1944,15 +1972,16 @@ def mount_cb(
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug(
-                        "Failed to mount device: '%s' with type: '%s' "
-                        "using mount command: '%s', "
-                        "which caused exception: %s",
-                        device,
-                        mtype,
-                        " ".join(mountcmd),
-                        exc,
-                    )
+                    if log_error:
+                        LOG.debug(
+                            "Failed to mount device: '%s' with type: '%s' "
+                            "using mount command: '%s', "
+                            "which caused exception: %s",
+                            device,
+                            mtype,
+                            " ".join(mountcmd),
+                            exc,
+                        )
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError(
@@ -2536,7 +2565,9 @@ def parse_mtab(path):
 
 def find_freebsd_part(fs):
     splitted = fs.split("/")
-    if len(splitted) == 3:
+    if len(splitted) == 1:
+        return splitted[0]
+    elif len(splitted) == 3:
         return splitted[2]
     elif splitted[2] in ["label", "gpt", "ufs"]:
         target_label = fs[5:]
@@ -2549,14 +2580,6 @@ def find_freebsd_part(fs):
         return str(part)
     else:
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
-
-
-def find_dragonflybsd_part(fs):
-    splitted = fs.split("/")
-    if len(splitted) == 3 and splitted[1] == "dev":
-        return splitted[2]
-    else:
-        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
 
 
 def get_path_dev_freebsd(path, mnt_list):

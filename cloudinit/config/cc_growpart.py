@@ -32,7 +32,9 @@ MODULE_DESCRIPTION = """\
 Growpart resizes partitions to fill the available disk space.
 This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
-use of the extra space.
+use of the extra space. Note that this only works if the partition to be
+resized is the last one on a disk with classic partitioning scheme (MBR, BSD,
+GPT). LVM, Btrfs and ZFS have no such restrictions.
 
 The devices on which to run growpart are specified as a list under the
 ``devices`` key.
@@ -47,6 +49,14 @@ prevent ``cloud-initramfs-tools`` from running ``growroot``, the file
 it is present. However, this file can be ignored for ``cc_growpart`` by setting
 ``ignore_growroot_disabled`` to ``true``. For more information on
 ``cloud-initramfs-tools`` see: https://launchpad.net/cloud-initramfs-tools
+
+On FreeBSD, there is also the ``growfs`` service, which has a lot of overlap
+with ``cc_growpart`` and ``cc_resizefs``, but only works on the root partition.
+In that configuration, we use it, otherwise, we fall back to ``gpart``.
+
+Note however, that ``growfs`` may insert a swap partition, if none is present,
+unless instructed not to via ``growfs_swap_size=0`` in either ``kenv(1)``, or
+``rc.conf(5)``.
 
 Growpart is enabled by default on the root partition. The default config for
 growpart is::
@@ -108,12 +118,12 @@ class RESIZE:
 LOG = logging.getLogger(__name__)
 
 
-def resizer_factory(mode: str, distro: Distro):
+def resizer_factory(mode: str, distro: Distro, devices: list):
     resize_class = None
     if mode == "auto":
-        for (_name, resizer) in RESIZERS:
+        for _name, resizer in RESIZERS:
             cur = resizer(distro)
-            if cur.available():
+            if cur.available(devices=devices):
                 resize_class = cur
                 break
 
@@ -122,14 +132,14 @@ def resizer_factory(mode: str, distro: Distro):
 
     else:
         mmap = {}
-        for (k, v) in RESIZERS:
+        for k, v in RESIZERS:
             mmap[k] = v
 
         if mode not in mmap:
             raise TypeError("unknown resize mode %s" % mode)
 
         mclass = mmap[mode](distro)
-        if mclass.available():
+        if mclass.available(devices=devices):
             resize_class = mclass
 
         if not resize_class:
@@ -147,7 +157,7 @@ class Resizer(ABC):
         self._distro = distro
 
     @abstractmethod
-    def available(self) -> bool:
+    def available(self, devices: list) -> bool:
         ...
 
     @abstractmethod
@@ -156,7 +166,7 @@ class Resizer(ABC):
 
 
 class ResizeGrowPart(Resizer):
-    def available(self):
+    def available(self, devices: list):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
 
@@ -206,8 +216,36 @@ class ResizeGrowPart(Resizer):
         return (before, get_size(partdev))
 
 
+class ResizeGrowFS(Resizer):
+    """
+    Use FreeBSD ``growfs`` service to grow root partition to fill available
+    space, optionally adding a swap partition at the end.
+
+    Note that the service file warns us that it uses ``awk(1)``, and as
+    such requires ``/usr`` to be present. However, cloud-init is installed
+    into ``/usr/local``, so we should be fine.
+
+    We invoke the ``growfs`` with ``service growfs onestart``, so it
+    doesn't need to be enabled in ``rc.conf``.
+    """
+
+    def available(self, devices: list):
+        """growfs only works on the root partition"""
+        return os.path.isfile("/etc/rc.d/growfs") and devices == ["/"]
+
+    def resize(self, diskdev, partnum, partdev):
+        before = get_size(partdev)
+        try:
+            self._distro.manage_service(action="onestart", service="growfs")
+        except subp.ProcessExecutionError as e:
+            util.logexc(LOG, "Failed: service growfs onestart")
+            raise ResizeFailedException(e) from e
+
+        return (before, get_size(partdev))
+
+
 class ResizeGpart(Resizer):
-    def available(self):
+    def available(self, devices: list):
         myenv = os.environ.copy()
         myenv["LANG"] = "C"
 
@@ -263,16 +301,16 @@ def device_part_info(devpath):
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
 
-    # FreeBSD doesn't know of sysfs so just get everything we need from
-    # the device, like /dev/vtbd0p2.
-    if util.is_FreeBSD():
-        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
-        m = re.search("^(/dev/.+)p([0-9])$", freebsd_part)
-        return (m.group(1), m.group(2))
-    elif util.is_DragonFlyBSD():
-        dragonflybsd_part = "/dev/" + util.find_dragonflybsd_part(devpath)
-        m = re.search("^(/dev/.+)s([0-9])$", dragonflybsd_part)
-        return (m.group(1), m.group(2))
+    if util.is_BSD():
+        # FreeBSD doesn't know of sysfs so just get everything we need from
+        # the device, like /dev/vtbd0p2.
+        fpart = "/dev/" + util.find_freebsd_part(devpath)
+        # Handle both GPT partions and MBR slices with partitions
+        m = re.search(
+            r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
+        )
+        if m:
+            return m["dev"], m["part_slice"]
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -600,7 +638,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     try:
-        resizer = resizer_factory(mode, cloud.distro)
+        resizer = resizer_factory(mode, distro=cloud.distro, devices=devices)
     except (ValueError, TypeError) as e:
         LOG.debug("growpart unable to find resizer for '%s': %s", mode, e)
         if mode != "auto":
@@ -613,13 +651,15 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         func=resize_devices,
         args=(resizer, devices),
     )
-    for (entry, action, msg) in resized:
+    for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
             LOG.info("'%s' resized: %s", entry, msg)
         else:
             LOG.debug("'%s' %s: %s", entry, action, msg)
 
 
-RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))
-
-# vi: ts=4 expandtab
+RESIZERS = (
+    ("growpart", ResizeGrowPart),
+    ("growfs", ResizeGrowFS),
+    ("gpart", ResizeGpart),
+)

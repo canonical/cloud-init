@@ -309,5 +309,5 @@ References
 .. _this comment in PR #363: https://github.com/canonical/cloud-init/pull/363#issuecomment-628829489
 .. _abstractmethod: https://docs.python.org/3/library/abc.html#abc.abstractmethod
 .. _type aliases: https://docs.python.org/3/library/typing.html#type-aliases
-.. _the list of bugs tagged net-refactor: https://bugs.launchpad.net/cloud-init/+bugs?field.tag=net-refactor
+.. _the list of bugs tagged net-refactor: https://github.com/canonical/cloud-init/issues?q=is%3Aissue+is%3Aopen+net-refactor
 

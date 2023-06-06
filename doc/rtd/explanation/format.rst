@@ -6,6 +6,8 @@ User data formats
 User data that will be acted upon by ``cloud-init`` must be in one of the
 following types.
 
+.. _user_data_formats-cloud_config:
+
 Cloud config data
 =================
 

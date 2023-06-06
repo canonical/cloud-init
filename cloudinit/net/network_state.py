@@ -675,7 +675,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
           eno1:
             match:
               macaddress: 00:11:22:33:44:55
-              driver: hv_netsvc
+              driver: hv_netvsc
             wakeonlan: true
             dhcp4: true
             dhcp6: false
