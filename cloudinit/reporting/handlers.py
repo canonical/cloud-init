@@ -347,6 +347,21 @@ class HyperVKvpReportingHandler(ReportingHandler):
                 break
         return result_array
 
+    def write_key(self, key: str, value: str) -> None:
+        """Write KVP key-value.
+
+        Values will be truncated as needed.
+        """
+        if len(value) >= self.HV_KVP_AZURE_MAX_VALUE_SIZE:
+            value = value[0 : self.HV_KVP_AZURE_MAX_VALUE_SIZE - 1]
+
+        data = [self._encode_kvp_item(key, value)]
+
+        try:
+            self._append_kvp_item(data)
+        except (OSError, IOError):
+            LOG.warning("failed posting kvp=%s value=%s", key, value)
+
     def _encode_event(self, event):
         """
         encode the event into kvp data bytes.

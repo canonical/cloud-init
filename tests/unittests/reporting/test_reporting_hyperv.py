@@ -347,3 +347,18 @@ class TextKvpReporter(CiTestCase):
         self.assertNotEqual(
             kvps[0]["key"], kvps[1]["key"], "duplicate keys for KVP entries"
         )
+
+    def test_write_key(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        reporter.write_key("test-key", "test-value")
+        assert list(reporter._iterate_kvps(0)) == [
+            {"key": "test-key", "value": "test-value"}
+        ]
+
+    def test_write_key_truncates(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+
+        value = "A" * 2000
+        reporter.write_key("test-key", value)
+
+        assert len(list(reporter._iterate_kvps(0))[0]["value"]) == 1023

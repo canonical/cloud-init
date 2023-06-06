@@ -982,6 +982,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
 
         assert [
             mock.call(
+                oracle_ds.distro,
                 iface=m_find_fallback_nic.return_value,
                 connectivity_url_data={
                     "headers": {"Authorization": "Bearer Oracle"},
@@ -1024,6 +1025,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
 
         assert [
             mock.call(
+                oracle_ds.distro,
                 iface=m_find_fallback_nic.return_value,
                 connectivity_url_data={
                     "headers": {"Authorization": "Bearer Oracle"},
@@ -1209,6 +1211,3 @@ class TestNetworkConfig:
             oracle_ds._network_config["config"]
         ), "Config not added"
         assert "" == caplog.text
-
-
-# vi: ts=4 expandtab

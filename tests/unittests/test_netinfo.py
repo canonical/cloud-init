@@ -26,8 +26,17 @@ SAMPLE_ROUTE_OUT_V4 = readResource("netinfo/sample-route-output-v4")
 SAMPLE_ROUTE_OUT_V6 = readResource("netinfo/sample-route-output-v6")
 SAMPLE_IPROUTE_OUT_V4 = readResource("netinfo/sample-iproute-output-v4")
 SAMPLE_IPROUTE_OUT_V6 = readResource("netinfo/sample-iproute-output-v6")
+SAMPLE_IPROUTE_OUT_V6_MISSING_GATEWAY = readResource(
+    "netinfo/sample-iproute-output-v6-missing-gateway"
+)
+SAMPLE_IPROUTE_OUT_V4_MISSING_GATEWAY = readResource(
+    "netinfo/sample-iproute-output-v4-missing-gateway"
+)
 NETDEV_FORMATTED_OUT = readResource("netinfo/netdev-formatted-output")
 ROUTE_FORMATTED_OUT = readResource("netinfo/route-formatted-output")
+ROUTE_FORMATTED_OUT_MISSING_GATEWAY = readResource(
+    "netinfo/route-formatted-output-missing-gateway"
+)
 FREEBSD_NETDEV_OUT = readResource("netinfo/freebsd-netdev-formatted-output")
 
 
@@ -222,6 +231,24 @@ class TestNetInfo:
         m_which.side_effect = lambda x: x if x == "ip" else None
         content = route_pformat()
         assert ROUTE_FORMATTED_OUT == content
+
+    @mock.patch("cloudinit.netinfo.subp.which")
+    @mock.patch("cloudinit.netinfo.subp.subp")
+    def test_route_iproute_pformat_missing_gateway(self, m_subp, m_which):
+        """route_pformat properly rendering info with missing gateway."""
+
+        def subp_iproute_selector(*args, **kwargs):
+            if ["ip", "-o", "route", "list"] == args[0]:
+                return (SAMPLE_IPROUTE_OUT_V4_MISSING_GATEWAY, "")
+            v6cmd = ["ip", "--oneline", "-6", "route", "list", "table", "all"]
+            if v6cmd == args[0]:
+                return (SAMPLE_IPROUTE_OUT_V6_MISSING_GATEWAY, "")
+            raise RuntimeError("Unexpected subp call %s" % args[0])
+
+        m_subp.side_effect = subp_iproute_selector
+        m_which.side_effect = lambda x: x if x == "ip" else None
+        content = route_pformat()
+        assert ROUTE_FORMATTED_OUT_MISSING_GATEWAY == content
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")

@@ -58,7 +58,10 @@ def test_invalid_userdata(client: IntegrationInstance):
     result = client.execute("cloud-init schema --system")
     assert not result.ok
     assert "Cloud config schema errors" in result.stderr
-    assert 'needs to begin with "#cloud-config"' in result.stderr
+    assert (
+        "Expected first line to be one of: #!, ## template: jinja,"
+        " #cloud-boothook, #cloud-config" in result.stderr
+    )
     result = client.execute("cloud-init status --long")
     if not result.ok:
         raise AssertionError(

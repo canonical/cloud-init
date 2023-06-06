@@ -4,10 +4,8 @@ import os
 import time
 
 from cloudinit import helpers, util
-from cloudinit.sources.DataSourceCloudStack import (
-    DataSourceCloudStack,
-    get_latest_lease,
-)
+from cloudinit.net.dhcp import IscDhclient
+from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 MOD_PATH = "cloudinit.sources.DataSourceCloudStack"
@@ -25,7 +23,10 @@ class TestCloudStackPasswordFetching(CiTestCase):
         default_gw = "192.201.20.0"
         get_latest_lease = mock.MagicMock(return_value=None)
         self.patches.enter_context(
-            mock.patch(mod_name + ".get_latest_lease", get_latest_lease)
+            mock.patch(
+                mod_name + ".dhcp.IscDhclient.get_latest_lease",
+                get_latest_lease,
+            )
         )
 
         get_default_gw = mock.MagicMock(return_value=default_gw)
@@ -151,7 +152,8 @@ class TestGetLatestLease(CiTestCase):
         lease_d = self.tmp_dir()
         self._populate_dir_list(lease_d, files)
         self.assertEqual(
-            self.tmp_path(expected, lease_d), get_latest_lease(lease_d)
+            self.tmp_path(expected, lease_d),
+            IscDhclient.get_latest_lease(lease_d),
         )
 
     def test_skips_dhcpv6_files(self):
@@ -198,13 +200,10 @@ class TestGetLatestLease(CiTestCase):
         valid_2_path = self.tmp_path(valid_2, lease_d)
 
         self._populate_dir_list(lease_d, [valid_1, valid_2])
-        self.assertEqual(valid_2_path, get_latest_lease(lease_d))
+        self.assertEqual(valid_2_path, IscDhclient.get_latest_lease(lease_d))
 
         # now update mtime on valid_2 to be older than valid_1 and re-check.
         mtime = int(os.path.getmtime(valid_1_path)) - 1
         os.utime(valid_2_path, (mtime, mtime))
 
-        self.assertEqual(valid_1_path, get_latest_lease(lease_d))
-
-
-# vi: ts=4 expandtab
+        self.assertEqual(valid_1_path, IscDhclient.get_latest_lease(lease_d))

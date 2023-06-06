@@ -268,7 +268,7 @@ This shall be the distro name, version and release as determined by
 
 Example output:
 
-  - alpine, 3.12.0, ''
+  - alpine, 3.12.0, 'Alpine Linux v3.12'
   - centos, 7.5, core
   - debian, 9, stretch
   - freebsd, 12.0-release-p10,

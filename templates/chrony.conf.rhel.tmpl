@@ -11,6 +11,12 @@ pool {{pool}} iburst
 {% for server in servers -%}
 server {{server}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
+{% endfor %}
 
 # Record the rate at which the system clock gains/losses time.
 driftfile /var/lib/chrony/drift

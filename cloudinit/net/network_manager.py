@@ -43,6 +43,7 @@ class NMConnection:
         self.config["connection"] = {
             "id": f"cloud-init {con_id}",
             "uuid": str(uuid.uuid5(CI_NM_UUID, con_id)),
+            "autoconnect-priority": "120",
         }
 
         # This is not actually used anywhere, but may be useful in future
@@ -69,10 +70,11 @@ class NMConnection:
 
         method_map = {
             "static": "manual",
+            "static6": "manual",
             "dhcp6": "auto",
             "ipv6_slaac": "auto",
             "ipv6_dhcpv6-stateless": "auto",
-            "ipv6_dhcpv6-stateful": "auto",
+            "ipv6_dhcpv6-stateful": "dhcp",
             "dhcp4": "auto",
             "dhcp": "auto",
         }
