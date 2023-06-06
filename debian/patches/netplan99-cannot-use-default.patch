@@ -1,0 +1,167 @@
+Description: Retain compatible route definition for netplan 0.99
+ bionic-updates contains netplan v0.99 which is not compatible
+ with Routes' definitions containing `to: default`. This patch
+ retains the previous way to define routes.
+Author: alberto.contreras@canonical.com
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2023-02-27
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/net/netplan.py
++++ b/cloudinit/net/netplan.py
+@@ -120,7 +120,7 @@ def _extract_addresses(config: dict, ent
+             if subnet.get("gateway"):
+                 new_route = {
+                     "via": subnet.get("gateway"),
+-                    "to": "default",
++                    "to": "::/0" if ":" in subnet["gateway"] else "0.0.0.0/0",
+                 }
+                 try:
+                     subnet_gateway = ipaddress.ip_address(subnet["gateway"])
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
+@@ -403,7 +403,7 @@ network:
+                 transmit-hash-policy: layer3+4
+                 up-delay: 0
+             routes:
+-            -   to: default
++            -   to: 0.0.0.0/0
+                 via: 10.101.11.254
+     vlans:
+         bond0.3502:
+@@ -2275,7 +2275,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+                             - sacchromyces.maas
+                             - brettanomyces.maas
+                         routes:
+-                        -   to: default
++                        -   to: 0.0.0.0/0
+                             via: 192.168.0.1
+         """
+         ).rstrip(" "),
+@@ -3015,7 +3015,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+                          transmit-hash-policy: layer3+4
+                          up-delay: 20
+                      routes:
+-                     -   to: default
++                     -   to: 0.0.0.0/0
+                          via: 192.168.0.1
+                      -   to: 10.1.3.0/24
+                          via: 192.168.0.3
+@@ -6081,9 +6081,9 @@ class TestNetplanNetRendering:
+                         macaddress: 00:11:22:33:44:55
+                       set-name: interface0
+                       routes:
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 192.168.23.1
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 11.0.0.1
+                 """,
+                 id="physical_gateway46",
+@@ -6120,9 +6120,9 @@ class TestNetplanNetRendering:
+                       - eth0
+                       - eth1
+                       routes:
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 192.168.23.1
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 11.0.0.1
+                     eth0: {}
+                     eth1: {}
+@@ -6159,9 +6159,9 @@ class TestNetplanNetRendering:
+                       interfaces:
+                       - eth0
+                       routes:
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 192.168.23.1
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 11.0.0.1
+                 """,
+                 id="bridge_gateway46",
+@@ -6195,9 +6195,9 @@ class TestNetplanNetRendering:
+                       id: 101
+                       link: eth0
+                       routes:
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 192.168.23.1
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 11.0.0.1
+                 """,
+                 id="vlan_gateway46",
+@@ -6246,7 +6246,7 @@ class TestNetplanNetRendering:
+                         - exemplary
+                       set-name: interface0
+                       routes:
+-                        - to: default
++                        - to: 0.0.0.0/0
+                           via: 192.168.23.1
+                 """,
+                 id="nameserver_gateway4",
+@@ -6281,7 +6281,7 @@ class TestNetplanNetRendering:
+                       match:
+                         macaddress: 00:11:22:33:44:55
+                       routes:
+-                      -   to: default
++                      -   to: 0.0.0.0/0
+                           via: 192.168.23.1
+                       -   to: 10.176.0.0/24
+                           via: 10.184.225.121
+@@ -6316,7 +6316,7 @@ class TestNetplanNetRendering:
+                       match:
+                         macaddress: 00:11:22:33:44:55
+                       routes:
+-                      -   to: default
++                      -   to: 0.0.0.0/0
+                           via: 192.168.23.1
+                       -   to: 192.167.225.122/24
+                           via: 192.168.23.1
+@@ -6352,10 +6352,10 @@ class TestNetplanNetRendering:
+                       match:
+                         macaddress: 00:11:22:33:44:55
+                       routes:
+-                      -   to: default
++                      -   to: 0.0.0.0/0
+                           via: 192.168.255.1
+                           on-link: true
+-                      -   to: default
++                      -   to: "::/0"
+                           via: 2001:ffff::1
+                           on-link: true
+                       set-name: interface0
+--- a/tests/unittests/distros/test_netconfig.py
++++ b/tests/unittests/distros/test_netconfig.py
+@@ -199,7 +199,7 @@ network:
+             addresses:
+             - 192.168.1.5/24
+             routes:
+-            -   to: default
++            -   to: 0.0.0.0/0
+                 via: 192.168.1.254
+         eth1:
+             dhcp4: true
+@@ -218,7 +218,7 @@ network:
+             addresses:
+             - 2607:f0d0:1002:0011::2/64
+             routes:
+-            -   to: default
++            -   to: ::/0
+                 via: 2607:f0d0:1002:0011::1
+         eth1:
+             dhcp4: true
+@@ -1073,7 +1073,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
+                             addresses:
+                             - 192.168.1.5/24
+                             routes:
+-                            -   to: default
++                            -   to: 0.0.0.0/0
+                                 via: 192.168.1.254
+                         eth1:
+                             dhcp4: true

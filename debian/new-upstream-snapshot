@@ -1,0 +1,170 @@
+#!/bin/sh
+
+TEMP_D=""
+CR='
+'
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+Usage() {
+cat <<EOF
+${0##*/} [branch]
+    update current branch with trunk branch.
+    branch defaults to 'master'
+EOF
+}
+
+print_commit() {
+    local subject="$1" author="$2" bugs="$3" aname="" buf="" abugs=""
+    local indent="    - " indent2="      " ll=79
+    aname=${author% <*}
+    [ "${aname}" = "Scott Moser" ] && aname=""
+    abugs="${aname:+ [${aname}]}${bugs:+ (LP: ${bugs})}"
+    if [ $((${#subject}+${#abugs})) -le $(($ll-${#indent})) ]; then
+        echo "${indent}${subject}${abugs}"
+    elif [ ${#subject} -ge $(($ll-${#indent})) ]; then
+        echo "${subject}${abugs}" |
+            fmt --width=$(($ll-${#indent})) |
+            sed -e "1s/^/${indent}/; 1n;" \
+                -e 's/^[ ]*//' \
+                -e '/^[ ]*$/d' -e "s/^/$indent2/" -e 's/[ ]\+$//'
+
+    else
+        ( echo "${subject}"; echo "${abugs}" ) |
+            fmt --width=$(($ll-${#indent})) |
+            sed -e "1s/^/${indent}/; 1n;" \
+                -e 's/^[ ]*//' \
+                -e '/^[ ]*$/d' -e "s/^/$indent2/" -e 's/[ ]\+$//'
+    fi
+}
+
+git_log_to_dch() {
+    local line="" commit="" lcommit="" bugs=""
+    while :; do
+        read line || break
+        case "$line" in
+            commit\ *)
+                if [ -n "$commit" ]; then
+                    print_commit "$subject" "$author" "$bugs"
+                fi
+                commit=${line#*: }
+                bugs=""
+                author=""
+                subject=""
+                ;;
+            Author:*) author="${line#Author: }";;
+            LP:*) bugs="${bugs:+${bugs}, }${line#*: }";;
+            "") [ -z "$subject" ] && read subject;;
+        esac
+    done
+    if [ -n "$commit" ]; then
+        print_commit "$subject" "$author" "$bugs"
+    fi
+}
+cleanup() {
+    [ ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+from_ref=${1:-"master"}
+cur_branch=$(git rev-parse --abbrev-ref HEAD) ||
+   fail "failed to get current branch"
+
+case "$cur_branch" in
+    ubuntu/*) :;;
+    *) fail "You are on branch '$cur_branch', expect to be on ubuntu/*";;
+esac
+
+TEMP_D=$(mktemp -d) || fail "failed mktemp"
+trap cleanup EXIT
+
+prev_pkg_ver=$(dpkg-parsechangelog --show-field Version) ||
+   fail "failed reading package version"
+pkg_name=$(dpkg-parsechangelog --show-field Source) ||
+   fail "failed to read Source from changelog"
+
+# turn 0.7.7-10-gbc2c326-0ubuntu1 into 'bc2c326'
+t=${prev_pkg_ver%-*}
+prev_pkg_hash=${t##*-g}
+
+new_pkg_debian="0ubuntu1"
+new_upstream_ver=$(git describe --abbrev=8 "${from_ref}")
+new_pkg_ver="${new_upstream_ver}-${new_pkg_debian}"
+
+prev_upstream_ver=${prev_pkg_ver%-*}
+if [ "${prev_upstream_ver}" = "${new_upstream_ver}" ]; then
+    echo "nothing to commit.  '$from_ref' is at ${new_upstream_ver}."
+    exit 0
+fi
+
+dpseries="debian/patches/series"
+if [ -e $dpseries ]; then
+   drops=""
+   while read bname extra; do
+      case "$bname" in
+         cpick-*)
+            commit=${bname#cpick-}
+            commit=${commit%%-*}
+            echo "bname=$bname commit=${commit}" 1>&2
+            if git merge-base --is-ancestor "$commit" "$from_ref"; then
+               drops="${drops} debian/patches/$bname"
+            fi
+            ;;
+         *) echo "$bname${extra:+ ${extra}}";;
+      esac
+   done < $dpseries > "${TEMP_D}/series"
+   drops=${drops# }
+   if [ -n "$drops" ]; then
+      cp "${TEMP_D}/series" "$dpseries" ||
+         fail "failed copying to $dpseries"
+      if [ ! -s $dpseries ]; then
+         git rm --force "$dpseries" ||
+            fail "failed removing empty $dpseries: git rm $dpseries"
+      fi
+      msg="drop cherry picks before merge from ${from_ref} at $new_upstream_ver"
+      msg="$msg${CR}${CR}drop the following cherry picks:"
+      for file in $drops; do
+         git rm "$file" || fail "failed to git rm $file"
+         msg="${msg}$CR  $file"
+      done
+      git commit -m "$msg" "$dpseries" $drops
+   fi
+fi
+
+git merge "${from_ref}" -m "merge from $from_ref at $new_upstream_ver" ||
+    fail "failed: git merge ${from_ref} -m 'merge from $from_ref ..'"
+clog="${TEMP_D}/changelog"
+gitlog="${TEMP_D}/gitlog"
+
+git log --first-parent --no-decorate --format=full \
+   "${prev_pkg_hash}..${from_ref}" >  "$gitlog" ||
+   fail "failed git log ${prev_pkg_hash}..${from_ref}"
+
+cat >> "$clog" <<EOF
+$pkg_name ($new_pkg_ver) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+EOF
+git_log_to_dch < "$gitlog" >> "$clog" ||
+   fail "failed git_log_to_dch"
+cat >> "$clog" <<EOF
+
+ -- ${DEBFULLNAME} <$DEBEMAIL>  $(date -R)
+
+EOF
+
+cat "$clog" "debian/changelog" > "$TEMP_D/newlog" &&
+   cp "$TEMP_D/newlog" "debian/changelog" ||
+   fail "failed replacing debian/changelog"
+
+dch -e || fail "dch -e exited $?"
+
+git diff
+
+echo -n "Commit this change? (Y/n): "
+read answer || fail "failed to read answer"
+case "$answer" in
+   n|[Nn][oO]) exit 1;;
+esac
+
+msg="update changelog (new upstream snapshot $new_upstream_ver)."
+git commit -m "$msg" debian/changelog ||
+   fail "failed to commit '$msg'"

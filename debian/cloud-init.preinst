@@ -1,0 +1,254 @@
+#!/bin/sh
+set -e
+
+# Remove a no-longer used conffile
+rm_conffile() {
+	local PKGNAME="$1"
+	local CONFFILE="$2"
+
+	[ -e "$CONFFILE" ] || return 0
+
+	local md5sum="$(md5sum $CONFFILE | sed -e 's/ .*//')"
+	local old_md5sum="$(dpkg-query -W -f='${Conffiles}' $PKGNAME | \
+			sed -n -e "\' $CONFFILE ' { s/ obsolete$//; s/.* //; p }")"
+	if [ "$md5sum" != "$old_md5sum" ]; then
+		echo "Obsolete conffile $CONFFILE has been modified by you."
+		echo "Saving as $CONFFILE.dpkg-bak ..."
+		mv -f "$CONFFILE" "$CONFFILE".dpkg-bak
+	else
+		echo "Removing obsolete conffile $CONFFILE ..."
+		rm -f "$CONFFILE"
+	fi
+}
+
+# move_sem(src,targets)
+#  rename sem/* items named $src to $targets
+#  (with hard links if more than one)
+move_sem() {
+	local src=$1 f="" targ="" freqid="" dir=/var/lib/cloud/sem
+	shift
+	# link the remaining targets to src, if it exists
+	for f in "${dir}/${src}."*; do
+		# if there were no src entries, nothing to do
+		[ -f "${f}" ] || return 0
+		freqid=${f#${dir}/${src}.} # 'i-abcdefg' or 'always'
+		for targ in "$@"; do
+			[ -e "${dir}/${targ}.${freqid}" ] && continue
+			ln -f "${f}" "${dir}/${targ}.${freqid}"
+		done
+		rm "${f}"
+	done
+   return 0
+}
+
+fix_ephemeral0_micro() {
+   # make ephemeral0 entries in /etc/fstab written by cloudconfig
+   # 'nobootwait', so they do not block subsequent boots (LP: #634102)
+   local out="" oldver=$1 dev="" adop="nobootwait"
+   local s="[[:space:]]" ns="[^[:space:]]" # space and "not space"
+   local remain="${s}\+.*" first4=""
+   for dev in /dev/sda2 /dev/sdb; do
+      first4="${dev}$s\+$ns\+$s\+$ns\+$s\+$ns\+"
+      out=$(awk '$1 == dev && $4 ~ /cloudconfig/ &&  $4 !~ op { print $1 ; }' \
+         dev="${dev}" "op=${adop}" /etc/fstab) || return 0
+      [ -n "${out}" ] || continue
+      echo "making ephemeral ${dev} in /etc/fstab ${adop} (LP: #634102)" 1>&2
+      sed -i "s|^\(${first4}\)\(${remain}\)|\1,${adop}\2|" /etc/fstab
+   done
+}
+
+convert_varlib_05x_06x() {
+   local url="http://169.254.169.254/2009-04-04/meta-data/instance-id"
+   local tout="--connect-timeout .5 --read-timeout .5" 
+   local iid="" f="" uptime="" bn=""
+   iid=$(wget "${url}" ${tout} --tries 1 -O - 2>/dev/null) || iid=""
+
+   [ -n "${iid}" -a -d /var/lib/cloud ] || return 0
+   cd /var/lib/cloud
+   mkdir -p "instances/${iid}" "instances/${iid}/sem"
+   [ -e instance ] || ln -sf "instances/${iid}" instance
+   for f in data/*; do
+      [ -f "$f" ] || continue
+      case "${f#*/}" in
+         user-data.txt.i|user-data.txt|cloud-config.txt)
+            mv "${f}" instance/
+            ;;
+      esac
+   done
+   [ -f data/cache/obj.pkl ] && mv data/cache/obj.pkl instance/
+   for f in sem/*.${iid}; do
+      [ -f "${f}" ] || continue
+      bn=${f#*/}; bn=${bn%.${iid}}
+      case "${bn}" in
+         set_defaults) mv "${f}" "instance/sem/config-locale";;
+         set_hostname) mv "${f}" "instance/sem/config-set_hostname";;
+         *) mv "${f}" "instance/sem/${bn}";;
+      esac
+   done
+   [ ! -f sem/update_hostname.always ] ||
+      mv sem/update_hostname.always sem/config-update_hostname.always
+   rmdir data/cache 2>/dev/null || :
+   rm -f data/available.build
+
+   mkdir -p instance/scripts
+   if [ -d data/scripts ]; then
+      mv data/scripts/* instance/scripts || :
+      rmdir data/scripts || :
+   fi
+   [ -d data/scripts/* ] && mv data/scripts instance/
+
+   [ ! -e instance/boot-finished ] &&
+      [ -f /proc/uptime ] && read uptime other </proc/uptime &&
+      echo "${uptime}" > instance/boot-finished || :
+
+   return 0
+}
+
+azure_apply_new_instance_id_1506187() {
+  # With LP: #1506187, the Azure instance ID detection method was changed
+  # to use the DMI data. In order to prevent existing instances from thinking
+  # they are new instances, the instance ID needs to be updated here.
+
+  if grep DataSourceAzure /var/lib/cloud/instance/datasource > /dev/null 2>&1; then
+
+     product_id_f="/sys/devices/virtual/dmi/id/product_uuid"
+     instance_id_f="/var/lib/cloud/data/instance-id"
+
+     if [ ! -e "${product_id_f}" -o ! -e "${instance_id_f}" ]; then
+        return 0
+     fi
+
+     # Get the current instance ID's (new and old)
+     new_instance_id="$(cat ${product_id_f})"
+     old_instance_id="$(cat ${instance_id_f})"
+
+     if [ "${new_instance_id}" = "${old_instance_id}" ]; then
+        # this may have been applied for a prior version, i.e. upgrading
+        # from 14.04 to 16.04
+        return 0
+
+     elif [ -z "${new_instance_id}" -o -z "${old_instance_id}" ]; then
+        cat <<EOM
+
+WARNING: Failed to migrate old instance ID to new instance ID.
+    Cloud-init may detect this instance as a new instance upon reboot.
+    Please see: https://bugs.launchpad.net/bug/1506187
+
+EOM
+
+     elif [ "${new_instance_id}" != "${old_instance_id}" ]; then
+        cat <<EOM
+
+AZURE: this instance uses an unstable instance ID. Cloud-init will
+    migrate the instance ID from:
+            ${old_instance_id}
+        to:
+            ${new_instance_id}
+    For more information about this change, please see:
+    https://bugs.launchpad.net/bug/1506187
+    https://azure.microsoft.com/en-us/blog/accessing-and-using-azure-vm-unique-id
+
+EOM
+
+        # Write the new instance id
+        echo "${new_instance_id}" > /var/lib/cloud/data/instance-id
+
+        # Remove the symlink for the instance
+        rm /var/lib/cloud/instance
+
+        # Rename the old instance id to the new one
+        mv /var/lib/cloud/instances/${old_instance_id} \
+           /var/lib/cloud/instances/${new_instance_id}
+
+        # Link the old id to the new one, just incase
+        ln -s /var/lib/cloud/instances/${new_instance_id} \
+              /var/lib/cloud/instances/${old_instance_id}
+
+        # Make the active instance the new id
+        ln -s /var/lib/cloud/instances/${new_instance_id} \
+              /var/lib/cloud/instance
+  fi
+fi
+}
+
+cleanup_lp1552999() {
+    local oldver="$1" last_bad_ver="0.7.7~bzr1178"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+    local hdir="/var/lib/systemd/deb-systemd-helper-enabled"
+    hdir="$hdir/multi-user.target.wants" 
+    local edir="/etc/systemd/system/multi-user.target.wants"
+    rm -f "$hdir/cloud-config.service" "$hdir/cloud-final.service" \
+        "$hdir/cloud-init-local.service" "$hdir/cloud-init.service"
+}
+
+case "$1" in
+	install|upgrade)
+		# removing obsolete conffiles from the 'ec2-init' package
+		if dpkg --compare-versions "$2" le "0.5.1"; then
+			rm_conffile ec2-init "/etc/init/cloud-ssh-keygen.conf"
+		fi
+		if dpkg --compare-versions "$2" lt "0.5.3"; then
+			rm_conffile ec2-init "/etc/init/ec2init.conf"
+		fi
+		if [ "$2" = "0.5.7-0ubuntu1" ]; then
+			bad_d=/etc/update-motd.d/92-ec2-upgrade-available
+			rm_conffile cloud-init "${bad_d}/motd-hook"
+			# the dir for this file is almost certainly empty, but
+			# if the file above was only moved, or other files there
+			# then leave it be
+			rmdir "${bad_d}" 2>/dev/null || true
+		fi
+
+		if dpkg --compare-versions "$2" le "0.5.10-0ubuntu2"; then
+			old_confs="cloud-apt-update-upgrade cloud-config-misc
+				cloud-config-mounts cloud-config-puppet
+				cloud-config-ssh cloud-disable-ec2-metadata" 
+			for f in ${old_confs}; do
+				rm_conffile cloud-init "/etc/init/${f}.conf"
+			done
+		fi
+
+		if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
+			# rename the config entries in sem/ so they're not run again
+
+			# transition names in 0.5.11 had only short name (no config- prefix)
+			# so create config- entries for each
+			for name in apt-update-upgrade disable-ec2-metadata mounts \
+				puppet runcmd ssh updates-check; do
+				move_sem ${name} config-${name}
+			done
+
+			# 0.5.11 split 'config-misc' into 'updates-check' and 'runcmd'
+			move_sem config-misc config-updates-check config-runcmd
+		fi
+
+      if dpkg --compare-versions "$2" le "0.5.14-0ubuntu5"; then
+         fix_ephemeral0_micro
+      fi
+
+      if dpkg --compare-versions "$2" le 0.6.0-0ubuntu1; then
+         # convert /var/lib/cloud from 0.5.x layout to 0.6.x
+         convert_varlib_05x_06x
+      fi
+
+      # 0.6.0 changed 'user-scripts' to config-scripts-user (LP: #1049146)
+      if [ -e /var/lib/cloud/instance/sem/user-scripts ]; then
+         ln -sf user-scripts /var/lib/cloud/instance/sem/config-scripts-user
+      fi
+
+      # 0.7.7-bzr1556 introduced new instance ID source for Azure
+      if dpkg --compare-versions "$2" le "0.7.7~bzr1556-0ubuntu1"; then
+         azure_apply_new_instance_id_1506187
+      fi
+
+      d=/etc/cloud/
+      if [ -f "$d/distro.cfg" ] && [ ! -f "$d/cloud.cfg.d/90_dpkg.cfg" ]; then
+         echo "moving $d/distro.cfg -> $d/cloud.cfg.d/90_dpkg.cfg"
+         [ -d "${d}/cloud.cfg.d" ] || mkdir "${d}/cloud.cfg.d"
+         mv "$d/distro.cfg" "$d/cloud.cfg.d/90_dpkg.cfg"
+      fi
+
+      cleanup_lp1552999 "$oldver"
+esac
+
+#DEBHELPER#

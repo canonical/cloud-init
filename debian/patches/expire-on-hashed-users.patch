@@ -1,0 +1,90 @@
+Description: Ensure password expire doesn't apply to hashed users
+Author: james.falcon@canonical.com
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2022-08-12
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -50,7 +50,7 @@ directives in cloud-config.
+ """
+ 
+ 
+-EXPIRE_APPLIES_TO_HASHED_USERS = True
++EXPIRE_APPLIES_TO_HASHED_USERS = False
+ """
+ If ``EXPIRE_APPLIES_TO_HASHED_USERS`` is True, then when expire is set true
+ in cc_set_passwords, hashed passwords will be expired. Previous to 22.3,
+--- a/tests/unittests/config/test_cc_set_passwords.py
++++ b/tests/unittests/config/test_cc_set_passwords.py
+@@ -190,61 +190,6 @@ class TestSetPasswordsHandle:
+     @pytest.mark.parametrize(
+         "user_cfg",
+         [
+-            {
+-                "list": [
+-                    "ubuntu:passw0rd",
+-                    "sadegh:$6$cTpht$Z2pSYxleRWK8IrsynFzHcrnPlpUhA7N9AM/",
+-                ]
+-            },
+-            {
+-                "users": [
+-                    {
+-                        "name": "ubuntu",
+-                        "password": "passw0rd",
+-                        "type": "text",
+-                    },
+-                    {
+-                        "name": "sadegh",
+-                        "password": "$6$cTpht$Z2pSYxleRWK8IrsynFzHcrnPlpUhA7N9AM/",  # noqa: E501
+-                    },
+-                ]
+-            },
+-        ],
+-    )
+-    def test_bsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
+-        self, user_cfg, mocker
+-    ):
+-        """BSD don't use chpasswd"""
+-        mocker.patch(f"{MODPATH}util.is_BSD", return_value=True)
+-        m_subp = mocker.patch(f"{MODPATH}subp.subp")
+-        # patch for ifconfig -a
+-        with mock.patch(
+-            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+-        ):
+-            cloud = get_cloud(distro="freebsd")
+-        cfg = {"chpasswd": user_cfg}
+-        with mock.patch.object(
+-            cloud.distro, "uses_systemd", return_value=False
+-        ):
+-            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
+-        assert [
+-            mock.call(
+-                ["pw", "usermod", "ubuntu", "-h", "0"],
+-                data="passw0rd",
+-                logstring="chpasswd for ubuntu",
+-            ),
+-            mock.call(
+-                ["pw", "usermod", "sadegh", "-H", "0"],
+-                data="$6$cTpht$Z2pSYxleRWK8IrsynFzHcrnPlpUhA7N9AM/",
+-                logstring="chpasswd for sadegh",
+-            ),
+-            mock.call(["pw", "usermod", "ubuntu", "-p", "01-Jan-1970"]),
+-            mock.call(["pw", "usermod", "sadegh", "-p", "01-Jan-1970"]),
+-        ] == m_subp.call_args_list
+-
+-    @pytest.mark.parametrize(
+-        "user_cfg",
+-        [
+             {"expire": "false", "list": ["root:R", "ubuntu:RANDOM"]},
+             {
+                 "expire": "false",
+@@ -504,6 +449,7 @@ expire_cases = [
+ class TestExpire:
+     @pytest.mark.parametrize("cfg", expire_cases)
+     def test_expire(self, cfg, mocker, caplog):
++        features.EXPIRE_APPLIES_TO_HASHED_USERS = True
+         cloud = get_cloud()
+         mocker.patch(f"{MODPATH}subp.subp")
+         mocker.patch.object(cloud.distro, "chpasswd")

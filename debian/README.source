@@ -1,0 +1,29 @@
+=== General Info ===
+Packaging branches for the Ubuntu development release are maintained in
+upstream git under ubuntu/devel branch.
+
+   git clone git://git.launchpad.net/cloud-init -b ubuntu/devel
+
+Stable release branches are also available in ubuntu/<codename>
+   $ git clone git://git.launchpad.net/cloud-init
+   $ cd cloud-init
+   $ git branch -r
+   origin/HEAD -> origin/master
+   origin/master
+   origin/ubuntu/devel
+   origin/ubuntu/precise
+   origin/ubuntu/trusty
+   origin/ubuntu/xenial
+
+Patches in debian/patches are stored un-applied.
+
+== New snapshot ==
+To pull a new upstream snapshot:
+
+ ./debian/new-upstream-snapshot ../trunk
+
+== Cherry Pick ==
+To cherry pick an upstream commit:
+ ./debian/cherry-pick <hash>
+
+That will add a patch to debian/patches/ and debian/patches/series.
