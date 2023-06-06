@@ -372,9 +372,12 @@ system_info:
 {% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
-{% elif variant in ["fedora"] or is_rhel %}
+{% elif variant in ["fedora"] %}
    network:
       renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
+{% elif is_rhel %}
+   network:
+      renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd' ]
 {% elif variant == "openmandriva" %}
    network:
       renderers: ['network-manager', 'networkd']
